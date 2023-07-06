@@ -1,3 +1,5 @@
+# App specific
+.env
 # OSX
 #
 .DS_Store
