@@ -1,5 +1,8 @@
 apply plugin: "com.android.application"
 apply plugin: "com.facebook.react"
+// react-native-camera-kit
+apply plugin: "kotlin-android"
+apply plugin: "kotlin-android-extensions"
 
 import com.android.build.OutputFile
 
