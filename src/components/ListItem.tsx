@@ -1,0 +1,268 @@
+import React, { ReactElement } from "react"
+import { ColorValue, useColorScheme } from "react-native"
+import {
+  StyleProp,
+  TextStyle,
+  TouchableOpacity,
+  TouchableOpacityProps,
+  View,
+  ViewStyle,
+} from "react-native"
+import { useThemeColor, spacing } from "../theme"
+import { Icon, IconTypes } from "./Icon"
+import { Text, TextProps } from "./Text"
+
+export interface ListItemProps extends TouchableOpacityProps {
+  /**
+   * How tall the list item should be.
+   * Default: 56
+   */
+  height?: number
+  /**
+   * Whether to show the top separator.
+   * Default: false
+   */
+  topSeparator?: boolean
+  /**
+   * Whether to show the bottom separator.
+   * Default: false
+   */
+  bottomSeparator?: boolean
+  /**
+   * Text to display if not using `tx` or nested components.
+   */
+  text?: TextProps["text"]
+  /**
+   * Text which is looked up via i18n.
+   */
+  tx?: TextProps["tx"]
+  /**
+   * Sub text to display if not using `tx` or nested components.
+   */
+  subText?: TextProps["text"]
+  /**
+   * Sub text which is looked up via i18n.
+   */
+  subTx?: TextProps["tx"]
+  /**
+   * Children components.
+   */
+  children?: TextProps["children"]
+  /**
+   * Optional options to pass to i18n. Useful for interpolation
+   * as well as explicitly setting locale or translation fallbacks.
+   */
+  txOptions?: TextProps["txOptions"]
+  /**
+   * Optional text style override.
+   */
+  textStyle?: StyleProp<TextStyle>
+  /**
+   * Pass any additional props directly to the Text component.
+   */
+  TextProps?: TextProps
+  /**
+   * Optional View container style override.
+   */
+  containerStyle?: StyleProp<ViewStyle>
+  /**
+   * Optional TouchableOpacity style override.
+   */
+  style?: StyleProp<ViewStyle>
+  /**
+   * Icon that should appear on the left.
+   */
+  leftIcon?: IconTypes
+  /**
+   * An optional tint color for the left icon
+   */
+  leftIconColor?: string
+  leftIconTransform?: string 
+  /**
+   * Icon that should appear on the right.
+   */
+  rightIcon?: IconTypes
+  /**
+   * An optional tint color for the right icon
+   */
+  rightIconColor?: string
+  rightIconTransform?: string
+  /**
+   * Right action custom ReactElement.
+   * Overrides `rightIcon`.
+   */
+  RightComponent?: ReactElement
+  /**
+   * Left action custom ReactElement.
+   * Overrides `leftIcon`.
+   */
+  LeftComponent?: ReactElement
+}
+
+interface ListItemActionProps {
+  icon: IconTypes | undefined
+  iconColor?: ColorValue
+  iconTransform?: string
+  Component?: ReactElement
+  size: number
+  side: "left" | "right"
+}
+
+/**
+ * A styled row component that can be used in FlatList, SectionList, or by itself.
+ *
+ * - [Documentation and Examples](https://github.com/infinitered/ignite/blob/master/docs/Components-ListItem.md)
+ */
+export function ListItem(props: ListItemProps) {
+  const colorScheme = useColorScheme()  
+
+  const {
+    bottomSeparator,
+    children,
+    height = 56,
+    LeftComponent,
+    leftIcon,
+    leftIconColor = useThemeColor('textDim'),
+    leftIconTransform,
+    RightComponent,
+    rightIcon,
+    rightIconColor = useThemeColor('textDim'),
+    rightIconTransform,
+    style,
+    text,
+    subText,
+    TextProps,
+    topSeparator,
+    tx,
+    subTx,
+    txOptions,
+    textStyle: $textStyleOverride,
+    containerStyle: $containerStyleOverride,
+    ...TouchableOpacityProps
+  } = props
+
+  const $textStyles = [$textStyle, $textStyleOverride, TextProps?.style]
+  
+  const separatorColor = useThemeColor('separator')
+  const subTextColor = useThemeColor('textDim')
+
+  const $subTextStyles = [$subTextStyle, TextProps?.style]
+
+  const $containerStyles = [
+    topSeparator && $separatorTop, { borderTopColor: separatorColor },
+    bottomSeparator && $separatorBottom, { borderBottomColor: separatorColor },
+    $containerStyleOverride,
+  ]
+
+  const $touchableStyles = [$touchableStyle, { minHeight: height }, style]
+
+  return (
+    <View style={$containerStyles}>
+      <TouchableOpacity {...TouchableOpacityProps} style={$touchableStyles}>
+        <ListItemAction
+          side="left"
+          size={height}
+          icon={leftIcon}
+          iconColor={leftIconColor}
+          iconTransform={leftIconTransform}
+          Component={LeftComponent}          
+        />
+        {(subText || subTx) ? (
+          <View style={$subTextContainer}>
+            <Text {...TextProps} tx={tx} text={text} txOptions={txOptions} style={[$textStyles, {alignSelf: 'flex-start'}]}>
+              {children}
+            </Text>
+            <Text {...TextProps} size="xs" tx={subTx} text={subText} txOptions={txOptions} style={[$subTextStyles, {color: subTextColor}]}>              
+            </Text>
+          </View>
+        ) : (
+          <Text {...TextProps} tx={tx} text={text} txOptions={txOptions} style={$textStyles}>
+            {children}
+          </Text>    
+        )}
+        
+        <ListItemAction
+          side="right"
+          size={height}
+          icon={rightIcon}
+          iconColor={rightIconColor}
+          iconTransform={rightIconTransform}
+          Component={RightComponent}
+        />
+      </TouchableOpacity>
+    </View>
+  )
+}
+
+function ListItemAction(props: ListItemActionProps) {
+  const { icon, Component, iconColor, iconTransform, size, side } = props
+
+  const $iconContainerStyles = [$iconContainer]
+
+  if (Component) return Component
+
+  if (icon) {
+    return (
+      <Icon
+        size={20}
+        icon={icon}
+        color={iconColor}
+        transform={iconTransform}
+        containerStyle={[
+          $iconContainerStyles,
+          side === "left" && $iconContainerLeft,
+          side === "right" && $iconContainerRight,
+          { height: size },
+        ]}
+      />
+    )
+  }
+
+  return null
+}
+
+const $separatorTop: ViewStyle = {
+  borderTopWidth: 1,  
+}
+
+const $separatorBottom: ViewStyle = {
+  borderBottomWidth: 1,  
+}
+
+const $textStyle: TextStyle = {
+  paddingVertical: spacing.extraSmall,
+  alignSelf: "center",
+  flexGrow: 1,
+  flexShrink: 1,
+}
+
+const $subTextContainer: TextStyle = {  
+  flex: 1,
+  flexDirection: 'column',  
+  // borderColor: 'red',
+  // borderWidth: 1,
+}
+
+const $subTextStyle: TextStyle = {
+  flexGrow: 1,
+  flexShrink: 1,  
+  paddingBottom: spacing.extraSmall,
+}
+
+const $touchableStyle: ViewStyle = {
+  flexDirection: "row",
+  alignItems: "flex-start",
+}
+
+const $iconContainer: ViewStyle = {
+  justifyContent: "center",
+  alignItems: "center",
+  flexGrow: 0,
+}
+const $iconContainerLeft: ViewStyle = {
+  marginEnd: spacing.medium,
+}
+
+const $iconContainerRight: ViewStyle = {
+  marginStart: spacing.medium,
+}
