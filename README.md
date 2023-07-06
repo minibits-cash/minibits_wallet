@@ -169,15 +169,6 @@ yarn build:android:test
 
 The app has the scaffolding for automated tests; they are yet to be implemented. For functional bugs or suggestions please raise an issue.
 
-# Running
-
-After a successful build, start the application with:
-
-```bash
-yarn start
-```
-
 # Contributing
 
 Contributions are welcome, just start and we will figure out what's next.
-
