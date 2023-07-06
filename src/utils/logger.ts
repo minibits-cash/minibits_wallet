@@ -1,7 +1,7 @@
 import {lightFormat} from 'date-fns'
 import * as Sentry from '@sentry/react-native'
 import {Err} from './AppError'
-import {APP_ENV, LOG_LEVEL} from '@env'
+import {APP_ENV, LOG_LEVEL, SENTRY_ACTIVE} from '@env'
 
 export enum LogLevel {
   TRACE = 'TRACE',
@@ -14,6 +14,11 @@ export enum Env {
   DEV = 'DEV',
   TEST = 'TEST',
   PROD = 'PROD',
+}
+
+export enum SentryActive {
+    TRUE = 'TRUE',
+    FALSE = 'FALSE',    
 }
 
 const _showTimestamps: boolean = true
@@ -99,7 +104,7 @@ const info = function (message: string, params: any = [], caller: string = '') {
         } else {
         console.log(`[INFO] [${callerFunctionName}]`, message, params)
         }
-        if (!__DEV__) {
+        if (!__DEV__ && SENTRY_ACTIVE === SentryActive.TRUE) {
             Sentry.captureMessage(message, params)
         }
     }

@@ -120,26 +120,54 @@ Crypto operations are handled by react-native-quick-crypto, that is fast and doe
 
 In case of breaking state and data model changes, versioning and code is ready to run necessary migrations on wallet startup.
 
-To run Minibits wallet in dev mode, set up the React Native development environment and the Yarn package manager. Then clone this repository, navigate to the minibits-wallet directory, and run the following:
+# Running in development mode
+
+To run Minibits wallet in dev mode, set up the React Native development environment and the Yarn package manager. Then clone this repository, navigate to the minibits_wallet directory, and run the following:
 
 ```bash
 yarn install
 ```
 
-There are post-install patches to some of the libraries that should run automatically and are necessary for a successful build. See the patches directory for more info.
+There are post-install patches to some of the libraries that should run automatically and are necessary for a successful run. See the patches directory for more info.
+After the dependecies are installed, continue to create the following .env file in the root folder:
+
+```bash
+APP_ENV = 'DEV'
+LOG_LEVEL = 'TRACE'
+SENTRY_ACTIVE = 'FALSE'
+```
+
+Then make sure you have the Android device connected by running:
+
+```bash
+yarn adb
+```
+
+Finally run this and pray:
+
+```bash
+yarn start
+```
+
+In case of issues, repo includes commits history from out of the box react native app up until the complete wallet. You can see build.gradle and other changes one by one and hopefully figure out what's wrong.
 
 # Building
 
-To run the wallet on a simulator or connected Android device, you need to build the application:
+Create debug apk:
 
 ```bash
-yarn adb # run if you use a USB-connected Android device
 yarn build:android:dev
+```
+
+Create release apk:
+
+```bash
+yarn build:android:test
 ```
 
 # Testing
 
-The app has the scaffolding for automated tests; they are yet to be implemented.
+The app has the scaffolding for automated tests; they are yet to be implemented. For functional bugs or suggestions please raise an issue.
 
 # Running
 
