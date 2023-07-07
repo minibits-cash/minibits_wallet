@@ -16,9 +16,7 @@ import {
   getInvoiceData,
   getMintsFromToken,
   getProofsAmount,
-
   getTokenAmounts,
-
 } from './cashuHelpers'
 import AppError, {Err} from '../utils/AppError'
 import {MintBalance} from '../models/Mint'
@@ -224,7 +222,7 @@ const receive = async function (
         if (tokenMints.length === 0) {
             throw new AppError(
                 Err.VALIDATION_ERROR,
-                'Could not get any mint information from the coins',
+                'Could not get any mint information from the coins.',
             )
         }
 
@@ -262,7 +260,7 @@ const receive = async function (
 
             return {
                 transaction: blockedTransaction,
-                message: `The mint ${blockedMints.toString()} is blocked in your settings. You can unblock it in Settings.`,
+                message: `The mint ${blockedMints.toString()} is blocked. You can unblock it in Settings.`,
             } as TransactionResult
         }
 
@@ -369,14 +367,14 @@ const receive = async function (
         if (amountWithErrors > 0) {
         return {
             transaction: completedTransaction,
-            message: `You received ${receivedAmount} to your minibits wallet. ${amountWithErrors} could not be redeemed from the mint`,
+            message: `You received ${receivedAmount} sats to your minibits wallet. ${amountWithErrors} could not be redeemed from the mint`,
             receivedAmount,
         } as TransactionResult
         }
 
         return {
             transaction: completedTransaction,
-            message: `You received ${receivedAmount} to your minibits wallet.`,
+            message: `You received ${receivedAmount} sats to your minibits wallet.`,
             receivedAmount,
         } as TransactionResult
     } catch (e: any) {
@@ -423,7 +421,7 @@ const _sendFromMint = async function (
     if (proofsFromMint.length < 1) {
       throw new AppError(
         Err.VALIDATION_ERROR,
-        'Could not find proofs for the selected mint',
+        'Could not find coins for the selected mint',
       )
     }
 
@@ -730,7 +728,7 @@ const transfer = async function (
 
         return {
             transaction: revertedTransaction,
-            message: 'Payment of lightning invoice failed. Tokens were returned to your wallet.',
+            message: 'Payment of lightning invoice failed. Coins were returned to your wallet.',
         } as TransactionResult
     }
 
@@ -765,7 +763,7 @@ const transfer = async function (
 
     return {
         transaction: completedTransaction,
-        message: `Lightning invoice has been successfully paid and settled with your minibits tokens. Final lightning network fee has been ${finalFee} sats.`,
+        message: `Lightning invoice has been successfully paid and settled with your minibits coins. Final lightning network fee has been ${finalFee} sats.`,
         finalFee,
     } as TransactionResult
   } catch (e: any) {
@@ -862,7 +860,7 @@ const topup = async function (
         if (amount !== amountToTopup) {
         throw new AppError(
             Err.MINT_ERROR,
-            'Received lightning invoice amount does not equal requested top-up amount',
+            'Received lightning invoice amount does not equal requested top-up amount.',
         )
         }
 
@@ -979,7 +977,7 @@ const topup = async function (
             if (receivedAmount !== invoice.amount) {
                 throw new AppError(
                 Err.VALIDATION_ERROR,
-                `Received amount ${receivedAmount} is not equal to the requested amount ${invoice.amount}`,
+                `Received amount ${receivedAmount} sats is not equal to the requested amount ${invoice.amount} sats.`,
                 )
             }
 
