@@ -1,21 +1,15 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useEffect, useState, useCallback, useRef} from 'react'
+import React, {FC, useEffect, useState, useCallback} from 'react'
 import {useFocusEffect} from '@react-navigation/native'
 import {
   UIManager,
   Platform,
-  Alert,
-  TextInput,
   TextStyle,
   View,
   ViewStyle,
-  LayoutAnimation,
-  ScrollView,
-  Share,
 } from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
-import {spacing, typography, useThemeColor, colors} from '../theme'
-import {useSafeAreaInsetsStyle} from '../utils/useSafeAreaInsetsStyle'
+import {spacing, useThemeColor, colors} from '../theme'
 import {WalletStackScreenProps} from '../navigation'
 import {
   Button,
@@ -27,8 +21,7 @@ import {
   ErrorModal,
   ListItem,
   BottomModal,
-  Text,
-  IconTypes,
+  Text,  
 } from '../components'
 import {Mint} from '../models/Mint'
 import {Transaction, TransactionStatus} from '../models/Transaction'
@@ -37,14 +30,12 @@ import {useHeader} from '../utils/useHeader'
 import {MintClient, Wallet} from '../services'
 import {log} from '../utils/logger'
 import AppError, {Err} from '../utils/AppError'
-import {translate} from '../i18n'
 import {
   decodeInvoice,
   LightningInvoice,
   getInvoiceData,
 } from '../services/cashuHelpers'
 import {MintBalance} from '../models/Mint'
-import {isNumber} from 'lodash'
 import {MintListItem} from './Mints/MintListItem'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 
@@ -63,7 +54,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
       onLeftPress: () => navigation.goBack(),
     })
 
-    const {proofsStore, mintsStore, transactionsStore} = useStores()
+    const {proofsStore, mintsStore} = useStores()
 
 
   const [encodedInvoice, setEncodedInvoice] = useState<string>('')
@@ -395,7 +386,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
                                 <Button
                                     preset="secondary"
                                     tx={'common.close'}
-                                    onPress={resetState}
+                                    onPress={() => navigation.navigate('Wallet')}
                                 />
                                 </View>
                             </>

@@ -1,13 +1,10 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useState, useEffect, useRef, useMemo} from 'react'
+import React, {FC, useState, useEffect, useCallback} from 'react'
+import {useFocusEffect} from '@react-navigation/native'
 import {
-  ImageStyle,
   TextStyle,
   ViewStyle,
   View,
-  ScrollView,
-  Alert,
-  Pressable,
   Text as RNText,
 } from 'react-native'
 import Animated, {
@@ -31,21 +28,17 @@ import {
 import {useStores} from '../models'
 import {WalletStackScreenProps} from '../navigation'
 import {useHeader} from '../utils/useHeader'
-import {Mint} from '../models/Mint'
+import {Mint, MintBalance} from '../models/Mint'
 import {MintsByHostname} from '../models/MintsStore'
 import {log} from '../utils/logger'
 import {Transaction} from '../models/Transaction'
 import {TransactionListItem} from './Transactions/TransactionListItem'
-import {Database, MintClient, MintKeys, MintKeySets, Wallet} from '../services'
+import {MintClient, MintKeys, MintKeySets, Wallet} from '../services'
 import {translate} from '../i18n'
 import AppError from '../utils/AppError'
 
 interface WalletScreenProps extends WalletStackScreenProps<'Wallet'> {}
 
-type MintBalance = {
-  mint: string
-  balance: number
-}
 
 export const WalletScreen: FC<WalletScreenProps> = observer(
   function WalletScreen(_props) {
@@ -77,11 +70,18 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
       }
     })
 
+    const [balances, setBalances] = useState(() => proofsStore.getBalances())
     const [info, setInfo] = useState<string>('')
     const [error, setError] = useState<AppError | undefined>()
-    const [isLoading, setIsLoading] = useState(false)
-    const [isLightningModalVisible, setIsLightningModalVisible] =
-      useState(false)
+    const [isLoading, setIsLoading] = useState<boolean>(false)
+    const [isLightningModalVisible, setIsLightningModalVisible] = useState<boolean>(false)
+
+    useFocusEffect(
+        useCallback(() => {
+            const updatedBalances = proofsStore.getBalances()
+            setBalances(updatedBalances)            
+        }, [])
+    )
 
     useEffect(() => {
       // Check with mints if some of pending SEND and TOPUP transactions
@@ -164,7 +164,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
       setError(e)
     }
 
-    const balances = proofsStore.getBalances()
+    //const balances = proofsStore.getBalances()
     const screenBg = useThemeColor('background')
 
     return (

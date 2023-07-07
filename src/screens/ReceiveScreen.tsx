@@ -324,7 +324,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                   <Button
                     preset="secondary"
                     tx={'common.close'}
-                    onPress={resetState}
+                    onPress={() => navigation.navigate('Wallet')}
                   />
                 </View>
               ) : (
@@ -370,7 +370,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                     <Button
                       preset="secondary"
                       tx={'common.close'}
-                      onPress={resetState}
+                      onPress={() => navigation.navigate('Wallet')}
                     />
                   </View>
                 </>

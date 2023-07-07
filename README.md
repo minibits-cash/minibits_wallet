@@ -149,7 +149,7 @@ Finally run this and pray:
 yarn start
 ```
 
-In case of issues, repo includes commits history from out of the box react native app up until the complete wallet. You can see build.gradle and other changes one by one and hopefully figure out what's wrong.
+In case of issues, repo includes commits history from the out of the box react native app up until the complete wallet. You can see build.gradle and other changes one by one and hopefully figure out what's wrong.
 
 # Building
 
