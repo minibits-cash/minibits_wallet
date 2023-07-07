@@ -81,12 +81,12 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
                 preset="default"
                 style={$welcomeIntro}
                 />
-                <View style={{maxHeight: spacing.screenHeight * 0.3}}>
-                <FlatList
-                    data={warnings}
-                    renderItem={renderWarningItem}
-                    keyExtractor={item => item.id}
-                />
+                <View style={$listContainer}>
+                    <FlatList
+                        data={warnings}
+                        renderItem={renderWarningItem}
+                        keyExtractor={item => item.id}
+                    />
                 </View>
             </View>
             <View style={[$bottomContainer, $bottomContainerInsets]}>
@@ -106,9 +106,14 @@ const $container: ViewStyle = {
   padding: spacing.medium,
 }
 
+const $listContainer: ViewStyle = {
+    maxHeight: spacing.screenHeight * 0.4,    
+}
+
 const $listItem: ViewStyle = {
   flexDirection: 'row',
   marginBottom: spacing.small,
+  marginRight: spacing.small,
 }
 
 const $itemIcon: ViewStyle = {

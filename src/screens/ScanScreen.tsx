@@ -1,12 +1,8 @@
-import React, {FC, useEffect, useState} from 'react'
+import React, {FC, useState, useEffect} from 'react'
 import {
-  ImageStyle,
-  TextStyle,
-  View,
-  ViewStyle,
-  useColorScheme,
-  StyleSheet,
-  Alert,
+    Platform,
+    PermissionsAndroid,
+    Alert,
 } from 'react-native'
 import {WalletStackScreenProps} from '../navigation'
 import {CameraScreen} from 'react-native-camera-kit'
@@ -17,6 +13,12 @@ import {log} from '../utils/logger'
 import AppError, {Err} from '../utils/AppError'
 import {decodeInvoice, decodeToken} from '../services/cashuHelpers'
 
+const hasAndroidCameraPermission = async () => {
+    const cameraPermission = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA)
+    return cameraPermission !== PermissionsAndroid.RESULTS.BLOCKED && cameraPermission !== PermissionsAndroid.RESULTS.DENIED
+}
+
+
 export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScreen(_props) {
     const {navigation, route} = _props
     useHeader({
@@ -26,8 +28,14 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
       onLeftPress: () => navigation.goBack(),
     })
 
-    const [isScanned, setIsScanned] = useState<boolean>(false)
-    const [error, setError] = useState<AppError | undefined>()
+    const [shouldLoad, setShouldLoad] = useState<boolean>(false)
+    const [isScanned, setIsScanned] = useState<boolean>(false)    
+
+    useEffect(() => {
+        (async () => {
+          setShouldLoad(Platform.OS !== 'android' || (await hasAndroidCameraPermission()))
+        })()
+    }, [])
 
 
     const onReadCode = function(event: any) {
@@ -178,19 +186,18 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
         }
     }
 
-    return (
+    return (shouldLoad ? (
         <CameraScreen
-            actions={{rightButtonText: 'Done', leftButtonText: 'Cancel'}}
-            // onBottomButtonPressed={(event) => onBottomButtonPressed(event)}
+            actions={{rightButtonText: 'Done', leftButtonText: 'Cancel'}}            
             scanBarcode
             onReadCode={event => (isScanned ? undefined : onReadCode(event))}
-            hideControls
-            // showFrame
+            hideControls            
         />
+        ) : null
     )
 }
 
-const $container: ViewStyle = {
+/* const $container: ViewStyle = {
   alignItems: 'center',
 }
 
@@ -204,4 +211,4 @@ const $bottomContainer: ViewStyle = {
   flex: 1,
   justifyContent: 'flex-end',
   alignSelf: 'stretch',
-}
+} */
