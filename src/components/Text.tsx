@@ -1,7 +1,6 @@
 import { I18nOptions } from "i18n-js"
-import { i18n } from "../i18n/i18n"
 import React from "react"
-import { StyleProp, Text as RNText, TextProps as RNTextProps, TextStyle, useColorScheme } from "react-native"
+import { StyleProp, Text as RNText, TextProps as RNTextProps, TextStyle } from "react-native"
 import { translate, TxKeyPath } from "../i18n"
 import { useThemeColor, typography } from "../theme"
 

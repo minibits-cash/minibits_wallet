@@ -27,6 +27,7 @@ import {
 } from '../components'
 import {useStores} from '../models'
 import {WalletStackScreenProps} from '../navigation'
+import useIsInternetReachable from '../utils/useIsInternetReachable'
 import {useHeader} from '../utils/useHeader'
 import {Mint, MintBalance} from '../models/Mint'
 import {MintsByHostname} from '../models/MintsStore'
@@ -44,6 +45,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
   function WalletScreen(_props) {
     const {navigation} = _props
     const {mintsStore, proofsStore, transactionsStore} = useStores()
+    const isInternetReachable = useIsInternetReachable()
 
     useHeader({
       rightIcon: 'faBolt',
@@ -83,7 +85,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         }, [])
     )
 
-    useEffect(() => {
+    useEffect(() => {      
+      if(!isInternetReachable) return
       // Check with mints if some of pending SEND and TOPUP transactions
       // were completed and update balances accordingly
       Wallet.checkPendingSpent()
@@ -420,6 +423,7 @@ const $screen: ViewStyle = {
 const $headerContainer: TextStyle = {
   alignItems: 'center',
   paddingBottom: spacing.medium,
+  paddingTop: spacing.extraSmall,
   height: spacing.screenHeight * 0.18,
 }
 
