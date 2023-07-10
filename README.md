@@ -26,7 +26,7 @@ Mints
 - [x] Remove mint with zero balance
 - [x] Block receiving from mint
 - [x] Show mint balances grouped by hostname
-- [ ] Handle mint keysets rotation
+- [x] Handle mint keys rotation (not tested)
 - [ ] Mint status and information screen
 - [ ] Change mint's short name and color
 

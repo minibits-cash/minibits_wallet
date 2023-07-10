@@ -1,6 +1,7 @@
 import {
   CashuMint,
   CashuWallet,
+  deriveKeysetId,
   PayLnInvoiceResponse,
   type Proof as CashuProof,
 } from '@cashu/cashu-ts'
@@ -40,14 +41,13 @@ const getWallet = function (mintUrl: string) {
   return wallet
 }
 
-const getMintKeys = async function (mintURL: string) {
-  const mint = getMint(mintURL)
-
+const getMintKeys = async function (mintUrl: string) {
+  const mint = getMint(mintUrl)
   let keys: MintKeys
-  let keysets: MintKeySets
-
+  let keyset: string
+  
   try {
-    keysets = await mint.getKeySets()
+    // keysets = await mint.getKeySets()
     keys = await mint.getKeys()
   } catch (e: any) {
     throw new AppError(
@@ -61,17 +61,20 @@ const getMintKeys = async function (mintURL: string) {
     throw new AppError(
       Err.VALIDATION_ERROR,
       'Invalid keys retrieved from the selected mint',
-      mintURL,
+      mintUrl,
     )
   }
 
-  const newMintKeys: {keys: MintKeys; keysets: MintKeySets} = {
+  keyset = deriveKeysetId(keys)
+
+  const newMintKeys: {keys: MintKeys; keyset: string} = {
     keys,
-    keysets,
+    keyset,
   }
 
   return newMintKeys
 }
+
 
 const receiveFromMint = async function (mintUrl: string, encodedToken: string) {
   try {
@@ -119,8 +122,6 @@ const sendFromMint = async function (
     const totalAmountToSendFrom = getProofsAmount(proofsToSendFrom)
     const returnedAmount = getProofsAmount(returnChange as Proof[])
     const proofsAmount = getProofsAmount(send as Proof[])
-
-    // if (newKeys) { _setKeys(mintUrl, newKeys) }
 
     if (proofsAmount !== amountToSend) {
       throw new AppError(
@@ -206,6 +207,7 @@ const payLightningInvoice = async function (
       feeSavedProofs: change,
       isPaid,
       preimage,
+      newKeys
     }
   } catch (e: any) {
     throw new AppError(Err.MINT_ERROR, e.message)
@@ -248,7 +250,10 @@ const requestProofs = async function (
     // if (newKeys) { _setKeys(mintUrl, newKeys) }
     log.trace('[requestProofs]', proofs)
 
-    return proofs as CashuProof[]
+    return {
+        proofs, 
+        newKeys
+    }
   } catch (e: any) {
     // silent
     log.error(Err.MINT_ERROR, e.message)

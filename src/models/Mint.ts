@@ -52,6 +52,11 @@ export const MintModel = types
         setColor(color: string) {
             self.color = color
         },
+        updateKeys(keyset: string, keys: MintKeys) {
+            // not sure why to keep keysetIDs history and even keys, cashu-ts seems to (on first look) get current keys before each mint interaction
+            self.keysets.push(keyset) 
+            self.keys = keys
+        },
   }))
 
 export type Mint = {
