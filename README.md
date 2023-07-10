@@ -106,7 +106,7 @@ Open architectural concepts worth wider discussion
 
 Minibits wallet is in alpha and available as of now only for Android devices. You have the following options to try it out:
 - [ ] Join open testing program on Google Play (NOT READY YET)
-- [ ] Download .apk file from Releases page and install it on your phone (NOT READY YET)
+- [X] Download .apk file from Releases page and install it on your phone
 
 # Development
 
@@ -153,16 +153,16 @@ In case of issues, repo includes commits history from the out of the box react n
 
 # Building
 
-Create debug apk:
+Create debug .apk:
 
 ```bash
-yarn build:android:dev
+yarn android:dev
 ```
 
-Create release apk:
+Create release .apk:
 
 ```bash
-yarn build:android:test
+yarn android:test
 ```
 
 # Testing
