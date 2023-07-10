@@ -12,7 +12,7 @@
 
 # Minibits Wallet
 
-Minibits is an e-cash wallet with a focus on performance and usability. Cash is issued by mints and backed by Bitcoin via the Cashu protocol and Lightning Network.
+Minibits is an e-cash wallet with a focus on performance and usability. Cash is issued by mints and backed by Bitcoin via the [Cashu](https://cashu.space) protocol and Lightning Network.
 
 ## Roadmap
 
@@ -105,7 +105,7 @@ Open architectural concepts worth wider discussion
 ## Download and test
 
 Minibits wallet is in alpha and available as of now only for Android devices. You have the following options to try it out:
-- [ ] Join open testing program on Google Play (NOT READY YET)
+- [x] Join testing program on Google Play (Closed testing ongoing, submit your email to get an invite on [Minibits.cash](https://minibits.cash))
 - [X] Download .apk file from Releases page and install it on your phone
 
 # Development
@@ -114,7 +114,7 @@ Minibits is a bare React Native app written in Typescript. The project structure
 
 The code is derived from Ignite template, however with many libraries, notably Expo, stripped down to achieve fast startup times. Performance bottleneck on some Android devices is react-native-keychain. To overcome this, it has been patched not to warm-up on startup and its use to encrypt storage is opt-in.
 
-Wallet state is managed by mobx-state-tree and persisted in fast MMKV storage. Only the basic mobx concepts are in place, whole model could be improved. All critical wallet code is in services/walletService.ts and all coins state changes are in models/ProofsStore.ts. Wallet communication with the mints is in services/cashuMintClient.ts and uses @cashu/cashu-ts library.
+Wallet state is managed by mobx-state-tree and persisted in fast MMKV storage. Only the basic mobx concepts are in place, whole model could be improved. All critical wallet code is in services/walletService.ts and all coins state changes are in models/ProofsStore.ts. Wallet communication with the mints is in services/cashuMintClient.ts and uses [cashu-ts](https://github.com/cashubtc/cashu-ts) library.
 
 Crypto operations are handled by react-native-quick-crypto, that is fast and does not require awful javascript shims. Transaction history and coins backup is stored in sqlite, with fast react-native-quick-sqlite driver that enables to run lighter queries synchronously.
 
