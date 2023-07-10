@@ -189,8 +189,40 @@ export const getProofsSubset = function (
   return proofs.filter(proof => !proofsToRemove.includes(proof))
 }
 
+
+export const validateMintKeys = function (keys: object): boolean {
+    let isValid = true
+    try {
+      const allKeys = Object.keys(keys)
+  
+      if (!allKeys) {
+        return false
+      }
+  
+      if (allKeys.length < 1) {
+        return false
+      }
+      allKeys.forEach(k => {
+        //try parse int?
+        if (isNaN(k)) {
+          isValid = false
+        }
+        if (!isPow2(k)) {
+          isValid = false
+        }
+      })
+      return isValid
+    } catch (error) {
+      return false
+    }
+  }
+  
+  const isPow2 = function (number: number) {
+    return Math.log2(number) % 1 === 0
+  }
+
 ////////////////////////////
-// original nutstash methods
+// original nutstash methods - unused
 ////////////////////////////
 
 /**
@@ -212,36 +244,7 @@ export const getMintFromProof = function (
   return mint
 }
 
-export const validateMintKeys = function (keys: object): boolean {
-  let isValid = true
-  try {
-    const allKeys = Object.keys(keys)
 
-    if (!allKeys) {
-      return false
-    }
-
-    if (allKeys.length < 1) {
-      return false
-    }
-    allKeys.forEach(k => {
-      //try parse int?
-      if (isNaN(k)) {
-        isValid = false
-      }
-      if (!isPow2(k)) {
-        isValid = false
-      }
-    })
-    return isValid
-  } catch (error) {
-    return false
-  }
-}
-
-const isPow2 = function (number: number) {
-  return Math.log2(number) % 1 === 0
-}
 
 /**
  * returns a subset of all tokens that belong to the specified mint

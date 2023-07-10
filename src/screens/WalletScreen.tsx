@@ -111,13 +111,13 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
         const mintKeys: {
           keys: MintKeys
-          keysets: MintKeySets
+          keyset: string
         } = await MintClient.getMintKeys(mintUrl)
 
         const newMint: Mint = {
           mintUrl,
           keys: mintKeys.keys,
-          keysets: mintKeys.keysets.keysets,
+          keysets: [mintKeys.keyset],
         }
 
         mintsStore.addMint(newMint)
