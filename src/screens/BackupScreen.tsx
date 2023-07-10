@@ -101,7 +101,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
     const headerBg = useThemeColor('header')
 
     return (
-      <Screen style={$screen}>
+      <Screen preset='auto' style={$screen}>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text preset="heading" text="Backup" style={{color: 'white'}} />
         </View>

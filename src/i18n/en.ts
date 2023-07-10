@@ -7,6 +7,7 @@ const en = {
     paste: "Paste",
     scan: "Scan",
     copy: "Copy",
+    offline: "Offline",
   },
   welcomeScreen: {
     heading: "Welcome to Minibits",

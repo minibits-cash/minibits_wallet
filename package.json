@@ -20,6 +20,7 @@
     "@fortawesome/free-solid-svg-icons": "^6.4.0",
     "@fortawesome/react-native-fontawesome": "^0.3.0",
     "@react-native-clipboard/clipboard": "^1.11.2",
+    "@react-native-community/netinfo": "^9.4.1",
     "@react-navigation/bottom-tabs": "^6.5.7",
     "@react-navigation/native": "^6.1.6",
     "@react-navigation/native-stack": "^6.9.12",

@@ -5,15 +5,15 @@ import {
   TouchableOpacity,
   TouchableOpacityProps,
   View,
-  ViewStyle,
-  useColorScheme,  
+  ViewStyle,  
   StatusBar,
   StatusBarProps,
   ColorValue
 } from "react-native"
 import { useIsFocused } from '@react-navigation/native'
+import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { translate } from "../i18n"
-import { useThemeColor, spacing, colors } from "../theme"
+import { useThemeColor, spacing, colors, typography } from "../theme"
 import { displayName as appName } from '../../app.json'
 import { ExtendedEdge, useSafeAreaInsetsStyle } from "../utils/useSafeAreaInsetsStyle"
 import { Icon, IconTypes } from "./Icon"
@@ -161,7 +161,7 @@ function FocusAwareStatusBar(props: StatusBarProps) {
  * - [Documentation and Examples](https://github.com/infinitered/ignite/blob/master/docs/Components-Header.md)
  */
 export function Header(props: HeaderProps) {
-  const colorScheme = useColorScheme()
+  const isInternetReachable = useIsInternetReachable()
   
   const {
     backgroundColor = useThemeColor('header'),
@@ -213,25 +213,30 @@ export function Header(props: HeaderProps) {
           backgroundColor={backgroundColor}
           ActionComponent={LeftActionComponent}
         />
-
-        {!!titleContent && (
-          <View
-            style={[
-              titleMode === "center" && $titleWrapperCenter,
-              titleMode === "flex" && $titleWrapperFlex,
-              $titleContainerStyleOverride,
-            ]}
-            pointerEvents="none"
-          >
-            <Text
-              weight="medium"
-              size="lg"
-              text={titleContent}
-              style={[$title, $titleStyleOverride]}
-            />
-          </View>
-        )}
-
+        {!!titleContent && (            
+            <View
+                style={[
+                    titleMode === "center" && $titleWrapperCenter,
+                    titleMode === "flex" && $titleWrapperFlex,
+                    $titleContainerStyleOverride,
+                ]}
+                pointerEvents="none"
+            >
+                <Text
+                        weight="medium"
+                        size="lg"
+                        text={titleContent}
+                        style={[$title, $titleStyleOverride]}
+                />
+                {!isInternetReachable && (
+                    <Text                    
+                        size="xxs"
+                        tx='common.offline'
+                        style={$offline}
+                    />
+                )}
+            </View>            
+        )} 
         <HeaderAction
           tx={rightTx}
           text={rightText}
@@ -255,7 +260,7 @@ function HeaderAction(props: HeaderActionProps) {
   if (ActionComponent) return ActionComponent
 
   if (content) {
-    return (
+    return (        
       <TouchableOpacity
         style={[$actionTextContainer, { backgroundColor }]}
         onPress={onPress}
@@ -268,14 +273,14 @@ function HeaderAction(props: HeaderActionProps) {
   }
 
   if (icon) {
-    return (
+    return (        
       <Icon
         size={20}
         icon={icon}
         color={iconColor}
         onPress={onPress}
         containerStyle={[$actionIconContainer, { backgroundColor }]}        
-      />
+      />      
     )
   }
 
@@ -285,8 +290,10 @@ function HeaderAction(props: HeaderActionProps) {
 const $wrapper: ViewStyle = {
   height: 56,
   flexDirection: "row",
-  alignItems: "center",
+  alignItems: "center",  
   justifyContent: "space-between",
+  // borderWidth: 1,
+  // borderColor: 'red',
 }
 
 const $container: ViewStyle = {
@@ -295,7 +302,7 @@ const $container: ViewStyle = {
 
 const $title: TextStyle = {
   textAlign: "center",
-  fontFamily: 'Gluten-Regular',
+  fontFamily: typography.logo.normal,
   color: 'white'
 }
 
@@ -322,7 +329,7 @@ const $actionIconContainer: ViewStyle = {
 }
 
 const $actionFillerContainer: ViewStyle = {
-  width: 16,
+    width: 16,
 }
 
 const $titleWrapperCenter: ViewStyle = {
@@ -338,4 +345,12 @@ const $titleWrapperCenter: ViewStyle = {
 const $titleWrapperFlex: ViewStyle = {
   justifyContent: "center",
   flexGrow: 1,
+}
+
+const $offline: TextStyle = {
+    position: 'absolute',
+    bottom: -5,
+    fontFamily: typography.code?.normal,
+    color: colors.palette.accent200,
+    paddingHorizontal: spacing.tiny,
 }
