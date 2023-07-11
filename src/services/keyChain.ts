@@ -15,7 +15,7 @@ const generateKeyPair = async function () {
     log.trace('New ed25519 keyPair:', keyPair)
     return keyPair
   } catch (e: any) {
-    throw new AppError(Err.KEYCHAIN_ERROR, e.message, [e])
+    throw new AppError(Err.KEYCHAIN_ERROR, e.message, e)
   }
 }
 
@@ -35,8 +35,18 @@ const generateEncryptionKey = (): string => {
   }
 }
 
+const getSupportedBiometryType = async function () {
+    try {
+      const biometryType = await _Keychain.getSupportedBiometryType({})
+      log.trace('biometryType', biometryType)
+      return biometryType
+    } catch (e: any) {
+      throw new AppError(Err.KEYCHAIN_ERROR, e.message, e)
+    }
+  }
+
 /**
- * Save keypair to KeyChain/KeyStore
+ * Save keypair to KeyChain/KeyStore - NOT USED
  *
  * @param keyPair The key to fetch.
  */
@@ -55,12 +65,12 @@ const saveKeyPair = async function (
 
     return result
   } catch (e: any) {
-    throw new AppError(Err.KEYCHAIN_ERROR, e.message, [e])
+    throw new AppError(Err.KEYCHAIN_ERROR, e.message, e)
   }
 }
 
 /**
- * Loads keypair from KeyChain/KeyStore
+ * Loads keypair from KeyChain/KeyStore - NOT USED 
  *
  *
  */
@@ -91,7 +101,15 @@ const loadEncryptionKey = async function (
 ): Promise<string | undefined> {
   try {
     log.trace('Load encryptionKey from KeyChain start')
-    const result = await _Keychain.getGenericPassword({service})
+    const result = await _Keychain.getGenericPassword({
+        service, 
+        authenticationPrompt: {
+            title: 'Authentication required',
+            subtitle: '',
+            description: 'Your Minibits wallet data is encrypted. Please authenticate to get access.',
+            cancel: 'Cancel',
+        },
+    })
 
     if (result) {
       const key = result.password
@@ -102,7 +120,7 @@ const loadEncryptionKey = async function (
     log.trace('Did not find existing encryptionKey in the KeyChain')
     return undefined
   } catch (e: any) {
-    throw new AppError(Err.KEYCHAIN_ERROR, e.message)
+    throw new AppError(Err.KEYCHAIN_ERROR, 'Could not load encryption key', 'loadEncryptionKey', e.message)
   }
 }
 
@@ -116,13 +134,16 @@ const saveEncryptionKey = async function (
   service: KeyChainServiceName,
 ): Promise<_Keychain.Result | false> {
   try {
-    const result = await _Keychain.setGenericPassword(service, key, {service})
+    const result = await _Keychain.setGenericPassword(service, key, {
+        service,
+        accessControl: _Keychain.ACCESS_CONTROL.BIOMETRY_ANY_OR_DEVICE_PASSCODE
+    })
 
     log.trace('Saved encryptionKey to the KeyChain')
 
     return result
   } catch (e: any) {
-    throw new AppError(Err.KEYCHAIN_ERROR, e.message, [e])
+    throw new AppError(Err.KEYCHAIN_ERROR, 'Could not save encryption key', 'saveEncryptionKey', e.message)
   }
 }
 
@@ -145,6 +166,7 @@ const removeKey = async function (
 export const KeyChain = {
   generateKeyPair,
   generateEncryptionKey,
+  getSupportedBiometryType,
   saveKeyPair,
   loadKeyPair,
   loadEncryptionKey,

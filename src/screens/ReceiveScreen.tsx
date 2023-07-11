@@ -325,7 +325,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                   <Button
                     preset="secondary"
                     tx={'common.close'}
-                    onPress={() => navigation.navigate('Wallet')}
+                    onPress={() => navigation.navigate('Wallet', {})}
                   />
                 </View>
               ) : (
@@ -371,7 +371,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                     <Button
                       preset="secondary"
                       tx={'common.close'}
-                      onPress={() => navigation.navigate('Wallet')}
+                      onPress={() => navigation.navigate('Wallet', {})}
                     />
                   </View>
                 </>

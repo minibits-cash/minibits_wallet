@@ -19,46 +19,46 @@ export const UserSettingsStoreModel = types
     })
     .actions(self => ({
         loadUserSettings: () => {
-        const {isOnboarded, isStorageEncrypted, isLocalBackupOn} =
-            Database.getUserSettings()
-        // TODO move to some of mobx preprocessing method
-        self.isOnboarded = isOnboarded as boolean
-        self.isStorageEncrypted = isStorageEncrypted as boolean
-        self.isLocalBackupOn = isLocalBackupOn as boolean
+            const {isOnboarded, isStorageEncrypted, isLocalBackupOn} =
+                Database.getUserSettings()
+            // TODO move to some of mobx preprocessing method
+            self.isOnboarded = isOnboarded as boolean
+            self.isStorageEncrypted = isStorageEncrypted as boolean
+            self.isLocalBackupOn = isLocalBackupOn as boolean
         },
         setIsOnboarded: (value: boolean) => {
-        Database.updateUserSettings({...self, isOnboarded: value})
-        self.isOnboarded = value
+            Database.updateUserSettings({...self, isOnboarded: value})
+            self.isOnboarded = value
 
-        log.info('Onboarded new device', value)
+            log.info('Onboarded new device', value)
         },
         setIsLocalBackupOn: (value: boolean) => {
-        Database.updateUserSettings({...self, isLocalBackupOn: value})
-        self.isLocalBackupOn = value
+            Database.updateUserSettings({...self, isLocalBackupOn: value})
+            self.isLocalBackupOn = value
 
-        log.info('Local backup is turned on', value)
+            log.info('Local backup is turned on', value)
         return value
         },
         setIsStorageEncrypted: flow(function* setIsStorageEncryptedvalue(
-        value: boolean,
+            value: boolean,
         ) {
-        const isEncrypted = yield MMKVStorage.recryptStorage()
-        Database.updateUserSettings({...self, isStorageEncrypted: isEncrypted})
-        self.isStorageEncrypted = isEncrypted
+            const isEncrypted = yield MMKVStorage.recryptStorage()
+            Database.updateUserSettings({...self, isStorageEncrypted: isEncrypted})
+            self.isStorageEncrypted = isEncrypted
 
-        log.info('Storage is encrypted', value)
-        return isEncrypted
+            log.info('Storage encryption changed to', value)
+            return isEncrypted
         }),
     }))
     .views(self => ({
         get isUserOnboarded() {
-        return self.isOnboarded
+            return self.isOnboarded
         },
         get isAppStorageEncrypted() {
-        return self.isStorageEncrypted
+            return self.isStorageEncrypted
         },
         get userSettings() {
-        return self
+            return self
         },
     }))
 /*.preProcessSnapshot((snapshot) => {

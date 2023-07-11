@@ -35,7 +35,7 @@ const getInstance = function () {
 }
 
 const getOrCreateEncryptionKey = async function (): Promise<string> {
-  try {
+
     let key: string | null = null
 
     key = (await KeyChain.loadEncryptionKey(KeyChainServiceName.MMKV)) as string
@@ -52,33 +52,28 @@ const getOrCreateEncryptionKey = async function (): Promise<string> {
     }
 
     return key
-  } catch (e: any) {
-    throw new AppError(Err.DATABASE_ERROR, e.message, [e.toString()])
-  }
 }
 
 const recryptStorage = async function (): Promise<boolean> {
-  try {
-    const storage = getInstance()
 
-    if (_encryptionKey) {
-      storage.recrypt(undefined)
-      _encryptionKey = undefined
+        const storage = getInstance()
 
-      log.info('Storage encryption has been removed', [], 'recryptStorage')
-      return false
-    }
+        if (_encryptionKey) {
+            storage.recrypt(undefined)
+            _encryptionKey = undefined
 
-    const key = await getOrCreateEncryptionKey()
+            log.info('Storage encryption has been removed', [], 'recryptStorage')
+            return false
+        }
 
-    storage.recrypt(key)
-    _encryptionKey = key
+        const key = await getOrCreateEncryptionKey()
 
-    log.info('Storage has been encrypted', [], 'recryptStorage')
-    return true
-  } catch (e: any) {
-    throw new AppError(Err.DATABASE_ERROR, e.message, [e.toString()])
-  }
+        storage.recrypt(key)
+        _encryptionKey = key
+
+        log.info('Storage has been encrypted', [], 'recryptStorage')
+        return true
+
 }
 
 /**

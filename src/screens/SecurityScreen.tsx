@@ -18,29 +18,37 @@ import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import AppError from '../utils/AppError'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
+import { KeyChain } from '../services'
 
 export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer(function SecurityScreen(_props) {
     const {navigation} = _props
     useHeader({
-    leftIcon: 'faArrowLeft',
-    onLeftPress: () => navigation.goBack(),
+        leftIcon: 'faArrowLeft',
+        onLeftPress: () => navigation.goBack(),
     })
 
     const {userSettingsStore} = useStores()
-
+    const [info, setInfo] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const [isStorageEncrypted, setIsStorageEncrypted] = useState<boolean>(
-    userSettingsStore.isStorageEncrypted,
+        userSettingsStore.isStorageEncrypted,
     )
     const [error, setError] = useState<AppError | undefined>()
-    const [isEncryptionModalVisible, setIsEncryptionModalVisible] =
-    useState<boolean>(false)
-    const [encryptionResultMessage, setEncryptionResultMessage] =
-    useState<string>()
+    const [isEncryptionModalVisible, setIsEncryptionModalVisible] = useState<boolean>(false)
+    const [encryptionResultMessage, setEncryptionResultMessage] = useState<string>()
 
     const toggleEncryptedSwitch = async () => {
         try {
             setIsLoading(true)
+            // check device has biometric support - disabled for testing
+            /* if(!isStorageEncrypted) {
+                const biometryType = await KeyChain.getSupportedBiometryType()
+
+                if(!biometryType) {
+                    setInfo('Your device does not support any biometric authentication to protect the encryption key.')
+                }
+            } */
+
             const result = await userSettingsStore.setIsStorageEncrypted(
                 !isStorageEncrypted,
             )
@@ -49,14 +57,14 @@ export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer
             setIsLoading(false)
 
             if (result === true) {
-            setEncryptionResultMessage(
-                'Storage has been AES encrypted with the key stored in the device secure keys storage',
-            )
-            toggleEncryptionModal()
-            return
+                setEncryptionResultMessage(
+                    'Storage has been AES encrypted with the key stored in the device secure keys storage.',
+                )
+                toggleEncryptionModal()
+                return
             }
 
-            setEncryptionResultMessage('Storage encryption has been disabled')
+            setEncryptionResultMessage('Storage encryption has been disabled.')
             toggleEncryptionModal()
         } catch (e: any) {
             handleError(e)
@@ -64,7 +72,7 @@ export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer
     }
 
     const toggleEncryptionModal = () =>
-    setIsEncryptionModalVisible(previousState => !previousState)
+        setIsEncryptionModalVisible(previousState => !previousState)
 
     const handleError = function (e: AppError): void {
         setIsLoading(false)
@@ -132,7 +140,8 @@ export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer
           onBackButtonPress={toggleEncryptionModal}
           onBackdropPress={toggleEncryptionModal}
         />
-        {error && <ErrorModal error={error} />}        
+        {error && <ErrorModal error={error} />}
+        {info && <InfoModal message={info} />}      
       </Screen>
     )
   })
