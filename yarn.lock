@@ -7053,6 +7053,11 @@ react-native-dotenv@^3.4.8:
   dependencies:
     dotenv "^16.3.1"
 
+react-native-exit-app@^2.0.0:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/react-native-exit-app/-/react-native-exit-app-2.0.0.tgz#21d523580f0c1bf6793bc4e6d5771ba9347cd8e4"
+  integrity sha512-vr9e/8jgPcKCBw6qo0QLxfeMiTwExydghbYDqpLZYAGWR+6cbgnhvOxwdYj/JWR7ZtOALrRA4GMGSvU/ayxM7w==
+
 react-native-gesture-handler@^2.9.0:
   version "2.12.0"
   resolved "https://registry.yarnpkg.com/react-native-gesture-handler/-/react-native-gesture-handler-2.12.0.tgz#59ca9d97e4c71f70b9c258f14a1a081f4c689976"

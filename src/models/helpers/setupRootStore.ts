@@ -12,10 +12,9 @@
 import {
   applySnapshot,
   IDisposer,
-  IModelType,
-  ModelInstanceType,
   onSnapshot,
 } from 'mobx-state-tree'
+import RNExitApp from 'react-native-exit-app'
 import type {RootStore} from '../RootStore'
 import {MMKVStorage} from '../../services'
 import {Database} from '../../services'
@@ -44,15 +43,24 @@ export async function setupRootStore(rootStore: RootStore) {
     const userSettings = Database.getUserSettings()
 
     if (userSettings.isStorageEncrypted) {
-      await MMKVStorage.initEncryption() // key retrieval on Android is sometimes very slow
+      await MMKVStorage.initEncryption() // opt-in, key retrieval on Android is sometimes slow
     }
 
     // load the last known state from storage
-    restoredState = MMKVStorage.load(ROOT_STORAGE_KEY) || {}
+    restoredState = MMKVStorage.load(ROOT_STORAGE_KEY) || {}    
     applySnapshot(rootStore, restoredState)
   
-  } catch (e: any) {    
-    log.error(Err.DATABASE_ERROR, e.message)
+  } catch (e: any) {        
+    log.error(Err.DATABASE_ERROR, e.message, e.params, 'setupRootStore')
+    // ugly exit to prevent potential data loss
+    const isCancellPressed = e.params.some((p: string) => p.includes('code: 13'))
+    const isBackPressed = e.params.some((p: string) => p.includes('code: 10'))
+
+    if(isCancellPressed || isBackPressed) {
+        log.info('Exiting app', e.params, 'setupRootStore')
+        RNExitApp.exitApp()
+    }
+
   }
 
   // stop tracking state changes if we've already setup
