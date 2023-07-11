@@ -27,7 +27,7 @@ import {
 } from '../components'
 import {useStores} from '../models'
 import {WalletStackScreenProps} from '../navigation'
-import useIsInternetReachable from '../utils/useIsInternetReachable'
+// import useIsInternetReachable from '../utils/useIsInternetReachable'
 import {useHeader} from '../utils/useHeader'
 import {Mint, MintBalance} from '../models/Mint'
 import {MintsByHostname} from '../models/MintsStore'
@@ -42,10 +42,9 @@ interface WalletScreenProps extends WalletStackScreenProps<'Wallet'> {}
 
 
 export const WalletScreen: FC<WalletScreenProps> = observer(
-  function WalletScreen(_props) {
-    const {navigation} = _props
+  function WalletScreen({route, navigation}) {    
     const {mintsStore, proofsStore, transactionsStore} = useStores()
-    const isInternetReachable = useIsInternetReachable()
+    // const isInternetReachable = useIsInternetReachable()
 
     useHeader({
       rightIcon: 'faBolt',
@@ -72,8 +71,9 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
       }
     })
 
-    const [balances, setBalances] = useState(() => proofsStore.getBalances())
+    const [balances, setBalances] = useState(() => proofsStore.getBalances())    
     const [info, setInfo] = useState<string>('')
+    const [defaultMintUrl, setDefaultMintUrl] = useState<string>('https://mint.minibits.cash/Bitcoin')
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState<boolean>(false)
     const [isLightningModalVisible, setIsLightningModalVisible] = useState<boolean>(false)
@@ -85,67 +85,85 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         }, [])
     )
 
+    useFocusEffect(
+        useCallback(() => {
+            if (!route.params?.scannedMintUrl) {
+                log.trace('nothing scanned')
+                return
+            }
+
+            const scannedMintUrl = route.params?.scannedMintUrl             
+            log.trace('route.params', route.params)
+            addMint({scannedMintUrl})
+
+        }, [route.params?.scannedMintUrl])
+    )
+
     useEffect(() => {      
-      if(!isInternetReachable) return
-      // Check with mints if some of pending SEND and TOPUP transactions
-      // were completed and update balances accordingly
-      Wallet.checkPendingSpent()
-      Wallet.checkPendingTopups()
+        // if(!isInternetReachable) return
+        // Check with mints if some of pending SEND and TOPUP transactions
+        // were completed and update balances accordingly
+        Wallet.checkPendingSpent()
+        Wallet.checkPendingTopups()
     }, [])
 
-    const toggleLightningModal = () =>
+
+    const toggleLightningModal = () => {
       setIsLightningModalVisible(previousState => !previousState)
+    }
 
-    const addMint = async function () {
-      const mintUrl = 'https://mint.minibits.cash/Bitcoin'
 
-      if (mintsStore.alreadyExists(mintUrl)) {
-        const msg = translate('mintsScreen.mintExists')
-        log.info(msg)
-        setInfo(msg)
-        return
-      }
+    const addMint = async function ({scannedMintUrl = ''} = {}) {
+        // necessary
+        navigation.setParams({scannedMintUrl: undefined})       
 
-      try {
-        setIsLoading(true)
-
-        const mintKeys: {
-          keys: MintKeys
-          keyset: string
-        } = await MintClient.getMintKeys(mintUrl)
-
-        const newMint: Mint = {
-          mintUrl,
-          keys: mintKeys.keys,
-          keysets: [mintKeys.keyset],
+        const newMintUrl = scannedMintUrl || defaultMintUrl
+        
+        log.trace('newMintUrl', newMintUrl)
+        
+        if (mintsStore.alreadyExists(newMintUrl)) {
+            const msg = translate('mintsScreen.mintExists')
+            log.info(msg)
+            setInfo(msg)
+            return
         }
 
-        mintsStore.addMint(newMint)
+        try {
+            setIsLoading(true)
 
-        // log.trace('Snapshot after add mint', getSnapshot(mintsStore))
+            const mintKeys: {
+                keys: MintKeys
+                keyset: string
+            } = await MintClient.getMintKeys(newMintUrl)
 
-        // setInfo(translate('mintsScreen.mintAdded'))
-      } catch (e: any) {
-        handleError(e)
-      } finally {
-        setIsLoading(false)
-      }
+            const newMint: Mint = {
+                mintUrl: newMintUrl,
+                keys: mintKeys.keys,
+                keysets: [mintKeys.keyset],
+            }
+
+            mintsStore.addMint(newMint)
+        } catch (e: any) {
+            handleError(e)
+        } finally {
+            setIsLoading(false)
+        }
     }
 
     const gotoReceive = function () {
-      navigation.navigate('Receive')
+        navigation.navigate('Receive', {})
     }
 
     const gotoScan = function () {
-      navigation.navigate('Scan')
+        navigation.navigate('Scan')
     }
 
     const gotoSend = function () {
-      navigation.navigate('Send')
+        navigation.navigate('Send')
     }
 
     const gotoTranHistory = function () {
-      navigation.navigate('TranHistory')
+        navigation.navigate('TranHistory')
     }
 
     const gotoTranDetail = function (id: number) {
@@ -154,7 +172,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
     const gotoWithdraw = function () {
       toggleLightningModal() // close
-      navigation.navigate('Transfer')
+      navigation.navigate('Transfer', {})
     }
 
     const gotoTopup = function () {

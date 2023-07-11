@@ -122,16 +122,10 @@ async function _checkSpentByMint(mintUrl: string, isPending: boolean = false) {
     try {
         const proofsFromMint = proofsStore.getByMint(mintUrl, isPending) as Proof[]
 
-        log.trace(
-            'proofsFromMint count',
-            proofsFromMint.length,
-            '_checkSpentByMint',
-        )
-
         if (proofsFromMint.length < 1) {
             log.trace(
                 `No ${isPending ? 'pending' : ''} proofs found for mint`,
-                mintUrl,
+                mintUrl, '_checkSpentByMint'
             )
             return
         }
@@ -202,8 +196,9 @@ async function _checkSpentByMint(mintUrl: string, isPending: boolean = false) {
         // TODO what to do with tx error status after removing spent proofs
         return {spentCount, spentAmount}
 
-        } catch (e: any) {
-        log.error(e.name, e.message)
+    } catch (e: any) {
+        // silent
+        log.info(e.name, [e.message, mintUrl], '[_checkSpentByMint]')
     }
 }
 
@@ -1026,7 +1021,7 @@ const checkPendingTopups = async function () {
 
     } catch (e: any) {
         // silent
-        log.info(Err.POLLING_ERROR, `${e.name} ${e.message}`)
+        log.info(e.name, e.message, 'checkPendingTopups')        
     }
 }
 

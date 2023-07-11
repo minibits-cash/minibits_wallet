@@ -85,8 +85,10 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
 
   useFocusEffect(
       useCallback(() => {
-        if (!route.params || !route.params?.scannedEncodedInvoice) {return}
-
+        if (!route.params?.scannedEncodedInvoice) {
+            log.trace('nothing scanned')
+            return
+        }
         const encoded = route.params?.scannedEncodedInvoice
         onEncodedInvoice(encoded)
       }, [route.params?.scannedEncodedInvoice]),
@@ -160,7 +162,8 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
 
     const onEncodedInvoice = async function (encoded: string) {
       try {
-        setEncodedInvoice(encoded)
+        navigation.setParams({scannedEncodedInvoice: undefined}) 
+        setEncodedInvoice(encoded)        
 
         const invoice = decodeInvoice(encoded)
         const {amount, expiry, description} = getInvoiceData(invoice)
@@ -173,11 +176,6 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
           return
         }
 
-        setInvoice(invoice)
-        setAmountToTransfer(amount)
-        // TODO expiry check or countdown
-        if (description) {setMemo(description)}
-
         const availableBalances =
           proofsStore.getMintBalancesWithEnoughBalance(amount)
 
@@ -185,6 +183,11 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
           setInfo('There is not enough funds to send this amount')
           return
         }
+
+        setInvoice(invoice)
+        setAmountToTransfer(amount)
+        // TODO expiry check or countdown
+        if (description) {setMemo(description)}
 
         log.trace('availableBalances', availableBalances.length)
 

@@ -45,11 +45,12 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
 
         const routes = navigation.getState()?.routes
         const prevRouteName = routes[routes.length - 2].name
+        log.trace('prevRouteName', prevRouteName)
 
         switch (prevRouteName) {
             case 'Receive':
                 const tokenResult = handleToken(scanned)
-                if (tokenResult?.isToken) {
+                if (tokenResult.isToken) {
                     log.trace('Got token')
                     return navigation.navigate('Receive', {
                         scannedEncodedToken: tokenResult.token,
@@ -59,7 +60,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                 break
             case 'Transfer':
                 const invoiceResult = handleInvoice(scanned)
-                if (invoiceResult?.isInvoice) {
+                if (invoiceResult.isInvoice) {
                     log.trace('Got invoice')
                     return navigation.navigate('Transfer', {
                         scannedEncodedInvoice: invoiceResult.invoice,
@@ -70,7 +71,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
             default:
                 // generic scan button on wallet screen
                 const tokenResult2 = handleToken(scanned)
-                if (tokenResult2?.isToken) {
+                if (tokenResult2.isToken) {
                     log.trace('Got token')
                     return navigation.navigate('Receive', {
                         scannedEncodedToken: tokenResult2.token,
@@ -79,16 +80,27 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
 
 
                 const invoiceResult2 = handleInvoice(scanned)
-                log.trace('Got invoice')
-                if (invoiceResult2?.isInvoice) {
+                
+                if (invoiceResult2.isInvoice) {
+                    log.trace('Got invoice')
                     return navigation.navigate('Transfer', {
                         scannedEncodedInvoice: invoiceResult2.invoice,
                     })
                 }
 
+                // this handles scanning from both WalletScreen and MintsScreen,
+                // can't get prevRouteName 'Mints' as it belongs to different navigator
+                const mintResult = handleMintUrl(scanned)                
+                if (mintResult.isMintUrl) {
+                    log.trace('Got mintUrl')
+                    return navigation.navigate('Wallet', {
+                        scannedMintUrl: mintResult.mintUrl,
+                    })
+                }
+
                 handleError(
                     scanned,
-                    'This is not a valid cashu token nor lightning invoice',
+                    'This is not a valid cashu token, lightning invoice nor mint URL address',
                 )
         }
     }           
@@ -112,13 +124,10 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
             // raw encoded token
             const token: Token = decodeToken(scanned) // throws
 
-            if (token) {
             return {
                 isToken: true,
                 token: scanned,
             }
-            }
-
         } catch (tokenError: any) {
             return {
                 isToken: false,
@@ -135,29 +144,42 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
 
             if (scanned.startsWith('lightning:')) {
                 const trimmed = scanned.replace('lightning:', '')
-                invoice = decodeInvoice(trimmed)
-
-                if (invoice) {
-                    return {
-                        isInvoice: true,
-                        invoice: trimmed,
-                    }
+                invoice = decodeInvoice(trimmed) // throws
+                
+                return {
+                    isInvoice: true,
+                    invoice: trimmed,
                 }
+                
             } else {
                 invoice = decodeInvoice(scanned)
 
-                if (invoice) {
-                    return {
-                        isInvoice: true,
-                        invoice: scanned
-                    }
-
+                return {
+                    isInvoice: true,
+                    invoice: scanned
                 }
+    
             }
         } catch (invoiceError: any) {
             return {
                 isInvoice: false,
                 error: invoiceError.message,
+            }
+        }
+    }
+
+
+    const handleMintUrl = (mintUrl: string) => {
+        try {
+            new URL(mintUrl) // throws
+            return { 
+                isMintUrl: true,
+                mintUrl
+            }        
+        } catch (urlError: any) {
+            return {
+                isMintUrl: false,
+                error: urlError.message,
             }
         }
     }

@@ -60,10 +60,9 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
     >()
 
     useFocusEffect(
-      useCallback(() => {        
-        log.trace('scanned effect triggered')
-
-        if (!route.params || !route.params?.scannedEncodedToken) {
+      useCallback(() => {
+        if (!route.params?.scannedEncodedToken) {
+            log.trace('nothing scanned')
             return
         }
 
@@ -110,6 +109,8 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
 
     const onEncodedToken = async function (encoded: string) {
       try {
+        navigation.setParams({scannedEncodedToken: undefined})
+        
         const decoded: Token = decodeToken(encoded)
         const tokenAmounts = getTokenAmounts(decoded)
 

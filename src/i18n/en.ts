@@ -139,7 +139,7 @@ const en = {
   errorScreen: {
     title: "Something went wrong!",
     friendlySubtitle:
-      "Unfortunately, the Minibits app encountered an unexpected error.",
+      "Unfortunately, the Minibits app encountered an unexpected error. Please contact us at support@minibits.cash or raise an issue on Github.",
     reset: "RESET APP",
   },
   tabNavigator: {
