@@ -5,20 +5,19 @@ import {log} from './logger'
 
 export default function useIsInternetReachable() {
     // useState hook for setting netInfo
-    const [netInfo, setNetInfo] = useState({} as NetInfoState)
+    // const [netInfo, setNetInfo] = useState({} as NetInfoState)
+    const [isInternetReachable, setIsInternetReachable] = useState<boolean>(true)
     
     useEffect(() => {
-        // Whenever connection status changes below event fires
-        const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
-            log.trace(state)            
-            setNetInfo(state)
+        // Whenever connection status changes below event fires        
+        const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {            
+            setIsInternetReachable(state.isInternetReachable as boolean)
         })
         // Event cleanup function
         return () => {
             unsubscribe()
         }
     }, [])
-
-    // Returns current network connection status
-    return netInfo.isInternetReachable
+    
+    return isInternetReachable
 }

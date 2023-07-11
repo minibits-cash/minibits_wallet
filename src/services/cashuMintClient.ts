@@ -52,16 +52,16 @@ const getMintKeys = async function (mintUrl: string) {
   } catch (e: any) {
     throw new AppError(
       Err.CONNECTION_ERROR,
-      'Could not connect to the selected mint.',
-      e.message,
+      `Could not connect to the selected mint.}`,
+      [e.message, mintUrl],
     )
   }
 
   if (!validateMintKeys(keys)) {
     throw new AppError(
       Err.VALIDATION_ERROR,
-      'Invalid keys retrieved from the selected mint',
-      mintUrl,
+      'Invalid keys retrieved from the selected mint.',
+      [mintUrl, keys],
     )
   }
 

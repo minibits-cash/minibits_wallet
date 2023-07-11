@@ -9,12 +9,6 @@ import {Token} from '../models/Token'
 import {TokenEntry} from '../models/TokenEntry'
 import {Proof} from '../models/Proof'
 
-export type LightningInvoice = {
-  paymentRequest: string
-  sections: any[]
-  readonly expiry: any
-  readonly route_hints: any[]
-}
 
 export type DecodedLightningInvoice = {
   paymentRequest: string
@@ -36,10 +30,10 @@ export const decodeToken = function (encoded: string): Token {
   }
 }
 
-export const decodeInvoice = function (encoded: string): LightningInvoice {
+export const decodeInvoice = function (encoded: string): DecodedLightningInvoice {
   try {
     const decoded = getDecodedLnInvoice(encoded)
-    return decoded as LightningInvoice
+    return decoded as DecodedLightningInvoice
   } catch (e: any) {
     throw new AppError(
       Err.VALIDATION_ERROR,

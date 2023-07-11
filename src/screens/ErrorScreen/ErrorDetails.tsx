@@ -15,7 +15,7 @@ export function ErrorDetails(props: ErrorDetailsProps) {
     
     <Screen
       preset="fixed"
-      safeAreaEdges={["top", "bottom"]}
+      // safeAreaEdges={["top", "bottom"]}
       contentContainerStyle={$contentContainer}
     >
       <View style={$topSection}>
@@ -25,7 +25,7 @@ export function ErrorDetails(props: ErrorDetailsProps) {
       </View>
 
       <ScrollView style={$errorSection} contentContainerStyle={$errorSectionContentContainer}>
-        <Text style={$errorContent} weight="bold" text={`${props.error}`.trim()} />
+        <Text selectable style={$errorContent} text={`${props.error}`.trim()} />
         <Text
           selectable
           style={$errorBacktrace}
@@ -45,24 +45,24 @@ export function ErrorDetails(props: ErrorDetailsProps) {
 }
 
 const $contentContainer: ViewStyle = {
-  alignItems: "center",
-  paddingHorizontal: spacing.large,
-  paddingTop: spacing.extraLarge,
-  flex: 1,
+    alignItems: "center",
+    padding: spacing.large,
+    paddingTop: spacing.extraLarge,  
 }
 
 const $topSection: ViewStyle = {
-  flex: 1,
-  alignItems: "center",
+  // flex: 1,
+    alignItems: "center",
 }
 
-const $heading: TextStyle = {
-  color: colors.palette.angry100,
-  marginBottom: spacing.medium,
+const $heading: TextStyle = {  
+  marginVertical: spacing.medium,
+  fontWeight: '800',
 }
 
 const $errorSection: ViewStyle = {
-  flex: 2,
+  // flex: 2,
+  maxHeight: spacing.screenHeight * 0.5,
   backgroundColor: colors.palette.neutral200,
   marginVertical: spacing.medium,
   borderRadius: 6,
@@ -73,15 +73,16 @@ const $errorSectionContentContainer: ViewStyle = {
 }
 
 const $errorContent: TextStyle = {
-  color: colors.palette.neutral100,
+  color: colors.palette.neutral800,
+  fontWeight: '800',
 }
 
 const $errorBacktrace: TextStyle = {
   marginTop: spacing.medium,
-  color: colors.palette.neutral100,
+  color: colors.palette.neutral500,
 }
 
 const $resetButton: ViewStyle = {
-  backgroundColor: colors.palette.angry100,
+  backgroundColor: colors.palette.angry500,
   paddingHorizontal: spacing.huge,
 }

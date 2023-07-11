@@ -1,5 +1,5 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useState} from 'react'
+import React, {FC, useCallback, useState} from 'react'
 import {Alert, TextStyle, View, ViewStyle} from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
 import {spacing, typography, useThemeColor, colors} from '../theme'
@@ -25,8 +25,8 @@ import AppError from '../utils/AppError'
 import {translate} from '../i18n'
 import {MintListItem} from './Mints/MintListItem'
 
-export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(function MintsScreen(_props) {
-    const {navigation} = _props
+
+export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(function MintsScreen({route, navigation}) {    
     useHeader({
       leftIcon: 'faArrowLeft',
       onLeftPress: () => navigation.goBack(),
@@ -40,6 +40,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState(false)
     const [isAddMintVisible, setIsAddMintVisible] = useState(false)
+
 
     const toggleAddMintModal = async function () {
       if (isAddMintVisible) {
@@ -58,6 +59,12 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
       } catch (e) {
         setInfo(translate('mintsScreen.invalidUrl'))
       }
+    }
+
+
+    const gotoScan = function () {
+        toggleAddMintModal()
+        navigation.navigate('WalletNavigator', {screen: 'Scan'})
     }
 
     const pasteTestMintUrl = async () => {
@@ -303,6 +310,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
               ) : (
                 <AddMintUrlBlock
                   pasteMintUrl={pasteMintUrl}
+                  gotoScan={gotoScan}
                   pasteTestMintUrl={pasteTestMintUrl}
                 />
               )}
@@ -353,6 +361,7 @@ const PasteMintUrlBlock = function (props: {
 
 const AddMintUrlBlock = function (props: {
   pasteMintUrl: any
+  gotoScan: any
   pasteTestMintUrl: any
 }) {
   return (
@@ -371,7 +380,7 @@ const AddMintUrlBlock = function (props: {
         />
         <Button
           tx={'common.scan'}
-          onPress={() => Alert.alert('Not yet implemented')}
+          onPress={props.gotoScan}
           preset="secondary"
         />
       </View>

@@ -97,7 +97,7 @@ export function TabsNavigator() {
 
 
 export type WalletStackParamList = {  
-  Wallet: undefined
+  Wallet: {scannedMintUrl? : string}
   Receive: {scannedEncodedToken? : string}
   Send: undefined
   Scan: undefined
@@ -138,7 +138,7 @@ const WalletNavigator = function WalletNavigator() {
 
 export type SettingsStackParamList = {  
   Settings: undefined
-  Mints: undefined
+  Mints: {scannedMintUrl? : string}
   Security: undefined
   Backup: undefined
   LocalRecovery: undefined
