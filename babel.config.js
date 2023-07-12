@@ -10,8 +10,8 @@ module.exports = {
             'buffer': '@craftzdog/react-native-buffer',
           },
         },
-    ],
-    'react-native-reanimated/plugin',    
-    'module:react-native-dotenv'
+    ],    
+    'module:react-native-dotenv',
+    'react-native-reanimated/plugin'
   ],
 };
