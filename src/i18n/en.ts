@@ -126,6 +126,9 @@ const en = {
   securityScreen: {
     encryptStorage: "Encrypt storage",
     encryptStorageDescription: "Encrypt the storage that stores your coins with the secret key generated on your device and stored in secure keys storage. On some Android devices, this may cause a slightly longer startup of the application.",
+    biometry: "Biometric authentication",
+    biometryAvailable: "If you activate encrypted storage and your device supports biometric authentication, it will be required for Minibits to start.",
+    biometryNone: "You have not setup biometric authentication or your device does not support it."
   },
   developerScreen: {
     title: "Developer options", 
