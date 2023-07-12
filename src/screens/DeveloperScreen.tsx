@@ -2,7 +2,8 @@ import {observer} from 'mobx-react-lite'
 import React, {FC, useState} from 'react'
 import {Alert, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
-import {SettingsStackScreenProps} from '../navigation' // @demo remove-current-line
+import {SettingsStackScreenProps} from '../navigation'
+import packageJson from '../../package.json'
 import {
   Icon,
   ListItem,
@@ -104,6 +105,8 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
     }
     
     const headerBg = useThemeColor('header')
+    const { version } = packageJson
+    const rnVersion = packageJson.dependencies['react-native']
 
     return (
       <Screen style={$screen}>
@@ -146,6 +149,22 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
                       icon="faXmark"
                       size={spacing.medium}
                       color={colors.palette.angry500}
+                      inverse={true}
+                    />
+                  }
+                  RightComponent={<View style={$rightContainer} />}
+                  style={$item}
+                  // bottomSeparator={true}
+                  onPress={factoryReset}
+                />
+                <ListItem
+                  tx="developerScreen.info"
+                  subText={`Version: ${version}, React Native: ${rnVersion}`}
+                  LeftComponent={
+                    <Icon
+                      icon="faInfoCircle"
+                      size={spacing.medium}
+                      color={colors.palette.iconGreen300}
                       inverse={true}
                     />
                   }
