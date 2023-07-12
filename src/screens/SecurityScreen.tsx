@@ -138,7 +138,7 @@ export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer
                 subTx={biometryType ? 'securityScreen.biometryAvailable' : 'securityScreen.biometryNone'}
                 LeftComponent={
                   <Icon
-                    icon={'faFingerprint'}
+                    icon='faFingerprint'
                     size={spacing.medium}
                     color={
                       biometryType
@@ -148,11 +148,11 @@ export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer
                     inverse={true}
                   />
                 }
-                RightComponent={biometryType ? (
+                RightComponent={!!biometryType ? (
                     <View style={[$rightContainer, {marginLeft: spacing.small}]}>
                     <Icon
-                        icon={'faCheck'}
-                        size={spacing.medium}
+                        icon='faCheckCircle'
+                        size={spacing.large}
                         color={
                         (isStorageEncrypted)
                             ? colors.palette.success200
