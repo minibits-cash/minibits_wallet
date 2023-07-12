@@ -72,7 +72,7 @@ Backup and recovery
 
 Security
 - [x] Optional AES encryption of wallet storage using a key stored in the device secure keychain
-- [x] Device passcode or biometry to login (if storage encryption is on)
+- [x] Use device biometry to login (if storage encryption is on)
 
 DevOps
 - [ ] OTA updates

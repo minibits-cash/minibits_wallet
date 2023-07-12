@@ -1,5 +1,5 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useState} from 'react'
+import React, {FC, useEffect, useState} from 'react'
 import {Switch, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {SettingsStackScreenProps} from '../navigation' // @demo remove-current-line
@@ -19,6 +19,8 @@ import {useStores} from '../models'
 import AppError from '../utils/AppError'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import { KeyChain } from '../services'
+import { BIOMETRY_TYPE } from 'react-native-keychain'
+import { log } from '../utils/logger'
 
 export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer(function SecurityScreen(_props) {
     const {navigation} = _props
@@ -33,21 +35,36 @@ export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer
     const [isStorageEncrypted, setIsStorageEncrypted] = useState<boolean>(
         userSettingsStore.isStorageEncrypted,
     )
+    const [biometryType, setBiometryType] = useState<BIOMETRY_TYPE | null>(null)
     const [error, setError] = useState<AppError | undefined>()
     const [isEncryptionModalVisible, setIsEncryptionModalVisible] = useState<boolean>(false)
     const [encryptionResultMessage, setEncryptionResultMessage] = useState<string>()
+
+    useEffect(() => {
+        const getBiometry = async () => {
+            const biometry: BIOMETRY_TYPE | null = await KeyChain.getSupportedBiometryType()
+            log.info('supportedBiometryType', biometry, 'getBiometry')
+            setBiometryType(biometry)
+        }
+        
+        getBiometry()
+        
+        return () => {          
+        }
+    }, [])
+
 
     const toggleEncryptedSwitch = async () => {
         try {
             setIsLoading(true)
             // check device has biometric support - disabled for testing
-            /* if(!isStorageEncrypted) {
+             if(!isStorageEncrypted) {
                 const biometryType = await KeyChain.getSupportedBiometryType()
 
                 if(!biometryType) {
                     setInfo('Your device does not support any biometric authentication to protect the encryption key.')
                 }
-            } */
+            } 
 
             const result = await userSettingsStore.setIsStorageEncrypted(
                 !isStorageEncrypted,
@@ -89,7 +106,8 @@ export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer
         <View style={$contentContainer}>
           <Card
             style={$card}
-            HeadingComponent={
+            ContentComponent={
+              <>
               <ListItem
                 tx="securityScreen.encryptStorage"
                 subTx="securityScreen.encryptStorageDescription"
@@ -115,6 +133,38 @@ export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer
                 }
                 style={$item}
               />
+              <ListItem
+                tx="securityScreen.biometry"
+                subTx={biometryType ? 'securityScreen.biometryAvailable' : 'securityScreen.biometryNone'}
+                LeftComponent={
+                  <Icon
+                    icon={'faFingerprint'}
+                    size={spacing.medium}
+                    color={
+                      biometryType
+                        ? colors.palette.success200
+                        : colors.palette.neutral400
+                    }
+                    inverse={true}
+                  />
+                }
+                RightComponent={biometryType ? (
+                    <View style={[$rightContainer, {marginLeft: spacing.small}]}>
+                    <Icon
+                        icon={'faCheck'}
+                        size={spacing.medium}
+                        color={
+                        (isStorageEncrypted)
+                            ? colors.palette.success200
+                            : colors.palette.neutral400
+                        }
+                        inverse={false}
+                    />
+                    </View>
+                ) : (<></>)}
+                style={$item}
+              />
+              </>
             }
           />
           {isLoading && <Loading />}
@@ -179,5 +229,5 @@ const $item: ViewStyle = {
 const $rightContainer: ViewStyle = {
   // padding: spacing.extraSmall,
   alignSelf: 'center',
-  // marginLeft: spacing.small,
+  //marginLeft: spacing.small,
 }
