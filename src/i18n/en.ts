@@ -138,6 +138,7 @@ const en = {
     resetDescription: "This will wipe out all local data from application state and from the local database including any stored coins. As of now, there is no way to recover your coins. Do only during development or testing.",
     go: "Let's go!",
     devOptions: "Developer options", 
+    info: "About Minibits wallet"
   },
   errorScreen: {
     title: "Something went wrong!",
