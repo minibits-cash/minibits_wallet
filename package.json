@@ -1,6 +1,6 @@
 {
   "name": "minibits_wallet",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "scripts": {
     "android:clean": "cd android && ./gradlew clean",
@@ -15,7 +15,7 @@
     "postinstall": "patch-package"
   },
   "dependencies": {
-    "@cashu/cashu-ts": "^0.8.0-rc.3",
+    "@cashu/cashu-ts": "^0.8.0-rc.4",
     "@fortawesome/fontawesome-svg-core": "^6.4.0",
     "@fortawesome/free-regular-svg-icons": "^6.4.0",
     "@fortawesome/free-solid-svg-icons": "^6.4.0",
@@ -63,7 +63,7 @@
     "@babel/runtime": "^7.20.0",
     "@react-native/eslint-config": "^0.72.2",
     "@react-native/metro-config": "^0.72.9",
-    "@tsconfig/react-native": "^3.0.0",    
+    "@tsconfig/react-native": "^3.0.0",
     "@types/jest": "^29.2.1",
     "@types/lodash.clonedeep": "^4.5.7",
     "@types/react": "^18.0.24",
