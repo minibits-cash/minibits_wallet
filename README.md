@@ -108,6 +108,7 @@ Minibits wallet is in alpha and available as of now only for Android devices. Yo
 - [x] Join testing program on Google Play (Closed testing ongoing, submit your email to get an invite on [Minibits.cash](https://minibits.cash))
 - [X] Download .apk file from Releases page and install it on your phone
 
+
 # Development
 
 Minibits is a bare React Native app written in Typescript. The project structure and code itself are intentionally verbose to support readability. Critical wallet code is reasonably documented. However, there is vast space for existing code improvements, refactoring, and bug fixing. This is an alpha software and the author does not code for a living.
@@ -159,13 +160,7 @@ Create debug .apk:
 yarn android:dev
 ```
 
-Create release .apk:
-
-```bash
-yarn android:test
-```
-
-# Testing
+# Automated testing
 
 The app has the scaffolding for automated tests; they are yet to be implemented. For functional bugs or suggestions please raise an issue.
 
