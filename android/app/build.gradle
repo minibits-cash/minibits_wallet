@@ -142,6 +142,20 @@ android {
         }
     }
 
+    // minibits_wallet:build
+    packagingOptions {
+        pickFirst 'lib/arm64-v8a/liblog.so'
+        pickFirst 'lib/x86/liblog.so'
+        pickFirst 'lib/x86_64/liblog.so'
+        pickFirst 'lib/armeabi-v7a/liblog.so'
+        pickFirst 'lib/arm64-v8a/liblog.so'
+        pickFirst 'lib/arm64-v8a/libcrypto.so'
+        pickFirst 'lib/x86/libcrypto.so'
+        pickFirst 'lib/x86_64/libcrypto.so'
+        pickFirst 'lib/armeabi-v7a/libcrypto.so'
+        pickFirst 'lib/arm64-v8a/libcrypto.so'
+    }
+
     // applicationVariants are e.g. debug, release
     applicationVariants.all { variant ->
         variant.outputs.each { output ->
