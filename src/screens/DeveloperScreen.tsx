@@ -154,7 +154,7 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
                   }
                   RightComponent={<View style={$rightContainer} />}
                   style={$item}
-                  // bottomSeparator={true}
+                  bottomSeparator={true}
                   onPress={factoryReset}
                 />
                 <ListItem
