@@ -15,8 +15,6 @@ jobs:
       - name: Get JS bundle version
         id: version-reader-js
         uses: koj-co/package-version-action@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
       - name: Get Android native version
         id: version-reader-androidd
@@ -27,11 +25,11 @@ jobs:
       # Create .env file      
       - name: Generate .env
         run: |-
-          echo APP_ENV='PROD' >> .env
+          echo APP_ENV='TEST' >> .env
           echo LOG_LEVEL='INFO' >> .env
           echo SENTRY_ACTIVE='TRUE' >> .env
-          echo SENTRY_DSN='${{ secrets.SENTRY_DSN }}' >> .env
-          echo CODEPUSH_KEY_ANDROID='${{ secrets.CODEPUSH_KEY_ANDROID }}' >> .env
+          echo SENTRY_DSN='${{ secrets.SENTRY_DSN }}' >> .env          
+          echo CODEPUSH_STAGING_DEPLOYMENT_KEY='${{ secrets.CODEPUSH_STAGING_DEPLOYMENT_KEY }}' >> .env
           echo NATIVE_VERSION_ANDROID='${{ steps.version-reader-android.outputs.versionName }}' >> .env
           echo JS_BUNDLE_VERSION='${{ steps.version-reader-js.outputs.package-version }}' >> .env
           echo COMMIT='${{ steps.version-reader-js.outputs.short-hash }}' >> .env    
@@ -44,7 +42,7 @@ jobs:
         run: npm install -g appcenter-cli
         
       - name: Deploy to CodePush Android
-        run: appcenter codepush release-react -a minibits-cash/minibits_wallet_android -d Production
+        run: appcenter codepush release-react -a minibits-cash/minibits_wallet_android -d Staging
         env:
           APPCENTER_ACCESS_TOKEN: ${{ secrets.APPCENTER_ACCESS_TOKEN_ANDROID }}
           
