@@ -1,5 +1,5 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useState} from 'react'
+import React, {FC, useEffect, useState} from 'react'
 import {Alert, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {SettingsStackScreenProps} from '../navigation'
@@ -21,6 +21,7 @@ import AppError from '../utils/AppError'
 import {Database} from '../services'
 import {MMKVStorage} from '../services'
 import {maxTransactionsInModel} from '../models/TransactionsStore'
+import { log } from '../utils/logger'
 
 export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observer(function DeveloperScreen(_props) {
     const {navigation} = _props
@@ -32,8 +33,19 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
     const {transactionsStore} = useStores()
 
     const [isLoading, setIsLoading] = useState(false)
+    const [aboutInfo, setAboutInfo] = useState<any>({})
     const [error, setError] = useState<AppError | undefined>()
     const [info, setInfo] = useState('')
+
+    useEffect(() => {
+        const getAboutInfo = async () => {
+            const { version } = packageJson
+            const rnVersion = packageJson.dependencies['react-native']
+            setAboutInfo({version, rnVersion})
+        }
+        
+        getAboutInfo()
+    }, [])
 
     // Reset of whole model state and reload from DB
     const syncTransactionsFromDb = async function () {
@@ -105,8 +117,6 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
     }
     
     const headerBg = useThemeColor('header')
-    const { version } = packageJson
-    const rnVersion = packageJson.dependencies['react-native']
 
     return (
       <Screen style={$screen}>
@@ -159,7 +169,7 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
                 />
                 <ListItem
                   tx="developerScreen.info"
-                  subText={`Version: ${version}, React Native: ${rnVersion}`}
+                  subText={`Version: ${aboutInfo.version}, React Native: ${aboutInfo.rnVersion}`}
                   LeftComponent={
                     <Icon
                       icon="faInfoCircle"
