@@ -135,7 +135,7 @@ const en = {
     transactions: "Sync recent transactions",
     transactionsDescription: "There are {{count}} recent transactions cached in the app's fast storage. Resetting will reload them from the app's database.",
     reset: "Factory reset",
-    resetDescription: "This will wipe out all local data from application state and from the local database including any stored coins. As of now, there is no way to recover your coins. Do only during development or testing.",
+    resetDescription: "This will wipe out all local data from storage and from the local database. Do only during development or testing.",
     go: "Let's go!",
     devOptions: "Developer options", 
     info: "About Minibits wallet"

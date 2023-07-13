@@ -12,9 +12,17 @@ import {Database} from './services'
 import {ErrorBoundary} from './screens/ErrorScreen/ErrorBoundary'
 import Config from './config'
 import {log} from './utils/logger'
+import AppError from './utils/AppError'
 
 Sentry.init({
   dsn: SENTRY_DSN,
+  beforeSend: function (event, hint) {
+    const exception = hint.originalException
+    if (exception instanceof AppError) {
+      event.fingerprint = [exception.name.toString()]
+    }
+    return event
+  }
 })
 
 interface AppProps {
