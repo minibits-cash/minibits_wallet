@@ -38,7 +38,7 @@ jobs:
     
       # Fetch native app versionName and versionCode from app/build.gradle                
       - name: Get Android native version        
-        if: ${{ env.IS_VERSION_CHANGED == true }}
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
         id: version-reader-android        
         uses: ltDino/android-get-version-action@v1.0
         with:
@@ -46,12 +46,12 @@ jobs:
       
       # Get commit hash
       - name: Get commit hash
-        if: ${{ env.IS_VERSION_CHANGED == true }}
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
         id: commit-hash        
         uses: pr-mpt/actions-commit-hash@v2
         
       - name: Set commit hash and native version information
-        if: ${{ env.IS_VERSION_CHANGED == true }}
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
         run: |-
           NATIVE_VERSION=${{steps.version-reader-android.outputs.versionName }}
           COMMIT_HASH=${{steps.commit-hash.outputs.short }}
@@ -60,7 +60,7 @@ jobs:
                     
       # Create .env file            
       - name: Generate .env
-        if: ${{ env.IS_VERSION_CHANGED == true }}
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
         run: |-
           echo APP_ENV='TEST' >> .env
           echo LOG_LEVEL='INFO' >> .env
@@ -73,24 +73,24 @@ jobs:
           # echo COMMIT='${{ steps.version-reader-js.outputs.short-hash }}' >> .env    
           
       - name: Install app dependencies
-        if: ${{ env.IS_VERSION_CHANGED == true }}
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
         uses: bahmutov/npm-install@v1.6.0       
           
       # Code push
       - name: Install AppCenter CLI
-        if: ${{ env.IS_VERSION_CHANGED == true }}
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
         run: npm install -g appcenter-cli
         
       - name: Deploy to CodePush Android
-        if: ${{ env.IS_VERSION_CHANGED == true }}
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
         run: appcenter codepush release-react -a minibits-cash/minibits_wallet_android -d Staging
         env:
           APPCENTER_ACCESS_TOKEN: ${{ secrets.APPCENTER_ACCESS_TOKEN_ANDROID }}
           
       - name: Create version tag
-        if: ${{ env.IS_VERSION_CHANGED == true }}      
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
         run: git tag v${{ env.CURRENT_JS_VERSION }}
         
       - name: Push new tag to remote
-        if: ${{ env.IS_VERSION_CHANGED == true }}
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
         run: git push origin v${{ env.CURRENT_JS_VERSION }}
