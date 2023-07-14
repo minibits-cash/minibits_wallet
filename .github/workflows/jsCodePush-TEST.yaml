@@ -87,6 +87,7 @@ jobs:
       - name: Create git tag
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
         id: tag-release
-        uses: salsify/action-detect-and-tag-new-version@v2
+        uses: Klemensas/action-autotag@stable
         with:
-          tag-template: v{VERSION}-alpha
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          tag_suffix: "-alpha"
