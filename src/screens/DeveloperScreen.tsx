@@ -3,6 +3,14 @@ import React, {FC, useEffect, useState} from 'react'
 import {Alert, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {SettingsStackScreenProps} from '../navigation'
+import {
+    APP_ENV,
+    LOG_LEVEL,
+    SENTRY_ACTIVE,
+    NATIVE_VERSION_ANDROID,
+    JS_BUNDLE_VERSION,
+    COMMIT,    
+} from '@env'
 import packageJson from '../../package.json'
 import {
   Icon,
@@ -33,18 +41,17 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
     const {transactionsStore} = useStores()
 
     const [isLoading, setIsLoading] = useState(false)
-    const [aboutInfo, setAboutInfo] = useState<any>({})
+    const [rnVersion, setRnVersion] = useState<string>('')
     const [error, setError] = useState<AppError | undefined>()
     const [info, setInfo] = useState('')
 
     useEffect(() => {
-        const getAboutInfo = async () => {
-            const { version } = packageJson
-            const rnVersion = packageJson.dependencies['react-native']
-            setAboutInfo({version, rnVersion})
+        const getRnVersion = async () => {            
+            const rn = packageJson.dependencies['react-native']
+            setRnVersion(rn)            
         }
         
-        getAboutInfo()
+        getRnVersion()
     }, [])
 
     // Reset of whole model state and reload from DB
@@ -169,7 +176,15 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
                 />
                 <ListItem
                   tx="developerScreen.info"
-                  subText={`Version: ${aboutInfo.version}, React Native: ${aboutInfo.rnVersion}`}
+                  subText={`
+                    Environment: ${APP_ENV}, 
+                    Native version: ${NATIVE_VERSION_ANDROID}, 
+                    JS Bundle version: ${JS_BUNDLE_VERSION}, 
+                    React Native: ${rnVersion}, 
+                    Commit: ${COMMIT}
+                    Log level: ${LOG_LEVEL}
+                    Sentry active: ${SENTRY_ACTIVE}
+                  `}
                   LeftComponent={
                     <Icon
                       icon="faInfoCircle"

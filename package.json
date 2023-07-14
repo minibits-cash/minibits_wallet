@@ -39,6 +39,7 @@
     "react": "18.2.0",
     "react-native": "0.72.2",
     "react-native-camera-kit": "^13.0.0",
+    "react-native-code-push": "^8.0.2",
     "react-native-dotenv": "^3.4.8",
     "react-native-exit-app": "^2.0.0",
     "react-native-gesture-handler": "^2.9.0",
