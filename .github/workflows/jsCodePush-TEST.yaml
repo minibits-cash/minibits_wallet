@@ -84,11 +84,19 @@ jobs:
         env:
           APPCENTER_ACCESS_TOKEN: ${{ secrets.APPCENTER_ACCESS_TOKEN_ANDROID }}
           
-      - name: Create git tag
-        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
-        id: tag-release
-        uses: Klemensas/action-autotag@stable
-        env: 
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-        with:          
-          tag_suffix: "-alpha"
+      # Create the release tag in github repo  
+      - name: Create tag
+        uses: actions/github-script@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const tagPrefix = "v";
+            const tagSuffix = "-alpha";
+            const tagName = tagPrefix + process.env.CURRENT_JS_VERSION + tagSuffix;
+            const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
+            octokit.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `refs/tags/${tagName}`,
+              sha: context.sha
+            });
