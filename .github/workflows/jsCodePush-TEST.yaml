@@ -88,6 +88,7 @@ jobs:
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
         id: tag-release
         uses: Klemensas/action-autotag@stable
-        with:
+        env: 
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        with:          
           tag_suffix: "-alpha"
