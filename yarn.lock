@@ -1175,10 +1175,10 @@
   resolved "https://registry.yarnpkg.com/@bcoe/v8-coverage/-/v8-coverage-0.2.3.tgz#75a2e8b51cb758a7553d6804a5932d7aace75c39"
   integrity sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==
 
-"@cashu/cashu-ts@^0.8.0-rc.4":
-  version "0.8.0-rc.4"
-  resolved "https://registry.yarnpkg.com/@cashu/cashu-ts/-/cashu-ts-0.8.0-rc.4.tgz#bf760b8e74b9a1e828e5e26fd72bc31adea716b2"
-  integrity sha512-CTQchrCNYqRk5XcH6o/hz3+THF6guIkacw8XL/LncZYOcLRBr9cQnptkxA8YZekAr7T7YXRzL1XV/HjhaRGBfQ==
+"@cashu/cashu-ts@^0.8.0-rc.6":
+  version "0.8.0-rc.6"
+  resolved "https://registry.yarnpkg.com/@cashu/cashu-ts/-/cashu-ts-0.8.0-rc.6.tgz#c2f91e56d723b16aeee5cf4c775d12fba963bac5"
+  integrity sha512-gW6BhafKMy7AwH3D+u04CDPc2dIrnR+EFWZqg7KjlSs8bmofeAzGVFb6FGAXvTUjC77vSkrdBfmNYdSwVAn9oQ==
   dependencies:
     "@gandlaf21/bolt11-decode" "^3.0.6"
     "@noble/curves" "^1.0.0"
