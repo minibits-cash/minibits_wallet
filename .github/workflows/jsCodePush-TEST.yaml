@@ -83,16 +83,20 @@ jobs:
         run: appcenter codepush release-react -a minibits-cash/minibits_wallet_android -d Staging
         env:
           APPCENTER_ACCESS_TOKEN: ${{ secrets.APPCENTER_ACCESS_TOKEN_ANDROID }}
-
-      # Create the release tag in github repo  
-      - name: Install GitHub CLI
-        run: |
-          curl -sSL https://cli.github.com/install.sh | sudo bash
-          exec -l $SHELL
       
+      # Create the release tag in github repo  
       - name: Create tag
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: v${{ env.CURRENT_JS_VERSION }}-alpha
-        run: |
-          npx -p @actions/github@5 github tag create $TAG_NAME $GITHUB_SHA
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const tagPrefix = "v";
+            const tagSuffix = "-alpha";
+            const tagName = tagPrefix + process.env.CURRENT_JS_VERSION + tagSuffix;            
+            github.rest.git.createRe({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `refs/tags/${tagName}`,
+              sha: context.sha
+            });
+            
