@@ -73,5 +73,5 @@ if(APP_ENV === Env.PROD) {
     deploymentKey = CODEPUSH_PRODUCTION_DEPLOYMENT_KEY
 }
 
-const codePushOptions = { deploymentKey }
+const codePushOptions = { deploymentKey, updateDialog: true, installMode: codePush.InstallMode.IMMEDIATE }
 export default codePush(codePushOptions)(App)

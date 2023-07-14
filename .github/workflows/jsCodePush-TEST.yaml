@@ -8,6 +8,9 @@ on: workflow_dispatch
 jobs:
   deploy-code-push:
     runs-on: macos-latest
+    permissions:
+      id-token: write
+      contents: write
     
     steps:
       - name: Checkout repository
@@ -83,10 +86,20 @@ jobs:
         run: appcenter codepush release-react -a minibits-cash/minibits_wallet_android -d Staging
         env:
           APPCENTER_ACCESS_TOKEN: ${{ secrets.APPCENTER_ACCESS_TOKEN_ANDROID }}
-          
-      - name: Create git tag
-        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
-        id: version-check
-        uses: salsify/action-detect-and-tag-new-version@v2
+      
+      # Create the release tag in github repo  
+      - name: Create tag
+        uses: actions/github-script@v6
         with:
-          tag-template: v{VERSION}-alpha
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const tagPrefix = "v";
+            const tagSuffix = "-alpha";
+            const tagName = tagPrefix + process.env.CURRENT_JS_VERSION + tagSuffix;            
+            github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `refs/tags/${tagName}`,
+              sha: context.sha
+            });
+            
