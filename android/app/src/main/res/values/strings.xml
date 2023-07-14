@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Minibits</string>
+    <string moduleConfig="true" name="CodePushDeploymentKey"></string><!-- staging key -->
 </resources>
