@@ -86,7 +86,7 @@ jobs:
           
       - name: Create git tag
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
-        id: version-check
+        id: tag-release
         uses: salsify/action-detect-and-tag-new-version@v2
         with:
           tag-template: v{VERSION}-alpha
