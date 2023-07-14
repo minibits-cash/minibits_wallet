@@ -93,7 +93,7 @@ jobs:
             const tagPrefix = "v";
             const tagSuffix = "-alpha";
             const tagName = tagPrefix + process.env.CURRENT_JS_VERSION + tagSuffix;            
-            github.rest.git.createRe({
+            github.rest.git.createRef({
               owner: context.repo.owner,
               repo: context.repo.repo,
               ref: `refs/tags/${tagName}`,
