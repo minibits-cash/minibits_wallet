@@ -8,6 +8,9 @@ on: workflow_dispatch
 jobs:
   deploy-code-push:
     runs-on: macos-latest
+    permissions:
+      id-token: write
+      contents: read
     
     steps:
       - name: Checkout repository
