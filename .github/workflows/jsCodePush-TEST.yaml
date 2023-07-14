@@ -85,9 +85,9 @@ jobs:
           APPCENTER_ACCESS_TOKEN: ${{ secrets.APPCENTER_ACCESS_TOKEN_ANDROID }}
           
       - name: Create git tag
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
         uses: butlerlogic/action-autotag@stable
-            env:
-              GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-            with:
-              tag_suffix: "-alpha"
-              dry_run: true
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        with:
+          tag_suffix: "-alpha"          
