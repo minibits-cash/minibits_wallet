@@ -58,6 +58,21 @@ jobs:
         run: |-
           echo "NATIVE_VERSION=${{steps.version-reader-android.outputs.versionName }}" >> $GITHUB_ENV
           echo "COMMIT_HASH=${{steps.commit-hash.outputs.short }}" >> $GITHUB_ENV
+
+      # Get commit message
+      - name: Get last commit message
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const response = await github.rest.repos.getCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha
+            });
+            const lastCommit = response.data.commit;
+            const message = lastCommit.message;
+            console.log(message);
+            console.log("::set-output name=commit-message::" + message);
                     
       # Create .env file            
       - name: Generate .env
@@ -83,7 +98,7 @@ jobs:
         
       - name: Deploy to CodePush Android
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
-        run: appcenter codepush release-react -a minibits-cash/minibits_wallet_android -d Staging
+        run: appcenter codepush release-react -a minibits-cash/minibits_wallet_android --deployment-name Staging --description ${{ env.commit-message }} --disable-telemetry
         env:
           APPCENTER_ACCESS_TOKEN: ${{ secrets.APPCENTER_ACCESS_TOKEN_ANDROID }}
       
