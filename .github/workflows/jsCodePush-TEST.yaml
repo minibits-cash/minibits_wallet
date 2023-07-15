@@ -72,7 +72,7 @@ jobs:
             const lastCommit = response.data.commit;
             const message = lastCommit.message;
             console.log(message);
-            console.log("::set-output name=commit-message::" + message);
+            core.setOutput('commit-message', message);
                     
       # Create .env file            
       - name: Generate .env
