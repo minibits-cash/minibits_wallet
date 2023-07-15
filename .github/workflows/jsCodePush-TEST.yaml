@@ -10,7 +10,7 @@ jobs:
     runs-on: macos-latest
     permissions:
       id-token: write
-      contents: read
+      contents: write
     
     steps:
       - name: Checkout repository
