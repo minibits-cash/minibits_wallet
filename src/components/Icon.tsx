@@ -60,6 +60,8 @@ import { faRecycle } from '@fortawesome/free-solid-svg-icons/faRecycle'
 import { faListUl } from '@fortawesome/free-solid-svg-icons/faListUl'
 import { faExpand } from '@fortawesome/free-solid-svg-icons/faExpand'
 import { faFingerprint } from '@fortawesome/free-solid-svg-icons/faFingerprint'
+import { faWandMagicSparkles } from '@fortawesome/free-solid-svg-icons/faWandMagicSparkles'
+
 
 export type IconTypes = keyof typeof iconRegistry
 
@@ -109,6 +111,7 @@ export const iconRegistry = {
   faListUl: faListUl,
   faExpand: faExpand,
   faFingerprint: faFingerprint,
+  faWandMagicSparkles: faWandMagicSparkles,
 }
 
 

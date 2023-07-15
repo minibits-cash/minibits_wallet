@@ -176,8 +176,7 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
                 />
                 <ListItem
                   tx="developerScreen.info"
-                  subText={`
-Environment: ${APP_ENV}
+                  subText={`Environment: ${APP_ENV}
 Native version: ${NATIVE_VERSION_ANDROID}
 JS Bundle version: ${JS_BUNDLE_VERSION}
 React Native: ${rnVersion}
