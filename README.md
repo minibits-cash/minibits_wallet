@@ -75,7 +75,7 @@ Security
 - [x] Use device biometry to login (if storage encryption is on)
 
 DevOps
-- [ ] OTA updates
+- [x] OTA updates (opt in)
 - [ ] Automated tests
 - [ ] Release pipelines
 

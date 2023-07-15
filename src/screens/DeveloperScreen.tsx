@@ -126,7 +126,7 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
     const headerBg = useThemeColor('header')
 
     return (
-      <Screen style={$screen}>
+      <Screen style={$screen} preset='auto'>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text
             preset="heading"
@@ -159,22 +159,6 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
                   onPress={syncTransactionsFromDb}
                 />
                 <ListItem
-                  tx="developerScreen.reset"
-                  subTx="developerScreen.resetDescription"
-                  LeftComponent={
-                    <Icon
-                      icon="faXmark"
-                      size={spacing.medium}
-                      color={colors.palette.angry500}
-                      inverse={true}
-                    />
-                  }
-                  RightComponent={<View style={$rightContainer} />}
-                  style={$item}
-                  bottomSeparator={true}
-                  onPress={factoryReset}
-                />
-                <ListItem
                   tx="developerScreen.info"
                   subText={`Environment: ${APP_ENV}
 Native version: ${NATIVE_VERSION_ANDROID}
@@ -192,9 +176,25 @@ Sentry active: ${SENTRY_ACTIVE}
                       inverse={true}
                     />
                   }
+                  bottomSeparator={true}
                   RightComponent={<View style={$rightContainer} />}
                   style={$item}
                 />
+                <ListItem
+                  tx="developerScreen.reset"
+                  subTx="developerScreen.resetDescription"
+                  LeftComponent={
+                    <Icon
+                      icon="faXmark"
+                      size={spacing.medium}
+                      color={colors.palette.angry500}
+                      inverse={true}
+                    />
+                  }
+                  RightComponent={<View style={$rightContainer} />}
+                  style={$item}                  
+                  onPress={factoryReset}
+                />                
               </>
             }
           />
