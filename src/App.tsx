@@ -1,17 +1,12 @@
 import React from 'react'
 import * as Sentry from '@sentry/react-native'
 import {
-    APP_ENV,
     SENTRY_DSN,
-    CODEPUSH_STAGING_DEPLOYMENT_KEY,
-    CODEPUSH_PRODUCTION_DEPLOYMENT_KEY, 
 } from '@env'
-import codePush from "react-native-code-push"
 import {
   initialWindowMetrics,
   SafeAreaProvider,
 } from 'react-native-safe-area-context'
-
 import {AppNavigator} from './navigation'
 import {useInitialRootStore} from './models'
 import {Database} from './services'
@@ -36,7 +31,7 @@ interface AppProps {
 }
 
 function App(props: AppProps) {
-  // const isDarkMode = useColorScheme() === 'dark'
+  
   log.info(`${props.appName} app started...`)
 
   const {rehydrated} = useInitialRootStore(() => {
@@ -62,16 +57,4 @@ function App(props: AppProps) {
   )
 }
 
-// code push
-let deploymentKey: string = ''
-
-if(APP_ENV === Env.TEST) {
-    deploymentKey = CODEPUSH_STAGING_DEPLOYMENT_KEY
-}
-
-if(APP_ENV === Env.PROD) {
-    deploymentKey = CODEPUSH_PRODUCTION_DEPLOYMENT_KEY
-}
-
-const codePushOptions = { deploymentKey, updateDialog: true, installMode: codePush.InstallMode.IMMEDIATE }
-export default codePush(codePushOptions)(App)
+export default App

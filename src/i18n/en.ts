@@ -95,6 +95,7 @@ const en = {
     backupRecovery: "Backup and recovery",
     security: "Security",
     devOptions: "Developer options", 
+    update: "Update manager"
   },
   mintsScreen: {
     addMintUrl: "Add mint URL",    
@@ -129,6 +130,15 @@ const en = {
     biometry: "Biometric authentication",
     biometryAvailable: "Your device supports biometric authentication. If you activate encrypted storage, it will be required for Minibits to start.",
     biometryNone: "You have not setup biometric authentication or your device does not support it."
+  },
+  updateScreen: {
+    updateAvailable: "Update is available",
+    nativeUpdateAvailableDesc: "There is a new version of Minibits Wallet in the Google Play Store.",
+    gotoPlayStore: 'Visit Play Store',
+    updateNow: 'Update now',
+    updateAvailableDesc: "There is a new update of Minibits Wallet ready to install.",
+    updateNotAvailable: 'Nothing to update',
+    updateNotAvailableDesc: 'Good, you are running the latest version of the app.'
   },
   developerScreen: {
     title: "Developer options", 

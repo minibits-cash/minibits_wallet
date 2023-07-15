@@ -1,14 +1,24 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC} from 'react'
+import React, {FC, useEffect, useState} from 'react'
 import {TextStyle, View, ViewStyle} from 'react-native'
+import {
+    APP_ENV,      
+    CODEPUSH_STAGING_DEPLOYMENT_KEY,
+    CODEPUSH_PRODUCTION_DEPLOYMENT_KEY, 
+} from '@env'
+import codePush from "react-native-code-push"
 import {colors, spacing, useThemeColor} from '../theme'
 import {SettingsStackScreenProps} from '../navigation' // @demo remove-current-line
 import {Icon, ListItem, Screen, Text, Card} from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import {translate} from '../i18n'
+import { Env, log } from '../utils/logger'
+import { BackupScreen } from './BackupScreen'
 
 interface SettingsScreenProps extends SettingsStackScreenProps<'Settings'> {}
+
+const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
 
 export const SettingsScreen: FC<SettingsScreenProps> = observer(
   function SettingsScreen(_props) {
@@ -16,27 +26,54 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
     useHeader({}) // default header component
     const {mintsStore} = useStores()
 
-    function gotoMints() {
-      navigation.navigate('Mints')
+    const [isUpdateAvailable, setIsUpdateAvailable] = useState(false)
+    const [isNativeUpdateAvailable, setIsNativeUpdateAvailable] = useState(false)
+
+    useEffect(() => {
+        const checkForUpdate = async () => {
+            try {
+                const update = await codePush.checkForUpdate(deploymentKey, handleBinaryVersionMismatchCallback)
+                if (update) {                    
+                    setIsUpdateAvailable(true)
+                }
+                log.info('update', update, 'checkForUpdate')
+            } catch (e: any) {
+                log.error(e.name, e.message)
+                return false // silent
+            }
+        } 
+        checkForUpdate()
+      }, [])
+
+    const handleBinaryVersionMismatchCallback = function() {        
+        setIsNativeUpdateAvailable(true)
     }
 
-    function gotoSecurity() {
+    const gotoMints = function() {
+      navigation.navigate('Mints', {})
+    }
+
+    const gotoSecurity = function() {
       navigation.navigate('Security')
     }
 
-    function gotoDevOptions() {
+    const gotoDevOptions = function() {
       navigation.navigate('Developer')
     }
 
-    function gotoBackupRestore() {
+    const gotoBackupRestore = function() {
       navigation.navigate('Backup')
+    }
+
+    const gotoUpdate = function() {
+        navigation.navigate('Update', {isNativeUpdateAvailable, isUpdateAvailable})
     }
 
     const $itemRight = {color: useThemeColor('textDim')}
     const headerBg = useThemeColor('header')
-
+    
     return (
-      <Screen style={$screen}>
+      <Screen style={$screen} preset="auto">
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text
             preset="heading"
@@ -100,6 +137,28 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                   onPress={gotoSecurity}
                 />
                 <ListItem
+                  tx="settingsScreen.update"                  
+                  LeftComponent={
+                    <Icon
+                      icon="faWandMagicSparkles"
+                      size={spacing.medium}
+                      color={isUpdateAvailable ? colors.palette.iconMagenta200 : colors.palette.neutral400}
+                      inverse={true}
+                    />
+                  }
+                  RightComponent={
+                    <View style={$rightContainer}>
+                      <Text
+                        style={$itemRight}                         
+                        text={isUpdateAvailable ? '1 update' : ''}
+                      />
+                    </View>
+                  }
+                  style={$item}
+                  bottomSeparator={true}
+                  onPress={gotoUpdate}
+                />
+                <ListItem
                   tx="settingsScreen.devOptions"
                   LeftComponent={
                     <Icon
@@ -152,3 +211,4 @@ const $rightContainer: ViewStyle = {
   alignSelf: 'center',
   marginLeft: spacing.small,
 }
+

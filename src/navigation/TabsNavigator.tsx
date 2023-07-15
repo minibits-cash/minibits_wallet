@@ -17,6 +17,7 @@ import {
   MintsScreen, 
   DeveloperScreen,
   SecurityScreen,
+  UpdateScreen,
   BackupScreen,
   LocalRecoveryScreen,
   TranDetailScreen, 
@@ -140,6 +141,7 @@ export type SettingsStackParamList = {
   Settings: undefined
   Mints: {scannedMintUrl? : string}
   Security: undefined
+  Update: {isUpdateAvailable : boolean, isNativeUpdateAvailable: boolean}
   Backup: undefined
   LocalRecovery: undefined
   Developer: undefined
@@ -164,6 +166,7 @@ const SettingsNavigator = function SettingsNavigator() {
       <SettingsStack.Screen name="Settings" component={SettingsScreen} />
       <SettingsStack.Screen name="Mints" component={MintsScreen} />
       <SettingsStack.Screen name="Security" component={SecurityScreen} />
+      <SettingsStack.Screen name="Update" component={UpdateScreen} />
       <SettingsStack.Screen name="Backup" component={BackupScreen} />
       <SettingsStack.Screen name="LocalRecovery" component={LocalRecoveryScreen} />
       <SettingsStack.Screen name="Developer" component={DeveloperScreen} />
