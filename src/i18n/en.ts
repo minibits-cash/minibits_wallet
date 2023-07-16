@@ -135,8 +135,10 @@ const en = {
     updateAvailable: "Update is available",
     nativeUpdateAvailableDesc: "There is a new version of Minibits Wallet in the Google Play Store.",
     gotoPlayStore: 'Visit Play Store',
-    updateNow: 'Update now',
-    updateAvailableDesc: "There is a new update of Minibits Wallet ready to install.",
+    updateNow: 'Update and restart',
+    updateAvailableDesc: "There is a new Over-the-Air update of Minibits Wallet ready to download and install.",
+    updateNew: "What's new?",
+    updateSize: "Download size",
     updateNotAvailable: 'Nothing to update',
     updateNotAvailableDesc: 'Good, you are running the latest version of the app.'
   },
