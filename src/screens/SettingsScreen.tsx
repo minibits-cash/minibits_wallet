@@ -33,7 +33,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
         const checkForUpdate = async () => {
             try {
                 const update = await codePush.checkForUpdate(deploymentKey, handleBinaryVersionMismatchCallback)
-                if (update) {                    
+                if (update && update.failedInstall !== true) {  // do not announce update that failed to install before                  
                     setIsUpdateAvailable(true)
                 }
                 log.info('update', update, 'checkForUpdate')

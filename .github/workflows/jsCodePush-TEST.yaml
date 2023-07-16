@@ -98,7 +98,7 @@ jobs:
         
       - name: Deploy to CodePush Android
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
-        run: appcenter codepush release-react -a minibits-cash/minibits_wallet_android --deployment-name Staging --description ${{ env.commit-message }} --disable-telemetry
+        run: appcenter codepush release-react -a minibits-cash/minibits_wallet_android --deployment-name Staging --description ${{ env.commit-message }}
         env:
           APPCENTER_ACCESS_TOKEN: ${{ secrets.APPCENTER_ACCESS_TOKEN_ANDROID }}
       
