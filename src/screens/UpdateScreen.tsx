@@ -36,7 +36,8 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
     const {
         isUpdateAvailable, 
         isNativeUpdateAvailable,
-        updateDescription
+        updateDescription,
+        updateSize
     } = route.params
 
 
@@ -56,12 +57,23 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
         try {
         codePush.sync({
             deploymentKey,
-            updateDialog: {
-                appendReleaseDescription: true,
-                descriptionPrefix: "\n\nChange log:\n"
+            rollbackRetryOptions: {
+                delayInHours: 8,
+                maxRetryAttempts: 3
             },
-            installMode: codePush.InstallMode.IMMEDIATE
-         })
+            installMode: codePush.InstallMode.IMMEDIATE,
+            
+         },
+         (status) => {
+            switch (status) {
+                case codePush.SyncStatus.DOWNLOADING_PACKAGE:
+                    setInfo('Downloading update...')
+                    break
+                case codePush.SyncStatus.INSTALLING_UPDATE:
+                    setInfo('Installing update...')
+                    break
+            }
+        })
         } catch (e: any) {
             handleError(e)
         }
@@ -102,21 +114,38 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
             ContentComponent={
             <>
                 {isUpdateAvailable && (
-                <ListItem
-                    tx='updateScreen.updateAvailable'
-                    subText={`${translate('updateScreen.updateAvailableDesc')}${updateDescription.length > 0 ? '\n\n' + updateDescription : ''}`}
-                    LeftComponent={
-                    <Icon
-                        icon={'faWandMagicSparkles'}
-                        size={spacing.medium}
-                        color={
-                            colors.palette.iconMagenta200
-                        }
-                        inverse={true}
+                    <>
+                    <ListItem
+                        tx='updateScreen.updateAvailable'
+                        subTx={'updateScreen.updateAvailableDesc'}
+                        LeftComponent={
+                        <Icon
+                            icon={'faWandMagicSparkles'}
+                            size={spacing.medium}
+                            color={
+                                colors.palette.iconMagenta200
+                            }
+                            inverse={true}
+                        />
+                        }                    
+                        style={$item}
                     />
-                    }                    
-                    style={$item}
-                />)}
+                    {updateDescription.length > 0 && (
+                        <ListItem
+                            tx='updateScreen.updateNew'
+                            subText={updateDescription}                            
+                            topSeparator={true}                   
+                            style={$item}
+                        />
+                    )}
+                    <ListItem
+                        tx='updateScreen.updateSize'
+                        subText={updateSize}                            
+                        topSeparator={true}                   
+                        style={$item}
+                    />
+                    </>
+                )}
                 {isNativeUpdateAvailable && (
                 <ListItem
                     tx='updateScreen.updateAvailable'

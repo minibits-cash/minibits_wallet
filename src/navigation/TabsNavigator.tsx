@@ -142,7 +142,12 @@ export type SettingsStackParamList = {
   Settings: undefined
   Mints: {scannedMintUrl? : string}
   Security: undefined
-  Update: {isUpdateAvailable : boolean, isNativeUpdateAvailable: boolean, updateDescription: string}
+  Update: {
+    isUpdateAvailable : boolean, 
+    isNativeUpdateAvailable: boolean, 
+    updateDescription: string,
+    updateSize: string,
+  }
   Backup: undefined
   LocalRecovery: undefined
   Developer: undefined

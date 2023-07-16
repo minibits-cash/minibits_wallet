@@ -15,6 +15,7 @@ import {useStores} from '../models'
 import {translate} from '../i18n'
 import { Env, log } from '../utils/logger'
 import { BackupScreen } from './BackupScreen'
+import { round } from '../utils/number'
 
 interface SettingsScreenProps extends SettingsStackScreenProps<'Settings'> {}
 
@@ -28,6 +29,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
 
     const [isUpdateAvailable, setIsUpdateAvailable] = useState<boolean>(false)
     const [updateDescription, setUpdateDescription] = useState<string>('')
+    const [updateSize, setUpdateSize] = useState<string>('')
     const [isNativeUpdateAvailable, setIsNativeUpdateAvailable] = useState<boolean>(false)
 
     useEffect(() => {
@@ -35,7 +37,8 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
             try {
                 const update = await codePush.checkForUpdate(deploymentKey, handleBinaryVersionMismatchCallback)
                 if (update && update.failedInstall !== true) {  // do not announce update that failed to install before
-                    setUpdateDescription(update.description)                  
+                    setUpdateDescription(update.description)
+                    setUpdateSize(`${round(update.packageSize *  0.000001, 2)}MB`)                  
                     setIsUpdateAvailable(true)
                 }
                 log.info('update', update, 'checkForUpdate')
@@ -72,7 +75,8 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
         navigation.navigate('Update', {
             isNativeUpdateAvailable, 
             isUpdateAvailable, 
-            updateDescription
+            updateDescription,
+            updateSize
         })
     }
 
