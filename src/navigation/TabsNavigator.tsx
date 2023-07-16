@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack"
 import { StackScreenProps } from "@react-navigation/stack"
 import React from "react"
 import { TextStyle, ViewStyle } from "react-native"
+import { RemotePackage } from "react-native-code-push"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Icon } from "../components"
 import { translate } from "../i18n"
@@ -141,7 +142,7 @@ export type SettingsStackParamList = {
   Settings: undefined
   Mints: {scannedMintUrl? : string}
   Security: undefined
-  Update: {isUpdateAvailable : boolean, isNativeUpdateAvailable: boolean}
+  Update: {isUpdateAvailable : boolean, isNativeUpdateAvailable: boolean, updateDescription: string}
   Backup: undefined
   LocalRecovery: undefined
   Developer: undefined

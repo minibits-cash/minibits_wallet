@@ -26,6 +26,7 @@ import {useStores} from '../models'
 import AppError from '../utils/AppError'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import { Env, log } from '../utils/logger'
+import { translate } from '../i18n'
 
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
 
@@ -34,7 +35,8 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
     const {navigation, route} = _props
     const {
         isUpdateAvailable, 
-        isNativeUpdateAvailable
+        isNativeUpdateAvailable,
+        updateDescription
     } = route.params
 
 
@@ -102,7 +104,7 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
                 {isUpdateAvailable && (
                 <ListItem
                     tx='updateScreen.updateAvailable'
-                    subTx={'updateScreen.updateAvailableDesc'}
+                    subText={`${translate('updateScreen.updateAvailableDesc')}${updateDescription.length > 0 ? '\n\n' + updateDescription : ''}`}
                     LeftComponent={
                     <Icon
                         icon={'faWandMagicSparkles'}

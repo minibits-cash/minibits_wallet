@@ -26,19 +26,21 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
     useHeader({}) // default header component
     const {mintsStore} = useStores()
 
-    const [isUpdateAvailable, setIsUpdateAvailable] = useState(false)
-    const [isNativeUpdateAvailable, setIsNativeUpdateAvailable] = useState(false)
+    const [isUpdateAvailable, setIsUpdateAvailable] = useState<boolean>(false)
+    const [updateDescription, setUpdateDescription] = useState<string>('')
+    const [isNativeUpdateAvailable, setIsNativeUpdateAvailable] = useState<boolean>(false)
 
     useEffect(() => {
         const checkForUpdate = async () => {
             try {
                 const update = await codePush.checkForUpdate(deploymentKey, handleBinaryVersionMismatchCallback)
-                if (update && update.failedInstall !== true) {  // do not announce update that failed to install before                  
+                if (update && update.failedInstall !== true) {  // do not announce update that failed to install before
+                    setUpdateDescription(update.description)                  
                     setIsUpdateAvailable(true)
                 }
                 log.info('update', update, 'checkForUpdate')
             } catch (e: any) {
-                log.error(e.name, e.message)
+                log.info(e.name, e.message)
                 return false // silent
             }
         } 
@@ -67,7 +69,11 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
     }
 
     const gotoUpdate = function() {
-        navigation.navigate('Update', {isNativeUpdateAvailable, isUpdateAvailable})
+        navigation.navigate('Update', {
+            isNativeUpdateAvailable, 
+            isUpdateAvailable, 
+            updateDescription
+        })
     }
 
     const $itemRight = {color: useThemeColor('textDim')}
