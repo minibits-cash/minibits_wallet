@@ -6,7 +6,7 @@ import {
     CODEPUSH_STAGING_DEPLOYMENT_KEY,
     CODEPUSH_PRODUCTION_DEPLOYMENT_KEY, 
 } from '@env'
-import codePush from "react-native-code-push"
+import codePush, { RemotePackage } from "react-native-code-push"
 import {colors, spacing, useThemeColor} from '../theme'
 import {SettingsStackScreenProps} from '../navigation' // @demo remove-current-line
 import {Icon, ListItem, Screen, Text, Card} from '../components'
@@ -45,7 +45,8 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
         checkForUpdate()
       }, [])
 
-    const handleBinaryVersionMismatchCallback = function() {        
+    const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {    
+        log.info('handleBinaryVersionMismatchCallback', [true, update], 'handleBinaryVersionMismatchCallback')    
         setIsNativeUpdateAvailable(true)
     }
 
@@ -142,7 +143,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                     <Icon
                       icon="faWandMagicSparkles"
                       size={spacing.medium}
-                      color={isUpdateAvailable ? colors.palette.iconMagenta200 : colors.palette.neutral400}
+                      color={(isUpdateAvailable || isNativeUpdateAvailable) ? colors.palette.iconMagenta200 : colors.palette.neutral400}
                       inverse={true}
                     />
                   }
@@ -150,7 +151,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                     <View style={$rightContainer}>
                       <Text
                         style={$itemRight}                         
-                        text={isUpdateAvailable ? '1 update' : ''}
+                        text={(isUpdateAvailable || isNativeUpdateAvailable) ? '1 update' : ''}
                       />
                     </View>
                   }
