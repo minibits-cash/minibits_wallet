@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
-import {Switch, TextStyle, View, ViewStyle} from 'react-native'
+import {Linking, Platform, Switch, TextStyle, View, ViewStyle} from 'react-native'
 import {
     APP_ENV,      
     CODEPUSH_STAGING_DEPLOYMENT_KEY,
@@ -50,10 +50,6 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
     const [error, setError] = useState<AppError | undefined>()
 
 
-    const gotoPlayStore = function (): void {
-
-    }
-
     const handleUpdate = function (): void {
         try {
         codePush.sync({
@@ -68,6 +64,23 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
             handleError(e)
         }
     }
+
+
+    const gotoPlayStore = () => {
+        const packageName = 'com.minibits_wallet'; // Replace with your app's package name
+      
+        // Determine the URL based on the user's platform (Android or iOS)
+        let url = ''
+        if (Platform.OS === 'android') {
+          url = `market://details?id=${packageName}`
+        } else if (Platform.OS === 'ios') {
+          url = `itms-apps://itunes.apple.com/app/${packageName}`
+        }
+      
+        // Open the URL in the device's default app for handling URLs (e.g., Play Store)
+        Linking.openURL(url)
+    }
+
 
     const handleError = function (e: AppError): void {
         setIsLoading(false)
@@ -127,23 +140,24 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
                 )}
             </>
             }
-            FooterComponent={isUpdateAvailable ? (
+            FooterComponent={
              <>
-                {isNativeUpdateAvailable ? (
+                {isUpdateAvailable && (
+                    <Button
+                    onPress={handleUpdate}                        
+                    tx='updateScreen.updateNow'
+                    style={{alignSelf: 'center', marginTop: spacing.medium}}
+                />
+                )}
+                {isNativeUpdateAvailable && (
                     <Button
                         onPress={gotoPlayStore}
                         tx='updateScreen.gotoPlayStore'
                         style={{alignSelf: 'center', marginTop: spacing.medium}}
                     />
-                ) : (
-                    <Button
-                        onPress={handleUpdate}                        
-                        tx='updateScreen.updateNow'
-                        style={{alignSelf: 'center', marginTop: spacing.medium}}
-                    />
                 )}
              </>   
-            ) : (<></>)}
+            }
           />
           {isLoading && <Loading />}
         </View>        

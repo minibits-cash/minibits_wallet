@@ -1,6 +1,6 @@
 {
   "name": "minibits_wallet",
-  "version": "0.0.4",
+  "version": "0.0.4-fix.1",
   "private": true,
   "scripts": {
     "android:clean": "cd android && ./gradlew clean",
