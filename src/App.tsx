@@ -2,6 +2,8 @@ import React from 'react'
 import * as Sentry from '@sentry/react-native'
 import {
     SENTRY_DSN,
+    JS_BUNDLE_VERSION,
+    NATIVE_VERSION_ANDROID
 } from '@env'
 import {
   initialWindowMetrics,
@@ -12,11 +14,13 @@ import {useInitialRootStore} from './models'
 import {Database} from './services'
 import {ErrorBoundary} from './screens/ErrorScreen/ErrorBoundary'
 import Config from './config'
-import {Env, log} from './utils/logger'
+import {log} from './utils/logger'
 import AppError from './utils/AppError'
 
 Sentry.init({
   dsn: SENTRY_DSN,
+  release: `minibits_wallet_android@${NATIVE_VERSION_ANDROID}`,
+  dist: JS_BUNDLE_VERSION,
   beforeSend: function (event, hint) {
     const exception = hint.originalException
     if (exception instanceof AppError) {

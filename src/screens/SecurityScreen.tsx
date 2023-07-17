@@ -111,18 +111,13 @@ export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer
               <ListItem
                 tx="securityScreen.encryptStorage"
                 subTx="securityScreen.encryptStorageDescription"
-                LeftComponent={
-                  <Icon
-                    icon={isStorageEncrypted ? 'faLock' : 'faLockOpen'}
-                    size={spacing.medium}
-                    color={
-                      isStorageEncrypted
-                        ? colors.palette.success200
-                        : colors.palette.neutral400
-                    }
-                    inverse={true}
-                  />
+                leftIcon={isStorageEncrypted ? 'faLock' : 'faLockOpen'}
+                leftIconColor={
+                    isStorageEncrypted
+                      ? colors.palette.success200
+                      : colors.palette.neutral400
                 }
+                leftIconInverse={true}
                 RightComponent={
                   <View style={$rightContainer}>
                     <Switch
@@ -136,18 +131,13 @@ export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer
               <ListItem
                 tx="securityScreen.biometry"
                 subTx={biometryType ? 'securityScreen.biometryAvailable' : 'securityScreen.biometryNone'}
-                LeftComponent={
-                  <Icon
-                    icon='faFingerprint'
-                    size={spacing.medium}
-                    color={
-                      biometryType
-                        ? colors.palette.success200
-                        : colors.palette.neutral400
-                    }
-                    inverse={true}
-                  />
+                leftIcon='faFingerprint'
+                leftIconColor={
+                    biometryType
+                      ? colors.palette.success200
+                      : colors.palette.neutral400
                 }
+                leftIconInverse={true}
                 RightComponent={!!biometryType ? (
                     <View style={[$rightContainer, {marginLeft: spacing.small}]}>
                     <Icon

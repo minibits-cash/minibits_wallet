@@ -40,6 +40,7 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
         updateSize
     } = route.params
 
+    // const isUpdateAvailable = true
 
     useHeader({
         leftIcon: 'faArrowLeft',
@@ -118,29 +119,24 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
                     <ListItem
                         tx='updateScreen.updateAvailable'
                         subTx={'updateScreen.updateAvailableDesc'}
-                        LeftComponent={
-                        <Icon
-                            icon={'faWandMagicSparkles'}
-                            size={spacing.medium}
-                            color={
-                                colors.palette.iconMagenta200
-                            }
-                            inverse={true}
-                        />
-                        }                    
+                        leftIcon='faWandMagicSparkles'
+                        leftIconColor={colors.palette.iconMagenta200}
+                        leftIconInverse={true}                  
                         style={$item}
-                    />
-                    {updateDescription.length > 0 && (
-                        <ListItem
-                            tx='updateScreen.updateNew'
-                            subText={updateDescription}                            
-                            topSeparator={true}                   
-                            style={$item}
-                        />
-                    )}
+                    />                    
+                    <ListItem
+                        tx='updateScreen.updateNew'
+                        subText={updateDescription || 'UX and performance improvements'}
+                        leftIcon='faInfoCircle'
+                        leftIconColor={colors.palette.neutral500}
+                        topSeparator={true}                   
+                        style={$item}
+                    />                    
                     <ListItem
                         tx='updateScreen.updateSize'
-                        subText={updateSize}                            
+                        subText={updateSize || '1.0MB'}
+                        leftIcon='faDownload'
+                        leftIconColor={colors.palette.neutral500}                         
                         topSeparator={true}                   
                         style={$item}
                     />
@@ -150,22 +146,17 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
                 <ListItem
                     tx='updateScreen.updateAvailable'
                     subTx={'updateScreen.nativeUpdateAvailableDesc'}
-                    LeftComponent={
-                    <Icon
-                        icon={'faWandMagicSparkles'}
-                        size={spacing.medium}
-                        color={
-                            colors.palette.iconMagenta200
-                        }
-                        inverse={true}
-                    />
-                    }                    
+                    leftIcon='faWandMagicSparkles'
+                    leftIconColor={colors.palette.iconMagenta200}
+                    leftIconInverse={true}                    
                     style={$item}
                 />)}
                 {(!isUpdateAvailable && !isNativeUpdateAvailable) && (
                     <ListItem
                         tx='updateScreen.updateNotAvailable'
                         subTx={'updateScreen.updateNotAvailableDesc'}                                       
+                        leftIcon='faInfoCircle'
+                        leftIconColor={colors.palette.neutral500}
                         style={$item}
                     />                                    
                 )}

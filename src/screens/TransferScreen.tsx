@@ -32,7 +32,7 @@ import {log} from '../utils/logger'
 import AppError, {Err} from '../utils/AppError'
 import {
   decodeInvoice,
-  LightningInvoice,
+  DecodedLightningInvoice,
   getInvoiceData,
 } from '../services/cashuHelpers'
 import {MintBalance} from '../models/Mint'
@@ -58,7 +58,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
 
 
   const [encodedInvoice, setEncodedInvoice] = useState<string>('')
-    const [invoice, setInvoice] = useState<LightningInvoice | undefined>()
+    const [invoice, setInvoice] = useState<DecodedLightningInvoice | undefined>()
     const [amountToTransfer, setAmountToTransfer] = useState<number>(0)
     const [estimatedFee, setEstimatedFee] = useState<number>(0)
     const [finalFee, setFinalFee] = useState<number>(0)
@@ -281,14 +281,9 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
                                 <ListItem
                                     tx="transferScreen.pasteLightningInvoice"
                                     subTx="transferScreen.pasteLightningInvoiceDescription"
-                                    LeftComponent={
-                                    <Icon
-                                        icon="faBolt"
-                                        size={spacing.medium}
-                                        color={colors.palette.secondary300}
-                                        inverse={true}
-                                    />
-                                    }
+                                    leftIcon='faBolt'
+                                    leftIconColor={colors.palette.secondary300}
+                                    leftIconInverse={true}
                                     style={$item}
                                     bottomSeparator={true}
                                     onPress={togglePasteInvoiceModal}
@@ -296,14 +291,9 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
                                 <ListItem
                                     tx="transferScreen.scanLightningInvoice"
                                     subTx="transferScreen.scanLightningInvoiceDescription"
-                                    LeftComponent={
-                                    <Icon
-                                        icon="faQrcode"
-                                        size={spacing.medium}
-                                        color={colors.palette.success200}
-                                        inverse={true}
-                                    />
-                                    }
+                                    leftIcon='faQrcode'
+                                    leftIconColor={colors.palette.success200}
+                                    leftIconInverse={true}
                                     style={$item}
                                     bottomSeparator={false}
                                     onPress={gotoScan}
@@ -389,7 +379,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
                                 <Button
                                     preset="secondary"
                                     tx={'common.close'}
-                                    onPress={() => navigation.navigate('Wallet')}
+                                    onPress={() => navigation.navigate('Wallet', {})}
                                 />
                                 </View>
                             </>

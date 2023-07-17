@@ -219,14 +219,9 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                   <ListItem
                     tx="receiveScreen.sharePaymentRequest"
                     subTx="receiveScreen.sharePaymentRequestDescription"
-                    LeftComponent={
-                      <Icon
-                        icon="faAddressCard"
-                        size={spacing.medium}
-                        color={colors.palette.secondary300}
-                        inverse={true}
-                      />
-                    }
+                    leftIcon='faAddressCard'
+                    leftIconColor={colors.palette.secondary300}
+                    leftIconInverse={true}
                     style={$item}
                     bottomSeparator={true}
                     onPress={() => Alert.alert('Not yet implemented')}
@@ -234,14 +229,9 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                   <ListItem
                     tx="receiveScreen.scanQRCodeToReceive"
                     subTx="receiveScreen.scanQRCodeToReceiveDescription"
-                    LeftComponent={
-                      <Icon
-                        icon="faQrcode"
-                        size={spacing.medium}
-                        color={colors.palette.success200}
-                        inverse={true}
-                      />
-                    }
+                    leftIcon='faQrcode'
+                    leftIconColor={colors.palette.success200}
+                    leftIconInverse={true}
                     style={$item}
                     bottomSeparator={true}
                     onPress={gotoScan}
@@ -249,14 +239,9 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                   <ListItem
                     tx="receiveScreen.pasteFromClipboard"
                     subTx="receiveScreen.pasteFromClipboardDescription"
-                    LeftComponent={
-                      <Icon
-                        icon="faClipboard"
-                        size={spacing.medium}
-                        color={colors.palette.accent300}
-                        inverse={true}
-                      />
-                    }
+                    leftIcon='faClipboard'
+                    leftIconColor={colors.palette.accent300}
+                    leftIconInverse={true}
                     style={$item}
                     onPress={onPasteEncodedToken}
                   />
