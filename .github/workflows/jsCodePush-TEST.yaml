@@ -109,9 +109,8 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const tagPrefix = "v";
-            const tagSuffix = "-alpha";
-            const tagName = tagPrefix + process.env.CURRENT_JS_VERSION + tagSuffix;            
+            const tagPrefix = "v";            
+            const tagName = tagPrefix + process.env.CURRENT_JS_VERSION;            
             github.rest.git.createRef({
               owner: context.repo.owner,
               repo: context.repo.repo,
