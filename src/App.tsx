@@ -1,10 +1,14 @@
 import React from 'react'
 import * as Sentry from '@sentry/react-native'
 import {
+    APP_ENV,
     SENTRY_DSN,
     JS_BUNDLE_VERSION,
-    NATIVE_VERSION_ANDROID
+    NATIVE_VERSION_ANDROID,
+    CODEPUSH_STAGING_DEPLOYMENT_KEY,
+    CODEPUSH_PRODUCTION_DEPLOYMENT_KEY, 
 } from '@env'
+import codePush from 'react-native-code-push'
 import {
   initialWindowMetrics,
   SafeAreaProvider,
@@ -14,7 +18,7 @@ import {useInitialRootStore} from './models'
 import {Database} from './services'
 import {ErrorBoundary} from './screens/ErrorScreen/ErrorBoundary'
 import Config from './config'
-import {log} from './utils/logger'
+import {Env, log} from './utils/logger'
 import AppError from './utils/AppError'
 
 Sentry.init({
@@ -61,4 +65,6 @@ function App(props: AppProps) {
   )
 }
 
-export default App
+const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
+const codePushOptions = { deploymentKey, checkFrequency: codePush.CheckFrequency.MANUAL }
+export default codePush(codePushOptions)(App)
