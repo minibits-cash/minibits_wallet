@@ -145,14 +145,9 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
                     'developerScreen.transactionsDescription',
                     {count: transactionsStore.count},
                   )}
-                  LeftComponent={
-                    <Icon
-                      icon="faRotate"
-                      size={spacing.medium}
-                      color={colors.light.tint}
-                      inverse={true}
-                    />
-                  }
+                  leftIcon='faRotate'
+                  leftIconColor={colors.light.tint}
+                  leftIconInverse={true}
                   RightComponent={<View style={$rightContainer} />}
                   style={$item}
                   bottomSeparator={true}
@@ -168,14 +163,9 @@ Commit: ${COMMIT}
 Log level: ${LOG_LEVEL}
 Sentry active: ${SENTRY_ACTIVE} 
                   `}
-                  LeftComponent={
-                    <Icon
-                      icon="faInfoCircle"
-                      size={spacing.medium}
-                      color={colors.palette.iconGreen300}
-                      inverse={true}
-                    />
-                  }
+                  leftIcon='faInfoCircle'
+                  leftIconColor={colors.palette.iconGreen300}
+                  leftIconInverse={true}
                   bottomSeparator={true}
                   RightComponent={<View style={$rightContainer} />}
                   style={$item}
@@ -183,14 +173,9 @@ Sentry active: ${SENTRY_ACTIVE}
                 <ListItem
                   tx="developerScreen.reset"
                   subTx="developerScreen.resetDescription"
-                  LeftComponent={
-                    <Icon
-                      icon="faXmark"
-                      size={spacing.medium}
-                      color={colors.palette.angry500}
-                      inverse={true}
-                    />
-                  }
+                  leftIcon='faXmark'
+                  leftIconColor={colors.palette.angry500}
+                  leftIconInverse={true}
                   RightComponent={<View style={$rightContainer} />}
                   style={$item}                  
                   onPress={factoryReset}

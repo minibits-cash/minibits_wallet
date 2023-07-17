@@ -113,18 +113,13 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
                 <ListItem
                   tx="backupScreen.localBackup"
                   subTx="backupScreen.localBackupDescription"
-                  LeftComponent={
-                    <Icon
-                      icon="faDownload"
-                      size={spacing.medium}
-                      color={
-                        isLocalBackupOn
-                          ? colors.palette.success200
-                          : colors.palette.neutral400
-                      }
-                      inverse={true}
-                    />
+                  leftIcon='faDownload'
+                  leftIconColor={
+                    isLocalBackupOn
+                      ? colors.palette.success200
+                      : colors.palette.neutral400
                   }
+                  leftIconInverse={true}
                   RightComponent={
                     <View style={$rightContainer}>
                       <Switch
@@ -139,14 +134,9 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
                   <ListItem
                     tx="backupScreen.recoveryTool"
                     subTx="backupScreen.recoveryToolDescription"
-                    LeftComponent={
-                      <Icon
-                        icon="faUpload"
-                        size={spacing.medium}
-                        color={colors.palette.focus300}
-                        inverse={true}
-                      />
-                    }
+                    leftIcon='faUpload'
+                    leftIconColor={colors.palette.focus300}
+                    leftIconInverse={true}
                     style={$item}
                     onPress={gotoLocalRecovery}
                   />
@@ -154,14 +144,9 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
                 <ListItem
                   tx="backupScreen.removeSpentCoins"
                   subTx="backupScreen.removeSpentCoinsDescription"
-                  LeftComponent={
-                    <Icon
-                      icon="faRecycle"
-                      size={spacing.medium}
-                      color={colors.palette.secondary300}
-                      inverse={true}
-                    />
-                  }
+                  leftIcon='faRecycle'
+                  leftIconColor={colors.palette.secondary300}
+                  leftIconInverse={true}
                   style={$item}
                   onPress={checkSpent}
                 />

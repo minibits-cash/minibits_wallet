@@ -184,7 +184,7 @@ export function Icon(props: IconProps) {
     <Wrapper
       accessibilityRole={isPressable ? "imagebutton" : undefined}
       {...WrapperProps}
-      style={inverse ? [$inverseContainer, {backgroundColor: color}, $containerStyleOverride] : $containerStyleOverride}
+      style={inverse ? [$inverseContainer, {backgroundColor: color}, $containerStyleOverride] : [$container, $containerStyleOverride]}
     >
       <FontAwesomeIcon 
         icon={iconRegistry[icon]}
@@ -202,9 +202,12 @@ const $imageStyle: ImageStyle = {
   resizeMode: "contain",
 }
 
+const $container: ImageStyle = {    
+    padding: spacing.extraSmall,    
+}
+
 const $inverseContainer: ImageStyle = {
+  flex: 0,
   borderRadius: spacing.small,
-  padding: spacing.extraSmall,
-  alignSelf: "center",
-  marginRight: spacing.medium,
+  padding: spacing.extraSmall,  
 }
