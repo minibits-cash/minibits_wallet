@@ -32,7 +32,14 @@ export const MintsStoreModel = types
             // set derived properties
             mintInstance.setHostname()
             const lastSlashIndex = newMint.mintUrl.lastIndexOf('/')
-            mintInstance.setShortname(newMint.mintUrl.substring(lastSlashIndex + 1))
+            let shortname = newMint.mintUrl.substring(lastSlashIndex + 1)
+
+            // temporary UX fix for minibits mint
+            if(shortname === 'Bitcoin') {
+                shortname = 'Bitcoin (sats)'
+            }
+
+            mintInstance.setShortname(shortname)
             mintInstance.setRandomColor()
 
             self.mints.push(mintInstance)

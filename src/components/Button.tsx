@@ -7,8 +7,10 @@ import {
   TextStyle,
   ViewStyle,
 } from "react-native"
+import {moderateScale, scale, verticalScale} from '@gocodingnow/rn-size-matters'
 import { colors, spacing, typography, useThemeColor } from "../theme"
 import { Text, TextProps } from "./Text"
+import { log } from "../utils/logger"
 
 type Presets = keyof typeof $viewPresets
 
@@ -133,20 +135,21 @@ export function Button(props: ButtonProps) {
   )
 }
 
+
 const $baseViewStyle: ViewStyle = {
-  minHeight: 52,
+  minHeight: verticalScale(50),
   borderRadius: 8,
   justifyContent: "center",
   alignItems: "center",
   flexDirection: "row",
-  paddingVertical: spacing.small,
+  paddingVertical: verticalScale(spacing.small),
   paddingHorizontal: spacing.small,
   overflow: "hidden",
 }
 
 const $baseTextStyle: TextStyle = {
   fontSize: 16,
-  lineHeight: 20,
+  lineHeight: verticalScale(20),
   fontFamily: typography.primary?.light,
   textAlign: "center",
   flexShrink: 1,
