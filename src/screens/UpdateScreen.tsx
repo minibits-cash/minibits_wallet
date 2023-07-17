@@ -59,7 +59,7 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
         codePush.sync({
             deploymentKey,
             rollbackRetryOptions: {
-                delayInHours: 8,
+                delayInHours: 1,
                 maxRetryAttempts: 3
             },
             installMode: codePush.InstallMode.IMMEDIATE,

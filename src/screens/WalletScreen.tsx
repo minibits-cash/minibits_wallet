@@ -240,20 +240,18 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 <Icon
                   icon='faArrowDown'
                   color='white'
-                  size={spacing.medium}
-                  containerStyle={{marginRight: 0}}
+                  size={spacing.medium}                  
                 />
               )}
               onPress={gotoReceive}
-              style={$buttonReceive}
+              style={[$buttonReceive, {borderRightColor: screenBg}]}
             />
             <Button
               RightAccessory={() => (
                 <Icon
                   icon='faExpand'
                   color='white'
-                  size={spacing.medium}
-                  containerStyle={{marginRight: 0}}
+                  size={spacing.medium}                  
                 />
               )}
               onPress={gotoScan}
@@ -265,12 +263,11 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 <Icon
                   icon='faArrowUp'
                   color='white'
-                  size={spacing.medium}
-                  containerStyle={{marginRight: 0}}
+                  size={spacing.medium}                  
                 />
               )}
               onPress={gotoSend}
-              style={$buttonSend}
+              style={[$buttonSend, {borderLeftColor: screenBg}]}
             />
           </View>
         </Animated.View>
@@ -512,7 +509,7 @@ const $buttonReceive: ViewStyle = {
   borderTopRightRadius: 0,
   borderBottomRightRadius: 0,
   minWidth: 130,
-  borderRightWidth: 1,
+  borderRightWidth: 1,  
 }
 
 const $buttonScan: ViewStyle = {
@@ -526,5 +523,5 @@ const $buttonSend: ViewStyle = {
   borderTopRightRadius: 30,
   borderBottomRightRadius: 30,
   minWidth: 130,
-  borderLeftWidth: 1,
+  borderLeftWidth: 1,  
 }
