@@ -20,6 +20,7 @@ Platform support
 - [x] Android app
 - [ ] iOS app
 - [x] Light and dark mode
+- [x] i18n support
 
 Mints
 - [x] Add multiple mints

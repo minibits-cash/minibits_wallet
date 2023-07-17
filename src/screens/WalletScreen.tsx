@@ -12,6 +12,7 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
 } from 'react-native-reanimated'
+import {moderateScale, scale, verticalScale} from '@gocodingnow/rn-size-matters'
 import {useThemeColor, spacing, colors, typography} from '../theme'
 import {
   Button,
@@ -508,13 +509,13 @@ const $buttonReceive: ViewStyle = {
   borderBottomLeftRadius: 30,
   borderTopRightRadius: 0,
   borderBottomRightRadius: 0,
-  minWidth: 130,
+  minWidth: verticalScale(130),
   borderRightWidth: 1,  
 }
 
 const $buttonScan: ViewStyle = {
   borderRadius: 0,
-  minWidth: 60,
+  minWidth: verticalScale(60),
 }
 
 const $buttonSend: ViewStyle = {
@@ -522,6 +523,6 @@ const $buttonSend: ViewStyle = {
   borderBottomLeftRadius: 0,
   borderTopRightRadius: 30,
   borderBottomRightRadius: 30,
-  minWidth: 130,
+  minWidth: verticalScale(130),
   borderLeftWidth: 1,  
 }

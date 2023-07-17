@@ -13,6 +13,10 @@ import {
   initialWindowMetrics,
   SafeAreaProvider,
 } from 'react-native-safe-area-context'
+import {
+    setSizeMattersBaseHeight, 
+    setSizeMattersBaseWidth
+} from '@gocodingnow/rn-size-matters'
 import {AppNavigator} from './navigation'
 import {useInitialRootStore} from './models'
 import {Database} from './services'
@@ -20,6 +24,9 @@ import {ErrorBoundary} from './screens/ErrorScreen/ErrorBoundary'
 import Config from './config'
 import {Env, log} from './utils/logger'
 import AppError from './utils/AppError'
+
+setSizeMattersBaseWidth(375)
+setSizeMattersBaseHeight(812)
 
 Sentry.init({
   dsn: SENTRY_DSN,
@@ -39,8 +46,6 @@ interface AppProps {
 }
 
 function App(props: AppProps) {
-  
-  log.info(`${props.appName} app started...`)
 
   const {rehydrated} = useInitialRootStore(() => {
     // This runs after the root store has been initialized and rehydrated from storage.

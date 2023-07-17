@@ -1,6 +1,6 @@
 {
   "name": "minibits_wallet",
-  "version": "0.0.5-alpha.3",
+  "version": "0.0.5-alpha.4",
   "private": true,
   "scripts": {
     "android:clean": "cd android && ./gradlew clean",
@@ -20,6 +20,7 @@
     "@fortawesome/free-regular-svg-icons": "^6.4.0",
     "@fortawesome/free-solid-svg-icons": "^6.4.0",
     "@fortawesome/react-native-fontawesome": "^0.3.0",
+    "@gocodingnow/rn-size-matters": "^0.0.2",
     "@react-native-clipboard/clipboard": "^1.11.2",
     "@react-native-community/netinfo": "^9.4.1",
     "@react-navigation/bottom-tabs": "^6.5.7",
