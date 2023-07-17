@@ -22,11 +22,9 @@ import {
   Button,
 } from '../components'
 import {useHeader} from '../utils/useHeader'
-import {useStores} from '../models'
 import AppError from '../utils/AppError'
-import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import { Env, log } from '../utils/logger'
-import { translate } from '../i18n'
+
 
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
 
@@ -56,25 +54,27 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
 
     const handleUpdate = function (): void {
         try {
-        codePush.sync({
-            deploymentKey,
-            rollbackRetryOptions: {
-                delayInHours: 1,
-                maxRetryAttempts: 3
+            codePush.sync({
+                deploymentKey,
+                rollbackRetryOptions: {
+                    delayInHours: 1,
+                    maxRetryAttempts: 3
+                },
+                installMode: codePush.InstallMode.IMMEDIATE,
+                
             },
-            installMode: codePush.InstallMode.IMMEDIATE,
-            
-         },
-         (status) => {
-            switch (status) {
-                case codePush.SyncStatus.DOWNLOADING_PACKAGE:
-                    setInfo('Downloading update...')
-                    break
-                case codePush.SyncStatus.INSTALLING_UPDATE:
-                    setInfo('Installing update...')
-                    break
-            }
-        })
+            (status) => {
+                switch (status) {
+                    case codePush.SyncStatus.DOWNLOADING_PACKAGE:
+                        log.info('Downloading update...')
+                        setInfo('Downloading update...')
+                        break
+                    case codePush.SyncStatus.INSTALLING_UPDATE:
+                        log.info('Installing update...')
+                        setInfo('Installing update...')
+                        break
+                }
+            })
         } catch (e: any) {
             handleError(e)
         }
