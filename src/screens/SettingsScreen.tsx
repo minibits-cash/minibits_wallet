@@ -6,7 +6,7 @@ import {
     CODEPUSH_STAGING_DEPLOYMENT_KEY,
     CODEPUSH_PRODUCTION_DEPLOYMENT_KEY, 
 } from '@env'
-import codePush, { RemotePackage } from "react-native-code-push"
+import codePush, { RemotePackage } from 'react-native-code-push'
 import {colors, spacing, useThemeColor} from '../theme'
 import {SettingsStackScreenProps} from '../navigation' // @demo remove-current-line
 import {Icon, ListItem, Screen, Text, Card} from '../components'
@@ -84,11 +84,11 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
     const headerBg = useThemeColor('header')
     
     return (
-      <Screen style={$screen} preset="auto">
+      <Screen style={$screen} preset='auto'>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text
-            preset="heading"
-            tx="settingsScreen.title"
+            preset='heading'
+            tx='settingsScreen.title'
             style={{color: 'white'}}
           />
         </View>
@@ -98,90 +98,64 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
             ContentComponent={
               <>
                 <ListItem
-                  tx="settingsScreen.manageMints"
-                  LeftComponent={
-                    <Icon
-                      icon="faCoins"
-                      size={spacing.medium}
-                      color={colors.palette.iconBlue300}
-                      inverse={true}
-                    />
-                  }
-                  RightComponent={
-                    <View style={$rightContainer}>
-                      <Text 
-                        style={$itemRight}
-                        text={translate('settingsScreen.mintsCount', {count: mintsStore.mintCount})}
-                      />
-                    </View>
-                  }
-                  style={$item}
-                  bottomSeparator={true}
-                  onPress={gotoMints}
+                    tx='settingsScreen.manageMints'
+                    leftIcon='faCoins'
+                    leftIconColor={colors.palette.iconBlue300}
+                    leftIconInverse={true}
+                    RightComponent={
+                        <View style={$rightContainer}>
+                        <Text 
+                            style={$itemRight}
+                            text={translate('settingsScreen.mintsCount', {count: mintsStore.mintCount})}
+                        />
+                        </View>
+                    }
+                    style={$item}
+                    bottomSeparator={true}
+                    onPress={gotoMints}
                 />
                 <ListItem
-                  tx="settingsScreen.backupRecovery"
-                  LeftComponent={
-                    <Icon
-                      icon="faCloudArrowUp"
-                      size={spacing.medium}
-                      color={colors.palette.success300}
-                      inverse={true}
-                    />
-                  }
-                  style={$item}
-                  bottomSeparator={true}
-                  onPress={gotoBackupRestore}
+                    tx='settingsScreen.backupRecovery'
+                    leftIcon='faCloudArrowUp'
+                    leftIconColor={colors.palette.success300}
+                    leftIconInverse={true}
+                    style={$item}
+                    bottomSeparator={true}
+                    onPress={gotoBackupRestore}
                 />
                 <ListItem
-                  tx="settingsScreen.security"
-                  LeftComponent={
-                    <Icon
-                      icon="faShieldHalved"
-                      size={spacing.medium}
-                      color={colors.palette.iconGreyBlue400}
-                      inverse={true}
-                    />
-                  }
-                  style={$item}
-                  bottomSeparator={true}
-                  onPress={gotoSecurity}
+                    tx='settingsScreen.security'
+                    leftIcon='faShieldHalved'
+                    leftIconColor={colors.palette.iconGreyBlue400}
+                    leftIconInverse={true}
+                    style={$item}
+                    bottomSeparator={true}
+                    onPress={gotoSecurity}
                 />
                 <ListItem
-                  tx="settingsScreen.update"                  
-                  LeftComponent={
-                    <Icon
-                      icon="faWandMagicSparkles"
-                      size={spacing.medium}
-                      color={(isUpdateAvailable || isNativeUpdateAvailable) ? colors.palette.iconMagenta200 : colors.palette.neutral400}
-                      inverse={true}
-                    />
-                  }
-                  RightComponent={
-                    <View style={$rightContainer}>
-                      <Text
-                        style={$itemRight}                         
-                        text={(isUpdateAvailable || isNativeUpdateAvailable) ? '1 update' : ''}
-                      />
-                    </View>
-                  }
-                  style={$item}
-                  bottomSeparator={true}
-                  onPress={gotoUpdate}
+                    tx='settingsScreen.update'     
+                    leftIcon='faWandMagicSparkles'
+                    leftIconColor={(isUpdateAvailable || isNativeUpdateAvailable) ? colors.palette.iconMagenta200 : colors.palette.neutral400}
+                    leftIconInverse={true}
+                    RightComponent={
+                        <View style={$rightContainer}>
+                        <Text
+                            style={$itemRight}                         
+                            text={(isUpdateAvailable || isNativeUpdateAvailable) ? '1 update' : ''}
+                        />
+                        </View>
+                    }
+                    style={$item}
+                    bottomSeparator={true}
+                    onPress={gotoUpdate}
                 />
                 <ListItem
-                  tx="settingsScreen.devOptions"
-                  LeftComponent={
-                    <Icon
-                      icon="faCode"
-                      size={spacing.medium}
-                      color={colors.palette.accent300}
-                      inverse={true}
-                    />
-                  }
-                  style={$item}
-                  // bottomSeparator={true}
-                  onPress={gotoDevOptions}
+                    tx='settingsScreen.devOptions'
+                    leftIcon='faCode'
+                    leftIconColor={colors.palette.accent300}
+                    leftIconInverse={true}
+                    style={$item}                  
+                    onPress={gotoDevOptions}
                 />
               </>
             }

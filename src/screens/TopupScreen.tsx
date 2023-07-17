@@ -414,14 +414,9 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                   <ListItem
                     tx="topupScreen.sendInvoiceToContact"
                     subTx="topupScreen.sendInvoiceToContactDescription"
-                    LeftComponent={
-                      <Icon
-                        icon="faAddressCard"
-                        size={spacing.medium}
-                        color={colors.palette.secondary300}
-                        inverse={true}
-                      />
-                    }
+                    leftIcon='faAddressCard'
+                    leftIconColor={colors.palette.secondary300}
+                    leftIconInverse={true}
                     style={$item}
                     bottomSeparator={true}
                     onPress={() => Alert.alert('Not implemented yet')}
@@ -429,14 +424,9 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                   <ListItem
                     tx="topupScreen.showInvoiceQRCode"
                     subTx="topupScreen.showInvoiceQRCodeDescription"
-                    LeftComponent={
-                      <Icon
-                        icon="faQrcode"
-                        size={spacing.medium}
-                        color={colors.palette.success200}
-                        inverse={true}
-                      />
-                    }
+                    leftIcon='faQrcode'
+                    leftIconColor={colors.palette.success200}
+                    leftIconInverse={true}
                     style={$item}
                     bottomSeparator={true}
                     onPress={onShareAsQRCode}
@@ -444,14 +434,9 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                   <ListItem
                     tx="topupScreen.shareInvoiceAsText"
                     subTx="topupScreen.shareInvoiceAsTextDescription"
-                    LeftComponent={
-                      <Icon
-                        icon="faShareFromSquare"
-                        size={spacing.medium}
-                        color={colors.palette.accent300}
-                        inverse={true}
-                      />
-                    }
+                    leftIcon='faShareFromSquare'
+                    leftIconColor={colors.palette.accent300}
+                    leftIconInverse={true}
                     style={$item}
                     onPress={onShareAsText}
                   />

@@ -78,6 +78,7 @@ export interface ListItemProps extends TouchableOpacityProps {
    */
   leftIconColor?: string
   leftIconTransform?: string 
+  leftIconInverse?: boolean 
   /**
    * Icon that should appear on the right.
    */
@@ -87,6 +88,7 @@ export interface ListItemProps extends TouchableOpacityProps {
    */
   rightIconColor?: string
   rightIconTransform?: string
+  rightIconInverse?: boolean 
   /**
    * Right action custom ReactElement.
    * Overrides `rightIcon`.
@@ -103,6 +105,7 @@ interface ListItemActionProps {
   icon: IconTypes | undefined
   iconColor?: ColorValue
   iconTransform?: string
+  iconInverse?: boolean
   Component?: ReactElement
   size: number
   side: "left" | "right"
@@ -124,10 +127,12 @@ export function ListItem(props: ListItemProps) {
     leftIcon,
     leftIconColor = useThemeColor('textDim'),
     leftIconTransform,
+    leftIconInverse = false,
     RightComponent,
     rightIcon,
     rightIconColor = useThemeColor('textDim'),
     rightIconTransform,
+    rightIconInverse = false,
     style,
     text,
     subText,
@@ -165,6 +170,7 @@ export function ListItem(props: ListItemProps) {
           icon={leftIcon}
           iconColor={leftIconColor}
           iconTransform={leftIconTransform}
+          iconInverse={leftIconInverse}
           Component={LeftComponent}          
         />
         {(subText || subTx) ? (
@@ -187,6 +193,7 @@ export function ListItem(props: ListItemProps) {
           icon={rightIcon}
           iconColor={rightIconColor}
           iconTransform={rightIconTransform}
+          iconInverse={rightIconInverse}
           Component={RightComponent}
         />
       </TouchableOpacity>
@@ -195,23 +202,27 @@ export function ListItem(props: ListItemProps) {
 }
 
 function ListItemAction(props: ListItemActionProps) {
-  const { icon, Component, iconColor, iconTransform, size, side } = props
+  const { icon, Component, iconColor, iconTransform, iconInverse, size, side } = props  
 
-  const $iconContainerStyles = [$iconContainer]
-
-  if (Component) return Component
+  if (Component) return (
+    <View style={$componentContainer}>
+    {Component}
+    </View>
+  )
 
   if (icon) {
     return (
       <Icon
-        size={20}
+        size={spacing.medium}
         icon={icon}
         color={iconColor}
         transform={iconTransform}
-        containerStyle={[
-          $iconContainerStyles,
+        inverse={iconInverse}
+        containerStyle={[            
+          $iconContainer,
           side === "left" && $iconContainerLeft,
           side === "right" && $iconContainerRight,
+          iconInverse === true && {marginRight: spacing.medium},
           { height: size },
         ]}
       />
@@ -251,18 +262,24 @@ const $subTextStyle: TextStyle = {
 
 const $touchableStyle: ViewStyle = {
   flexDirection: "row",
-  alignItems: "flex-start",
+  alignItems: "flex-start",  
+}
+
+const $componentContainer: ViewStyle = {
+    flex: 0,
+    alignSelf: 'center',      
 }
 
 const $iconContainer: ViewStyle = {
-  justifyContent: "center",
-  alignItems: "center",
-  flexGrow: 0,
+  flex: 0,
+  alignSelf: 'center',  
+  maxHeight: spacing.medium + spacing.extraSmall * 2,  
 }
+
 const $iconContainerLeft: ViewStyle = {
-  marginEnd: spacing.medium,
+  marginEnd: spacing.small,
 }
 
 const $iconContainerRight: ViewStyle = {
-  marginStart: spacing.medium,
+  marginStart: spacing.small,
 }

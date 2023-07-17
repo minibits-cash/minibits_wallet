@@ -189,7 +189,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const screenBg = useThemeColor('background')
 
     return (
-      <Screen preset="auto" contentContainerStyle={$screen}>
+      <Screen preset='auto' contentContainerStyle={$screen}>
         <Animated.ScrollView
           style={[$screen, {backgroundColor: screenBg}]}
           scrollEventThrottle={16}
@@ -238,10 +238,10 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
               tx={'walletScreen.receive'}
               LeftAccessory={() => (
                 <Icon
-                  icon="faArrowDown"
-                  color="white"
+                  icon='faArrowDown'
+                  color='white'
                   size={spacing.medium}
-                  containerStyle={{marginRight: spacing.small}}
+                  containerStyle={{marginRight: 0}}
                 />
               )}
               onPress={gotoReceive}
@@ -250,10 +250,10 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             <Button
               RightAccessory={() => (
                 <Icon
-                  icon="faExpand"
-                  color="white"
+                  icon='faExpand'
+                  color='white'
                   size={spacing.medium}
-                  // containerStyle={{marginLeft: spacing.small}}
+                  containerStyle={{marginRight: 0}}
                 />
               )}
               onPress={gotoScan}
@@ -263,10 +263,10 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
               tx={'walletScreen.send'}
               RightAccessory={() => (
                 <Icon
-                  icon="faArrowUp"
-                  color="white"
+                  icon='faArrowUp'
+                  color='white'
                   size={spacing.medium}
-                  containerStyle={{marginLeft: spacing.small}}
+                  containerStyle={{marginRight: 0}}
                 />
               )}
               onPress={gotoSend}
@@ -304,15 +304,15 @@ const TotalBalanceBlock = observer(function (props: {
     return (
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
             <Text
-                testID="total-balance"
-                preset="heading"
+                testID='total-balance'
+                preset='heading'
                 style={{color: balanceColor}}            
                 text={props.totalBalance.toLocaleString()}
             />
             {props.pendingBalance > 0 && (
                 <Text
-                    testID="pending-balance"
-                    preset="default"
+                    testID='pending-balance'
+                    preset='default'
                     style={{color: pendingBalanceColor}}
                     text={`Pending: ${props.pendingBalance.toLocaleString()}`}
                 />
@@ -326,7 +326,7 @@ const PromoBlock = function (props: {addMint: any}) {
         <Card
             HeadingComponent={
             <View style={$promoIconContainer}>
-                <Icon icon="faBurst" size={50} color={colors.palette.accent400} />
+                <Icon icon='faBurst' size={50} color={colors.palette.accent400} />
             </View>
             }
             ContentComponent={
@@ -334,7 +334,7 @@ const PromoBlock = function (props: {addMint: any}) {
                 <RNText style={$promoText}>
                 Add{' '}
                 <Text
-                    text="Minibits"
+                    text='Minibits'
                     style={{fontFamily: 'Gluten-Regular', fontSize: 18}}
                 />{' '}
                 as your first mint to start!
@@ -345,9 +345,9 @@ const PromoBlock = function (props: {addMint: any}) {
             FooterComponent={
             <View style={{alignItems: 'center'}}>
                 <Button
-                preset="default"
+                preset='default'
                 onPress={props.addMint}
-                text="Add your first mint"
+                text='Add your first mint'
                 />
             </View>
             }
@@ -364,7 +364,7 @@ const MintsByHostnameListItem = observer(function (props: {
 
     return (
         <Card
-            verticalAlignment="force-footer-bottom"
+            verticalAlignment='force-footer-bottom'
             HeadingComponent={
             <ListItem
                 text={props.mintsByHostname.hostname}
@@ -379,14 +379,9 @@ const MintsByHostnameListItem = observer(function (props: {
                     key={mint.mintUrl}
                     text={mint.shortname}
                     textStyle={[$mintText, {color}]}
-                    LeftComponent={
-                    <Icon
-                        icon="faCoins"
-                        size={spacing.medium}
-                        color={mint.color}
-                        inverse={true}
-                    />
-                    }
+                    leftIcon={'faCoins'}
+                    leftIconColor={mint.color}
+                    leftIconInverse={true}
                     RightComponent={
                     <View style={$balanceContainer}>
                         <Text style={[$balance, {color: balanceColor}]}>
@@ -415,18 +410,18 @@ const LightningActionsBlock = function (props: {
   return (
     <>
         <ListItem
-            tx="walletScreen.topUpWallet"
-            subTx="walletScreen.topUpWalletSubText"
-            leftIcon="faArrowRightToBracket"
-            leftIconTransform="rotate-90"
+            tx='walletScreen.topUpWallet'
+            subTx='walletScreen.topUpWalletSubText'
+            leftIcon='faArrowRightToBracket'
+            leftIconTransform='rotate-90'
             onPress={props.gotoTopup}
             bottomSeparator={true}
             style={{paddingHorizontal: spacing.medium}}
         />
         <ListItem
-            tx="walletScreen.transferFromWallet"
-            subTx="walletScreen.transferFromWalletSubText"
-            leftIcon="faArrowUpFromBracket"
+            tx='walletScreen.transferFromWallet'
+            subTx='walletScreen.transferFromWalletSubText'
+            leftIcon='faArrowUpFromBracket'
             onPress={props.gotoWithdraw}
             style={{paddingHorizontal: spacing.medium}}
         />
