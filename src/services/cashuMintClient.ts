@@ -248,15 +248,17 @@ const requestProofs = async function (
     /* eslint-enable */
 
     // if (newKeys) { _setKeys(mintUrl, newKeys) }
-    log.trace('[requestProofs]', proofs)
+    if(proofs) {
+        log.trace('[requestProofs]', proofs)
+    }
 
     return {
         proofs, 
         newKeys
     }
   } catch (e: any) {
-    // silent
-    log.error(Err.MINT_ERROR, e.message)
+    log.info(e.message,[],'cashuMintClient.requestProofs')
+    return {proofs: []}
   }
 }
 

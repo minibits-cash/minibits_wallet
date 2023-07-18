@@ -13,6 +13,7 @@ import {UserSettings} from '../models/UserSettingsStore'
 import AppError, {Err} from '../utils/AppError'
 import {log} from '../utils/logger'
 import {BackupProof} from '../models/Proof'
+import { getProofsAmount } from './cashuHelpers'
 
 let _db: QuickSQLiteConnection
 
@@ -314,7 +315,7 @@ const addTransactionAsync = async function (tx: Transaction) {
 
     log.info(
       'New transaction added to the database with id ',
-      result.insertId,
+      [result.insertId, type, amount, status],
       'addTransactionAsync',
     )
 
@@ -348,7 +349,7 @@ const updateStatusAsync = async function (
 
     log.info(
       'Transaction status and data updated in the database',
-      [],
+      [id, status],
       'updateStatusAsync',
     )
 
@@ -405,9 +406,9 @@ const updateStatusesAsync = async function (
 
     const result2 = await _db.executeAsync(updateQuery, params)
 
-    log.trace(
+    log.info(
       'Transaction statuses and data updated. Number of updates:',
-      result2.rowsAffected,
+      [result2.rowsAffected, status],
       'updateStatusesAsync',
     )
 
@@ -624,8 +625,8 @@ const addOrUpdateProof = function (
     log.info(
       `${
         isPending ? ' Pending' : ''
-      } proof added or updated in the database with id`,
-      result.insertId,
+      } proof added or updated in the database with id, amount, tId, isPending, isSpent`,
+      [result.insertId, proof.amount, proof.tId, isPending, isSpent],
     )
 
     const newProof = getProofById(result.insertId as number)
@@ -649,6 +650,7 @@ const addOrUpdateProofs = function (
     const now = new Date()
     let insertQueries: SQLBatchTuple[] = []
 
+
     for (const proof of proofs) {
       insertQueries.push([
         ` INSERT OR REPLACE INTO proofs (id, amount, secret, C, tId, isPending, isSpent, updatedAt)
@@ -671,10 +673,13 @@ const addOrUpdateProofs = function (
     const db = getInstance()
     const {rowsAffected} = db.executeBatch(insertQueries)
 
+    const totalAmount = getProofsAmount(proofs)
+
     log.info(
       `${rowsAffected}${
         isPending ? ' pending' : ''
       } proofs were added or updated in the database`,
+      {totalAmount}
     )
 
     return rowsAffected
@@ -695,7 +700,7 @@ const removeAllProofs = async function () {
     const db = getInstance()
     db.execute(query)
 
-    log.info('Proofs were removed from the database.')
+    log.info('All proofs were removed from the database.')
 
     return true
   } catch (e: any) {

@@ -1,11 +1,12 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useState, useEffect, useCallback} from 'react'
+import React, {FC, useState, useEffect, useCallback, useRef} from 'react'
 import {useFocusEffect} from '@react-navigation/native'
 import {
   TextStyle,
   ViewStyle,
   View,
   Text as RNText,
+  AppState,
 } from 'react-native'
 import Animated, {
   useAnimatedScrollHandler,
@@ -44,8 +45,9 @@ interface WalletScreenProps extends WalletStackScreenProps<'Wallet'> {}
 
 export const WalletScreen: FC<WalletScreenProps> = observer(
   function WalletScreen({route, navigation}) {    
-    const {mintsStore, proofsStore, transactionsStore} = useStores()
-    // const isInternetReachable = useIsInternetReachable()
+    const {mintsStore, proofsStore, transactionsStore, invoicesStore} = useStores()
+    
+    const appState = useRef(AppState.currentState);
 
     useHeader({
       rightIcon: 'faBolt',
@@ -78,11 +80,15 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState<boolean>(false)
     const [isLightningModalVisible, setIsLightningModalVisible] = useState<boolean>(false)
+    
 
     useFocusEffect(
         useCallback(() => {
             const updatedBalances = proofsStore.getBalances()
-            setBalances(updatedBalances)            
+            setBalances(updatedBalances)
+            // Fixes #3
+            Wallet.checkPendingSpent()
+            Wallet.checkPendingTopups()
         }, [])
     )
 
@@ -100,12 +106,23 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         }, [route.params?.scannedMintUrl])
     )
 
-    useEffect(() => {      
-        // if(!isInternetReachable) return
-        // Check with mints if some of pending SEND and TOPUP transactions
-        // were completed and update balances accordingly
-        Wallet.checkPendingSpent()
-        Wallet.checkPendingTopups()
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', nextAppState => {
+            if (
+                appState.current.match(/inactive|background/) &&
+                nextAppState === 'active'
+            ) {
+                // Fixes #3
+                Wallet.checkPendingSpent()
+                Wallet.checkPendingTopups()
+            }
+    
+            appState.current = nextAppState         
+        })
+    
+        return () => {
+          subscription.remove();
+        }
     }, [])
 
 
