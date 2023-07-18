@@ -27,7 +27,7 @@ export const InvoicesStoreModel = types
             invoiceInstance.setExpiresAt()
             self.invoices.push(invoiceInstance)
 
-            log.info('New invoice added to InvoicesStore')
+            log.info('New invoice added to InvoicesStore', newInvoice)
 
             return invoiceInstance
         },
@@ -45,8 +45,10 @@ export const InvoicesStoreModel = types
             }
 
             if (invoiceInstance) {
+                log.info('Invoice to be removed from InvoicesStore', invoiceToRemove)
                 destroy(invoiceInstance)
-                log.info('Invoice removed from InvoicesStore')
+                log.info('Invoice removed')
+                
             }
         },
     }))

@@ -123,7 +123,7 @@ async function _checkSpentByMint(mintUrl: string, isPending: boolean = false) {
         const proofsFromMint = proofsStore.getByMint(mintUrl, isPending) as Proof[]
 
         if (proofsFromMint.length < 1) {
-            log.trace(
+            log.info(
                 `No ${isPending ? 'pending' : ''} proofs found for mint`,
                 mintUrl, '_checkSpentByMint'
             )
@@ -166,7 +166,7 @@ async function _checkSpentByMint(mintUrl: string, isPending: boolean = false) {
         proofsStore.removeProofs(spentProofs as Proof[], isPending)
 
         // Update related transactions statuses
-        log.trace(
+        log.info(
             'Transaction id(s) to complete',
             relatedTransactionIds.toString(),
             '_checkSpentByMint',
@@ -831,8 +831,8 @@ const topup = async function (
     amountToTopup: number,
     memo: string,
 ) {
-    log.trace('mintBalanceToTopup', mintBalanceToTopup, 'topup')
-    log.trace('amountToTopup', amountToTopup, 'topup')
+    log.info('mintBalanceToTopup', mintBalanceToTopup, 'topup')
+    log.info('amountToTopup', amountToTopup, 'topup')
 
     // create draft transaction
     const transactionData: TransactionData[] = [
@@ -943,31 +943,12 @@ const checkPendingTopups = async function () {
     const invoices: Invoice[] = invoicesStore.allInvoices
 
     if (invoices.length === 0) {
-        log.trace('No invoices in store', [], 'checkPendingTopups')
+        log.info('No invoices in store', [], 'checkPendingTopups')
         return
     }
 
     try {
         for (const invoice of invoices) {
-            // remove already expired invoices
-            if (isBefore(invoice.expiresAt as Date, new Date())) {
-                log.trace('Invoice expired, removing', [], 'checkPendingTopups')
-                
-                invoicesStore.removeInvoice(invoice)
-                // update related tx
-                const transactionDataUpdate = {
-                    status: TransactionStatus.EXPIRED,
-                    createdAt: new Date(),
-                }
-
-                transactionsStore.updateStatuses(
-                    [invoice.transactionId as number],
-                    TransactionStatus.EXPIRED,
-                    JSON.stringify(transactionDataUpdate),
-                )
-                continue
-            }
-
             // claim tokens if invoice is paid
             const {proofs, newKeys} = (await MintClient.requestProofs(
                 invoice.mint,
@@ -975,7 +956,31 @@ const checkPendingTopups = async function () {
                 invoice.paymentHash,
             )) as {proofs: Proof[], newKeys: MintKeys}
 
-            if (!proofs || proofs.length === 0) continue
+            if (!proofs || proofs.length === 0) {
+                log.info('No proofs returned from mint', [], 'checkPendingTopups')
+                // remove already expired invoices only after check that they have not been paid
+                // Fixes #3
+                if (isBefore(invoice.expiresAt as Date, new Date())) {
+                    log.info('Invoice expired, removing', invoice.paymentHash, 'checkPendingTopups')
+                    
+                    const transactionId = invoice.transactionId
+                    invoicesStore.removeInvoice(invoice)
+                    // update related tx
+                    const transactionDataUpdate = {
+                        status: TransactionStatus.EXPIRED,
+                        createdAt: new Date(),
+                    }
+
+                    transactionsStore.updateStatuses(
+                        [transactionId as number],
+                        TransactionStatus.EXPIRED,
+                        JSON.stringify(transactionDataUpdate),
+                    )                    
+                }
+
+                continue
+            }            
+
             if(newKeys) {_updateMintKeys(invoice.mint, newKeys)}
 
             // accept whatever we've got
