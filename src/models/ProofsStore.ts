@@ -84,8 +84,7 @@ export const ProofsStoreModel = types
         }
         },
         removeProofs(proofsToRemove: Proof[], isPending: boolean = false, isRecoveredFromPending: boolean = false) {
-            try {
-                let proofInstances: Proof[] = []
+            try {                
                 const proofs = isPending ? self.pendingProofs : self.proofs
 
                 const rootStore = getRootStore(self)
@@ -93,11 +92,11 @@ export const ProofsStoreModel = types
                 const {userSettingsStore} = rootStore
 
                 if (userSettingsStore.isLocalBackupOn === true) {
-                    // isPending = false, isSpent = true
+                    
                     if(isRecoveredFromPending) {
-                        Database.addOrUpdateProofs(proofsToRemove, false, true)
+                        Database.addOrUpdateProofs(proofsToRemove, false, false) // isPending = false, isSpent = false
                     } else {
-                        Database.addOrUpdateProofs(proofsToRemove, false, false)
+                        Database.addOrUpdateProofs(proofsToRemove, false, true) // isPending = false, isSpent = true
                     }                    
                 }
 

@@ -42,10 +42,11 @@ export const TransactionListItem = observer(function (props: {tx: Transaction, i
     const getSubText = function(tx: Transaction) {
   
       const distance = formatDistance(tx.createdAt as Date, new Date(), {addSuffix: true})
+      
   
       switch(tx.status) {
         case TransactionStatus.COMPLETED:
-          return distance + ` · Completed`
+          return distance + ` · Completed ${(tx.fee && tx.fee > 0) ? ' · Fee ' + tx.fee : ''}`
         case TransactionStatus.DRAFT:
           return distance + ` · Draft`
         case TransactionStatus.ERROR:
@@ -54,6 +55,10 @@ export const TransactionListItem = observer(function (props: {tx: Transaction, i
           return distance + ` · Pending`
         case TransactionStatus.PREPARED:
           return distance + ` · Prepared`   
+        case TransactionStatus.REVERTED:
+            return distance + ` · Reverted` 
+        case TransactionStatus.BLOCKED:
+            return distance + ` · Blocked` 
         case TransactionStatus.EXPIRED:
             return distance + ` · Expired`       
         default:

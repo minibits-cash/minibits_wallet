@@ -4,6 +4,7 @@ export interface TransactionRecord {
     id: number
     type: TransactionType
     amount: number
+    fee?: number
     data: string
     sentFrom?: string
     memo?: string
@@ -22,7 +23,7 @@ export type TransactionData = {
 export enum TransactionType {
     SEND = 'SEND',
     RECEIVE = 'RECEIVE',
-    RECEIVE_NOSTR = 'RECEIVE_NOSTR',
+    RECEIVE_NOSTR = 'RECEIVE_NOSTR', // not used
     TOPUP = 'TOPUP',
     TRANSFER = 'TRANSFER',
 }
@@ -55,7 +56,7 @@ export const TransactionModel = types
     })
 
 export type Transaction = {
-    amount: number
+    amount: number    
     type: TransactionType
     data: string
     status: TransactionStatus
