@@ -131,7 +131,6 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
 
   // Database migrations sequence based on local version numbers
   if (currentVersion && currentVersion < 2) {
-    
     const userId = _generateUserId()
     migrationQueries.push([
       `ALTER TABLE usersettings
@@ -142,7 +141,7 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
        WHERE id = ?`, [userId, 1]
     ])
     
-    log.info(`Prepared database migrations from ${currentVersion} -> 3`)
+    log.info(`Prepared database migrations from ${currentVersion} -> 2`)
   }
 
   // On first run or after migrations, this inserts up to date version
