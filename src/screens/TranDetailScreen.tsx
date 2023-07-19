@@ -202,19 +202,19 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
 
       switch (transaction?.type) {
         case TransactionType.RECEIVE || TransactionType.RECEIVE_NOSTR:
-          return `+${transaction.amount}`
+          return `+${transaction.amount.toLocaleString()}`
         case TransactionType.SEND:
-          return `-${transaction.amount}`
+          return `-${transaction.amount.toLocaleString()}`
         case TransactionType.TOPUP:
-          return `+${transaction.amount}`
+          return `+${transaction.amount.toLocaleString()}`
         case TransactionType.TRANSFER:
-          return `-${transaction.amount}`
+          return `-${transaction.amount.toLocaleString()}`
         default:
-          return `${transaction?.amount}`
+          return `${transaction?.amount.toLocaleString()}`
       }
     }
 
-
+    const feeColor = colors.palette.primary200
 
   return (
       <Screen style={$screen} preset="auto">
@@ -734,6 +734,10 @@ const TransferInfoBlock = function (props: {
               label="tranDetailScreen.amount"
               value={`${transaction.amount}`}
               isFirst={true}
+            />
+            <TranItem
+              label="tranDetailScreen.lightningFee"
+              value={`${transaction.fee}`}
             />
             <TranItem
               label="tranDetailScreen.memoFromInvoice"
