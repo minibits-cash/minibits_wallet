@@ -3,6 +3,8 @@ import {
   open,
   SQLBatchTuple,
 } from 'react-native-quick-sqlite'
+import QuickCrypto from 'react-native-quick-crypto'
+import {btoa, atob, fromByteArray} from 'react-native-quick-base64'
 import {Proof} from '../models/Proof'
 import {
   Transaction,
@@ -17,7 +19,7 @@ import { getProofsAmount } from './cashuHelpers'
 
 let _db: QuickSQLiteConnection
 
-const _dbVersion = 1 // Update this if db changes require migrations
+const _dbVersion = 2 // Update this if db changes require migrations
 
 const getInstance = function () {
   if (!_db) {
@@ -65,6 +67,7 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
     [
       `CREATE TABLE IF NOT EXISTS usersettings (
       id INTEGER PRIMARY KEY NOT NULL,
+      userId TEXT,
       isOnboarded BOOLEAN,
       isStorageEncrypted BOOLEAN,
       isLocalBackupOn BOOLEAN,
@@ -101,13 +104,13 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
 
     // Returns undefined on first run
     const {version} = getDatabaseVersion()
+    log.info('Device database version:', version)
 
     // Trigger migrations only if there is no version on first run  or versions mismatch
     if (!version || version < _dbVersion) {
       _runMigrations(db)
     }
-
-    log.info('Device database version:', version)
+       
   } catch (e: any) {
     throw new AppError(
       Err.DATABASE_ERROR,
@@ -128,17 +131,18 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
 
   // Database migrations sequence based on local version numbers
   if (currentVersion && currentVersion < 2) {
-    log.trace(
-      `Preparing database migrations from version ${currentVersion} -> 2`,
-    )
-
-    /* migrationQueries.push([
+    
+    const userId = _generateUserId()
+    migrationQueries.push([
       `ALTER TABLE usersettings
-       ADD COLUMN isLocalBackupOn INTEGER default 1`,
-    ]) */
-
-    currentVersion = 2
-    log.info(`Prepared database migrations to version ${currentVersion}`)
+       ADD COLUMN userId TEXT`,       
+    ],[
+       `UPDATE usersettings
+       SET userId = ?
+       WHERE id = ?`, [userId, 1]
+    ])
+    
+    log.info(`Prepared database migrations from ${currentVersion} -> 3`)
   }
 
   // On first run or after migrations, this inserts up to date version
@@ -154,15 +158,35 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
     if (rowsAffected && rowsAffected > 0) {
       log.info(`Completed database migrations to version ${_dbVersion}`)
     }
-  } catch (e: any) {
-    // TODO track
-    log.error(
+  } catch (e: any) { 
+    // silent    
+    log.info(
       Err.DATABASE_ERROR,
-      'Error when executing rootStore migrations',
-      e.message,
+      'Database migrations error: ' + e.toString(),      
     )
   }
 }
+
+
+const _generateUserId = (): string => {
+    try {
+      const length = 8 // Length of the id in bytes
+      const random = QuickCrypto.randomBytes(length)
+      const uint8Array = new Uint8Array(random)
+      const stringKey = fromByteArray(uint8Array)
+      const base64Key = btoa(stringKey)
+  
+      log.info('New userId created:', base64Key)
+  
+      return base64Key
+    } catch (e: any) {
+      throw new AppError(Err.DATABASE_ERROR, e.message)
+    }
+  }
+
+/*
+ * Exported functions
+ */
 
 const cleanAll = function () {
   const dropQueries = [
@@ -188,9 +212,6 @@ const cleanAll = function () {
   }
 }
 
-/*
- * Exported functions
- */
 
 const getDatabaseVersion = function (): {version: number | undefined} {
   try {
@@ -219,64 +240,67 @@ const getDatabaseVersion = function (): {version: number | undefined} {
  */
 
 const getUserSettings = function (): UserSettings {
-  try {
-    const query = `
-    SELECT * FROM usersettings LIMIT 1
-    `
-    const db = getInstance()
-    const {rows} = db.execute(query)
+    try {
+        const query = `
+        SELECT * FROM usersettings LIMIT 1
+        `
+        const db = getInstance()
+        const {rows} = db.execute(query)
 
-    if (!rows?.item(0)) {
-      const defaultSettings = updateUserSettings({
-        isOnboarded: 0,
-        isStorageEncrypted: 0,
-        isLocalBackupOn: 1,
-      })
-      log.info('Stored default user settings in the database')
-      return defaultSettings
+        if (!rows?.item(0)) {
+            const userId = _generateUserId()
+            const defaultSettings = updateUserSettings({
+                userId,
+                isOnboarded: 0,
+                isStorageEncrypted: 0,
+                isLocalBackupOn: 1,
+            })
+            log.info('Stored default user settings in the database')
+            return defaultSettings
+        }
+
+        return rows.item(0)
+    } catch (e: any) {
+        throw new AppError(
+        Err.DATABASE_ERROR,
+        'Could not get user settings',
+        e.message,
+        )
     }
-
-    return rows.item(0)
-  } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not get user settings',
-      e.message,
-    )
-  }
 }
 
 const updateUserSettings = function (settings: UserSettings): UserSettings {
-  try {
-    const now = new Date()
-    const {isOnboarded, isStorageEncrypted, isLocalBackupOn} = settings
+    try {
+        const now = new Date()
+        const {userId, isOnboarded, isStorageEncrypted, isLocalBackupOn} = settings
 
-    const query = `
-      INSERT OR REPLACE INTO usersettings (id, isOnboarded, isStorageEncrypted, isLocalBackupOn, createdAt)
-      VALUES (?, ?, ?, ?, ?)      
-    `
-    const params = [
-      1,
-      isOnboarded,
-      isStorageEncrypted,
-      isLocalBackupOn,
-      now.toISOString(),
-    ]
+        const query = `
+        INSERT OR REPLACE INTO usersettings (id, userId, isOnboarded, isStorageEncrypted, isLocalBackupOn, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?)      
+        `
+        const params = [
+            1,
+            userId,
+            isOnboarded,
+            isStorageEncrypted,
+            isLocalBackupOn,
+            now.toISOString(),
+        ]
 
-    const db = getInstance()
-    db.execute(query, params)
+        const db = getInstance()
+        db.execute(query, params)
 
-    log.info('User settings updated in the database')
+        log.info('User settings created or updated in the database')
 
-    const updated = getUserSettings()
-    return updated
-  } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not update user settings',
-      e.message,
-    )
-  }
+        const updated = getUserSettings()
+        return updated
+    } catch (e: any) {
+        throw new AppError(
+            Err.DATABASE_ERROR,
+            'Could not create or update user settings',
+            e.message,
+        )
+    }
 }
 
 /*

@@ -145,7 +145,7 @@ const en = {
   developerScreen: {
     title: "Developer options", 
     transactions: "Sync recent transactions",
-    transactionsDescription: "There are {{count}} recent transactions cached in the app's fast storage. Resetting will reload them from the app's database.",
+    transactionsDescription: "There are {{count}} recent transactions cached in the app's fast storage. Resetting will reload them from the app's database. Do only during development or testing.",
     reset: "Factory reset",
     resetDescription: "This will wipe out all local data from storage and from the local database. Do only during development or testing.",
     go: "Let's go!",

@@ -18,7 +18,7 @@ import {
     setSizeMattersBaseWidth
 } from '@gocodingnow/rn-size-matters'
 import {AppNavigator} from './navigation'
-import {useInitialRootStore} from './models'
+import {useInitialRootStore, useStores} from './models'
 import {Database} from './services'
 import {ErrorBoundary} from './screens/ErrorScreen/ErrorBoundary'
 import Config from './config'
@@ -46,28 +46,29 @@ interface AppProps {
 }
 
 function App(props: AppProps) {
+    const {userSettingsStore} = useStores()
+    const {rehydrated} = useInitialRootStore(() => {
+        // This runs after the root store has been initialized and rehydrated from storage.
+        log.trace('Root store rehydrated', [], 'useInitialRootStore')
 
-  const {rehydrated} = useInitialRootStore(() => {
-    // This runs after the root store has been initialized and rehydrated from storage.
-    log.trace('Root store rehydrated', [], 'useInitialRootStore')
+        // This creates and opens a sqlite database that stores transactions history.
+        // It triggers db migrations if database version has changed.
+        // As it runs inside a callback, it should not block UI.
+        Database.getDatabaseVersion()
+        userSettingsStore.loadUserSettings()        
+    })
 
-    // This creates and opens a sqlite database that stores transactions history.
-    // It triggers db migrations if database version has changed.
-    // As it runs inside a callback, it should not block UI.
-    const dbVersion = Database.getDatabaseVersion()
-  })
+    if (!rehydrated) {    
+        return null
+    }  
 
-  if (!rehydrated) {    
-    return null
-  }  
-
-  return (
-    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-      <ErrorBoundary catchErrors={Config.catchErrors}>
-        <AppNavigator />
-      </ErrorBoundary>
-    </SafeAreaProvider>
-  )
+    return (
+        <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+        <ErrorBoundary catchErrors={Config.catchErrors}>
+            <AppNavigator />
+        </ErrorBoundary>
+        </SafeAreaProvider>
+    )
 }
 
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY

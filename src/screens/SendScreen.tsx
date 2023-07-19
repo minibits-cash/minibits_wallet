@@ -677,15 +677,19 @@ const SendAsQRCodeBlock = observer(function (props: {
   onCopy: any
 }) {
 
-    const sendBg = useThemeColor('background')
+  const sendBg = useThemeColor('background')
   const tokenTextColor = useThemeColor('textDim')
   const $bottomContainerInsets = useSafeAreaInsetsStyle(['bottom'])
 
   return (
     <View style={[$bottomModal, {marginHorizontal: spacing.small}]}>
       <Text text={'Scan to receive'} />
-      <View style={$qrCodeContainer}>
-        <QRCode size={270} value={props.encodedTokenToSend} />
+      <View style={$qrCodeContainer}>        
+        {props.encodedTokenToSend.length > 999 ? (
+            <Text text='Sendable token is too long to be shown as QR code. Share it as text instead.' />
+        ) : (            
+            <QRCode size={270} value={props.encodedTokenToSend} />            
+        )}        
       </View>
       <View style={$buttonContainer}>
         <Button preset="secondary" text="Close" onPress={props.toggleQRModal} />

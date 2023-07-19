@@ -194,13 +194,12 @@ const $screen: ViewStyle = {}
 const $headerContainer: TextStyle = {
   alignItems: 'center',
   padding: spacing.medium,
-  height: spacing.screenHeight * 0.1,
+  height: spacing.screenHeight * 0.18,
 }
 
-const $contentContainer: TextStyle = {
-  // flex: 1,
-  padding: spacing.extraSmall,
-  // alignItems: 'center',
+const $contentContainer: TextStyle = {  
+  marginTop: -spacing.extraLarge * 2,
+  padding: spacing.extraSmall,  
 }
 
 const $card: ViewStyle = {

@@ -14,6 +14,7 @@ import {
   IDisposer,
   onSnapshot,
 } from 'mobx-state-tree'
+import * as Sentry from '@sentry/react-native'
 import RNExitApp from 'react-native-exit-app'
 import type {RootStore} from '../RootStore'
 import {MMKVStorage} from '../../services'
@@ -21,7 +22,6 @@ import {Database} from '../../services'
 import { log } from  '../../utils/logger'
 import { rootStoreModelVersion } from '../RootStore'
 import AppError, { Err } from '../../utils/AppError'
-// import { AsyncStorage } from "../../services"
 
 /**
  * The key we'll be saving our state as within storage.
@@ -40,7 +40,12 @@ export async function setupRootStore(rootStore: RootStore) {
   try {
     // Give an option to encrypt storage as it might slow down app start on some Android devices
     // User settings are mastered in sqlite so we can get the encryption setting before loading root store
-    const userSettings = Database.getUserSettings()
+    const userSettings = Database.getUserSettings()    
+    
+    // random identificator of an app installation for bugs and crash reporting
+    if(userSettings.userId) {
+        Sentry.setUser({ id: userSettings.userId })
+    }    
 
     if (userSettings.isStorageEncrypted) {
       await MMKVStorage.initEncryption() // opt-in, key retrieval on Android is sometimes slow
@@ -52,7 +57,11 @@ export async function setupRootStore(rootStore: RootStore) {
   
   } catch (e: any) {        
     log.error(Err.DATABASE_ERROR, e.message, e.params, 'setupRootStore')
-    // ugly exit to prevent potential data loss
+    
+    // In case user cancels / fails the fingerprint auth, empty app state is loaded.
+    // If a user updates the empty app state, it is stored unencrypted and returned after restart as primary one,
+    // making encrypted data inaccessible or later overwritten.
+    // Therefore this ugly app exit on unsuccessful auth.
     const isCancellPressed = e.params.some((p: string) => p.includes('code: 13'))
     const isBackPressed = e.params.some((p: string) => p.includes('code: 10'))
 
