@@ -470,7 +470,7 @@ const _sendFromMint = async function (
         })
 
 
-            // add proofs returned by the mint after the split
+        // add proofs returned by the mint after the split
         if (returnedProofs.length > 0) proofsStore.addProofs(returnedProofs)
         // remove used proofs and move sent proofs to pending
         proofsStore.removeProofs(proofsToSendFrom)
@@ -645,9 +645,13 @@ const transfer = async function (
 ) {
     const mintUrl = mintBalanceToTransferFrom.mint
 
-    log.trace('mintBalanceToTransferFrom', mintBalanceToTransferFrom, 'transfer')
-    log.trace('amountToTransfer', amountToTransfer, 'transfer')
-    log.trace('estimatedFee', estimatedFee, 'transfer')
+    log.info('mintBalanceToTransferFrom', mintBalanceToTransferFrom, 'transfer')
+    log.info('amountToTransfer', amountToTransfer, 'transfer')
+    log.info('estimatedFee', estimatedFee, 'transfer')
+
+    if (amountToTransfer + estimatedFee > mintBalanceToTransferFrom.balance) {
+        throw new AppError(Err.VALIDATION_ERROR, 'Mint balance is insufficient to cover the amount to transfer with expected Lightning fees.')
+    }
 
     // create draft transaction
     const transactionData: TransactionData[] = [
@@ -655,6 +659,7 @@ const transfer = async function (
         status: TransactionStatus.DRAFT,
         mintBalanceToTransferFrom,
         encodedInvoice,
+        amountToTransfer,
         estimatedFee,
         createdAt: new Date(),
         }
@@ -681,13 +686,14 @@ const transfer = async function (
         transactionId = storedTransaction.id as number
 
         // get proofs ready to be paid to the mint
-        const proofsToPay = await _sendFromMint(
+        proofsToPay = await _sendFromMint(
             mintBalanceToTransferFrom,
-            amountToTransfer,
+            amountToTransfer + estimatedFee,
             transactionId,
         )
 
-        log.trace('got proofsToPay', proofsToPay.length, 'transfer')
+        const proofsAmount = getProofsAmount(proofsToPay as Proof[])
+        log.info('Prepared poofsToPay amount', proofsAmount, 'transfer')
 
         // Update transaction status
         transactionData.push({
@@ -719,7 +725,7 @@ const transfer = async function (
 
         // I have no idea yet if this can happen, return sent Proofs to the store an track tx as Reverted
         if (!isPaid) {
-            _addCashuProofs(proofsToPay, mintUrl, transactionId)
+            _addCashuProofs(proofsToPay, mintUrl, transactionId, true)
 
             transactionData.push({
                 status: TransactionStatus.REVERTED,
@@ -772,7 +778,7 @@ const transfer = async function (
             message: `Lightning invoice has been successfully paid and settled with your minibits coins. Final lightning network fee has been ${finalFee} sats.`,
             finalFee,
         } as TransactionResult
-    } catch (e: any) {
+    } catch (e: any) {        
         // Update transaction status if we have any
         let errorTransaction: Transaction | undefined = undefined
 
@@ -790,7 +796,8 @@ const transfer = async function (
 
             // Return tokens intended for payment to the wallet if payment failed with an error
             if (proofsToPay.length > 0) {
-                _addCashuProofs(proofsToPay, mintUrl, transactionId)
+                log.info('Returning proofsToPay to the wallet likely after failed lightning payment', proofsToPay.length, 'transfer')
+                _addCashuProofs(proofsToPay, mintUrl, transactionId, true)
             }
         }
 
@@ -810,6 +817,7 @@ const _addCashuProofs = function (
     proofsToAdd: CashuProof[],
     mintUrl: string,
     transactionId: number,
+    isRecoveredFromPending: boolean = false
 ): number {
     for (const proof of proofsToAdd as Proof[]) {
         proof.tId = transactionId
@@ -817,9 +825,15 @@ const _addCashuProofs = function (
     }
     // Creates proper model instances and adds them to storage
     proofsStore.addProofs(proofsToAdd as Proof[])
-
     const amount = getProofsAmount(proofsToAdd as Proof[])
-    log.trace('amount', amount, '_addCashuProofs')
+
+    log.info('Added proofs with amount', { amount, isRecoveredFromPending })
+    
+    if(isRecoveredFromPending) {
+        // Remove them from pending if they are returned to the wallet due to failed lightning payment
+        // Do not mark the as spent as they are recovered back to wallet
+        proofsStore.removeProofs(proofsToAdd as Proof[], true, isRecoveredFromPending)
+    }    
 
     return amount
 }

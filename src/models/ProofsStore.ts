@@ -71,8 +71,7 @@ export const ProofsStoreModel = types
                 }
             }
 
-            log.info(`Added new ${newProofs.length}${isPending ? ' pending' : ''} proofs to ProofsStore`,
-            )
+            log.info(`Added new ${newProofs.length}${isPending ? ' pending' : ''} proofs to ProofsStore`,)
 
             const rootStore = getRootStore(self)
             const {userSettingsStore} = rootStore
@@ -84,28 +83,42 @@ export const ProofsStoreModel = types
             throw new AppError(Err.STORAGE_ERROR, e.message)
         }
         },
-        removeProofs(proofsToRemove: Proof[], isPending: boolean = false) {
-        try {
-            const proofs = isPending ? self.pendingProofs : self.proofs
+        removeProofs(proofsToRemove: Proof[], isPending: boolean = false, isRecoveredFromPending: boolean = false) {
+            try {
+                let proofInstances: Proof[] = []
+                const proofs = isPending ? self.pendingProofs : self.proofs
 
-            const rootStore = getRootStore(self)
-            const count = proofsToRemove.length
-            const {userSettingsStore} = rootStore
+                const rootStore = getRootStore(self)
+                const count = proofsToRemove.length
+                const {userSettingsStore} = rootStore
 
-            if (userSettingsStore.isLocalBackupOn === true) {
-                // isPending = false, isSpent = true
-                Database.addOrUpdateProofs(proofsToRemove, false, true)
+                if (userSettingsStore.isLocalBackupOn === true) {
+                    // isPending = false, isSpent = true
+                    if(isRecoveredFromPending) {
+                        Database.addOrUpdateProofs(proofsToRemove, false, true)
+                    } else {
+                        Database.addOrUpdateProofs(proofsToRemove, false, false)
+                    }                    
+                }
+
+                proofsToRemove.map((proof) => {
+                    if (isStateTreeNode(proof)) {
+                        // proofInstances?.push(proof)
+                        detach(proof) // vital
+                    } else {
+                        const proofInstance = self.getProofInstance(proof, isPending)
+                        // proofInstances?.push(proofInstance as Proof)
+                        detach(proofInstance) // vital
+                    }                    
+                }) 
+
+                proofs.replace(proofs.filter(proof => !proofsToRemove.includes(proof)))
+
+                log.info(`${count} ${(isPending) ? 'pending' : ''} proofs removed from ProofsStore`)
+
+            } catch (e: any) {
+                throw new AppError(Err.STORAGE_ERROR, e.message.toString())
             }
-
-            proofsToRemove.map(proof => detach(proof)) // vital
-
-            proofs.replace(proofs.filter(proof => !proofsToRemove.includes(proof)))
-
-            log.info(`${count} ${(isPending) ? 'pending' : ''} proofs removed from ProofsStore`)
-
-        } catch (e: any) {
-            throw new AppError(Err.STORAGE_ERROR, e.message)
-        }
         },
     }))
     .views(self => ({

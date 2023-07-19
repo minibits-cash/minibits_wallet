@@ -5,6 +5,7 @@ import {log} from '../utils/logger'
 
 export type UserSettings = {
   id?: number
+  userId?: string
   isOnboarded: boolean | 0 | 1
   isStorageEncrypted: boolean | 0 | 1
   isLocalBackupOn: boolean | 0 | 1
@@ -13,18 +14,25 @@ export type UserSettings = {
 export const UserSettingsStoreModel = types
     .model('UserSettingsStore')
     .props({
+        userId: types.optional(types.string, ''),
         isOnboarded: types.optional(types.boolean, false),
         isStorageEncrypted: types.optional(types.boolean, false),
         isLocalBackupOn: types.optional(types.boolean, true),
     })
     .actions(self => ({
         loadUserSettings: () => {
-            const {isOnboarded, isStorageEncrypted, isLocalBackupOn} =
+            const {userId, isOnboarded, isStorageEncrypted, isLocalBackupOn} =
                 Database.getUserSettings()
+            
+            const booleanIsOnboarded = isOnboarded === 1
+            const booleanIsStorageEncrypted = isStorageEncrypted === 1
+            const booleanIsLocalBackupOn = isLocalBackupOn === 1
+            
             // TODO move to some of mobx preprocessing method
-            self.isOnboarded = isOnboarded as boolean
-            self.isStorageEncrypted = isStorageEncrypted as boolean
-            self.isLocalBackupOn = isLocalBackupOn as boolean
+            self.userId = userId as string
+            self.isOnboarded = booleanIsOnboarded as boolean
+            self.isStorageEncrypted = booleanIsStorageEncrypted as boolean
+            self.isLocalBackupOn = booleanIsLocalBackupOn as boolean
         },
         setIsOnboarded: (value: boolean) => {
             Database.updateUserSettings({...self, isOnboarded: value})

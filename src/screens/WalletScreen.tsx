@@ -13,7 +13,7 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
 } from 'react-native-reanimated'
-import {moderateScale, scale, verticalScale} from '@gocodingnow/rn-size-matters'
+import {verticalScale} from '@gocodingnow/rn-size-matters'
 import {useThemeColor, spacing, colors, typography} from '../theme'
 import {
   Button,
@@ -80,7 +80,6 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState<boolean>(false)
     const [isLightningModalVisible, setIsLightningModalVisible] = useState<boolean>(false)
-    
 
     useFocusEffect(
         useCallback(() => {

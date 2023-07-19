@@ -651,6 +651,10 @@ const TopupInfoBlock = function (props: {
                         value={transaction.memo as string}
                     />
                     <TranItem
+                        label="tranDetailScreen.type"
+                        value={transaction.type as string}
+                    />
+                    <TranItem
                         label="tranDetailScreen.status"
                         value={transaction.status as string}
                     />

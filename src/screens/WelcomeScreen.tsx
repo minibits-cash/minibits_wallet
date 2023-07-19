@@ -88,6 +88,9 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
                         keyExtractor={item => item.id}
                     />
                 </View>
+                <View style={{backgroundColor: colors.palette.accent500, borderRadius: spacing.extraSmall, padding: spacing.medium}}>
+                    <Text style={{color: 'white'}} text='Check for updates in Settings > Upload manager. During alpha testing, over-the-air updates fix critical bugs.'/>
+                </View>
             </View>
             <View style={[$bottomContainer, $bottomContainerInsets]}>
                 <Button

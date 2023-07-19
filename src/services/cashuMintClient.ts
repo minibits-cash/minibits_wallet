@@ -171,7 +171,7 @@ const getLightningFee = async function (
   try {
     const cashuMint = getMint(mintUrl)
     const {fee} = await cashuMint.checkFees({pr: encodedInvoice})
-    log.trace('Estimated fee', fee)
+    log.info('Estimated fee', fee, 'getLightningFee')
     return fee
   } catch (e: any) {
     throw new AppError(Err.MINT_ERROR, e.message)
@@ -184,8 +184,7 @@ const payLightningInvoice = async function (
   proofsToPayFrom: CashuProof[],
   estimatedFee: number,
 ) {
-  try {
-    log.trace('[payLightningInvoice] start')
+  try {    
     const cashuWallet = getWallet(mintUrl)
 
     const {isPaid, change, preimage, newKeys}: PayLnInvoiceResponse =
@@ -196,12 +195,12 @@ const payLightningInvoice = async function (
       )
 
     // if (newKeys) { _setKeys(mintUrl, newKeys) }
-    log.trace('[payLightningInvoice] result', {
+    log.info('payLnInvoice result', {
       isPaid,
       change,
       preimage,
       newKeys,
-    })
+    }, 'payLightningInvoice')
     // we normalize naming of returned parameters
     return {
       feeSavedProofs: change,
@@ -222,7 +221,7 @@ const requestLightningInvoice = async function (
     const cashuWallet = getWallet(mintUrl)
     const {pr, hash} = await cashuWallet.requestMint(amount)
 
-    log.trace('Invoice', [pr, hash], 'requestLightningInvoice')
+    log.info('Invoice', [pr, hash], 'requestLightningInvoice')
 
     return {
       encodedInvoice: pr,
@@ -257,7 +256,7 @@ const requestProofs = async function (
         newKeys
     }
   } catch (e: any) {
-    log.info(e.message,[],'cashuMintClient.requestProofs')
+    log.info(`[MINT_ERROR] ${e.message}`,[],'cashuMintClient.requestProofs')
     return {proofs: []}
   }
 }
