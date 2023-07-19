@@ -138,7 +138,7 @@ async function _checkSpentByMint(mintUrl: string, isPending: boolean = false) {
         const spentCount = spentProofs.length
         const spentAmount = getProofsAmount(spentProofs)
 
-        log.trace('spentProofs', spentCount, '_checkSpentByMint')
+        log.info('spentProofs amount', spentAmount, '_checkSpentByMint')
 
         if (spentProofs.length < 1) {
             log.trace(
@@ -174,23 +174,18 @@ async function _checkSpentByMint(mintUrl: string, isPending: boolean = false) {
 
         // Complete related transactions in normal wallet operations
         if (isPending) {
-        const transactionDataUpdate = {
-            status: TransactionStatus.COMPLETED,
-            createdAt: new Date(),
-        }
+            const transactionDataUpdate = {
+                status: TransactionStatus.COMPLETED,
+                createdAt: new Date(),
+            }
 
-        await transactionsStore.updateStatuses(
-            relatedTransactionIds,
-            TransactionStatus.COMPLETED,
-            JSON.stringify(transactionDataUpdate),
-        )
+            await transactionsStore.updateStatuses(
+                relatedTransactionIds,
+                TransactionStatus.COMPLETED,
+                JSON.stringify(transactionDataUpdate),
+            )
 
-        log.trace(
-            'sendCompleted event to be fired for',
-            relatedTransactionIds,
-            '_checkSpentByMint',
-        )
-        EventEmitter.emit('sendCompleted', relatedTransactionIds)
+            EventEmitter.emit('sendCompleted', relatedTransactionIds)
         }
 
         // TODO what to do with tx error status after removing spent proofs
@@ -656,12 +651,12 @@ const transfer = async function (
     // create draft transaction
     const transactionData: TransactionData[] = [
         {
-        status: TransactionStatus.DRAFT,
-        mintBalanceToTransferFrom,
-        encodedInvoice,
-        amountToTransfer,
-        estimatedFee,
-        createdAt: new Date(),
+            status: TransactionStatus.DRAFT,
+            mintBalanceToTransferFrom,
+            encodedInvoice,
+            amountToTransfer,
+            estimatedFee,
+            createdAt: new Date(),
         }
     ]
 
@@ -750,9 +745,10 @@ const transfer = async function (
         if (feeSavedProofs.length) {
             const feeSaved = _addCashuProofs(feeSavedProofs, mintUrl, transactionId)
 
-            finalFee = estimatedFee - feeSaved
-            await transactionsStore.updateFee(transactionId, finalFee)
+            finalFee = estimatedFee - feeSaved            
         }
+        // Save final fee in db
+        await transactionsStore.updateFee(transactionId, finalFee)
 
         // Update transaction status
         transactionData.push({

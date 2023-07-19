@@ -105,6 +105,7 @@ jobs:
       
       # Create the release tag in github repo  
       - name: Create tag
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}

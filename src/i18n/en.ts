@@ -70,6 +70,7 @@ const en = {
   },
   tranDetailScreen: {
     amount: "Amount (in satoshis)",
+    lightningFee: "Lightning network fee",
     memoFromSender: "Memo from sender",
     sentFrom: "Sent from",
     type: "Type",
