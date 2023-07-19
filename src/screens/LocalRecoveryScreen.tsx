@@ -26,7 +26,9 @@ import {useHeader} from '../utils/useHeader'
 import {log} from '../utils/logger'
 import {Database} from '../services'
 import AppError from '../utils/AppError'
-import {BackupProof} from '../models/Proof'
+import {BackupProof, Proof} from '../models/Proof'
+import { useStores } from '../models'
+import { getProofsAmount } from '../services/cashuHelpers'
 
 interface LocalRecoveryScreenProps
   extends SettingsStackScreenProps<'LocalRecovery'> {}
@@ -38,14 +40,15 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
   function LocalRecoveryScreen(_props) {
 
   const { navigation } = _props
-  // const { proofsStore } = useStores()
+  const { proofsStore } = useStores()
+
   useHeader({
       leftIcon: 'faArrowLeft',
       onLeftPress: () => navigation.goBack(),
     })
 
 
-  const [showPendingOnly, setShowPendingOnly] = useState<boolean>(false)
+    const [showPendingOnly, setShowPendingOnly] = useState<boolean>(false)
     const [showDeletedOnly, setShowDeletedOnly] = useState<boolean>(false)
     const [proofs, setProofs] = useState<BackupProof[]>([])
     const [selectedProofs, setSelectedProofs] = useState<BackupProof[]>([])
@@ -117,6 +120,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
         }
 
         setShowDeletedOnly(false)
+        setSelectedProofs([])
         return !previousState
       })
 
@@ -129,6 +133,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
         }
 
         setShowPendingOnly(false)
+        setSelectedProofs([])
         return !previousState
       })
 
@@ -147,6 +152,27 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
         }
       })
     }
+
+
+    const recoverPendingToWallet = function () {
+        try {
+            setIsLoading(true)
+
+            proofsStore.addProofs(selectedProofs as Proof[])
+            const amount = getProofsAmount(selectedProofs as Proof[])
+
+            log.info('Added proofs with amount', amount)
+    
+            // Remove them from pending if they are returned to the wallet due to failed lightning payment
+            // Do not mark them as spent as they are recovered back to wallet
+            proofsStore.removeProofs(selectedProofs as Proof[], true, true)
+
+            setIsLoading(false)
+          
+        } catch (e: any) {
+          handleError(e)
+        }
+      }
 
     /*type ProofGroup = {
     [date: string]: BackupProof[]
@@ -187,7 +213,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
             style={{color: 'white'}}
           />
           <Text
-            text="Select tokens to recover"
+            text="Do NOT use! Work in progress."
             preset="default"
             style={{color: hintColor}}
           />
@@ -300,11 +326,11 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
               style={$card}
             />
           )}
-          {selectedProofs.length > 0 && (
+          {showPendingOnly && selectedProofs.length > 0 && (
             <Button
               preset="default"
-              onPress={() => Alert.alert('Not implemented yet')}
-              text="Recover selected"
+              onPress={recoverPendingToWallet}
+              text="Recover back to wallet"
               style={{marginVertical: spacing.medium, alignSelf: 'center'}}
             />
           )}

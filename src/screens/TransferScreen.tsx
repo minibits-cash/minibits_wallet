@@ -99,11 +99,12 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
       const getEstimatedFee = async function () {
         try {
           if (!mintBalanceToTransferFrom) return
+
           const fee = await MintClient.getLightningFee(
             mintBalanceToTransferFrom.mint,
             encodedInvoice,
           )
-
+          
           if (amountToTransfer + fee > mintBalanceToTransferFrom.balance) {
             setInfo(
               'There is not enough funds to cover expected lightning network fee. Try to select another mint with higher balance.',
@@ -234,9 +235,9 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     }
 
 
-  const handleError = function(e: AppError): void {
-    setIsLoading(false)
-      setError(e)
+    const handleError = function(e: AppError): void {
+        setIsLoading(false)
+        setError(e)
     }
 
     const headerBg = useThemeColor('header')
@@ -259,12 +260,12 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
                     {transactionStatus === TransactionStatus.COMPLETED ? (
                     <Text
                         style={{color: feeColor}}
-                        text={`+ final fee ${estimatedFee.toLocaleString()} sats`}
+                        text={`+ final fee ${finalFee.toLocaleString()} sats`}
                     />
                     ) : (
                     <Text
                         style={{color: feeColor}}
-                        text={`+ estimated fee ${finalFee.toLocaleString()} sats`}
+                        text={`+ estimated fee ${estimatedFee.toLocaleString()} sats`}
                     />
                     )}
                 </View>

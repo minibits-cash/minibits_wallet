@@ -38,7 +38,7 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
       onLeftPress: () => navigation.goBack(),
     })
 
-    const {transactionsStore} = useStores()
+    const {transactionsStore, userSettingsStore} = useStores()
 
     const [isLoading, setIsLoading] = useState(false)
     const [rnVersion, setRnVersion] = useState<string>('')
@@ -50,7 +50,6 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
             const rn = packageJson.dependencies['react-native']
             setRnVersion(rn)            
         }
-        
         getRnVersion()
     }, [])
 
@@ -108,7 +107,7 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
                 MMKVStorage.clearAll()
 
                 setIsLoading(false)
-                setInfo('Factory reset completed')
+                setInfo('Factory reset completed, please restart Minibits')
               } catch (e: any) {
                 handleError(e)
               }
@@ -161,7 +160,8 @@ JS Bundle version: ${JS_BUNDLE_VERSION}
 React Native: ${rnVersion}
 Commit: ${COMMIT}
 Log level: ${LOG_LEVEL}
-Sentry active: ${SENTRY_ACTIVE} 
+Sentry active: ${SENTRY_ACTIVE}
+Sentry id: ${userSettingsStore.userSettings.userId}
                   `}
                   leftIcon='faInfoCircle'
                   leftIconColor={colors.palette.iconGreen300}
