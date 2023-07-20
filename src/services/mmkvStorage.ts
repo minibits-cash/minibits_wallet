@@ -27,7 +27,7 @@ const getInstance = function () {
         id: 'storage-v1',
       })
 
-      log.info('MMKV storage initialized')
+      log.trace('MMKV storage initialized')
     }
   }
 

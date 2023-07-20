@@ -37,6 +37,7 @@ import {Token} from '../models/Token'
 import {isArray} from 'lodash'
 import {Database} from '../services'
 import {BackupProof, Proof} from '../models/Proof'
+import useColorScheme from '../theme/useThemeColor'
 
 type ProofsByStatus = {
   isSpent: Proof[]
@@ -215,6 +216,7 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
     }
 
     const feeColor = colors.palette.primary200
+    const colorScheme = useColorScheme()
 
   return (
       <Screen style={$screen} preset="auto">
@@ -277,6 +279,7 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
                   transaction={transaction}
                   isDataParsable={isDataParsable}
                   copyAuditTrail={copyAuditTrail}
+                  colorScheme={colorScheme}
                 />
               )}
               {transaction.type === TransactionType.SEND && (
@@ -285,6 +288,7 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
                   isDataParsable={isDataParsable}
                   copyToken={copyToken}
                   copyAuditTrail={copyAuditTrail}
+                  colorScheme={colorScheme}
                 />
               )}
               {transaction.type === TransactionType.TOPUP && (
@@ -292,6 +296,7 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
                   transaction={transaction}
                   isDataParsable={isDataParsable}
                   copyAuditTrail={copyAuditTrail}
+                  colorScheme={colorScheme}
                 />
               )}
               {transaction.type === TransactionType.TRANSFER && (
@@ -299,6 +304,7 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
                   transaction={transaction}
                   isDataParsable={isDataParsable}
                   copyAuditTrail={copyAuditTrail}
+                  colorScheme={colorScheme}
                 />
               )}
               {proofsByStatus && (
@@ -317,6 +323,7 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
                           scheme: 'default',
                           base00: '#eee',
                         }}
+                        invertTheme={colorScheme === 'light' ? false : true}
                       />
                     </>
                   }
@@ -377,8 +384,9 @@ const ReceiveInfoBlock = function (props: {
     transaction: Transaction
     isDataParsable: boolean
     copyAuditTrail: any
+    colorScheme: 'light' | 'dark'
 }) {
-    const {transaction, isDataParsable, copyAuditTrail} = props
+    const {transaction, isDataParsable, copyAuditTrail, colorScheme} = props
     const labelColor = useThemeColor('textDim')
 
     return (
@@ -448,6 +456,7 @@ const ReceiveInfoBlock = function (props: {
                                 scheme: 'default',
                                 base00: '#eee',
                                 }}
+                                invertTheme={colorScheme === 'light' ? false : true}
                             />
                         </>
                     }
@@ -477,8 +486,9 @@ const ReceiveInfoBlock = function (props: {
             isDataParsable: boolean
             copyToken: any
             copyAuditTrail: any
+            colorScheme: 'light' | 'dark'
         }) {
-        const {transaction, isDataParsable, copyToken, copyAuditTrail} = props
+        const {transaction, isDataParsable, copyToken, copyAuditTrail, colorScheme} = props
         const labelColor = useThemeColor('textDim')
 
         return (
@@ -601,6 +611,7 @@ const ReceiveInfoBlock = function (props: {
                                     scheme: 'default',
                                     base00: '#eee',
                                     }}
+                                    invertTheme={colorScheme === 'light' ? false : true}
                                 />
                             </>
                         }
@@ -630,8 +641,9 @@ const TopupInfoBlock = function (props: {
     transaction: Transaction
     isDataParsable: boolean
     copyAuditTrail: any
+    colorScheme: 'dark' | 'light'
 }) {
-  const {transaction, isDataParsable, copyAuditTrail} = props
+  const {transaction, isDataParsable, copyAuditTrail, colorScheme} = props
 
   const labelColor = useThemeColor('textDim')
 
@@ -689,6 +701,7 @@ const TopupInfoBlock = function (props: {
                                     scheme: 'default',
                                     base00: '#eee',
                                 }}
+                                invertTheme={colorScheme === 'light' ? false : true}
                             />
                         </>
                     }            
@@ -717,8 +730,9 @@ const TransferInfoBlock = function (props: {
   transaction: Transaction
   isDataParsable: boolean
   copyAuditTrail: any
+  colorScheme: 'dark' | 'light'
 }) {
-  const {transaction, isDataParsable, copyAuditTrail} = props
+  const {transaction, isDataParsable, copyAuditTrail, colorScheme} = props
 
   const labelColor = useThemeColor('textDim')
 
@@ -795,6 +809,7 @@ const TransferInfoBlock = function (props: {
                     scheme: 'default',
                     base00: '#eee',
                   }}
+                  invertTheme={colorScheme === 'light' ? false : true}
                 />
               </>
             }

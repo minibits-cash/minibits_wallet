@@ -41,7 +41,7 @@ export const TransactionsStoreModel = types
 
             if (transactionInstance) {
                 destroy(transactionInstance)
-                log.info('Transaction removed from TransactionsStore')
+                log.trace('Transaction removed from TransactionsStore')
             }
         },
         removeOldTransactions: () => {
@@ -53,7 +53,7 @@ export const TransactionsStoreModel = types
                 .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()) // Sort transactions by createdAt in descending order
                 .splice(maxTransactionsInModel) // Remove transactions beyond the desired number to keep
 
-                log.info(
+                log.trace(
                 `${
                     numTransactions - maxTransactionsInModel
                 } transaction(s) removed from TransactionsStore`,
@@ -73,7 +73,7 @@ export const TransactionsStoreModel = types
             const transactionInstance = TransactionModel.create(inStoreTransaction)
             self.transactions.push(transactionInstance)
 
-            log.info(
+            log.trace(
                 'New transaction added to the TransactionsStore',
                 [],
                 'addTransaction',
@@ -117,9 +117,9 @@ export const TransactionsStoreModel = types
             if (transactionInstance) {
                 transactionInstance.status = status
                 transactionInstance.data = data
-                log.info(
-                'Transaction status and data updated in TransactionsStore',
-                'updateStatus',
+                log.trace(
+                    'Transaction status and data updated in TransactionsStore',
+                    'updateStatus',
                 )
             }
 
@@ -138,15 +138,15 @@ export const TransactionsStoreModel = types
                 const transactionInstance = self.findById(id)
 
                 if (transactionInstance) {
-                transactionInstance.status = status
+                    transactionInstance.status = status
 
-                // Awkward but I want to keep function signature aligned with single status update
-                const updatedData = JSON.parse(transactionInstance.data)
-                updatedData.push(JSON.parse(data))
-                transactionInstance.data = JSON.stringify(updatedData)
+                    // Awkward but I want to keep function signature aligned with single status update
+                    const updatedData = JSON.parse(transactionInstance.data)
+                    updatedData.push(JSON.parse(data))
+                    transactionInstance.data = JSON.stringify(updatedData)
 
 
-                log.info('Transaction status and data updated in TransactionsStore',[],'updateStatuses',)
+                    log.trace('Transaction status and data updated in TransactionsStore',[],'updateStatuses',)
                 }
             }
         }),
@@ -162,21 +162,21 @@ export const TransactionsStoreModel = types
             // Update in the model
             if (transactionInstance) {
                 transactionInstance.balanceAfter = balanceAfter
-                log.info('Transaction balanceAfter updated in TransactionsStore',[],'updateBalanceAfter',)
+                log.trace('Transaction balanceAfter updated in TransactionsStore',[],'updateBalanceAfter',)
             }
 
             return transactionInstance
         }),
         updateFee: flow(function* updateFee(id: number, fee: number) {
             // Update status and related metadata in database
-            yield Database.updateBalanceAfterAsync(id, fee)
+            yield Database.updateFeeAsync(id, fee)
 
             const transactionInstance = self.findById(id)
 
             // Update in the model
             if (transactionInstance) {
                 transactionInstance.fee = fee
-                log.info('Transaction fee updated in TransactionsStore')
+                log.trace('Transaction fee updated in TransactionsStore',[],'updateFee')
             }
 
             return transactionInstance
@@ -193,7 +193,7 @@ export const TransactionsStoreModel = types
             // Update in the model
             if (transactionInstance) {
                 transactionInstance.amount = amount
-                log.info('Transaction amount updated in TransactionsStore')
+                log.trace('Transaction amount updated in TransactionsStore')
             }
 
             return transactionInstance
@@ -208,7 +208,7 @@ export const TransactionsStoreModel = types
             // TODO how to handle missing UI updates for older notes that are stored in db only
             if (transactionInstance) {
                 transactionInstance.noteToSelf = note
-                log.info('Transaction note updated in TransactionsStore')
+                log.trace('Transaction note updated in TransactionsStore')
             }
         }),
         removeAllTransactions() {

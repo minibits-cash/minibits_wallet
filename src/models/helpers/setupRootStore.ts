@@ -56,7 +56,7 @@ export async function setupRootStore(rootStore: RootStore) {
     applySnapshot(rootStore, restoredState)
   
   } catch (e: any) {        
-    log.error(Err.DATABASE_ERROR, e.message, e.params, 'setupRootStore')
+    log.error(Err.STORAGE_ERROR, e.message, e.params, 'setupRootStore')
     
     // In case user cancels / fails the fingerprint auth, empty app state is loaded.
     // If a user updates the empty app state, it is stored unencrypted and returned after restart as primary one,
@@ -84,13 +84,13 @@ export async function setupRootStore(rootStore: RootStore) {
 
   // run migrations if needed, needs to be after onSnapshot to be persisted
   try {
-    log.info('Device rootStorage version', rootStore.version, 'setupRootStore')
+    log.trace('Device rootStorage version', rootStore.version, 'setupRootStore')
 
     if(rootStore.version < rootStoreModelVersion) {
       await _runMigrations(rootStore)
     }    
   } catch (e: any) {    
-    log.error(Err.DATABASE_ERROR, e.message)
+    log.error(Err.STORAGE_ERROR, e.message)
   }
 
   const unsubscribe = () => {
@@ -131,7 +131,7 @@ async function _runMigrations(rootStore: RootStore) {
     rootStore.setVersion(rootStoreModelVersion)
   } catch (e: any) {
     throw new AppError(
-      Err.DATABASE_ERROR,
+      Err.STORAGE_ERROR,
       'Error when executing rootStore migrations',
       e.message,
     )    

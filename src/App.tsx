@@ -30,8 +30,8 @@ setSizeMattersBaseHeight(812)
 
 Sentry.init({
   dsn: SENTRY_DSN,
-  release: `minibits_wallet_android@${NATIVE_VERSION_ANDROID}`,
-  dist: JS_BUNDLE_VERSION,
+  release: `minibits_wallet_android@${JS_BUNDLE_VERSION}`,
+  dist: NATIVE_VERSION_ANDROID,
   beforeSend: function (event, hint) {
     const exception = hint.originalException
     if (exception instanceof AppError) {

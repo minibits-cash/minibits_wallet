@@ -254,7 +254,7 @@ const getUserSettings = function (): UserSettings {
                 isStorageEncrypted: 0,
                 isLocalBackupOn: 1,
             })
-            log.info('Stored default user settings in the database')
+            log.trace('Stored default user settings in the database')
             return defaultSettings
         }
 
@@ -289,7 +289,7 @@ const updateUserSettings = function (settings: UserSettings): UserSettings {
         const db = getInstance()
         db.execute(query, params)
 
-        log.info('User settings created or updated in the database')
+        log.info('User settings created or updated in the database', params)
 
         const updated = getUserSettings()
         return updated
@@ -337,8 +337,8 @@ const addTransactionAsync = async function (tx: Transaction) {
     const result = await db.executeAsync(query, params)
 
     log.info(
-      'New transaction added to the database with id ',
-      [result.insertId, type, amount, status],
+      'New transaction added to the database',
+      [result.insertId, tx],
       'addTransactionAsync',
     )
 
@@ -371,8 +371,8 @@ const updateStatusAsync = async function (
     await db.executeAsync(query, params)
 
     log.info(
-      'Transaction status and data updated in the database',
-      [id, status],
+      `[${status}] Transaction status updated`,
+      params,
       'updateStatusAsync',
     )
 
@@ -430,8 +430,8 @@ const updateStatusesAsync = async function (
     const result2 = await _db.executeAsync(updateQuery, params)
 
     log.info(
-      'Transaction statuses and data updated. Number of updates:',
-      [result2.rowsAffected, status],
+      `[${status}] Transactions statuses updated.`,
+      [{numUpdates: result2.rowsAffected, status, data}],
       'updateStatusesAsync',
     )
 
@@ -459,8 +459,9 @@ const updateBalanceAfterAsync = async function (
 
     const db = getInstance()
     await db.executeAsync(query, params)
-
-    log.info('Transaction balanceAfter updated in the database')
+    
+    // DO NOT log balance to Sentry
+    log.trace('Transaction balanceAfter updated')
 
     const updatedTx = getTransactionById(id as number)
 
@@ -474,7 +475,7 @@ const updateBalanceAfterAsync = async function (
   }
 }
 
-const updatFeeAsync = async function (id: number, fee: number) {
+const updateFeeAsync = async function (id: number, fee: number) {
   try {
     const query = `
       UPDATE transactions
@@ -486,7 +487,7 @@ const updatFeeAsync = async function (id: number, fee: number) {
     const db = getInstance()
     await db.executeAsync(query, params)
 
-    log.info('Transaction fee updated in the database')
+    log.info('Transaction fee updated', fee)
 
     const updatedTx = getTransactionById(id as number)
 
@@ -512,7 +513,7 @@ const updateReceivedAmountAsync = async function (id: number, amount: number) {
     const db = getInstance()
     await db.executeAsync(query, params)
 
-    log.info('Transaction received amount updated in the database')
+    log.info('Transaction received amount updated', amount)
 
     const updatedTx = getTransactionById(id as number)
 
@@ -537,8 +538,8 @@ const updateNoteAsync = async function (id: number, note: string) {
 
     const db = getInstance()
     await db.executeAsync(query, params)
-
-    log.info('Transaction note updated in the database')
+    // DO NOT log to Sentry
+    log.trace('Transaction note updated')
 
     const updatedTx = getTransactionById(id as number)
 
@@ -644,12 +645,12 @@ const addOrUpdateProof = function (
 
     const db = getInstance()
     const result = db.execute(query, params)
-
+    // DO NOT log proof secrets to Sentry
     log.info(
       `${
         isPending ? ' Pending' : ''
-      } proof added or updated in the database with id, amount, tId, isPending, isSpent`,
-      [result.insertId, proof.amount, proof.tId, isPending, isSpent],
+      } proof added or updated in the database backup`,
+      [{id: result.insertId, amount: proof.amount, tId: proof.tId, isPending, isSpent}],
     )
 
     const newProof = getProofById(result.insertId as number)
@@ -697,12 +698,12 @@ const addOrUpdateProofs = function (
     const {rowsAffected} = db.executeBatch(insertQueries)
 
     const totalAmount = getProofsAmount(proofs)
-
+    // DO NOT log proof secrets to Sentry
     log.info(
       `${rowsAffected}${
         isPending ? ' pending' : ''
-      } proofs were added or updated in the database`,
-      {totalAmount}
+      } proofs were added or updated in the database backup`,
+      {totalAmount, isPending, isSpent}
     )
 
     return rowsAffected
@@ -833,7 +834,7 @@ export const Database = {
   updateStatusAsync,
   updateStatusesAsync,
   updateBalanceAfterAsync,
-  updatFeeAsync,
+  updateFeeAsync,
   updateReceivedAmountAsync,
   updateNoteAsync,
   getTransactionsAsync,
