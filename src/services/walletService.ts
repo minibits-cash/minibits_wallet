@@ -123,7 +123,7 @@ async function _checkSpentByMint(mintUrl: string, isPending: boolean = false) {
         const proofsFromMint = proofsStore.getByMint(mintUrl, isPending) as Proof[]
 
         if (proofsFromMint.length < 1) {
-            log.info(
+            log.trace(
                 `No ${isPending ? 'pending' : ''} proofs found for mint`,
                 mintUrl, '_checkSpentByMint'
             )
@@ -277,7 +277,7 @@ const receive = async function (
             }
         }
 
-        // Now we ask all mints to get fresh outputs for their tokenEntries, and create from them fresh token proofs
+        // Now we ask all mints to get fresh outputs for their tokenEntries, and create from them new proofs
         // 0.8.0-rc3 implements multimints receive however CashuMint constructor still expects single mintUrl
         const {updatedToken, errorToken, newKeys} = await MintClient.receiveFromMint(
             tokenMints[0],
@@ -354,7 +354,6 @@ const receive = async function (
         )
 
         const balanceAfter = proofsStore.getBalances().totalBalance
-
         await transactionsStore.updateBalanceAfter(transactionId, balanceAfter)
 
         if (amountWithErrors > 0) {
@@ -449,13 +448,13 @@ const _sendFromMint = async function (
 
         // these might be original proofToSendFrom if they matched the exact amount and split was not necessary
         for (const proof of proofsToSend) {
-        if (isStateTreeNode(proof)) {
-            proof.setTransactionId(transactionId)
-            proof.setMintUrl(mintUrl)
-        } else {
-            ;(proof as Proof).tId = transactionId
-            ;(proof as Proof).mintUrl = mintUrl
-        }
+            if (isStateTreeNode(proof)) {
+                proof.setTransactionId(transactionId)
+                proof.setMintUrl(mintUrl)
+            } else {
+                ;(proof as Proof).tId = transactionId
+                ;(proof as Proof).mintUrl = mintUrl
+            }
         }
 
         // these are fresh proofs from the mint
@@ -469,7 +468,7 @@ const _sendFromMint = async function (
         if (returnedProofs.length > 0) proofsStore.addProofs(returnedProofs)
         // remove used proofs and move sent proofs to pending
         proofsStore.removeProofs(proofsToSendFrom)
-        proofsStore.addProofs(proofsToSend, true)
+        proofsStore.addProofs(proofsToSend, true) // pending true
 
         // Clean private properties to not to send them out. This returns plain js array, not model objects.
         const cleanedProofsToSend = proofsToSend.map(proof => {
@@ -827,7 +826,7 @@ const _addCashuProofs = function (
     
     if(isRecoveredFromPending) {
         // Remove them from pending if they are returned to the wallet due to failed lightning payment
-        // Do not mark the as spent as they are recovered back to wallet
+        // Do not mark them as spent as they are recovered back to wallet
         proofsStore.removeProofs(proofsToAdd as Proof[], true, isRecoveredFromPending)
     }    
 
@@ -953,7 +952,7 @@ const checkPendingTopups = async function () {
     const invoices: Invoice[] = invoicesStore.allInvoices
 
     if (invoices.length === 0) {
-        log.info('No invoices in store', [], 'checkPendingTopups')
+        log.trace('No invoices in store', [], 'checkPendingTopups')
         return
     }
 
