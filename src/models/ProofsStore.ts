@@ -71,13 +71,13 @@ export const ProofsStoreModel = types
                 }
             }
 
-            log.info(`Added new ${newProofs.length}${isPending ? ' pending' : ''} proofs to ProofsStore`,)
+            log.trace(`Added new ${newProofs.length}${isPending ? ' pending' : ''} proofs to ProofsStore`,)
 
             const rootStore = getRootStore(self)
             const {userSettingsStore} = rootStore
 
             if (userSettingsStore.isLocalBackupOn === true) {
-                Database.addOrUpdateProofs(newProofs, isPending)
+                Database.addOrUpdateProofs(newProofs, isPending) // isSpent = false
             }
         } catch (e: any) {
             throw new AppError(Err.STORAGE_ERROR, e.message)
@@ -92,8 +92,8 @@ export const ProofsStoreModel = types
                 const {userSettingsStore} = rootStore
 
                 if (userSettingsStore.isLocalBackupOn === true) {
-                    
-                    if(isRecoveredFromPending) {
+                    // TODO refactor recovery to separate model method
+                    if(isRecoveredFromPending) { 
                         Database.addOrUpdateProofs(proofsToRemove, false, false) // isPending = false, isSpent = false
                     } else {
                         Database.addOrUpdateProofs(proofsToRemove, false, true) // isPending = false, isSpent = true
@@ -113,7 +113,7 @@ export const ProofsStoreModel = types
 
                 proofs.replace(proofs.filter(proof => !proofsToRemove.includes(proof)))
 
-                log.info(`${count} ${(isPending) ? 'pending' : ''} proofs removed from ProofsStore`)
+                log.trace(`${count} ${(isPending) ? 'pending' : ''} proofs removed from ProofsStore`)
 
             } catch (e: any) {
                 throw new AppError(Err.STORAGE_ERROR, e.message.toString())
