@@ -36,7 +36,7 @@ Receive coins
 - [x] Paste coin token from clipboard
 - [x] Receive tokens with coins from multiple mints (untested)
 - [ ] Share payment request to receive
-- [ ] Receive coins while being offline, redeem later
+- [x] Receive coins while being offline, redeem later (MVP version)
 
 Send coins
 - [x] Share coin token to send through another app
