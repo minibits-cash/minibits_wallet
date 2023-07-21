@@ -6,7 +6,8 @@ import {
     JS_BUNDLE_VERSION,
     NATIVE_VERSION_ANDROID,
     CODEPUSH_STAGING_DEPLOYMENT_KEY,
-    CODEPUSH_PRODUCTION_DEPLOYMENT_KEY, 
+    CODEPUSH_PRODUCTION_DEPLOYMENT_KEY,
+    SENTRY_ACTIVE, 
 } from '@env'
 import codePush from 'react-native-code-push'
 import {
@@ -22,24 +23,28 @@ import {useInitialRootStore, useStores} from './models'
 import {Database} from './services'
 import {ErrorBoundary} from './screens/ErrorScreen/ErrorBoundary'
 import Config from './config'
-import {Env, log} from './utils/logger'
+import {Env, log, SentryActive} from './utils/logger'
 import AppError from './utils/AppError'
 
 setSizeMattersBaseWidth(375)
 setSizeMattersBaseHeight(812)
 
-Sentry.init({
-  dsn: SENTRY_DSN,
-  release: `minibits_wallet_android@${JS_BUNDLE_VERSION}`,
-  dist: NATIVE_VERSION_ANDROID,
-  beforeSend: function (event, hint) {
-    const exception = hint.originalException
-    if (exception instanceof AppError) {
-      event.fingerprint = [exception.name.toString()]
-    }
-    return event
-  }
-})
+if (!__DEV__ && SENTRY_ACTIVE === SentryActive.TRUE) {
+    Sentry.init({
+        dsn: SENTRY_DSN,
+        environment: APP_ENV,
+        release: `minibits_wallet_android@${JS_BUNDLE_VERSION}`,
+        dist: NATIVE_VERSION_ANDROID,
+        beforeSend: function (event, hint) {
+            const exception = hint.originalException
+            if (exception instanceof AppError) {
+            event.fingerprint = [exception.name.toString()]
+            }
+            return event
+        },
+        enableTracing: false
+    })
+}
 
 interface AppProps {
   appName: string

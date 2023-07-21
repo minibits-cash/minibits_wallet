@@ -33,13 +33,14 @@ jobs:
       # Codepush build will continue only if version changed from previous commit    
       - name: Detect version change
         run: |
-          if [ "${{ env.PREV_JS_VERSION }}" != "${{ env.CURRENT_JS_VERSION }}" ]; then
-            echo "IS_VERSION_CHANGED=true" >> $GITHUB_ENV
-            echo "Detected version change"
-          else
-            echo "IS_VERSION_CHANGED=false" >> $GITHUB_ENV
-            echo "No version change, skipping further processing"
-          fi
+          echo "IS_VERSION_CHANGED=true" >> $GITHUB_ENV
+          # if [ "${{ env.PREV_JS_VERSION }}" != "${{ env.CURRENT_JS_VERSION }}" ]; then
+          #  echo "IS_VERSION_CHANGED=true" >> $GITHUB_ENV
+          #  echo "Detected version change"
+          # else
+          #  echo "IS_VERSION_CHANGED=false" >> $GITHUB_ENV
+          #  echo "No version change, skipping further processing"
+          # fi
     
       # Fetch native app versionName and versionCode from app/build.gradle                
       - name: Get Android native version        
@@ -90,16 +91,15 @@ jobs:
           echo JS_BUNDLE_VERSION='${{ env.CURRENT_JS_VERSION }}' >> .env          
           echo COMMIT='${{ env.COMMIT_HASH }}' >> .env
           
+      # Install dependecies from package.json
       - name: Install app dependencies
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
-        uses: bahmutov/npm-install@v1.6.0    
+        uses: bahmutov/npm-install@v1.6.0
 
-      # Sentry source maps configuration. Must match Sentry.init({release, dist}) in App.tsx
-      - name: Set Sentry release environment variables
+
+      - name: Install Sentry CLI
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
-        run: |-
-          export SENTRY_RELEASE="minibits_wallet_android@${{ env.CURRENT_JS_VERSION }}" 
-          export SENTRY_DIST="${{ env.NATIVE_VERSION }}"   
+        run: npm install @sentry/cli
           
       # Code push with source maps export for Sentry
       - name: Install AppCenter CLI
@@ -108,14 +108,24 @@ jobs:
         
       - name: Deploy to CodePush Android
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
-        run: appcenter codepush release-react -a minibits-cash/minibits_wallet_android -d Staging --description '${{ env.COMMIT_MESSAGE }} (v${{ env.CURRENT_JS_VERSION }})' --sourcemap-output --output-dir ./build
+        run: appcenter codepush release-react -a minibits-cash/minibits_wallet_android -d Staging --description '${{ env.COMMIT_MESSAGE }} (v${{ env.CURRENT_JS_VERSION }})' --sourcemap-output ./build/index.android.bundle.map --output-dir ./build
         env:
           APPCENTER_ACCESS_TOKEN: ${{ secrets.APPCENTER_ACCESS_TOKEN_ANDROID }}
 
       # Upload source files to Sentry
       - name: Upload source files to Sentry
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
-        run: sentry-cli react-native appcenter minibits-cash/minibits_wallet_android ios ./build/CodePush --deployment Staging --dist ${{ env.NATIVE_VERSION }} --release-name minibits_wallet_android@${{ env.CURRENT_JS_VERSION }}
+        run: |-                   
+          ./node_modules/.bin/sentry-cli login --auth-token ${{ secrets.SENTRY_AUTH_TOKEN }}
+          ./node_modules/.bin/sentry-cli releases \
+          files minibits_wallet_android@${{ env.CURRENT_JS_VERSION }} \
+          upload-sourcemaps \
+          --strip-prefix /build \
+          --dist ${{ env.NATIVE_VERSION }} \
+          --org ${{ secrets.SENTRY_ORG }} \
+          --project react-native \
+          ./build/index.android.bundle.map ./build/Codepush/index.android.bundle
+                           
       
       # Create the release tag in github repo  
       - name: Create tag
