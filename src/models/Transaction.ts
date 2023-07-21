@@ -23,6 +23,7 @@ export type TransactionData = {
 export enum TransactionType {
     SEND = 'SEND',
     RECEIVE = 'RECEIVE',
+    RECEIVE_OFFLINE = 'RECEIVE_OFFLINE',
     RECEIVE_NOSTR = 'RECEIVE_NOSTR', // not used
     TOPUP = 'TOPUP',
     TRANSFER = 'TRANSFER',
@@ -31,6 +32,7 @@ export enum TransactionType {
 export enum TransactionStatus {
     DRAFT = 'DRAFT',
     PREPARED = 'PREPARED',
+    PREPARED_OFFLINE = 'PREPARED_OFFLINE', // offline receive, safer to have if sepearate from prepared 
     PENDING = 'PENDING',
     REVERTED = 'REVERTED',
     COMPLETED = 'COMPLETED',
