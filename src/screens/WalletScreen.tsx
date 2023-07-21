@@ -114,6 +114,9 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 // Fixes #3
                 Wallet.checkPendingSpent()
                 Wallet.checkPendingTopups()
+
+                const updatedBalances = proofsStore.getBalances()
+                setBalances(updatedBalances)
             }
     
             appState.current = nextAppState         

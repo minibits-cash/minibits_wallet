@@ -21,6 +21,7 @@ import {
   ErrorModal,
   BottomModal,
   InfoModal,
+  Loading,
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
@@ -35,9 +36,11 @@ import {log} from '../utils/logger'
 import {getMintsFromToken} from '../services/cashuHelpers'
 import {Token} from '../models/Token'
 import {isArray} from 'lodash'
-import {Database} from '../services'
+import {Database, Wallet} from '../services'
 import {BackupProof, Proof} from '../models/Proof'
 import useColorScheme from '../theme/useThemeColor'
+import useIsInternetReachable from '../utils/useIsInternetReachable'
+import { ResultModalInfo } from './Wallet/ResultModalInfo'
 
 type ProofsByStatus = {
   isSpent: Proof[]
@@ -53,7 +56,7 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
       leftIcon: 'faArrowLeft',
       onLeftPress: () => navigation.goBack(),
     })
-
+    
     const noteInputRef = useRef<TextInput>(null)
 
     const [transaction, setTransaction] = useState<Transaction>()
@@ -282,6 +285,14 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
                   colorScheme={colorScheme}
                 />
               )}
+              {transaction.type === TransactionType.RECEIVE_OFFLINE && (
+                <ReceiveOfflineInfoBlock
+                  transaction={transaction}
+                  isDataParsable={isDataParsable}
+                  copyAuditTrail={copyAuditTrail}
+                  colorScheme={colorScheme}
+                />
+              )}
               {transaction.type === TransactionType.SEND && (
                 <SendInfoBlock
                   transaction={transaction}
@@ -375,7 +386,7 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
           onBackdropPress={toggleNoteModal}
         />
         {error && <ErrorModal error={error} />}
-            {info && <InfoModal message={info} />}
+        {info && <InfoModal message={info} />}
       </Screen>
     )
   })
@@ -416,7 +427,7 @@ const ReceiveInfoBlock = function (props: {
                         label="tranDetailScreen.status"
                         value={transaction.status as string}
                     />
-                    {transaction.status !== TransactionStatus.ERROR && (
+                    {transaction.status === TransactionStatus.COMPLETED && (
                     <TranItem
                         label="tranDetailScreen.balanceAfter"
                         value={`${transaction.balanceAfter}`}
@@ -479,161 +490,366 @@ const ReceiveInfoBlock = function (props: {
         )}
     </>
     )
+}
+
+
+const ReceiveOfflineInfoBlock = function (props: {
+    transaction: Transaction
+    isDataParsable: boolean
+    copyAuditTrail: any
+    colorScheme: 'light' | 'dark'
+}) {
+    const {transaction, isDataParsable, copyAuditTrail, colorScheme} = props
+    const labelColor = useThemeColor('textDim')
+    const isInternetReachable = useIsInternetReachable()
+
+    const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
+    const [resultModalInfo, setResultModalInfo] = useState<
+      {status: TransactionStatus; message: string} | undefined
+    >()
+    const [isLoading, setIsLoading] = useState(false)
+
+    // MVP implementaition
+    const toggleResultModal = () =>
+    setIsResultModalVisible(previousState => !previousState)
+
+    const receiveOfflineComplete = async function () {
+        setIsLoading(true)
+        
+        const result = await Wallet.receiveOfflineComplete(transaction)            
+
+        if (result.error) {
+            setResultModalInfo({
+                status: result.transaction?.status as TransactionStatus,
+                message: result.error.message,
+            })
+        } else {
+            setResultModalInfo({
+                status: result.transaction?.status as TransactionStatus,
+                message: result.message,
+            })
+        }
+        setIsLoading(false)
+        toggleResultModal()
     }
 
-        const SendInfoBlock = function (props: {
-            transaction: Transaction
-            isDataParsable: boolean
-            copyToken: any
-            copyAuditTrail: any
-            colorScheme: 'light' | 'dark'
-        }) {
-        const {transaction, isDataParsable, copyToken, copyAuditTrail, colorScheme} = props
-        const labelColor = useThemeColor('textDim')
+    return (
+    <>
+        <Card
+            style={$dataCard}
+            ContentComponent={
+                <>
+                    {transaction.status === TransactionStatus.PREPARED_OFFLINE ? (
+                        <View
+                        style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                        <TranItem
+                            label="tranDetailScreen.amount"
+                            value={`${transaction.amount}`}
+                            isFirst={true}
+                        />
+                        {isInternetReachable ? (
+                            <Button
+                                style={{maxHeight: 10, marginTop: spacing.medium}}
+                                preset="default"
+                                tx="tranDetailScreen.receiveOfflineComplete"
+                                onPress={receiveOfflineComplete}
+                            />
+                        ) : (
+                            <Button
+                                style={{maxHeight: 10, marginTop: spacing.medium}}
+                                preset="secondary"
+                                tx="tranDetailScreen.isOffline"                                
+                            />
+                        )}
+                        </View>
+                    ) : (
+                        <TranItem
+                            label="tranDetailScreen.amount"
+                            value={`${transaction.amount}`}
+                            isFirst={true}
+                        />
+                    )}                    
+                    <TranItem
+                        label="tranDetailScreen.memoFromSender"
+                        value={transaction.memo as string}
+                    />
+                    <TranItem
+                        label="tranDetailScreen.sentFrom"
+                        value={transaction.sentFrom as string}
+                    />
+                    <TranItem
+                        label="tranDetailScreen.type"
+                        value={transaction.type as string}
+                    />
+                    <TranItem
+                        label="tranDetailScreen.status"
+                        value={transaction.status as string}
+                    />
+                    {transaction.status === TransactionStatus.COMPLETED && (
+                        <TranItem
+                            label="tranDetailScreen.balanceAfter"
+                            value={`${transaction.balanceAfter}`}
+                        />
+                    )}
+                    <TranItem
+                        label="tranDetailScreen.createdAt"
+                        value={(transaction.createdAt as Date).toLocaleString()}
+                    />
+                    <TranItem label="tranDetailScreen.id" value={`${transaction.id}`} />
+                </>
+            }
+        />
+        {isDataParsable && (
+            <>
+                <Card
+                    style={$dataCard}
+                    ContentComponent={                        
+                        <TranItem
+                            label="tranDetailScreen.receivedTo"
+                            value={getMints(transaction).toString()}
+                        />
+                    }
+                />
+                <Card
+                    style={$dataCard}
+                    ContentComponent={
+                        <>
+                            <Text
+                                style={{color: labelColor, fontSize: 14}}
+                                text="Audit trail"
+                            />
+                            <JSONTree
+                                hideRoot
+                                data={getAuditTrail(transaction)}
+                                theme={{
+                                scheme: 'default',
+                                base00: '#eee',
+                                }}
+                                invertTheme={colorScheme === 'light' ? false : true}
+                            />
+                        </>
+                    }
+                    FooterComponent={
+                        <Button
+                            preset="tertiary"
+                            onPress={() => copyAuditTrail(transaction)}
+                            tx="common.copy"
+                            style={{
+                            minHeight: 25,
+                            paddingVertical: spacing.extraSmall,
+                            marginTop: spacing.small,
+                            alignSelf: 'center',
+                            }}
+                            textStyle={{fontSize: 14}}
+                        />
+                    }
+                />
+            </>
+        )}
+        <BottomModal
+          isVisible={isResultModalVisible ? true : false}
+          top={spacing.screenHeight * 0.6}
+          ContentComponent={
+            <>
+              {(resultModalInfo?.status === TransactionStatus.COMPLETED ||
+                resultModalInfo?.status === TransactionStatus.PREPARED_OFFLINE ) && (
+                <>
+                  <ResultModalInfo
+                    icon="faCheckCircle"
+                    iconColor={colors.palette.success200}
+                    title="Success!"
+                    message={resultModalInfo?.message}
+                  />
+                  <View style={$buttonContainer}>
+                    <Button
+                      preset="secondary"
+                      tx={'common.close'}
+                      onPress={toggleResultModal}
+                    />
+                  </View>
+                </>
+              )}
+              {(resultModalInfo?.status === TransactionStatus.ERROR ||
+                resultModalInfo?.status === TransactionStatus.BLOCKED) && (
+                <>
+                  <ResultModalInfo
+                    icon="faTriangleExclamation"
+                    iconColor={colors.palette.angry500}
+                    title="Receive failed"
+                    message={resultModalInfo?.message as string}
+                  />
+                  <View style={$buttonContainer}>
+                    <Button
+                      preset="secondary"
+                      tx={'common.close'}
+                      onPress={toggleResultModal}
+                    />
+                  </View>
+                </>
+              )}
+            </>
+          }
+          onBackButtonPress={toggleResultModal}
+          onBackdropPress={toggleResultModal}
+        />
+        {isLoading && <Loading />}
+    </>
+    )
+}
 
-        return (
+const SendInfoBlock = function (props: {
+    transaction: Transaction
+    isDataParsable: boolean
+    copyToken: any
+    copyAuditTrail: any
+    colorScheme: 'light' | 'dark'
+}) {
+    const {transaction, isDataParsable, copyToken, copyAuditTrail, colorScheme} = props
+    const labelColor = useThemeColor('textDim')
+
+    return (
+        <>
+            <Card
+                style={$dataCard}
+                ContentComponent={
+                    <>
+                        <TranItem
+                            label="tranDetailScreen.amount"
+                            value={`${transaction.amount}`}
+                            isFirst={true}
+                        />
+                        <TranItem
+                            label="tranDetailScreen.memoToReceiver"
+                            value={transaction.memo as string}
+                        />
+                        <TranItem
+                            label="tranDetailScreen.type"
+                            value={transaction.type as string}
+                        />
+                        {transaction.status === TransactionStatus.PENDING ? (
+                            <View
+                            style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                            <TranItem
+                                label="tranDetailScreen.status"
+                                value={transaction.status as string}
+                            />
+                            <Button
+                                style={{maxHeight: 10, marginTop: spacing.medium}}
+                                preset="secondary"
+                                tx="tranDetailScreen.revert"
+                                onPress={() =>
+                                Alert.alert('Not yet implemented. Copy the token instead.')
+                                }
+                            />
+                            </View>
+                        ) : (
+                            <TranItem
+                            label="tranDetailScreen.status"
+                            value={transaction.status as string}
+                            />
+                        )}
+                        {transaction.status !== TransactionStatus.ERROR && (
+                            <TranItem
+                            label="tranDetailScreen.balanceAfter"
+                            value={`${transaction.balanceAfter}`}
+                            />
+                        )}
+                        <TranItem
+                            label="tranDetailScreen.createdAt"
+                            value={(transaction.createdAt as Date).toLocaleString()}
+                        />
+                        <TranItem label="tranDetailScreen.id" value={`${transaction.id}`} />
+                    </>
+                }
+            />
+            {isDataParsable && (
             <>
                 <Card
                     style={$dataCard}
                     ContentComponent={
                         <>
                             <TranItem
-                                label="tranDetailScreen.amount"
-                                value={`${transaction.amount}`}
-                                isFirst={true}
+                                label="tranDetailScreen.paidFrom"
+                                value={
+                                JSON.parse(transaction.data)[0].mintBalanceToSendFrom.mint
+                                }
                             />
-                            <TranItem
-                                label="tranDetailScreen.memoToReceiver"
-                                value={transaction.memo as string}
-                            />
-                            <TranItem
-                                label="tranDetailScreen.type"
-                                value={transaction.type as string}
-                            />
-                            {transaction.status === TransactionStatus.PENDING ? (
-                                <View
-                                style={{flexDirection: 'row', justifyContent: 'space-between'}}>
-                                <TranItem
-                                    label="tranDetailScreen.status"
-                                    value={transaction.status as string}
-                                />
+                            {transaction.status === TransactionStatus.PENDING && (
+                                <>
+                                    <Text
+                                        style={{
+                                        color: labelColor,
+                                        fontSize: 14,
+                                        marginTop: spacing.small,
+                                        }}
+                                        text="Pending token"
+                                    />
+                                    <Text
+                                        text={getEncodedTokenToSend(transaction) as string}
+                                        numberOfLines={1}
+                                        ellipsizeMode="middle"
+                                    />
+                                </>
+                            )}
+                        </>
+                    }
+                    FooterComponent={
+                        <>
+                            {transaction.status === TransactionStatus.PENDING && (
                                 <Button
-                                    style={{maxHeight: 10, marginTop: spacing.medium}}
-                                    preset="secondary"
-                                    tx="tranDetailScreen.revert"
-                                    onPress={() =>
-                                    Alert.alert('Not yet implemented. Copy the token instead.')
-                                    }
-                                />
-                                </View>
-                            ) : (
-                                <TranItem
-                                label="tranDetailScreen.status"
-                                value={transaction.status as string}
+                                preset="tertiary"
+                                onPress={() => copyToken(transaction)}
+                                text="Copy"
+                                style={{
+                                    minHeight: 25,
+                                    paddingVertical: spacing.extraSmall,
+                                    marginTop: spacing.small,
+                                    alignSelf: 'center',
+                                }}
+                                textStyle={{fontSize: 14}}
                                 />
                             )}
-                            {transaction.status !== TransactionStatus.ERROR && (
-                                <TranItem
-                                label="tranDetailScreen.balanceAfter"
-                                value={`${transaction.balanceAfter}`}
-                                />
-                            )}
-                            <TranItem
-                                label="tranDetailScreen.createdAt"
-                                value={(transaction.createdAt as Date).toLocaleString()}
-                            />
-                            <TranItem label="tranDetailScreen.id" value={`${transaction.id}`} />
                         </>
                     }
                 />
-                {isDataParsable && (
-                <>
-                    <Card
-                        style={$dataCard}
-                        ContentComponent={
-                            <>
-                                <TranItem
-                                    label="tranDetailScreen.paidFrom"
-                                    value={
-                                    JSON.parse(transaction.data)[0].mintBalanceToSendFrom.mint
-                                    }
-                                />
-                                {transaction.status === TransactionStatus.PENDING && (
-                                    <>
-                                        <Text
-                                            style={{
-                                            color: labelColor,
-                                            fontSize: 14,
-                                            marginTop: spacing.small,
-                                            }}
-                                            text="Pending token"
-                                        />
-                                        <Text
-                                            text={getEncodedTokenToSend(transaction) as string}
-                                            numberOfLines={1}
-                                            ellipsizeMode="middle"
-                                        />
-                                    </>
-                                )}
-                            </>
-                        }
-                        FooterComponent={
-                            <>
-                                {transaction.status === TransactionStatus.PENDING && (
-                                    <Button
-                                    preset="tertiary"
-                                    onPress={() => copyToken(transaction)}
-                                    text="Copy"
-                                    style={{
-                                        minHeight: 25,
-                                        paddingVertical: spacing.extraSmall,
-                                        marginTop: spacing.small,
-                                        alignSelf: 'center',
-                                    }}
-                                    textStyle={{fontSize: 14}}
-                                    />
-                                )}
-                            </>
-                        }
-                    />
-                    <Card
-                        style={$dataCard}
-                        ContentComponent={
-                            <>
-                                <Text
-                                    style={{color: labelColor, fontSize: 14}}
-                                    text="Audit trail"
-                                />
-                                <JSONTree
-                                    hideRoot
-                                    data={getAuditTrail(transaction)}
-                                    theme={{
-                                    scheme: 'default',
-                                    base00: '#eee',
-                                    }}
-                                    invertTheme={colorScheme === 'light' ? false : true}
-                                />
-                            </>
-                        }
-                        // footerStyle={{borderWidth: 10, borderColor: 'red'}}
-                        FooterComponent={
-                            <Button
-                            preset="tertiary"
-                            onPress={() => copyAuditTrail(transaction)}
-                            text="Copy"
-                            style={{
-                                minHeight: 25,
-                                paddingVertical: spacing.extraSmall,
-                                marginTop: spacing.small,
-                                alignSelf: 'center',
-                            }}
-                            textStyle={{fontSize: 14}}
+                <Card
+                    style={$dataCard}
+                    ContentComponent={
+                        <>
+                            <Text
+                                style={{color: labelColor, fontSize: 14}}
+                                text="Audit trail"
                             />
-                        }
-                    />
-                </>
-            )}
-        </>
+                            <JSONTree
+                                hideRoot
+                                data={getAuditTrail(transaction)}
+                                theme={{
+                                scheme: 'default',
+                                base00: '#eee',
+                                }}
+                                invertTheme={colorScheme === 'light' ? false : true}
+                            />
+                        </>
+                    }
+                    // footerStyle={{borderWidth: 10, borderColor: 'red'}}
+                    FooterComponent={
+                        <Button
+                        preset="tertiary"
+                        onPress={() => copyAuditTrail(transaction)}
+                        text="Copy"
+                        style={{
+                            minHeight: 25,
+                            paddingVertical: spacing.extraSmall,
+                            marginTop: spacing.small,
+                            alignSelf: 'center',
+                        }}
+                        textStyle={{fontSize: 14}}
+                        />
+                    }
+                />
+            </>
+        )}
+    </>
   )
 }
 
@@ -953,3 +1169,8 @@ const $noteInput: TextStyle = {
   alignSelf: 'stretch',
   textAlignVertical: 'top',
 }
+
+const $buttonContainer: ViewStyle = {
+    flexDirection: 'row',
+    alignSelf: 'center',
+  }
