@@ -13,6 +13,7 @@ import {
 import {rootStoreInstance} from '../models'
 import {
   decodeInvoice,
+  decodeToken,
   getInvoiceData,
   getMintsFromToken,
   getProofsAmount,
@@ -50,6 +51,15 @@ type WalletService = {
         memo: string,
         encodedToken: string,
     ) => Promise<TransactionResult>
+    receiveOfflinePrepare: (
+        token: Token,
+        amountToReceive: number,
+        memo: string,
+        encodedToken: string,
+    ) => Promise<TransactionResult>
+    receiveOfflineComplete: (        
+        transaction: Transaction
+    ) => Promise<TransactionResult>
     send: (
         mintBalanceToSendFrom: MintBalance,
         amountToSend: number,
@@ -86,7 +96,7 @@ async function checkPendingSpent() {
 
     // group proofs by mint so that we do max one call per mint
     for (const mint of mintsStore.allMints) {
-        await _checkSpentByMint(mint.mintUrl, true) // pending
+        await _checkSpentByMint(mint.mintUrl, true) // pending true
     }
 }
 
@@ -102,7 +112,7 @@ async function checkSpent() {
     let spentAmount = 0
     // group proofs by mint so that we do max one call per mint
     for (const mint of mintsStore.allMints) {
-        const result = await _checkSpentByMint(mint.mintUrl, false)
+        const result = await _checkSpentByMint(mint.mintUrl, false) // pending false
         spentCount += result?.spentCount || 0
         spentAmount += result?.spentAmount || 0
     }
@@ -395,6 +405,280 @@ const receive = async function (
     }
 }
 
+
+const receiveOfflinePrepare = async function (
+    token: Token,
+    amountToReceive: number,
+    memo: string,
+    encodedToken: string,
+) {
+  const transactionData: TransactionData[] = []
+  let transactionId: number = 0
+
+  try {
+        const tokenMints: string[] = getMintsFromToken(token as Token)
+        log.trace('receiveToken tokenMints', tokenMints, 'receive')
+
+        if (tokenMints.length === 0) {
+            throw new AppError(
+                Err.VALIDATION_ERROR,
+                'Could not get any mint information from the coins.',
+            )
+        }
+
+        // Check if we have all mints from the coins added to wallet
+        const missingMints: string[] = mintsStore.getMissingMints(tokenMints)
+
+        // Let's create new draft receive transaction in database
+        transactionData.push({
+            status: TransactionStatus.DRAFT,
+            amountToReceive,
+            tokenMints,
+            missingMints,
+            createdAt: new Date(),
+        })
+
+        const newTransaction: Transaction = {
+            type: TransactionType.RECEIVE_OFFLINE,
+            amount: amountToReceive,
+            data: JSON.stringify(transactionData),
+            memo,
+            status: TransactionStatus.DRAFT,
+        }
+
+        const draftTransaction: Transaction = await transactionsStore.addTransaction(newTransaction)
+        transactionId = draftTransaction.id as number
+
+        const blockedMints = mintsStore.getBlockedFromList(tokenMints)
+
+        if (blockedMints.length > 0) {
+            const blockedTransaction = await transactionsStore.updateStatus(
+                transactionId,
+                TransactionStatus.BLOCKED,
+                JSON.stringify(transactionData),
+            )
+
+            return {
+                transaction: blockedTransaction,
+                message: `The mint ${blockedMints.toString()} is blocked. You can unblock it in Settings.`,
+            } as TransactionResult
+        }
+
+        // Update transaction status
+        transactionData.push({
+            status: TransactionStatus.PREPARED_OFFLINE,
+            encodedToken, // TODO store in model, MVP initial implementation
+            createdAt: new Date(),
+        })
+
+        const preparedTransaction = await transactionsStore.updateStatus(
+            transactionId,
+            TransactionStatus.PREPARED_OFFLINE,
+            JSON.stringify(transactionData),
+        )
+
+        // TODO store as proofs in new model and redeem on internet connection?
+        /* const newProofs: Proof[] = []
+
+        for (const entry of token) {
+            for (const proof of entry.proofs) {
+                proof.tId = transactionId
+                proof.mintUrl = entry.mint //multimint support
+
+                newProofs.push(proof)
+            }
+        } */
+
+        return {
+            transaction: preparedTransaction,
+            message: `You received ${amountToReceive} sats while offline. You need to redeem them to your wallet when you will be online again.`,            
+        } as TransactionResult
+
+    } catch (e: any) {
+        let errorTransaction: Transaction | undefined = undefined
+
+        if (transactionId > 0) {
+            transactionData.push({
+                status: TransactionStatus.ERROR,
+                error: _formatError(e),
+            })
+
+            errorTransaction = await transactionsStore.updateStatus(
+                transactionId,
+                TransactionStatus.ERROR,
+                JSON.stringify(transactionData),
+            )
+        }
+
+        log.error(e.name, e.message)
+
+        return {
+            transaction: errorTransaction || undefined,
+            message: '',
+            error: _formatError(e),
+        } as TransactionResult
+    }
+}
+
+
+const receiveOfflineComplete = async function (        
+    transaction: Transaction
+) {
+  try {        
+        const transactionData = JSON.parse(transaction.data)
+        const {encodedToken} = transactionData.find(
+            (record: any) => record.status === TransactionStatus.PREPARED_OFFLINE,
+        )
+
+        if (!encodedToken) {
+            throw new AppError(Err.VALIDATION_ERROR, 'Could not find coin token to redeem', 'receiveOfflineComplete')
+        }
+        
+        const token = decodeToken(encodedToken)        
+        const tokenMints: string[] = getMintsFromToken(token as Token)
+
+        // Check if we have all mints from the coins added to wallet
+        const missingMints: string[] = mintsStore.getMissingMints(tokenMints)
+        const blockedMints = mintsStore.getBlockedFromList(tokenMints)
+
+        if (blockedMints.length > 0) {
+            const blockedTransaction = await transactionsStore.updateStatus(
+                transaction.id as number,
+                TransactionStatus.BLOCKED,
+                JSON.stringify(transaction.data),
+            )
+
+            return {
+                transaction: blockedTransaction,
+                message: `The mint ${blockedMints.toString()} is blocked. You can unblock it in Settings.`,
+            } as TransactionResult
+        }
+
+        // if we have missing mints, we add them automatically
+        if (missingMints.length > 0) {
+            log.trace('Missing mints', missingMints, 'receive')
+
+            for (const mintUrl of missingMints) {
+                log.trace('Adding new mint', mintUrl, 'receive')
+
+                const mintKeys: {
+                    keys: MintKeys
+                    keyset: string
+                } = await MintClient.getMintKeys(mintUrl)
+
+                const newMint: Mint = {
+                    mintUrl,
+                    keys: mintKeys.keys,
+                    keysets: [mintKeys.keyset]
+                }
+
+                mintsStore.addMint(newMint)
+            }
+        }
+
+        // Now we ask all mints to get fresh outputs for their tokenEntries, and create from them new proofs
+        // 0.8.0-rc3 implements multimints receive however CashuMint constructor still expects single mintUrl
+        const {updatedToken, errorToken, newKeys} = await MintClient.receiveFromMint(
+            tokenMints[0],
+            encodedToken as string,
+        )
+
+        let amountWithErrors = 0
+
+        if (errorToken && errorToken.token.length > 0) {
+            amountWithErrors += getTokenAmounts(errorToken as Token).totalAmount
+            log.trace('receiveToken amountWithErrors', amountWithErrors, 'receive')
+        }
+
+        if (amountWithErrors === transaction.amount) {
+            throw new AppError(
+                Err.VALIDATION_ERROR,
+                'Received coins are not valid and can not be redeemed',
+            )
+        }
+
+        // attach transaction id and mintUrl to the proofs before storing them
+        const newProofs: Proof[] = []
+
+        for (const entry of updatedToken.token) {
+            for (const proof of entry.proofs) {
+                proof.tId = transaction.id
+                proof.mintUrl = entry.mint //multimint support
+
+                newProofs.push(proof)
+            }
+        }
+        // create ProofModel instances and store them into the proofsStore
+        proofsStore.addProofs(newProofs)
+
+        // This should be amountToReceive - amountWithErrors but let's set it from updated token
+        const receivedAmount = getTokenAmounts(updatedToken as Token).totalAmount
+        log.trace('Received amount', receivedAmount, 'receive')
+
+        // Update tx amount if full amount was not received
+        if (receivedAmount !== transaction.amount) {      
+            await transactionsStore.updateReceivedAmount(
+                transaction.id as number,
+                receivedAmount,
+            )
+        }
+
+        // Finally, update completed transaction        
+        transactionData.push({
+            status: TransactionStatus.COMPLETED,
+            receivedAmount,
+            amountWithErrors,
+            createdAt: new Date(),
+        })
+
+        const completedTransaction = await transactionsStore.updateStatus(
+            transaction.id as number,
+            TransactionStatus.COMPLETED,
+            JSON.stringify(transactionData),
+        )
+
+        const balanceAfter = proofsStore.getBalances().totalBalance
+        await transactionsStore.updateBalanceAfter(transaction.id as number, balanceAfter)
+
+        if (amountWithErrors > 0) {
+        return {
+            transaction: completedTransaction,
+            message: `You received ${receivedAmount} sats to your minibits wallet. ${amountWithErrors} could not be redeemed from the mint`,
+            receivedAmount,
+        } as TransactionResult
+        }
+
+        return {
+            transaction: completedTransaction,
+            message: `You received ${receivedAmount} sats to your minibits wallet.`,
+            receivedAmount,
+        } as TransactionResult
+    } catch (e: any) {
+        let errorTransaction: Transaction | undefined = undefined
+            
+        const transactionData = JSON.parse(transaction.data)
+        transactionData.push({
+            status: TransactionStatus.ERROR,
+            error: _formatError(e),
+        })
+
+        errorTransaction = await transactionsStore.updateStatus(
+            transaction.id as number,
+            TransactionStatus.ERROR,
+            JSON.stringify(transactionData),
+        )
+
+        log.error(e.name, e.message)
+
+        return {
+            transaction: errorTransaction || undefined,
+            message: '',
+            error: _formatError(e),
+        } as TransactionResult
+    }
+}
+
+
 const _sendFromMint = async function (
     mintBalance: MintBalance,
     amountToSend: number,
@@ -466,19 +750,19 @@ const _sendFromMint = async function (
 
         // add proofs returned by the mint after the split
         if (returnedProofs.length > 0) proofsStore.addProofs(returnedProofs)
-        // remove used proofs and move sent proofs to pending
-        proofsStore.removeProofs(proofsToSendFrom)
-        proofsStore.addProofs(proofsToSend, true) // pending true
+            // remove used proofs and move sent proofs to pending
+            proofsStore.removeProofs(proofsToSendFrom)
+            proofsStore.addProofs(proofsToSend, true) // pending true
 
-        // Clean private properties to not to send them out. This returns plain js array, not model objects.
-        const cleanedProofsToSend = proofsToSend.map(proof => {
-        if (isStateTreeNode(proof)) {
-            const {mintUrl, tId, ...rest} = getSnapshot(proof)
-            return rest
-        } else {
-            const {mintUrl, tId, ...rest} = proof as Proof
-            return rest
-        }
+            // Clean private properties to not to send them out. This returns plain js array, not model objects.
+            const cleanedProofsToSend = proofsToSend.map(proof => {
+            if (isStateTreeNode(proof)) {
+                const {mintUrl, tId, ...rest} = getSnapshot(proof)
+                return rest
+            } else {
+                const {mintUrl, tId, ...rest} = proof as Proof
+                return rest
+            }
         })
 
         return cleanedProofsToSend
@@ -1066,6 +1350,8 @@ export const Wallet: WalletService = {
     checkPendingTopups,
     transfer,
     receive,
+    receiveOfflinePrepare,
+    receiveOfflineComplete,
     send,
     topup,
 }

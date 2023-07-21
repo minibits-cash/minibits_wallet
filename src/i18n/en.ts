@@ -33,6 +33,7 @@ const en = {
     title: "Receive", 
     paste: "Paste coin",
     receive: "Receive",
+    receiveOffline: "Receive offline",    
     newMintsAdded: {
       one: "{{count}} mint has been added to your wallet",
       other: "{{count}} mints have been added to your wallet",
@@ -84,6 +85,8 @@ const en = {
     memoFromInvoice: "Memo from invoice",
     paidFrom: "Paid from",
     receivedTo: "Received to",
+    receiveOfflineComplete: "Redeem to wallet",
+    isOffline: "Redeem online"
   },
   settingsScreen: {
     title: "Settings", 

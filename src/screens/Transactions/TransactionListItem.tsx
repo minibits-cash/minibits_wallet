@@ -6,6 +6,7 @@ import { ScrollView, TextStyle, View, ViewStyle } from "react-native"
 import { Button, Icon, ListItem, Screen, Text } from "../../components"
 import { Transaction, TransactionStatus, TransactionType } from "../../models/Transaction"
 import { colors, spacing, typography, useThemeColor } from "../../theme"
+import useIsInternetReachable from "../../utils/useIsInternetReachable"
 
 export interface TransactionListProps {
   transaction: Transaction  
@@ -19,14 +20,15 @@ export const TransactionListItem = observer(function (props: {tx: Transaction, i
     const txSendColor = useThemeColor('amount')
     const txErrorColor = useThemeColor('textDim')    
     const txPendingColor = useThemeColor('textDim')
+    const isInternetReachable = useIsInternetReachable()
   
     const getText = function(tx: Transaction) {
       if(tx.noteToSelf) return tx.noteToSelf
       if(tx.memo) return tx.memo
   
       switch(tx.type) {
-        case TransactionType.RECEIVE || TransactionType.RECEIVE_NOSTR:
-          return 'You received'            
+        case TransactionType.RECEIVE || TransactionType.RECEIVE_NOSTR || TransactionType.RECEIVE_OFFLINE:
+          return 'You received'      
         case TransactionType.SEND:
           return 'You paid'
         case TransactionType.TOPUP:
@@ -55,6 +57,12 @@ export const TransactionListItem = observer(function (props: {tx: Transaction, i
           return distance + ` · Pending`
         case TransactionStatus.PREPARED:
           return distance + ` · Prepared`   
+        case TransactionStatus.PREPARED_OFFLINE:
+            if(isInternetReachable) {
+                return distance + ` · Tap to redeem`  
+            } else {
+                return distance + ` · Redeem online`  
+            }            
         case TransactionStatus.REVERTED:
             return distance + ` · Reverted` 
         case TransactionStatus.BLOCKED:
@@ -80,6 +88,10 @@ export const TransactionListItem = observer(function (props: {tx: Transaction, i
         return (<Icon containerStyle={$txIconContainer} icon="faArrowTurnDown" size={spacing.medium} color={txReceiveColor}/>)
       }
 
+      if([TransactionType.RECEIVE_OFFLINE].includes(tx.type)) {
+        return (<Icon containerStyle={$txIconContainer} icon="faArrowTurnDown" size={spacing.medium} color={txPendingColor}/>)
+      }
+
       return (<Icon containerStyle={$txIconContainer} icon="faArrowTurnUp" size={spacing.medium} color={txSendColor}/>)
     }
     
@@ -89,16 +101,16 @@ export const TransactionListItem = observer(function (props: {tx: Transaction, i
         key={tx.id}                      
         text={getText(tx)}        
         textStyle={$mintText}
-        subText={getSubText(tx)}
+        subText={getSubText(tx)}        
         LeftComponent={getLeftIcon(tx)}  
         RightComponent={
           <View style={$txContainer}>
-            {([TransactionType.RECEIVE].includes(tx.type)) && (
+            {([TransactionType.RECEIVE, TransactionType.RECEIVE_OFFLINE].includes(tx.type)) && (
                 <>
                 {[TransactionStatus.COMPLETED].includes(tx.status) && (
                     <Text style={[$txAmount, {color: txReceiveColor}]}>{tx.amount.toLocaleString()}</Text>
                 )}
-                {[TransactionStatus.ERROR, TransactionStatus.BLOCKED].includes(tx.status) && (
+                {[TransactionStatus.ERROR, TransactionStatus.BLOCKED, TransactionStatus.PREPARED_OFFLINE].includes(tx.status) && (
                     <Text style={[$txAmount, {color: txErrorColor}]}>{tx.amount.toLocaleString()}</Text>
                 )}                
                 </>              

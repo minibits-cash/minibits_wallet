@@ -33,6 +33,7 @@ import {
 } from '../services/cashuHelpers'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {MintListItem} from './Mints/MintListItem'
+import useIsInternetReachable from '../utils/useIsInternetReachable'
 
 export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
   function ReceiveScreen({route, navigation}) {
@@ -41,7 +42,8 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
       onLeftPress: () => navigation.goBack(),
     })
 
-    const {mintsStore} = useStores()
+    const isInternetReachable = useIsInternetReachable()
+    const {mintsStore, proofsStore} = useStores()
 
     const [token, setToken] = useState<Token | undefined>()
     const [encodedToken, setEncodedToken] = useState<string | undefined>()
@@ -129,38 +131,70 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
     }
 
     const receiveToken = async function () {
-      setIsLoading(true)
+        setIsLoading(true)
 
-      const {transaction, message, error, receivedAmount} =
+        const {transaction, message, error, receivedAmount} =
         await Wallet.receive(
-          token as Token,
-          amountToReceive,
-          memo,
-          encodedToken as string,
+            token as Token,
+            amountToReceive,
+            memo,
+            encodedToken as string,
         )
 
-      const {status} = transaction as Transaction
-      setTransactionStatus(status)
+        const {status} = transaction as Transaction
+        setTransactionStatus(status)
 
-      if (error) {
-        setResultModalInfo({
-          status,
-          message: error.message,
-        })
-      } else {
-        setResultModalInfo({
-          status,
-          message,
-        })
-      }
+        if (error) {
+            setResultModalInfo({
+                status,
+                message: error.message,
+            })
+        } else {
+            setResultModalInfo({
+                status,
+                message,
+            })
+        }
 
-      if (receivedAmount) {
-        setReceivedAmount(receivedAmount)
-      }
+        if (receivedAmount) {
+            setReceivedAmount(receivedAmount)
+        }
 
-      setIsLoading(false)
-      toggleResultModal()
+        setIsLoading(false)
+        toggleResultModal()
     }
+
+
+    const receiveOfflineToken = async function () {
+        setIsLoading(true)
+  
+        const {transaction, message, error} =
+            await Wallet.receiveOfflinePrepare(
+                token as Token,
+                amountToReceive,
+                memo,
+                encodedToken as string,
+            )
+  
+        const {status} = transaction as Transaction
+        setTransactionStatus(status)
+  
+        if (error) {
+            setResultModalInfo({
+                status,
+                message: error.message,
+            })
+        } else {
+            setResultModalInfo({
+                status,
+                message,
+            })
+        }
+  
+        setIsLoading(false)
+        toggleResultModal()
+    }
+
 
     const handleError = function (e: AppError): void {
       resetState()
@@ -282,6 +316,10 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                   <>
                     {getMintsFromToken(token).map((mintUrl, index) => {
                       const mint = mintsStore.findByUrl(mintUrl)
+                      // title is receive from that is confuding with showing local balance
+                      /* const mintBalances = proofsStore.getBalances().mintBalances
+                      const mintBalance = mintBalances.find(b => b.mint === mint?.mintUrl) */
+
                       if (!mint) {
                         return (
                           <ListItem
@@ -297,6 +335,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                             key={mintUrl}
                             mint={mint as Mint}
                             separator={'top'}
+                            // mintBalance={mintBalance}
                             isSelectable={false}
                           />
                         )
@@ -315,19 +354,33 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                 </View>
               ) : (
                 <View style={$buttonContainer}>
-                  <Button
-                    tx={'receiveScreen.receive'}
-                    onPress={receiveToken}
-                    style={{marginRight: spacing.medium}}
-                    LeftAccessory={() => (
-                      <Icon
-                        icon="faArrowDown"
-                        color="white"
-                        size={spacing.medium}
-                        containerStyle={{marginRight: spacing.small}}
-                      />
-                    )}
-                  />
+                    {isInternetReachable ? (
+                        <Button
+                            tx={'receiveScreen.receive'}
+                            onPress={receiveToken}
+                            style={{marginRight: spacing.medium}}
+                            LeftAccessory={() => (
+                            <Icon
+                                icon="faArrowDown"
+                                color="white"
+                                size={spacing.medium}                                
+                            />
+                            )}
+                        />
+                    ) : (
+                        <Button
+                            tx={'receiveScreen.receiveOffline'}
+                            onPress={receiveOfflineToken}
+                            style={{marginRight: spacing.medium}}
+                            LeftAccessory={() => (
+                            <Icon
+                                icon="faArrowDown"
+                                color="white"
+                                size={spacing.medium}                                
+                            />
+                        )}
+                    />
+                    )}                  
                   <Button
                     preset="secondary"
                     tx={'common.cancel'}
@@ -347,9 +400,26 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
               {resultModalInfo?.status === TransactionStatus.COMPLETED && (
                 <>
                   <ResultModalInfo
-                    icon="faCheckCircle"
+                    icon={'faCheckCircle'}
                     iconColor={colors.palette.success200}
                     title="Success!"
+                    message={resultModalInfo?.message}
+                  />
+                  <View style={$buttonContainer}>
+                    <Button
+                      preset="secondary"
+                      tx={'common.close'}
+                      onPress={() => navigation.navigate('Wallet', {})}
+                    />
+                  </View>
+                </>
+              )}
+              {resultModalInfo?.status === TransactionStatus.PREPARED_OFFLINE && (
+                <>
+                  <ResultModalInfo
+                    icon={'faTriangleExclamation'}
+                    iconColor={colors.palette.accent500}
+                    title="Attention!"
                     message={resultModalInfo?.message}
                   />
                   <View style={$buttonContainer}>
