@@ -64,6 +64,7 @@ type WalletService = {
         mintBalanceToSendFrom: MintBalance,
         amountToSend: number,
         memo: string,
+        selectedProofs: Proof[]
     ) => Promise<TransactionResult>
     topup: (
         mintBalanceToTopup: MintBalance,
@@ -72,7 +73,7 @@ type WalletService = {
     ) => Promise<TransactionResult>
 }
 
-type TransactionResult = {
+export type TransactionResult = {
     transaction: Transaction | undefined
     message: string
     error?: AppError
@@ -641,11 +642,11 @@ const receiveOfflineComplete = async function (
         await transactionsStore.updateBalanceAfter(transaction.id as number, balanceAfter)
 
         if (amountWithErrors > 0) {
-        return {
-            transaction: completedTransaction,
-            message: `You received ${receivedAmount} sats to your minibits wallet. ${amountWithErrors} could not be redeemed from the mint`,
-            receivedAmount,
-        } as TransactionResult
+            return {
+                transaction: completedTransaction,
+                message: `You received ${receivedAmount} sats to your minibits wallet. ${amountWithErrors} could not be redeemed from the mint`,
+                receivedAmount,
+            } as TransactionResult
         }
 
         return {
@@ -682,12 +683,10 @@ const receiveOfflineComplete = async function (
 const _sendFromMint = async function (
     mintBalance: MintBalance,
     amountToSend: number,
+    selectedProofs: Proof[],
     transactionId: number,
 ) {
     const mintUrl = mintBalance.mint
-
-    log.trace('mintBalanceToSendFrom', mintBalance, '_sendFromMint')
-    log.trace('amountToSend', amountToSend, '_sendFromMint')
 
     try {
         const proofsFromMint = proofsStore.getByMint(mintUrl) as Proof[]
@@ -707,11 +706,45 @@ const _sendFromMint = async function (
             throw new AppError(
                 Err.VALIDATION_ERROR,
                 'There is not enough funds to send this payment',
-                [{totalAmountFromMint, amountToSend}],
+                {totalAmountFromMint, amountToSend},
             )
         }
 
-        // filter enough to make a payment
+
+        const selectedProofsAmount = getProofsAmount(selectedProofs)
+
+        if(selectedProofsAmount > 0 && (amountToSend !== selectedProofsAmount)) { // failsafe for some unknown coin selection UX error
+            throw new AppError(Err.VALIDATION_ERROR, 'Requested amount to send does not equal sum of coin denominations provided.')
+        }
+
+        /* 
+         * if we have selected coins to send in offline mode, we do not interact with the mint        
+         */
+
+        if(selectedProofsAmount > 0) {
+            for (const proof of selectedProofs) {                
+                proof.setTransactionId(transactionId) // update txId                
+            }
+
+            // move sent proofs to pending
+            proofsStore.removeProofs(selectedProofs)
+            proofsStore.addProofs(selectedProofs, true) // pending true
+
+            // Clean private properties to not to send them out. This returns plain js array, not model objects.
+            const cleanedProofsToSend = selectedProofs.map(proof => {                
+                const {mintUrl, tId, ...rest} = getSnapshot(proof)
+                return rest                
+            })
+
+            // We return cleaned proofs to be encoded as a sendable token
+            return cleanedProofsToSend
+        }
+
+        
+        /* 
+         * if we do not have selected coins and we might need a split of coins by the mint to match exact amount        
+         */        
+        
         const proofsToSendFrom = proofsStore.getProofsToSend(
             amountToSend,
             proofsFromMint,
@@ -741,21 +774,28 @@ const _sendFromMint = async function (
             }
         }
 
-        // these are fresh proofs from the mint
-        returnedProofs.forEach(proof => {
-            proof.tId = transactionId
-            proof.mintUrl = mintUrl
-        })
-
-
         // add proofs returned by the mint after the split
-        if (returnedProofs.length > 0) proofsStore.addProofs(returnedProofs)
-            // remove used proofs and move sent proofs to pending
-            proofsStore.removeProofs(proofsToSendFrom)
-            proofsStore.addProofs(proofsToSend, true) // pending true
+        if (returnedProofs.length > 0) {
+            // these should be fresh proofs from the mint but let's be defensive and cover the case that we over-send proofs while matching denominations
+            for (const proof of returnedProofs) {
+                if (isStateTreeNode(proof)) {
+                    proof.setTransactionId(transactionId)
+                    proof.setMintUrl(mintUrl)
+                } else {
+                    ;(proof as Proof).tId = transactionId
+                    ;(proof as Proof).mintUrl = mintUrl
+                }
+            }
+            
+            proofsStore.addProofs(returnedProofs)
+        }
 
-            // Clean private properties to not to send them out. This returns plain js array, not model objects.
-            const cleanedProofsToSend = proofsToSend.map(proof => {
+        // remove used proofs and move sent proofs to pending
+        proofsStore.removeProofs(proofsToSendFrom)
+        proofsStore.addProofs(proofsToSend, true) // pending true
+
+        // Clean private properties to not to send them out. This returns plain js array, not model objects.
+        const cleanedProofsToSend = proofsToSend.map(proof => {
             if (isStateTreeNode(proof)) {
                 const {mintUrl, tId, ...rest} = getSnapshot(proof)
                 return rest
@@ -764,7 +804,8 @@ const _sendFromMint = async function (
                 return rest
             }
         })
-
+        
+        // We return cleaned proofs to be encoded as a sendable token
         return cleanedProofsToSend
   } catch (e: any) {
         throw new AppError(Err.WALLET_ERROR, e.message, [e.stack.slice(0, 100)])
@@ -777,19 +818,21 @@ const send = async function (
     mintBalanceToSendFrom: MintBalance,
     amountToSend: number,
     memo: string,
+    selectedProofs: Proof[]
 ) {
     const mintUrl = mintBalanceToSendFrom.mint
 
+
     log.trace('mintBalanceToSendFrom', mintBalanceToSendFrom, 'send')
-    log.trace('amountToSend', amountToSend, 'send')
+    log.trace('amountToSend', amountToSend, 'send')    
     log.trace('memo', memo, 'send')
 
     // create draft transaction
     const transactionData: TransactionData[] = [
         {
-        status: TransactionStatus.DRAFT,
-        mintBalanceToSendFrom,
-        createdAt: new Date(),
+            status: TransactionStatus.DRAFT,
+            mintBalanceToSendFrom,
+            createdAt: new Date(),
         }
     ]
 
@@ -813,6 +856,7 @@ const send = async function (
         const proofsToSend = await _sendFromMint(
             mintBalanceToSendFrom,
             amountToSend,
+            selectedProofs,
             transactionId,
         )
 
@@ -967,6 +1011,7 @@ const transfer = async function (
         proofsToPay = await _sendFromMint(
             mintBalanceToTransferFrom,
             amountToTransfer + estimatedFee,
+            [],
             transactionId,
         )
 

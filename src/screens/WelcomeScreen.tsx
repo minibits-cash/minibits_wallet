@@ -63,6 +63,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
             <Text
                 tx={item.tx as TxKeyPath}
                 style={{paddingHorizontal: spacing.small}}
+                size='xs'
             />
         </View>
     )
@@ -89,7 +90,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
                     />
                 </View>
                 <View style={{backgroundColor: colors.palette.accent500, borderRadius: spacing.extraSmall, padding: spacing.medium}}>
-                    <Text style={{color: 'white'}} text='Check for updates in Settings > Upload manager. During alpha testing, over-the-air updates fix critical bugs.'/>
+                    <Text size='xs' style={{color: 'white'}} text='Check for updates in Settings > Upload manager. During alpha testing, over-the-air updates fix critical bugs.'/>
                 </View>
             </View>
             <View style={[$bottomContainer, $bottomContainerInsets]}>

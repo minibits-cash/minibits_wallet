@@ -351,7 +351,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
             </View>
             <BottomModal
                 isVisible={isPasteInvoiceModalVisible ? true : false}
-                top={spacing.screenHeight * 0.6}
+                top={spacing.screenHeight * 0.5}
                 style={{marginHorizontal: spacing.extraSmall}}
                 ContentComponent={
                     <PasteInvoiceBlock
@@ -364,7 +364,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
             />
             <BottomModal
                 isVisible={isResultModalVisible ? true : false}
-                top={spacing.screenHeight * 0.6}                
+                top={spacing.screenHeight * 0.5}                
                 ContentComponent={
                     <>
                         {resultModalInfo &&

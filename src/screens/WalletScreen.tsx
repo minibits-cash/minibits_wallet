@@ -293,7 +293,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         </Animated.View>
         <BottomModal
           isVisible={isLightningModalVisible ? true : false}
-          top={spacing.screenHeight * 0.65}
+          top={spacing.screenHeight * 0.6}
           ContentComponent={
             <LightningActionsBlock
               gotoWithdraw={gotoWithdraw}

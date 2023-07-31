@@ -161,7 +161,7 @@ export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer
         </View>
         <BottomModal
           isVisible={isEncryptionModalVisible ? true : false}
-          top={spacing.screenHeight * 0.6}
+          top={spacing.screenHeight * 0.5}
           // style={{marginHorizontal: spacing.extraSmall}}
           ContentComponent={
             <ResultModalInfo
