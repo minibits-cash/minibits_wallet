@@ -648,7 +648,7 @@ const ReceiveOfflineInfoBlock = function (props: {
         )}
         <BottomModal
           isVisible={isResultModalVisible ? true : false}
-          top={spacing.screenHeight * 0.6}
+          top={spacing.screenHeight * 0.5}
           ContentComponent={
             <>
               {(resultModalInfo?.status === TransactionStatus.COMPLETED ||

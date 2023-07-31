@@ -394,7 +394,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         </View>
         <BottomModal
           isVisible={isResultModalVisible ? true : false}
-          top={spacing.screenHeight * 0.6}
+          top={spacing.screenHeight * 0.5}
           ContentComponent={
             <>
               {resultModalInfo?.status === TransactionStatus.COMPLETED && (
@@ -418,7 +418,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                 <>
                   <ResultModalInfo
                     icon={'faTriangleExclamation'}
-                    iconColor={colors.palette.accent500}
+                    iconColor={colors.palette.accent400}
                     title="Attention!"
                     message={resultModalInfo?.message}
                   />

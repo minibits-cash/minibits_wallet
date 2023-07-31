@@ -157,7 +157,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
         </View>
         <BottomModal
           isVisible={isBackupModalVisible ? true : false}
-          top={spacing.screenHeight * 0.6}
+          top={spacing.screenHeight * 0.5}
           style={{paddingHorizontal: spacing.small}}
           ContentComponent={
             <ResultModalInfo
