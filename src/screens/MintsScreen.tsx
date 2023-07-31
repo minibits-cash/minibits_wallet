@@ -318,7 +318,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
           }
           onBackButtonPress={toggleAddMintModal}
           onBackdropPress={toggleAddMintModal}
-          top={spacing.screenHeight * 0.6}
+          top={spacing.screenHeight * 0.5}
         />
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}

@@ -488,7 +488,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         />
         <BottomModal
           isVisible={isResultModalVisible ? true : false}
-          top={spacing.screenHeight * 0.6}
+          top={spacing.screenHeight * 0.5}
           style={{paddingHorizontal: spacing.small}}
           ContentComponent={
             <>
