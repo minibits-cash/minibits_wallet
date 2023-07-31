@@ -38,6 +38,8 @@ import {
 import {MintBalance} from '../models/Mint'
 import {MintListItem} from './Mints/MintListItem'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
+import addSeconds from 'date-fns/addSeconds'
+import isBefore from 'date-fns/isBefore'
 
 if (
   Platform.OS === 'android' &&
@@ -60,6 +62,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
   const [encodedInvoice, setEncodedInvoice] = useState<string>('')
     const [invoice, setInvoice] = useState<DecodedLightningInvoice | undefined>()
     const [amountToTransfer, setAmountToTransfer] = useState<number>(0)
+    const [invoiceExpiry, setInvoiceExpiry] = useState<Date | undefined>()
     const [estimatedFee, setEstimatedFee] = useState<number>(0)
     const [finalFee, setFinalFee] = useState<number>(0)
     const [memo, setMemo] = useState('')
@@ -122,8 +125,9 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
 
     const resetState = function () {
       setEncodedInvoice('')
-      setInvoice(undefined)
+      setInvoice(undefined)      
       setAmountToTransfer(0)
+      setInvoiceExpiry(undefined)
       setEstimatedFee(0)
       setMemo('')
       setAvailableMintBalances([])
@@ -185,9 +189,12 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
           return
         }
 
+        const expiresAt = addSeconds(new Date(), expiry as number)
+
         setInvoice(invoice)
         setAmountToTransfer(amount)
-        // TODO expiry check or countdown
+        setInvoiceExpiry(expiresAt)
+        
         if (description) {setMemo(description)}
 
         log.trace('availableBalances', availableBalances.length)
@@ -207,6 +214,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
         mintBalanceToTransferFrom as MintBalance,
         amountToTransfer,
         estimatedFee,
+        invoiceExpiry as Date,
         memo,
         encodedInvoice,
       )

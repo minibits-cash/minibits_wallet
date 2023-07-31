@@ -42,6 +42,7 @@ type WalletService = {
         mintBalanceToTransferFrom: MintBalance,
         amountToTransfer: number,
         estimatedFee: number,
+        invoiceExpiry: Date,
         memo: string,
         encodedInvoice: string,
     ) => Promise<TransactionResult>
@@ -962,6 +963,7 @@ const transfer = async function (
     mintBalanceToTransferFrom: MintBalance,
     amountToTransfer: number,
     estimatedFee: number,
+    invoiceExpiry: Date,
     memo: string,
     encodedInvoice: string,
 ) {
@@ -970,9 +972,13 @@ const transfer = async function (
     log.info('mintBalanceToTransferFrom', mintBalanceToTransferFrom, 'transfer')
     log.info('amountToTransfer', amountToTransfer, 'transfer')
     log.info('estimatedFee', estimatedFee, 'transfer')
-
+    
     if (amountToTransfer + estimatedFee > mintBalanceToTransferFrom.balance) {
         throw new AppError(Err.VALIDATION_ERROR, 'Mint balance is insufficient to cover the amount to transfer with expected Lightning fees.')
+    }
+
+    if(isBefore(invoiceExpiry, new Date())) {
+        throw new AppError(Err.VALIDATION_ERROR, 'This invoice has already expired and can not be paid.')
     }
 
     // create draft transaction
