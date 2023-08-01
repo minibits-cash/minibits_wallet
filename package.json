@@ -9,7 +9,7 @@
     "android:bundle": "cd android && ./gradlew bundleRelease",
     "ios": "react-native run-ios",
     "lint": "eslint .",
-    "start": "npx react-native start",
+    "start": "npx react-native start --variant=arm64-v8a",
     "test": "jest",
     "adb": "adb devices && adb reverse tcp:9090 tcp:9090 && adb reverse tcp:3000 tcp:3000 && adb reverse tcp:9001 tcp:9001 && adb reverse tcp:8081 tcp:8081",
     "postinstall": "patch-package"
@@ -34,6 +34,7 @@
     "mobx": "^6.9.0",
     "mobx-react-lite": "^3.4.3",
     "mobx-state-tree": "^5.1.8",
+    "nostr-tools": "^1.14.0",
     "numbro": "^2.3.6",
     "patch-package": "^7.0.0",
     "postinstall-postinstall": "^2.1.0",

@@ -212,19 +212,16 @@ export const TransactionsStoreModel = types
             }
         }),
         removeAllTransactions() {
-            for (const t of self.transactions){
-                destroy(t)
-            }
-
+            self.transactions.clear()
             log.info('Removed all transactions from TransactionsStore')
-            },
+        },
     }))
     .views(self => ({
         get count() {
             return self.transactions.length
         },
         get recent(): Transaction[] {
-            return this.all.slice(0, 3) // Return the first 5 transactions
+            return this.all.slice(0, 3) // Return the first 3 transactions
         },
         get all() {
             return self.transactions
