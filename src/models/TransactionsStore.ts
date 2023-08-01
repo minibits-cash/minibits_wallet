@@ -212,12 +212,9 @@ export const TransactionsStoreModel = types
             }
         }),
         removeAllTransactions() {
-            for (const t of self.transactions){
-                destroy(t)
-            }
-
+            self.transactions.clear()
             log.info('Removed all transactions from TransactionsStore')
-            },
+        },
     }))
     .views(self => ({
         get count() {
