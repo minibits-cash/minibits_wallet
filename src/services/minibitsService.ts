@@ -1,11 +1,12 @@
 import { env } from "process"
 import AppError, { Err } from "../utils/AppError"
-import { log } from "../utils/logger"
-/* import {
+import { Env, log } from "../utils/logger"
+import {
     MINIBITS_SERVER_API_KEY,
-    MINIBITS_SERVER_URL_DEV,
-    MINIBITS_SERVER_URL_PROD
-} from '@env'*/
+    MINIBITS_SERVER_DEV,
+    MINIBITS_SERVER_PROD,    
+    APP_ENV
+} from '@env'
 
 export type WalletProfile = {
     id: number,
@@ -14,10 +15,13 @@ export type WalletProfile = {
     avatar: string
 }
 
-export const createWalletProfile = async function (pubkey: string, nip05: string) {
-    
-    // const url = 'https://wallet.minibits.cash/wallet'
-    const url = 'http://localhost:3000/profile'
+export const createWalletProfile = async function (pubkey: string, nip05: string) {    
+    let url: string = ''
+    if(APP_ENV === Env.PROD) {
+        url = MINIBITS_SERVER_PROD + '/profile'
+    } else {
+        url = MINIBITS_SERVER_DEV + '/profile'
+    }    
 
     try {            
         const method = 'POST'        
@@ -74,6 +78,6 @@ const getHeaders = () => {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'Accept-encoding': 'gzip, deflate',  
-        'Authorization': `Bearer ${MINIBITS_SERVER_API_KEY}` // TODO ENV
+        'Authorization': `Bearer ${MINIBITS_SERVER_API_KEY}`
     }
 }
