@@ -169,19 +169,19 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
 
 const _generateUserId = (): string => {
     try {
-      const length = 8 // Length of the id in bytes
-      const random = QuickCrypto.randomBytes(length)
-      const uint8Array = new Uint8Array(random)
-      const stringKey = fromByteArray(uint8Array)
-      const base64Key = btoa(stringKey)
-  
-      log.info('New userId created:', base64Key)
-  
-      return base64Key
+        const length = 8 // Length of the id in bytes
+        const random = QuickCrypto.randomBytes(length)
+        const uint8Array = new Uint8Array(random)
+        const stringKey = fromByteArray(uint8Array)
+        const base64Key = btoa(stringKey)
+    
+        log.info('New userId created:', base64Key)
+    
+        return base64Key
     } catch (e: any) {
-      throw new AppError(Err.DATABASE_ERROR, e.message)
+        throw new AppError(Err.DATABASE_ERROR, e.message)
     }
-  }
+}
 
 /*
  * Exported functions
