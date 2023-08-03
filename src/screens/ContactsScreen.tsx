@@ -5,9 +5,10 @@ import * as nostrTools from 'nostr-tools'
 import { SvgUri, SvgXml } from 'react-native-svg'
 import {colors, spacing, useThemeColor} from '../theme'
 import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../components'
+import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
 import { TabScreenProps } from '../navigation'
-import {getRandomAvatar} from '../services'
+import {createWalletProfile, WalletProfile} from '../services'
 import AppError from '../utils/AppError'
 import { log } from '../utils/logger'
 import QRCode from 'react-native-qrcode-svg'
@@ -24,6 +25,8 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
         onRightPress: () => toggleQRModal(),        
     })
 
+    const {userSettingsStore} = useStores()
+
     const [privateKey, setPrivateKey] = useState<string>('')
     const [publicKey, setPublicKey] = useState<string>('')
     const [avatarSvg, setAvatarSvg] = useState<string>('')
@@ -36,14 +39,17 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
     useEffect(() => {
         const load = async () => {
             try {            
-                // const sk = nostrTools.generatePrivateKey() // `sk` is a hex string
-                // const pk = nostrTools.getPublicKey(sk)
+                const sk = nostrTools.generatePrivateKey() // `sk` is a hex string
+                const pk = nostrTools.getPublicKey(sk)
+                const nip05 = `${userSettingsStore.userId}@minibits.cash`
 
-                const svg = await getRandomAvatar()
+                const walletProfile: WalletProfile = await createWalletProfile(pk, nip05)
 
-                // setPrivateKey(sk)
-                // setPublicKey(pk)
-                setAvatarSvg(svg)
+                // log.info(walletProfile)
+
+                setPrivateKey(sk)
+                setPublicKey(pk)
+                setAvatarSvg(walletProfile.avatar)
             } catch(e: any) {
                 return false // silent
             }
