@@ -12,16 +12,31 @@ export type WalletProfile = {
     id: number,
     pubkey: string,
     nip05: string,
-    avatar: string
+    avatar: string    
 }
 
-export const createWalletProfile = async function (pubkey: string, nip05: string) {    
-    let url: string = ''
-    if(APP_ENV === Env.PROD) {
-        url = MINIBITS_SERVER_PROD + '/profile'
-    } else {
-        url = MINIBITS_SERVER_DEV + '/profile'
-    }    
+const getOrCreateWalletProfile = async function (pubkey: string, userId: string) {    
+    const url = getProfileApiUrl()
+    let profile: WalletProfile | null = null
+    
+    profile = await getWalletProfile(pubkey)    
+
+    if(!profile) {
+        profile = await createWalletProfile(pubkey, userId)
+    }
+
+    // preload svg file
+    const avatarSvg = await fetchSvg(profile.avatar, {
+        method: 'GET',
+        headers: getPublicHeaders(),        
+    })
+
+    return { profile, avatarSvg }
+}
+
+
+const createWalletProfile = async function (pubkey: string, userId: string) {    
+    const url = getProfileApiUrl()
 
     try {            
         const method = 'POST'        
@@ -29,7 +44,7 @@ export const createWalletProfile = async function (pubkey: string, nip05: string
         
         const requestBody = {
             pubkey,
-            nip05
+            userId
         }        
 
         const walletProfile: WalletProfile = await fetchApi(url, {
@@ -38,13 +53,48 @@ export const createWalletProfile = async function (pubkey: string, nip05: string
             body: JSON.stringify(requestBody)
         })
 
+        log.info(`Got new profile`, walletProfile, 'createWalletProfile')
+
         return walletProfile
 
-    } catch (e: any) {
-        console.log(e)
-        throw new AppError(Err.NETWORK_ERROR, 'Could not get avatar image', e.message)
+    } catch (e: any) {        
+        throw new AppError(Err.SERVER_ERROR, e.message, e.info)
     }
-}    
+}
+
+
+const getWalletProfile = async function (pubkey: string) {    
+    const url = getProfileApiUrl()
+
+    try {            
+        const method = 'GET'        
+        const headers = getHeaders()
+
+        const walletProfile: WalletProfile = await fetchApi(url + `/${pubkey}`, {
+            method,
+            headers,            
+        })
+
+        log.info(`Got response`, walletProfile, 'getWalletProfile')
+
+        return walletProfile
+
+    } catch (e: any) {        
+        throw new AppError(Err.SERVER_ERROR, e.message, e.info)
+    }
+}
+
+
+const getProfileApiUrl = function() {
+    let url: string = ''
+    if(APP_ENV === Env.PROD) {
+        url = MINIBITS_SERVER_PROD + '/profile'
+    } else {
+        url = MINIBITS_SERVER_DEV + '/profile'
+    }
+
+    return url
+}
 
 
 const fetchApi = async (url: string, options: any, timeout = 5000) => { //ms
@@ -57,7 +107,7 @@ const fetchApi = async (url: string, options: any, timeout = 5000) => { //ms
 
         if (!response) {
             controller.abort()
-            throw new Error('API takes too long to response')
+            throw new Error('API takes too long to respond')
         }
 
         if (!response.ok) {            
@@ -73,6 +123,31 @@ const fetchApi = async (url: string, options: any, timeout = 5000) => { //ms
 }
 
 
+const fetchSvg = async (url: string, options: any, timeout = 5000) => { //ms
+    try {
+        const controller = new AbortController()
+
+        const promise = fetch(url, options)
+        const kill = new Promise((resolve) => setTimeout(resolve, timeout))
+        const response: Response = await Promise.race([promise, kill]) as Response
+
+        if (!response) {
+            controller.abort()
+            throw new Error('Image takes too long to download')
+        }
+
+        if (!response.ok) {            
+            throw new Error(await response.text())
+        }
+
+        const responseText = await response.text()
+        return responseText
+    } catch (e) {
+        throw e
+    }
+}
+
+
 const getHeaders = () => {   
     return {
         'Content-Type': 'application/json',
@@ -80,4 +155,17 @@ const getHeaders = () => {
         'Accept-encoding': 'gzip, deflate',  
         'Authorization': `Bearer ${MINIBITS_SERVER_API_KEY}`
     }
+}
+
+const getPublicHeaders = () => {   
+    return {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Accept-encoding': 'gzip, deflate',          
+    }
+}
+
+
+export const MinibitsClient = {
+    getOrCreateWalletProfile
 }
