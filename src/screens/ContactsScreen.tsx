@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useRef, useState} from 'react'
-import {Image, Share, TextStyle, View, ViewStyle} from 'react-native'
+import {Image, Pressable, Share, TextStyle, View, ViewStyle} from 'react-native'
 import { SvgUri, SvgXml } from 'react-native-svg'
 import {colors, spacing, useThemeColor} from '../theme'
 import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../components'
@@ -12,9 +12,9 @@ import AppError from '../utils/AppError'
 import { log } from '../utils/logger'
 import QRCode from 'react-native-qrcode-svg'
 
-interface ContactsScreenProps extends TabScreenProps<'Contacts'> {}
+interface ContactsScreenProps extends TabScreenProps<'ContactsNavigator'> {}
 
-export const ContactsScreen: FC<ContactsScreenProps> = observer(function ContactsScreen(_props) {    
+export const ContactsScreen: FC<ContactsScreenProps> = observer(function ContactsScreen({navigation}) {    
     useHeader({
         leftIcon: 'faShareFromSquare',
         leftIconColor: colors.palette.primary100,
@@ -24,16 +24,16 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
         onRightPress: () => toggleQRModal(),        
     })
 
-    const npub = useRef('')
+    const npub = useRef('')    
     const {userSettingsStore} = useStores()
 
     const [nostrKeyPair, setNostrKeyPair] = useState<KeyPair | undefined>()    
     const [avatarSvg, setAvatarSvg] = useState<string>('')
     const [avatarImageUri, setAvatarImageUri] = useState<string>('')
-
     const [info, setInfo] = useState('')
     const [isLoading, setIsLoading] = useState(false)
-    const [isQRModalVisible, setIsQRModalVisible] = useState(false)    
+    const [isQRModalVisible, setIsQRModalVisible] = useState(false) 
+    const [isWalletProfileModalVisible, setIsWalletProfileModalVisible] = useState(false)    
     const [error, setError] = useState<AppError | undefined>()
 
     useEffect(() => {
@@ -62,11 +62,15 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
     const toggleQRModal = () =>
       setIsQRModalVisible(previousState => !previousState)
 
+    const toggleProfileModal = () => {
+        setIsWalletProfileModalVisible(previousState => !previousState)
+    }
+
 
     const onShareContact = async () => {
         try {
             const result = await Share.share({
-                message: npub.current,
+                message: `${userSettingsStore.userId}@minibits.cash`,
             })
 
             if (result.action === Share.sharedAction) {                
@@ -85,7 +89,18 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
         } catch (e: any) {
             handleError(e)
         }
-    }    
+    }
+    
+    
+    const gotoAvatar = function () {
+        toggleProfileModal()
+        navigation.navigate('Avatar', {})
+    }
+
+    const gotoUsername = function () {
+        toggleProfileModal()
+        navigation.navigate('Walletname', {})
+    }
 
     const handleError = function (e: AppError): void {
         setIsLoading(false)
@@ -98,18 +113,36 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
     return (
       <Screen style={$screen} preset='auto'>
         <View style={[$headerContainer, {backgroundColor: headerBg, justifyContent: 'space-around'}]}>
-            {avatarSvg ? (
-                <SvgXml xml={avatarSvg} width="90" height="90" />
-            ) : avatarImageUri ? (
-                <Image source={{ uri: avatarImageUri }} style={{width: 90, height: 90}} />
-            ) : (
-                <Icon
-                    icon='faCircleUser'                                
-                    size={80}                    
-                    color={'white'}                
-                />
-            )}            
-            <Text preset='subheading' text="sam55" style={{color: 'white', marginBottom: spacing.small}} />
+            
+                {avatarSvg ? (
+                    <Pressable
+                        onPress={toggleProfileModal}                        
+                    >
+                        <SvgXml xml={avatarSvg} width="90" height="90" />
+                    </Pressable>
+                ) : avatarImageUri ? (
+                    <Pressable
+                        onPress={toggleProfileModal}
+                        style={{borderWidth: 1, borderColor: 'red'}}
+                    >
+                        <Image source={{ uri: avatarImageUri }} style={{width: 90, height: 90}} />
+                    </Pressable>                        
+                ) : (
+                    <Pressable
+                        onPress={toggleProfileModal}                        
+                    >
+                        <Icon
+                            icon='faCircleUser'                                
+                            size={80}                    
+                            color={'white'}                
+                        />
+                    </Pressable> 
+                )}
+                <Pressable
+                    onPress={toggleProfileModal}                        
+                >
+                    <Text preset='bold' text={`${userSettingsStore.userId}@minibits.cash`} style={{color: 'white', marginBottom: spacing.small}} />
+                </Pressable>          
         </View>
         <View style={$contentContainer}>
           <Card
@@ -117,7 +150,7 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
             ContentComponent={
             <>                
                 <ListItem
-                    text={'sam55@minibits.cash'}
+                    text={userSettingsStore.userId}
                     subText={`${npub.current.substring(0, 20)}...`}
                     LeftComponent={<></>}
                     leftIconInverse={true}
@@ -126,38 +159,7 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
                     style={$item}
                 />                                    
             </>
-            }
-            FooterComponent={/*
-             <View style={{flexDirection:'row'}}>
-                
-                <Button
-                    preset='secondary'
-                    onPress={() => false}                        
-                    text='Share as QR'
-                    LeftAccessory={() => (
-                        <Icon
-                          icon='faQrcode'
-                          // color='white'
-                          size={spacing.medium}                  
-                        />
-                    )}
-                    style={{alignSelf: 'center', marginTop: spacing.medium}}
-                />
-                <Button
-                    preset='secondary'
-                    onPress={() => false}                        
-                    text='Share as QR'
-                    LeftAccessory={() => (
-                        <Icon
-                          icon='faQrcode'
-                          // color='white'
-                          size={spacing.medium}                  
-                        />
-                    )}
-                    style={{alignSelf: 'center', marginTop: spacing.medium}}
-                />                              
-             </View>   
-                    */ <></>}
+            }            
           />
           {isLoading && <Loading />}
         </View>        
@@ -171,7 +173,7 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
                 <View style={[$bottomModal, {marginHorizontal: spacing.small}]}>
                 <Text text={'Scan to share your contact'} />
                 <View style={$qrCodeContainer}>        
-                    <QRCode size={spacing.screenWidth - spacing.extraLarge * 2} value={'contact to share'} />          
+                    <QRCode size={spacing.screenWidth - spacing.extraLarge * 2} value={`${userSettingsStore.userId}@minibits.cash`} />          
                 </View>
                 <View style={$buttonContainer}>
                 <Button preset="secondary" text="Close" onPress={toggleQRModal} />
@@ -180,10 +182,48 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
             }
             onBackButtonPress={toggleQRModal}
             onBackdropPress={toggleQRModal}
+        />
+        <BottomModal
+          isVisible={isWalletProfileModalVisible ? true : false}
+          top={spacing.screenHeight * 0.6}
+          ContentComponent={
+            <WalletProfileActionsBlock
+                gotoAvatar={gotoAvatar}
+                gotoUserName={gotoUsername}
+            />
+          }
+          onBackButtonPress={toggleProfileModal}
+          onBackdropPress={toggleProfileModal}
         />     
       </Screen>
     )
   })
+
+
+  const WalletProfileActionsBlock = function (props: {
+    gotoAvatar: any
+    gotoUserName: any
+  }) {
+    return (
+      <>
+          <ListItem
+              tx='contactsScreen.changeAvatar'
+              subTx='contactsScreen.changeAvatarSubtext'
+              leftIcon='faCircleUser'              
+              onPress={props.gotoAvatar}
+              bottomSeparator={true}
+              style={{paddingHorizontal: spacing.medium}}
+          />
+          <ListItem
+              tx='contactsScreen.changeWalletname'
+              subTx='contactsScreen.changeWalletnameSubtext'
+              leftIcon='faPencil'
+              onPress={props.gotoUserName}
+              style={{paddingHorizontal: spacing.medium}}
+          />
+      </>
+    )
+  }
 
 const $screen: ViewStyle = {}
 

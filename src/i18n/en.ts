@@ -88,6 +88,12 @@ const en = {
     receiveOfflineComplete: "Redeem to wallet",
     isOffline: "Redeem online"
   },
+  contactsScreen: {    
+    changeAvatar: "Change avatar",
+    changeAvatarSubtext: "Select from randomly generated avatars or provide URL address of your own one.",
+    changeWalletname: "Change wallet name",
+    changeWalletnameSubtext: "Change unique wallet name. Your wallet name can be shared with other people as a readable identifier linked to wallet's unique payment key.",
+  },
   settingsScreen: {
     title: "Settings", 
     manageMints: "Manage mints",

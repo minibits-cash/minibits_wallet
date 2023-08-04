@@ -13,7 +13,9 @@ import {
   ReceiveScreen, 
   SendScreen, 
   ScanScreen, 
-  ContactsScreen, 
+  ContactsScreen,
+  AvatarScreen,
+  WalletnameScreen, 
   SettingsScreen, 
   MintsScreen, 
   DeveloperScreen,
@@ -31,9 +33,9 @@ import { AppStackParamList, AppStackScreenProps } from "./AppNavigator"
 
 
 export type TabsParamList = {
-  WalletNavigator: NavigatorScreenParams<WalletStackParamList>  
-  Contacts: undefined
-  SettingsNavigator: NavigatorScreenParams<SettingsStackParamList>
+    WalletNavigator: NavigatorScreenParams<WalletStackParamList>  
+    ContactsNavigator: NavigatorScreenParams<ContactsStackParamList> 
+    SettingsNavigator: NavigatorScreenParams<SettingsStackParamList>
 }
 
 /**
@@ -77,8 +79,8 @@ export function TabsNavigator() {
       />
 
       <Tab.Screen
-        name="Contacts"
-        component={ContactsScreen}
+        name="ContactsNavigator"
+        component={ContactsNavigator}
         options={{
           tabBarLabel: translate("tabNavigator.contactsLabel"),
           tabBarIcon: ({ focused }) => <Icon icon="faAddressBook" color={focused ? activeColor : textColor} size={spacing.large} />,        
@@ -136,6 +138,36 @@ const WalletNavigator = function WalletNavigator() {
     </WalletStack.Navigator>
   )
 }
+
+
+export type ContactsStackParamList = {  
+    Contacts: undefined
+    Avatar: undefined
+    Walletname: undefined
+  }
+  
+  export type ContactsStackScreenProps<T extends keyof ContactsStackParamList> = StackScreenProps<
+  ContactsStackParamList,
+    T
+  >
+  
+  const ContactsStack = createNativeStackNavigator<ContactsStackParamList>()
+  
+  const ContactsNavigator = function ContactsNavigator() {  
+  
+    return (
+      <ContactsStack.Navigator    
+        screenOptions={{ 
+          presentation: 'transparentModal', // prevents white glitch on scren change in dark mode
+          headerShown: false,        
+        }}
+      >        
+        <ContactsStack.Screen name="Contacts" component={ContactsScreen} />
+        <ContactsStack.Screen name="Avatar" component={AvatarScreen} />
+        <ContactsStack.Screen name="Walletname" component={WalletnameScreen} />        
+      </ContactsStack.Navigator>
+    )
+  }
 
 
 export type SettingsStackParamList = {  

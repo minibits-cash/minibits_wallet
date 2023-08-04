@@ -47,6 +47,13 @@ export const UserSettingsStoreModel = types
             log.info('Local backup is turned on', value)
         return value
         },
+        setUserId: (userId: string) => {
+            Database.updateUserSettings({...self, userId})
+            self.userId = userId
+
+            log.info('UserId updated', userId)
+            return userId
+        },
         setIsStorageEncrypted: flow(function* setIsStorageEncryptedvalue(
             value: boolean,
         ) {

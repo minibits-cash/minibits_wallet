@@ -11,6 +11,7 @@ import {
   TransactionRecord,
   TransactionStatus,
 } from '../models/Transaction'
+import {getRandomUsername} from '../utils/usernames'
 import {UserSettings} from '../models/UserSettingsStore'
 import AppError, {Err} from '../utils/AppError'
 import {log} from '../utils/logger'
@@ -169,15 +170,16 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
 
 const _generateUserId = (): string => {
     try {
-        const length = 8 // Length of the id in bytes
+        /* const length = 8 // Length of the id in bytes
         const random = QuickCrypto.randomBytes(length)
         const uint8Array = new Uint8Array(random)
         const stringKey = fromByteArray(uint8Array)
-        const base64Key = btoa(stringKey)
+        const base64Key = btoa(stringKey)*/
+
+        const userId = getRandomUsername()    
+        log.info('New userId created:', userId)
     
-        log.info('New userId created:', base64Key)
-    
-        return base64Key
+        return userId
     } catch (e: any) {
         throw new AppError(Err.DATABASE_ERROR, e.message)
     }
