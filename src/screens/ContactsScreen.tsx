@@ -1,14 +1,13 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useEffect, useState} from 'react'
-import {Share, TextStyle, View, ViewStyle} from 'react-native'
-import * as nostrTools from 'nostr-tools'
+import React, {FC, useEffect, useRef, useState} from 'react'
+import {Image, Share, TextStyle, View, ViewStyle} from 'react-native'
 import { SvgUri, SvgXml } from 'react-native-svg'
 import {colors, spacing, useThemeColor} from '../theme'
 import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../components'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
 import { TabScreenProps } from '../navigation'
-import {createWalletProfile, WalletProfile} from '../services'
+import { MinibitsClient, WalletProfile, NostrClient, KeyPair } from '../services'
 import AppError from '../utils/AppError'
 import { log } from '../utils/logger'
 import QRCode from 'react-native-qrcode-svg'
@@ -25,11 +24,12 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
         onRightPress: () => toggleQRModal(),        
     })
 
+    const npub = useRef('')
     const {userSettingsStore} = useStores()
 
-    const [privateKey, setPrivateKey] = useState<string>('')
-    const [publicKey, setPublicKey] = useState<string>('')
+    const [nostrKeyPair, setNostrKeyPair] = useState<KeyPair | undefined>()    
     const [avatarSvg, setAvatarSvg] = useState<string>('')
+    const [avatarImageUri, setAvatarImageUri] = useState<string>('')
 
     const [info, setInfo] = useState('')
     const [isLoading, setIsLoading] = useState(false)
@@ -38,28 +38,25 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
 
     useEffect(() => {
         const load = async () => {
-            try {            
-                const sk = nostrTools.generatePrivateKey() // `sk` is a hex string
-                const pk = nostrTools.getPublicKey(sk)
-                const nip05 = `${userSettingsStore.userId}@minibits.cash`
+            try {   
+                const keyPair = await NostrClient.getOrCreateKeyPair()
+                const userId = userSettingsStore.userId
 
-                const walletProfile: WalletProfile = await createWalletProfile(pk, nip05)
-
-                // log.info(walletProfile)
-
-                setPrivateKey(sk)
-                setPublicKey(pk)
-                setAvatarSvg(walletProfile.avatar)
+                const walletProfile: {profile: WalletProfile, avatarSvg: string} = 
+                    await MinibitsClient.getOrCreateWalletProfile(
+                        keyPair.publicKey,
+                        userId
+                    ) 
+                
+                npub.current = NostrClient.getNPubKey(keyPair.publicKey)                
+                setAvatarSvg(walletProfile.avatarSvg as string)
+                setNostrKeyPair(keyPair)
             } catch(e: any) {
                 return false // silent
             }
         }
-
         load()
-        return () => {
-            // this now gets called when the component unmounts
-        }
-        
+        return () => {}        
     }, [])
 
     const toggleQRModal = () =>
@@ -69,7 +66,7 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
     const onShareContact = async () => {
         try {
             const result = await Share.share({
-                message: 'contact',
+                message: npub.current,
             })
 
             if (result.action === Share.sharedAction) {                
@@ -103,11 +100,13 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
         <View style={[$headerContainer, {backgroundColor: headerBg, justifyContent: 'space-around'}]}>
             {avatarSvg ? (
                 <SvgXml xml={avatarSvg} width="90" height="90" />
+            ) : avatarImageUri ? (
+                <Image source={{ uri: avatarImageUri }} style={{width: 90, height: 90}} />
             ) : (
                 <Icon
                     icon='faCircleUser'                                
                     size={80}                    
-                    color={'white'}                 
+                    color={'white'}                
                 />
             )}            
             <Text preset='subheading' text="sam55" style={{color: 'white', marginBottom: spacing.small}} />
@@ -119,10 +118,8 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
             <>                
                 <ListItem
                     text={'sam55@minibits.cash'}
-                    subText={`${publicKey.substring(0, 10)}...`}
-                    LeftComponent={<></>
-
-                    }
+                    subText={`${npub.current.substring(0, 20)}...`}
+                    LeftComponent={<></>}
                     leftIconInverse={true}
                     rightIcon='faQrcode'
                     rightIconColor={rightIcon as string}                  
