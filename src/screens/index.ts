@@ -12,7 +12,8 @@ export * from './TopupScreen'
 
 export * from './ContactsScreen'
 export * from './AvatarScreen'
-export * from './WalletnameScreen'
+export * from './RandomNameScreen'
+export * from './OwnNameScreen'
 
 // SettingsNavigator
 export * from './SettingsScreen'

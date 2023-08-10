@@ -5,7 +5,7 @@ import {UserSettingsStoreModel} from './UserSettingsStore'
 import {InvoicesStoreModel} from './InvoicesStore'
 import {ProofsStoreModel} from './ProofsStore'
 
-export const rootStoreModelVersion = 1 // Update this if model changes require migrations defined in setupRootStore.ts
+export const rootStoreModelVersion = 2 // Update this if model changes require migrations defined in setupRootStore.ts
 
 /**
  * A RootStore model.
@@ -23,8 +23,8 @@ export const RootStoreModel = types
     .actions(self => ({
         setVersion(version: number) {
         self.version = version
-        },
-    }))
+    },
+}))
 
 /**
  * The RootStore instance.

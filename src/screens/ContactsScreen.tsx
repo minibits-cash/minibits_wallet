@@ -6,13 +6,13 @@ import {colors, spacing, useThemeColor} from '../theme'
 import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../components'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
-import { TabScreenProps } from '../navigation'
+import {ContactsStackScreenProps} from '../navigation'
 import { MinibitsClient, WalletProfile, NostrClient, KeyPair } from '../services'
 import AppError from '../utils/AppError'
 import { log } from '../utils/logger'
 import QRCode from 'react-native-qrcode-svg'
 
-interface ContactsScreenProps extends TabScreenProps<'ContactsNavigator'> {}
+interface ContactsScreenProps extends ContactsStackScreenProps<'Contacts'> {}
 
 export const ContactsScreen: FC<ContactsScreenProps> = observer(function ContactsScreen({navigation}) {    
     useHeader({
@@ -40,12 +40,12 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
         const load = async () => {
             try {   
                 const keyPair = await NostrClient.getOrCreateKeyPair()
-                const userId = userSettingsStore.userId
+                const walletId = userSettingsStore.walletId
 
                 const walletProfile: {profile: WalletProfile, avatarSvg: string} = 
                     await MinibitsClient.getOrCreateWalletProfile(
                         keyPair.publicKey,
-                        userId
+                        walletId
                     ) 
                 
                 npub.current = NostrClient.getNPubKey(keyPair.publicKey)                
@@ -70,7 +70,7 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
     const onShareContact = async () => {
         try {
             const result = await Share.share({
-                message: `${userSettingsStore.userId}@minibits.cash`,
+                message: `${userSettingsStore.walletId}@minibits.cash`,
             })
 
             if (result.action === Share.sharedAction) {                
@@ -99,7 +99,7 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
 
     const gotoUsername = function () {
         toggleProfileModal()
-        navigation.navigate('Walletname', {})
+        navigation.navigate('WalletName', {})
     }
 
     const handleError = function (e: AppError): void {
@@ -141,7 +141,7 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
                 <Pressable
                     onPress={toggleProfileModal}                        
                 >
-                    <Text preset='bold' text={`${userSettingsStore.userId}@minibits.cash`} style={{color: 'white', marginBottom: spacing.small}} />
+                    <Text preset='bold' text={`${userSettingsStore.walletId}@minibits.cash`} style={{color: 'white', marginBottom: spacing.small}} />
                 </Pressable>          
         </View>
         <View style={$contentContainer}>
@@ -150,7 +150,7 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
             ContentComponent={
             <>                
                 <ListItem
-                    text={userSettingsStore.userId}
+                    text={userSettingsStore.walletId}
                     subText={`${npub.current.substring(0, 20)}...`}
                     LeftComponent={<></>}
                     leftIconInverse={true}
@@ -173,7 +173,7 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
                 <View style={[$bottomModal, {marginHorizontal: spacing.small}]}>
                 <Text text={'Scan to share your contact'} />
                 <View style={$qrCodeContainer}>        
-                    <QRCode size={spacing.screenWidth - spacing.extraLarge * 2} value={`${userSettingsStore.userId}@minibits.cash`} />          
+                    <QRCode size={spacing.screenWidth - spacing.extraLarge * 2} value={`${userSettingsStore.walletId}@minibits.cash`} />          
                 </View>
                 <View style={$buttonContainer}>
                 <Button preset="secondary" text="Close" onPress={toggleQRModal} />

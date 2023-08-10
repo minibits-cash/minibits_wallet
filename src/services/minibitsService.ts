@@ -1,4 +1,3 @@
-import { env } from "process"
 import AppError, { Err } from "../utils/AppError"
 import { Env, log } from "../utils/logger"
 import {
@@ -11,18 +10,18 @@ import {
 export type WalletProfile = {
     id: number,
     pubkey: string,
-    nip05: string,
+    walletId: string,
     avatar: string    
 }
 
-const getOrCreateWalletProfile = async function (pubkey: string, userId: string) {    
+const getOrCreateWalletProfile = async function (pubkey: string, walletId: string) {    
     const url = getProfileApiUrl()
     let profile: WalletProfile | null = null
     
     profile = await getWalletProfile(pubkey)    
 
     if(!profile) {
-        profile = await createWalletProfile(pubkey, userId)
+        profile = await createWalletProfile(pubkey, walletId)
     }
 
     // preload svg file
@@ -35,7 +34,7 @@ const getOrCreateWalletProfile = async function (pubkey: string, userId: string)
 }
 
 
-const createWalletProfile = async function (pubkey: string, userId: string) {    
+const createWalletProfile = async function (pubkey: string, walletId: string) {    
     const url = getProfileApiUrl()
 
     try {            
@@ -44,7 +43,7 @@ const createWalletProfile = async function (pubkey: string, userId: string) {
         
         const requestBody = {
             pubkey,
-            userId
+            walletId
         }        
 
         const walletProfile: WalletProfile = await fetchApi(url, {
@@ -63,6 +62,34 @@ const createWalletProfile = async function (pubkey: string, userId: string) {
 }
 
 
+const updateWalletProfile = async function (pubkey: string, walletId: string, avatar: string) {    
+    const url = getProfileApiUrl()
+
+    try {            
+        const method = 'PUT'        
+        const headers = getHeaders()
+        
+        const requestBody = {
+            pubkey,
+            walletId,
+            avatar
+        }        
+
+        const walletProfile: WalletProfile = await fetchApi(url, {
+            method,
+            headers,
+            body: JSON.stringify(requestBody)
+        })
+
+        log.info(`Updated wallet profile`, walletProfile, 'updateWalletProfile')
+
+        return walletProfile
+
+    } catch (e: any) {        
+        throw new AppError(Err.SERVER_ERROR, e.message, e.info)
+    }
+}
+
 const getWalletProfile = async function (pubkey: string) {    
     const url = getProfileApiUrl()
 
@@ -71,6 +98,28 @@ const getWalletProfile = async function (pubkey: string) {
         const headers = getHeaders()
 
         const walletProfile: WalletProfile = await fetchApi(url + `/${pubkey}`, {
+            method,
+            headers,            
+        })
+
+        log.info(`Got response`, walletProfile, 'getWalletProfile')
+
+        return walletProfile
+
+    } catch (e: any) {        
+        throw new AppError(Err.SERVER_ERROR, e.message, e.info)
+    }
+}
+
+
+const getWalletProfileByWalletId = async function (walletId: string) {    
+    const url = getProfileApiUrl()
+
+    try {            
+        const method = 'GET'        
+        const headers = getHeaders()
+
+        const walletProfile: WalletProfile = await fetchApi(url + `/walletId/${walletId}`, {
             method,
             headers,            
         })
@@ -115,6 +164,11 @@ const fetchApi = async (url: string, options: any, timeout = 5000) => { //ms
         }
 
         const responseJson = await response.json()
+
+        if(responseJson.error) {
+            throw new Error(responseJson.error)
+        }
+
         return responseJson
 
     } catch (e) {
@@ -167,5 +221,8 @@ const getPublicHeaders = () => {
 
 
 export const MinibitsClient = {
-    getOrCreateWalletProfile
+    getOrCreateWalletProfile,
+    updateWalletProfile,
+    getWalletProfile,
+    getWalletProfileByWalletId,
 }

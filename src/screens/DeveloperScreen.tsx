@@ -161,7 +161,7 @@ React Native: ${rnVersion}
 Commit: ${COMMIT}
 Log level: ${LOG_LEVEL}
 Sentry active: ${SENTRY_ACTIVE}
-Sentry id: ${userSettingsStore.userSettings.userId}
+Sentry id: ${userSettingsStore.userSettings.walletId}
                   `}
                   leftIcon='faInfoCircle'
                   leftIconColor={colors.palette.iconGreen300}

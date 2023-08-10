@@ -20,7 +20,7 @@ import { getProofsAmount } from './cashuHelpers'
 
 let _db: QuickSQLiteConnection
 
-const _dbVersion = 2 // Update this if db changes require migrations
+const _dbVersion = 3 // Update this if db changes require migrations
 
 const getInstance = function () {
   if (!_db) {
@@ -67,8 +67,10 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
     ],
     [
       `CREATE TABLE IF NOT EXISTS usersettings (
-      id INTEGER PRIMARY KEY NOT NULL,
-      userId TEXT,
+      id INTEGER PRIMARY KEY NOT NULL,      
+      walletId TEXT,
+      npubKey TEXT,
+      avatar TEXT,
       isOnboarded BOOLEAN,
       isStorageEncrypted BOOLEAN,
       isLocalBackupOn BOOLEAN,
@@ -103,12 +105,11 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
       log.info('New database schema created')
     }
 
-    // Returns undefined on first run
-    const {version} = getDatabaseVersion()
+    const {version} = getDatabaseVersion()    
     log.info('Device database version:', version)
 
-    // Trigger migrations only if there is no version on first run  or versions mismatch
-    if (!version || version < _dbVersion) {
+    // Trigger migrations if there is versions mismatch
+    if (version < _dbVersion) {
       _runMigrations(db)
     }
        
@@ -124,28 +125,43 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
 // Run database migrations in case on device version of schema is not yet set or outdated
 
 const _runMigrations = function (db: QuickSQLiteConnection) {
-  const now = new Date()
-  const {version} = getDatabaseVersion()
-  let currentVersion = version
+    const now = new Date()
+    const {version} = getDatabaseVersion()    
 
-  let migrationQueries: SQLBatchTuple[] = []
+    let currentVersion = version
+    let migrationQueries: SQLBatchTuple[] = []
 
-  // Database migrations sequence based on local version numbers
-  if (currentVersion && currentVersion < 2) {
-    const userId = _generateUserId()
-    migrationQueries.push([
-      `ALTER TABLE usersettings
-       ADD COLUMN userId TEXT`,       
-    ],[
-       `UPDATE usersettings
-       SET userId = ?
-       WHERE id = ?`, [userId, 1]
-    ])
-    
-    log.info(`Prepared database migrations from ${currentVersion} -> 2`)
-  }
+    // Database migrations sequence based on local version numbers
+    if (currentVersion < 2) {
+        const walletId = _generateWalletId()
+        migrationQueries.push([
+            `ALTER TABLE usersettings
+            ADD COLUMN userId TEXT`,       
+        ],[
+            `UPDATE usersettings
+            SET userId = ?
+            WHERE id = ?`, [walletId, 1]
+        ])
+        
+        log.info(`Prepared database migrations from ${currentVersion} -> 2`)
+    }
 
-  // On first run or after migrations, this inserts up to date version
+    if (currentVersion < 3) {
+        migrationQueries.push([
+            `ALTER TABLE usersettings
+            ADD COLUMN walletId TEXT`,       
+        ],[
+            `ALTER TABLE usersettings
+            ADD COLUMN npubKey TEXT`,       
+        ],[
+            `ALTER TABLE usersettings
+            ADD COLUMN avatar TEXT`,       
+        ])
+
+        log.info(`Prepared database migrations from ${currentVersion} -> 3`)
+    }
+
+  // Update db version as a part of migration sqls
   migrationQueries.push([
     `INSERT OR REPLACE INTO dbversion (id, version, createdAt)
      VALUES (?, ?, ?)`,
@@ -168,7 +184,7 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
 }
 
 
-const _generateUserId = (): string => {
+const _generateWalletId = (): string => {
     try {
         /* const length = 8 // Length of the id in bytes
         const random = QuickCrypto.randomBytes(length)
@@ -176,10 +192,10 @@ const _generateUserId = (): string => {
         const stringKey = fromByteArray(uint8Array)
         const base64Key = btoa(stringKey)*/
 
-        const userId = getRandomUsername()    
-        log.info('New userId created:', userId)
+        const walletId = getRandomUsername()    
+        log.info('New walletId created:', walletId)
     
-        return userId
+        return walletId
     } catch (e: any) {
         throw new AppError(Err.DATABASE_ERROR, e.message)
     }
@@ -214,7 +230,7 @@ const cleanAll = function () {
 }
 
 
-const getDatabaseVersion = function (): {version: number | undefined} {
+const getDatabaseVersion = function (): {version: number} {
   try {
     const query = `
       SELECT version FROM dbVersion
@@ -222,11 +238,21 @@ const getDatabaseVersion = function (): {version: number | undefined} {
     const db = getInstance()
     const {rows} = db.execute(query)
 
-    if (rows?.length && rows.length > 0) {
-      return rows?.item(0)
+    if (!rows?.item(0)) {
+        // On first run, insert current version record
+        const now = new Date()
+        const insertQuery = `
+            INSERT OR REPLACE INTO dbversion (id, version, createdAt)
+            VALUES (?, ?, ?)
+        `
+        const params = [1, _dbVersion, now.toISOString()]
+        db.execute(insertQuery, params)
+
+        return {version: _dbVersion}      
     }
 
-    return {version: undefined}
+    return rows?.item(0)    
+    
   } catch (e: any) {
     throw new AppError(
       Err.DATABASE_ERROR,
@@ -249,9 +275,11 @@ const getUserSettings = function (): UserSettings {
         const {rows} = db.execute(query)
 
         if (!rows?.item(0)) {
-            const userId = _generateUserId()
+            const walletId = _generateWalletId()
             const defaultSettings = updateUserSettings({
-                userId,
+                walletId,
+                npubKey: null,
+                avatar: null,
                 isOnboarded: 0,
                 isStorageEncrypted: 0,
                 isLocalBackupOn: 1,
@@ -273,15 +301,17 @@ const getUserSettings = function (): UserSettings {
 const updateUserSettings = function (settings: UserSettings): UserSettings {
     try {
         const now = new Date()
-        const {userId, isOnboarded, isStorageEncrypted, isLocalBackupOn} = settings
+        const {walletId, npubKey, avatar, isOnboarded, isStorageEncrypted, isLocalBackupOn} = settings
 
         const query = `
-        INSERT OR REPLACE INTO usersettings (id, userId, isOnboarded, isStorageEncrypted, isLocalBackupOn, createdAt)
-        VALUES (?, ?, ?, ?, ?, ?)      
+        INSERT OR REPLACE INTO usersettings (id, walletId, npubKey, avatar, isOnboarded, isStorageEncrypted, isLocalBackupOn, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)      
         `
         const params = [
             1,
-            userId,
+            walletId,
+            npubKey,
+            avatar,
             isOnboarded,
             isStorageEncrypted,
             isLocalBackupOn,

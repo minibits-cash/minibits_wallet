@@ -4,8 +4,11 @@ import {MMKVStorage} from '../services'
 import {log} from '../utils/logger'
 
 export type UserSettings = {
-  id?: number
-  userId?: string
+  id?: number 
+  userId?: string | null // to be removed in the next migration
+  walletId: string | null
+  npubKey: string | null
+  avatar: string | null
   isOnboarded: boolean | 0 | 1
   isStorageEncrypted: boolean | 0 | 1
   isLocalBackupOn: boolean | 0 | 1
@@ -13,26 +16,56 @@ export type UserSettings = {
 
 export const UserSettingsStoreModel = types
     .model('UserSettingsStore')
-    .props({
-        userId: types.optional(types.string, ''),
+    .props({                
+        walletId: types.maybeNull(types.string),
+        npubKey: types.maybeNull(types.string),
+        avatar: types.maybeNull(types.string),
         isOnboarded: types.optional(types.boolean, false),
         isStorageEncrypted: types.optional(types.boolean, false),
         isLocalBackupOn: types.optional(types.boolean, true),
     })
     .actions(self => ({
         loadUserSettings: () => {
-            const {userId, isOnboarded, isStorageEncrypted, isLocalBackupOn} =
-                Database.getUserSettings()
+            const {
+                walletId, 
+                npubKey, 
+                avatar, 
+                isOnboarded, 
+                isStorageEncrypted, 
+                isLocalBackupOn
+            } = Database.getUserSettings()
             
             const booleanIsOnboarded = isOnboarded === 1
             const booleanIsStorageEncrypted = isStorageEncrypted === 1
-            const booleanIsLocalBackupOn = isLocalBackupOn === 1
+            const booleanIsLocalBackupOn = isLocalBackupOn === 1            
             
-            // TODO move to some of mobx preprocessing method
-            self.userId = userId as string
+            self.walletId = walletId as string
+            self.npubKey = npubKey as string
+            self.avatar = avatar as string
             self.isOnboarded = booleanIsOnboarded as boolean
             self.isStorageEncrypted = booleanIsStorageEncrypted as boolean
             self.isLocalBackupOn = booleanIsLocalBackupOn as boolean
+        },
+        setWalletId: (walletId: string) => {
+            Database.updateUserSettings({...self, walletId})
+            self.walletId = walletId
+
+            log.info('walletId updated', walletId)
+            return walletId
+        },
+        setNpubKey: (npubKey: string) => {
+            Database.updateUserSettings({...self, npubKey})
+            self.npubKey = npubKey
+
+            log.info('npubKey updated', npubKey)
+            return npubKey
+        },
+        setAvatar: (avatar: string) => {
+            Database.updateUserSettings({...self, avatar})
+            self.avatar = avatar
+
+            log.info('avatar updated', avatar)
+            return avatar
         },
         setIsOnboarded: (value: boolean) => {
             Database.updateUserSettings({...self, isOnboarded: value})
@@ -46,13 +79,6 @@ export const UserSettingsStoreModel = types
 
             log.info('Local backup is turned on', value)
         return value
-        },
-        setUserId: (userId: string) => {
-            Database.updateUserSettings({...self, userId})
-            self.userId = userId
-
-            log.info('UserId updated', userId)
-            return userId
         },
         setIsStorageEncrypted: flow(function* setIsStorageEncryptedvalue(
             value: boolean,

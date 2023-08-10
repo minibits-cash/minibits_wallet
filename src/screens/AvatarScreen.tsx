@@ -6,12 +6,12 @@ import {colors, spacing, useThemeColor} from '../theme'
 import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../components'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
-import { TabScreenProps } from '../navigation'
+import {ContactsStackScreenProps} from '../navigation'
 import { MinibitsClient, WalletProfile, NostrClient, KeyPair } from '../services'
 import AppError from '../utils/AppError'
 import { log } from '../utils/logger'
 
-interface AvatarScreenProps extends TabScreenProps<'ContactsNavigator'> {}
+interface AvatarScreenProps extends ContactsStackScreenProps<'Avatar'> {}
 
 export const AvatarScreen: FC<AvatarScreenProps> = observer(function AvatarScreen({navigation}) {    
     useHeader({
