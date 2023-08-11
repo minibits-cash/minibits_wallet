@@ -9,6 +9,7 @@ import {useHeader} from '../utils/useHeader'
 import {ContactsStackScreenProps} from '../navigation'
 import { MinibitsClient, WalletProfile, NostrClient, KeyPair } from '../services'
 import AppError from '../utils/AppError'
+import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { log } from '../utils/logger'
 import QRCode from 'react-native-qrcode-svg'
 
@@ -24,7 +25,7 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
         onRightPress: () => toggleQRModal(),        
     })
 
-    const npub = useRef('')    
+    const npub = useRef('')      
     const {userSettingsStore} = useStores()
 
     const [nostrKeyPair, setNostrKeyPair] = useState<KeyPair | undefined>()    
@@ -40,17 +41,18 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
         const load = async () => {
             try {   
                 const keyPair = await NostrClient.getOrCreateKeyPair()
-                const walletId = userSettingsStore.walletId
+                setNostrKeyPair(keyPair)
+                npub.current = NostrClient.getNPubKey(keyPair.publicKey) 
+                const walletId = userSettingsStore.walletId               
 
                 const walletProfile: {profile: WalletProfile, avatarSvg: string} = 
-                    await MinibitsClient.getOrCreateWalletProfile(
-                        keyPair.publicKey,
-                        walletId
-                    ) 
+                await MinibitsClient.getOrCreateWalletProfile(
+                    keyPair.publicKey,
+                    walletId as string
+                )                
                 
-                npub.current = NostrClient.getNPubKey(keyPair.publicKey)                
-                setAvatarSvg(walletProfile.avatarSvg as string)
-                setNostrKeyPair(keyPair)
+                setAvatarSvg(walletProfile.avatarSvg as string)                                          
+                
             } catch(e: any) {
                 return false // silent
             }
@@ -94,12 +96,12 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
     
     const gotoAvatar = function () {
         toggleProfileModal()
-        navigation.navigate('Avatar', {})
+        navigation.navigate('Avatar')
     }
 
     const gotoUsername = function () {
         toggleProfileModal()
-        navigation.navigate('WalletName', {})
+        navigation.navigate('WalletNameNavigator')
     }
 
     const handleError = function (e: AppError): void {

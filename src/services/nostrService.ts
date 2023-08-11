@@ -26,7 +26,13 @@ const getNPubKey = function (publicKey: string): string {
 }
 
 
+const deleteKeyPair = async function (): Promise<void> {
+   await KeyChain.removeNostrKeypair()
+}
+
+
 export const NostrClient = {
     getOrCreateKeyPair,
-    getNPubKey
+    getNPubKey,
+    deleteKeyPair
 }

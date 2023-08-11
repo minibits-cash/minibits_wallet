@@ -152,7 +152,7 @@ export type ContactsStackParamList = {
 }  
   
   export type ContactsStackScreenProps<T extends keyof ContactsStackParamList> = StackScreenProps<
-  ContactsStackParamList,
+    ContactsStackParamList,
     T
   >
   
@@ -181,13 +181,13 @@ export type ContactsStackParamList = {
     } 
 
     export type WalletNameStackScreenProps<T extends keyof TopTabsParamList> = StackScreenProps<
-        ContactsStackParamList,
+        WalletNameStackParamList,
         T
     >
 
     export type TopTabsParamList = {
-        RandomName: NavigatorScreenParams<WalletNameStackParamList>  
-        OwnName: NavigatorScreenParams<WalletNameStackParamList>        
+        RandomName: undefined  
+        OwnName: undefined        
     }
 
     const TopTab = createMaterialTopTabNavigator<TopTabsParamList>()

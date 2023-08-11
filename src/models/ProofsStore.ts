@@ -189,6 +189,19 @@ export const ProofsStoreModel = types
 
             return filteredMintBalances
         },
+        getMintBalanceWithMaxBalance: () => {
+            const balances = self.getBalances().mintBalances
+
+            const maxBalance = balances.reduce((maxBalance, currentBalance) => {
+                if (currentBalance.balance > maxBalance.balance) {
+                  return currentBalance
+                }
+                return maxBalance
+              }, balances[0])
+
+            log.trace('Max Balance', maxBalance, 'getMintBalanceWithMaxBalance')
+            return maxBalance
+        },
         getProofsToSend: (amount: number, proofs: Proof[]) => {
             let proofsAmount = 0
             const proofSubset = proofs.filter(proof => {

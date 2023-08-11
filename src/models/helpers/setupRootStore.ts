@@ -41,7 +41,6 @@ export async function setupRootStore(rootStore: RootStore) {
     // Give an option to encrypt storage as it might slow down app start on some Android devices
     // User settings are mastered in sqlite so we can get the encryption setting before loading root store
     const userSettings = Database.getUserSettings()
-    log.trace(userSettings)   
     
     // random identificator of an app installation for bugs and crash reporting
     if(userSettings.walletId) {

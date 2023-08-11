@@ -21,7 +21,14 @@ const getOrCreateWalletProfile = async function (pubkey: string, walletId: strin
     profile = await getWalletProfile(pubkey)    
 
     if(!profile) {
+        log.trace('Could not find profile', {pubkey}, 'getOrCreateWalletProfile')
         profile = await createWalletProfile(pubkey, walletId)
+    }
+
+    // this should not happen outside dev, update the server silently
+    if(profile.walletId !== walletId) {
+        log.info('Device walletId mismatch with server record, updating server...')
+        await updateWalletProfile(pubkey, walletId, profile.avatar)
     }
 
     // preload svg file
@@ -52,7 +59,7 @@ const createWalletProfile = async function (pubkey: string, walletId: string) {
             body: JSON.stringify(requestBody)
         })
 
-        log.info(`Got new profile`, walletProfile, 'createWalletProfile')
+        log.info(`Created new profile`, walletProfile, 'createWalletProfile')
 
         return walletProfile
 
@@ -62,20 +69,20 @@ const createWalletProfile = async function (pubkey: string, walletId: string) {
 }
 
 
-const updateWalletProfile = async function (pubkey: string, walletId: string, avatar: string) {    
+const updateWalletProfile = async function (pubkey: string, walletId?: string, avatar?: string) {    
     const url = getProfileApiUrl()
+    log.trace('Update profile' + pubkey, {walletId, avatar}, 'updateWalletProfile')
 
     try {            
         const method = 'PUT'        
         const headers = getHeaders()
         
-        const requestBody = {
-            pubkey,
+        const requestBody = {            
             walletId,
             avatar
         }        
 
-        const walletProfile: WalletProfile = await fetchApi(url, {
+        const walletProfile: WalletProfile = await fetchApi(url + `/${pubkey}`, {
             method,
             headers,
             body: JSON.stringify(requestBody)
@@ -129,7 +136,7 @@ const getWalletProfileByWalletId = async function (walletId: string) {
         return walletProfile
 
     } catch (e: any) {        
-        throw new AppError(Err.SERVER_ERROR, e.message, e.info)
+        throw new AppError(Err.SERVER_ERROR, e.message, e)
     }
 }
 
@@ -146,26 +153,71 @@ const getProfileApiUrl = function() {
 }
 
 
+const createDonation = async function (amount: number, memo: string) {    
+    const url = getDonationApiUrl()
+
+    log.trace('createDonation start')
+
+    try {            
+        const method = 'POST'        
+        const headers = getHeaders()
+        
+        const requestBody = {
+            amount,
+            memo
+        }        
+
+        const invoice: {
+            payment_hash: string, 
+            payment_request: string
+        } = await fetchApi(url, {
+            method,
+            headers,
+            body: JSON.stringify(requestBody)
+        })
+
+        log.info(`Created new donation invoice`, invoice, 'createDonation')
+
+        return invoice
+
+    } catch (e: any) {        
+        throw new AppError(Err.SERVER_ERROR, e.message, e)
+    }
+}
+
+
+const getDonationApiUrl = function() {
+    let url: string = ''
+    if(APP_ENV === Env.PROD) {
+        url = MINIBITS_SERVER_PROD + '/donation'
+    } else {
+        url = MINIBITS_SERVER_DEV + '/donation'
+    }
+
+    return url
+}
+
+
 const fetchApi = async (url: string, options: any, timeout = 5000) => { //ms
     try {
         const controller = new AbortController()
 
         const promise = fetch(url, options)
         const kill = new Promise((resolve) => setTimeout(resolve, timeout))
-        const response: Response = await Promise.race([promise, kill]) as Response
+        const response: Response = await Promise.race([promise, kill]) as Response        
 
         if (!response) {
             controller.abort()
             throw new Error('API takes too long to respond')
-        }
+        }        
 
         if (!response.ok) {            
             throw new Error(await response.text())
         }
 
-        const responseJson = await response.json()
+        const responseJson = await response.json()        
 
-        if(responseJson.error) {
+        if(responseJson && responseJson.error) {
             throw new Error(responseJson.error)
         }
 
@@ -225,4 +277,5 @@ export const MinibitsClient = {
     updateWalletProfile,
     getWalletProfile,
     getWalletProfileByWalletId,
+    createDonation
 }
