@@ -6,9 +6,7 @@ import {log} from '../utils/logger'
 export type UserSettings = {
   id?: number 
   userId?: string | null // to be removed in the next migration
-  walletId: string | null
-  npubKey: string | null
-  avatar: string | null
+  walletId: string | null    
   isOnboarded: boolean | 0 | 1
   isStorageEncrypted: boolean | 0 | 1
   isLocalBackupOn: boolean | 0 | 1
@@ -17,9 +15,7 @@ export type UserSettings = {
 export const UserSettingsStoreModel = types
     .model('UserSettingsStore')
     .props({                
-        walletId: types.maybeNull(types.string),
-        npubKey: types.maybeNull(types.string),
-        avatar: types.maybeNull(types.string),
+        walletId: types.maybeNull(types.string),                
         isOnboarded: types.optional(types.boolean, false),
         isStorageEncrypted: types.optional(types.boolean, false),
         isLocalBackupOn: types.optional(types.boolean, true),
@@ -27,9 +23,7 @@ export const UserSettingsStoreModel = types
     .actions(self => ({
         loadUserSettings: () => {
             const {
-                walletId, 
-                npubKey, 
-                avatar, 
+                walletId,                                 
                 isOnboarded, 
                 isStorageEncrypted, 
                 isLocalBackupOn
@@ -39,9 +33,7 @@ export const UserSettingsStoreModel = types
             const booleanIsStorageEncrypted = isStorageEncrypted === 1
             const booleanIsLocalBackupOn = isLocalBackupOn === 1            
             
-            self.walletId = walletId as string
-            self.npubKey = npubKey as string
-            self.avatar = avatar as string
+            self.walletId = walletId as string                        
             self.isOnboarded = booleanIsOnboarded as boolean
             self.isStorageEncrypted = booleanIsStorageEncrypted as boolean
             self.isLocalBackupOn = booleanIsLocalBackupOn as boolean
@@ -52,20 +44,6 @@ export const UserSettingsStoreModel = types
 
             log.info('walletId updated', walletId)
             return walletId
-        },
-        setNpubKey: (npubKey: string) => {
-            Database.updateUserSettings({...self, npubKey})
-            self.npubKey = npubKey
-
-            log.info('npubKey updated', npubKey)
-            return npubKey
-        },
-        setAvatar: (avatar: string) => {
-            Database.updateUserSettings({...self, avatar})
-            self.avatar = avatar
-
-            log.info('avatar updated', avatar)
-            return avatar
         },
         setIsOnboarded: (value: boolean) => {
             Database.updateUserSettings({...self, isOnboarded: value})

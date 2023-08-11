@@ -83,7 +83,7 @@ const saveNostrKeyPair = async function (
         },
     )
 
-    log.trace('Saved keypair to the KeyChain')
+    log.trace('Saved keypair to the KeyChain', '', 'saveNostrKeyPair')
 
     return result
   } catch (e: any) {
@@ -105,7 +105,7 @@ const loadNostrKeyPair = async function (): Promise<KeyPair | undefined> {
       const keyPair = JSON.parse(result.password)
       return keyPair
     }
-    log.trace('Did not find existing keyPair in the KeyChain')
+    log.trace('Did not find existing keyPair in the KeyChain', '', 'loadNostrKeyPair')
     return undefined
   } catch (e: any) {
     throw new AppError(Err.KEYCHAIN_ERROR, e.message)
@@ -171,25 +171,50 @@ const saveMmkvEncryptionKey = async function (
 /**
  * Removes keypair from KeyChain/KeyStore
  *
- * @param key The key to kill.
+ * @param service The key to kill.
  */
-const removeKey = async function (
-  service: KeyChainServiceName,
-): Promise<boolean> {
+const removeNostrKeypair = async function (): Promise<boolean> {
   try {
-    const result = await _Keychain.resetGenericPassword({service})
+    const result = await _Keychain.resetGenericPassword({
+        service: KeyChainServiceName.NOSTR
+    })
+    log.trace('Removed nostr keypair', {}, 'removeNostrKeypair')
     return result
   } catch (e: any) {
     throw new AppError(Err.KEYCHAIN_ERROR, e.message)
   }
 }
 
+
+/**
+ * Removes keypair from KeyChain/KeyStore
+ *
+ * @param service The key to kill.
+ */
+const removeMmkvEncryptionKey = async function (): Promise<boolean> {
+    try {
+      const result = await _Keychain.resetGenericPassword({
+          service: KeyChainServiceName.MMKV
+      })
+
+      log.trace('Removed mmkv key', {}, 'removeMmkvEncryptionKey')
+      return result
+    } catch (e: any) {
+      throw new AppError(Err.KEYCHAIN_ERROR, e.message)
+    }
+  }
+
+
 export const KeyChain = {  
-    generateNostrKeyPair,
-    generateMmkvEncryptionKey,
     getSupportedBiometryType,
+    
+    generateNostrKeyPair,    
     saveNostrKeyPair,
     loadNostrKeyPair,
+    removeNostrKeypair,
+
+    generateMmkvEncryptionKey,    
+    saveMmkvEncryptionKey,
     loadMmkvEncryptionKey,
-    saveMmkvEncryptionKey,    
+    removeMmkvEncryptionKey,       
 }

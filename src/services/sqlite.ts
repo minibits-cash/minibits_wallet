@@ -68,9 +68,7 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
     [
       `CREATE TABLE IF NOT EXISTS usersettings (
       id INTEGER PRIMARY KEY NOT NULL,      
-      walletId TEXT,
-      npubKey TEXT,
-      avatar TEXT,
+      walletId TEXT,      
       isOnboarded BOOLEAN,
       isStorageEncrypted BOOLEAN,
       isLocalBackupOn BOOLEAN,
@@ -150,12 +148,6 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
         migrationQueries.push([
             `ALTER TABLE usersettings
             ADD COLUMN walletId TEXT`,       
-        ],[
-            `ALTER TABLE usersettings
-            ADD COLUMN npubKey TEXT`,       
-        ],[
-            `ALTER TABLE usersettings
-            ADD COLUMN avatar TEXT`,       
         ])
 
         log.info(`Prepared database migrations from ${currentVersion} -> 3`)
@@ -277,9 +269,7 @@ const getUserSettings = function (): UserSettings {
         if (!rows?.item(0)) {
             const walletId = _generateWalletId()
             const defaultSettings = updateUserSettings({
-                walletId,
-                npubKey: null,
-                avatar: null,
+                walletId,                                
                 isOnboarded: 0,
                 isStorageEncrypted: 0,
                 isLocalBackupOn: 1,
@@ -301,17 +291,15 @@ const getUserSettings = function (): UserSettings {
 const updateUserSettings = function (settings: UserSettings): UserSettings {
     try {
         const now = new Date()
-        const {walletId, npubKey, avatar, isOnboarded, isStorageEncrypted, isLocalBackupOn} = settings
+        const {walletId, isOnboarded, isStorageEncrypted, isLocalBackupOn} = settings
 
         const query = `
-        INSERT OR REPLACE INTO usersettings (id, walletId, npubKey, avatar, isOnboarded, isStorageEncrypted, isLocalBackupOn, createdAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)      
+        INSERT OR REPLACE INTO usersettings (id, walletId, isOnboarded, isStorageEncrypted, isLocalBackupOn, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?)      
         `
         const params = [
             1,
-            walletId,
-            npubKey,
-            avatar,
+            walletId,                        
             isOnboarded,
             isStorageEncrypted,
             isLocalBackupOn,

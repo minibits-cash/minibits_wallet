@@ -38,8 +38,8 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
     const {userSettingsStore} = useStores()
 
     const gotoWallet = function () {
-      // userSettingsStore.setIsOnboarded(true)
-      navigation.navigate('Tabs')
+      userSettingsStore.setIsOnboarded(true)
+      navigation.navigate('Tabs', {})
     }
 
     const $bottomContainerInsets = useSafeAreaInsetsStyle(['bottom'])

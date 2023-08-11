@@ -20,15 +20,13 @@ export const RandomNameScreen: FC<RandomNameScreenProps> = observer(function Ran
         leftIcon: 'faArrowLeft',
         onLeftPress: () => navigation.goBack(), 
     })
-
-    const ownNameInputRef = useRef<TextInput>(null)
+    
     const {userSettingsStore} = useStores()
 
     const [randomNames, setRandomNames] = useState<string[]>([])
-    const [selectedName, setSelectedName] = useState<string>('')
-    const [ownName, setOwnName] = useState<string>('')
-    const [info, setInfo] = useState('')    
-    const [isOwnNameEndEditing, setIsOwnNameEndEditing] = useState(false)
+    const [selectedName, setSelectedName] = useState<string>('')    
+    const [npubKey, setNpubKey] = useState<string>('')    
+    const [info, setInfo] = useState('')        
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<AppError | undefined>()
 
@@ -43,11 +41,11 @@ export const RandomNameScreen: FC<RandomNameScreenProps> = observer(function Ran
                     names.push(name)
                     i++
                 }
-                const keyPair = await NostrClient.getOrCreateKeyPair()
-                const walletId = userSettingsStore.walletId
+                const keyPair = await NostrClient.getOrCreateKeyPair()               
 
-                setIsLoading(false)
+                setNpubKey(keyPair.publicKey)
                 setRandomNames(names)
+                setIsLoading(false)                
             })
         }
         load()
@@ -63,10 +61,10 @@ export const RandomNameScreen: FC<RandomNameScreenProps> = observer(function Ran
         try {
             setIsLoading(true)
             
-            const updatedProfile = await MinibitsClient.updateWalletProfile(
-                userSettingsStore.npubKey,
-                userSettingsStore.walletId,
-                userSettingsStore.avatar               
+            await MinibitsClient.updateWalletProfile(
+                npubKey,
+                selectedName as string,
+                undefined                
             )
                                     
             userSettingsStore.setWalletId(selectedName)
