@@ -369,7 +369,7 @@ export const OwnNameScreen: FC<OwnNameScreenProps> = observer(function OwnNameSc
                                 text='Minibits'
                                 style={{fontFamily: 'Gluten-Regular', fontSize: 18}}
                             />{' '}
-                            kindly asks you for small donation for your {ownName}@minibits.cash wallet profile.
+                            kindly asks you for a small donation for your {ownName}@minibits.cash wallet name.
                         </RNText>
                         <View style={{flexDirection: 'row', justifyContent: 'center'}}>
                             <Text

@@ -101,33 +101,35 @@ export const AvatarScreen: FC<AvatarScreenProps> = observer(function AvatarScree
             <Text preset='bold' text='Change your avatar' style={{color: 'white', marginBottom: spacing.small}} />          
         </View>
         <View style={$contentContainer}>
-            {avatarUrls.map(url => {
-                return (
-                    <Pressable
-                        key={url}
-                        onPress={() => onAvatarSelect(url)}
-                        style={(url === selectedAvatarUrl) ? {borderColor: selectedColor, borderWidth: 5, borderRadius: 10, margin: spacing.extraSmall} : {borderColor: 'transparent', borderWidth: 5, margin: spacing.extraSmall}}
-                    >
-                        <SvgUri key={url} uri={url} width="90" height="90" />
-                    </Pressable>
-                )
-            })}
-        </View>
-        {selectedAvatarUrl && (
-            <View style={$buttonContainer}>
-                <Button
-                    preset="default"
-                    tx={'common.confirm'}
-                    onPress={onAvatarConfirm}
-                />
-                <Button
-                    preset="secondary"
-                    tx={'common.cancel'}
-                    onPress={() => setSelectedAvatarUrl('')}
-                />
+            <View style={$avatarsContainer}>
+                {avatarUrls.map(url => {
+                    return (
+                        <Pressable
+                            key={url}
+                            onPress={() => onAvatarSelect(url)}
+                            style={(url === selectedAvatarUrl) ? {borderColor: selectedColor, borderWidth: 5, borderRadius: 10, margin: spacing.extraSmall} : {borderColor: 'transparent', borderWidth: 5, margin: spacing.extraSmall}}
+                        >
+                            <SvgUri key={url} uri={url} width="90" height="90" />
+                        </Pressable>
+                    )
+                })}
             </View>
-        )}
-        {isLoading && <Loading />}        
+            {selectedAvatarUrl && (
+                <View style={$buttonContainer}>
+                    <Button
+                        preset="default"
+                        tx={'common.confirm'}
+                        onPress={onAvatarConfirm}
+                    />
+                    <Button
+                        preset="secondary"
+                        tx={'common.cancel'}
+                        onPress={() => setSelectedAvatarUrl('')}
+                    />
+                </View>
+            )}
+            {isLoading && <Loading />}
+        </View>       
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
  
@@ -148,10 +150,13 @@ const $headerContainer: TextStyle = {
 const $contentContainer: TextStyle = {    
   padding: spacing.small,
   alignItems: 'center',
-  justifyContent: 'center',
-  flexDirection: 'row',
-  flexWrap: 'wrap',
+  justifyContent: 'center',  
 }
+
+const $avatarsContainer: TextStyle = {        
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  }
 
 
 const $item: ViewStyle = {
