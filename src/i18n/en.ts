@@ -7,6 +7,7 @@ const en = {
     paste: "Paste",
     scan: "Scan",
     copy: "Copy",
+    confirm: "Confirm",
     offline: "Offline",
   },
   welcomeScreen: {
