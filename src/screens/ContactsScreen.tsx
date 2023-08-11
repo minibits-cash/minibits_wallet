@@ -177,11 +177,16 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
                     bottomSeparator={true}
                 />
                 <ListItem
-                    text={`Unique wallet name`}
-                    subText={`Minibits provides you private and unique wallet name. Don't like it? Select another random one or choose your own for a small donation. Once ready, will be like your account number, just much better.`}
+                    text={`Unique wallet name and avatar`}
+                    subText={`Minibits provides you a unique wallet name and avatar. Don't like it? Select another random one or choose your own for a small donation. Once ready, it will be like your account number, just much better.`}
                     style={$item}
                     bottomSeparator={true}
-                />                                       
+                />
+                <ListItem
+                    text={`Merciless coding`}
+                    subText={`Minibits is challenging open source project with the aim to figure out how (and if) the e-cash works best. Feel welcomed to join the project on Github. Help is very appreciated.`}
+                    style={$item}                    
+                />                                        
             </>
             }            
           />
