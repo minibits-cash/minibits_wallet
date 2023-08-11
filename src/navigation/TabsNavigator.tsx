@@ -110,8 +110,9 @@ export type WalletStackParamList = {
   Scan: undefined
   TranDetail: {id: number}
   TranHistory: undefined 
-  Transfer: {scannedEncodedInvoice? : string}
-  Topup: undefined 
+  Transfer: {scannedEncodedInvoice? : string, donationEncodedInvoice? : string}
+  Topup: undefined
+  ContactsNavigator: {screen: string}
 }
 
 export type WalletStackScreenProps<T extends keyof WalletStackParamList> = StackScreenProps<
@@ -144,9 +145,9 @@ const WalletNavigator = function WalletNavigator() {
 
 
 export type ContactsStackParamList = {  
-    Contacts: undefined
-    Avatar: undefined
-    WalletNameNavigator: undefined
+    Contacts: {selectedAvatarUrl? : string}
+    Avatar: {avatarSvg : string, pubkey: string}
+    WalletNameNavigator: {pubkey: string}
     RandomName: undefined
     OwnName: undefined
 }  
@@ -178,6 +179,8 @@ export type ContactsStackParamList = {
     export type WalletNameStackParamList = {  
         RandomName: undefined
         OwnName: undefined
+        WalletNavigator: {screen? : string, params? : any}
+        ContactsNavigator: {screen? : string, params? : any}
     } 
 
     export type WalletNameStackScreenProps<T extends keyof TopTabsParamList> = StackScreenProps<
@@ -247,6 +250,7 @@ export type SettingsStackParamList = {
   Backup: undefined
   LocalRecovery: undefined
   Developer: undefined
+  WalletNavigator: {screen: string}  
 }
 
 export type SettingsStackScreenProps<T extends keyof SettingsStackParamList> = StackScreenProps<

@@ -1,5 +1,5 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useEffect, useRef, useState} from 'react'
+import React, {FC, useCallback, useEffect, useRef, useState} from 'react'
 import {Image, Pressable, Share, TextStyle, View, ViewStyle} from 'react-native'
 import { SvgUri, SvgXml } from 'react-native-svg'
 import {colors, spacing, useThemeColor} from '../theme'
@@ -9,13 +9,13 @@ import {useHeader} from '../utils/useHeader'
 import {ContactsStackScreenProps} from '../navigation'
 import { MinibitsClient, WalletProfile, NostrClient, KeyPair } from '../services'
 import AppError from '../utils/AppError'
-import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { log } from '../utils/logger'
 import QRCode from 'react-native-qrcode-svg'
+import { useFocusEffect } from '@react-navigation/native'
 
 interface ContactsScreenProps extends ContactsStackScreenProps<'Contacts'> {}
 
-export const ContactsScreen: FC<ContactsScreenProps> = observer(function ContactsScreen({navigation}) {    
+export const ContactsScreen: FC<ContactsScreenProps> = observer(function ContactsScreen({route, navigation}) {    
     useHeader({
         leftIcon: 'faShareFromSquare',
         leftIconColor: colors.palette.primary100,
@@ -28,7 +28,7 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
     const npub = useRef('')      
     const {userSettingsStore} = useStores()
 
-    const [nostrKeyPair, setNostrKeyPair] = useState<KeyPair | undefined>()    
+    const [pubkey, setPubkey] = useState<string>('')    
     const [avatarSvg, setAvatarSvg] = useState<string>('')
     const [avatarImageUri, setAvatarImageUri] = useState<string>('')
     const [info, setInfo] = useState('')
@@ -37,11 +37,30 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
     const [isWalletProfileModalVisible, setIsWalletProfileModalVisible] = useState(false)    
     const [error, setError] = useState<AppError | undefined>()
 
+    useFocusEffect(
+        useCallback(() => {
+            if (!route.params?.selectedAvatarUrl) {                
+                return
+            }
+            const avatarUrl = route.params?.selectedAvatarUrl
+            updateAvatar(avatarUrl)
+
+        }, [route.params?.selectedAvatarUrl]),
+    )
+
+    const updateAvatar = async function (url: string) {
+        const avatar = await MinibitsClient.fetchSvg(url, {
+            method: 'GET',
+            headers: MinibitsClient.getPublicHeaders(),        
+        })        
+        setAvatarSvg(avatar)
+    }
+    
     useEffect(() => {
         const load = async () => {
             try {   
                 const keyPair = await NostrClient.getOrCreateKeyPair()
-                setNostrKeyPair(keyPair)
+                setPubkey(keyPair.publicKey)
                 npub.current = NostrClient.getNPubKey(keyPair.publicKey) 
                 const walletId = userSettingsStore.walletId               
 
@@ -96,12 +115,12 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
     
     const gotoAvatar = function () {
         toggleProfileModal()
-        navigation.navigate('Avatar')
+        navigation.navigate('Avatar', {avatarSvg, pubkey})
     }
 
     const gotoUsername = function () {
         toggleProfileModal()
-        navigation.navigate('WalletNameNavigator')
+        navigation.navigate('WalletNameNavigator', {pubkey})
     }
 
     const handleError = function (e: AppError): void {
@@ -152,14 +171,17 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
             ContentComponent={
             <>                
                 <ListItem
-                    text={userSettingsStore.walletId}
-                    subText={`${npub.current.substring(0, 20)}...`}
-                    LeftComponent={<></>}
-                    leftIconInverse={true}
-                    rightIcon='faQrcode'
-                    rightIconColor={rightIcon as string}                  
+                    text='Private and social payments'
+                    subText='Here, you will soon be able to manage your private and public (social) contacts. This will allow you to make smooth private payments as well as tips or donations.'
                     style={$item}
-                />                                    
+                    bottomSeparator={true}
+                />
+                <ListItem
+                    text={`Unique wallet name`}
+                    subText={`Minibits provides you private and unique wallet name. Don't like it? Select another random one or choose your own for a small donation. Once ready, will be like your account number, just much better.`}
+                    style={$item}
+                    bottomSeparator={true}
+                />                                       
             </>
             }            
           />

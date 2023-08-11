@@ -41,6 +41,28 @@ const getOrCreateWalletProfile = async function (pubkey: string, walletId: strin
 }
 
 
+const getRandomAvatars = async function () {
+    const url = getProfileApiUrl()
+
+    try {            
+        const method = 'GET'        
+        const headers = getHeaders()
+
+        const avatarUrls: string[] = await fetchApi(url + `/avatars`, {
+            method,
+            headers,            
+        })
+
+        // log.trace(`Got response`, avatarUrls, 'getRandomAvatars')
+
+        return avatarUrls
+
+    } catch (e: any) {        
+        throw new AppError(Err.SERVER_ERROR, e.message, e.info)
+    }
+}
+
+
 const createWalletProfile = async function (pubkey: string, walletId: string) {    
     const url = getProfileApiUrl()
 
@@ -88,7 +110,7 @@ const updateWalletProfile = async function (pubkey: string, walletId?: string, a
             body: JSON.stringify(requestBody)
         })
 
-        log.info(`Updated wallet profile`, walletProfile, 'updateWalletProfile')
+        log.trace(`Updated wallet profile`, walletProfile, 'updateWalletProfile')
 
         return walletProfile
 
@@ -109,7 +131,7 @@ const getWalletProfile = async function (pubkey: string) {
             headers,            
         })
 
-        log.info(`Got response`, walletProfile, 'getWalletProfile')
+        log.trace(`Got response`, walletProfile, 'getWalletProfile')
 
         return walletProfile
 
@@ -131,7 +153,7 @@ const getWalletProfileByWalletId = async function (walletId: string) {
             headers,            
         })
 
-        log.info(`Got response`, walletProfile, 'getWalletProfile')
+        log.trace(`Got response`, walletProfile, 'getWalletProfile')
 
         return walletProfile
 
@@ -153,7 +175,7 @@ const getProfileApiUrl = function() {
 }
 
 
-const createDonation = async function (amount: number, memo: string) {    
+const createDonation = async function (amount: number, memo: string, pubkey: string) {    
     const url = getDonationApiUrl()
 
     log.trace('createDonation start')
@@ -164,7 +186,8 @@ const createDonation = async function (amount: number, memo: string) {
         
         const requestBody = {
             amount,
-            memo
+            memo,
+            pubkey
         }        
 
         const invoice: {
@@ -179,6 +202,28 @@ const createDonation = async function (amount: number, memo: string) {
         log.info(`Created new donation invoice`, invoice, 'createDonation')
 
         return invoice
+
+    } catch (e: any) {        
+        throw new AppError(Err.SERVER_ERROR, e.message, e)
+    }
+}
+
+
+const checkDonationPaid = async function (paymentHash: string, pubkey: string) {    
+    const url = getDonationApiUrl()
+
+    try {            
+        const method = 'GET'        
+        const headers = getHeaders()
+
+        const donationPaid: {paid: boolean} = await fetchApi(url + `/${paymentHash}/${pubkey}`, {
+            method,
+            headers,            
+        })
+
+        log.info(`Got response`, donationPaid, 'checkDonationPaid')
+
+        return donationPaid
 
     } catch (e: any) {        
         throw new AppError(Err.SERVER_ERROR, e.message, e)
@@ -275,7 +320,11 @@ const getPublicHeaders = () => {
 export const MinibitsClient = {
     getOrCreateWalletProfile,
     updateWalletProfile,
+    getRandomAvatars,
     getWalletProfile,
     getWalletProfileByWalletId,
-    createDonation
+    createDonation,
+    checkDonationPaid,
+    fetchSvg,
+    getPublicHeaders
 }

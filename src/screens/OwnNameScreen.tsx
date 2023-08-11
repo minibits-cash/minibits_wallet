@@ -12,6 +12,9 @@ import {log} from '../utils/logger'
 import {$sizeStyles} from '../components/Text'
 import {getRandomUsername} from '../utils/usernames'
 import QRCode from 'react-native-qrcode-svg'
+import { poller, stopPolling } from '../utils/poller'
+import { ResultModalInfo } from './Wallet/ResultModalInfo'
+import { TransactionStatus } from '../models/Transaction'
 
 interface OwnNameScreenProps extends WalletNameStackScreenProps<'OwnName'> {}
 
@@ -28,7 +31,7 @@ export const OwnNameScreen: FC<OwnNameScreenProps> = observer(function OwnNameSc
     
     const [ownName, setOwnName] = useState<string>('')
     const [info, setInfo] = useState('')
-    const [npubKey, setNpubKey] = useState<string>('')        
+    const [pubkey, setPubkey] = useState<string>('')        
     const [availableBalance, setAvailableBalance] = useState(0)
     const [donationAmount, setDonationAmount] = useState(1000)
     const [donationInvoice, setDonationInvoice] = useState<{payment_hash: string, payment_request: string} | undefined>(undefined)
@@ -36,12 +39,17 @@ export const OwnNameScreen: FC<OwnNameScreenProps> = observer(function OwnNameSc
     const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false)
     const [isQRcodeVisible, setIsQRCodeVisible] = useState(false)
     const [isChecked, setIsChecked] = useState(false)
+    const [isPaidFromWallet, setIsPaidFromWallet] = useState(false)
+    const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
+    const [resultModalInfo, setResultModalInfo] = useState<
+      {status: TransactionStatus, message: string} | undefined
+    >()
     const [error, setError] = useState<AppError | undefined>()
 
     useEffect(() => {
         const load = async () => { 
             const keyPair = await NostrClient.getOrCreateKeyPair()               
-            setNpubKey(keyPair.publicKey)           
+            setPubkey(keyPair.publicKey)           
             
             const maxBalance = proofsStore.getMintBalanceWithMaxBalance()
             if(maxBalance && maxBalance.balance > 0) {
@@ -53,10 +61,31 @@ export const OwnNameScreen: FC<OwnNameScreenProps> = observer(function OwnNameSc
     }, [])
 
 
+    useEffect(() => {        
+        const initPoller = async () => { 
+            if(!donationInvoice || !ownName) {
+                return
+            }
+
+            poller('checkDonationPaidPoller', checkDonationPaid, 6 * 1000, 50, 5) // 5 min
+            .then(() => log.trace('Polling completed', {}, 'checkDonationPaid'))
+            .catch(error =>
+                log.trace(error.message, {}, 'checkPendingTopups'),
+            )
+           
+        }
+        initPoller()
+        return () => {
+            stopPolling('checkDonationPaidPoller')
+        }        
+    }, [donationInvoice])
+
+
+
     const togglePaymentModal = () =>
         setIsPaymentModalVisible(previousState => !previousState)
-    /* const toggleResultModal = () =>
-        setIsResultModalVisible(previousState => !previousState) */
+    const toggleResultModal = () =>
+        setIsResultModalVisible(previousState => !previousState)
 
 
     const resetState = function () {        
@@ -67,6 +96,10 @@ export const OwnNameScreen: FC<OwnNameScreenProps> = observer(function OwnNameSc
         setIsPaymentModalVisible(false)
         setDonationInvoice(undefined)
         setDonationAmount(1000)
+        setIsResultModalVisible(false)
+        setIsQRCodeVisible(false)
+        setIsPaidFromWallet(false)
+        // stopPolling('checkDonationPaidPoller') // ??
     }
 
 
@@ -79,7 +112,7 @@ export const OwnNameScreen: FC<OwnNameScreenProps> = observer(function OwnNameSc
     
     const onOwnNameCheck = async function () {
         if(!ownName) {
-            setInfo('Write your wallet name to the text box.')
+            setInfo('Write your wallet profile name to the text box.')
             return
         }
 
@@ -87,7 +120,7 @@ export const OwnNameScreen: FC<OwnNameScreenProps> = observer(function OwnNameSc
             const profileExists = await MinibitsClient.getWalletProfileByWalletId(ownName)
 
             if(profileExists) {
-                setInfo('This public wallet name is already used, choose another one.')
+                setInfo('This wallet profile name is already used, choose another one.')
                 return
             }
             setIsChecked(true)
@@ -102,7 +135,11 @@ export const OwnNameScreen: FC<OwnNameScreenProps> = observer(function OwnNameSc
         try {
             setIsLoading(true)
             const memo = `Donation for ${ownName}@minibits.cash`
-            const invoice = await MinibitsClient.createDonation(donationAmount, memo)
+            const invoice = await MinibitsClient.createDonation(
+                donationAmount, 
+                memo, 
+                pubkey
+            )
 
             if(invoice) {
                 setDonationInvoice(invoice)
@@ -117,9 +154,12 @@ export const OwnNameScreen: FC<OwnNameScreenProps> = observer(function OwnNameSc
 
 
     const onPayDonation = async function () {
-        try {
-            
-            
+        try {            
+            setIsPaidFromWallet(true)            
+            return navigation.navigate('WalletNavigator', { 
+                screen: 'Transfer',
+                params: { donationEncodedInvoice: donationInvoice?.payment_request},
+            })
            
         } catch (e: any) {
             handleError(e)
@@ -127,27 +167,45 @@ export const OwnNameScreen: FC<OwnNameScreenProps> = observer(function OwnNameSc
     }
 
 
-    const saveOwnName = async function () {
-        if(!ownName) {
-            setInfo('Write your wallet name to the text box.')
-            return
-        }
-
+    const checkDonationPaid = async function () {   
         try {
-            await MinibitsClient.updateWalletProfile(
-                npubKey,
-                ownName as string,
-                undefined                
+            if(!donationInvoice) {
+                return
+            }
+            
+            const { paid } = await MinibitsClient.checkDonationPaid(
+                donationInvoice?.payment_hash as string,
+                pubkey as string
             )
-                                    
-            userSettingsStore.setWalletId(ownName)
-            setIsLoading(false)
-            navigation.goBack()
-            navigation.goBack()
-            return
+
+            if(paid) {                
+                setIsLoading(true)            
+                await MinibitsClient.updateWalletProfile(
+                    pubkey,
+                    ownName as string,
+                    undefined                
+                )
+                                        
+                userSettingsStore.setWalletId(ownName)
+                setIsLoading(false)
+                setResultModalInfo({
+                    status: TransactionStatus.COMPLETED, 
+                    message: `Thank you! Donation for ${ownName}@minibits.cash has been successfully paid.`
+                })
+                toggleResultModal()
+                togglePaymentModal()
+                stopPolling('checkDonationPaidPoller')
+                return
+            }
         } catch (e: any) {
-            handleError(e)
-        } 
+            return false // silent
+        }  
+    }
+
+    const onResultModalClose = async function () {
+        resetState()
+        navigation.navigate('ContactsNavigator', {screen: 'Contacts'})        
+        return        
     }
 
 
@@ -156,16 +214,19 @@ export const OwnNameScreen: FC<OwnNameScreenProps> = observer(function OwnNameSc
         setError(e)
     }
     
+    // TODO refactor whole below mess
+    
     const headerBg = useThemeColor('header')
     const hint = useThemeColor('textDim')
     const currentNameColor = colors.palette.primary200
     const inputBg = useThemeColor('background')
-    const twot = 2000
-    const fivet = 5000
-    const tent = 10000
+    const two = 2000
+    const five = 5000
+    const ten = 10000
     const invoiceBg = useThemeColor('background')
     const invoiceTextColor = useThemeColor('textDim')
 
+    
     return (
       <Screen style={$screen} preset='auto'>
         <View style={$contentContainer}>            
@@ -327,18 +388,18 @@ export const OwnNameScreen: FC<OwnNameScreenProps> = observer(function OwnNameSc
                             <Button
                                 preset="secondary"
                                 style={{marginRight: spacing.small}}
-                                text={`${twot.toLocaleString()}`}
+                                text={`${two.toLocaleString()}`}
                                 onPress={() => setDonationAmount(2000)}                            
                             />
                             <Button
                                 preset="secondary"
                                 style={{marginRight: spacing.small}}
-                                text={`${fivet.toLocaleString()}`}
+                                text={`${five.toLocaleString()}`}
                                 onPress={() => setDonationAmount(5000)}                            
                             />
                             <Button
                                 preset="secondary"                            
-                                text={`${tent.toLocaleString()}`}
+                                text={`${ten.toLocaleString()}`}
                                 onPress={() => setDonationAmount(10000)}                            
                             />   
                         </View>
@@ -373,7 +434,30 @@ export const OwnNameScreen: FC<OwnNameScreenProps> = observer(function OwnNameSc
           }
           onBackButtonPress={togglePaymentModal}
           onBackdropPress={togglePaymentModal}
-        />       
+        />
+        <BottomModal
+          isVisible={isResultModalVisible ? true : false}
+          top={spacing.screenHeight * 0.5}
+          ContentComponent={            
+            <>             
+                <ResultModalInfo
+                    icon="faCheckCircle"
+                    iconColor={colors.palette.success200}
+                    title="Success!"
+                    message={resultModalInfo?.message as string}
+                />
+                <View style={$payButtonContainer}>
+                <Button
+                    preset="secondary"
+                    tx={'common.close'}
+                    onPress={onResultModalClose}
+                />
+                </View>
+            </>
+          }
+          onBackButtonPress={onResultModalClose}
+          onBackdropPress={onResultModalClose}
+        />      
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
       </Screen>
@@ -397,7 +481,7 @@ const $iconContainer: ViewStyle = {
 const $supportText: TextStyle = {
     padding: spacing.small,
     textAlign: 'center',
-    fontSize: 18,
+    fontSize: 16,
 }
 
 const $card: ViewStyle = {
