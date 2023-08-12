@@ -104,7 +104,7 @@ export const OwnNameScreen: FC<OwnNameScreenProps> = observer(function OwnNameSc
 
 
     const onOwnNameChange = function (name: string) {   
-        const filtered = name.replace(/[^\w.-]/g, '') 
+        const filtered = name.replace(/[^\w.-_]/g, '') 
         const lowercase = filtered.toLowerCase()    
         setOwnName(lowercase)
     }

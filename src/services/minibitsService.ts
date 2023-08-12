@@ -163,18 +163,6 @@ const getWalletProfileByWalletId = async function (walletId: string) {
 }
 
 
-const getProfileApiUrl = function() {
-    let url: string = ''
-    if(APP_ENV === Env.PROD) {
-        url = MINIBITS_SERVER_PROD + '/profile'
-    } else {
-        url = MINIBITS_SERVER_DEV + '/profile'
-    }
-
-    return url
-}
-
-
 const createDonation = async function (amount: number, memo: string, pubkey: string) {    
     const url = getDonationApiUrl()
 
@@ -231,13 +219,29 @@ const checkDonationPaid = async function (paymentHash: string, pubkey: string) {
 }
 
 
+const getProfileApiUrl = function() {
+    let url: string = ''
+    /* if(APP_ENV === Env.PROD) {
+        url = MINIBITS_SERVER_PROD + '/profile'
+    } else {
+        url = MINIBITS_SERVER_DEV + '/profile'
+    }*/
+
+    url = MINIBITS_SERVER_PROD + '/profile'
+
+    return url
+}
+
+
 const getDonationApiUrl = function() {
     let url: string = ''
-    if(APP_ENV === Env.PROD) {
+    /* if(APP_ENV === Env.DEV) {
         url = MINIBITS_SERVER_PROD + '/donation'
     } else {
         url = MINIBITS_SERVER_DEV + '/donation'
-    }
+    } */
+
+    url = MINIBITS_SERVER_PROD + '/profile'
 
     return url
 }
