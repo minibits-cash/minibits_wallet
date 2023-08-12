@@ -1,31 +1,24 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useRef, useState} from 'react'
-import {FlatList, Image, Share, TextStyle, View, ViewStyle, InteractionManager, TextInput } from 'react-native'
-import {colors, spacing, typography, useThemeColor} from '../theme'
-import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../components'
-import {useStores} from '../models'
-import {useHeader} from '../utils/useHeader'
-import {WalletNameStackScreenProps} from '../navigation'
-import { MinibitsClient, WalletProfile, NostrClient, KeyPair } from '../services'
-import AppError, { Err } from '../utils/AppError'
-import {log} from '../utils/logger'
-import {$sizeStyles} from '../components/Text'
-import {getRandomUsername} from '../utils/usernames'
-import { createPublicKey } from 'crypto'
+import {TextStyle, View, ViewStyle, InteractionManager } from 'react-native'
+import {colors, spacing, typography, useThemeColor} from '../../theme'
+import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
+import {useStores} from '../../models'
+import {useHeader} from '../../utils/useHeader'
+import { MinibitsClient, WalletProfile, NostrClient, KeyPair } from '../../services'
+import AppError, { Err } from '../../utils/AppError'
+import {log} from '../../utils/logger'
+import {$sizeStyles} from '../../components/Text'
+import {getRandomUsername} from '../../utils/usernames'
 
-interface RandomNameScreenProps extends WalletNameStackScreenProps<'RandomName'> {}
 
-export const RandomNameScreen: FC<RandomNameScreenProps> = observer(function RandomNameScreen({navigation}) {    
-    useHeader({        
-        leftIcon: 'faArrowLeft',
-        onLeftPress: () => navigation.goBack(), 
-    })
-    
+export const RandomName = observer(function (props: {navigation: any, pubkey: string}) {
+    // const navigation = useNavigation()
     const {userSettingsStore} = useStores()
+    const {pubkey, navigation} = props
 
     const [randomNames, setRandomNames] = useState<string[]>([])
     const [selectedName, setSelectedName] = useState<string>('')    
-    const [npubKey, setNpubKey] = useState<string>('')    
     const [info, setInfo] = useState('')        
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<AppError | undefined>()
@@ -40,10 +33,8 @@ export const RandomNameScreen: FC<RandomNameScreenProps> = observer(function Ran
                     const name = getRandomUsername()
                     names.push(name)
                     i++
-                }
-                const keyPair = await NostrClient.getOrCreateKeyPair()               
-
-                setNpubKey(keyPair.publicKey)
+                }             
+                
                 setRandomNames(names)
                 setIsLoading(false)                
             })
@@ -62,7 +53,7 @@ export const RandomNameScreen: FC<RandomNameScreenProps> = observer(function Ran
             setIsLoading(true)
             
             await MinibitsClient.updateWalletProfile(
-                npubKey,
+                pubkey,
                 selectedName as string,
                 undefined                
             )
@@ -153,47 +144,4 @@ const $namesContainer: ViewStyle = {
 
 const $card: ViewStyle = {
     marginBottom: 0,
-}
-
-const $ownNameContainer: ViewStyle = {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.extraSmall,
-  }
-  
-  const $ownNameInput: TextStyle = {
-    flex: 1,
-    borderRadius: spacing.small,
-    fontSize: 16,
-    textAlignVertical: 'center',
-    marginRight: spacing.small,    
-  }
-
-  const $ownNameButton: ViewStyle = {
-    maxHeight: 50,
-  }
-
-const $bottomModal: ViewStyle = {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: spacing.large,
-    paddingHorizontal: spacing.small,
-}
-
-const $item: ViewStyle = {
-    paddingHorizontal: spacing.small,
-    paddingLeft: 0,
-}
-
-const $buttonContainer: ViewStyle = {
-    flexDirection: 'row',
-    alignSelf: 'center',
-}
-  
-const $qrCodeContainer: ViewStyle = {
-    backgroundColor: 'white',
-    padding: spacing.small,
-    margin: spacing.small,
 }

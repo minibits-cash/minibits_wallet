@@ -2,9 +2,7 @@ import AppError, { Err } from "../utils/AppError"
 import { Env, log } from "../utils/logger"
 import {
     MINIBITS_SERVER_API_KEY,
-    MINIBITS_SERVER_DEV,
-    MINIBITS_SERVER_PROD,    
-    APP_ENV
+    MINIBITS_SERVER_API_HOST,    
 } from '@env'
 
 export type WalletProfile = {
@@ -15,7 +13,7 @@ export type WalletProfile = {
 }
 
 const getOrCreateWalletProfile = async function (pubkey: string, walletId: string) {    
-    const url = getProfileApiUrl()
+    const url = MINIBITS_SERVER_API_HOST + '/profile' 
     let profile: WalletProfile | null = null
     
     profile = await getWalletProfile(pubkey)    
@@ -42,7 +40,7 @@ const getOrCreateWalletProfile = async function (pubkey: string, walletId: strin
 
 
 const getRandomAvatars = async function () {
-    const url = getProfileApiUrl()
+    const url = MINIBITS_SERVER_API_HOST + '/profile'  
 
     try {            
         const method = 'GET'        
@@ -64,7 +62,7 @@ const getRandomAvatars = async function () {
 
 
 const createWalletProfile = async function (pubkey: string, walletId: string) {    
-    const url = getProfileApiUrl()
+    const url = MINIBITS_SERVER_API_HOST + '/profile' 
 
     try {            
         const method = 'POST'        
@@ -92,8 +90,7 @@ const createWalletProfile = async function (pubkey: string, walletId: string) {
 
 
 const updateWalletProfile = async function (pubkey: string, walletId?: string, avatar?: string) {    
-    const url = getProfileApiUrl()
-    log.trace('Update profile' + pubkey, {walletId, avatar}, 'updateWalletProfile')
+    const url = MINIBITS_SERVER_API_HOST + '/profile'
 
     try {            
         const method = 'PUT'        
@@ -120,7 +117,7 @@ const updateWalletProfile = async function (pubkey: string, walletId?: string, a
 }
 
 const getWalletProfile = async function (pubkey: string) {    
-    const url = getProfileApiUrl()
+    const url = MINIBITS_SERVER_API_HOST + '/profile' 
 
     try {            
         const method = 'GET'        
@@ -142,7 +139,7 @@ const getWalletProfile = async function (pubkey: string) {
 
 
 const getWalletProfileByWalletId = async function (walletId: string) {    
-    const url = getProfileApiUrl()
+    const url = MINIBITS_SERVER_API_HOST + '/profile'
 
     try {            
         const method = 'GET'        
@@ -164,7 +161,7 @@ const getWalletProfileByWalletId = async function (walletId: string) {
 
 
 const createDonation = async function (amount: number, memo: string, pubkey: string) {    
-    const url = getDonationApiUrl()
+    const url = MINIBITS_SERVER_API_HOST + '/donation' 
 
     log.trace('createDonation start')
 
@@ -198,7 +195,7 @@ const createDonation = async function (amount: number, memo: string, pubkey: str
 
 
 const checkDonationPaid = async function (paymentHash: string, pubkey: string) {    
-    const url = getDonationApiUrl()
+    const url = MINIBITS_SERVER_API_HOST + '/donation'
 
     try {            
         const method = 'GET'        
@@ -219,32 +216,6 @@ const checkDonationPaid = async function (paymentHash: string, pubkey: string) {
 }
 
 
-const getProfileApiUrl = function() {
-    let url: string = ''
-    /* if(APP_ENV === Env.PROD) {
-        url = MINIBITS_SERVER_PROD + '/profile'
-    } else {
-        url = MINIBITS_SERVER_DEV + '/profile'
-    }*/
-
-    url = MINIBITS_SERVER_PROD + '/profile'
-
-    return url
-}
-
-
-const getDonationApiUrl = function() {
-    let url: string = ''
-    /* if(APP_ENV === Env.DEV) {
-        url = MINIBITS_SERVER_PROD + '/donation'
-    } else {
-        url = MINIBITS_SERVER_DEV + '/donation'
-    } */
-
-    url = MINIBITS_SERVER_PROD + '/profile'
-
-    return url
-}
 
 
 const fetchApi = async (url: string, options: any, timeout = 5000) => { //ms
