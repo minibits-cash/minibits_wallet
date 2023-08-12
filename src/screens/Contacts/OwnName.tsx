@@ -1,37 +1,27 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useRef, useState} from 'react'
-import {FlatList, Image, Share, TextStyle, View, ViewStyle, InteractionManager, TextInput , Text as RNText, ScrollView,} from 'react-native'
-import {colors, spacing, typography, useThemeColor} from '../theme'
-import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../components'
-import {useStores} from '../models'
-import {useHeader} from '../utils/useHeader'
-import { WalletNameStackScreenProps } from '../navigation'
-import { MinibitsClient, WalletProfile, NostrClient, KeyPair } from '../services'
-import AppError from '../utils/AppError'
-import {log} from '../utils/logger'
-import {$sizeStyles} from '../components/Text'
-import {getRandomUsername} from '../utils/usernames'
+import {Text as RNText, TextStyle, View, ViewStyle, InteractionManager, TextInput, ScrollView } from 'react-native'
+import {colors, spacing, typography, useThemeColor} from '../../theme'
+import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
+import {useStores} from '../../models'
+import { MinibitsClient, WalletProfile, NostrClient, KeyPair } from '../../services'
+import AppError, { Err } from '../../utils/AppError'
+import {log} from '../../utils/logger'
+import { TransactionStatus } from '../../models/Transaction'
+import { poller, stopPolling } from '../../utils/poller'
 import QRCode from 'react-native-qrcode-svg'
-import { poller, stopPolling } from '../utils/poller'
-import { ResultModalInfo } from './Wallet/ResultModalInfo'
-import { TransactionStatus } from '../models/Transaction'
+import { ResultModalInfo } from '../Wallet/ResultModalInfo'
+import { MINIBITS_NIP05_DOMAIN } from '@env'
 
-interface OwnNameScreenProps extends WalletNameStackScreenProps<'OwnName'> {}
 
-export const OwnNameScreen: FC<OwnNameScreenProps> = observer(function OwnNameScreen({navigation}) {    
-    useHeader({
-        leftIcon: 'faArrowLeft',
-        onLeftPress: () => navigation.goBack(), 
-    })
-
+export const OwnName = observer(function (props: {navigation: any, pubkey: string}) { 
+    // const navigation = useNavigation() 
     const ownNameInputRef = useRef<TextInput>(null)
     const {userSettingsStore, proofsStore} = useStores()
-
-    
+    const {pubkey, navigation} = props 
     
     const [ownName, setOwnName] = useState<string>('')
-    const [info, setInfo] = useState('')
-    const [pubkey, setPubkey] = useState<string>('')        
+    const [info, setInfo] = useState('')        
     const [availableBalance, setAvailableBalance] = useState(0)
     const [donationAmount, setDonationAmount] = useState(1000)
     const [donationInvoice, setDonationInvoice] = useState<{payment_hash: string, payment_request: string} | undefined>(undefined)
@@ -48,9 +38,6 @@ export const OwnNameScreen: FC<OwnNameScreenProps> = observer(function OwnNameSc
 
     useEffect(() => {
         const load = async () => { 
-            const keyPair = await NostrClient.getOrCreateKeyPair()               
-            setPubkey(keyPair.publicKey)           
-            
             const maxBalance = proofsStore.getMintBalanceWithMaxBalance()
             if(maxBalance && maxBalance.balance > 0) {
                 setAvailableBalance(maxBalance.balance)
@@ -134,7 +121,7 @@ export const OwnNameScreen: FC<OwnNameScreenProps> = observer(function OwnNameSc
     const onCreateDonation = async function () {
         try {
             setIsLoading(true)
-            const memo = `Donation for ${ownName}@minibits.cash`
+            const memo = `Donation for ${ownName+MINIBITS_NIP05_DOMAIN}`
             const invoice = await MinibitsClient.createDonation(
                 donationAmount, 
                 memo, 
@@ -190,7 +177,7 @@ export const OwnNameScreen: FC<OwnNameScreenProps> = observer(function OwnNameSc
                 setIsLoading(false)
                 setResultModalInfo({
                     status: TransactionStatus.COMPLETED, 
-                    message: `Thank you! Donation for ${ownName}@minibits.cash has been successfully paid.`
+                    message: `Thank you! Donation for ${ownName+MINIBITS_NIP05_DOMAIN} has been successfully paid.`
                 })
                 toggleResultModal()
                 togglePaymentModal()
@@ -204,8 +191,7 @@ export const OwnNameScreen: FC<OwnNameScreenProps> = observer(function OwnNameSc
 
     const onResultModalClose = async function () {
         resetState()
-        navigation.navigate('ContactsNavigator', {screen: 'Contacts'})        
-        return        
+        navigation.navigate('Contacts', {})
     }
 
 
@@ -285,7 +271,7 @@ export const OwnNameScreen: FC<OwnNameScreenProps> = observer(function OwnNameSc
                     {donationInvoice ? (
                     <>
                     <Text 
-                        text={`Pay the following lightning invoice and get your ${ownName}@minibits.cash wallet profile.`}
+                        text={`Pay the following lightning invoice and get your ${ownName+MINIBITS_NIP05_DOMAIN} wallet profile.`}
                         style={[$supportText, {color: hint}]} 
                     />
                     {isQRcodeVisible ? (
@@ -369,7 +355,7 @@ export const OwnNameScreen: FC<OwnNameScreenProps> = observer(function OwnNameSc
                                 text='Minibits'
                                 style={{fontFamily: 'Gluten-Regular', fontSize: 18}}
                             />{' '}
-                            kindly asks you for a small donation for your {ownName}@minibits.cash wallet name.
+                            kindly asks you for a small donation for your {ownName+MINIBITS_NIP05_DOMAIN} wallet name.
                         </RNText>
                         <View style={{flexDirection: 'row', justifyContent: 'center'}}>
                             <Text
@@ -533,11 +519,4 @@ const $bottomModal: ViewStyle = {
     alignItems: 'center',
     paddingVertical: spacing.large,
     paddingHorizontal: spacing.small,
-}
-
- 
-const $qrCodeContainer: ViewStyle = {
-    backgroundColor: 'white',
-    padding: spacing.small,
-    margin: spacing.small,
 }

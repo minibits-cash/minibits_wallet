@@ -9,6 +9,7 @@ import {useHeader} from '../utils/useHeader'
 import {ContactsStackScreenProps} from '../navigation'
 import { MinibitsClient, WalletProfile, NostrClient, KeyPair } from '../services'
 import AppError from '../utils/AppError'
+import {MINIBITS_NIP05_DOMAIN} from '@env'
 import { log } from '../utils/logger'
 import QRCode from 'react-native-qrcode-svg'
 import { useFocusEffect } from '@react-navigation/native'
@@ -91,7 +92,7 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
     const onShareContact = async () => {
         try {
             const result = await Share.share({
-                message: `${userSettingsStore.walletId}@minibits.cash`,
+                message: `${userSettingsStore.walletId+MINIBITS_NIP05_DOMAIN}`,
             })
 
             if (result.action === Share.sharedAction) {                
@@ -120,7 +121,7 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
 
     const gotoUsername = function () {
         toggleProfileModal()
-        navigation.navigate('WalletNameNavigator', {pubkey})
+        navigation.navigate('WalletName', {pubkey})
     }
 
     const handleError = function (e: AppError): void {
@@ -162,7 +163,7 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
                 <Pressable
                     onPress={toggleProfileModal}                        
                 >
-                    <Text preset='bold' text={`${userSettingsStore.walletId}@minibits.cash`} style={{color: 'white', marginBottom: spacing.small}} />
+                    <Text preset='bold' text={`${userSettingsStore.walletId+MINIBITS_NIP05_DOMAIN}`} style={{color: 'white', marginBottom: spacing.small}} />
                 </Pressable>          
         </View>
         <View style={$contentContainer}>
@@ -202,7 +203,7 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
                 <View style={[$bottomModal, {marginHorizontal: spacing.small}]}>
                 <Text text={'Scan to share your contact'} />
                 <View style={$qrCodeContainer}>        
-                    <QRCode size={spacing.screenWidth - spacing.extraLarge * 2} value={`${userSettingsStore.walletId}@minibits.cash`} />          
+                    <QRCode size={spacing.screenWidth - spacing.extraLarge * 2} value={`${userSettingsStore.walletId+MINIBITS_NIP05_DOMAIN}`} />          
                 </View>
                 <View style={$buttonContainer}>
                 <Button preset="secondary" text="Close" onPress={toggleQRModal} />

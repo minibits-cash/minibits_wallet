@@ -1,6 +1,6 @@
 import { BottomTabScreenProps, createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs'
-import { CompositeScreenProps, DarkTheme, DefaultTheme,   NavigationContainer, NavigatorScreenParams, useNavigation } from "@react-navigation/native"
+import { CompositeScreenProps, NavigatorScreenParams, useNavigation } from "@react-navigation/native"
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
 import { StackScreenProps } from "@react-navigation/stack"
 import React from "react"
@@ -16,8 +16,9 @@ import {
   ScanScreen, 
   ContactsScreen,
   AvatarScreen,
-  RandomNameScreen,
-  OwnNameScreen, 
+  // RandomNameScreen,
+  // OwnNameScreen, 
+  WalletNameScreen, 
   SettingsScreen, 
   MintsScreen, 
   DeveloperScreen,
@@ -147,9 +148,10 @@ const WalletNavigator = function WalletNavigator() {
 export type ContactsStackParamList = {  
     Contacts: {selectedAvatarUrl? : string}
     Avatar: {avatarSvg : string, pubkey: string}
-    WalletNameNavigator: {pubkey: string}
-    RandomName: undefined
-    OwnName: undefined
+    WalletName: {pubkey? : string}
+    RandomName: {navigation: any, pubkey? : string}
+    OwnName: {navigation: any, pubkey? : string}
+    WalletNavigator: {screen: string, params: any}
 }  
   
   export type ContactsStackScreenProps<T extends keyof ContactsStackParamList> = StackScreenProps<
@@ -169,14 +171,14 @@ export type ContactsStackParamList = {
       >        
         <ContactsStack.Screen name="Contacts" component={ContactsScreen} />
         <ContactsStack.Screen name="Avatar" component={AvatarScreen} />
-        <ContactsStack.Screen name="WalletNameNavigator" component={WalletNameNavigator} />        
+        <ContactsStack.Screen name="WalletName" component={WalletNameScreen} />        
       </ContactsStack.Navigator>
     )
   }
 
 
 
-    export type WalletNameStackParamList = {  
+    /* export type WalletNameStackParamList = {  
         RandomName: undefined
         OwnName: undefined
         WalletNavigator: {screen? : string, params? : any}
@@ -193,49 +195,8 @@ export type ContactsStackParamList = {
         OwnName: undefined        
     }
 
-    const TopTab = createMaterialTopTabNavigator<TopTabsParamList>()
+    const TopTab = createMaterialTopTabNavigator<TopTabsParamList>() */
   
-
-    const  WalletNameNavigator = function WalletnameNavigator () {
-        const navigation = useNavigation() 
-        useHeader({        
-            leftIcon: 'faArrowLeft',
-            onLeftPress: () => navigation.goBack(),        
-        })
-
-        const {userSettingsStore} = useStores()
-        const headerBg = useThemeColor('header')    
-    
-        return (
-            <>
-            <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-                <Text size='xs' text={`${userSettingsStore.walletId}@minibits.cash`} style={{color: 'white', marginBottom: spacing.small}}/>
-            </View>
-            <TopTab.Navigator>
-                <TopTab.Screen 
-                    name="RandomName" 
-                    component={RandomNameScreen}
-                    options={{
-                        tabBarLabel: 'Random name',                    
-                    }} />
-                <TopTab.Screen 
-                    name="OwnName" 
-                    component={OwnNameScreen}                 
-                    options={{
-                        tabBarLabel: 'Own name',                    
-                    }} />
-            </TopTab.Navigator>
-            </>
-        )
-    }
-
-    const $headerContainer: TextStyle = {
-        alignItems: 'center',
-        paddingHorizontal: spacing.medium,
-        // height: spacing.screenHeight * 0.08,
-        justifyContent: 'space-around',
-    }
-
 
 export type SettingsStackParamList = {  
   Settings: undefined
