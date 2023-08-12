@@ -1,7 +1,7 @@
-import {log} from './logger'
-import {Err} from './AppError'
+import { log } from './logger'
+import { Err } from './AppError'
 
-let shouldStop = false
+const pollers = new Map<string, boolean>() // Map to track active pollers
 
 export const poller = async (
   name: string,
@@ -13,20 +13,24 @@ export const poller = async (
   let pollCount = 0
   let errorCount = 0
 
-  while (!shouldStop && pollCount < maxPolls && errorCount < maxErrors) {
+  pollers.set(name, true); // Add poller to the Map
+
+  while (pollers.get(name) && pollCount < maxPolls && errorCount < maxErrors) {
     try {
-        log.trace(`Poll count ${pollCount}`)
-        await fnToExecute()
-        pollCount++
+      log.trace(`Poll count for ${name}: ${pollCount}`)
+      await fnToExecute()
+      pollCount++
     } catch (e: any) {
-        log.error(Err.POLLING_ERROR, `Polling error for ${name}:`, e.message)
-        errorCount++
+      log.error(Err.POLLING_ERROR, `Polling error for ${name}:`, e.message)
+      errorCount++
     }
 
     await new Promise(resolve => setTimeout(resolve, interval))
   }
+
+  pollers.delete(name) // Remove poller from the Map after last run
 }
 
-export const stopPolling = () => {
-    shouldStop = true
+export const stopPolling = (name: string) => {
+  pollers.delete(name) // Remove poller from the Map
 }

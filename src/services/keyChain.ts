@@ -1,15 +1,21 @@
 import * as _Keychain from 'react-native-keychain'
 import AppError, {Err} from '../utils/AppError'
 import QuickCrypto from 'react-native-quick-crypto'
+import * as nostrTools from 'nostr-tools'
 import {btoa, atob, fromByteArray} from 'react-native-quick-base64'
 import {log} from '../utils/logger'
 
 export enum KeyChainServiceName {
-  MMKV = 'MMKV',
-  SQLITE = 'SQLITE',
+  MMKV = 'app.minibits.mmkv',
+  NOSTR = 'app.minibits.nostr',
 }
 
-const generateKeyPair = async function () {
+export type KeyPair = {
+    publicKey: string,
+    privateKey: string
+}
+
+/* const generateKeyPair = async function () {
   try {
     const keyPair = QuickCrypto.generateKeyPairSync('ed25519')
     log.trace('New ed25519 keyPair:', keyPair)
@@ -17,9 +23,24 @@ const generateKeyPair = async function () {
   } catch (e: any) {
     throw new AppError(Err.KEYCHAIN_ERROR, e.message, e)
   }
+} */
+
+
+const generateNostrKeyPair = function () {
+    try {
+        const privateKey = nostrTools.generatePrivateKey() // hex string
+        const publicKey = nostrTools.getPublicKey(privateKey)
+
+        log.trace('New HEX Nostr keypair created:', publicKey, privateKey)
+
+        return {publicKey, privateKey} as KeyPair
+    } catch (e: any) {
+      throw new AppError(Err.KEYCHAIN_ERROR, e.message, e)
+    }
 }
 
-const generateEncryptionKey = (): string => {
+
+const generateMmkvEncryptionKey = (): string => {
   try {
     const keyLength = 32 // Length of the encryption key in bytes
     const encryptionKey = QuickCrypto.randomBytes(keyLength)
@@ -46,22 +67,23 @@ const getSupportedBiometryType = async function () {
   }
 
 /**
- * Save keypair to KeyChain/KeyStore - NOT USED
+ * Save keypair to KeyChain/KeyStore
  *
  * @param keyPair The key to fetch.
  */
-const saveKeyPair = async function (
-  keyPair: {publicKey: string; privateKey: string},
-  service: KeyChainServiceName,
+const saveNostrKeyPair = async function (
+  keyPair: KeyPair,  
 ): Promise<_Keychain.Result | false> {
   try {
     const result = await _Keychain.setGenericPassword(
-      keyPair.publicKey,
-      keyPair.privateKey,
-      {service},
+        KeyChainServiceName.NOSTR,
+        JSON.stringify(keyPair),
+        {
+            service: KeyChainServiceName.NOSTR            
+        },
     )
 
-    log.trace('Saved new keypair to the KeyChain')
+    log.trace('Saved keypair to the KeyChain', '', 'saveNostrKeyPair')
 
     return result
   } catch (e: any) {
@@ -70,21 +92,20 @@ const saveKeyPair = async function (
 }
 
 /**
- * Loads keypair from KeyChain/KeyStore - NOT USED 
- *
+ * Loads keypair from the KeyChain/KeyStore
  *
  */
-const loadKeyPair = async function (
-  service: KeyChainServiceName,
-): Promise<{publicKey: string; privateKey: string} | undefined> {
+const loadNostrKeyPair = async function (): Promise<KeyPair | undefined> {
   try {
-    const result = await _Keychain.getGenericPassword({service})
+    const result = await _Keychain.getGenericPassword({
+        service: KeyChainServiceName.NOSTR
+    })
 
     if (result) {
-      const keyPair = {publicKey: result.username, privateKey: result.password}
+      const keyPair = JSON.parse(result.password)
       return keyPair
     }
-
+    log.trace('Did not find existing keyPair in the KeyChain', '', 'loadNostrKeyPair')
     return undefined
   } catch (e: any) {
     throw new AppError(Err.KEYCHAIN_ERROR, e.message)
@@ -96,13 +117,10 @@ const loadKeyPair = async function (
  *
  *
  */
-const loadEncryptionKey = async function (
-  service: KeyChainServiceName,
-): Promise<string | undefined> {
-  try {
-    log.trace('Load encryptionKey from KeyChain start')
+const loadMmkvEncryptionKey = async function (): Promise<string | undefined> {
+  try {    
     const result = await _Keychain.getGenericPassword({
-        service, 
+        service: KeyChainServiceName.MMKV, 
         authenticationPrompt: {
             title: 'Authentication required',
             subtitle: '',
@@ -112,64 +130,91 @@ const loadEncryptionKey = async function (
     })
 
     if (result) {
-      const key = result.password
-      log.trace('Loaded existing encryptionKey from the KeyChain')
+      const key = result.password      
       return key
     }
 
     log.trace('Did not find existing encryptionKey in the KeyChain')
     return undefined
   } catch (e: any) {
-    throw new AppError(Err.KEYCHAIN_ERROR, 'Could not load encryption key', 'loadEncryptionKey', e.message)
+    throw new AppError(Err.KEYCHAIN_ERROR, e.message)
   }
 }
 
 /**
  * Loads keypair from KeyChain/KeyStore
  *
- * @param keyPair The key to fetch.
+ * @param key The key to save.
+ * @param service KeyChainServiceName.
  */
-const saveEncryptionKey = async function (
-  key: string,
-  service: KeyChainServiceName,
+const saveMmkvEncryptionKey = async function (
+  key: string,  
 ): Promise<_Keychain.Result | false> {
   try {
-    const result = await _Keychain.setGenericPassword(service, key, {
-        service,
-        accessControl: _Keychain.ACCESS_CONTROL.BIOMETRY_ANY_OR_DEVICE_PASSCODE
-    })
+    const result = await _Keychain.setGenericPassword(
+        KeyChainServiceName.MMKV, 
+        key, 
+        {
+            service: KeyChainServiceName.MMKV,
+            accessControl: _Keychain.ACCESS_CONTROL.BIOMETRY_ANY_OR_DEVICE_PASSCODE
+        }
+    )
 
     log.trace('Saved encryptionKey to the KeyChain')
 
-    return result
-  } catch (e: any) {
-    throw new AppError(Err.KEYCHAIN_ERROR, 'Could not save encryption key', 'saveEncryptionKey', e.message)
-  }
-}
-
-/**
- * Removes keypair from KeyChain/KeyStore
- *
- * @param key The key to kill.
- */
-const removeKey = async function (
-  service: KeyChainServiceName,
-): Promise<boolean> {
-  try {
-    const result = await _Keychain.resetGenericPassword({service})
     return result
   } catch (e: any) {
     throw new AppError(Err.KEYCHAIN_ERROR, e.message)
   }
 }
 
-export const KeyChain = {
-  generateKeyPair,
-  generateEncryptionKey,
-  getSupportedBiometryType,
-  saveKeyPair,
-  loadKeyPair,
-  loadEncryptionKey,
-  saveEncryptionKey,
-  removeKey,
+/**
+ * Removes keypair from KeyChain/KeyStore
+ *
+ * @param service The key to kill.
+ */
+const removeNostrKeypair = async function (): Promise<boolean> {
+  try {
+    const result = await _Keychain.resetGenericPassword({
+        service: KeyChainServiceName.NOSTR
+    })
+    log.trace('Removed nostr keypair', {}, 'removeNostrKeypair')
+    return result
+  } catch (e: any) {
+    throw new AppError(Err.KEYCHAIN_ERROR, e.message)
+  }
+}
+
+
+/**
+ * Removes keypair from KeyChain/KeyStore
+ *
+ * @param service The key to kill.
+ */
+const removeMmkvEncryptionKey = async function (): Promise<boolean> {
+    try {
+      const result = await _Keychain.resetGenericPassword({
+          service: KeyChainServiceName.MMKV
+      })
+
+      log.trace('Removed mmkv key', {}, 'removeMmkvEncryptionKey')
+      return result
+    } catch (e: any) {
+      throw new AppError(Err.KEYCHAIN_ERROR, e.message)
+    }
+  }
+
+
+export const KeyChain = {  
+    getSupportedBiometryType,
+    
+    generateNostrKeyPair,    
+    saveNostrKeyPair,
+    loadNostrKeyPair,
+    removeNostrKeypair,
+
+    generateMmkvEncryptionKey,    
+    saveMmkvEncryptionKey,
+    loadMmkvEncryptionKey,
+    removeMmkvEncryptionKey,       
 }

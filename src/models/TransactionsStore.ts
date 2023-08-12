@@ -221,7 +221,7 @@ export const TransactionsStoreModel = types
             return self.transactions.length
         },
         get recent(): Transaction[] {
-            return this.all.slice(0, 3) // Return the first 5 transactions
+            return this.all.slice(0, 3) // Return the first 3 transactions
         },
         get all() {
             return self.transactions

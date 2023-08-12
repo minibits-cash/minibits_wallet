@@ -40,11 +40,11 @@ export async function setupRootStore(rootStore: RootStore) {
   try {
     // Give an option to encrypt storage as it might slow down app start on some Android devices
     // User settings are mastered in sqlite so we can get the encryption setting before loading root store
-    const userSettings = Database.getUserSettings()    
+    const userSettings = Database.getUserSettings()
     
     // random identificator of an app installation for bugs and crash reporting
-    if(userSettings.userId) {
-        Sentry.setUser({ id: userSettings.userId })
+    if(userSettings.walletId) {
+        Sentry.setUser({ id: userSettings.walletId })
     }    
 
     if (userSettings.isStorageEncrypted) {
@@ -107,27 +107,22 @@ export async function setupRootStore(rootStore: RootStore) {
 
 async function _runMigrations(rootStore: RootStore) {
   const { 
-    mintsStore,         
+    userSettingsStore       
   } = rootStore
 
   let currentVersion = rootStore.version
   try {
     // v1 -> v2 migration
     if(currentVersion < 2) {
-      log.trace(`Starting rootStore migrations from version ${currentVersion} -> v2`)
+      log.trace(`Starting rootStore migrations from version v${currentVersion} -> v2`)
+
+      const userSettings = Database.getUserSettings()
+      userSettingsStore.setWalletId(userSettings.userId as string)
       
-      currentVersion = 2
-      log.info(`Completed rootStore migrations to version ${currentVersion}`)
+      log.info(`Completed rootStore migrations to version v${currentVersion}`)
     }
 
-    // v2 -> v3 migration
-    if(currentVersion < 3) {
-      log.trace(`Starting rootStore migrations from ${currentVersion} -> v3`)
-
-      currentVersion = 3
-      log.trace(`Completed rootStore migrations to version ${currentVersion}`)
-    }
-
+    
     rootStore.setVersion(rootStoreModelVersion)
   } catch (e: any) {
     throw new AppError(

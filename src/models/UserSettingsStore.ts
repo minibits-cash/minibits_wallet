@@ -4,8 +4,9 @@ import {MMKVStorage} from '../services'
 import {log} from '../utils/logger'
 
 export type UserSettings = {
-  id?: number
-  userId?: string
+  id?: number 
+  userId?: string | null // to be removed in the next migration
+  walletId: string | null    
   isOnboarded: boolean | 0 | 1
   isStorageEncrypted: boolean | 0 | 1
   isLocalBackupOn: boolean | 0 | 1
@@ -13,26 +14,36 @@ export type UserSettings = {
 
 export const UserSettingsStoreModel = types
     .model('UserSettingsStore')
-    .props({
-        userId: types.optional(types.string, ''),
+    .props({                
+        walletId: types.maybeNull(types.string),                
         isOnboarded: types.optional(types.boolean, false),
         isStorageEncrypted: types.optional(types.boolean, false),
         isLocalBackupOn: types.optional(types.boolean, true),
     })
     .actions(self => ({
         loadUserSettings: () => {
-            const {userId, isOnboarded, isStorageEncrypted, isLocalBackupOn} =
-                Database.getUserSettings()
+            const {
+                walletId,                                 
+                isOnboarded, 
+                isStorageEncrypted, 
+                isLocalBackupOn
+            } = Database.getUserSettings()
             
             const booleanIsOnboarded = isOnboarded === 1
             const booleanIsStorageEncrypted = isStorageEncrypted === 1
-            const booleanIsLocalBackupOn = isLocalBackupOn === 1
+            const booleanIsLocalBackupOn = isLocalBackupOn === 1            
             
-            // TODO move to some of mobx preprocessing method
-            self.userId = userId as string
+            self.walletId = walletId as string                        
             self.isOnboarded = booleanIsOnboarded as boolean
             self.isStorageEncrypted = booleanIsStorageEncrypted as boolean
             self.isLocalBackupOn = booleanIsLocalBackupOn as boolean
+        },
+        setWalletId: (walletId: string) => {
+            Database.updateUserSettings({...self, walletId})
+            self.walletId = walletId
+
+            log.info('walletId updated', walletId)
+            return walletId
         },
         setIsOnboarded: (value: boolean) => {
             Database.updateUserSettings({...self, isOnboarded: value})

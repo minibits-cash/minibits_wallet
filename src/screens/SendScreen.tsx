@@ -902,7 +902,7 @@ const SendAsQRCodeBlock = observer(function (props: {
         {props.encodedTokenToSend.length > 999 ? (
             <Text text='Sendable token is too long to be shown as QR code. Share it as text instead.' />
         ) : (            
-            <QRCode size={270} value={props.encodedTokenToSend} />            
+            <QRCode size={spacing.screenWidth - spacing.large * 2} value={props.encodedTokenToSend} />            
         )}        
       </View>
       <View style={$buttonContainer}>

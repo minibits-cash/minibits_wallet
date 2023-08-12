@@ -26,7 +26,7 @@ import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import {translate} from '../i18n'
 import AppError from '../utils/AppError'
-import {Database} from '../services'
+import {Database, KeyChain, NostrClient} from '../services'
 import {MMKVStorage} from '../services'
 import {maxTransactionsInModel} from '../models/TransactionsStore'
 import { log } from '../utils/logger'
@@ -101,13 +101,18 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
             onPress: async () => {
               setIsLoading(true)
               try {
-                Database.cleanAll()
+                // Delete database
+                Database.cleanAll()                
+                // Delete Nostr keys
+                await KeyChain.removeNostrKeypair()
+                // Delete Encryption key
+                await KeyChain.removeMmkvEncryptionKey()
+                // Clean mobx storage
+                MMKVStorage.clearAll()
                 // recreate db schema
                 Database.getInstance()
-                MMKVStorage.clearAll()
-
                 setIsLoading(false)
-                setInfo('Factory reset completed, please restart Minibits')
+                setInfo('Factory reset completed, please restart immediately.')
               } catch (e: any) {
                 handleError(e)
               }
@@ -161,7 +166,7 @@ React Native: ${rnVersion}
 Commit: ${COMMIT}
 Log level: ${LOG_LEVEL}
 Sentry active: ${SENTRY_ACTIVE}
-Sentry id: ${userSettingsStore.userSettings.userId}
+Sentry id: ${userSettingsStore.userSettings.walletId}
                   `}
                   leftIcon='faInfoCircle'
                   leftIconColor={colors.palette.iconGreen300}

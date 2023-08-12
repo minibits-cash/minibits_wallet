@@ -29,7 +29,7 @@ import {
 } from '@cashu/cashu-ts'
 import {Mint} from '../models/Mint'
 import {Invoice} from '../models/Invoice'
-import {poller} from '../utils/poller'
+import {poller, stopPolling} from '../utils/poller'
 import EventEmitter from '../utils/eventEmitter'
 
 type WalletService = {
@@ -198,6 +198,7 @@ async function _checkSpentByMint(mintUrl: string, isPending: boolean = false) {
             )
 
             EventEmitter.emit('sendCompleted', relatedTransactionIds)
+            stopPolling('checkSpentByMintPoller')
         }
 
         // TODO what to do with tx error status after removing spent proofs
@@ -910,7 +911,7 @@ const send = async function (
 
         // Start polling for accepted payment, what an ugly piece of code
         poller(
-            '_checkSpentByMint',
+            'checkSpentByMintPoller',
             () => _checkSpentByMint(mintUrl, true),
             6 * 1000,
             20,
@@ -1244,7 +1245,7 @@ const topup = async function (
             JSON.stringify(transactionData),
         )
 
-        poller('checkPendingTopupPoller', checkPendingTopups, 6 * 1000, 20, 5)
+        poller('checkPendingTopupsPoller', checkPendingTopups, 6 * 1000, 20, 5)
             .then(() => log.trace('Polling completed', [], 'checkPendingTopups'))
             .catch(error =>
                 log.trace(error.message, [], 'checkPendingTopups'),
@@ -1366,6 +1367,8 @@ const checkPendingTopups = async function () {
 
             // delete paid invoice if we've got our cash
             invoicesStore.removeInvoice(invoice)
+            // Stop poller
+            stopPolling('checkPendingTopupsPoller')
         }
 
     } catch (e: any) {
