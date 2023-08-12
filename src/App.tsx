@@ -56,10 +56,12 @@ function App(props: AppProps) {
         // This runs after the root store has been initialized and rehydrated from storage.
         log.trace('Root store rehydrated', [], 'useInitialRootStore')
 
-        // This creates and opens a sqlite database that stores transactions history.
+        // Creates and opens a sqlite database that stores transactions history and user settings.
         // It triggers db migrations if database version has changed.
-        // As it runs inside a callback, it should not block UI.
+        // As it runs inside a callback, it should not block UI.        
         Database.getDatabaseVersion()
+        
+        // Syncs userSettings store with the database where they are persisted
         userSettingsStore.loadUserSettings()        
     })
 

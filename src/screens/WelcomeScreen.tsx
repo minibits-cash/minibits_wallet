@@ -39,7 +39,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
 
     const gotoWallet = function () {
       userSettingsStore.setIsOnboarded(true)
-      navigation.navigate('Tabs')
+      navigation.navigate('Tabs', {})
     }
 
     const $bottomContainerInsets = useSafeAreaInsetsStyle(['bottom'])
@@ -87,6 +87,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
                         data={warnings}
                         renderItem={renderWarningItem}
                         keyExtractor={item => item.id}
+                        contentContainerStyle={{paddingRight: spacing.small}}
                     />
                 </View>
                 <View style={{backgroundColor: colors.palette.accent500, borderRadius: spacing.extraSmall, padding: spacing.medium}}>
@@ -116,8 +117,8 @@ const $listContainer: ViewStyle = {
 
 const $listItem: ViewStyle = {
   flexDirection: 'row',
-  marginBottom: spacing.small,
-  marginRight: spacing.small,
+  paddingBottom: spacing.extraSmall,
+  paddingRight: spacing.extraSmall,  
 }
 
 const $itemIcon: ViewStyle = {

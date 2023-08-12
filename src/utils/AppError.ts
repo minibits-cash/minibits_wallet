@@ -18,6 +18,7 @@ export enum Err {
   NETWORK_ERROR = 'NETWORK_ERROR',
   KEYCHAIN_ERROR = 'KEYCHAIN_ERROR',
   POLLING_ERROR = 'POLLING_ERROR',
+  SERVER_ERROR = 'SERVER_ERROR',
 }
 
 export interface IAppError {

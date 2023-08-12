@@ -80,6 +80,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     const [isLoading, setIsLoading] = useState(false)
     const [isPasteInvoiceModalVisible, setIsPasteInvoiceModalVisible] =
       useState(false)
+    const [isInvoiceDonation, setIsInvoiceDonation] = useState(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)
     const [resultModalInfo, setResultModalInfo] = useState<
       {status: TransactionStatus; message: string} | undefined
@@ -95,7 +96,20 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
         const encoded = route.params?.scannedEncodedInvoice
         onEncodedInvoice(encoded)
       }, [route.params?.scannedEncodedInvoice]),
-    )
+  )
+
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!route.params?.donationEncodedInvoice) {
+          log.trace('no donation invoice')
+          return
+      }
+      const encoded = route.params?.donationEncodedInvoice
+      setIsInvoiceDonation(true)
+      onEncodedInvoice(encoded)
+    }, [route.params?.donationEncodedInvoice]),
+   )
 
 
   useEffect(() => {
@@ -137,6 +151,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
       setError(undefined)
       setIsLoading(false)
       setIsPasteInvoiceModalVisible(false)
+      setIsInvoiceDonation(false)
       setIsResultModalVisible(false)
       setResultModalInfo(undefined)
     }
@@ -167,7 +182,8 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
 
     const onEncodedInvoice = async function (encoded: string) {
       try {
-        navigation.setParams({scannedEncodedInvoice: undefined}) 
+        navigation.setParams({scannedEncodedInvoice: undefined})
+        navigation.setParams({donationEncodedInvoice: undefined})
         setEncodedInvoice(encoded)        
 
         const invoice = decodeInvoice(encoded)
@@ -228,10 +244,12 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
           message: error.message,
         })
       } else {
-        setResultModalInfo({
-          status,
-          message,
-        })
+        if(!isInvoiceDonation) {  // Donation polling triggers own ResultModal on paid invoice
+            setResultModalInfo({
+                status,
+                message,
+            })
+        }        
       }
 
       if (finalFee) {
@@ -239,7 +257,16 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
       }
 
       setIsLoading(false)
-      toggleResultModal()
+      
+      if(!isInvoiceDonation) {
+        toggleResultModal()
+      }
+    }
+    
+
+    const onCompletedTransfer = function(): void {
+        resetState()
+        navigation.navigate('Wallet', {})        
     }
 
 
@@ -350,7 +377,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
                         <Button
                             preset="secondary"
                             tx={'common.close'}
-                            onPress={resetState}
+                            onPress={onCompletedTransfer}
                         />
                     </View>
                     </>
@@ -388,7 +415,13 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
                                 <Button
                                     preset="secondary"
                                     tx={'common.close'}
-                                    onPress={() => navigation.navigate('Wallet', {})}
+                                    onPress={() => {
+                                        if(isInvoiceDonation) {
+                                            navigation.navigate('ContactsNavigator', {screen: 'Contacts'})
+                                        } else {
+                                            navigation.navigate('Wallet', {})}
+                                        }
+                                    }
                                 />
                                 </View>
                             </>

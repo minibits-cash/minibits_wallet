@@ -111,7 +111,7 @@ export function Button(props: ButtonProps) {
       $textPresets[preset],
       { color: textColor },
       preset === "default" && { color: 'white' },      
-      // $textStyleOverride,
+      $textStyleOverride,
       !!pressed && [$pressedTextPresets[preset], $pressedTextStyleOverride],
     ]
   }
@@ -182,8 +182,8 @@ const $textPresets: Record<Presets, StyleProp<TextStyle>> = {
 
 const $pressedViewPresets: Record<Presets, StyleProp<ViewStyle>> = {
   default: { backgroundColor: colors.palette.success100 },
-  secondary: { backgroundColor: colors.palette.neutral500 },
-  tertiary: { backgroundColor: colors.palette.neutral500 },
+  secondary: { backgroundColor: colors.palette.neutral300 },
+  tertiary: { backgroundColor: colors.palette.neutral200 },
 }
 
 const $pressedTextPresets: Record<Presets, StyleProp<TextStyle>> = {

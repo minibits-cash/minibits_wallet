@@ -1,7 +1,7 @@
 import {MMKV} from 'react-native-mmkv'
 import {log} from '../utils/logger'
 import AppError, {Err} from '../utils/AppError'
-import {KeyChain, KeyChainServiceName} from './keyChain'
+import {KeyChain} from './keyChain'
 
 let _storage: MMKV | undefined
 let _encryptionKey: string | undefined
@@ -38,11 +38,11 @@ const getOrCreateEncryptionKey = async function (): Promise<string> {
 
     let key: string | null = null
 
-    key = (await KeyChain.loadEncryptionKey(KeyChainServiceName.MMKV)) as string
+    key = (await KeyChain.loadMmkvEncryptionKey()) as string
 
     if (!key) {
-      key = KeyChain.generateEncryptionKey() as string
-      await KeyChain.saveEncryptionKey(key, KeyChainServiceName.MMKV)
+      key = KeyChain.generateMmkvEncryptionKey() as string
+      await KeyChain.saveMmkvEncryptionKey(key)
 
       log.info(
         'Created and saved new encryption key',

@@ -1,19 +1,24 @@
 import { BottomTabScreenProps, createBottomTabNavigator } from "@react-navigation/bottom-tabs"
-import { CompositeScreenProps, DarkTheme, DefaultTheme,   NavigationContainer, NavigatorScreenParams } from "@react-navigation/native"
+import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs'
+import { CompositeScreenProps, NavigatorScreenParams, useNavigation } from "@react-navigation/native"
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
 import { StackScreenProps } from "@react-navigation/stack"
 import React from "react"
-import { TextStyle, ViewStyle } from "react-native"
-import { RemotePackage } from "react-native-code-push"
+import { TextStyle, View, ViewStyle } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Icon } from "../components"
+import { Icon, Text } from "../components"
 import { translate } from "../i18n"
+import { useStores } from "../models"
 import { 
   WalletScreen, 
   ReceiveScreen, 
   SendScreen, 
   ScanScreen, 
-  ContactsScreen, 
+  ContactsScreen,
+  AvatarScreen,
+  // RandomNameScreen,
+  // OwnNameScreen, 
+  WalletNameScreen, 
   SettingsScreen, 
   MintsScreen, 
   DeveloperScreen,
@@ -27,13 +32,14 @@ import {
   TopupScreen,
 } from "../screens"
 import { colors, useThemeColor, spacing, typography } from "../theme"
+import { useHeader } from "../utils/useHeader"
 import { AppStackParamList, AppStackScreenProps } from "./AppNavigator"
 
 
 export type TabsParamList = {
-  WalletNavigator: NavigatorScreenParams<WalletStackParamList>  
-  Contacts: undefined
-  SettingsNavigator: NavigatorScreenParams<SettingsStackParamList>
+    WalletNavigator: NavigatorScreenParams<WalletStackParamList>  
+    ContactsNavigator: NavigatorScreenParams<ContactsStackParamList>    
+    SettingsNavigator: NavigatorScreenParams<SettingsStackParamList>
 }
 
 /**
@@ -77,8 +83,8 @@ export function TabsNavigator() {
       />
 
       <Tab.Screen
-        name="Contacts"
-        component={ContactsScreen}
+        name="ContactsNavigator"
+        component={ContactsNavigator}
         options={{
           tabBarLabel: translate("tabNavigator.contactsLabel"),
           tabBarIcon: ({ focused }) => <Icon icon="faAddressBook" color={focused ? activeColor : textColor} size={spacing.large} />,        
@@ -105,8 +111,9 @@ export type WalletStackParamList = {
   Scan: undefined
   TranDetail: {id: number}
   TranHistory: undefined 
-  Transfer: {scannedEncodedInvoice? : string}
-  Topup: undefined 
+  Transfer: {scannedEncodedInvoice? : string, donationEncodedInvoice? : string}
+  Topup: undefined
+  ContactsNavigator: {screen: string}
 }
 
 export type WalletStackScreenProps<T extends keyof WalletStackParamList> = StackScreenProps<
@@ -138,6 +145,59 @@ const WalletNavigator = function WalletNavigator() {
 }
 
 
+export type ContactsStackParamList = {  
+    Contacts: {selectedAvatarUrl? : string}
+    Avatar: {avatarSvg : string, pubkey: string}
+    WalletName: {pubkey? : string}
+    RandomName: {navigation: any, pubkey? : string}
+    OwnName: {navigation: any, pubkey? : string}
+    WalletNavigator: {screen: string, params: any}
+}  
+  
+  export type ContactsStackScreenProps<T extends keyof ContactsStackParamList> = StackScreenProps<
+    ContactsStackParamList,
+    T
+  >
+  
+  const ContactsStack = createNativeStackNavigator<ContactsStackParamList>()
+  
+  const ContactsNavigator = function ContactsNavigator() { 
+    return (
+      <ContactsStack.Navigator    
+        screenOptions={{ 
+          presentation: 'transparentModal', // prevents white glitch on scren change in dark mode
+          headerShown: false,        
+        }}
+      >        
+        <ContactsStack.Screen name="Contacts" component={ContactsScreen} />
+        <ContactsStack.Screen name="Avatar" component={AvatarScreen} />
+        <ContactsStack.Screen name="WalletName" component={WalletNameScreen} />        
+      </ContactsStack.Navigator>
+    )
+  }
+
+
+
+    /* export type WalletNameStackParamList = {  
+        RandomName: undefined
+        OwnName: undefined
+        WalletNavigator: {screen? : string, params? : any}
+        ContactsNavigator: {screen? : string, params? : any}
+    } 
+
+    export type WalletNameStackScreenProps<T extends keyof TopTabsParamList> = StackScreenProps<
+        WalletNameStackParamList,
+        T
+    >
+
+    export type TopTabsParamList = {
+        RandomName: undefined  
+        OwnName: undefined        
+    }
+
+    const TopTab = createMaterialTopTabNavigator<TopTabsParamList>() */
+  
+
 export type SettingsStackParamList = {  
   Settings: undefined
   Mints: {scannedMintUrl? : string}
@@ -151,6 +211,7 @@ export type SettingsStackParamList = {
   Backup: undefined
   LocalRecovery: undefined
   Developer: undefined
+  WalletNavigator: {screen: string}  
 }
 
 export type SettingsStackScreenProps<T extends keyof SettingsStackParamList> = StackScreenProps<
