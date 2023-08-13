@@ -43,6 +43,7 @@ Send coins
 - [x] Show coin token as a QR code
 - [x] Track receive of pending coins by the payee
 - [ ] Send to contact
+- [ ] Lock coins to the receiver address
 
 Top up wallet
 - [x] Show QR code with bitcoin lightning invoice to pay
@@ -63,7 +64,10 @@ Transaction history
 - [ ] Delete incomplete and failed transactions from history
 
 Contacts
-- [ ] Contacts management
+- [ ] Private contacts for payments
+- [ ] Social contacts for tipping and donations
+- [ ] Wallet keypair and name as a random public NIP05 identifier (name123@test.minibits.cash during alpha testing)
+- [ ] Custom wallet name (myname@test.minibits.cash during alpha testing)
 
 Backup and recovery
 - [x] Local append-only backup of all coins in a database separate from wallet storage
@@ -75,6 +79,9 @@ Backup and recovery
 Security
 - [x] Optional AES encryption of wallet storage using a key stored in the device secure keychain
 - [x] Use device biometry to login (if storage encryption is on)
+
+Self-funding
+- [ ] Donation for custom wallet name
 
 DevOps
 - [x] OTA updates (opt in)
