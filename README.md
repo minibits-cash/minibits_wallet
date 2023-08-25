@@ -66,8 +66,8 @@ Transaction history
 Contacts [✨ New, soon to be released!]
 - [x] Private contacts for payments
 - [x] Social contacts for tipping and donations
-- [x] Wallet keypair and name as a random public NIP05 identifier (name123@test.minibits.cash during alpha testing)
-- [x] Custom wallet name (myname@test.minibits.cash during alpha testing)
+- [x] Wallet keypair and name as a random public NIP05 identifier (random123@minibits.cash)
+- [x] Custom wallet name (myname@minibits.cash)
 
 Backup and recovery
 - [x] Local append-only backup of all coins in a database separate from wallet storage
