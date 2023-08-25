@@ -9,6 +9,9 @@ import {
 } from 'nostr-tools'
 import QuickCrypto from 'react-native-quick-crypto'
 import {secp256k1} from '@noble/curves/secp256k1'
+import {
+    MINIBITS_RELAY_URL,    
+} from '@env'
 import {KeyChain, KeyPair} from './keyChain'
 import {log} from '../utils/logger'
 import AppError, { Err } from '../utils/AppError'
@@ -34,8 +37,8 @@ export type NostrProfile = {
 
 
 
-const _defaultPublicRelays: string[] = ['wss://relay.primal.net']
-const _minibitsRelays: string[] = ['wss://relay.minibits.cash/test']
+const _defaultPublicRelays: string[] = ['wss://relay.damus.io']
+const _minibitsRelays: string[] = [MINIBITS_RELAY_URL]
 let _pool: any = undefined
 
 const getRelayPool = function () {

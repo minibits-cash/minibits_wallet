@@ -9,8 +9,11 @@ declare module '@env' {
     export const MINIBITS_SERVER_API_KEY: string
     export const MINIBITS_SERVER_API_HOST: string
     export const MINIBITS_NIP05_DOMAIN: string
+    export const MINIBITS_RELAY_URL: string
     export const JS_BUNDLE_VERSION: string
-    export const COMMIT: string   
+    export const COMMIT: string  
+    
+    
 }
 
 
