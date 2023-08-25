@@ -111,7 +111,7 @@ export function BottomModal(props: ModalProps) {
     top = defaultTop,
     onBackdropPress,
     onBackButtonPress,
-    backdropOpacity = 0.05,   
+    backdropOpacity = 0.1,   
     content,
     contentTx,
     contentTxOptions,

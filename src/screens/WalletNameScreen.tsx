@@ -20,8 +20,8 @@ export const WalletNameScreen: FC<WalletNameScreenProps> = observer(function Wal
         onLeftPress: () => navigation.goBack(), 
     })
 
-    const {userSettingsStore} = useStores()
-    const {pubkey} = route.params
+    const {walletProfileStore} = useStores()
+    const {pubkey, name} = walletProfileStore
 
     const renderScene = ({route}: {route: Route}) => {
         switch (route.key) {
@@ -42,7 +42,7 @@ export const WalletNameScreen: FC<WalletNameScreenProps> = observer(function Wal
 
     const headerBg = useThemeColor('header')
     const activeTabIndicator = colors.palette.accent400
-    const nip05 =  `${userSettingsStore.walletId+MINIBITS_NIP05_DOMAIN}`
+    const nip05 =  name+MINIBITS_NIP05_DOMAIN
 
     const renderTabBar = (props: any) => (
         <TabBar
@@ -68,7 +68,6 @@ export const WalletNameScreen: FC<WalletNameScreenProps> = observer(function Wal
     )
 })
 
-const $screen: ViewStyle = {}
 
 const $headerContainer: TextStyle = {
     alignItems: 'center',

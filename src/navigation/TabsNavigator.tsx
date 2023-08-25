@@ -1,6 +1,5 @@
 import { BottomTabScreenProps, createBottomTabNavigator } from "@react-navigation/bottom-tabs"
-import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs'
-import { CompositeScreenProps, NavigatorScreenParams, useNavigation } from "@react-navigation/native"
+import { CompositeScreenProps, NavigatorScreenParams } from "@react-navigation/native"
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
 import { StackScreenProps } from "@react-navigation/stack"
 import React from "react"
@@ -8,16 +7,15 @@ import { TextStyle, View, ViewStyle } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Icon, Text } from "../components"
 import { translate } from "../i18n"
-import { useStores } from "../models"
 import { 
   WalletScreen, 
   ReceiveScreen, 
   SendScreen, 
   ScanScreen, 
   ContactsScreen,
-  AvatarScreen,
-  // RandomNameScreen,
-  // OwnNameScreen, 
+  PictureScreen,
+  ContactDetailScreen, 
+  ProfileScreen,
   WalletNameScreen, 
   SettingsScreen, 
   MintsScreen, 
@@ -31,8 +29,8 @@ import {
   TransferScreen,
   TopupScreen,
 } from "../screens"
+import { Contact } from "../models/Contact"
 import { colors, useThemeColor, spacing, typography } from "../theme"
-import { useHeader } from "../utils/useHeader"
 import { AppStackParamList, AppStackScreenProps } from "./AppNavigator"
 
 
@@ -105,20 +103,20 @@ export function TabsNavigator() {
 
 
 export type WalletStackParamList = {  
-  Wallet: {scannedMintUrl? : string}
-  Receive: {scannedEncodedToken? : string}
-  Send: undefined
-  Scan: undefined
-  TranDetail: {id: number}
-  TranHistory: undefined 
-  Transfer: {scannedEncodedInvoice? : string, donationEncodedInvoice? : string}
-  Topup: undefined
-  ContactsNavigator: {screen: string}
+    Wallet: {scannedMintUrl? : string}
+    Receive: {scannedEncodedToken? : string}
+    Send: {amountToSend?: string, contact?: Contact, relays?: string[]}
+    Scan: undefined
+    TranDetail: {id: number}
+    TranHistory: undefined 
+    Transfer: {scannedEncodedInvoice? : string, donationEncodedInvoice? : string}
+    Topup: undefined
+    ContactsNavigator: {screen: string, params: any}
 }
 
 export type WalletStackScreenProps<T extends keyof WalletStackParamList> = StackScreenProps<
-  WalletStackParamList,
-  T
+    WalletStackParamList,
+    T
 >
 
 const WalletStack = createNativeStackNavigator<WalletStackParamList>()
@@ -127,37 +125,39 @@ const WalletNavigator = function WalletNavigator() {
 
   return (
     <WalletStack.Navigator    
-      screenOptions={{ 
-        presentation: 'transparentModal', // prevents white glitch on scren change in dark mode
-        headerShown: false,        
-      }}
+        screenOptions={{ 
+                presentation: 'transparentModal', // prevents white glitch on scren change in dark mode
+                headerShown: false,        
+        }}
     >        
-      <WalletStack.Screen name="Wallet" component={WalletScreen} />
-      <WalletStack.Screen name="Receive" component={ReceiveScreen} />
-      <WalletStack.Screen name="Send" component={SendScreen} />
-      <WalletStack.Screen name="Scan" component={ScanScreen} />
-      <WalletStack.Screen name="TranDetail" component={TranDetailScreen} />
-      <WalletStack.Screen name="TranHistory" component={TranHistoryScreen} />
-      <WalletStack.Screen name="Transfer" component={TransferScreen} />
-      <WalletStack.Screen name="Topup" component={TopupScreen} />
+        <WalletStack.Screen name="Wallet" component={WalletScreen} />
+        <WalletStack.Screen name="Receive" component={ReceiveScreen} />
+        <WalletStack.Screen name="Send" component={SendScreen} />
+        <WalletStack.Screen name="Scan" component={ScanScreen} />
+        <WalletStack.Screen name="TranDetail" component={TranDetailScreen} />
+        <WalletStack.Screen name="TranHistory" component={TranHistoryScreen} />
+        <WalletStack.Screen name="Transfer" component={TransferScreen} />
+        <WalletStack.Screen name="Topup" component={TopupScreen} />
     </WalletStack.Navigator>
   )
 }
 
 
 export type ContactsStackParamList = {  
-    Contacts: {selectedAvatarUrl? : string}
-    Avatar: {avatarSvg : string, pubkey: string}
-    WalletName: {pubkey? : string}
-    RandomName: {navigation: any, pubkey? : string}
-    OwnName: {navigation: any, pubkey? : string}
-    WalletNavigator: {screen: string, params: any}
+    Contacts: {amountToSend?: string}
+    Profile: undefined
+    Picture: undefined
+    WalletName: undefined
+    RandomName: {navigation: any}
+    OwnName: {navigation: any}
+    ContactDetail: {contact: Contact, relays: string[]}
+    WalletNavigator: {screen: string, params: any}    
 }  
   
-  export type ContactsStackScreenProps<T extends keyof ContactsStackParamList> = StackScreenProps<
+export type ContactsStackScreenProps<T extends keyof ContactsStackParamList> = StackScreenProps<
     ContactsStackParamList,
     T
-  >
+>
   
   const ContactsStack = createNativeStackNavigator<ContactsStackParamList>()
   
@@ -170,33 +170,14 @@ export type ContactsStackParamList = {
         }}
       >        
         <ContactsStack.Screen name="Contacts" component={ContactsScreen} />
-        <ContactsStack.Screen name="Avatar" component={AvatarScreen} />
+        <ContactsStack.Screen name="Profile" component={ProfileScreen} />
+        <ContactsStack.Screen name="Picture" component={PictureScreen} />
+        <ContactsStack.Screen name="ContactDetail" component={ContactDetailScreen} />
         <ContactsStack.Screen name="WalletName" component={WalletNameScreen} />        
       </ContactsStack.Navigator>
     )
   }
-
-
-
-    /* export type WalletNameStackParamList = {  
-        RandomName: undefined
-        OwnName: undefined
-        WalletNavigator: {screen? : string, params? : any}
-        ContactsNavigator: {screen? : string, params? : any}
-    } 
-
-    export type WalletNameStackScreenProps<T extends keyof TopTabsParamList> = StackScreenProps<
-        WalletNameStackParamList,
-        T
-    >
-
-    export type TopTabsParamList = {
-        RandomName: undefined  
-        OwnName: undefined        
-    }
-
-    const TopTab = createMaterialTopTabNavigator<TopTabsParamList>() */
-  
+ 
 
 export type SettingsStackParamList = {  
   Settings: undefined

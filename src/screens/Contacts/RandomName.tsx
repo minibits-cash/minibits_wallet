@@ -1,21 +1,18 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useEffect, useRef, useState} from 'react'
+import React, {useEffect, useState} from 'react'
 import {TextStyle, View, ViewStyle, InteractionManager } from 'react-native'
-import {colors, spacing, typography, useThemeColor} from '../../theme'
-import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
+import {spacing} from '../../theme'
+import {Button, Card, ErrorModal, InfoModal, Loading, Screen, Text} from '../../components'
 import {useStores} from '../../models'
-import {useHeader} from '../../utils/useHeader'
-import { MinibitsClient, WalletProfile, NostrClient, KeyPair } from '../../services'
 import AppError, { Err } from '../../utils/AppError'
-import {log} from '../../utils/logger'
 import {$sizeStyles} from '../../components/Text'
 import {getRandomUsername} from '../../utils/usernames'
 
 
 export const RandomName = observer(function (props: {navigation: any, pubkey: string}) {
     // const navigation = useNavigation()
-    const {userSettingsStore} = useStores()
-    const {pubkey, navigation} = props
+    const {userSettingsStore, walletProfileStore} = useStores()
+    const {navigation} = props
 
     const [randomNames, setRandomNames] = useState<string[]>([])
     const [selectedName, setSelectedName] = useState<string>('')    
@@ -52,13 +49,9 @@ export const RandomName = observer(function (props: {navigation: any, pubkey: st
         try {
             setIsLoading(true)
             
-            await MinibitsClient.updateWalletProfile(
-                pubkey,
-                selectedName as string,
-                undefined                
-            )
-                                    
+            await walletProfileStore.update(selectedName, walletProfileStore.picture)                                    
             userSettingsStore.setWalletId(selectedName)
+
             setIsLoading(false)
             navigation.goBack()
             return
@@ -72,10 +65,6 @@ export const RandomName = observer(function (props: {navigation: any, pubkey: st
         setIsLoading(false)
         setError(e)
     }
-    
-    const headerBg = useThemeColor('header')
-    const currentNameColor = colors.palette.primary200
-    const inputBg = useThemeColor('background')
 
     return (
       <Screen style={$screen} preset='auto'>

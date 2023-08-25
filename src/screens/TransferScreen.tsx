@@ -58,8 +58,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
 
     const {proofsStore, mintsStore} = useStores()
 
-
-  const [encodedInvoice, setEncodedInvoice] = useState<string>('')
+    const [encodedInvoice, setEncodedInvoice] = useState<string>('')
     const [invoice, setInvoice] = useState<DecodedLightningInvoice | undefined>()
     const [amountToTransfer, setAmountToTransfer] = useState<number>(0)
     const [invoiceExpiry, setInvoiceExpiry] = useState<Date | undefined>()
@@ -89,8 +88,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
 
   useFocusEffect(
       useCallback(() => {
-        if (!route.params?.scannedEncodedInvoice) {
-            log.trace('nothing scanned')
+        if (!route.params?.scannedEncodedInvoice) {            
             return
         }
         const encoded = route.params?.scannedEncodedInvoice
@@ -102,7 +100,6 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
   useFocusEffect(
     useCallback(() => {
       if (!route.params?.donationEncodedInvoice) {
-          log.trace('no donation invoice')
           return
       }
       const encoded = route.params?.donationEncodedInvoice

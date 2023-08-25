@@ -1,7 +1,9 @@
 import {Instance, SnapshotOut, types} from 'mobx-state-tree'
 import {MintsStoreModel} from './MintsStore'
+import {ContactsStoreModel} from './ContactsStore'
 import {TransactionsStoreModel} from './TransactionsStore'
 import {UserSettingsStoreModel} from './UserSettingsStore'
+import {WalletProfileStoreModel} from './WalletProfileStore'
 import {InvoicesStoreModel} from './InvoicesStore'
 import {ProofsStoreModel} from './ProofsStore'
 
@@ -12,12 +14,14 @@ export const rootStoreModelVersion = 2 // Update this if model changes require m
  */
 export const RootStoreModel = types
     .model('RootStore')
-    .props({
-        userSettingsStore: types.optional(UserSettingsStoreModel, {}),
+    .props({        
         mintsStore: types.optional(MintsStoreModel, {}),
-        proofsStore: types.optional(ProofsStoreModel, {}),
+        contactsStore: types.optional(ContactsStoreModel, {}),
         transactionsStore: types.optional(TransactionsStoreModel, {}),
+        userSettingsStore: types.optional(UserSettingsStoreModel, {}),
+        walletProfileStore: types.optional(WalletProfileStoreModel, {}),                
         invoicesStore: types.optional(InvoicesStoreModel, {}),
+        proofsStore: types.optional(ProofsStoreModel, {}),
         version: types.optional(types.number, rootStoreModelVersion),
     })
     .actions(self => ({

@@ -1,10 +1,10 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useEffect, useRef, useState} from 'react'
+import React, {FC, useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react'
 import {Text as RNText, TextStyle, View, ViewStyle, InteractionManager, TextInput, ScrollView } from 'react-native'
 import {colors, spacing, typography, useThemeColor} from '../../theme'
 import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
 import {useStores} from '../../models'
-import { MinibitsClient, WalletProfile, NostrClient, KeyPair } from '../../services'
+import { MinibitsClient} from '../../services'
 import AppError, { Err } from '../../utils/AppError'
 import {log} from '../../utils/logger'
 import { TransactionStatus } from '../../models/Transaction'
@@ -12,18 +12,19 @@ import { poller, stopPolling } from '../../utils/poller'
 import QRCode from 'react-native-qrcode-svg'
 import { ResultModalInfo } from '../Wallet/ResultModalInfo'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
+import { useFocusEffect } from '@react-navigation/native'
 
 
 export const OwnName = observer(function (props: {navigation: any, pubkey: string}) { 
     // const navigation = useNavigation() 
     const ownNameInputRef = useRef<TextInput>(null)
-    const {userSettingsStore, proofsStore} = useStores()
+    const {userSettingsStore, proofsStore, walletProfileStore} = useStores()
     const {pubkey, navigation} = props 
     
     const [ownName, setOwnName] = useState<string>('')
     const [info, setInfo] = useState('')        
     const [availableBalance, setAvailableBalance] = useState(0)
-    const [donationAmount, setDonationAmount] = useState(1000)
+    const [donationAmount, setDonationAmount] = useState(100)
     const [donationInvoice, setDonationInvoice] = useState<{payment_hash: string, payment_request: string} | undefined>(undefined)
     const [isLoading, setIsLoading] = useState(false)
     const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false)
@@ -46,6 +47,13 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
         load()
         return () => {}        
     }, [])
+
+
+    useLayoutEffect(() => {
+        ownNameInputRef && ownNameInputRef.current
+        ? ownNameInputRef.current.focus()
+        : false
+    })
 
 
     useEffect(() => {        
@@ -166,14 +174,11 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
             )
 
             if(paid) {                
-                setIsLoading(true)            
-                await MinibitsClient.updateWalletProfile(
-                    pubkey,
-                    ownName as string,
-                    undefined                
-                )
-                                        
+                setIsLoading(true)
+                    
+                await walletProfileStore.update(ownName, walletProfileStore.picture)                                    
                 userSettingsStore.setWalletId(ownName)
+
                 setIsLoading(false)
                 setResultModalInfo({
                     status: TransactionStatus.COMPLETED, 
@@ -191,7 +196,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
 
     const onResultModalClose = async function () {
         resetState()
-        navigation.navigate('Contacts', {})
+        navigation.goBack()
     }
 
 
@@ -206,12 +211,12 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
     const hint = useThemeColor('textDim')
     const currentNameColor = colors.palette.primary200
     const inputBg = useThemeColor('background')
-    const two = 2000
-    const five = 5000
-    const ten = 10000
+    const two = 200
+    const five = 500
+    const ten = 1000
     const invoiceBg = useThemeColor('background')
     const invoiceTextColor = useThemeColor('textDim')
-
+    const domainText = useThemeColor('textDim')
     
     return (
       <Screen style={$screen} preset='auto'>
@@ -230,14 +235,17 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                         maxLength={16}
                         keyboardType="default"
                         selectTextOnFocus={true}
-                        placeholder="Write your wallet name"
+                        // placeholder="Write your wallet name"
                         autoCapitalize="none"
                         editable={
                             isChecked
                             ? false
                             : true
                         }
-                    />                    
+                    />
+                    <View style={[$ownNameDomain, { backgroundColor: inputBg}]}>
+                        <Text size='xxs' style={{color: domainText}} text={MINIBITS_NIP05_DOMAIN}/>
+                    </View>                 
                     <Button
                         preset="default"
                         style={$ownNameButton}
@@ -275,10 +283,12 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                         style={[$supportText, {color: hint}]} 
                     />
                     {isQRcodeVisible ? (
-                        <QRCode 
-                            size={spacing.screenWidth - spacing.huge * 3} 
-                            value={donationInvoice.payment_request} 
-                        /> 
+                        <View style={{borderWidth: spacing.medium, borderColor: 'white'}}>
+                            <QRCode 
+                                size={spacing.screenWidth - spacing.huge * 3} 
+                                value={donationInvoice.payment_request} 
+                            />
+                        </View>
                     ) : (
                         <ScrollView
                             style={[
@@ -491,14 +501,34 @@ const $ownNameContainer: ViewStyle = {
     alignItems: 'center',
     padding: spacing.extraSmall,
 }
-  
+
 const $ownNameInput: TextStyle = {
+    flex: 1,    
+    borderTopLeftRadius: spacing.small,
+    borderBottomLeftRadius: spacing.small,
+    fontSize: 16,
+    padding: spacing.small,
+    alignSelf: 'stretch',
+    textAlignVertical: 'top',
+}
+
+const $ownNameDomain: TextStyle = {    
+    marginRight: spacing.small,
+    borderTopRightRadius: spacing.small,
+    borderBottomRightRadius: spacing.small,    
+    padding: spacing.extraSmall,
+    alignSelf: 'stretch',
+    justifyContent: 'center'
+    // textAlignVertical: 'center',
+}
+  
+/* const $ownNameInput: TextStyle = {
     flex: 1,
     borderRadius: spacing.small,
     fontSize: 16,
     textAlignVertical: 'center',
     marginRight: spacing.small,    
-}
+}*/
 
 const $ownNameButton: ViewStyle = {
     maxHeight: 50,

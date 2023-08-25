@@ -1,6 +1,6 @@
 const en = {
   common: {
-    ok: "OK",
+    ok: "OK",    
     cancel: "Cancel",
     close: "Close",
     back: "Back",
@@ -8,6 +8,8 @@ const en = {
     scan: "Scan",
     copy: "Copy",
     confirm: "Confirm",
+    save: "Save",
+    add: "Add",
     offline: "Offline",
   },
   welcomeScreen: {
@@ -90,10 +92,15 @@ const en = {
     isOffline: "Redeem online"
   },
   contactsScreen: {    
-    changeAvatar: "Change avatar",
-    changeAvatarSubtext: "Select from randomly generated avatars or provide URL address of your own one.",
+    new: "New",
+    scan: "Scan",
+    newTitle: "Add new contact",    
+  },
+  profileScreen: {    
+    changeAvatar: "Change picture",
+    changeAvatarSubtext: "Select one from randomly generated pictures. In future you will be able to provide URL address of your own.",
     changeWalletname: "Change wallet name",
-    changeWalletnameSubtext: "Change unique wallet name. Your wallet name can be shared with other people as a readable identifier linked to wallet's unique payment key.",
+    changeWalletnameSubtext: "Change unique wallet name. Your wallet name can be shared with other people as a readable identifier linked to the wallet's unique key.",
   },
   settingsScreen: {
     title: "Settings", 

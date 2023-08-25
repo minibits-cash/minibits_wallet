@@ -1,7 +1,7 @@
 import {Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
 
 export interface TransactionRecord {
-    id: number
+    id?: number
     type: TransactionType
     amount: number
     fee?: number

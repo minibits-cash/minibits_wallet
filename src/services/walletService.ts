@@ -31,9 +31,11 @@ import {Mint} from '../models/Mint'
 import {Invoice} from '../models/Invoice'
 import {poller, stopPolling} from '../utils/poller'
 import EventEmitter from '../utils/eventEmitter'
+import { NostrClient, NostrFilter } from './nostrService'
 
 type WalletService = {
     checkPendingSpent: () => Promise<void>
+    // checkPendingReceived: () => Promise<void>
     checkSpent: () => Promise<
         {spentCount: number; spentAmount: number} | undefined
     >
@@ -82,6 +84,7 @@ export type TransactionResult = {
 }
 
 const {
+    walletProfileStore,
     mintsStore,
     proofsStore,
     transactionsStore,
@@ -101,6 +104,33 @@ async function checkPendingSpent() {
         await _checkSpentByMint(mint.mintUrl, true) // pending true
     }
 }
+
+
+/*
+ * Checks with Minibits relay whether there are tokens to be received.
+ */
+/* async function checkPendingReceived() {
+    if(!walletProfileStore.pubkey) { // We postpone the setup of wallet profile in Contacts.tsx so we skip if not yet created.
+        return
+    }
+    
+    log.trace('checkPendingReceived start', {}, 'checkPendingReceived')
+
+    try {
+        const relays = NostrClient.getMinibitsRelays()
+        const filter: NostrFilter = [{
+            kinds: [4],
+            "#p": ["51ec130435a6e2f2564095c31a651d064a183157af7e97f66e38138dbbdb068e"],
+            since: 0
+        }]
+
+        log.trace('Filter', filter, 'checkPendingReceived')
+
+        const messages = await NostrClient.getMessages(relays, filter)    
+    } catch (e: any) {        
+        log.error(e.name, e.message, 'checkPendingReceived')
+    }
+}*/
 
 /*
  * Recover stuck wallet if tx error caused spent proof to remain in wallet.
@@ -206,7 +236,7 @@ async function _checkSpentByMint(mintUrl: string, isPending: boolean = false) {
 
     } catch (e: any) {
         // silent
-        log.info(e.name, [e.message, mintUrl], '[_checkSpentByMint]')
+        log.info(e.name, {message: e.message, mintUrl}, '_checkSpentByMint')
     }
 }
 
@@ -1400,6 +1430,7 @@ const _formatError = function (e: AppError) {
 
 export const Wallet: WalletService = {
     checkPendingSpent,
+    // checkPendingReceived,
     checkSpent,
     checkPendingTopups,
     transfer,

@@ -34,18 +34,23 @@ import {useHeader} from '../utils/useHeader'
 import {Mint, MintBalance} from '../models/Mint'
 import {MintsByHostname} from '../models/MintsStore'
 import {log} from '../utils/logger'
-import {Transaction} from '../models/Transaction'
+import {Transaction, TransactionStatus} from '../models/Transaction'
 import {TransactionListItem} from './Transactions/TransactionListItem'
-import {MintClient, MintKeys, MintKeySets, Wallet} from '../services'
+import {MintClient, MintKeys, MintKeySets, NostrClient, NostrFilter, Wallet} from '../services'
 import {translate} from '../i18n'
-import AppError from '../utils/AppError'
+import AppError, { Err } from '../utils/AppError'
+import { useSubscribe } from 'nostr-hooks'
+import { Token } from '../models/Token'
+import { decodeToken, getTokenAmounts } from '../services/cashuHelpers'
+import { ContactsStoreModel } from '../models/ContactsStore'
+import { ResultModalInfo } from './Wallet/ResultModalInfo'
 
 interface WalletScreenProps extends WalletStackScreenProps<'Wallet'> {}
 
 
 export const WalletScreen: FC<WalletScreenProps> = observer(
   function WalletScreen({route, navigation}) {    
-    const {mintsStore, proofsStore, transactionsStore, invoicesStore} = useStores()
+    const {mintsStore, proofsStore, transactionsStore, walletProfileStore, contactsStore} = useStores()
     
     const appState = useRef(AppState.currentState);
 
@@ -74,12 +79,147 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
       }
     })
 
+    const pendingReceivedFilter = useRef<NostrFilter>()
+
     const [balances, setBalances] = useState(() => proofsStore.getBalances())    
     const [info, setInfo] = useState<string>('')
     const [defaultMintUrl, setDefaultMintUrl] = useState<string>('https://mint.minibits.cash/Bitcoin')
     const [error, setError] = useState<AppError | undefined>()
+    const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus, message: string} | undefined>()
     const [isLoading, setIsLoading] = useState<boolean>(false)
     const [isLightningModalVisible, setIsLightningModalVisible] = useState<boolean>(false)
+    const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
+    const [isPendingReceivedSubEnabled, setIsPendingReceivedSubEnabled] = useState<boolean>(false)
+    // const [lastProcessedEventId, setLastProcessedEventId] = useState<string | undefined>(undefined)
+
+    const { events: pendingReceivedEvents, eose: eosePendingReceivedSub } = useSubscribe({
+        relays: NostrClient.getMinibitsRelays(),
+        filters: [pendingReceivedFilter.current],
+        options: {
+            enabled: isPendingReceivedSubEnabled,
+            invalidate: true
+        }
+    })
+
+    const checkPendingReceived = function () {
+        if(!walletProfileStore.pubkey) {
+            return
+        }        
+
+        try {            
+            const { lastPendingReceivedCheck } = contactsStore
+
+            const filter: NostrFilter = {            
+                kinds: [4],
+                "#p": [walletProfileStore.pubkey],
+                since: lastPendingReceivedCheck || 0
+            }
+
+            log.trace('Starting subscription...', filter, 'checkPendingReceived')
+
+            pendingReceivedFilter.current = filter               
+            contactsStore.setLastPendingReceivedCheck() 
+            setIsPendingReceivedSubEnabled(true)            
+
+        } catch (e: any) {
+            log.error(Err.NETWORK_ERROR, e.message)
+        }
+    }
+
+
+    function getTagValue(tagsArray: [string, string][], tagName: string): string | null {
+        const tag = tagsArray.find(([name]) => name === tagName);
+        return tag ? tag[1] : null;
+    }
+
+
+    useEffect(() => {
+        const processEvents = async () => {
+            if(pendingReceivedEvents.length === 0) {            
+                return
+            }
+
+            if(!eosePendingReceivedSub) {            
+                return
+            }
+
+            log.trace('Received events count:', pendingReceivedEvents.length, 'checkPendingReceived')
+            
+            try {
+                for (const event of pendingReceivedEvents) {
+                    
+                    if(contactsStore.eventAlreadyReceived(event.id)) {
+                        log.trace('Duplicate event, skipping...', event.id)
+                        continue
+                    }
+                    
+                    const encoded = await NostrClient.decryptNip04(event.pubkey, event.content)
+                    const decoded: Token = decodeToken(encoded)
+                    const sentFrom = getTagValue(event.tags, 'from')
+
+                    log.trace('sentFrom', sentFrom)
+
+                    const tokenAmounts = getTokenAmounts(decoded)
+                    const amountToReceive = tokenAmounts.totalAmount
+                    const memo = decoded.memo || ''                    
+                    
+                    const {transaction, message, error, receivedAmount} =
+                        await Wallet.receive(
+                            decoded as Token,
+                            amountToReceive,
+                            memo,
+                            encoded as string,
+                        )
+                    
+                    if(transaction && transaction.status === TransactionStatus.COMPLETED) {
+                        
+                        const updated = JSON.parse(transaction.data)
+                        updated[2].receivedEvent = event
+
+                        await transactionsStore.updateStatus(
+                            transaction.id as number,
+                            TransactionStatus.COMPLETED,
+                            JSON.stringify(updated),
+                        )
+
+                        await transactionsStore.updateSentFrom(
+                            transaction.id as number,
+                            sentFrom as string
+                        )
+
+                        setResultModalInfo({
+                            status: transaction.status,
+                            message
+                        })
+                    }
+                    
+                    contactsStore.addReceivedEventId(event.id)
+
+                    if (error) {
+                        log.info(`Error while receiving coins sent through NOSTR relay`, {error, encoded})
+                    } else {
+                        setIsResultModalVisible(true)
+                    }    
+                }
+
+                setIsPendingReceivedSubEnabled(false)            
+            } catch (e: any) {
+                log.error(e.name, e.message)
+            }
+        }
+
+        processEvents()
+        return () => {
+            setIsPendingReceivedSubEnabled(false)
+        } 
+
+    }, [pendingReceivedEvents])
+
+
+    useEffect(() => {
+        checkPendingReceived()
+    }, [])
+
 
     useFocusEffect(
         useCallback(() => {
@@ -87,14 +227,14 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             setBalances(updatedBalances)
             // Fixes #3
             Wallet.checkPendingSpent()
-            Wallet.checkPendingTopups()
+            Wallet.checkPendingTopups()            
         }, [])
     )
 
+
     useFocusEffect(
         useCallback(() => {
-            if (!route.params?.scannedMintUrl) {
-                log.trace('nothing scanned')
+            if (!route.params?.scannedMintUrl) {                
                 return
             }
 
@@ -105,6 +245,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         }, [route.params?.scannedMintUrl])
     )
 
+
     useEffect(() => {
         const subscription = AppState.addEventListener('change', nextAppState => {
             if (
@@ -114,6 +255,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 // Fixes #3
                 Wallet.checkPendingSpent()
                 Wallet.checkPendingTopups()
+                checkPendingReceived()                
 
                 const updatedBalances = proofsStore.getBalances()
                 setBalances(updatedBalances)
@@ -130,6 +272,11 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
     const toggleLightningModal = () => {
       setIsLightningModalVisible(previousState => !previousState)
+    }
+
+
+    const toggleResultModal = () => {
+        setIsResultModalVisible(previousState => !previousState)
     }
 
 
@@ -179,7 +326,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     }
 
     const gotoSend = function () {
-        navigation.navigate('Send')
+        navigation.navigate('Send', {})
     }
 
     const gotoTranHistory = function () {
@@ -302,6 +449,33 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
           }
           onBackButtonPress={toggleLightningModal}
           onBackdropPress={toggleLightningModal}
+        />
+        <BottomModal
+          isVisible={isResultModalVisible ? true : false}
+          top={spacing.screenHeight * 0.5}
+          ContentComponent={
+            <>
+              {resultModalInfo && (
+                  <>
+                    <ResultModalInfo
+                      icon="faCheckCircle"
+                      iconColor={colors.palette.success200}
+                      title="Success!"
+                      message={resultModalInfo?.message}
+                    />
+                    <View style={$buttonContainer}>
+                      <Button
+                        preset="secondary"
+                        tx={'common.close'}
+                        onPress={toggleResultModal}
+                      />
+                    </View>
+                  </>
+                )}              
+            </>
+          }
+          onBackButtonPress={toggleResultModal}
+          onBackdropPress={toggleResultModal}
         />
         {info && <InfoModal message={info} />}
         {error && <ErrorModal error={error} />}

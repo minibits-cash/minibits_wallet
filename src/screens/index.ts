@@ -10,11 +10,12 @@ export * from './TranHistoryScreen'
 export * from './TransferScreen'
 export * from './TopupScreen'
 
+// ContactsNavigator
 export * from './ContactsScreen'
-export * from './AvatarScreen'
-// export * from './RandomNameScreen'
-// export * from './OwnNameScreen'
+export * from './ProfileScreen'
+export * from './PictureScreen'
 export * from './WalletNameScreen'
+export * from './ContactDetailScreen'
 
 // SettingsNavigator
 export * from './SettingsScreen'

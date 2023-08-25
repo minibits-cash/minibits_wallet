@@ -99,29 +99,31 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
       try {
         const {id} = route.params
 
-        if (userSettingsStore.isLocalBackupOn === true) {
-          const proofs = Database.getProofsByTransaction(id)
-
-          if (proofs.length > 0) {
-            const proofsByStatus = proofs.reduce(
-              (result: ProofsByStatus, proof: BackupProof) => {
-                if (proof.isSpent) {
-                  result.isSpent.push(proof)
-                } else if (proof.isPending) {
-                  result.isPending.push(proof)
-                } else {
-                  result.isReceived.push(proof)
-                }
-                return result
-              },
-              {isReceived: [], isPending: [], isSpent: []},
-            )
-
-            log.trace(proofsByStatus)
-
-          setProofsByStatus(proofsByStatus)
-          }
+        if (userSettingsStore.isLocalBackupOn === false) {
+            return
         }
+
+        const proofs = Database.getProofsByTransaction(id)
+
+        if (proofs.length  === 0) {
+            return
+        }
+        
+        const proofsByStatus = proofs.reduce(
+            (result: ProofsByStatus, proof: BackupProof) => {
+            if (proof.isSpent) {
+                result.isSpent.push(proof)
+            } else if (proof.isPending) {
+                result.isPending.push(proof)
+            } else {
+                result.isReceived.push(proof)
+            }
+            return result
+            },
+            {isReceived: [], isPending: [], isSpent: []},
+        )            
+        setProofsByStatus(proofsByStatus)          
+        
       } catch (e: any) {
         log.error(e.name, e.message)
       }

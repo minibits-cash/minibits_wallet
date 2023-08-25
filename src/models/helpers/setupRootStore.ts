@@ -107,7 +107,8 @@ export async function setupRootStore(rootStore: RootStore) {
 
 async function _runMigrations(rootStore: RootStore) {
   const { 
-    userSettingsStore       
+    userSettingsStore,
+    contactsStore
   } = rootStore
 
   let currentVersion = rootStore.version
@@ -119,8 +120,13 @@ async function _runMigrations(rootStore: RootStore) {
       const userSettings = Database.getUserSettings()
       userSettingsStore.setWalletId(userSettings.userId as string)
       
-      log.info(`Completed rootStore migrations to version v${currentVersion}`)
+      log.info(`Completed rootStore migrations to version v${rootStoreModelVersion}`)
     }
+
+    /* if(currentVersion < 3) {
+        log.trace(`Starting rootStore migrations from version v${currentVersion} -> v3`)  
+        log.info(`Completed rootStore migrations to version v${rootStoreModelVersion}`)
+    } */
 
     
     rootStore.setVersion(rootStoreModelVersion)

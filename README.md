@@ -42,7 +42,7 @@ Send coins
 - [x] Share coin token to send through another app
 - [x] Show coin token as a QR code
 - [x] Track receive of pending coins by the payee
-- [ ] Send to contact
+- [x] Send to contact [✨ New, soon to be released!]
 - [ ] Lock coins to the receiver address
 
 Top up wallet
@@ -63,11 +63,11 @@ Transaction history
 - [ ] Tags and related filtering of transactions
 - [ ] Delete incomplete and failed transactions from history
 
-Contacts
-- [ ] Private contacts for payments
-- [ ] Social contacts for tipping and donations
-- [ ] Wallet keypair and name as a random public NIP05 identifier (name123@test.minibits.cash during alpha testing)
-- [ ] Custom wallet name (myname@test.minibits.cash during alpha testing)
+Contacts [✨ New, soon to be released!]
+- [x] Private contacts for payments
+- [x] Social contacts for tipping and donations
+- [x] Wallet keypair and name as a random public NIP05 identifier (name123@test.minibits.cash during alpha testing)
+- [x] Custom wallet name (myname@test.minibits.cash during alpha testing)
 
 Backup and recovery
 - [x] Local append-only backup of all coins in a database separate from wallet storage
@@ -81,7 +81,7 @@ Security
 - [x] Use device biometry to login (if storage encryption is on)
 
 Self-funding
-- [ ] Donation for custom wallet name
+- [X] Donation for custom wallet name
 
 DevOps
 - [x] OTA updates (opt in)

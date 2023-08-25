@@ -142,22 +142,6 @@ export const TransactionListItem = observer(function (props: {tx: Transaction, i
 })
 
 
-const $contentContainer: TextStyle = {  
-    flex: 1,
-    padding: spacing.extraSmall,
-    alignItems: 'center',
-  }
-  
-  const $card: ViewStyle = {
-    marginBottom: spacing.small,
-    paddingTop: 0,
-  }
-  
-  const $cardHeading: TextStyle = {
-    fontFamily: typography.primary?.medium,
-    fontSize: 20,   
-  }
-  
   
   const $item: ViewStyle = {
     marginHorizontal: spacing.micro,
@@ -166,17 +150,6 @@ const $contentContainer: TextStyle = {
   const $mintText: TextStyle = {
     overflow: 'hidden', 
     fontSize: 14,  
-  }
-  
-  const $balanceContainer: ViewStyle = {
-    justifyContent: 'center',
-    alignSelf: 'center',
-    marginRight: spacing.extraSmall
-  }
-  
-  const $balance: TextStyle = {  
-    fontSize: 20,
-    fontFamily: typography.primary?.medium
   }
   
   const $txContainer: ViewStyle = {

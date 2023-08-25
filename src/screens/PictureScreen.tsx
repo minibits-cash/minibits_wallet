@@ -1,0 +1,158 @@
+import {observer} from 'mobx-react-lite'
+import React, {FC, useCallback, useEffect, useRef, useState} from 'react'
+import {Image, Pressable, Share, TextStyle, View, ViewStyle} from 'react-native'
+import Svg, { SvgUri, SvgXml } from 'react-native-svg'
+import {colors, spacing, useThemeColor} from '../theme'
+import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../components'
+import {useStores} from '../models'
+import {useHeader} from '../utils/useHeader'
+import {ContactsStackScreenProps} from '../navigation'
+import { MinibitsClient} from '../services'
+import AppError from '../utils/AppError'
+import { ProfileHeader } from './Contacts/ProfileHeader'
+
+interface PictureScreenProps extends ContactsStackScreenProps<'Picture'> {}
+
+export const PictureScreen: FC<PictureScreenProps> = observer(function PictureScreen({route, navigation}) {    
+    useHeader({
+        leftIcon: 'faArrowLeft',
+        onLeftPress: () => navigation.goBack(), 
+    })
+    const {walletProfileStore} = useStores()
+
+    const [info, setInfo] = useState('')
+    const [isLoading, setIsLoading] = useState(false)
+    const [error, setError] = useState<AppError | undefined>()
+    const [selectedPicture, setSelectedPicture] = useState<string>('') // selected picture
+    const [pictures, setPictures] = useState<string[]>([]) // random pictures
+
+
+    useEffect(() => {
+        const load = async () => {
+            try {
+                setIsLoading(true)
+                const pngs = await MinibitsClient.getRandomPictures()
+                if(pngs.length > 0) {
+                    setPictures(pngs)
+                }
+                setIsLoading(false)
+            } catch (e: any) {
+                handleError(e)
+            }
+        }
+        load()
+        return () => {}        
+    }, [])
+ 
+    const onPictureSelect = function (png: string) {
+        setSelectedPicture(png)
+    }
+
+    const onPictureConfirm = async function () {
+        try {
+            setIsLoading(true)            
+            await walletProfileStore.update(walletProfileStore.name, selectedPicture)           
+            setIsLoading(false)
+
+            navigation.goBack()
+
+        } catch (e: any) {
+            handleError(e)
+        }
+    }
+
+    const handleError = function (e: AppError): void {
+        setIsLoading(false)
+        setError(e)
+    }
+
+    const getImageSource = function(img: string) {
+        if(img.startsWith('http') || img.startsWith('https')) {
+            return img
+        } else {
+            return `data:image/png;base64,${img}`
+        }
+    }
+    
+    const headerBg = useThemeColor('header')
+    const selectedColor = colors.palette.success200
+    const {name, picture} = walletProfileStore
+
+    return (
+      <Screen style={$screen} preset='auto'>        
+        <ProfileHeader 
+            picture={picture}
+            name={name}
+        />        
+        <View style={$contentContainer}>
+            <View style={$picturesContainer}>
+                {pictures.map((png, index) => {
+                    return (
+                        <Pressable
+                            key={index}
+                            onPress={() => onPictureSelect(png)}
+                            style={(png === selectedPicture) ? [$unselected, {borderColor: selectedColor}] : $unselected}
+                        >
+                            <Image style={{width: 90, height: 96}} source={{uri: getImageSource(png)}} />
+                        </Pressable>
+                    )
+                })}
+            </View>
+            {selectedPicture && (
+                <View style={$buttonContainer}>
+                    <Button
+                        preset="default"
+                        tx={'common.confirm'}
+                        onPress={onPictureConfirm}
+                    />
+                    <Button
+                        preset="secondary"
+                        tx={'common.cancel'}
+                        onPress={() => setSelectedPicture('')}
+                    />
+                </View>
+            )}
+            {isLoading && <Loading />}
+        </View>       
+        {error && <ErrorModal error={error} />}
+        {info && <InfoModal message={info} />}
+ 
+      </Screen>
+    )
+  })
+
+
+
+const $screen: ViewStyle = {}
+
+const $unselected: ViewStyle = {
+    borderWidth: 5, 
+    borderRadius: 10, 
+    margin: spacing.extraSmall,
+    borderColor: 'transparent',
+}
+
+const $contentContainer: TextStyle = {    
+  padding: spacing.small,
+  alignItems: 'center',
+  justifyContent: 'center',  
+}
+
+const $picturesContainer: TextStyle = {        
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  }
+
+
+const $item: ViewStyle = {
+  paddingHorizontal: spacing.small,
+  paddingLeft: 0,
+}
+
+const $buttonContainer: ViewStyle = {
+    flexDirection: 'row',
+    // alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.medium,
+}
+  

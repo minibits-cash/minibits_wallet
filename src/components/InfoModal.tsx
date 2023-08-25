@@ -15,7 +15,7 @@ export const InfoModal: FC<InfoModalProps> = function ({ message }) {
     // needed for info to re-appear
     useEffect(() => {
         setIsInfoVisible(true)
-        // setTimeout(() => setIsInfoVisible(false), 3000)
+        // setTimeout(() => setIsInfoVisible(false), 3000) //
     }, [message])
 
 
@@ -30,12 +30,12 @@ export const InfoModal: FC<InfoModalProps> = function ({ message }) {
             isVisible={isInfoVisible}
             onBackdropPress={() => onClose()}
             onBackButtonPress={() => onClose()}            
-            style={{ padding: spacing.medium, backgroundColor }} 
-            top={spacing.screenHeight - 120}           
+            style={{ padding: spacing.small, backgroundColor }} 
+            top={spacing.screenHeight - 150}           
             ContentComponent={                
-                <View style={{ flexDirection: 'row', alignItems: 'center'}}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: spacing.medium}}>
                     <Icon icon="faInfoCircle" size={spacing.large} color="white" />
-                    <Text style={{ marginHorizontal: spacing.small }}>{message}</Text>                
+                    <Text style={{ marginHorizontal: spacing.extraSmall }}>{message}</Text>                
                 </View>                
             }
         >            

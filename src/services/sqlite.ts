@@ -3,8 +3,6 @@ import {
   open,
   SQLBatchTuple,
 } from 'react-native-quick-sqlite'
-import QuickCrypto from 'react-native-quick-crypto'
-import {btoa, atob, fromByteArray} from 'react-native-quick-base64'
 import {Proof} from '../models/Proof'
 import {
   Transaction,
@@ -17,6 +15,7 @@ import AppError, {Err} from '../utils/AppError'
 import {log} from '../utils/logger'
 import {BackupProof} from '../models/Proof'
 import { getProofsAmount } from './cashuHelpers'
+import { Contact, ContactType } from '../models/Contact'
 
 let _db: QuickSQLiteConnection
 
@@ -50,48 +49,48 @@ const _createDatabaseInstance = function () {
 const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
   const creationQueries = [
     [
-      `CREATE TABLE IF NOT EXISTS transactions (
-      id INTEGER PRIMARY KEY NOT NULL,
-      type TEXT,
-      amount INTEGER,
-      fee INTEGER,
-      data TEXT,
-      sentFrom TEXT,
-      memo TEXT,
-      balanceAfter INTEGER,
-      noteToSelf TEXT,
-      tags TEXT,
-      status TEXT,
-      createdAt TEXT
+        `CREATE TABLE IF NOT EXISTS transactions (
+        id INTEGER PRIMARY KEY NOT NULL,
+        type TEXT,
+        amount INTEGER,
+        fee INTEGER,
+        data TEXT,
+        sentFrom TEXT,
+        memo TEXT,
+        balanceAfter INTEGER,
+        noteToSelf TEXT,
+        tags TEXT,
+        status TEXT,
+        createdAt TEXT
+    )`,
+    ],    
+    [
+        `CREATE TABLE IF NOT EXISTS usersettings (
+        id INTEGER PRIMARY KEY NOT NULL,      
+        walletId TEXT,      
+        isOnboarded BOOLEAN,
+        isStorageEncrypted BOOLEAN,
+        isLocalBackupOn BOOLEAN,
+        createdAt TEXT      
     )`,
     ],
     [
-      `CREATE TABLE IF NOT EXISTS usersettings (
-      id INTEGER PRIMARY KEY NOT NULL,      
-      walletId TEXT,      
-      isOnboarded BOOLEAN,
-      isStorageEncrypted BOOLEAN,
-      isLocalBackupOn BOOLEAN,
-      createdAt TEXT      
+        `CREATE TABLE IF NOT EXISTS proofs (            
+        id TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        secret TEXT PRIMARY KEY NOT NULL,
+        C TEXT NOT NULL,     
+        tId INTEGER,
+        isPending BOOLEAN,
+        isSpent BOOLEAN,
+        updatedAt TEXT      
     )`,
     ],
     [
-      `CREATE TABLE IF NOT EXISTS proofs (            
-      id TEXT NOT NULL,
-      amount INTEGER NOT NULL,
-      secret TEXT PRIMARY KEY NOT NULL,
-      C TEXT NOT NULL,     
-      tId INTEGER,
-      isPending BOOLEAN,
-      isSpent BOOLEAN,
-      updatedAt TEXT      
-    )`,
-    ],
-    [
-      `CREATE TABLE IF NOT EXISTS dbversion (
-      id INTEGER PRIMARY KEY NOT NULL,
-      version INTEGER,
-      createdAt TEXT      
+        `CREATE TABLE IF NOT EXISTS dbversion (
+        id INTEGER PRIMARY KEY NOT NULL,
+        version INTEGER,
+        createdAt TEXT      
     )`,
     ],
   ] as SQLBatchTuple[]
@@ -152,6 +151,7 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
 
         log.info(`Prepared database migrations from ${currentVersion} -> 3`)
     }
+
 
   // Update db version as a part of migration sqls
   migrationQueries.push([
@@ -321,6 +321,7 @@ const updateUserSettings = function (settings: UserSettings): UserSettings {
         )
     }
 }
+
 
 /*
  * Transactions
@@ -572,6 +573,33 @@ const updateNoteAsync = async function (id: number, note: string) {
     )
   }
 }
+
+
+const updateSentFromAsync = async function (id: number, sentFrom: string) {
+    try {
+      const query = `
+        UPDATE transactions
+        SET sentFrom = ?
+        WHERE id = ?      
+      `
+      const params = [sentFrom, id]
+  
+      const db = getInstance()
+      await db.executeAsync(query, params)
+      // DO NOT log to Sentry
+      log.trace('Transaction sentFrom updated', {sentFrom}, 'updateSentFromAsync')
+  
+      const updatedTx = getTransactionById(id as number)
+  
+      return updatedTx as TransactionRecord
+    } catch (e: any) {
+      throw new AppError(
+        Err.DATABASE_ERROR,
+        'Could not update transaction sentFrom in database',
+        e.message,
+      )
+    }
+  }
 
 /* const cleanTransactionData = async function (transactionIds: number[]) {
   try {
@@ -857,6 +885,7 @@ export const Database = {
   updateFeeAsync,
   updateReceivedAmountAsync,
   updateNoteAsync,
+  updateSentFromAsync,
   getTransactionsAsync,
   getPendingAmount,
   addOrUpdateProof,
