@@ -129,8 +129,9 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
     let migrationQueries: SQLBatchTuple[] = []
 
     // Database migrations sequence based on local version numbers
+    const walletId = _generateWalletId() // reset wallet name format for v2 and v3
     if (currentVersion < 2) {
-        const walletId = _generateWalletId()
+        
         migrationQueries.push([
             `ALTER TABLE usersettings
             ADD COLUMN userId TEXT`,       
@@ -147,7 +148,11 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
         migrationQueries.push([
             `ALTER TABLE usersettings
             ADD COLUMN walletId TEXT`,       
-        ])
+        ],[
+            `UPDATE usersettings
+            SET walletId = ?
+            WHERE id = ?`, [walletId, 1]
+        ]) 
 
         log.info(`Prepared database migrations from ${currentVersion} -> 3`)
     }

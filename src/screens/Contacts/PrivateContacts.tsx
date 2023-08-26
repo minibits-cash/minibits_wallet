@@ -1,11 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react'
 import {FlatList, Image, Pressable, ScrollView, Share, TextInput, TextStyle, View, ViewStyle} from 'react-native'
-import Animated, {
-    useAnimatedScrollHandler,
-    useSharedValue,
-    useAnimatedStyle,
-} from 'react-native-reanimated'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
 import {colors, spacing, typography, useThemeColor} from '../../theme'
 import {BottomModal, Button, Card, ErrorModal, Header, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
@@ -19,7 +14,6 @@ import { useFocusEffect } from '@react-navigation/native'
 import { ContactListItem } from './ContactListItem'
 import { Contact } from '../../models/Contact'
 import { StackNavigationProp } from '@react-navigation/stack'
-import { NostrProfile } from '../../services'
 import { WalletProfileRecord } from '../../models/WalletProfileStore'
 
 
@@ -31,21 +25,6 @@ export const PrivateContacts = observer(function (props: {
     const {contactsStore} = useStores()
     const {navigation} = props
     const contactIdInputRef = useRef<TextInput>(null)
-    const scrollY = useSharedValue(0)
-
-    const handleScroll = useAnimatedScrollHandler(event => {
-        scrollY.value = event.contentOffset.y
-    })
-
-    const stylez = useAnimatedStyle(() => {
-        return {
-          transform: [
-            {
-              translateY: scrollY.value,
-            },
-          ],
-        }
-    })
  
     const [info, setInfo] = useState('')
     const [newContactId, setNewContactId] = useState<string>('') 
@@ -53,12 +32,14 @@ export const PrivateContacts = observer(function (props: {
     const [isNewContactModalVisible, setIsNewContactModalVisible] = useState(false)            
     const [error, setError] = useState<AppError | undefined>()
    
-    useEffect(() => {
+    useEffect(() => {        
         const focus = () => {
             contactIdInputRef && contactIdInputRef.current
             ? contactIdInputRef.current.focus()
             : false
         }
+
+        // contactsStore.removeAllContacts()
   
         if (isNewContactModalVisible) {
           setTimeout(() => focus(), 100)
@@ -92,7 +73,7 @@ export const PrivateContacts = observer(function (props: {
             name: profileRecord.walletId,
             picture: profileRecord.avatar
         }
-
+        
         contactsStore.addContact(newContact)
     }
     
@@ -139,31 +120,30 @@ export const PrivateContacts = observer(function (props: {
     const inputBg = useThemeColor('background')
 
     return (
-    <Screen preset='auto' contentContainerStyle={$screen}>
-        <Animated.ScrollView
-          style={[$screen, {backgroundColor: screenBg}]}
-          scrollEventThrottle={16}
-          onScroll={handleScroll}
-        >
-          <View style={$contentContainer}>
+    <Screen contentContainerStyle={$screen}>        
+        <View style={$contentContainer}>
             {contactsStore.count > 0 ? (
-              <Card
+            <Card
                 ContentComponent={
-                    <>
-                        {contactsStore.recent.map(
-                            (contact: Contact, index: number) => (
-                                <ContactListItem
-                                    key={contact.pubkey}
-                                    contact={contact}
-                                    isFirst={index === 0}
-                                    gotoContactDetail={() => gotoContactDetail(contact)}                  
-                                />
-                            ),
-                        )}
+                    <>  
+                        <FlatList<Contact>
+                            data={contactsStore.all as Contact[]}
+                            renderItem={({ item, index }) => {                                
+                                return(
+                                    <ContactListItem                                        
+                                        contact={item}
+                                        isFirst={index === 0}
+                                        gotoContactDetail={() => gotoContactDetail(item)}                  
+                                    />
+                                )
+                            }}
+                            keyExtractor={(item) => item.pubkey} 
+                            style={{ flexGrow: 0  }}
+                        />
                     </>
                 }
                 style={$card}
-              />
+            />
             ) : (
                 <Card
                     ContentComponent={
@@ -191,57 +171,56 @@ export const PrivateContacts = observer(function (props: {
                 /> 
             )}            
             {isLoading && <Loading />}
-          </View>
-        </Animated.ScrollView>
-        <Animated.View style={[$bottomContainer, stylez]}>
-          <View style={$buttonContainer}>
-            <Button
-                tx={'contactsScreen.new'}
-                LeftAccessory={() => (
-                    <Icon
-                    icon='faCircleUser'
-                    color='white'
-                    size={spacing.medium}                  
-                    />
-                )}
-                onPress={gotoNew}
-                style={$buttonNew}
-                />                
-          </View>
-        </Animated.View>
-        <BottomModal
-          isVisible={isNewContactModalVisible ? true : false}
-          top={spacing.screenHeight * 0.4}
-          ContentComponent={
-            <View style={$newContainer}>
-                <Text tx='contactsScreen.newTitle' preset="subheading" />
-                <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
-                    <TextInput
-                        ref={contactIdInputRef}
-                        onChangeText={newContactId => setNewContactId(newContactId)}
-                        value={newContactId}
-                        autoCapitalize='none'
-                        keyboardType='default'
-                        maxLength={16}
-                        selectTextOnFocus={true}
-                        style={[$contactInput, {backgroundColor: inputBg}]}                        
-                    />
-                    <View style={[$contactDomain, { backgroundColor: inputBg}]}>
-                        <Text size='xxs' style={{color: domainText}} text={MINIBITS_NIP05_DOMAIN}/>
-                    </View>
-                    <Button
-                        tx={'common.save'}
-                        style={{
-                            borderRadius: spacing.small,
-                            marginRight: spacing.small,
-                        }}
-                        onPress={saveNewContact}
-                    />
-                </View>
+        </View>
+        <View style={$bottomContainer}>
+            <View style={$buttonContainer}>
+                <Button
+                    tx={'contactsScreen.new'}
+                    LeftAccessory={() => (
+                        <Icon
+                        icon='faCircleUser'
+                        color='white'
+                        size={spacing.medium}                  
+                        />
+                    )}
+                    onPress={gotoNew}
+                    style={$buttonNew}
+                    />                
             </View>
-          }
-          onBackButtonPress={toggleNewContactModal}
-          onBackdropPress={toggleNewContactModal}
+        </View>       
+        <BottomModal
+            isVisible={isNewContactModalVisible ? true : false}
+            top={spacing.screenHeight * 0.4}
+            ContentComponent={
+                <View style={$newContainer}>
+                    <Text tx='contactsScreen.newTitle' preset="subheading" />
+                    <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
+                        <TextInput
+                            ref={contactIdInputRef}
+                            onChangeText={newContactId => setNewContactId(newContactId)}
+                            value={newContactId}
+                            autoCapitalize='none'
+                            keyboardType='default'
+                            maxLength={16}
+                            selectTextOnFocus={true}
+                            style={[$contactInput, {backgroundColor: inputBg}]}                        
+                        />
+                        <View style={[$contactDomain, { backgroundColor: inputBg}]}>
+                            <Text size='xxs' style={{color: domainText}} text={MINIBITS_NIP05_DOMAIN}/>
+                        </View>
+                        <Button
+                            tx={'common.save'}
+                            style={{
+                                borderRadius: spacing.small,
+                                marginRight: spacing.small,
+                            }}
+                            onPress={saveNewContact}
+                        />
+                    </View>
+                </View>
+            }
+            onBackButtonPress={toggleNewContactModal}
+            onBackdropPress={toggleNewContactModal}
         /> 
         {info && <InfoModal message={info} />}
         {error && <ErrorModal error={error} />}
@@ -263,13 +242,13 @@ const $headerContainer: TextStyle = {
 }
 
 const $contentContainer: TextStyle = {
-    flex: 1,
+    // flex: 1,
     padding: spacing.extraSmall,
   }
 
 const $card: ViewStyle = {
   marginBottom: 0,
-  flex: 1,
+  // flex: 1,
   
 }
 
@@ -335,5 +314,5 @@ const $bottomContainer: ViewStyle = {
   
   const $buttonNew: ViewStyle = {
     borderRadius: 30,    
-    minWidth: verticalScale(130),    
+    minWidth: verticalScale(110),    
   }  

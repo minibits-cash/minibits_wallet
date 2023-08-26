@@ -13,7 +13,7 @@ import {
   } from './Contact'
   import {log} from '../utils/logger'
   
-  export const maxContactsInModel = 10
+  // export const maxContactsInModel = 10
   
   export const ContactsStoreModel = types
       .model('ContactsStore', {
@@ -109,9 +109,9 @@ import {
             get count() {
                 return self.contacts.length
             },
-            get recent(): Contact[] {
+            /* get recent(): Contact[] {
                 return this.all.slice(0, maxContactsInModel) // Return the first 3 Contacts
-            },
+            },*/
             get all() {
                 return self.contacts
                     .slice()

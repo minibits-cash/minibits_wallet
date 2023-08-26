@@ -16,7 +16,7 @@ import { ContactsStackParamList } from '../../navigation'
 
 
 const defaultPublicNpub = 'npub14n7frsyufzqsxlvkx8vje22cjah3pcwnnyqncxkuj2243jvt9kmqsdgs52'
-const maxContactsToLoad = 15
+const maxContactsToLoad = 20
 
 export const PublicContacts = observer(function (props: {    
     navigation: StackNavigationProp<ContactsStackParamList, "Contacts", undefined>, 
@@ -36,7 +36,8 @@ export const PublicContacts = observer(function (props: {
     const [newPublicRelay, setNewPublicRelay] = useState<string>('')    
     
     const [ownProfile, setOwnProfile] = useState<NostrProfile | undefined>(undefined)    
-    const [followingPubkeys, setFollowingPubkeys] = useState<string[]>([]) 
+    const [followingPubkeys, setFollowingPubkeys] = useState<string[]>([])
+    const [profileEvents, setProfileEvents] = useState<NostrEvent[]>([]) 
     const [followingProfiles, setFollowingProfiles] = useState<NostrProfile[]>([]) 
     
     const [isLoading, setIsLoading] = useState(false)        
@@ -46,12 +47,11 @@ export const PublicContacts = observer(function (props: {
     const [shouldReload, setShouldReload] = useState(false)
     
     const [isOwnProfileAndPubkeysSubEnabled, setIsOwnProfileAndPubkeysSubEnabled] = useState<boolean>(false)    
-    // const [isFollowingPubkeysSubEnabled, setIsFollowingPubkeysSubEnabled] = useState<boolean>(false)    
     const [isFollowingProfilesSubEnabled, setIsFollowingProfilesSubEnabled] = useState<boolean>(false)        
     
     const [error, setError] = useState<AppError | undefined>()
 
-    const { events: ownProfileAndPubkeysEvents, eose: eoseOwnProfileAnPubkeysSub } = useSubscribe({
+    /* const {events: ownProfileAndPubkeysEvents, eose: eoseOwnProfileAnPubkeysSub, invalidate: invalidateOwnProfileAnPubkeysSub} = useSubscribe({
         relays: currentRelays.current,
         filters: [ownProfileAndPubkeysFilter.current],
         options: {
@@ -61,14 +61,14 @@ export const PublicContacts = observer(function (props: {
     })
 
 
-    const { events: profileEvents, eose: eoseProfilesSub } = useSubscribe({
+    const { events: profileEvents, eose: eoseProfilesSub, invalidate: invalidateProfilesSub} = useSubscribe({
         relays: currentRelays.current,
         filters: [followingProfilesFilter],
         options: {
             enabled: isFollowingProfilesSubEnabled,
             invalidate: true
         }
-    })
+    }) */
     
     useEffect(() => {
         const focus = () => {
@@ -97,6 +97,15 @@ export const PublicContacts = observer(function (props: {
 
     // Kick-off subscriptions to relay
     useEffect(() => {
+        if(!contactsStore.publicPubkey) {
+            return
+        }
+
+        setOwnProfile({
+            pubkey: contactsStore.publicPubkey,
+            npub: NostrClient.getNpubkey(contactsStore.publicPubkey)
+        }) // set backup profile w/o name
+
         subscribeToOwnProfileAndPubkeys()
     }, [])
 
@@ -105,7 +114,7 @@ export const PublicContacts = observer(function (props: {
         if(!shouldReload) {
             return
         }
-        log.trace('Reloading...')
+        log.trace('Reloading...')        
         subscribeToOwnProfileAndPubkeys()
         setShouldReload(false)
     }, [shouldReload])
@@ -115,26 +124,61 @@ export const PublicContacts = observer(function (props: {
         if(!contactsStore.publicPubkey) {
             return
         }
-
-        log.trace('Setting own profile and following pubkeys filter and starting subscriptions...')
-
-        const filter: NostrFilter = {
+        
+        const filter: NostrFilter[] = [{
             authors: [contactsStore.publicPubkey],
             kinds: [0, 3],
-            since: 0,
-        }
+            // since: 0,
+        }]        
+        
+        const pool = NostrClient.getRelayPool()
 
-        ownProfileAndPubkeysFilter.current = filter        
+        log.trace('Starting own profile and following pubkeys subscription...', { filter, relays: currentRelays.current } )
+
+        const sub = pool.sub(currentRelays.current, filter)
+        sub.on('event', (event: NostrEvent) => {
+            //  log.trace('own or pubkeys event', event)
+            if(ownProfile && ownProfile.name && followingPubkeys && followingPubkeys.length > 0) {
+                return
+            }
+
+            if(event.kind === 0) {
+                const profile: NostrProfile = JSON.parse(event.content)                
+                
+                profile.pubkey = contactsStore.publicPubkey as string
+    
+                log.trace('Updating own profile', profile)    
+                setOwnProfile(profile)                
+            }
+            
+            if(event.kind === 3) {
+                const pubkeys = event.tags
+                    .filter((item: [string, string]) => item[0] === "p")
+                    .map((item: [string, string]) => item[1])
+
+                log.trace('Updating followingPubkeys:', pubkeys.length)
+                setFollowingPubkeys(pubkeys)                
+            }
+        })
+
+        sub.on('eose', () => {
+            sub.unsub()
+        })
+
+
+
+        /* ownProfileAndPubkeysFilter.current = filter        
 
         setOwnProfile({
             pubkey: contactsStore.publicPubkey,
             npub: NostrClient.getNpubkey(contactsStore.publicPubkey)
         }) // set backup profile
-        setIsOwnProfileAndPubkeysSubEnabled(true) 
+        invalidateOwnProfileAnPubkeysSub()
+        setIsOwnProfileAndPubkeysSubEnabled(true) */
     }
 
 
-    useEffect(() => {
+    /* useEffect(() => {
         if(ownProfileAndPubkeysEvents.length === 0) {            
             return
         }
@@ -175,7 +219,7 @@ export const PublicContacts = observer(function (props: {
         } catch (e: any) {
             log.error(Err.NETWORK_ERROR, e.message)
         }
-    }, [ownProfileAndPubkeysEvents])
+    }, [ownProfileAndPubkeysEvents])*/
 
 
 
@@ -184,38 +228,73 @@ export const PublicContacts = observer(function (props: {
             return
         }
 
-        const filter: NostrFilter = {
+        const filter: NostrFilter[] = [{
             authors: followingPubkeys,
             kinds: [0],
-            limit: maxContactsToLoad,
-            since: 0,
-        }
+            limit: maxContactsToLoad,            
+        }]
 
-        log.trace('Setting following profiles filter')
-        setFollowingProfilesFilter(filter)
+        log.trace('Starting following profiles subscription...', filter)
+        
+        const pool = NostrClient.getRelayPool()
+        const sub = pool.sub(currentRelays.current, filter)
+
+        let events: NostrEvent[] = []
+
+        sub.on('event', (event: NostrEvent) => {
+            log.trace('Profile event', event)
+            events.push(event)            
+        })
+
+        sub.on('eose', () => {
+            log.trace('Got all profile events', events.length)
+
+            let following: NostrProfile[] = []
+            for (const event of events) {
+                try {
+                    const profile: NostrProfile = JSON.parse(event.content)
+    
+                    profile.pubkey = event.pubkey
+                    profile.npub = NostrClient.getNpubkey(event.pubkey)
+    
+                    following.push(profile)
+                } catch(e: any) {
+                    continue
+                }
+            }
+    
+            log.trace('Updating following profiles', following.length)
+    
+            setFollowingProfiles(following)
+            sub.unsub()
+        })
+
+        // log.trace('Setting following profiles filter')
+        // setFollowingProfilesFilter(filter)
         
     }, [followingPubkeys])
 
 
-    useEffect(() => {
+    /* useEffect(() => {
         if(!followingProfilesFilter) {            
             return
         }
 
-        log.trace('Starting profiles sub', {relays: currentRelays.current})        
+        log.trace('Starting profiles sub', {relays: currentRelays.current})
+        // invalidateProfilesSub()  
         setIsFollowingProfilesSubEnabled(true)
 
-    }, [followingProfilesFilter])
+    }, [followingProfilesFilter]) */
 
 
-    useEffect(() => {
+    /* useEffect(() => {
         if(profileEvents.length === 0) {            
             return
         }
 
         if(profileEvents.length === followingProfiles.length - 1) { // hm...
             return
-        }      
+        }        
 
         if(!eoseProfilesSub) {
             setIsLoading(true)
@@ -223,8 +302,7 @@ export const PublicContacts = observer(function (props: {
             return
         }
         
-        // log.trace('Sub done', {profileEvents: profileEvents.length, followingProfiles: followingProfiles.length})
-
+        // log.trace('Sub done', {profileEvents: profileEvents.length, followingProfiles: followingProfiles.length})        
         let following: NostrProfile[] = []
 
         for (const event of profileEvents) {
@@ -245,7 +323,7 @@ export const PublicContacts = observer(function (props: {
         setFollowingProfiles(following)
         setIsFollowingProfilesSubEnabled(false)
         setIsLoading(false)
-    }, [profileEvents])
+    }, [profileEvents]) */
 
 
     const onPastePublicPubkey = async function () {
@@ -258,10 +336,10 @@ export const PublicContacts = observer(function (props: {
     }
 
 
-    const resetContactsState = function () {                
+    const resetContactsState = function () {
         setFollowingProfiles([])
         setFollowingPubkeys([])
-        setFollowingProfilesFilter(undefined)
+        // setFollowingProfilesFilter(undefined)
     }
 
 
@@ -432,7 +510,8 @@ export const PublicContacts = observer(function (props: {
                         }
                         text={ownProfile.name}
                         subText={currentRelays.current.toString()}
-                        onPress={toggleNpubActionsModal}                                                        
+                        onPress={toggleNpubActionsModal}
+                        rightIcon={'faEllipsisVertical'}                                                        
                     />
                 }
                 style={$card}           
@@ -467,17 +546,17 @@ export const PublicContacts = observer(function (props: {
                                 />
                             ) 
                         }}                        
-                        keyExtractor={(item) => item.pubkey} 
-                        contentContainerStyle={{ marginBottom: 140 }}                       
+                        keyExtractor={(item) => item.pubkey}
+                        style={{ flexGrow: 0  }}                                            
                     />
 
                 </>
                 }
                 style={$card}                
             />
-        )}
-        {isLoading && <Loading />}
+        )}        
         </View>
+        {isLoading && <Loading />}
         <BottomModal
           isVisible={isNpubActionsModalVisible ? true : false}
           top={spacing.screenHeight * 0.5}          
