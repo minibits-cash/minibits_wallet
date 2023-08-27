@@ -31,11 +31,11 @@ import {Mint} from '../models/Mint'
 import {Invoice} from '../models/Invoice'
 import {poller, stopPolling} from '../utils/poller'
 import EventEmitter from '../utils/eventEmitter'
-import { NostrClient, NostrFilter } from './nostrService'
+import { NostrClient, NostrEvent, NostrFilter } from './nostrService'
 
 type WalletService = {
     checkPendingSpent: () => Promise<void>
-    // checkPendingReceived: () => Promise<void>
+    checkPendingReceived: () => Promise<void>
     checkSpent: () => Promise<
         {spentCount: number; spentAmount: number} | undefined
     >
@@ -89,6 +89,7 @@ const {
     proofsStore,
     transactionsStore,
     invoicesStore,
+    contactsStore,
 } = rootStoreInstance
 
 /*
@@ -109,28 +110,129 @@ async function checkPendingSpent() {
 /*
  * Checks with Minibits relay whether there are tokens to be received.
  */
-/* async function checkPendingReceived() {
-    if(!walletProfileStore.pubkey) { // We postpone the setup of wallet profile in Contacts.tsx so we skip if not yet created.
+const checkPendingReceived = async function () {
+    if(!walletProfileStore.pubkey) {
         return
-    }
-    
-    log.trace('checkPendingReceived start', {}, 'checkPendingReceived')
+    }        
 
-    try {
-        const relays = NostrClient.getMinibitsRelays()
-        const filter: NostrFilter = [{
+    try {            
+        const { lastPendingReceivedCheck } = contactsStore
+
+        const filter: NostrFilter = [{            
             kinds: [4],
-            "#p": ["51ec130435a6e2f2564095c31a651d064a183157af7e97f66e38138dbbdb068e"],
-            since: 0
+            "#p": [walletProfileStore.pubkey],
+            since: lastPendingReceivedCheck || 0
         }]
 
-        log.trace('Filter', filter, 'checkPendingReceived')
+        log.trace('Starting subscription...', filter, 'checkPendingReceived')
 
-        const messages = await NostrClient.getMessages(relays, filter)    
-    } catch (e: any) {        
-        log.error(e.name, e.message, 'checkPendingReceived')
+        const pool = NostrClient.getRelayPool()
+        const sub = pool.sub(NostrClient.getMinibitsRelays(), filter)
+
+        let events: NostrEvent[] = []
+        let result: {status: TransactionStatus, message: string} | undefined = undefined
+
+        sub.on('event', (event: NostrEvent) => {            
+            contactsStore.setLastPendingReceivedCheck() // conservative choice where to put it
+            events.push(event)            
+        })
+
+        sub.on('eose', async () => {
+            log.trace(`Got ${events.length} receive events`, [], 'checkPendingReceived')
+
+            let receivedTxCount: number = 0
+            let errorTxCount: number = 0
+            let errors: string[] = []
+            let totalAmount: number = 0
+            
+            for (const event of events) {
+                try {
+                    if(contactsStore.eventAlreadyReceived(event.id)) {
+                        log.trace('Duplicate event, skipping...', event.id)
+                        continue
+                    }
+                    
+                    const encoded = await NostrClient.decryptNip04(event.pubkey, event.content)
+                    const decoded: Token = decodeToken(encoded)
+                    const sentFrom = getTagValue(event.tags, 'from')
+
+                    log.trace('sentFrom', sentFrom, 'checkPendingReceived')
+
+                    const tokenAmounts = getTokenAmounts(decoded)
+                    const amountToReceive = tokenAmounts.totalAmount
+                    const memo = decoded.memo || ''                    
+                    
+                    const {transaction, message, error, receivedAmount} =
+                        await Wallet.receive(
+                            decoded as Token,
+                            amountToReceive,
+                            memo,
+                            encoded as string,
+                        )
+                    
+                    if(transaction && transaction.status === TransactionStatus.COMPLETED) {
+                        
+                        const updated = JSON.parse(transaction.data)
+                        updated[2].receivedEvent = event
+
+                        await transactionsStore.updateStatus(
+                            transaction.id as number,
+                            TransactionStatus.COMPLETED,
+                            JSON.stringify(updated),
+                        )
+
+                        await transactionsStore.updateSentFrom(
+                            transaction.id as number,
+                            sentFrom as string
+                        )                        
+                    }
+                    
+                    contactsStore.addReceivedEventId(event.id)
+
+                    if (error) {
+                        errorTxCount++
+                        log.info(`Error while receiving coins sent through NOSTR relay`, {error, encoded})
+                    } else {
+                        receivedTxCount++
+                        totalAmount = totalAmount + receivedAmount                       
+                    }
+                } catch(e: any) {
+                    continue
+                }
+            }
+            
+            sub.unsub()
+            
+            if(receivedTxCount > 0) {
+                result = {
+                    status: TransactionStatus.COMPLETED ,
+                    message: `You recieved ${totalAmount} sats in ${receivedTxCount} transaction(s).`
+                }
+
+                EventEmitter.emit('receivedCompleted', result)
+            }
+
+            if(errorTxCount > 0) {
+                result = {
+                    status: TransactionStatus.ERROR ,
+                    message: `${errorTxCount} incoming transaction(s) could not be received: ${errors.toString()}.`
+                }
+
+                EventEmitter.emit('receivedError', result) // TODO listen and handle
+            }
+        })
+
+        
+    } catch (e: any) {
+        log.error(Err.NETWORK_ERROR, e.message)
     }
-}*/
+}
+
+
+function getTagValue(tagsArray: [string, string][], tagName: string): string | null {
+    const tag = tagsArray.find(([name]) => name === tagName);
+    return tag ? tag[1] : null;
+}
 
 /*
  * Recover stuck wallet if tx error caused spent proof to remain in wallet.
@@ -1430,7 +1532,7 @@ const _formatError = function (e: AppError) {
 
 export const Wallet: WalletService = {
     checkPendingSpent,
-    // checkPendingReceived,
+    checkPendingReceived,
     checkSpent,
     checkPendingTopups,
     transfer,

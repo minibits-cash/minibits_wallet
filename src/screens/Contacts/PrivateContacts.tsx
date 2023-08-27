@@ -84,6 +84,7 @@ export const PrivateContacts = observer(function (props: {
 
     const gotoContactDetail = function (contact: Contact) {
         const {amountToSend} = props 
+        
         log.trace('amountToSend', amountToSend)
         if(amountToSend) {
             navigation.navigate('WalletNavigator', { 

@@ -3,7 +3,6 @@ import React, {useEffect, useRef, useState} from 'react'
 import {FlatList, Image, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
 import Clipboard from '@react-native-clipboard/clipboard'
-import { useSubscribe } from 'nostr-hooks'
 import {colors, spacing, typography, useThemeColor} from '../../theme'
 import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
 import {useStores} from '../../models'
@@ -28,16 +27,13 @@ export const PublicContacts = observer(function (props: {
     const npubInputRef = useRef<TextInput>(null)    
     const relayInputRef = useRef<TextInput>(null)
     const currentRelays = useRef<string[]>(ownRelay ? [ownRelay] : NostrClient.getDefaultRelays())
-    const ownProfileAndPubkeysFilter = useRef<NostrFilter>()
     
-    const [followingProfilesFilter, setFollowingProfilesFilter]  = useState<NostrFilter | undefined>(undefined)
     const [info, setInfo] = useState('')
     const [newPublicPubkey, setNewPublicPubkey] = useState<string>('')
     const [newPublicRelay, setNewPublicRelay] = useState<string>('')    
     
     const [ownProfile, setOwnProfile] = useState<NostrProfile | undefined>(undefined)    
     const [followingPubkeys, setFollowingPubkeys] = useState<string[]>([])
-    const [profileEvents, setProfileEvents] = useState<NostrEvent[]>([]) 
     const [followingProfiles, setFollowingProfiles] = useState<NostrProfile[]>([]) 
     
     const [isLoading, setIsLoading] = useState(false)        
@@ -45,31 +41,8 @@ export const PublicContacts = observer(function (props: {
     const [isNpubActionsModalVisible, setIsNpubActionsModalVisible] = useState(false)
     const [isRelayModalVisible, setIsRelayModalVisible] = useState(false)
     const [shouldReload, setShouldReload] = useState(false)
-    
-    const [isOwnProfileAndPubkeysSubEnabled, setIsOwnProfileAndPubkeysSubEnabled] = useState<boolean>(false)    
-    const [isFollowingProfilesSubEnabled, setIsFollowingProfilesSubEnabled] = useState<boolean>(false)        
-    
     const [error, setError] = useState<AppError | undefined>()
-
-    /* const {events: ownProfileAndPubkeysEvents, eose: eoseOwnProfileAnPubkeysSub, invalidate: invalidateOwnProfileAnPubkeysSub} = useSubscribe({
-        relays: currentRelays.current,
-        filters: [ownProfileAndPubkeysFilter.current],
-        options: {
-            enabled: isOwnProfileAndPubkeysSubEnabled,
-            invalidate: true
-        }
-    })
-
-
-    const { events: profileEvents, eose: eoseProfilesSub, invalidate: invalidateProfilesSub} = useSubscribe({
-        relays: currentRelays.current,
-        filters: [followingProfilesFilter],
-        options: {
-            enabled: isFollowingProfilesSubEnabled,
-            invalidate: true
-        }
-    }) */
-    
+       
     useEffect(() => {
         const focus = () => {
             npubInputRef && npubInputRef.current
@@ -165,62 +138,7 @@ export const PublicContacts = observer(function (props: {
             sub.unsub()
         })
 
-
-
-        /* ownProfileAndPubkeysFilter.current = filter        
-
-        setOwnProfile({
-            pubkey: contactsStore.publicPubkey,
-            npub: NostrClient.getNpubkey(contactsStore.publicPubkey)
-        }) // set backup profile
-        invalidateOwnProfileAnPubkeysSub()
-        setIsOwnProfileAndPubkeysSubEnabled(true) */
     }
-
-
-    /* useEffect(() => {
-        if(ownProfileAndPubkeysEvents.length === 0) {            
-            return
-        }
-
-        if(!eoseOwnProfileAnPubkeysSub) {
-            return
-        }
-        
-        if(ownProfile && ownProfile.name && followingPubkeys && followingPubkeys.length > 0) {
-            return
-        }
-        
-        try {
-            const ownEvent = ownProfileAndPubkeysEvents.find((ev: NostrEvent) => ev.kind === 0)
-            const pubkeysEvent = ownProfileAndPubkeysEvents.find((ev: NostrEvent) => ev.kind === 3)
-            
-
-            if(ownEvent) {
-                const profile: NostrProfile = JSON.parse(ownEvent.content)                
-                
-                profile.pubkey = contactsStore.publicPubkey as string
-    
-                log.trace('Updating own profile', profile)    
-                setOwnProfile(profile)                
-            }
-            
-            if(pubkeysEvent) {
-                const pubkeys = pubkeysEvent.tags
-                    .filter((item: [string, string]) => item[0] === "p")
-                    .map((item: [string, string]) => item[1])
-
-                log.trace('Updating followingPubkeys:', pubkeys.length)
-                setFollowingPubkeys(pubkeys)                
-            }
-
-            setIsOwnProfileAndPubkeysSubEnabled(false)
-            
-        } catch (e: any) {
-            log.error(Err.NETWORK_ERROR, e.message)
-        }
-    }, [ownProfileAndPubkeysEvents])*/
-
 
 
     useEffect(() => {
@@ -234,7 +152,7 @@ export const PublicContacts = observer(function (props: {
             limit: maxContactsToLoad,            
         }]
 
-        log.trace('Starting following profiles subscription...', filter)
+        log.trace('Starting following profiles subscription...')
         
         const pool = NostrClient.getRelayPool()
         const sub = pool.sub(currentRelays.current, filter)
@@ -242,12 +160,12 @@ export const PublicContacts = observer(function (props: {
         let events: NostrEvent[] = []
 
         sub.on('event', (event: NostrEvent) => {
-            log.trace('Profile event', event)
+            // log.trace('Profile event', event)
             events.push(event)            
         })
 
         sub.on('eose', () => {
-            log.trace('Got all profile events', events.length)
+            log.trace(`Got ${events.length} profile events`)
 
             let following: NostrProfile[] = []
             for (const event of events) {
@@ -269,63 +187,10 @@ export const PublicContacts = observer(function (props: {
             sub.unsub()
         })
 
-        // log.trace('Setting following profiles filter')
-        // setFollowingProfilesFilter(filter)
         
     }, [followingPubkeys])
 
-
-    /* useEffect(() => {
-        if(!followingProfilesFilter) {            
-            return
-        }
-
-        log.trace('Starting profiles sub', {relays: currentRelays.current})
-        // invalidateProfilesSub()  
-        setIsFollowingProfilesSubEnabled(true)
-
-    }, [followingProfilesFilter]) */
-
-
-    /* useEffect(() => {
-        if(profileEvents.length === 0) {            
-            return
-        }
-
-        if(profileEvents.length === followingProfiles.length - 1) { // hm...
-            return
-        }        
-
-        if(!eoseProfilesSub) {
-            setIsLoading(true)
-            // log.trace('Sub loading...', {profileEvents: profileEvents.length, followingProfiles: followingProfiles.length})                    
-            return
-        }
-        
-        // log.trace('Sub done', {profileEvents: profileEvents.length, followingProfiles: followingProfiles.length})        
-        let following: NostrProfile[] = []
-
-        for (const event of profileEvents) {
-            try {
-                const profile: NostrProfile = JSON.parse(event.content)
-
-                profile.pubkey = event.pubkey
-                profile.npub = NostrClient.getNpubkey(event.pubkey)
-
-                following.push(profile)
-            } catch(e: any) {
-                continue
-            }
-        }
-
-        log.trace('Updating following profiles', following.length)
-
-        setFollowingProfiles(following)
-        setIsFollowingProfilesSubEnabled(false)
-        setIsLoading(false)
-    }, [profileEvents]) */
-
-
+    
     const onPastePublicPubkey = async function () {
         const key = await Clipboard.getString()
         if (!key) {
@@ -338,8 +203,7 @@ export const PublicContacts = observer(function (props: {
 
     const resetContactsState = function () {
         setFollowingProfiles([])
-        setFollowingPubkeys([])
-        // setFollowingProfilesFilter(undefined)
+        setFollowingPubkeys([])        
     }
 
 

@@ -3,9 +3,9 @@ import {
     getEventHash,
     getSignature,
     SimplePool,
-    Filter as NostrFilter,
-    nip04,
-    Event as NostrEvent
+    Filter as NostrFilter,    
+    Event as NostrEvent,
+    validateEvent
 } from 'nostr-tools'
 import QuickCrypto from 'react-native-quick-crypto'
 import {secp256k1} from '@noble/curves/secp256k1'
@@ -25,6 +25,7 @@ export {
 
 import { NostrUnsignedEvent } from '.'
 
+// refresh
 
 export type NostrProfile = {
     pubkey: string
@@ -167,18 +168,21 @@ const publish = async function (
     event.id = getEventHash(event)    
     event.sig = getSignature(event, keys.privateKey)
 
-    log.trace('Event ot be published', event)
+    if(!validateEvent(event)) {
+        throw new AppError(Err.VALIDATION_ERROR, 'Event is invalid and could not be published', event)
+    }    
 
     const pool = getRelayPool()
     await pool.publish(relays, event)
     await delay(1000)
 
-    const published: Event = await pool.get(relays, {
+    const published: NostrEvent = await pool.get(relays, {
         ids: [event.id]
     })
 
+    
     if(published) {
-        log.trace('Event successfully published', published, 'publish')
+        log.trace('Event successfully published', published, 'NostrClient.publish')
         pool.close(relays)
         return published
     }

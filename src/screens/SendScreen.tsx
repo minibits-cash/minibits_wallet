@@ -1196,10 +1196,11 @@ const SendAsNostrDMBlock = observer(function (props: {
             amountToSend={props.amountToSend}
             contactToSendTo={props.contactToSendTo}
         />
-        <ListItem 
-            leftIcon='faCheckCircle'            
-            leftIconColor={colors.palette.success300}
-            text='Coins have been successfully sent.'
+        <ResultModalInfo
+            icon="faCheckCircle"
+            iconColor={colors.palette.success200}
+            title="Success!"
+            message="Coins have been succesfully sent."
         />
         <View style={$buttonContainer}>
             <Button
