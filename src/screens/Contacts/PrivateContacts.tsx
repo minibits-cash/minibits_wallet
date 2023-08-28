@@ -7,7 +7,7 @@ import {BottomModal, Button, Card, ErrorModal, Header, Icon, InfoModal, ListItem
 import {useStores} from '../../models'
 import {ContactsStackParamList, ContactsStackScreenProps} from '../../navigation'
 import { MinibitsClient, NostrClient, KeyPair, Database } from '../../services'
-import AppError from '../../utils/AppError'
+import AppError, { Err } from '../../utils/AppError'
 import {MINIBITS_NIP05_DOMAIN} from '@env'
 import { log } from '../../utils/logger'
 import { useFocusEffect } from '@react-navigation/native'
@@ -82,21 +82,39 @@ export const PrivateContacts = observer(function (props: {
         toggleNewContactModal()
     }
 
-    const gotoContactDetail = function (contact: Contact) {
+    const gotoContactDetail = async function (contact: Contact) {
         const {amountToSend} = props 
         
         log.trace('amountToSend', amountToSend)
-        if(amountToSend) {
-            navigation.navigate('WalletNavigator', { 
-                screen: 'Send',
-                params: {
-                    amountToSend, 
-                    contact, 
-                    relays: NostrClient.getMinibitsRelays()
-                },
-            })
+        if(amountToSend) { // Send tx contact selection
+            try {
+                // check before payment that contact name is still linked to the same pubkey
+                const profileRecord: WalletProfileRecord = 
+                await MinibitsClient.getWalletProfileByWalletId(contact.name as string)
 
-            return
+                if(!profileRecord || profileRecord.pubkey !== contact.pubkey) {
+                    throw new AppError(Err.VALIDATION_ERROR, `${contact.name} is no longer linked to the public key stored in your contacts. Please get in touch with the payee and update your information.`)
+                }                
+
+                navigation.navigate('WalletNavigator', { 
+                    screen: 'Send',
+                    params: {
+                        amountToSend, 
+                        contact, 
+                        relays: NostrClient.getMinibitsRelays()
+                    },
+                })
+
+                //reset
+                navigation.setParams({
+                    amountToSend: '',
+                })
+
+                
+                return
+            } catch (e: any) {
+                handleError(e)
+            }
         }
 
         navigation.navigate('ContactDetail', {                   
@@ -293,12 +311,6 @@ const $contactDomain: TextStyle = {
 const $buttonContainer: ViewStyle = {
     flexDirection: 'row',
     alignSelf: 'center',
-}
-  
-const $qrCodeContainer: ViewStyle = {
-    backgroundColor: 'white',
-    padding: spacing.small,
-    margin: spacing.small,
 }
 
 const $bottomContainer: ViewStyle = {

@@ -130,7 +130,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     }, [])
 
 
-    // Send tip to public contact
+    // Send to contact
     useFocusEffect(
         useCallback(() => {
             const prepareSendAsNostrDM = () => {
@@ -291,8 +291,8 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
         setIsAmountEndEditing(true)
         
-        // Skip memo focus if it is filled already
-        if(!memo) {
+        // Skip memo focus if it is filled / has been done already
+        if(!memo && !isMemoEndEditing) {
             setTimeout(() => {memoInputRef && memoInputRef.current
             ? memoInputRef.current.focus()
             : false}, 200)
@@ -387,7 +387,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             return
         }
 
-        // Skip mint modal and send immediately if: 
+        // Skip mint selector and send immediately if: 
         // 1. only one mint is available or 
         // 2. we did coin selection in offline mode
         if (availableMintBalances.length === 1 || selectedProofs.length > 0) {            

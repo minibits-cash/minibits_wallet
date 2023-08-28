@@ -6,9 +6,11 @@ import {ContactsStackScreenProps} from '../navigation'
 import {Icon, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, ListItem} from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
-import AppError from '../utils/AppError'
+import AppError, { Err } from '../utils/AppError'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { ContactType } from '../models/Contact'
+import { WalletProfileRecord } from '../models/WalletProfileStore'
+import { MinibitsClient } from '../services'
 
 
 interface ContactDetailScreenProps extends ContactsStackScreenProps<'ContactDetail'> {}
@@ -73,7 +75,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
         }
     }
 
-    const onSendCoins = function () {  
+    const onSendCoins = async function () {  
         if(parseInt(amountToSend) > availableBalance) {
             setInfo('Amount to send is higher than your available balance.')
             return
@@ -85,15 +87,30 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
         }
 
         toggleSendModal()
+
+        try {
+            // check before payment that contact name is still linked to the same pubkey
+            const profileRecord: WalletProfileRecord = 
+            await MinibitsClient.getWalletProfileByWalletId(contact.name as string)
+
+            if(!profileRecord || profileRecord.pubkey !== contact.pubkey) {
+                throw new AppError(Err.VALIDATION_ERROR, `${contact.name} is no longer linked to the public key stored in your contacts. Please get in touch with the payee and update your information.`)
+            }
         
-        return navigation.navigate('WalletNavigator', { 
-            screen: 'Send',
-            params: {
-                amountToSend, 
-                contact, 
-                relays
-            },
-        })
+        
+            navigation.navigate('WalletNavigator', { 
+                screen: 'Send',
+                params: {
+                    amountToSend, 
+                    contact, 
+                    relays
+                },
+            })
+            
+            return
+        } catch (e: any) {
+            handleError(e)
+        }
         
     }
 
@@ -194,8 +211,8 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
           top={spacing.screenHeight * 0.26}
           ContentComponent={
                 <View style={$payContainer}>
-                    <Text text={`Tip or donate to ${contact.name}`} preset="subheading" />                   
-                    <Text text={`Available balance is ${availableBalance.toLocaleString()}`} size='xs' style={{color: balanceColor}} />                   
+                    <Text text={`Send to ${contact.name}`} preset="subheading" />                   
+                    <Text text={`Available balance is ${availableBalance.toLocaleString()} sats`} size='xs' style={{color: balanceColor}} />                   
                     <View style={{alignItems: 'center'}}>
                         <TextInput
                             ref={amountToSendInputRef}

@@ -10,6 +10,7 @@ import {ContactsStackScreenProps} from '../navigation'
 import { MinibitsClient} from '../services'
 import AppError from '../utils/AppError'
 import { ProfileHeader } from './Contacts/ProfileHeader'
+import { scale } from '@gocodingnow/rn-size-matters'
 
 interface PictureScreenProps extends ContactsStackScreenProps<'Picture'> {}
 
@@ -93,7 +94,7 @@ export const PictureScreen: FC<PictureScreenProps> = observer(function PictureSc
                             onPress={() => onPictureSelect(png)}
                             style={(png === selectedPicture) ? [$unselected, {borderColor: selectedColor}] : $unselected}
                         >
-                            <Image style={{width: 90, height: 96}} source={{uri: getImageSource(png)}} />
+                            <Image style={{width: scale(80), height: scale(85)}} source={{uri: getImageSource(png)}} />
                         </Pressable>
                     )
                 })}

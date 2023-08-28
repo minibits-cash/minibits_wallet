@@ -14,6 +14,7 @@ import { ResultModalInfo } from '../Wallet/ResultModalInfo'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 import { useFocusEffect } from '@react-navigation/native'
 
+const DEFAULT_DONATION_AMOUNT = 100
 
 export const OwnName = observer(function (props: {navigation: any, pubkey: string}) { 
     // const navigation = useNavigation() 
@@ -24,12 +25,13 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
     const [ownName, setOwnName] = useState<string>('')
     const [info, setInfo] = useState('')        
     const [availableBalance, setAvailableBalance] = useState(0)
-    const [donationAmount, setDonationAmount] = useState(100)
+    const [donationAmount, setDonationAmount] = useState(DEFAULT_DONATION_AMOUNT)
     const [donationInvoice, setDonationInvoice] = useState<{payment_hash: string, payment_request: string} | undefined>(undefined)
     const [isLoading, setIsLoading] = useState(false)
     const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false)
     const [isQRcodeVisible, setIsQRCodeVisible] = useState(false)
     const [isChecked, setIsChecked] = useState(false)
+    // const [isNameInputEnabled, setIsNameInputEnabled] = useState(true)
     const [isPaidFromWallet, setIsPaidFromWallet] = useState(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
     const [resultModalInfo, setResultModalInfo] = useState<
@@ -49,10 +51,15 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
     }, [])
 
 
-    useLayoutEffect(() => {
-        ownNameInputRef && ownNameInputRef.current
-        ? ownNameInputRef.current.focus()
-        : false
+
+    useLayoutEffect(() => { // not working
+        const focus = () => {
+            ownNameInputRef && ownNameInputRef.current
+            ? ownNameInputRef.current.focus()
+            : false
+        }
+            
+        const timer = setTimeout(() => focus(), 100)
     })
 
 
@@ -62,7 +69,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                 return
             }
 
-            poller('checkDonationPaidPoller', checkDonationPaid, 6 * 1000, 50, 5) // 5 min
+            poller('checkDonationPaidPoller', checkDonationPaid, 2 * 1000, 120, 10) // every 2s to make it responsive. Total 4 min
             .then(() => log.trace('Polling completed', {}, 'checkDonationPaid'))
             .catch(error =>
                 log.trace(error.message, {}, 'checkPendingTopups'),
@@ -83,14 +90,15 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
         setIsResultModalVisible(previousState => !previousState)
 
 
-    const resetState = function () {        
-        setOwnName('')
-        setInfo('')
-        setIsLoading(false)
+    const resetState = function () {  
+        // setIsNameInputEnabled(true)      
         setIsChecked(false)
+        setOwnName('')        
+        setInfo('')
+        setIsLoading(false)        
         setIsPaymentModalVisible(false)
         setDonationInvoice(undefined)
-        setDonationAmount(1000)
+        setDonationAmount(DEFAULT_DONATION_AMOUNT)
         setIsResultModalVisible(false)
         setIsQRCodeVisible(false)
         setIsPaidFromWallet(false)
@@ -119,6 +127,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                 return
             }
             setIsChecked(true)
+            // setIsNameInputEnabled(false)
             setIsPaymentModalVisible(true)
         } catch (e: any) {
             handleError(e)
@@ -234,14 +243,9 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                         style={[$ownNameInput, {backgroundColor: inputBg}]}
                         maxLength={16}
                         keyboardType="default"
-                        selectTextOnFocus={true}
-                        // placeholder="Write your wallet name"
+                        selectTextOnFocus={true}                        
                         autoCapitalize="none"
-                        editable={
-                            isChecked
-                            ? false
-                            : true
-                        }
+                        // editable={isNameInputEnabled}
                     />
                     <View style={[$ownNameDomain, { backgroundColor: inputBg}]}>
                         <Text size='xxs' style={{color: domainText}} text={MINIBITS_NIP05_DOMAIN}/>
@@ -251,11 +255,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                         style={$ownNameButton}
                         text="Check"
                         onPress={onOwnNameCheck}
-                        disabled={
-                            isChecked
-                            ? true
-                            : false
-                        }
+                        // disabled={!isNameInputEnabled}
                     />                    
                 </View>                
                 }

@@ -1,4 +1,4 @@
-<img src="https://minibits.cash/img/minibits_preview.png">
+<img src="https://www.minibits.cash/img/minibits_preview.png">
 
 # Disclaimer
 
@@ -103,7 +103,7 @@ As a result, the following architectural constraints are in place:
 - Use fast storage for most wallet operations and separate local database storage to store data that incrementally grows.
 - Leverage local database as an append-only coins backup independent from fast storage.
 
-<img src="https://minibits.cash/img/minibits_architecture.png">
+<img src="https://www.minibits.cash/img/minibits_architecture_v2.png">
 
 Open architectural concepts worth wider discussion
 - [ ] Contacts management - identities, sharing contacts, send coins with the UX of tradfi instant payment while keeping privacy towards mints
@@ -114,7 +114,7 @@ Open architectural concepts worth wider discussion
 ## Download and test
 
 Minibits wallet is in alpha and available as of now only for Android devices. You have the following options to try it out:
-- [x] Join testing program on Google Play (Closed testing ongoing, submit your email to get an invite on [Minibits.cash](https://minibits.cash))
+- [x] Join testing program on Google Play (Closed testing ongoing, submit your email to get an invite on [Minibits.cash](https://www.minibits.cash))
 - [X] Download .apk file from Releases page and install it on your phone
 
 

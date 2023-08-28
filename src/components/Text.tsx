@@ -1,3 +1,4 @@
+import { moderateVerticalScale } from "@gocodingnow/rn-size-matters"
 import { I18nOptions } from "i18n-js"
 import React from "react"
 import { StyleProp, Text as RNText, TextProps as RNTextProps, TextStyle } from "react-native"
@@ -75,13 +76,13 @@ export function Text(props: TextProps) {
 }
 
 export const $sizeStyles = {
-  xxl: { fontSize: 36, lineHeight: 44 } as TextStyle,
-  xl: { fontSize: 24, lineHeight: 34 } as TextStyle,
-  lg: { fontSize: 20, lineHeight: 32 } as TextStyle,
-  md: { fontSize: 18, lineHeight: 26 } as TextStyle,
-  sm: { fontSize: 16, lineHeight: 24 } as TextStyle,
-  xs: { fontSize: 14, lineHeight: 21 } as TextStyle,
-  xxs: { fontSize: 12, lineHeight: 18 } as TextStyle,
+  xxl: { fontSize: moderateVerticalScale(36), lineHeight: moderateVerticalScale(44) } as TextStyle,
+  xl: { fontSize: moderateVerticalScale(24), lineHeight: moderateVerticalScale(34) } as TextStyle,
+  lg: { fontSize: moderateVerticalScale(20), lineHeight: moderateVerticalScale(32) } as TextStyle,
+  md: { fontSize: moderateVerticalScale(18), lineHeight: moderateVerticalScale(26) } as TextStyle,
+  sm: { fontSize: moderateVerticalScale(16), lineHeight: moderateVerticalScale(24) } as TextStyle,
+  xs: { fontSize: moderateVerticalScale(14), lineHeight: moderateVerticalScale(21) } as TextStyle,
+  xxs: { fontSize: moderateVerticalScale(12), lineHeight: moderateVerticalScale(18) } as TextStyle,
 }
 
 
