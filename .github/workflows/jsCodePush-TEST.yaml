@@ -100,9 +100,9 @@ jobs:
           echo NATIVE_VERSION_ANDROID='${{ env.NATIVE_VERSION }}' >> .env
           echo JS_BUNDLE_VERSION='${{ env.CURRENT_JS_VERSION }}' >> .env
           echo MINIBITS_SERVER_API_KEY='${{ secrets.MINIBITS_SERVER_API_KEY }}' >> .env
-          echo MINIBITS_SERVER_API_HOST='${{ MINIBITS_SERVER_API_HOST }}' >> .env
-          echo MINIBITS_NIP05_DOMAIN='${{ MINIBITS_NIP05_DOMAIN }}' >> .env
-          echo MINIBITS_RELAY_URL='${{ MINIBITS_RELAY_URL }}' >> .env          
+          echo MINIBITS_SERVER_API_HOST='$MINIBITS_SERVER_API_HOST' >> .env
+          echo MINIBITS_NIP05_DOMAIN='$MINIBITS_NIP05_DOMAIN' >> .env
+          echo MINIBITS_RELAY_URL='$MINIBITS_RELAY_URL' >> .env          
           echo COMMIT='${{ env.COMMIT_HASH }}' >> .env
           
       # Install dependecies from package.json
