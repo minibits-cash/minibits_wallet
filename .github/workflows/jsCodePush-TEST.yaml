@@ -32,15 +32,8 @@ jobs:
 
       # Codepush build will continue only if version changed from previous commit    
       - name: Detect version change
-        run: |
+        run: |  
           echo "IS_VERSION_CHANGED=true" >> $GITHUB_ENV
-          if [ "${{ env.PREV_JS_VERSION }}" != "${{ env.CURRENT_JS_VERSION }}" ]; then
-            echo "IS_VERSION_CHANGED=true" >> $GITHUB_ENV
-            echo "Detected version change"
-          else
-            echo "IS_VERSION_CHANGED=false" >> $GITHUB_ENV
-            echo "No version change, skipping further processing"
-          fi
     
       # Fetch native app versionName and versionCode from app/build.gradle                
       - name: Get Android native version        
@@ -62,12 +55,6 @@ jobs:
           echo "NATIVE_VERSION=${{steps.version-reader-android.outputs.versionName }}" >> $GITHUB_ENV
           echo "COMMIT_HASH=${{steps.commit-hash.outputs.short }}" >> $GITHUB_ENV
 
-      - name: Set minibits server related env vars
-        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
-        run: |-
-          echo "MINIBITS_SERVER_API_HOST='https://test.api.minibits.cash'" >> $GITHUB_ENV
-          echo "MINIBITS_NIP05_DOMAIN='@test.minibits.cash'" >> $GITHUB_ENV          
-
       # Get commit message
       - name: Get last commit message
         uses: actions/github-script@v6
@@ -85,11 +72,7 @@ jobs:
             core.exportVariable('COMMIT_MESSAGE', message);
                     
       # Create .env file            
-      - name: Generate .env
-        env:
-          MINIBITS_SERVER_API_HOST: 'https://api.minibits.cash'
-          MINIBITS_NIP05_DOMAIN: '@minibits.cash'
-          MINIBITS_RELAY_URL: 'wss://relay.minibits.cash/test'
+      - name: Generate .env        
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
         run: |-
           echo APP_ENV='TEST' >> .env
@@ -100,9 +83,9 @@ jobs:
           echo NATIVE_VERSION_ANDROID='${{ env.NATIVE_VERSION }}' >> .env
           echo JS_BUNDLE_VERSION='${{ env.CURRENT_JS_VERSION }}' >> .env
           echo MINIBITS_SERVER_API_KEY='${{ secrets.MINIBITS_SERVER_API_KEY }}' >> .env
-          echo MINIBITS_SERVER_API_HOST='$MINIBITS_SERVER_API_HOST' >> .env
-          echo MINIBITS_NIP05_DOMAIN='$MINIBITS_NIP05_DOMAIN' >> .env
-          echo MINIBITS_RELAY_URL='$MINIBITS_RELAY_URL' >> .env          
+          echo MINIBITS_SERVER_API_HOST='https://api.minibits.cash' >> .env
+          echo MINIBITS_NIP05_DOMAIN='@minibits.cash' >> .env
+          echo MINIBITS_RELAY_URL='wss://relay.minibits.cash/test' >> .env          
           echo COMMIT='${{ env.COMMIT_HASH }}' >> .env
           
       # Install dependecies from package.json
