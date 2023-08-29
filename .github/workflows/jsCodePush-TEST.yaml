@@ -34,13 +34,7 @@ jobs:
       - name: Detect version change
         run: |
           echo "IS_VERSION_CHANGED=true" >> $GITHUB_ENV
-          if [ "${{ env.PREV_JS_VERSION }}" != "${{ env.CURRENT_JS_VERSION }}" ]; then
-            echo "IS_VERSION_CHANGED=true" >> $GITHUB_ENV
-            echo "Detected version change"
-          else
-            echo "IS_VERSION_CHANGED=false" >> $GITHUB_ENV
-            echo "No version change, skipping further processing"
-          fi
+          
     
       # Fetch native app versionName and versionCode from app/build.gradle                
       - name: Get Android native version        
@@ -61,12 +55,6 @@ jobs:
         run: |-
           echo "NATIVE_VERSION=${{steps.version-reader-android.outputs.versionName }}" >> $GITHUB_ENV
           echo "COMMIT_HASH=${{steps.commit-hash.outputs.short }}" >> $GITHUB_ENV
-
-      - name: Set minibits server related env vars
-        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
-        run: |-
-          echo "MINIBITS_SERVER_API_HOST='https://test.api.minibits.cash'" >> $GITHUB_ENV
-          echo "MINIBITS_NIP05_DOMAIN='@test.minibits.cash'" >> $GITHUB_ENV          
 
       # Get commit message
       - name: Get last commit message
