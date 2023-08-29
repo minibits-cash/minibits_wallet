@@ -89,12 +89,14 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
         toggleSendModal()
 
         try {
-            // check before payment that contact name is still linked to the same pubkey
-            const profileRecord: WalletProfileRecord = 
-            await MinibitsClient.getWalletProfileByWalletId(contact.name as string)
+            if(contact.type && contact.type === ContactType.PRIVATE) {
+                // check before payment that contact name is still linked to the same pubkey
+                const profileRecord: WalletProfileRecord = 
+                await MinibitsClient.getWalletProfileByWalletId(contact.name as string)
 
-            if(!profileRecord || profileRecord.pubkey !== contact.pubkey) {
-                throw new AppError(Err.VALIDATION_ERROR, `${contact.name} is no longer linked to the public key stored in your contacts. Please get in touch with the payee and update your information.`)
+                if(!profileRecord || profileRecord.pubkey !== contact.pubkey) {
+                    throw new AppError(Err.VALIDATION_ERROR, `${contact.name} is no longer linked to the public key stored in your contacts. Please get in touch with the payee and update your information.`)
+                }
             }
         
         
