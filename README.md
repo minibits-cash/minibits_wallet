@@ -42,8 +42,8 @@ Send coins
 - [x] Share coin token to send through another app
 - [x] Show coin token as a QR code
 - [x] Track receive of pending coins by the payee
-- [x] Send to contact [✨ New, soon to be released!]
-- [ ] Lock coins to the receiver address
+- [x] Send to contact [✨ New!]
+- [ ] Lock coins sent offline to the receiver wallet key
 
 Top up wallet
 - [x] Show QR code with bitcoin lightning invoice to pay
@@ -63,11 +63,14 @@ Transaction history
 - [ ] Tags and related filtering of transactions
 - [ ] Delete incomplete and failed transactions from history
 
-Contacts [✨ New, soon to be released!]
+Contacts [✨ New!]
 - [x] Private contacts for payments
-- [x] Social contacts for tipping and donations
-- [x] Wallet keypair and name as a random public NIP05 identifier (random123@minibits.cash)
-- [x] Custom wallet name (myname@minibits.cash)
+- [x] Public contacts (followed users on NOSTR social network) for tipping and donations
+- [x] Load public contacts from custom NOSTR relay
+- [x] Wallet names as random public NIP05 identifiers (random123@minibits.cash)
+- [x] Custom wallet names (myname@minibits.cash)
+- [ ] Wallet names usable as LNURL addresses
+- [ ] Private contacts with other than minibits.cash NIP05 identifiers and relays
 
 Backup and recovery
 - [x] Local append-only backup of all coins in a database separate from wallet storage
@@ -106,7 +109,7 @@ As a result, the following architectural constraints are in place:
 <img src="https://www.minibits.cash/img/minibits_architecture_v2.png">
 
 Open architectural concepts worth wider discussion
-- [ ] Contacts management - identities, sharing contacts, send coins with the UX of tradfi instant payment while keeping privacy towards mints
+- [x] Contacts management - identities, sharing contacts, send coins with the UX of tradfi instant payment while keeping privacy towards mints - Implemented as NOSTR keypairs and NIP05 public sharable names that coins can be sent to
 - [ ] Off-device backup strategy - many options exist with or without mint interaction
 - [ ] UX and naming conventions - e-cash is not always intuitive. UX for new users heavily depends on using the right abstractions or terms to describe what is going on. This wallet wants to serve as a means to test what could work. One of the first ideas is to avoid terms such as token or proof and propose the term coin instead.
 
@@ -115,7 +118,7 @@ Open architectural concepts worth wider discussion
 
 Minibits wallet is in alpha and available as of now only for Android devices. You have the following options to try it out:
 - [x] Join testing program on Google Play (Closed testing ongoing, submit your email to get an invite on [Minibits.cash](https://www.minibits.cash))
-- [X] Download .apk file from Releases page and install it on your phone
+- [x] Download .apk file from Releases page and install it on your phone
 
 
 # Development
