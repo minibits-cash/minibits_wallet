@@ -213,8 +213,13 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
           top={spacing.screenHeight * 0.26}
           ContentComponent={
                 <View style={$payContainer}>
-                    <Text text={`Send to ${contact.name}`} preset="subheading" />                   
-                    <Text text={`Available balance is ${availableBalance.toLocaleString()} sats`} size='xs' style={{color: balanceColor}} />                   
+                    {contact.type === ContactType.PUBLIC && (
+                        <Text text={`Tip or donate to ${contact.name}`} preset="subheading" />
+                    )}
+                    {contact.type === ContactType.PRIVATE && (
+                        <Text text={`Send to ${contact.name}`} preset="subheading" />
+                    )}
+                    <Text text={`You can send up to ${availableBalance.toLocaleString()} sats`} size='xs' style={{color: balanceColor}} />                   
                     <View style={{alignItems: 'center'}}>
                         <TextInput
                             ref={amountToSendInputRef}
@@ -228,14 +233,16 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                         />
 
                     </View>
-                    <View style={$buttonContainer}>
-                        <Button preset='secondary' style={{marginRight: spacing.small}} onPress={() => setAmountToSend('100')} text='100 sats'/>
-                        <Button preset='secondary' style={{marginRight: spacing.small}} onPress={() => setAmountToSend('500')} text='500 sats'/>
-                        <Button preset='secondary' onPress={() => setAmountToSend('1000')} text='1000 sats'/>                    
-                    </View>
+                    {contact.type === ContactType.PUBLIC && (
+                        <View style={$buttonContainer}>
+                            <Button preset='secondary' style={{marginRight: spacing.small}} onPress={() => setAmountToSend('100')} text='100 sats'/>
+                            <Button preset='secondary' style={{marginRight: spacing.small}} onPress={() => setAmountToSend('500')} text='500 sats'/>
+                            <Button preset='secondary' onPress={() => setAmountToSend('1000')} text='1000 sats'/>                    
+                        </View>
+                    )}
                     <View style={[$buttonContainer, {marginTop: spacing.medium}]}>
                         <Button
-                                text='Send'
+                                text='Continue'
                                 style={$sendButton}
                                 onPress={onSendCoins}                                
                         /> 

@@ -7,6 +7,7 @@ export type ContactData = {
 
 export enum ContactType {
     PRIVATE = 'PRIVATE',
+    PUBLIC = 'PUBLIC',
 }
 
 export const ContactModel = types

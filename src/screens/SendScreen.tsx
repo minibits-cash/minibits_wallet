@@ -111,6 +111,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     const [isNostrDMModalVisible, setIsNostrDMModalVisible] = useState(false)
     const [isProofSelectorModalVisible, setIsProofSelectorModalVisible] = useState(false) // offline mode
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)
+    const [isNostrDMSending, setIsNostrDMSending] = useState(false)
     const [isNostrDMSuccess, setIsNostrDMSuccess] = useState(false)     
 
     useEffect(() => {
@@ -478,23 +479,26 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
     const sendAsNostrDM = async function () {
         try {            
+            setIsNostrDMSending(true)
             const senderPubkey = walletProfileStore.pubkey            
             const receiverPubkey = contactToSendTo?.pubkey
 
             // log.trace('', {senderPrivkey, senderPubkey, receiverPubkey}, 'sendAsNostrDM')
+            const message = `${walletProfileStore.npub} sent you ${amountToSend} sats from Minibits wallet!`
+            const content = message + '\n' + encodedTokenToSend
 
-            const encryptedToken = await NostrClient.encryptNip04(                
+            const encryptedContent = await NostrClient.encryptNip04(                
                 receiverPubkey as string, 
-                encodedTokenToSend as string
+                content as string
             )
             
-            // log.trace('Relays', relaysToShareTo)            
+            // log.trace('Relays', relaysToShareTo)          
 
             const dmEvent: NostrUnsignedEvent = {
                 kind: 4,
                 pubkey: senderPubkey,
                 tags: [['p', receiverPubkey], ['from', walletProfileStore.name+MINIBITS_NIP05_DOMAIN]],
-                content: encryptedToken,                                      
+                content: encryptedContent,                                      
             }
 
             const sentEvent: Event | undefined = await NostrClient.publish(
@@ -502,7 +506,9 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 relaysToShareTo,                     
             )
             
-            if(sentEvent) {
+            setIsNostrDMSending(false)
+
+            if(sentEvent) {                
                 setIsNostrDMSuccess(true)
 
                 if(!transactionId) {
@@ -621,6 +627,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
     const handleError = function(e: AppError): void {
         // TODO resetState() on all tx data on error? Or save txId to state and allow retry / recovery?
+        setIsNostrDMSending(false)
         setIsSendModalVisible(false)
         setIsQRModalVisible(false)
         setIsProofSelectorModalVisible(false)
@@ -827,7 +834,8 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 contactToSendTo={contactToSendTo as Contact}
                 relaysToShareTo={relaysToShareTo}
                 amountToSend={amountToSend}
-                sendAsNostrDM={sendAsNostrDM}                
+                sendAsNostrDM={sendAsNostrDM}
+                isNostrDMSending={isNostrDMSending}                
             />
             ))
             
@@ -1132,7 +1140,8 @@ const SendAsNostrDMBlock = observer(function (props: {
     contactToSendTo: Contact
     relaysToShareTo: string[]
     amountToSend: string
-    sendAsNostrDM: any    
+    sendAsNostrDM: any 
+    isNostrDMSending: boolean   
   }) {
     const sendBg = useThemeColor('background')
     const tokenTextColor = useThemeColor('textDim')    
@@ -1156,26 +1165,32 @@ const SendAsNostrDMBlock = observer(function (props: {
             size="xxs"
           />
         </ScrollView>
-        <View style={$buttonContainer}>
-          <Button
-            text="Send"
-            onPress={props.sendAsNostrDM}
-            style={{marginRight: spacing.medium}}
-            LeftAccessory={() => (
-              <Icon
-                icon="faPaperPlane"
-                color="white"
-                size={spacing.medium}
-                containerStyle={{marginRight: spacing.small}}
-              />
-            )}
-          />          
-          <Button
-            preset="tertiary"
-            text="Close"
-            onPress={props.toggleNostrDMModal}
-          />
-        </View>        
+        {props.isNostrDMSending ? (
+            <View style={$buttonContainer}> 
+                <Loading />
+            </View>            
+        ) : (
+            <View style={$buttonContainer}>            
+                <Button
+                    text="Send"
+                    onPress={props.sendAsNostrDM}
+                    style={{marginRight: spacing.medium}}
+                    LeftAccessory={() => (
+                    <Icon
+                        icon="faPaperPlane"
+                        color="white"
+                        size={spacing.medium}
+                        containerStyle={{marginRight: spacing.small}}
+                    />
+                    )}
+                />          
+                <Button
+                    preset="tertiary"
+                    text="Close"
+                    onPress={props.toggleNostrDMModal}
+                />           
+            </View>
+        )}        
       </View>
     )
   })

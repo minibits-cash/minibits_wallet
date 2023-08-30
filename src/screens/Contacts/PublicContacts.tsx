@@ -9,7 +9,7 @@ import {useStores} from '../../models'
 import {NostrClient, NostrEvent, NostrFilter, NostrProfile} from '../../services'
 import AppError, { Err } from '../../utils/AppError'
 import { log } from '../../utils/logger'
-import { Contact } from '../../models/Contact'
+import { Contact, ContactType } from '../../models/Contact'
 import { StackNavigationProp } from '@react-navigation/stack'
 import { ContactsStackParamList } from '../../navigation'
 
@@ -308,15 +308,16 @@ export const PublicContacts = observer(function (props: {
     }
 
 
-    const gotoContactDetail = function (publicProfile: NostrProfile) {
-        const {amountToSend} = props 
+    const gotoContactDetail = function (contact: Contact) {
+        const {amountToSend} = props
+        contact.type = ContactType.PUBLIC        
         
         if(amountToSend) {
             navigation.navigate('WalletNavigator', { 
                 screen: 'Send',
                 params: {
                     amountToSend, 
-                    contact: publicProfile as Contact, 
+                    contact, 
                     relays: NostrClient.getMinibitsRelays()
                 },
             })
@@ -325,7 +326,7 @@ export const PublicContacts = observer(function (props: {
         }
 
         navigation.navigate('ContactDetail', {
-            contact: publicProfile as Contact, 
+            contact, 
             relays: currentRelays.current
         })
     }
@@ -406,7 +407,7 @@ export const PublicContacts = observer(function (props: {
                                     text={item.name}
                                     subText={item.about?.replace(/\r?\n|\r/g, ' ').slice(0, 80)+'...'}
                                     topSeparator={isFirst ? false : true}
-                                    onPress={() => gotoContactDetail(item)}                                  
+                                    onPress={() => gotoContactDetail(item as Contact)}                                  
                                 />
                             ) 
                         }}                        

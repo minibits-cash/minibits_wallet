@@ -221,43 +221,47 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     }
 
     const transfer = async function () {
-      setIsLoading(true)
+        setIsLoading(true)
+        
+        const {transaction, message, error, finalFee} = await Wallet.transfer(
+            mintBalanceToTransferFrom as MintBalance,
+            amountToTransfer,
+            estimatedFee,
+            invoiceExpiry as Date,
+            memo,
+            encodedInvoice,
+        )
 
-      const {transaction, message, error, finalFee} = await Wallet.transfer(
-        mintBalanceToTransferFrom as MintBalance,
-        amountToTransfer,
-        estimatedFee,
-        invoiceExpiry as Date,
-        memo,
-        encodedInvoice,
-      )
+        log.info('Transfer result', {transaction, message, error, finalFee}, 'transfer')
 
-      const {status} = transaction as Transaction
-      setTransactionStatus(status)
+        const {status} = transaction as Transaction
+        setTransactionStatus(status)
 
-      if (error) {
-        setResultModalInfo({
-          status,
-          message: error.message,
-        })
-      } else {
-        if(!isInvoiceDonation) {  // Donation polling triggers own ResultModal on paid invoice
+        if (error) {
             setResultModalInfo({
                 status,
-                message,
+                message: error.message,
             })
-        }        
-      }
+        } else {
+            if(!isInvoiceDonation) {  // Donation polling triggers own ResultModal on paid invoice
+                setResultModalInfo({
+                    status,
+                    message,
+                })
+            }        
+        }
 
-      if (finalFee) {
-        setFinalFee(finalFee)
-      }
+        if (finalFee) {
+            setFinalFee(finalFee)
+        }
 
-      setIsLoading(false)
-      
-      if(!isInvoiceDonation) {
-        toggleResultModal()
-      }
+        setIsLoading(false)
+        
+        if(!isInvoiceDonation || error) {
+            toggleResultModal()
+        }
+
+
     }
     
 
@@ -414,7 +418,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
                                     tx={'common.close'}
                                     onPress={() => {
                                         if(isInvoiceDonation) {
-                                            navigation.navigate('ContactsNavigator', {screen: 'Contacts'})
+                                            navigation.navigate('ContactsNavigator', {screen: 'Contacts', params: {}})
                                         } else {
                                             navigation.navigate('Wallet', {})}
                                         }

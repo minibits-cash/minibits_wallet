@@ -112,6 +112,7 @@ export type WalletStackParamList = {
     Transfer: {scannedEncodedInvoice? : string, donationEncodedInvoice? : string}
     Topup: undefined
     ContactsNavigator: {screen: string, params: any}
+    SettingsNavigator: {screen: string, params: any}
 }
 
 export type WalletStackScreenProps<T extends keyof WalletStackParamList> = StackScreenProps<

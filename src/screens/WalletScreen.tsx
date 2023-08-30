@@ -7,12 +7,14 @@ import {
   View,
   Text as RNText,
   AppState,
+  Image,
 } from 'react-native'
 import Animated, {
   useAnimatedScrollHandler,
   useSharedValue,
   useAnimatedStyle,
 } from 'react-native-reanimated'
+import codePush, { RemotePackage } from 'react-native-code-push'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
 import {useThemeColor, spacing, colors, typography} from '../theme'
 import {
@@ -34,13 +36,21 @@ import {WalletStackScreenProps} from '../navigation'
 import {useHeader} from '../utils/useHeader'
 import {Mint, MintBalance} from '../models/Mint'
 import {MintsByHostname} from '../models/MintsStore'
-import {log} from '../utils/logger'
+import {Env, log} from '../utils/logger'
 import {Transaction, TransactionStatus} from '../models/Transaction'
 import {TransactionListItem} from './Transactions/TransactionListItem'
-import {MintClient, MintKeys, MintKeySets, NostrClient, NostrEvent, NostrFilter, Wallet} from '../services'
+import {MintClient, MintKeys, Wallet} from '../services'
 import {translate} from '../i18n'
 import AppError, { Err } from '../utils/AppError'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
+import {
+    APP_ENV,      
+    CODEPUSH_STAGING_DEPLOYMENT_KEY,
+    CODEPUSH_PRODUCTION_DEPLOYMENT_KEY, 
+} from '@env'
+import { round } from '../utils/number'
+
+const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
 
 interface WalletScreenProps extends WalletStackScreenProps<'Wallet'> {}
 
@@ -85,6 +95,45 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const [isLoading, setIsLoading] = useState<boolean>(false)
     const [isLightningModalVisible, setIsLightningModalVisible] = useState<boolean>(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
+
+    const [isUpdateAvailable, setIsUpdateAvailable] = useState<boolean>(false)
+    const [isUpdateModalVisible, setIsUpdateModalVisible] = useState<boolean>(false)
+    const [updateDescription, setUpdateDescription] = useState<string>('')
+    const [updateSize, setUpdateSize] = useState<string>('')
+    const [isNativeUpdateAvailable, setIsNativeUpdateAvailable] = useState<boolean>(false)
+
+    useEffect(() => {
+        const checkForUpdate = async () => {
+            try {
+                const update = await codePush.checkForUpdate(deploymentKey, handleBinaryVersionMismatchCallback)
+                if (update && update.failedInstall !== true) {  // do not announce update that failed to install before
+                    setUpdateDescription(update.description)
+                    setUpdateSize(`${round(update.packageSize *  0.000001, 2)}MB`)                  
+                    setIsUpdateAvailable(true)
+                    toggleUpdateModal()
+                }
+                log.trace('update', update, 'checkForUpdate')
+            } catch (e: any) {                
+                return false // silent
+            }
+        } 
+        checkForUpdate()
+    }, [])
+
+    const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {
+        setIsNativeUpdateAvailable(true)
+        toggleUpdateModal()
+    }
+    
+    const gotoUpdate = function() {
+        navigation.navigate('SettingsNavigator', {screen: 'Update', params: {
+            isNativeUpdateAvailable, 
+            isUpdateAvailable, 
+            updateDescription,
+            updateSize
+        }})
+    }
+    
     
 
     useFocusEffect(
@@ -155,6 +204,9 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
       setIsLightningModalVisible(previousState => !previousState)
     }
 
+    const toggleUpdateModal = () => {
+        setIsUpdateModalVisible(previousState => !previousState)
+    }
 
     const toggleResultModal = () => {
         setIsResultModalVisible(previousState => !previousState)
@@ -330,6 +382,28 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
           }
           onBackButtonPress={toggleLightningModal}
           onBackdropPress={toggleLightningModal}
+        />
+        <BottomModal
+          isVisible={isUpdateModalVisible ? true : false}
+          top={spacing.screenHeight * 0.75}
+          style={{padding: spacing.small}}
+          ContentComponent={        
+            <ListItem
+                LeftComponent={
+                    <View style={{marginRight: spacing.medium}}>                        
+                        <Image 
+                            source={{uri: 'https://www.minibits.cash/img/minibits_icon-192.png'}}
+                            style={{width: 40, height: 40}}
+                        />
+                    </View>
+                }
+                text='New Minibits version is available'
+                subText='Updates provide new functionalities and important bug fixes. View details in the Update manager.'
+                onPress={gotoUpdate}
+            />
+          }
+          onBackButtonPress={toggleUpdateModal}
+          onBackdropPress={toggleUpdateModal}
         />
         <BottomModal
           isVisible={isResultModalVisible ? true : false}

@@ -380,7 +380,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                         <RNText style={$supportText}>
                             Ready to donate more?
                         </RNText>
-                        <View style={{flexDirection: 'row', marginBottom: spacing.large}}>
+                        <View style={$buttonContainer}>
                             <Button
                                 preset="secondary"
                                 style={{marginRight: spacing.small}}
@@ -420,6 +420,10 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                                 text="Cancel"
                                 onPress={resetState}                            
                             />   
+                        </View>
+                        <View style={{flexDirection: 'row', alignItems: 'center', margin: spacing.medium}}>
+                            <Icon icon='faInfoCircle' />
+                            <Text style={{color: hint}} size='xxs' text='Please accept this is an alpha software running on the test environment. Your data can be lost due to a bug or when migrating to the production.'/>
                         </View>
                     </>
                     )}
@@ -522,13 +526,12 @@ const $ownNameDomain: TextStyle = {
     // textAlignVertical: 'center',
 }
   
-/* const $ownNameInput: TextStyle = {
-    flex: 1,
-    borderRadius: spacing.small,
-    fontSize: 16,
-    textAlignVertical: 'center',
-    marginRight: spacing.small,    
-}*/
+const $buttonContainer: ViewStyle = {
+    flexDirection: 'row',
+    alignSelf: 'center',
+    marginTop: spacing.medium,
+    marginBottom: spacing.large,
+}
 
 const $ownNameButton: ViewStyle = {
     maxHeight: 50,

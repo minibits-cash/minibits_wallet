@@ -150,9 +150,16 @@ const checkPendingReceived = async function () {
                     if(contactsStore.eventAlreadyReceived(event.id)) {
                         log.trace('Duplicate event, skipping...', event.id)
                         continue
-                    }
+                    }                    
                     
-                    const encoded = await NostrClient.decryptNip04(event.pubkey, event.content)
+                    const decrypted = await NostrClient.decryptNip04(event.pubkey, event.content)
+                    const encoded = findCashuToken(decrypted)
+
+                    if(!encoded) {
+                        log.info(`Could not extract cashu token from NOSTR message`, {decrypted})
+                        return
+                    }
+
                     const decoded: Token = decodeToken(encoded)
                     const sentFrom = getTagValue(event.tags, 'from')
 
@@ -226,6 +233,13 @@ const checkPendingReceived = async function () {
     } catch (e: any) {
         log.error(Err.NETWORK_ERROR, e.message)
     }
+}
+
+
+function findCashuToken(content: string) {
+    const words = content.split(/\s+/); // Split text into words
+    const encodedToken = words.find(word => word.startsWith("cashuA"))
+    return encodedToken || null
 }
 
 
@@ -1260,11 +1274,11 @@ const transfer = async function (
             // Return tokens intended for payment to the wallet if payment failed with an error
             if (proofsToPay.length > 0) {
                 log.info('Returning proofsToPay to the wallet likely after failed lightning payment', proofsToPay.length, 'transfer')
-                _addCashuProofs(proofsToPay, mintUrl, transactionId, true)
+                const amount = _addCashuProofs(proofsToPay, mintUrl, transactionId, true)
             }
         }
 
-        log.error(e.name, e.message)
+        log.error(e.name, e.message, {}, 'transfer')
 
         return {
             transaction: errorTransaction || undefined,

@@ -48,7 +48,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
             }
         } 
         checkForUpdate()
-      }, [])
+    }, [])
 
     const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {    
         log.info('handleBinaryVersionMismatchCallback', [true, update], 'handleBinaryVersionMismatchCallback')    

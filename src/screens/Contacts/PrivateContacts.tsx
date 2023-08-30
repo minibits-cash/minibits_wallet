@@ -12,7 +12,7 @@ import {MINIBITS_NIP05_DOMAIN} from '@env'
 import { log } from '../../utils/logger'
 import { useFocusEffect } from '@react-navigation/native'
 import { ContactListItem } from './ContactListItem'
-import { Contact } from '../../models/Contact'
+import { Contact, ContactType } from '../../models/Contact'
 import { StackNavigationProp } from '@react-navigation/stack'
 import { WalletProfileRecord } from '../../models/WalletProfileStore'
 
@@ -68,6 +68,7 @@ export const PrivateContacts = observer(function (props: {
         const npub = NostrClient.getNpubkey(profileRecord.pubkey)
         
         const newContact: Contact = {
+            type: ContactType.PRIVATE,
             pubkey: profileRecord.pubkey,
             npub,
             name: profileRecord.walletId,
