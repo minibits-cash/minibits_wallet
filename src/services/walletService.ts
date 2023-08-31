@@ -157,7 +157,7 @@ const checkPendingReceived = async function () {
 
                     if(!encoded) {
                         log.info(`Could not extract cashu token from NOSTR message`, {decrypted})
-                        return
+                        continue
                     }
 
                     const decoded: Token = decodeToken(encoded)
