@@ -27,7 +27,7 @@ export const TransactionListItem = observer(function (props: {tx: Transaction, i
       if(tx.memo) return tx.memo
   
       switch(tx.type) {
-        case TransactionType.RECEIVE || TransactionType.RECEIVE_NOSTR || TransactionType.RECEIVE_OFFLINE:
+        case TransactionType.RECEIVE || TransactionType.RECEIVE_OFFLINE:
           return 'You received'      
         case TransactionType.SEND:
           return 'You paid'

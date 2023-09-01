@@ -132,104 +132,37 @@ const checkPendingReceived = async function () {
         let events: NostrEvent[] = []
         let result: {status: TransactionStatus, message: string} | undefined = undefined
 
-        sub.on('event', (event: NostrEvent) => {
-            events.push(event)            
+        sub.on('event', async (event: NostrEvent) => {
+            events.push(event)
+            
+            log.trace('Got NOSTR event, starting receiveFromNostrEvent')
+
+            const {error, receivedAmount, sentFrom} = await receiveFromNostrEvent(event)
+
+            if(receivedAmount > 0) {
+                result = {
+                    status: TransactionStatus.COMPLETED ,
+                    message: `You've recieved ${receivedAmount} sats from ${sentFrom}`
+                }
+    
+                EventEmitter.emit('receiveCompleted', result)
+            }
+
+            if(error) {
+                result = {
+                    status: TransactionStatus.ERROR ,
+                    message: `Error while receiving transaction: ${error.message}`
+                }
+    
+                EventEmitter.emit('receivedError', result)
+            }
+
+            // EventEmitter.emit('receiveStarted', {count: events.length})            
         })
 
         sub.on('eose', async () => {
-            log.trace(`Got ${events.length} receive events`, [], 'checkPendingReceived')
+            log.trace(`Eose: Got ${events.length} receive events`, [], 'checkPendingReceived')
 
-            if(events.length > 0) {
-                contactsStore.setLastPendingReceivedCheck() // listen for changes from last tx to get potentially lost events during past checks
-            }
-
-            let receivedTxCount: number = 0
-            let errorTxCount: number = 0
-            let errors: string[] = []
-            let totalAmount: number = 0
-            
-            for (const event of events) {
-                try {
-                    if(contactsStore.eventAlreadyReceived(event.id)) {
-                        log.trace('Duplicate event, skipping...', event.id)
-                        continue
-                    }                    
-                    
-                    const decrypted = await NostrClient.decryptNip04(event.pubkey, event.content)
-                    const encoded = findCashuToken(decrypted)
-
-                    if(!encoded) {
-                        log.info(`Could not extract cashu token from NOSTR message`, {decrypted})
-                        continue
-                    }
-
-                    const decoded: Token = decodeToken(encoded)
-                    const sentFrom = getTagValue(event.tags, 'from')
-
-                    log.trace('sentFrom', sentFrom, 'checkPendingReceived')
-
-                    const tokenAmounts = getTokenAmounts(decoded)
-                    const amountToReceive = tokenAmounts.totalAmount
-                    const memo = decoded.memo || ''                    
-                    
-                    const {transaction, message, error, receivedAmount} =
-                        await Wallet.receive(
-                            decoded as Token,
-                            amountToReceive,
-                            memo,
-                            encoded as string,
-                        )
-                    
-                    if(transaction && transaction.status === TransactionStatus.COMPLETED) {
-                        
-                        const updated = JSON.parse(transaction.data)
-                        updated[2].receivedEvent = event
-
-                        await transactionsStore.updateStatus(
-                            transaction.id as number,
-                            TransactionStatus.COMPLETED,
-                            JSON.stringify(updated),
-                        )
-
-                        await transactionsStore.updateSentFrom(
-                            transaction.id as number,
-                            sentFrom as string
-                        )                        
-                    }
-                    
-                    contactsStore.addReceivedEventId(event.id)
-
-                    if (error) {
-                        errorTxCount++
-                        log.info(`Error while receiving coins sent through NOSTR relay`, {error, encoded})
-                    } else {
-                        receivedTxCount++
-                        totalAmount = totalAmount + receivedAmount                       
-                    }
-                } catch(e: any) {
-                    continue
-                }
-            }
-            
-            // sub.unsub()
-            
-            if(receivedTxCount > 0) {
-                result = {
-                    status: TransactionStatus.COMPLETED ,
-                    message: `You recieved ${totalAmount} sats in ${receivedTxCount} transaction(s).`
-                }
-
-                EventEmitter.emit('receivedCompleted', result)
-            }
-
-            if(errorTxCount > 0) {
-                result = {
-                    status: TransactionStatus.ERROR ,
-                    message: `${errorTxCount} incoming transaction(s) could not be received: ${errors.toString()}.`
-                }
-
-                EventEmitter.emit('receivedError', result) // TODO listen and handle
-            }
         })
 
         
@@ -250,6 +183,67 @@ function getTagValue(tagsArray: [string, string][], tagName: string): string | n
     const tag = tagsArray.find(([name]) => name === tagName);
     return tag ? tag[1] : null;
 }
+
+
+const receiveFromNostrEvent = async function (event: NostrEvent) {    
+    try {
+        contactsStore.setLastPendingReceivedCheck() 
+        
+        if(contactsStore.eventAlreadyReceived(event.id)) {
+            throw new AppError(Err.ALREADY_EXISTS_ERROR, 'Duplicate event, skipping...', {id: event.id})
+        }                    
+        
+        const decrypted = await NostrClient.decryptNip04(event.pubkey, event.content)
+        const encoded = findCashuToken(decrypted)
+
+        if(!encoded) {
+            throw new AppError(Err.NOTFOUND_ERROR, 'Could not extract cashu token from NOSTR message', {decrypted})
+        }
+
+        const decoded: Token = decodeToken(encoded)
+        const sentFrom = getTagValue(event.tags, 'from')        
+        const tokenAmounts = getTokenAmounts(decoded)
+        const amountToReceive = tokenAmounts.totalAmount
+        const memo = decoded.memo || ''                    
+        
+        const {transaction, message, error, receivedAmount} =
+            await receive(
+                decoded as Token,
+                amountToReceive,
+                memo,
+                encoded as string,
+            )
+        
+        if(transaction && transaction.status === TransactionStatus.COMPLETED) {
+            
+            const updated = JSON.parse(transaction.data)
+            updated[2].receivedEvent = event
+
+            await transactionsStore.updateStatus(
+                transaction.id as number,
+                TransactionStatus.COMPLETED,
+                JSON.stringify(updated),
+            )
+
+            await transactionsStore.updateSentFrom(
+                transaction.id as number,
+                sentFrom as string
+            )                        
+        }
+        
+        contactsStore.addReceivedEventId(event.id)
+
+        return {
+            error: null,
+            receivedAmount: receivedAmount,
+            sentFrom: transaction?.sentFrom || ''
+        }
+
+    } catch (e: any) {
+        return {error: e, receivedAmount: 0}
+    }
+}
+
 
 /*
  * Recover stuck wallet if tx error caused spent proof to remain in wallet.
@@ -1031,7 +1025,7 @@ const send = async function (
         }
 
         if (!memo || memo === '') {
-            memo = 'Sent from minibits wallet'
+            memo = 'Sent from Minibits wallet'
         }
 
         const encodedTokenToSend = getEncodedToken({

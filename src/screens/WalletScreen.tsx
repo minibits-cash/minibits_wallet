@@ -87,7 +87,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     })
 
     
-    const [balances, setBalances] = useState(() => proofsStore.getBalances())    
+    // const [balances, setBalances] = useState(() => proofsStore.getBalances())    
     const [info, setInfo] = useState<string>('')
     const [defaultMintUrl, setDefaultMintUrl] = useState<string>('https://mint.minibits.cash/Bitcoin')
     const [error, setError] = useState<AppError | undefined>()
@@ -136,28 +136,15 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     
     
 
-    useFocusEffect(
-        useCallback(() => {
-            const updatedBalances = proofsStore.getBalances()
-            setBalances(updatedBalances)
-            // Fixes #3
+    useFocusEffect(        
+        useCallback(() => {            
             Wallet.checkPendingSpent()
             Wallet.checkPendingTopups()
             Wallet.checkPendingReceived()
         }, [])
     )
 
-    const handleCompleted = (result: {status: TransactionStatus, message: string}) => {
-        log.trace('handleCompleted handler for receivedCompleted event trigerred')
-
-        if (result.status !== TransactionStatus.COMPLETED) {
-          return
-        }
-
-        setResultModalInfo(result)            
-        toggleResultModal()        
-    } 
-    
+  
     useFocusEffect(
         useCallback(() => {
             if (!route.params?.scannedMintUrl) {                
@@ -172,32 +159,40 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     )
 
 
-    useEffect(() => {
+    useEffect(() => {        
         const subscription = AppState.addEventListener('change', nextAppState => {
             if (
                 appState.current.match(/inactive|background/) &&
                 nextAppState === 'active'
-            ) {
-                // Fixes #3
+            ) {                
                 Wallet.checkPendingSpent()
                 Wallet.checkPendingTopups()
                 Wallet.checkPendingReceived()               
-
-                const updatedBalances = proofsStore.getBalances()
-                setBalances(updatedBalances)
             }
     
             appState.current = nextAppState         
         })
 
         // Subscribe to the 'receivedCompleted' event fired by checkPendingReceived
-        EventEmitter.on('receivedCompleted', handleCompleted)
+        EventEmitter.on('receiveCompleted', handleCompleted)
     
         return () => {
           subscription.remove()
-          EventEmitter.off('receivedCompleted', handleCompleted)
+          EventEmitter.off('receiveCompleted', handleCompleted)          
         }
     }, [])
+
+    
+    const handleCompleted = (result: {status: TransactionStatus, message: string}) => {
+        log.trace('handleCompleted handler for receiveCompleted event trigerred')
+
+        if (result.status !== TransactionStatus.COMPLETED) {
+          return
+        }
+
+        setResultModalInfo(result)            
+        toggleResultModal()        
+    } 
 
 
     const toggleLightningModal = () => {
@@ -285,8 +280,9 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
       setError(e)
     }
 
-    //const balances = proofsStore.getBalances()
+    const balances = proofsStore.getBalances()
     const screenBg = useThemeColor('background')
+    const iconInfo = useThemeColor('textDim')
 
     return (
       <Screen preset='auto' contentContainerStyle={$screen}>
@@ -404,7 +400,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
           }
           onBackButtonPress={toggleUpdateModal}
           onBackdropPress={toggleUpdateModal}
-        />
+        />        
         <BottomModal
           isVisible={isResultModalVisible ? true : false}
           top={spacing.screenHeight * 0.5}

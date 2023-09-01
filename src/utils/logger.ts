@@ -4,7 +4,7 @@ import {Err} from './AppError'
 import {APP_ENV, LOG_LEVEL, SENTRY_ACTIVE} from '@env'
 
 // refresh
-
+// refresh
 export enum LogLevel {
   TRACE = 'TRACE',
   DEBUG = 'DEBUG',

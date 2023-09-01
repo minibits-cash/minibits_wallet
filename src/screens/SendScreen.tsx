@@ -456,11 +456,16 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
     const send = async function () {
         setIsLoading(true)
+        
+        let updatedMemo: string = ''
+        if(isSharedAsNostrDirectMessage && memo === '') {
+            updatedMemo = `Sent from ${contactToSendFrom?.name}`
+        }
 
         const result = await Wallet.send(
             mintBalanceToSendFrom as MintBalance,
             parseInt(amountToSend),
-            memo,
+            memo || updatedMemo,
             selectedProofs
         )
 
