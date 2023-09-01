@@ -77,6 +77,7 @@ const en = {
     lightningFee: "Lightning network fee",
     memoFromSender: "Memo from sender",
     sentFrom: "Sent from",
+    sentTo: "Sent to",
     type: "Type",
     status: "Status",
     balanceAfter: "Balance after this transaction",

@@ -124,7 +124,7 @@ const checkPendingReceived = async function () {
             since: lastPendingReceivedCheck || 0
         }]
 
-        log.trace('Starting subscription...', filter, 'checkPendingReceived')
+        log.trace('Creating subscription...', filter, 'checkPendingReceived')
 
         const pool = NostrClient.getRelayPool()
         const sub = pool.sub(NostrClient.getMinibitsRelays(), filter)
@@ -132,13 +132,16 @@ const checkPendingReceived = async function () {
         let events: NostrEvent[] = []
         let result: {status: TransactionStatus, message: string} | undefined = undefined
 
-        sub.on('event', (event: NostrEvent) => {            
-            contactsStore.setLastPendingReceivedCheck() // conservative choice where to put it
+        sub.on('event', (event: NostrEvent) => {
             events.push(event)            
         })
 
         sub.on('eose', async () => {
             log.trace(`Got ${events.length} receive events`, [], 'checkPendingReceived')
+
+            if(events.length > 0) {
+                contactsStore.setLastPendingReceivedCheck() // listen for changes from last tx to get potentially lost events during past checks
+            }
 
             let receivedTxCount: number = 0
             let errorTxCount: number = 0
@@ -208,7 +211,7 @@ const checkPendingReceived = async function () {
                 }
             }
             
-            sub.unsub()
+            // sub.unsub()
             
             if(receivedTxCount > 0) {
                 result = {

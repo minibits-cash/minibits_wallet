@@ -526,11 +526,18 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 updated[2].sentToRelays = relaysToShareTo
                 updated[2].sentEvent = sentEvent    
                 
-                await transactionsStore.updateStatus(
+                await transactionsStore.updateStatus( // status does not change, just add event and relay info to tx.data
                     transactionId,
                     TransactionStatus.PENDING,
                     JSON.stringify(updated)
                 )
+
+                const txupdate = await transactionsStore.updateSentTo( // set contact to send to to the tx, could be elsewhere //
+                    transactionId,                    
+                    contactToSendTo?.name+MINIBITS_NIP05_DOMAIN
+                )
+
+                log.trace('sentTo tx', txupdate, 'sendAsNostrDM')
             } else {
                 setInfo('Relay could not confirm that the message has been published')
             }

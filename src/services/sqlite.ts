@@ -19,7 +19,7 @@ import { Contact, ContactType } from '../models/Contact'
 
 let _db: QuickSQLiteConnection
 
-const _dbVersion = 3 // Update this if db changes require migrations
+const _dbVersion = 4 // Update this if db changes require migrations
 
 const getInstance = function () {
   if (!_db) {
@@ -56,6 +56,7 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
         fee INTEGER,
         data TEXT,
         sentFrom TEXT,
+        sentTo TEXT,
         memo TEXT,
         balanceAfter INTEGER,
         noteToSelf TEXT,
@@ -155,6 +156,16 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
         ]) 
 
         log.info(`Prepared database migrations from ${currentVersion} -> 3`)
+    }
+
+
+    if (currentVersion < 4) {
+        migrationQueries.push([
+            `ALTER TABLE transactions
+            ADD COLUMN sentTo TEXT`,       
+        ]) 
+
+        log.info(`Prepared database migrations from ${currentVersion} -> 4`)
     }
 
 
@@ -591,7 +602,7 @@ const updateSentFromAsync = async function (id: number, sentFrom: string) {
   
       const db = getInstance()
       await db.executeAsync(query, params)
-      // DO NOT log to Sentry
+
       log.trace('Transaction sentFrom updated', {sentFrom}, 'updateSentFromAsync')
   
       const updatedTx = getTransactionById(id as number)
@@ -604,7 +615,34 @@ const updateSentFromAsync = async function (id: number, sentFrom: string) {
         e.message,
       )
     }
-  }
+}
+
+
+const updateSentToAsync = async function (id: number, sentTo: string) {
+    try {
+      const query = `
+        UPDATE transactions
+        SET sentTo = ?
+        WHERE id = ?      
+      `
+      const params = [sentTo, id]
+  
+      const db = getInstance()
+      await db.executeAsync(query, params)
+      
+      log.trace('Transaction sentTo updated', {sentTo}, 'updateSentToAsync')
+  
+      const updatedTx = getTransactionById(id as number)
+  
+      return updatedTx as TransactionRecord
+    } catch (e: any) {
+      throw new AppError(
+        Err.DATABASE_ERROR,
+        'Could not update transaction sentTo in database',
+        e.message,
+      )
+    }
+}
 
 /* const cleanTransactionData = async function (transactionIds: number[]) {
   try {
@@ -891,6 +929,7 @@ export const Database = {
   updateReceivedAmountAsync,
   updateNoteAsync,
   updateSentFromAsync,
+  updateSentToAsync,
   getTransactionsAsync,
   getPendingAmount,
   addOrUpdateProof,

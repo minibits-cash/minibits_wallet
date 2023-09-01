@@ -220,6 +220,15 @@ export const TransactionsStoreModel = types
                 log.trace('Transaction sentFrom updated in TransactionsStore')
             }
         }),
+        updateSentTo: flow(function* updateSentTo(id: number, sentTo: string) { //
+
+            yield Database.updateSentToAsync(id, sentTo)
+            const transactionInstance = self.findById(id)
+            if (transactionInstance) {
+                transactionInstance.sentTo = sentTo
+                log.trace('Transaction sentTo updated in TransactionsStore')
+            }
+        }),
         removeAllTransactions() {
             self.transactions.clear()
             log.info('Removed all transactions from TransactionsStore')

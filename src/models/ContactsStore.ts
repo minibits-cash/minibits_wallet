@@ -95,8 +95,10 @@ import {
             self.publicRelay = publicRelay
             log.info('setPublicRelay', publicRelay)
         },
-        setLastPendingReceivedCheck() {            
-            self.lastPendingReceivedCheck = Math.floor(Date.now() / 1000)
+        setLastPendingReceivedCheck() {    
+            const ts: number = Math.floor(Date.now() / 1000)
+            log.trace('Timestamp', {ts}, 'setLastPendingReceivedCheck')
+            self.lastPendingReceivedCheck = ts
         },
         addReceivedEventId(id: string) {            
             self.receivedEventIds.push(id)

@@ -49,6 +49,7 @@ export const TransactionModel = types
         fee: types.maybe(types.maybeNull(types.integer)),
         data: types.string,
         sentFrom: types.maybe(types.maybeNull(types.string)),
+        sentTo: types.maybe(types.maybeNull(types.string)),
         memo: types.maybe(types.maybeNull(types.string)),
         balanceAfter: types.maybe(types.maybeNull(types.integer)),
         noteToSelf: types.maybe(types.maybeNull(types.string)),

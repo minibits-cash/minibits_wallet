@@ -417,10 +417,12 @@ const ReceiveInfoBlock = function (props: {
                         label="tranDetailScreen.memoFromSender"
                         value={transaction.memo as string}
                     />
-                    <TranItem
-                        label="tranDetailScreen.sentFrom"
-                        value={transaction.sentFrom as string}
-                    />
+                    {transaction.sentFrom && (
+                        <TranItem
+                            label="tranDetailScreen.sentFrom"
+                            value={transaction.sentFrom as string}
+                        />
+                    )}                    
                     <TranItem
                         label="tranDetailScreen.type"
                         value={transaction.type as string}
@@ -708,7 +710,7 @@ const SendInfoBlock = function (props: {
 }) {
     const {transaction, isDataParsable, copyToken, copyAuditTrail, colorScheme} = props
     const labelColor = useThemeColor('textDim')
-
+    
     return (
         <>
             <Card
@@ -724,6 +726,12 @@ const SendInfoBlock = function (props: {
                             label="tranDetailScreen.memoToReceiver"
                             value={transaction.memo as string}
                         />
+                        {transaction.sentTo && (
+                            <TranItem
+                                label="tranDetailScreen.sentTo"
+                                value={transaction.sentTo as string}
+                            />
+                        )}
                         <TranItem
                             label="tranDetailScreen.type"
                             value={transaction.type as string}
