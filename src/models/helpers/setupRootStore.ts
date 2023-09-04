@@ -22,6 +22,8 @@ import {Database} from '../../services'
 import { log } from  '../../utils/logger'
 import { rootStoreModelVersion } from '../RootStore'
 import AppError, { Err } from '../../utils/AppError'
+import { MINIBITS_NIP05_DOMAIN } from '@env'
+import { WalletProfileStoreModel } from '../WalletProfileStore'
 
 /**
  * The key we'll be saving our state as within storage.
@@ -83,8 +85,8 @@ export async function setupRootStore(rootStore: RootStore) {
   )
 
   // run migrations if needed, needs to be after onSnapshot to be persisted
-  try {
-    log.trace('Device rootStorage version', rootStore.version, 'setupRootStore')
+  try {    
+    log.trace('Device rootStorage version', rootStore.version, 'setupRootStore')    
 
     if(rootStore.version < rootStoreModelVersion) {
       await _runMigrations(rootStore)
@@ -108,9 +110,9 @@ export async function setupRootStore(rootStore: RootStore) {
 async function _runMigrations(rootStore: RootStore) {
   const { 
     userSettingsStore,
-    contactsStore
+    walletProfileStore
   } = rootStore
-
+  
   let currentVersion = rootStore.version
   try {
     // v1 -> v2 migration
@@ -120,13 +122,14 @@ async function _runMigrations(rootStore: RootStore) {
       const userSettings = Database.getUserSettings()
       userSettingsStore.setWalletId(userSettings.userId as string)
       
-      log.info(`Completed rootStore migrations to version v${rootStoreModelVersion}`)
+      log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
     }
 
-    /* if(currentVersion < 3) {
-        log.trace(`Starting rootStore migrations from version v${currentVersion} -> v3`)  
-        log.info(`Completed rootStore migrations to version v${rootStoreModelVersion}`)
-    } */
+    if(currentVersion < 3) {
+        log.trace(`Starting rootStore migrations from version v${currentVersion} -> v3`)
+        walletProfileStore.setNip05(walletProfileStore.name+MINIBITS_NIP05_DOMAIN)
+        log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+    }
 
     
     rootStore.setVersion(rootStoreModelVersion)

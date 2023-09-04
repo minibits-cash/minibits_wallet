@@ -1,22 +1,20 @@
 import formatDistance from "date-fns/formatDistance"
 import { observer } from "mobx-react-lite"
 import React from "react"
-import { Image, ImageStyle, ScrollView, TextStyle, View, ViewStyle } from "react-native"
-import { Button, Icon, ListItem, Screen, Text } from "../../components"
-import { Contact, ContactType } from "../../models/Contact"
-import { colors, spacing, typography, useThemeColor } from "../../theme"
-import {MINIBITS_NIP05_DOMAIN} from '@env'
+import { Image, TextStyle, View } from "react-native"
+import { Icon, Text } from "../../components"
+import { spacing, useThemeColor } from "../../theme"
 import { getImageSource } from '../../utils/utils'
 
 
 export interface ProfileHeaderProps {
   picture: string
-  name: string  
+  nip05: string  
 }
 
 export const ProfileHeader = observer(function (props: ProfileHeaderProps) {
   
-    const { picture, name } = props
+    const { picture, nip05 } = props
     const headerBg = useThemeColor('header')
 
     return (
@@ -30,7 +28,7 @@ export const ProfileHeader = observer(function (props: ProfileHeaderProps) {
                     color={'white'}                
                 />
             )}
-            <Text preset='bold' text={name+MINIBITS_NIP05_DOMAIN} style={{color: 'white', marginBottom: spacing.small}} />          
+            <Text preset='bold' text={nip05} style={{color: 'white', marginBottom: spacing.small}} />          
         </View>
     )
 })

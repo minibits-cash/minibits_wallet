@@ -4,7 +4,6 @@ import {ColorValue, Share, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {ContactsStackScreenProps} from '../navigation'
 import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal} from '../components'
-import {MINIBITS_NIP05_DOMAIN} from '@env'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import AppError from '../utils/AppError'
@@ -24,7 +23,7 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
     })
 
     const {walletProfileStore} = useStores() 
-    const {npub, name, picture} = walletProfileStore
+    const {npub, name, picture, nip05} = walletProfileStore
 
     const [info, setInfo] = useState('')    
     const [error, setError] = useState<AppError | undefined>()
@@ -33,7 +32,7 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
     const onShareContact = async () => {
         try {
             const result = await Share.share({
-                message: `${name+MINIBITS_NIP05_DOMAIN}`,
+                message: `${nip05}`,
             })
 
             if (result.action === Share.sharedAction) {                
@@ -80,7 +79,7 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
       <Screen contentContainerStyle={$screen} preset='auto'>        
         <ProfileHeader 
             picture={picture as string}
-            name={name as string}
+            nip05={nip05 as string}
         />        
         <View style={$contentContainer}>
           <Card

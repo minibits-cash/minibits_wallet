@@ -2,7 +2,6 @@ import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
 import {Image, Pressable, ViewStyle} from 'react-native'
 import { TabBar, TabView, Route } from 'react-native-tab-view'
-import {MINIBITS_NIP05_DOMAIN} from '@env'
 import {colors, spacing, typography, useThemeColor} from '../theme'
 import {Header, Icon, Screen} from '../components'
 import {useStores} from '../models'
@@ -28,7 +27,8 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
     useEffect(() => {
         const load = async () => {
             try {   
-                // contactsStore.removeAllContacts()
+                
+                log.trace(walletProfileStore)
 
                 if(!walletProfileStore.pubkey || !walletProfileStore.picture) {
                     const {publicKey} = await NostrClient.getOrCreateKeyPair()
@@ -38,14 +38,14 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
                     await walletProfileStore.create(publicKey, walletId as string)
 
                     // announce to minibits relay + default public relays *** WIP
-                    /* const {name, picture} = walletProfileStore
+                    /* const {name, picture, nip05} = walletProfileStore
                     const profileEvent: NostrUnsignedEvent = {
                         kind: 0,
                         pubkey: publicKey,                        
                         content: JSON.stringify({
                             name,                            
                             picture,
-                            nip05: name+MINIBITS_NIP05_DOMAIN,                       
+                            nip05,                       
                         }),                                      
                     }
 
@@ -92,7 +92,7 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
 
     const headerBg = useThemeColor('header')
     const activeTabIndicator = colors.palette.accent400
-    const nip05 =  `${walletProfileStore.name+MINIBITS_NIP05_DOMAIN}`
+    const {picture, nip05} = walletProfileStore
 
     const renderTabBar = (props: any) => (
         <TabBar
@@ -105,7 +105,7 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
     return (
         <Screen contentContainerStyle={$screen}>
             <Header 
-                LeftActionComponent={<LeftHeader picture={walletProfileStore.picture} gotoProfile={gotoProfile}/>}
+                LeftActionComponent={<LeftHeader picture={picture} gotoProfile={gotoProfile}/>}
                 title={nip05}
                 titleStyle={{fontFamily: typography.primary?.medium, fontSize: 16}}
             />

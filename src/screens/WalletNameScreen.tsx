@@ -9,8 +9,6 @@ import {OwnName} from './Contacts/OwnName'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
 import {ContactsStackScreenProps} from '../navigation'
-import { MINIBITS_NIP05_DOMAIN } from '@env'
-
 
 interface WalletNameScreenProps extends ContactsStackScreenProps<'WalletName'>{}
 
@@ -21,7 +19,7 @@ export const WalletNameScreen: FC<WalletNameScreenProps> = observer(function Wal
     })
 
     const {walletProfileStore} = useStores()
-    const {pubkey, name} = walletProfileStore
+    const {pubkey, name, nip05} = walletProfileStore
 
     const renderScene = ({route}: {route: Route}) => {
         switch (route.key) {
@@ -41,8 +39,7 @@ export const WalletNameScreen: FC<WalletNameScreenProps> = observer(function Wal
     ])
 
     const headerBg = useThemeColor('header')
-    const activeTabIndicator = colors.palette.accent400
-    const nip05 =  name+MINIBITS_NIP05_DOMAIN
+    const activeTabIndicator = colors.palette.accent400    
 
     const renderTabBar = (props: any) => (
         <TabBar

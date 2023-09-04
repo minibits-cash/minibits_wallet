@@ -66,13 +66,15 @@ export const PrivateContacts = observer(function (props: {
         toggleNewContactModal()
 
         const npub = NostrClient.getNpubkey(profileRecord.pubkey)
+        const {pubkey, nip05, avatar: picture, walletId: name} = profileRecord
         
         const newContact: Contact = {
             type: ContactType.PRIVATE,
-            pubkey: profileRecord.pubkey,
+            pubkey,
             npub,
-            name: profileRecord.walletId,
-            picture: profileRecord.avatar
+            nip05,
+            name,
+            picture
         }
 
         log.trace('New private contact', newContact, 'saveNewContact')

@@ -55,7 +55,6 @@ import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { Proof } from '../models/Proof'
 import { Contact } from '../models/Contact'
-import { MINIBITS_NIP05_DOMAIN } from '@env'
 import { getImageSource } from '../utils/utils'
 
 if (
@@ -503,7 +502,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             const dmEvent: NostrUnsignedEvent = {
                 kind: 4,
                 pubkey: senderPubkey,
-                tags: [['p', receiverPubkey], ['from', walletProfileStore.name+MINIBITS_NIP05_DOMAIN]],
+                tags: [['p', receiverPubkey], ['from', walletProfileStore.nip05]],
                 content: encryptedContent,                                      
             }
 
@@ -540,7 +539,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
                 const txupdate = await transactionsStore.updateSentTo( // set contact to send to to the tx, could be elsewhere //
                     transactionId,                    
-                    contactToSendTo?.name+MINIBITS_NIP05_DOMAIN
+                    contactToSendTo?.nip05handle as string
                 )
 
                 log.trace('sentTo tx', txupdate, 'sendAsNostrDM')

@@ -71,13 +71,13 @@ export const PictureScreen: FC<PictureScreenProps> = observer(function PictureSc
     
     const headerBg = useThemeColor('header')
     const selectedColor = colors.palette.success200
-    const {name, picture} = walletProfileStore
+    const {nip05, picture} = walletProfileStore
 
     return (
       <Screen style={$screen} preset='auto'>        
         <ProfileHeader 
             picture={picture}
-            name={name}
+            nip05={nip05}
         />        
         <View style={$contentContainer}>
             <View style={$picturesContainer}>
