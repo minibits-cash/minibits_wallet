@@ -11,6 +11,7 @@ import Clipboard from '@react-native-clipboard/clipboard'
 import { ContactType } from '../models/Contact'
 import { WalletProfileRecord } from '../models/WalletProfileStore'
 import { MinibitsClient } from '../services'
+import { getImageSource } from '../utils/utils'
 
 
 interface ContactDetailScreenProps extends ContactsStackScreenProps<'ContactDetail'> {}
@@ -121,13 +122,6 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
         navigation.goBack()
     }
 
-    const getImageSource = function(img: string) {
-        if(img.startsWith('http') || img.startsWith('https')) {
-            return img
-        } else {
-            return `data:image/png;base64,${img}`
-        }
-    }
 
     const handleError = function (e: AppError): void {        
         setError(e)

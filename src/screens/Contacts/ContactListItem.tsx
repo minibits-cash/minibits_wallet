@@ -6,6 +6,7 @@ import { Button, Icon, ListItem, Screen, Text } from "../../components"
 import { Contact, ContactType } from "../../models/Contact"
 import { NostrClient } from "../../services"
 import { colors, spacing, typography, useThemeColor } from "../../theme"
+import { getImageSource } from '../../utils/utils'
 
 
 export interface ContactListProps {
@@ -15,14 +16,6 @@ export interface ContactListProps {
 export const ContactListItem = observer(function (props: {contact: Contact, isFirst: boolean, gotoContactDetail: any}) {
   
     const { contact } = props
-
-    const getImageSource = function(img: string) {
-        if(img.startsWith('http') || img.startsWith('https')) {
-            return img
-        } else {
-            return `data:image/png;base64,${img}`
-        }
-    }
   
     return (
       <ListItem

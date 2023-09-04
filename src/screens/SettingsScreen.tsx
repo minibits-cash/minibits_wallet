@@ -14,7 +14,6 @@ import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import {translate} from '../i18n'
 import { Env, log } from '../utils/logger'
-import { BackupScreen } from './BackupScreen'
 import { round } from '../utils/number'
 
 interface SettingsScreenProps extends SettingsStackScreenProps<'Settings'> {}
@@ -41,7 +40,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                     setUpdateSize(`${round(update.packageSize *  0.000001, 2)}MB`)                  
                     setIsUpdateAvailable(true)
                 }
-                log.info('update', update, 'checkForUpdate')
+                
             } catch (e: any) {
                 log.info(e.name, e.message)
                 return false // silent
@@ -50,8 +49,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
         checkForUpdate()
     }, [])
 
-    const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {    
-        log.info('handleBinaryVersionMismatchCallback', [true, update], 'handleBinaryVersionMismatchCallback')    
+    const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {            
         setIsNativeUpdateAvailable(true)
     }
 

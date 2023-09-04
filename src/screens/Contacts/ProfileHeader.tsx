@@ -6,6 +6,7 @@ import { Button, Icon, ListItem, Screen, Text } from "../../components"
 import { Contact, ContactType } from "../../models/Contact"
 import { colors, spacing, typography, useThemeColor } from "../../theme"
 import {MINIBITS_NIP05_DOMAIN} from '@env'
+import { getImageSource } from '../../utils/utils'
 
 
 export interface ProfileHeaderProps {
@@ -17,14 +18,6 @@ export const ProfileHeader = observer(function (props: ProfileHeaderProps) {
   
     const { picture, name } = props
     const headerBg = useThemeColor('header')
-
-    const getImageSource = function(img: string) {
-        if(img.startsWith('http') || img.startsWith('https')) {
-            return img
-        } else {
-            return `data:image/png;base64,${img}`
-        }
-    }
 
     return (
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>            

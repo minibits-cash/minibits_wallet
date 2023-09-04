@@ -7,10 +7,11 @@ import {colors, spacing, typography, useThemeColor} from '../theme'
 import {Header, Icon, Screen} from '../components'
 import {useStores} from '../models'
 import {ContactsStackScreenProps} from '../navigation'
-import { NostrClient } from '../services'
+import { NostrClient, NostrUnsignedEvent } from '../services'
 import { PrivateContacts } from './Contacts/PrivateContacts'
 import { PublicContacts } from './Contacts/PublicContacts'
 import { log } from '../utils/logger'
+import { getImageSource } from '../utils/utils'
 
 interface ContactsScreenProps extends ContactsStackScreenProps<'Contacts'> {}
 
@@ -32,8 +33,29 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
                 if(!walletProfileStore.pubkey || !walletProfileStore.picture) {
                     const {publicKey} = await NostrClient.getOrCreateKeyPair()
                     const walletId = userSettingsStore.walletId 
-
+                    
+                    // create random name, NIP05 identifier, random picture and sharable profile
                     await walletProfileStore.create(publicKey, walletId as string)
+
+                    // announce to minibits relay + default public relays *** WIP
+                    /* const {name, picture} = walletProfileStore
+                    const profileEvent: NostrUnsignedEvent = {
+                        kind: 0,
+                        pubkey: publicKey,                        
+                        content: JSON.stringify({
+                            name,                            
+                            picture,
+                            nip05: name+MINIBITS_NIP05_DOMAIN,                       
+                        }),                                      
+                    }
+
+                    const defaultRelays = NostrClient.getDefaultRelays()
+                    const minibitsRelays = NostrClient.getMinibitsRelays()
+        
+                    const publishedEvent: Event | undefined = await NostrClient.publish(
+                        profileEvent,
+                        [ ...defaultRelays, ...minibitsRelays]                    
+                    ) */
                 }
                 
                 // log.trace('Pic', walletProfileStore.picture)
@@ -105,14 +127,6 @@ const LeftHeader = observer(function (props: {
     picture: string
     gotoProfile: any
 }) {
-
-    const getImageSource = function(img: string) {
-        if(img.startsWith('http') || img.startsWith('https')) {
-            return img
-        } else {
-            return `data:image/png;base64,${img}`
-        }
-    }
 
     return (        
         <Pressable style={{marginHorizontal: spacing.medium}} onPress={props.gotoProfile}>                

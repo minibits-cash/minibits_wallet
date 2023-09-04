@@ -11,6 +11,7 @@ import { MinibitsClient} from '../services'
 import AppError from '../utils/AppError'
 import { ProfileHeader } from './Contacts/ProfileHeader'
 import { scale } from '@gocodingnow/rn-size-matters'
+import { getImageSource } from '../utils/utils'
 
 interface PictureScreenProps extends ContactsStackScreenProps<'Picture'> {}
 
@@ -67,13 +68,6 @@ export const PictureScreen: FC<PictureScreenProps> = observer(function PictureSc
         setError(e)
     }
 
-    const getImageSource = function(img: string) {
-        if(img.startsWith('http') || img.startsWith('https')) {
-            return img
-        } else {
-            return `data:image/png;base64,${img}`
-        }
-    }
     
     const headerBg = useThemeColor('header')
     const selectedColor = colors.palette.success200

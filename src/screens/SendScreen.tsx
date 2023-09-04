@@ -56,6 +56,7 @@ import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { Proof } from '../models/Proof'
 import { Contact } from '../models/Contact'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
+import { getImageSource } from '../utils/utils'
 
 if (
   Platform.OS === 'android' &&
@@ -1245,14 +1246,6 @@ const NostDMInfoBlock = observer(function (props: {
     amountToSend: string
     contactToSendTo: NostrProfile
 }) {
-
-    const getImageSource = function(img: string) {
-        if(img.startsWith('http') || img.startsWith('https')) {
-            return img
-        } else {
-            return `data:image/png;base64,${img}`
-        }
-    }
 
     const tokenTextColor = useThemeColor('textDim')
 

@@ -74,6 +74,8 @@ export const PrivateContacts = observer(function (props: {
             name: profileRecord.walletId,
             picture: profileRecord.avatar
         }
+
+        log.trace('New private contact', newContact, 'saveNewContact')
         
         contactsStore.addContact(newContact)
     }
