@@ -185,7 +185,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
             if(paid) {                
                 setIsLoading(true)
                     
-                await walletProfileStore.update(ownName, walletProfileStore.picture)                                    
+                await walletProfileStore.updateName(ownName)                                    
                 userSettingsStore.setWalletId(ownName)
 
                 setIsLoading(false)

@@ -9,6 +9,7 @@ import {useStores} from '../models'
 import AppError from '../utils/AppError'
 import { ProfileHeader } from './Contacts/ProfileHeader'
 import Clipboard from '@react-native-clipboard/clipboard'
+import { log } from '../utils/logger'
 
 interface ProfileScreenProps extends ContactsStackScreenProps<'Profile'> {}
 
@@ -23,7 +24,7 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
     })
 
     const {walletProfileStore} = useStores() 
-    const {npub, name, picture, nip05} = walletProfileStore
+    const {npub, name, picture, nip05} = walletProfileStore    
 
     const [info, setInfo] = useState('')    
     const [error, setError] = useState<AppError | undefined>()

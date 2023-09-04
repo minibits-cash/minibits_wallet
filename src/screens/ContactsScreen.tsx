@@ -11,6 +11,7 @@ import { PrivateContacts } from './Contacts/PrivateContacts'
 import { PublicContacts } from './Contacts/PublicContacts'
 import { log } from '../utils/logger'
 import { getImageSource } from '../utils/utils'
+import { MINIBITS_NIP05_DOMAIN } from '@env'
 
 interface ContactsScreenProps extends ContactsStackScreenProps<'Contacts'> {}
 
@@ -26,8 +27,7 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
     
     useEffect(() => {
         const load = async () => {
-            try {   
-                
+            try {                
                 log.trace(walletProfileStore)
 
                 if(!walletProfileStore.pubkey || !walletProfileStore.picture) {

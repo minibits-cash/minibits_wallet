@@ -98,8 +98,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                 if(!profileRecord || profileRecord.pubkey !== contact.pubkey) {
                     throw new AppError(Err.VALIDATION_ERROR, `${contact.name} is no longer linked to the public key stored in your contacts. Please get in touch with the payee and update your information.`)
                 }
-            }
-        
+            }        
         
             navigation.navigate('WalletNavigator', { 
                 screen: 'Send',
@@ -115,6 +114,28 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
             handleError(e)
         }
         
+    }
+
+
+    const onSyncContact = async function () {
+        try {
+            // check before payment that contact name is still linked to the same pubkey
+            const profileRecord: WalletProfileRecord = 
+            await MinibitsClient.getWalletProfileByWalletId(contact.name as string)
+
+            if(!profileRecord || profileRecord.pubkey !== contact.pubkey) {
+                throw new AppError(Err.VALIDATION_ERROR, `${contact.name} is no longer linked to the public key stored in your contacts. Please get in touch with the contact and update your information.`)
+            }                
+
+            contactsStore.updatePicture(contact.pubkey, profileRecord.avatar) // hm, this does not change
+
+            toggleContactModal()            
+            setInfo('Sync completed')
+            return
+        } catch (e: any) {
+            handleError(e)
+        }
+        navigation.goBack()
     }
 
     const onDeleteContact = function () {
@@ -176,7 +197,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
         </View>
         <BottomModal
           isVisible={isContactModalVisible ? true : false}
-          top={spacing.screenHeight * 0.6}
+          top={spacing.screenHeight * 0.55}
           ContentComponent={               
             <>
                 <ListItem
@@ -188,14 +209,24 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                     style={{paddingHorizontal: spacing.medium}}
                 />
                 {contact.type === ContactType.PRIVATE && (
-                    <ListItem
-                        text='Delete contact'
-                        subText='Remove this contact from your wallet.'
-                        leftIcon='faXmark'                            
-                        onPress={onDeleteContact}
-                        bottomSeparator={true}
-                        style={{paddingHorizontal: spacing.medium}}
-                    /> 
+                    <>
+                        <ListItem
+                            text='Sync contact'
+                            subText='Check that contact name is still linked to the same pubkey match and update picture if it was changed.'
+                            leftIcon='faRotate'                            
+                            onPress={onSyncContact}
+                            bottomSeparator={true}
+                            style={{paddingHorizontal: spacing.medium}}
+                        />
+                        <ListItem
+                            text='Delete contact'
+                            subText='Remove this contact from your wallet.'
+                            leftIcon='faXmark'                            
+                            onPress={onDeleteContact}
+                            bottomSeparator={true}
+                            style={{paddingHorizontal: spacing.medium}}
+                        />
+                    </>
                 )}     
             </>
           }

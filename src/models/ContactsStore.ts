@@ -58,10 +58,20 @@ import {
               const contactInstance = ContactModel.create(newContact)
               self.contacts.push(contactInstance)
   
-              log.trace('New Contact added to the ContactsStore','','addContact')
+              log.trace('New contact added to the ContactsStore', newContact, 'addContact')
   
               return contactInstance
           },
+          updatePicture(pubkey: string, picture: string) {                           
+
+            const contactInstance = self.findByPubkey(pubkey)
+            if (contactInstance) {
+                contactInstance.setPicture(picture)
+                log.trace('Contact picture updated in ContactsStore')
+            }
+
+            return contactInstance
+        },
           saveNote (pubkey: string, note: string) {              
               const contactInstance = self.findByPubkey(pubkey)
               if (contactInstance) {
@@ -80,7 +90,7 @@ import {
 
             if (contactInstance) {
                 destroy(contactInstance)
-                log.info('Mint removed from MintsStore')
+                log.info('Contact removed from MintsStore')
             }
         },
         removeAllContacts() {            

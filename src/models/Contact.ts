@@ -23,7 +23,13 @@ export const ContactModel = types
         noteToSelf: types.maybe(types.string),
         data: types.maybe(types.string),        
         createdAt: types.optional(types.number, Math.floor(Date.now() / 1000)),
-    }).views(self => ({        
+    })
+    .actions(self => ({
+        setPicture(picture: string) {
+            self.picture = picture + '?r=' + Math.floor(Math.random() * 100) // force url refresh
+        },
+    }))
+    .views(self => ({        
         get nip05handle() {
             if(!self.nip05 && self.type === ContactType.PRIVATE) {
                 return self.name+MINIBITS_NIP05_DOMAIN

@@ -43,15 +43,23 @@ export const WalletProfileStoreModel = types
             log.trace('Wallet profile saved in WalletProfileStore', self)
             return self           
         }),      
-        update: flow(function* update(name: string, picture: string) {
+        updateName: flow(function* update(name: string) {
 
-            let profileRecord: WalletProfileRecord = yield MinibitsClient.updateWalletProfile(self.pubkey, name, picture)           
+            let profileRecord: WalletProfileRecord = yield MinibitsClient.updateWalletProfile(self.pubkey, name, self.picture)           
                            
             self.name = profileRecord.walletId
             self.nip05 = profileRecord.nip05
-            self.picture = profileRecord.avatar // server returns public URL instead of png            
-            // self.device = profileRecord.device 
-            log.trace('Wallet profile updated in the WalletProfileStore', self)
+            
+            log.trace('Wallet name updated in the WalletProfileStore', self)
+            return self         
+        }),
+        updatePicture: flow(function* update(picture: string) {
+
+            let profileRecord: WalletProfileRecord = yield MinibitsClient.updateWalletProfile(self.pubkey, self.name, picture)          
+
+            self.picture = profileRecord.avatar + '?r=' + Math.floor(Math.random() * 100) // force refresh as image URL stays the same
+            
+            log.trace('Wallet picture updated in the WalletProfileStore', self)
             return self         
         }),
         setNip05(nip05: string) {            

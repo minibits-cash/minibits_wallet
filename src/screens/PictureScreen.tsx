@@ -53,7 +53,7 @@ export const PictureScreen: FC<PictureScreenProps> = observer(function PictureSc
     const onPictureConfirm = async function () {
         try {
             setIsLoading(true)            
-            await walletProfileStore.update(walletProfileStore.name, selectedPicture)           
+            await walletProfileStore.updatePicture(selectedPicture)           
             setIsLoading(false)
 
             navigation.goBack()

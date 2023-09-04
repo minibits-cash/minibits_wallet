@@ -7,7 +7,7 @@ import {
 import { WalletProfile, WalletProfileRecord } from "../models/WalletProfileStore"
 
 
-
+// refresh
 const getRandomPictures = async function () {
     const url = MINIBITS_SERVER_API_HOST + '/profile'  
     const method = 'GET'        
@@ -18,7 +18,7 @@ const getRandomPictures = async function () {
         headers,            
     })
 
-    log.trace(`Got pictures`, 'getRandomPictures')
+    log.trace(`Got pictures`, MINIBITS_SERVER_API_HOST, 'getRandomPictures')
 
     return avatars
 }

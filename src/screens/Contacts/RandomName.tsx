@@ -50,7 +50,7 @@ export const RandomName = observer(function (props: {navigation: any, pubkey: st
         try {
             setIsLoading(true)
             
-            await walletProfileStore.update(selectedName, walletProfileStore.picture)                                    
+            await walletProfileStore.updateName(selectedName)                                    
             userSettingsStore.setWalletId(selectedName)
 
             setIsLoading(false)
