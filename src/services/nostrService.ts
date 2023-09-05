@@ -220,8 +220,7 @@ const getMessages = async function (
 }
 
 
-const verifyNip05 = async function (nip05: string, pubkey: string) {
-    log.trace('Starting verification of', nip05, 'verifyNip05')
+const getNip05Record = async function (nip05: string) {    
     const nip05Domain = NostrClient.getDomainFromNip05(nip05)
     const nip05Name = NostrClient.getNameFromNip05(nip05)  
 
@@ -236,20 +235,14 @@ const verifyNip05 = async function (nip05: string, pubkey: string) {
 
         log.trace(url)
 
-        const nip05result: Nip05VerificationRecord = await MinibitsClient.fetchApi(url, {
+        const nip05Record: Nip05VerificationRecord = await MinibitsClient.fetchApi(url, {
             method,            
             headers,            
         })
 
-        log.trace(`Got response`, nip05result || null, 'verifyNip05')
+        log.trace(`Got response`, nip05Record || null, 'verifyNip05')
 
-        if (nip05result && nip05result.names[nip05Name] === pubkey) {
-            return true
-        }
-        
-        throw new AppError(
-            Err.VALIDATION_ERROR, 
-            `${nip05Name} is no longer linked to the same public key as in your contacts. Please get in touch with the wallet owner.`)
+        return nip05Record
         
     } catch(e: any) {
         if(e.code && e.code === 404) {
@@ -261,6 +254,29 @@ const verifyNip05 = async function (nip05: string, pubkey: string) {
         }
     }
 }
+
+
+/* function isValidNip05(nip05: string) {
+    // Regular expression pattern for basic email validation
+    const emailPattern = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/    
+    return emailPattern.test(nip05)
+} */
+
+
+const verifyNip05 = async function (nip05: string, pubkey: string) {
+
+    const nip05Record = await getNip05Record(nip05)
+    const nip05Name = NostrClient.getNameFromNip05(nip05)
+
+    if (nip05Record && nip05Record.names[nip05Name as string] === pubkey) {
+        return true
+    }
+    
+    throw new AppError(
+        Err.VALIDATION_ERROR, 
+        `${nip05Name} is no longer linked to the same public key as in your contacts. Please get in touch with the wallet owner.`)   
+}
+
 
 const getDomainFromNip05 = function(nip05: string) {
     const atIndex = nip05.lastIndexOf('@')
@@ -317,6 +333,7 @@ export const NostrClient = {
     getNameFromNip05,
     publish,   
     getMessages,
+    getNip05Record,
     verifyNip05,
     deleteKeyPair
 }

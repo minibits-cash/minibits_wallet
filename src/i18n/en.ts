@@ -99,9 +99,9 @@ const en = {
   },
   profileScreen: {    
     changeAvatar: "Change picture",
-    changeAvatarSubtext: "Select one from randomly generated pictures. In future you will be able to provide URL address of your own.",
+    changeAvatarSubtext: "Select one from randomly generated pictures.",
     changeWalletname: "Change wallet name",
-    changeWalletnameSubtext: "Change unique wallet name. Your wallet name can be shared with other people as a readable identifier linked to the wallet's unique key.",
+    changeWalletnameSubtext: "Change unique wallet name. Your wallet name can be shared with other people. Like an account number, just better.",
   },
   settingsScreen: {
     title: "Settings", 

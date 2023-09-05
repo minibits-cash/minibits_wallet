@@ -89,6 +89,7 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
                 LeftActionComponent={<LeftHeader picture={picture} gotoProfile={gotoProfile}/>}
                 title={nip05}
                 titleStyle={{fontFamily: typography.primary?.medium, fontSize: 16}}
+                RightActionComponent={<RightHeader gotoProfile={gotoProfile}/>}
             />
             <TabView
                 renderTabBar={renderTabBar}
@@ -123,6 +124,21 @@ const LeftHeader = observer(function (props: {
         </Pressable>        
     )
 })
+
+
+const RightHeader = function (props: {    
+    gotoProfile: any
+}) {
+
+    return (        
+        <Pressable style={{marginHorizontal: spacing.medium}} onPress={props.gotoProfile}>
+            <Icon
+                icon='faEllipsisVertical'
+                color={'white'}                
+            />             
+        </Pressable>        
+    )
+}
 
 
 const $screen: ViewStyle = {

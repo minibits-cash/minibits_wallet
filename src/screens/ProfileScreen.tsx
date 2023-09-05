@@ -62,6 +62,11 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
       navigation.navigate('WalletName')
     }
 
+
+    const gotoOwnKeys = function() {
+      navigation.navigate('OwnKeys')
+    }
+
     const onCopyNpub = function () {        
         try {
             Clipboard.setString(npub)
@@ -86,6 +91,20 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                 <WalletProfileActionsBlock 
                     gotoAvatar={gotoAvatar}
                     gotoWalletName={gotoWalletName}
+                />
+            }
+          />
+          <Card
+            style={[$card, {marginTop: spacing.medium}]}
+            ContentComponent={
+                <ListItem
+                    text='Use your own account'
+                    subText='Use your existing NOSTR account as your wallet profile. You can then use Minibits to send and receive coins using your public identity on NOSTR social network.'
+                    leftIcon='faKey'
+                    leftIconInverse={true}
+                    leftIconColor={colors.palette.iconViolet200}              
+                    onPress={gotoOwnKeys}                    
+                    style={{paddingRight: spacing.medium}}
                 />
             }
           />

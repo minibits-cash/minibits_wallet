@@ -28,6 +28,7 @@ import {
   TranHistoryScreen,
   TransferScreen,
   TopupScreen,
+  OwnKeysScreen,
 } from "../screens"
 import { Contact } from "../models/Contact"
 import { colors, useThemeColor, spacing, typography } from "../theme"
@@ -152,6 +153,7 @@ export type ContactsStackParamList = {
     RandomName: {navigation: any}
     OwnName: {navigation: any}
     ContactDetail: {contact: Contact, relays: string[]}
+    OwnKeys: undefined
     WalletNavigator: {screen: string, params: any}    
 }  
   
@@ -174,6 +176,7 @@ export type ContactsStackScreenProps<T extends keyof ContactsStackParamList> = S
         <ContactsStack.Screen name="Profile" component={ProfileScreen} />
         <ContactsStack.Screen name="Picture" component={PictureScreen} />
         <ContactsStack.Screen name="ContactDetail" component={ContactDetailScreen} />
+        <ContactsStack.Screen name="OwnKeys" component={OwnKeysScreen} />
         <ContactsStack.Screen name="WalletName" component={WalletNameScreen} />        
       </ContactsStack.Navigator>
     )

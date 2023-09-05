@@ -16,6 +16,7 @@ export * from './ProfileScreen'
 export * from './PictureScreen'
 export * from './WalletNameScreen'
 export * from './ContactDetailScreen'
+export * from './OwnKeysScreen'
 
 // SettingsNavigator
 export * from './SettingsScreen'
