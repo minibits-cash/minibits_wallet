@@ -35,27 +35,8 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
                     const walletId = userSettingsStore.walletId 
                     
                     // create random name, NIP05 identifier, random picture and sharable profile
-                    await walletProfileStore.create(publicKey, walletId as string)
-
-                    // announce to minibits relay + default public relays *** WIP
-                    /* const {name, picture, nip05} = walletProfileStore
-                    const profileEvent: NostrUnsignedEvent = {
-                        kind: 0,
-                        pubkey: publicKey,                        
-                        content: JSON.stringify({
-                            name,                            
-                            picture,
-                            nip05,                       
-                        }),                                      
-                    }
-
-                    const defaultRelays = NostrClient.getDefaultRelays()
-                    const minibitsRelays = NostrClient.getMinibitsRelays()
-        
-                    const publishedEvent: Event | undefined = await NostrClient.publish(
-                        profileEvent,
-                        [ ...defaultRelays, ...minibitsRelays]                    
-                    ) */
+                    // announce new profile to the default public and minibits relays
+                    await walletProfileStore.create(publicKey, walletId as string)                    
                 }
                 
                 // log.trace('Pic', walletProfileStore.picture)

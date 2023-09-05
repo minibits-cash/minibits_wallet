@@ -5,7 +5,8 @@ import {
     SimplePool,
     Filter as NostrFilter,    
     Event as NostrEvent,
-    validateEvent
+    validateEvent,
+    UnsignedEvent as NostrUnsignedEvent,
 } from 'nostr-tools'
 import QuickCrypto from 'react-native-quick-crypto'
 import {secp256k1} from '@noble/curves/secp256k1'
@@ -15,6 +16,7 @@ import {
 import {KeyChain, KeyPair} from './keyChain'
 import {log} from '../utils/logger'
 import AppError, { Err } from '../utils/AppError'
+import { MinibitsClient } from './minibitsService'
 
 export {     
     Event as NostrEvent, 
@@ -23,10 +25,7 @@ export {
     UnsignedEvent as NostrUnsignedEvent,   
 } from 'nostr-tools'
 
-import { NostrUnsignedEvent } from '.'
-
 // refresh
-
 export type NostrProfile = {
     pubkey: string
     npub: string
@@ -36,7 +35,14 @@ export type NostrProfile = {
     nip05?: string
 }
 
-
+export type Nip05VerificationRecord = {
+    names: {
+        [key: string]: string
+    }, 
+    relays: {
+        [key: string]: string[]
+    }
+}
 
 const _defaultPublicRelays: string[] = ['wss://relay.damus.io']
 const _minibitsRelays: string[] = [MINIBITS_RELAY_URL]
@@ -164,13 +170,15 @@ const publish = async function (
 
     const  keys: KeyPair = await getOrCreateKeyPair()    
     
-    event.created_at = Math.floor(Date.now() / 1000)    
+    event.created_at = Math.floor(Date.now() / 1000) 
     event.id = getEventHash(event)    
-    event.sig = getSignature(event, keys.privateKey)
+    event.sig = getSignature(event, keys.privateKey)    
 
     if(!validateEvent(event)) {
         throw new AppError(Err.VALIDATION_ERROR, 'Event is invalid and could not be published', event)
-    }    
+    }
+    
+    log.trace('Event to be published', event, 'publish')
 
     const pool = getRelayPool()
     await pool.publish(relays, event)
@@ -211,6 +219,74 @@ const getMessages = async function (
     return []    
 }
 
+
+const verifyNip05 = async function (nip05: string, pubkey: string) {
+    log.trace('Starting verification of', nip05, 'verifyNip05')
+    const nip05Domain = NostrClient.getDomainFromNip05(nip05)
+    const nip05Name = NostrClient.getNameFromNip05(nip05)  
+
+    try {
+        if(!nip05Domain || !nip05Name) {
+            throw new AppError(Err.NOTFOUND_ERROR, 'Contact does not have a valid nip05 identifier.', {nip05})
+        }
+
+        const url = `https://${nip05Domain}/.well-known/nostr.json?name=${nip05Name}`
+        const method = 'GET'        
+        const headers = MinibitsClient.getPublicHeaders()
+
+        log.trace(url)
+
+        const nip05result: Nip05VerificationRecord = await MinibitsClient.fetchApi(url, {
+            method,            
+            headers,            
+        })
+
+        log.trace(`Got response`, nip05result || null, 'verifyNip05')
+
+        if (nip05result && nip05result.names[nip05Name] === pubkey) {
+            return true
+        }
+        
+        throw new AppError(
+            Err.VALIDATION_ERROR, 
+            `${nip05Name} is no longer linked to the same public key as in your contacts. Please get in touch with the wallet owner.`)
+        
+    } catch(e: any) {
+        if(e.code && e.code === 404) {
+            throw new AppError(
+                Err.NOTFOUND_ERROR, 
+                `${nip05Name} could not be found on the ${nip05Domain} server.`)
+        } else {
+            throw e // Propagate other errors upstream
+        }
+    }
+}
+
+const getDomainFromNip05 = function(nip05: string) {
+    const atIndex = nip05.lastIndexOf('@')
+
+    if (atIndex !== -1) {
+        const domain = nip05.slice(atIndex + 1)
+        return domain      
+    }
+    // Invalid email or no domain found
+    return null
+}
+
+
+const getNameFromNip05 = function(nip05: string) {
+    const atIndex = nip05.indexOf('@')
+    
+    if (atIndex !== -1) {
+        const name = nip05.slice(0, atIndex);
+        return name
+    }
+    
+    // Invalid email or no "@" symbol found
+    return null
+}
+
+
 const delay = function (ms: number) {
     return new Promise(resolve => {
         setTimeout(() => { resolve('') }, ms);
@@ -237,7 +313,10 @@ export const NostrClient = {
     getHexkey,
     encryptNip04,
     decryptNip04,
+    getDomainFromNip05,
+    getNameFromNip05,
     publish,   
     getMessages,
+    verifyNip05,
     deleteKeyPair
 }

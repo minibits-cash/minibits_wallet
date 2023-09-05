@@ -5,6 +5,7 @@ import {
     MINIBITS_SERVER_API_HOST,    
 } from '@env'
 import { WalletProfile, WalletProfileRecord } from "../models/WalletProfileStore"
+import { NostrClient } from "./nostrService"
 
 
 // refresh
@@ -146,36 +147,26 @@ const checkDonationPaid = async function (paymentHash: string, pubkey: string) {
 
 
 const fetchApi = async (url: string, options: any, timeout = 15000) => { //ms
-    try {
-        const controller = new AbortController()
+    
+    const controller = new AbortController()
 
-        const promise = fetch(url, options)
-        const kill = new Promise((resolve) => setTimeout(resolve, timeout))
-        const response: Response = await Promise.race([promise, kill]) as Response        
+    const promise = fetch(url, options)
+    const kill = new Promise((resolve) => setTimeout(resolve, timeout))
+    const response: Response = await Promise.race([promise, kill]) as Response        
 
-        if (!response) {
-            controller.abort()
-            throw new Error('API takes too long to respond')
-        }        
+    if (!response) {
+        controller.abort()
+        throw new Error('API takes too long to respond')
+    }    
 
-        /* if (!response.ok) {
-            const res =  await response.text()
-            log.trace('fetchApi res.text', res)          
-            throw new Error(res)
-        }*/
+    const responseJson = await response.json()        
 
-        const responseJson = await response.json()        
-
-        if(responseJson && responseJson.error) {            
-            const {error} = responseJson
-            throw new AppError(error.name, error.message, error.params)
-        }
-
-        return responseJson
-
-    } catch (e) {
-        throw e
+    if(responseJson && responseJson.error) {            
+        const {error} = responseJson
+        throw new AppError(error.name, error.message, error.params)
     }
+
+    return responseJson    
 }
 
 
@@ -192,7 +183,7 @@ const getPublicHeaders = () => {
     return {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'Accept-encoding': 'gzip, deflate',          
+        'Accept-encoding': 'gzip, deflate',             
     }
 }
 
@@ -205,6 +196,6 @@ export const MinibitsClient = {
     getWalletProfileByWalletId,
     createDonation,
     checkDonationPaid,
-    // fetchSvg,
-    getPublicHeaders
+    getPublicHeaders,
+    fetchApi,
 }

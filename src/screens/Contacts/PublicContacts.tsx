@@ -405,7 +405,7 @@ export const PublicContacts = observer(function (props: {
                                             )}
                                         </View>}
                                     text={item.name}
-                                    subText={item.about?.replace(/\r?\n|\r/g, ' ').slice(0, 80)+'...'}
+                                    subText={(item.about) ? item.about?.replace(/\r?\n|\r/g, ' ').slice(0, 80)+'...' : (item.nip05) ? item.nip05 : '...'}
                                     topSeparator={isFirst ? false : true}
                                     onPress={() => gotoContactDetail(item as Contact)}                                  
                                 />

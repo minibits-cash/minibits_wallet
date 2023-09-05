@@ -62,12 +62,12 @@ import {
   
               return contactInstance
           },
-          updatePicture(pubkey: string, picture: string) {                           
+          refreshPicture(pubkey: string) {  // see ContactModel.setPicture                       
 
             const contactInstance = self.findByPubkey(pubkey)
             if (contactInstance) {
-                contactInstance.setPicture(picture)
-                log.trace('Contact picture updated in ContactsStore')
+                contactInstance.refreshPicture()
+                log.trace('Contact picture refreshed in ContactsStore')
             }
 
             return contactInstance

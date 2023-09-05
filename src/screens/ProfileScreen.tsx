@@ -78,10 +78,7 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
     
     return (
       <Screen contentContainerStyle={$screen} preset='auto'>        
-        <ProfileHeader 
-            picture={picture as string}
-            nip05={nip05 as string}
-        />        
+        <ProfileHeader />        
         <View style={$contentContainer}>
           <Card
             style={$card}

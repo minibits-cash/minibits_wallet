@@ -228,7 +228,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
                 setResultModalInfo({
                     status: TransactionStatus.COMPLETED,
-                    message: `Done! ${amountToSend} sats were received by the payee.`,
+                    message: `That was fast! ${amountToSend} sats were received by ${contactToSendTo?.name}.`,
                 })
 
                 setTransactionStatus(TransactionStatus.COMPLETED)
@@ -489,7 +489,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             const receiverPubkey = contactToSendTo?.pubkey
 
             // log.trace('', {senderPrivkey, senderPubkey, receiverPubkey}, 'sendAsNostrDM')
-            const message = `${walletProfileStore.npub} sent you ${amountToSend} sats from Minibits wallet!`
+            const message = `nostr:${walletProfileStore.npub} sent you ${amountToSend} sats from Minibits wallet!`
             const content = message + '\n' + encodedTokenToSend
 
             const encryptedContent = await NostrClient.encryptNip04(                

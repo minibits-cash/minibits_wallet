@@ -10,7 +10,7 @@ import AppError, { Err } from '../utils/AppError'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { ContactType } from '../models/Contact'
 import { WalletProfileRecord } from '../models/WalletProfileStore'
-import { MinibitsClient } from '../services'
+import { MinibitsClient, NostrClient } from '../services'
 import { getImageSource } from '../utils/utils'
 
 
@@ -90,15 +90,9 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
         toggleSendModal()
 
         try {
-            if(contact.type && contact.type === ContactType.PRIVATE) {
-                // check before payment that contact name is still linked to the same pubkey
-                const profileRecord: WalletProfileRecord = 
-                await MinibitsClient.getWalletProfileByWalletId(contact.name as string)
-
-                if(!profileRecord || profileRecord.pubkey !== contact.pubkey) {
-                    throw new AppError(Err.VALIDATION_ERROR, `${contact.name} is no longer linked to the public key stored in your contacts. Please get in touch with the payee and update your information.`)
-                }
-            }        
+            if(contact.nip05) {
+                await NostrClient.verifyNip05(contact.nip05 as string, contact.pubkey) // throws
+            }           
         
             navigation.navigate('WalletNavigator', { 
                 screen: 'Send',
@@ -117,26 +111,23 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
     }
 
 
-    const onSyncContact = async function () {
+    const onSyncPrivateContact = async function () {
         try {
-            // check before payment that contact name is still linked to the same pubkey
-            const profileRecord: WalletProfileRecord = 
-            await MinibitsClient.getWalletProfileByWalletId(contact.name as string)
+            if(contact.nip05) {                
+                await NostrClient.verifyNip05(contact.nip05 as string, contact.pubkey) // throws
+            }
 
-            if(!profileRecord || profileRecord.pubkey !== contact.pubkey) {
-                throw new AppError(Err.VALIDATION_ERROR, `${contact.name} is no longer linked to the public key stored in your contacts. Please get in touch with the contact and update your information.`)
-            }                
-
-            contactsStore.updatePicture(contact.pubkey, profileRecord.avatar) // hm, this does not change
+            contactsStore.refreshPicture(contact.pubkey)
 
             toggleContactModal()            
             setInfo('Sync completed')
             return
         } catch (e: any) {
+            toggleContactModal()      
             handleError(e)
-        }
-        navigation.goBack()
+        }        
     }
+
 
     const onDeleteContact = function () {
         contactsStore.removeContact(contact)
@@ -144,7 +135,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
     }
 
 
-    const handleError = function (e: AppError): void {        
+    const handleError = function (e: AppError): void {
         setError(e)
     }
 
@@ -152,13 +143,15 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
     const balanceColor = useThemeColor('textDim')
     const headerBg = useThemeColor('header')
     const inputBg = useThemeColor('background')
+
+    const {type, name, npub, nip05, picture, about} = contact
     
     return (
       <Screen contentContainerStyle={$screen} preset='auto'>        
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
-            {contact.picture ? (
+            {picture ? (
                 <View style={{borderRadius: 48, overflow: 'hidden'}}>
-                    <Image style={{width: 96, height: 96}} source={{uri: getImageSource(contact.picture)}} />
+                    <Image style={{width: 96, height: 96}} source={{uri: getImageSource(picture)}} />
                 </View>
             ) : (
                 <Icon
@@ -167,20 +160,20 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                     color={'white'}                
                 />
             )}
-            <Text preset='bold' text={contact.name} style={{color: 'white', marginBottom: spacing.small}} />          
+            <Text preset='bold' text={(nip05) ? nip05 : name} style={{color: 'white', marginBottom: spacing.small}} />          
         </View>
         <View style={$contentContainer}>
-            {contact.about && (
+            {about && (
                 <Card
                     style={$card}
-                    content={contact.about}
+                    content={about}
                 />
             )}
             <View style={[$buttonContainer, {marginTop: spacing.medium}]}>
                 <Button 
                     preset='default'
                     onPress={toggleSendModal}
-                    text={`Send sats to ${contact.name}`}
+                    text={`Send sats to ${name}`}
                 />
             </View> 
         </View>
@@ -190,7 +183,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                     <Button
                         preset='secondary'
                         textStyle={{fontSize: 12}}
-                        text={contact.npub.slice(0,15)+'...'}
+                        text={npub.slice(0,15)+'...'}
                         onPress={onCopyNpub}
                     /> 
                 </View>    
@@ -202,19 +195,19 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
             <>
                 <ListItem
                     text="Copy contact's public key (npub)"
-                    subText={contact.npub.slice(0,30)+'...'}
+                    subText={npub.slice(0,30)+'...'}
                     leftIcon='faCopy'                            
                     onPress={onCopyNpub}
                     bottomSeparator={true}
                     style={{paddingHorizontal: spacing.medium}}
                 />
-                {contact.type === ContactType.PRIVATE && (
+                {type === ContactType.PRIVATE && (
                     <>
                         <ListItem
-                            text='Sync contact'
-                            subText='Check that contact name is still linked to the same pubkey match and update picture if it was changed.'
+                            text='Check and sync'
+                            subText='Checks that contact name is still linked to the same pubkey and updates picture if it was changed.'
                             leftIcon='faRotate'                            
-                            onPress={onSyncContact}
+                            onPress={onSyncPrivateContact}
                             bottomSeparator={true}
                             style={{paddingHorizontal: spacing.medium}}
                         />
@@ -238,11 +231,11 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
           top={spacing.screenHeight * 0.26}
           ContentComponent={
                 <View style={$payContainer}>
-                    {contact.type === ContactType.PUBLIC && (
-                        <Text text={`Tip or donate to ${contact.name}`} preset="subheading" />
+                    {type === ContactType.PUBLIC && (
+                        <Text text={`Tip or donate to ${name}`} preset="subheading" />
                     )}
-                    {contact.type === ContactType.PRIVATE && (
-                        <Text text={`Send to ${contact.name}`} preset="subheading" />
+                    {type === ContactType.PRIVATE && (
+                        <Text text={`Send to ${name}`} preset="subheading" />
                     )}
                     <Text text={`You can send up to ${availableBalance.toLocaleString()} sats`} size='xs' style={{color: balanceColor}} />                   
                     <View style={{alignItems: 'center'}}>
@@ -261,15 +254,15 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                     {contact.type === ContactType.PUBLIC && (
                         <View style={$buttonContainer}>
                             <Button preset='secondary' style={{marginRight: spacing.small}} onPress={() => setAmountToSend('100')} text='100 sats'/>
-                            <Button preset='secondary' style={{marginRight: spacing.small}} onPress={() => setAmountToSend('500')} text='500 sats'/>
+                            <Button preset='secondary' style={{marginRight: spacing.small}} onPress={() => setAmountToSend('200')} text='200 sats'/>
                             <Button preset='secondary' onPress={() => setAmountToSend('1000')} text='1000 sats'/>                    
                         </View>
                     )}
                     <View style={[$buttonContainer, {marginTop: spacing.medium}]}>
                         <Button
-                                text='Continue'
-                                style={$sendButton}
-                                onPress={onSendCoins}                                
+                            text='Continue'
+                            style={$sendButton}
+                            onPress={onSendCoins}                                
                         /> 
                     </View>                                 
                 </View>

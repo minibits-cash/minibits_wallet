@@ -142,7 +142,7 @@ const checkPendingReceived = async function () {
             if(receivedAmount > 0) {
                 result = {
                     status: TransactionStatus.COMPLETED ,
-                    message: `You've recieved ${receivedAmount} sats from ${sentFrom}`
+                    message: `You've recieved ${receivedAmount} sats from ${sentFrom}.`
                 }
     
                 EventEmitter.emit('receiveCompleted', result)

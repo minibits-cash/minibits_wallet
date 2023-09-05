@@ -1,5 +1,5 @@
 import {Instance, SnapshotOut, types, flow, SnapshotIn} from 'mobx-state-tree'
-import {MinibitsClient, NostrClient} from '../services'
+import {MinibitsClient, NostrClient, NostrUnsignedEvent} from '../services'
 import {log} from '../utils/logger'
 
 
@@ -29,18 +29,55 @@ export const WalletProfileStoreModel = types
         nip05: types.optional(types.string, ''),
         picture: types.optional(types.string, ''),
         device: types.maybe(types.maybeNull(types.string)),         
-    })    
+    })
+    .actions(self => ({  
+        publishToRelays: flow(function* publishToRelays() {
+            try {
+                const {pubkey, name, picture, nip05} = self
+
+                // announce to minibits relay + default public relays with replaceable event           
+                const profileEvent: NostrUnsignedEvent = {
+                    kind: 0,
+                    pubkey,
+                    tags: [],                        
+                    content: JSON.stringify({
+                        name,                            
+                        picture,
+                        nip05,                       
+                    }),                                      
+                }
+
+                const defaultRelays = NostrClient.getDefaultRelays()
+                const minibitsRelays = NostrClient.getMinibitsRelays()
+
+                const publishedEvent: Event | undefined = yield NostrClient.publish(
+                    profileEvent,
+                    [ ...defaultRelays, ...minibitsRelays]                    
+                )
+                
+                return publishedEvent
+                
+            } catch (e: any) {       
+                log.error(e.name, e.message)         
+                return false // silent
+            }                    
+        }),
+    }))   
     .actions(self => ({  
         create: flow(function* create(pubkey: string, name: string) {
 
             let profileRecord: WalletProfileRecord = yield MinibitsClient.createWalletProfile(pubkey, name)
+
+            const {nip05, avatar: picture} = profileRecord
             
-            self.pubkey = profileRecord.pubkey                    
-            self.name = profileRecord.walletId
-            self.nip05 = profileRecord.nip05
-            self.picture = profileRecord.avatar
-            // self.device = profileRecord.device 
-            log.trace('Wallet profile saved in WalletProfileStore', self)
+            self.pubkey = pubkey                    
+            self.name = name
+            self.nip05 = nip05
+            self.picture = picture
+            
+            const publishedEvent = yield self.publishToRelays()
+            
+            log.trace('Wallet profile saved in WalletProfileStore', {self, publishedEvent})
             return self           
         }),      
         updateName: flow(function* update(name: string) {
@@ -49,8 +86,10 @@ export const WalletProfileStoreModel = types
                            
             self.name = profileRecord.walletId
             self.nip05 = profileRecord.nip05
+
+            const publishedEvent = yield self.publishToRelays()
             
-            log.trace('Wallet name updated in the WalletProfileStore', self)
+            log.trace('Wallet name updated in the WalletProfileStore', {self, publishedEvent})
             return self         
         }),
         updatePicture: flow(function* update(picture: string) {
@@ -58,8 +97,10 @@ export const WalletProfileStoreModel = types
             let profileRecord: WalletProfileRecord = yield MinibitsClient.updateWalletProfile(self.pubkey, self.name, picture)          
 
             self.picture = profileRecord.avatar + '?r=' + Math.floor(Math.random() * 100) // force refresh as image URL stays the same
+
+            const publishedEvent = yield self.publishToRelays()
             
-            log.trace('Wallet picture updated in the WalletProfileStore', self)
+            log.trace('Wallet picture updated in the WalletProfileStore', {self, publishedEvent})
             return self         
         }),
         setNip05(nip05: string) {            

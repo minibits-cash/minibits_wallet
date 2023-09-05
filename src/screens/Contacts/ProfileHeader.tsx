@@ -3,18 +3,18 @@ import { observer } from "mobx-react-lite"
 import React from "react"
 import { Image, TextStyle, View } from "react-native"
 import { Icon, Text } from "../../components"
+import { useStores } from "../../models"
 import { spacing, useThemeColor } from "../../theme"
 import { getImageSource } from '../../utils/utils'
 
 
 export interface ProfileHeaderProps {
-  picture: string
-  nip05: string  
 }
 
 export const ProfileHeader = observer(function (props: ProfileHeaderProps) {
   
-    const { picture, nip05 } = props
+    const { walletProfileStore } = useStores()
+    const { picture, nip05 } = walletProfileStore
     const headerBg = useThemeColor('header')
 
     return (

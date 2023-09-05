@@ -71,14 +71,11 @@ export const PictureScreen: FC<PictureScreenProps> = observer(function PictureSc
     
     const headerBg = useThemeColor('header')
     const selectedColor = colors.palette.success200
-    const {nip05, picture} = walletProfileStore
+    // const {nip05, picture} = walletProfileStore
 
     return (
       <Screen style={$screen} preset='auto'>        
-        <ProfileHeader 
-            picture={picture}
-            nip05={nip05}
-        />        
+        <ProfileHeader />
         <View style={$contentContainer}>
             <View style={$picturesContainer}>
                 {pictures.map((png, index) => {
@@ -129,11 +126,12 @@ const $unselected: ViewStyle = {
 
 const $contentContainer: TextStyle = {    
   padding: spacing.small,
-  alignItems: 'center',
-  justifyContent: 'center',  
+
 }
 
-const $picturesContainer: TextStyle = {        
+const $picturesContainer: TextStyle = { 
+    alignItems: 'center',
+    justifyContent: 'center',         
     flexDirection: 'row',
     flexWrap: 'wrap',
   }

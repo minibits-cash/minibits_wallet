@@ -58,7 +58,7 @@ export const PrivateContacts = observer(function (props: {
         if(!profileRecord) {
             setNewContactId('')
             toggleNewContactModal()
-            setInfo(`Wallet profile for ${newContactId + MINIBITS_NIP05_DOMAIN} could not be found.`)
+            setInfo(`Wallet profile for ${newContactId + MINIBITS_NIP05_DOMAIN} could not be found. Check that the name is correct.`)
             return
         }
 
@@ -93,14 +93,10 @@ export const PrivateContacts = observer(function (props: {
         log.trace('amountToSend', amountToSend)
         if(amountToSend) { // Send tx contact selection
             try {
-                // check before payment that contact name is still linked to the same pubkey
-                const profileRecord: WalletProfileRecord = 
-                await MinibitsClient.getWalletProfileByWalletId(contact.name as string)
-
-                if(!profileRecord || profileRecord.pubkey !== contact.pubkey) {
-                    throw new AppError(Err.VALIDATION_ERROR, `${contact.name} is no longer linked to the public key stored in your contacts. Please get in touch with the payee and update your information.`)
-                }                
-
+                if(contact.nip05) {                
+                    await NostrClient.verifyNip05(contact.nip05 as string, contact.pubkey) // throws
+                }
+                
                 navigation.navigate('WalletNavigator', { 
                     screen: 'Send',
                     params: {
