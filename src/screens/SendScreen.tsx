@@ -57,11 +57,9 @@ import { Proof } from '../models/Proof'
 import { Contact } from '../models/Contact'
 import { getImageSource } from '../utils/utils'
 
-if (
-  Platform.OS === 'android' &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true)
+if (Platform.OS === 'android' &&
+    UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
 export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(

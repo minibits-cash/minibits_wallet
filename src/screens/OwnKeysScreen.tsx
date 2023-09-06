@@ -1,6 +1,7 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useCallback, useEffect, useRef, useState} from 'react'
-import {ColorValue, Share, TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import {ColorValue, Image, LayoutAnimation, Platform, Share, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
+import {getPublicKey} from 'nostr-tools'
 import {colors, spacing, typography, useThemeColor} from '../theme'
 import {ContactsStackScreenProps} from '../navigation'
 import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, Header, Loading} from '../components'
@@ -10,13 +11,20 @@ import AppError, { Err } from '../utils/AppError'
 import { ProfileHeader } from './Contacts/ProfileHeader'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { log } from '../utils/logger'
-import { NostrClient } from '../services'
+import { NostrClient, NostrEvent, NostrFilter, NostrProfile } from '../services'
+import { MINIBITS_NIP05_DOMAIN } from '@env'
+import { profile } from 'console'
+
+if (Platform.OS === 'android' &&
+    UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true)
+}
 
 interface OwnKeysScreenProps extends ContactsStackScreenProps<'OwnKeys'> {}
 
 export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysScreen({navigation}) {    
 
-    const {walletProfileStore} = useStores() 
+    const {walletProfileStore, contactsStore} = useStores() 
 
     useHeader({        
         leftIcon: 'faArrowLeft',
@@ -27,16 +35,28 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
 
     const ownNip05InputRef = useRef<TextInput>(null)
     const ownNsecInputRef = useRef<TextInput>(null) 
-    const {npub, name, picture, nip05} = walletProfileStore    
+    const {npub, name, picture, nip05} = walletProfileStore   
 
     const [ownNip05, setOwnNip05] = useState<string>('')
     const [ownNsec, setOwnNsec] = useState<string>('')
-    const [serverPubkey, setServerPubkey] = useState<string | undefined>(undefined)
-    const [serverRelays, setServerRelays] = useState<string[]>([])    
+    const [ownProfile, setOwnProfile] = useState<NostrProfile | undefined>(undefined)
+    const [ownProfileRelays, setOwnProfileRelays] = useState<string[]>([])
     const [info, setInfo] = useState('')    
     const [error, setError] = useState<AppError | undefined>()
-    const [isLoading, setIsLoading] = useState<boolean>(false)    
+    const [isLoading, setIsLoading] = useState<boolean>(false) 
+    const [isSetupCompleted, setIsSetupCompleted] = useState<boolean>(false)
 
+
+    const resetState = function () {
+        setOwnNip05('')
+        setOwnNsec('')
+        setOwnProfile(undefined)
+        setOwnProfileRelays([])
+        setInfo('')
+        setIsLoading(false)
+        setIsSetupCompleted(false)
+    }
+    
     const onPasteOwnNip05 = async function () {
         const name = await Clipboard.getString()
         if (!name) {
@@ -49,25 +69,66 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
 
     const onConfirmOwnNip05 = async function () {
         try {
-            setIsLoading(true)
-            const nip05Record = await NostrClient.getNip05Record(ownNip05)
             const nip05Name = NostrClient.getNameFromNip05(ownNip05)
-            let pubkey: string = ''
-            let relays: string[] = []
+            const nip05Domain = NostrClient.getDomainFromNip05(ownNip05)
 
-            if (nip05Record && nip05Record.names[nip05Name as string].length > 0) {
-                pubkey = nip05Record.names[nip05Name as string]
-                setServerPubkey(pubkey)
-
-                log.trace('Got pubkey from server', pubkey, 'onConfirmOwnNip05')
-
-                if(nip05Record && nip05Record.relays[pubkey].length > 0) {
-                    relays = nip05Record.relays[pubkey]
-                    setServerRelays(relays)
-
-                    log.trace('Got relays from server', relays, 'onConfirmOwnNip05')
-                }                
+            if(nip05Domain && MINIBITS_NIP05_DOMAIN.includes(nip05Domain)) {
+                // setInfo(`${MINIBITS_NIP05_DOMAIN} names and keys can't be used with multiple wallets.`)
+                // return
             }
+
+            setIsLoading(true)
+            // get nip05 record from the .well-known server
+            const nip05Record = await NostrClient.getNip05Record(ownNip05)
+            
+            let serverPubkey: string = ''
+            let serverRelays: string[] = []
+
+            // retrieve pubkey from the nip05 record
+            if(nip05Record && nip05Record.names && nip05Record.names[nip05Name as string]) {
+                serverPubkey = nip05Record.names[nip05Name as string]
+            } else {
+                throw new AppError(Err.SERVER_ERROR, 'Could not get valid nip05 record from the server.', {nip05Record})
+            }            
+            
+            // retrieve recommended relays
+            if(nip05Record.relays && nip05Record.relays[serverPubkey].length > 0) {
+                serverRelays = nip05Record.relays[serverPubkey]
+                log.trace('Got relays from server', serverRelays, 'onConfirmOwnNip05')
+            }           
+            
+            // get profile from the relays for pubkey linked to nip05
+            const filters: NostrFilter[] = [{
+                authors: [serverPubkey],
+                kinds: [0],            
+            }]
+
+            const relaysToConnect = serverRelays.length > 0 ? serverRelays : NostrClient.getDefaultRelays()
+
+            const events: NostrEvent[] = await NostrClient.getEvents(relaysToConnect, filters)
+
+            if(!events || events.length === 0) {
+                throw new AppError(Err.SERVER_ERROR, 'Could not get profile event from the relays.', {serverPubkey})
+            }
+
+            const profile: NostrProfile = JSON.parse(events[0].content)
+            profile.pubkey = events[0].pubkey // pubkey might not be in ev.content
+
+            // check that the profile's nip05 matches the one given by user and living on nip05 .well-known server
+            if(!profile.nip05 || profile.nip05 !== ownNip05) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Profile from the relay does not match the given nip05 identifier', {ownNip05, profile})
+            }
+
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+
+            log.trace('Got valid profile', profile)    
+            setOwnProfile(profile)
+
+            if(serverRelays.length > 0) {
+                setOwnProfileRelays(serverRelays)
+                contactsStore.setPublicRelay(serverRelays[0]) // TODO extend model to n relays
+            }
+            
             setIsLoading(false)
         } catch(e: any) {
             handleError(e)
@@ -87,7 +148,32 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
 
     const onConfirmOwnNsec = async function () {
         try {
+            // validate that nsec matches profile pubkey
+            const privateKey = NostrClient.getHexkey(ownNsec)
+            const publicKey = getPublicKey(privateKey)
+
+            if(publicKey !== ownProfile?.pubkey) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Provided private key does not match profile public key.', {publicKey})
+            }
+
+            setIsSetupCompleted(true)
+        } catch(e: any) {
+            handleError(e)
+        }
+    }
+
+
+    const onConfirmChange = async function () {
+        try {
             setIsLoading(true)
+
+            // update wallet profile
+
+
+            // update keys
+
+
+            // restart
             
 
             
@@ -98,7 +184,13 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
     }
 
 
-    const handleError = function (e: AppError): void {        
+    const onCancelChange = async function () {
+        resetState()
+    }
+
+
+    const handleError = function (e: AppError): void { 
+        resetState()      
         setError(e)
     }
 
@@ -108,123 +200,136 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
     
     return (
       <Screen contentContainerStyle={$screen} preset='auto'>
-        <View style={$contentContainer}>
-          <Card
-            style={$card}
-            ContentComponent={
-                <>
-                {!serverPubkey ? (
-                    <View style={$nip05Container}>e                        
-                        <ListItem
-                            LeftComponent={<View style={[$numIcon, {backgroundColor: iconNip05}]}><Text text='1'/></View>}
-                            text='Enter your nip05 identifier'
-                            subText={'Minibits uses nip05 as a sharable contact to send and receive coins. You need to provide one linked to your NOSTR key that you will add next.'}                        
-                            bottomSeparator={true}
-                            style={{}}
-                        />                    
-                        <View style={{flexDirection: 'row', alignItems: 'center', marginVertical: spacing.medium}}>
-                        
+            <View style={$contentContainer}>
+            <Card
+                style={$card}
+                ContentComponent={
+                    <>
+                    {!ownProfile ? (
+                        <View style={$nip05Container}>                      
+                            <ListItem
+                                LeftComponent={<View style={[$numIcon, {backgroundColor: iconNip05}]}><Text text='1'/></View>}
+                                text='Enter your nip05 identifier'
+                                subText={'Minibits uses nip05 as a sharable contact to send and receive coins. You need to provide one linked to your NOSTR key that you will add next.'}                        
+                                bottomSeparator={true}
+                                style={{}}
+                            />                    
+                            <View style={{flexDirection: 'row', alignItems: 'center', marginVertical: spacing.medium}}>
+                            
+                                <TextInput
+                                    ref={ownNip05InputRef}
+                                    onChangeText={(name) => setOwnNip05(name)}
+                                    value={ownNip05}
+                                    autoCapitalize='none'
+                                    keyboardType='default'
+                                    maxLength={30}
+                                    placeholder='name@domain.com'
+                                    selectTextOnFocus={true}
+                                    style={[$nip05Input, {backgroundColor: inputBg}]}                                                   
+                                />
+                                <Button
+                                    tx={'common.paste'}
+                                    preset='secondary'
+                                    style={$pasteButton}                                
+                                    onPress={onPasteOwnNip05}
+                                />
+                                <Button
+                                    tx={'common.confirm'}
+                                    style={$saveButton}
+                                    onPress={onConfirmOwnNip05}                                
+                                />                        
+                            </View>     
+                        </View>
+                    ) : (
+                        <>
+                            <ListItem                            
+                                LeftComponent={
+                                    <View style={{marginRight: spacing.medium, borderRadius: 20, overflow: 'hidden'}}>
+                                        {ownProfile.picture ? (
+                                            <Image 
+                                                source={{uri: ownProfile.picture}}
+                                                style={{width: 40, height: 40}}
+                                            />
+                                        ) : (
+                                            <Icon icon='faCircleUser' size={35} color={inputBg} />
+                                        )}
+                                    </View>}
+                                text={ownProfile.nip05}
+                                subText={NostrClient.getNpubkey(ownProfile.pubkey)}                            
+                            />
+                            {ownProfileRelays.length > 0 && (
+                                <ListItem
+                                    leftIcon='faCircleNodes'
+                                    text='Relays'
+                                    subText={ownProfileRelays.toString()}                        
+                                    topSeparator={true}
+                                    style={{}}
+                                />
+                            )}
+                        </>
+                    )} 
+
+
+                    </>
+                }
+            />
+            {ownProfile && (
+                <Card
+                    style={[$card, {marginTop: spacing.medium}]}
+                    ContentComponent={
+                        <View style={$nip05Container}>                       
+                            <ListItem
+                                LeftComponent={<View style={[$numIcon, {backgroundColor: iconNip05}]}><Text text='2'/></View>}
+                                text='Enter your private key'
+                                subText={'Minibits needs your private key in nsec format in order to decrypt messages containing incoming payments. Your key will be stored in your device secure key vault.'}                        
+                                bottomSeparator={true}
+                                style={{}}
+                            />
+                            <View style={{flexDirection: 'row', alignItems: 'center', marginVertical: spacing.medium}}>
+                            
                             <TextInput
-                                ref={ownNip05InputRef}
-                                onChangeText={(name) => setOwnNip05(name)}
-                                value={ownNip05}
+                                ref={ownNsecInputRef}
+                                onChangeText={(name) => setOwnNsec(name)}
+                                value={ownNsec}
                                 autoCapitalize='none'
                                 keyboardType='default'
-                                maxLength={30}
-                                placeholder='name@domain.com'
+                                maxLength={64}
+                                placeholder='nsec...'
                                 selectTextOnFocus={true}
-                                style={[$nip05Input, {backgroundColor: inputBg}]}
-                                editable={serverPubkey ? false : true}                        
+                                style={[$nip05Input, {backgroundColor: inputBg}]}                                                
                             />
                             <Button
                                 tx={'common.paste'}
                                 preset='secondary'
-                                style={$pasteButton}
-                                disabled={serverPubkey ? true : false}
-                                onPress={onPasteOwnNip05}
+                                style={$pasteButton}                            
+                                onPress={onPasteOwnNsec}
                             />
                             <Button
                                 tx={'common.confirm'}
                                 style={$saveButton}
-                                onPress={onConfirmOwnNip05}
-                                disabled={serverPubkey ? true : false}
+                                onPress={onConfirmOwnNsec}                            
                             />                        
-                        </View>     
-                    </View>
-                ) : (
-                    <>
-                        <ListItem
-                            LeftComponent={<View style={[$numIcon, {backgroundColor: iconNip05}]}><Text text='1'/></View>}
-                            text={ownNip05}
-                        />
-                        <ListItem
-                            leftIcon='faKey'
-                            text='Public key'
-                            subText={NostrClient.getNpubkey(serverPubkey)}                        
-                            topSeparator={true}
-                            style={{}}
-                        />
-                        {serverRelays.length > 0 && (
-                            <ListItem
-                                leftIcon='faCircleNodes'
-                                text='Relays'
-                                subText={serverRelays.toString()}                        
-                                topSeparator={true}
-                                style={{}}
-                            />
-                        )}
-                    </>
-                )} 
+                        </View>
+                        </View>
+                    }
+                />
+            )}
 
+            {ownProfile && isSetupCompleted && (
+                <View style={$buttonContainer}>
+                    <Button
+                        preset="default"
+                        text={'Save and restart'}
+                        onPress={onConfirmChange}
+                    />
+                    <Button
+                        preset="secondary"
+                        text={'Save my soul'}
+                        onPress={onCancelChange}
+                    />
+                </View>
+            )}
 
-                </>
-            }
-          />
-          {serverPubkey && (
-            <Card
-                style={[$card, {marginTop: spacing.medium}]}
-                ContentComponent={
-                    <View style={$nip05Container}>                       
-                        <ListItem
-                            LeftComponent={<View style={[$numIcon, {backgroundColor: iconNip05}]}><Text text='2'/></View>}
-                            text='Enter your private key'
-                            subText={'Minibits needs your private key in nsec format in order to decrypt messages containing incoming payments. Your key will be stored in your device secure key vault.'}                        
-                            bottomSeparator={true}
-                            style={{}}
-                        />
-                        <View style={{flexDirection: 'row', alignItems: 'center', marginVertical: spacing.medium}}>
-                        
-                        <TextInput
-                            ref={ownNsecInputRef}
-                            onChangeText={(name) => setOwnNsec(name)}
-                            value={ownNsec}
-                            autoCapitalize='none'
-                            keyboardType='default'
-                            maxLength={64}
-                            placeholder='nsec...'
-                            selectTextOnFocus={true}
-                            style={[$nip05Input, {backgroundColor: inputBg}]}                                                
-                        />
-                        <Button
-                            tx={'common.paste'}
-                            preset='secondary'
-                            style={$pasteButton}                            
-                            onPress={onPasteOwnNsec}
-                        />
-                        <Button
-                            tx={'common.confirm'}
-                            style={$saveButton}
-                            onPress={onConfirmOwnNsec}                            
-                        />                        
-                    </View>
-                    </View>
-                }
-            />
-          )}
-
-        </View>
-        <View style={$bottomContainer}>
-    
         </View>
         {isLoading && <Loading />}
         {error && <ErrorModal error={error} />}

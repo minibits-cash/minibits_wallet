@@ -35,7 +35,7 @@ export const InfoModal: FC<InfoModalProps> = function ({ message }) {
             ContentComponent={                
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: spacing.medium}}>
                     <Icon icon="faInfoCircle" size={spacing.large} color="white" />
-                    <Text style={{ marginHorizontal: spacing.extraSmall }}>{message}</Text>                
+                    <Text style={{ marginHorizontal: spacing.extraSmall}}>{message}</Text>                                    
                 </View>                
             }
         >            

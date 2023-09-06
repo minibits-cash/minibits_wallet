@@ -1,5 +1,6 @@
 import {
     nip19,
+    getPublicKey,
     getEventHash,
     getSignature,
     SimplePool,
@@ -50,7 +51,7 @@ let _pool: any = undefined
 
 const getRelayPool = function () {
     if(!_pool) {
-        _pool = new SimplePool()
+        _pool = new SimplePool({eoseSubTimeout: 10000})
         return _pool
     }
 
@@ -65,9 +66,9 @@ const getMinibitsRelays = function () {
     return _minibitsRelays    
 }
 
-const getRandom = function(list: string[]) {
+/* const getRandom = function(list: string[]) {
     return list[Math.floor((Math.random()*list.length))]
-}
+} */
 
 const getOrCreateKeyPair = async function (): Promise<KeyPair> {
     let keyPair: KeyPair | null = null
@@ -89,9 +90,9 @@ const getNpubkey = function (publicKey: string): string {
 }
 
 
-const getHexkey = function (npubkey: string): string {
+const getHexkey = function (key: string): string {
     try {
-        const decoded = nip19.decode(npubkey)
+        const decoded = nip19.decode(key)
 
         if(decoded && decoded.type === 'npub') {
             return decoded.data as string
@@ -160,7 +161,7 @@ const decryptNip04 = async function(
     decryptedText += decipher.final('utf8')
     
     return decryptedText as string
-  }
+}
 
 
 const publish = async function (
@@ -200,19 +201,34 @@ const publish = async function (
 }
 
 
-const getMessages = async function (    
+const getEvent = async function (    
     relays: string[],
     filter: NostrFilter
-): Promise<Event[]> {   
-
+): Promise<Event | null> {   
+    
     const pool = getRelayPool()    
+    const event: Event = await pool.get(relays, filter)    
 
-    const messages: Event[] = await pool.get(relays, filter)
+    if(event) {
+        log.trace('Event received', event, 'getEvent')        
+        return event
+    }
 
-    if(messages && messages.length > 0) {
-        log.trace('Messages received', messages, 'getMessages')
-        pool.close(relays)
-        return messages
+    pool.close(relays)
+    return null    
+}
+
+
+const getEvents = async function (    
+    relays: string[],
+    filters: NostrFilter[]
+): Promise<Event[]> {   
+    
+    const pool = getRelayPool()    
+    const events: Event[] = await pool.list(relays, filters)    
+
+    if(events && events.length > 0) {       
+        return events
     }
 
     pool.close(relays)
@@ -332,7 +348,8 @@ export const NostrClient = {
     getDomainFromNip05,
     getNameFromNip05,
     publish,   
-    getMessages,
+    getEvent,
+    getEvents,
     getNip05Record,
     verifyNip05,
     deleteKeyPair

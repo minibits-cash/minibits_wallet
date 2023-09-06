@@ -8,6 +8,7 @@ import {
   Text as RNText,
   AppState,
   Image,
+  InteractionManager,
 } from 'react-native'
 import Animated, {
   useAnimatedScrollHandler,
@@ -103,7 +104,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const [isNativeUpdateAvailable, setIsNativeUpdateAvailable] = useState<boolean>(false)
 
     useEffect(() => {
-        const checkForUpdate = async () => {
+        const checkForUpdate = async () => {            
             try {
                 const update = await codePush.checkForUpdate(deploymentKey, handleBinaryVersionMismatchCallback)
                 if (update && update.failedInstall !== true) {  // do not announce update that failed to install before
@@ -115,9 +116,11 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 log.trace('update', update, 'checkForUpdate')
             } catch (e: any) {                
                 return false // silent
-            }
+            }            
         } 
-        checkForUpdate()
+        InteractionManager.runAfterInteractions(async () => {
+            checkForUpdate()
+        })
     }, [])
 
     const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {
@@ -137,10 +140,12 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     
 
     useFocusEffect(        
-        useCallback(() => {            
-            Wallet.checkPendingSpent()
-            Wallet.checkPendingTopups()
-            Wallet.checkPendingReceived()
+        useCallback(() => {
+            InteractionManager.runAfterInteractions(async () => {         
+                Wallet.checkPendingSpent()
+                Wallet.checkPendingTopups()
+                Wallet.checkPendingReceived()
+            })
         }, [])
     )
 
@@ -163,11 +168,13 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         const subscription = AppState.addEventListener('change', nextAppState => {
             if (
                 appState.current.match(/inactive|background/) &&
-                nextAppState === 'active'
-            ) {                
-                Wallet.checkPendingSpent()
-                Wallet.checkPendingTopups()
-                Wallet.checkPendingReceived()               
+                nextAppState === 'active') {
+                    
+                InteractionManager.runAfterInteractions(async () => {         
+                    Wallet.checkPendingSpent()
+                    Wallet.checkPendingTopups()
+                    Wallet.checkPendingReceived()
+                })              
             }
     
             appState.current = nextAppState         

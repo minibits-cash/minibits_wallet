@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {useEffect, useRef, useState} from 'react'
-import {FlatList, Image, TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import {FlatList, Image, InteractionManager, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
 import Clipboard from '@react-native-clipboard/clipboard'
 import {colors, spacing, typography, useThemeColor} from '../../theme'
@@ -79,7 +79,9 @@ export const PublicContacts = observer(function (props: {
             npub: NostrClient.getNpubkey(contactsStore.publicPubkey)
         }) // set backup profile w/o name
 
-        subscribeToOwnProfileAndPubkeys()
+        InteractionManager.runAfterInteractions(async () => {        
+            subscribeToOwnProfileAndPubkeys()
+        })
     }, [])
 
 
@@ -88,27 +90,29 @@ export const PublicContacts = observer(function (props: {
             return
         }
         log.trace('Reloading...')        
-        subscribeToOwnProfileAndPubkeys()
-        setShouldReload(false)
+        InteractionManager.runAfterInteractions(async () => {        
+            subscribeToOwnProfileAndPubkeys()
+            setShouldReload(false)
+        })
+        
     }, [shouldReload])
 
 
-    const subscribeToOwnProfileAndPubkeys = function () {
+    const subscribeToOwnProfileAndPubkeys = async function () {
         if(!contactsStore.publicPubkey) {
             return
         }
         
-        const filter: NostrFilter[] = [{
+         const filters: NostrFilter = [{
             authors: [contactsStore.publicPubkey],
-            kinds: [0, 3],
-            // since: 0,
+            kinds: [0, 3],            
         }]        
         
-        const pool = NostrClient.getRelayPool()
+        /* const pool = NostrClient.getRelayPool()
 
-        log.trace('Starting own profile and following pubkeys subscription...', { filter, relays: currentRelays.current } )
+        log.trace('Starting own profile and following pubkeys subscription...', { filters, relays: currentRelays.current } )
 
-        const sub = pool.sub(currentRelays.current, filter)
+        const sub = pool.sub(currentRelays.current, filters)
         sub.on('event', (event: NostrEvent) => {
             //  log.trace('own or pubkeys event', event)
             if(ownProfile && ownProfile.name && followingPubkeys && followingPubkeys.length > 0) {
@@ -136,38 +140,95 @@ export const PublicContacts = observer(function (props: {
 
         sub.on('eose', () => {
             sub.unsub()
-        })
+        }) */
 
+        const events: NostrEvent[] = await NostrClient.getEvents(currentRelays.current, filters)
+
+        for (const event of events) {
+            if(ownProfile && ownProfile.name && followingPubkeys && followingPubkeys.length > 0) {
+                continue
+            }
+
+            if(event.kind === 0) {
+                try {
+                    const profile: NostrProfile = JSON.parse(event.content)
+                    profile.pubkey = contactsStore.publicPubkey as string // pubkey might not be in ev.content
+        
+                    log.trace('Updating own profile', profile)    
+                    setOwnProfile(profile)                
+                } catch(e: any) {
+                    continue
+                }
+            }
+            
+            if(event.kind === 3) {
+                const pubkeys = event.tags
+                    .filter((item: [string, string]) => item[0] === "p")
+                    .map((item: [string, string]) => item[1])
+                
+                log.trace('Following pubkeys:', pubkeys.length)
+                setFollowingPubkeys(pubkeys)                
+            }
+        }
     }
 
 
     useEffect(() => {
-        if(followingPubkeys.length === 0) {            
-            return
-        }
+        const loadProfiles = async () => {
+            if(followingPubkeys.length === 0) {            
+                return
+            }
 
-        const filter: NostrFilter[] = [{
-            authors: followingPubkeys,
-            kinds: [0],
-            limit: maxContactsToLoad,            
-        }]
+            const filters: NostrFilter[] = [{
+                authors: followingPubkeys,
+                kinds: [0],
+                limit: maxContactsToLoad,            
+            }]
 
-        log.trace('Starting following profiles subscription...')
+            log.trace('Starting following profiles subscription...')
+            
+            /* setIsLoading(true)
+
+            const pool = NostrClient.getRelayPool()
+            const sub = pool.sub(currentRelays.current, filters)
+
+            let events: NostrEvent[] = []
+
+            sub.on('event', (event: NostrEvent) => {
+                // log.trace('Profile event', event)
+                events.push(event)            
+            })
+
+            sub.on('eose', () => {
+                log.trace(`Got ${events.length} profile events`)
+
+                let following: NostrProfile[] = []
+                for (const event of events) {
+                    try {
+                        const profile: NostrProfile = JSON.parse(event.content)
         
-        const pool = NostrClient.getRelayPool()
-        const sub = pool.sub(currentRelays.current, filter)
+                        profile.pubkey = event.pubkey
+                        profile.npub = NostrClient.getNpubkey(event.pubkey)
+        
+                        following.push(profile)
+                    } catch(e: any) {
+                        continue
+                    }
+                }
+        
+                log.trace('Updating following profiles', following.length)
+        
+                setFollowingProfiles(following)
+                setIsLoading(false)
+                sub.unsub()
+            })*/
+            
+            setIsLoading(true)
 
-        let events: NostrEvent[] = []
-
-        sub.on('event', (event: NostrEvent) => {
-            // log.trace('Profile event', event)
-            events.push(event)            
-        })
-
-        sub.on('eose', () => {
-            log.trace(`Got ${events.length} profile events`)
+            const events: NostrEvent[] = await NostrClient.getEvents(currentRelays.current, filters)   
 
             let following: NostrProfile[] = []
+
             for (const event of events) {
                 try {
                     const profile: NostrProfile = JSON.parse(event.content)
@@ -181,10 +242,13 @@ export const PublicContacts = observer(function (props: {
                 }
             }
     
-            log.trace('Updating following profiles', following.length)
-    
+            log.trace('Updating following profiles', following.length)    
             setFollowingProfiles(following)
-            sub.unsub()
+            setIsLoading(false)
+        }
+
+        InteractionManager.runAfterInteractions(async () => { 
+            loadProfiles()
         })
 
         
