@@ -24,18 +24,18 @@ export const PrivateContacts = observer(function (props: {
 ) { 
     const {contactsStore} = useStores()
     const {navigation} = props
-    const contactIdInputRef = useRef<TextInput>(null)
+    const contactNameInputRef = useRef<TextInput>(null)
  
     const [info, setInfo] = useState('')
-    const [newContactId, setNewContactId] = useState<string>('') 
+    const [newContactName, setNewContactName] = useState<string>('') 
     const [isLoading, setIsLoading] = useState(false)        
     const [isNewContactModalVisible, setIsNewContactModalVisible] = useState(false)            
     const [error, setError] = useState<AppError | undefined>()
    
     useEffect(() => {        
         const focus = () => {
-            contactIdInputRef && contactIdInputRef.current
-            ? contactIdInputRef.current.focus()
+            contactNameInputRef && contactNameInputRef.current
+            ? contactNameInputRef.current.focus()
             : false
         }
 
@@ -53,16 +53,16 @@ export const PrivateContacts = observer(function (props: {
 
     const saveNewContact = async function () {        
         const profileRecord: WalletProfileRecord = 
-            await MinibitsClient.getWalletProfileByWalletId(newContactId)
+            await MinibitsClient.getWalletProfileByNip05(newContactName + MINIBITS_NIP05_DOMAIN)
 
         if(!profileRecord) {
-            setNewContactId('')
+            setNewContactName('')
             toggleNewContactModal()
-            setInfo(`Wallet profile for ${newContactId + MINIBITS_NIP05_DOMAIN} could not be found. Check that the name is correct.`)
+            setInfo(`Wallet profile for ${newContactName + MINIBITS_NIP05_DOMAIN} could not be found. Check that the name is correct.`)
             return
         }
 
-        setNewContactId('')
+        setNewContactName('')
         toggleNewContactModal()
 
         const npub = NostrClient.getNpubkey(profileRecord.pubkey)
@@ -215,9 +215,9 @@ export const PrivateContacts = observer(function (props: {
                     <Text tx='contactsScreen.newTitle' preset="subheading" />
                     <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
                         <TextInput
-                            ref={contactIdInputRef}
-                            onChangeText={newContactId => setNewContactId(newContactId)}
-                            value={newContactId}
+                            ref={contactNameInputRef}
+                            onChangeText={newContactName => setNewContactName(newContactName)}
+                            value={newContactName}
                             autoCapitalize='none'
                             keyboardType='default'
                             maxLength={16}

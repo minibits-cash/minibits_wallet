@@ -1,19 +1,19 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useCallback, useEffect, useRef, useState} from 'react'
-import {ColorValue, Image, LayoutAnimation, Platform, Share, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
+import React, {FC, useRef, useState} from 'react'
+import {Image, LayoutAnimation, Platform, Share, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
 import {getPublicKey} from 'nostr-tools'
-import {colors, spacing, typography, useThemeColor} from '../theme'
+import RNExitApp from 'react-native-exit-app'
+import {spacing, typography, useThemeColor} from '../theme'
 import {ContactsStackScreenProps} from '../navigation'
 import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, Header, Loading} from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import AppError, { Err } from '../utils/AppError'
-import { ProfileHeader } from './Contacts/ProfileHeader'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { log } from '../utils/logger'
-import { NostrClient, NostrEvent, NostrFilter, NostrProfile } from '../services'
+import { KeyChain, KeyPair, NostrClient, NostrEvent, NostrFilter, NostrProfile } from '../services'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
-import { profile } from 'console'
+
 
 if (Platform.OS === 'android' &&
     UIManager.setLayoutAnimationEnabledExperimental) {
@@ -40,6 +40,7 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
     const [ownNip05, setOwnNip05] = useState<string>('')
     const [ownNsec, setOwnNsec] = useState<string>('')
     const [ownProfile, setOwnProfile] = useState<NostrProfile | undefined>(undefined)
+    const [ownKeyPair, setOwnKeyPair] = useState<KeyPair | undefined>(undefined)
     const [ownProfileRelays, setOwnProfileRelays] = useState<string[]>([])
     const [info, setInfo] = useState('')    
     const [error, setError] = useState<AppError | undefined>()
@@ -58,12 +59,12 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
     }
     
     const onPasteOwnNip05 = async function () {
-        const name = await Clipboard.getString()
-        if (!name) {
-          setInfo('Copy your nip05 name first, then paste.')
+        const nip = await Clipboard.getString()
+        if (!nip) {
+          setInfo('Copy your NOSTR address first, then paste.')
           return
         }  
-        setOwnNip05(name)        
+        setOwnNip05(nip)        
     }
 
 
@@ -72,9 +73,13 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
             const nip05Name = NostrClient.getNameFromNip05(ownNip05)
             const nip05Domain = NostrClient.getDomainFromNip05(ownNip05)
 
+            if(!nip05Name || !nip05Domain) {
+                setInfo(`Invalid NOSTR address, please check that it follows name@domain.com format`)
+            }
+
             if(nip05Domain && MINIBITS_NIP05_DOMAIN.includes(nip05Domain)) {
-                // setInfo(`${MINIBITS_NIP05_DOMAIN} names and keys can't be used with multiple wallets.`)
-                // return
+                setInfo(`${MINIBITS_NIP05_DOMAIN} names and keys can't be used with multiple wallets.`)
+                return
             }
 
             setIsLoading(true)
@@ -88,7 +93,7 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
             if(nip05Record && nip05Record.names && nip05Record.names[nip05Name as string]) {
                 serverPubkey = nip05Record.names[nip05Name as string]
             } else {
-                throw new AppError(Err.SERVER_ERROR, 'Could not get valid nip05 record from the server.', {nip05Record})
+                throw new AppError(Err.SERVER_ERROR, 'Could not get valid NOSTR address record from the server.', {nip05Record})
             }            
             
             // retrieve recommended relays
@@ -115,8 +120,20 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
             profile.pubkey = events[0].pubkey // pubkey might not be in ev.content
 
             // check that the profile's nip05 matches the one given by user and living on nip05 .well-known server
-            if(!profile.nip05 || profile.nip05 !== ownNip05) {
+            if(!profile.nip05) {
+                if(profile.name && profile.name.toLowerCase() === nip05Name) {
+                    profile.nip05 = ownNip05
+                } else {
+                    throw new AppError(Err.VALIDATION_ERROR, 'Profile from the relay does not match the given nip05 identifier', {ownNip05, profile})
+                }
+            }
+
+            if(profile.nip05 !== ownNip05) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Profile from the relay does not match the given nip05 identifier', {ownNip05, profile})
+            }
+
+            if(!profile.name) {
+                profile.name = nip05Name as string
             }
 
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
@@ -148,14 +165,18 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
 
     const onConfirmOwnNsec = async function () {
         try {
+            if(!ownProfile) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing profile to update')
+            }
             // validate that nsec matches profile pubkey
             const privateKey = NostrClient.getHexkey(ownNsec)
             const publicKey = getPublicKey(privateKey)
 
-            if(publicKey !== ownProfile?.pubkey) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Provided private key does not match profile public key.', {publicKey})
+            if(publicKey !== ownProfile.pubkey) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Provided private key does not match your new profile public key.', {publicKey})
             }
 
+            setOwnKeyPair({publicKey, privateKey})
             setIsSetupCompleted(true)
         } catch(e: any) {
             handleError(e)
@@ -165,19 +186,29 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
 
     const onConfirmChange = async function () {
         try {
+            if(!ownProfile || !ownKeyPair) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing profile to update')
+            }
+
             setIsLoading(true)
-
             // update wallet profile
-
+            const updatedProfile = await walletProfileStore.updateNip05(
+                ownProfile.pubkey,
+                ownProfile.nip05 as string,
+                ownProfile.name as string,
+                ownProfile.picture as string,
+                true // isOwnProfile
+            )
 
             // update keys
+            await KeyChain.saveNostrKeyPair(ownKeyPair)
 
+            setIsLoading(false)
+            setInfo('All set, restarting...')
 
             // restart
+            setTimeout(() => {RNExitApp.exitApp()}, 1000)            
             
-
-            
-            setIsLoading(false)
         } catch(e: any) {
             handleError(e)
         }
@@ -209,13 +240,12 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
                         <View style={$nip05Container}>                      
                             <ListItem
                                 LeftComponent={<View style={[$numIcon, {backgroundColor: iconNip05}]}><Text text='1'/></View>}
-                                text='Enter your nip05 identifier'
-                                subText={'Minibits uses nip05 as a sharable contact to send and receive coins. You need to provide one linked to your NOSTR key that you will add next.'}                        
+                                text='Enter your NOSTR address'
+                                subText={'Minibits uses NOSTR adress (nip05) as a sharable contact to send and receive coins.'}                        
                                 bottomSeparator={true}
                                 style={{}}
                             />                    
-                            <View style={{flexDirection: 'row', alignItems: 'center', marginVertical: spacing.medium}}>
-                            
+                            <View style={{flexDirection: 'row', alignItems: 'center', marginVertical: spacing.medium}}>                            
                                 <TextInput
                                     ref={ownNip05InputRef}
                                     onChangeText={(name) => setOwnNip05(name)}
@@ -267,9 +297,7 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
                                 />
                             )}
                         </>
-                    )} 
-
-
+                    )}
                     </>
                 }
             />
@@ -413,6 +441,7 @@ const $buttonContainer: ViewStyle = {
     flexDirection: 'row',
     alignSelf: 'center',
     alignItems: 'center',
+    marginTop: spacing.large,
 }
 
 const $qrCodeContainer: ViewStyle = {

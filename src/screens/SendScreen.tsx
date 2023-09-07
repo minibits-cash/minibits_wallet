@@ -1244,6 +1244,7 @@ const NostDMInfoBlock = observer(function (props: {
     contactToSendTo: NostrProfile
 }) {
 
+    const {walletProfileStore} = useStores()
     const tokenTextColor = useThemeColor('textDim')
 
     return(
@@ -1252,7 +1253,8 @@ const NostDMInfoBlock = observer(function (props: {
                     <Image style={[
                         $profileIcon, {
                             width: 40, 
-                            height: 43
+                            height: walletProfileStore.isOwnProfile ? 40 :  43,
+                            borderRadius: walletProfileStore.isOwnProfile ? 20 :  0,
                         }]} 
                         source={{
                             uri: getImageSource(props.contactToSendFrom.picture as string)

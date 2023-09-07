@@ -24,6 +24,7 @@ import { rootStoreModelVersion } from '../RootStore'
 import AppError, { Err } from '../../utils/AppError'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 import { WalletProfileStoreModel } from '../WalletProfileStore'
+import useIsInternetReachable from '../../utils/useIsInternetReachable'
 
 /**
  * The key we'll be saving our state as within storage.
@@ -114,6 +115,7 @@ async function _runMigrations(rootStore: RootStore) {
   } = rootStore
   
   let currentVersion = rootStore.version
+
   try {
     // v1 -> v2 migration
     if(currentVersion < 2) {
@@ -127,8 +129,21 @@ async function _runMigrations(rootStore: RootStore) {
 
     if(currentVersion < 3) {
         log.trace(`Starting rootStore migrations from version v${currentVersion} -> v3`)
-        walletProfileStore.setNip05(walletProfileStore.name+MINIBITS_NIP05_DOMAIN)
-        log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+        if(walletProfileStore.pubkey) {
+            walletProfileStore.setNip05(walletProfileStore.name+MINIBITS_NIP05_DOMAIN)
+            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+        }
+    }
+
+    if(currentVersion < 4) {
+        log.trace(`Starting rootStore migrations from version v${currentVersion} -> v4`)
+        if(walletProfileStore.pubkey) {
+            walletProfileStore.setWalletId(userSettingsStore.walletId as string)
+
+            // publish profile to relays
+            await walletProfileStore.publishToRelays()
+            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+        }
     }
 
     

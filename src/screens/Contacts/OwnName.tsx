@@ -120,10 +120,10 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
         }
 
         try {            
-            const profileExists = await MinibitsClient.getWalletProfileByWalletId(ownName)
+            const profileExists = await MinibitsClient.getWalletProfileByNip05(ownName + MINIBITS_NIP05_DOMAIN)
 
             if(profileExists) {
-                setInfo('This wallet profile name is already used, choose another one.')
+                setInfo('This wallet profile name is already in use, choose another one.')
                 return
             }
             setIsChecked(true)
@@ -185,8 +185,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
             if(paid) {                
                 setIsLoading(true)
                     
-                await walletProfileStore.updateName(ownName)                                    
-                userSettingsStore.setWalletId(ownName)
+                await walletProfileStore.updateName(ownName)                
 
                 setIsLoading(false)
                 setResultModalInfo({

@@ -127,7 +127,21 @@ const checkPendingReceived = async function () {
         log.trace('Creating subscription...', filter, 'checkPendingReceived')
 
         const pool = NostrClient.getRelayPool()
-        const sub = pool.sub(NostrClient.getMinibitsRelays(), filter)
+        let relaysToConnect: string[] = []
+
+        const defaultRelays = NostrClient.getDefaultRelays()
+        const minibitsRelays = NostrClient.getMinibitsRelays()
+
+        if(walletProfileStore.isOwnProfile) {
+            relaysToConnect = defaultRelays
+            if(contactsStore.publicRelay && !relaysToConnect.includes(contactsStore.publicRelay)) {
+                relaysToConnect.push(contactsStore.publicRelay)
+            }
+        } else {
+            relaysToConnect = minibitsRelays
+        }
+
+        const sub = pool.sub(relaysToConnect , filter)
 
         let events: NostrEvent[] = []
         let result: {status: TransactionStatus, message: string} | undefined = undefined

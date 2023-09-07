@@ -3,13 +3,16 @@ import React, {FC, useCallback, useEffect, useState} from 'react'
 import {ColorValue, Share, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {ContactsStackScreenProps} from '../navigation'
-import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal} from '../components'
+import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, Loading} from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import AppError from '../utils/AppError'
 import { ProfileHeader } from './Contacts/ProfileHeader'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { log } from '../utils/logger'
+import { KeyChain, MinibitsClient } from '../services'
+import { getRandomUsername } from '../utils/usernames'
+import { MINIBITS_NIP05_DOMAIN } from '@env'
 
 interface ProfileScreenProps extends ContactsStackScreenProps<'Profile'> {}
 
@@ -23,9 +26,10 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
         onRightPress: () => onShareContact()
     })
 
-    const {walletProfileStore} = useStores() 
+    const {walletProfileStore, userSettingsStore} = useStores() 
     const {npub, name, picture, nip05} = walletProfileStore    
 
+    const [isLoading, setIsLoading] = useState<boolean>(false) 
     const [info, setInfo] = useState('')    
     const [error, setError] = useState<AppError | undefined>()
 
@@ -75,7 +79,37 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
         }
     }
 
-    const handleError = function (e: AppError): void {        
+    const resetProfile = async function() {
+        setIsLoading(true)
+
+        try {
+            // overwrite with new keys
+            const keyPair = KeyChain.generateNostrKeyPair()
+            await KeyChain.saveNostrKeyPair(keyPair)
+
+            // set name to defualt walletId
+            const name = userSettingsStore.walletId as string
+
+            // get random image
+            const pictures = await MinibitsClient.getRandomPictures() // TODO PERF
+
+            // update wallet profile
+            const updatedProfile =  await walletProfileStore.updateNip05(
+                keyPair.publicKey,
+                name + MINIBITS_NIP05_DOMAIN,
+                name,
+                pictures[0],
+                false // isOwnProfile
+            )
+
+            setIsLoading(false)
+        } catch (e: any) {
+            handleError(e)
+        }
+    }
+
+    const handleError = function (e: AppError): void {
+        setIsLoading(false)      
         setError(e)
     }
 
@@ -83,45 +117,65 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
     
     return (
       <Screen contentContainerStyle={$screen} preset='auto'>        
-        <ProfileHeader />        
-        <View style={$contentContainer}>
-          <Card
-            style={$card}
-            ContentComponent={
-                <WalletProfileActionsBlock 
-                    gotoAvatar={gotoAvatar}
-                    gotoWalletName={gotoWalletName}
+            <ProfileHeader />        
+            <View style={$contentContainer}>
+            {!walletProfileStore.isOwnProfile && (
+            <Card
+                style={$card}
+                ContentComponent={
+                    <WalletProfileActionsBlock 
+                        gotoAvatar={gotoAvatar}
+                        gotoWalletName={gotoWalletName}
+                    />
+                }
+            />
+            )}
+            {walletProfileStore.isOwnProfile ? (
+                <Card
+                    style={[$card, {marginTop: spacing.medium}]}
+                    ContentComponent={
+                        <ListItem
+                            text='Reset own profile'
+                            subText='Stop using your own NOSTR profile and re-create Minibits wallet profile with random NOSTR address.'
+                            leftIcon='faRotate'
+                            leftIconInverse={true}
+                            leftIconColor={colors.palette.iconViolet200}              
+                            onPress={resetProfile}                    
+                            style={{paddingRight: spacing.medium}}
+                        />
+                    }
                 />
-            }
-          />
-          <Card
-            style={[$card, {marginTop: spacing.medium}]}
-            ContentComponent={
-                <ListItem
-                    text='Use your own account'
-                    subText='Use your existing NOSTR account as your wallet profile. You can then use Minibits to send and receive coins using your public identity on NOSTR social network.'
-                    leftIcon='faKey'
-                    leftIconInverse={true}
-                    leftIconColor={colors.palette.iconViolet200}              
-                    onPress={gotoOwnKeys}                    
-                    style={{paddingRight: spacing.medium}}
+            ) : (
+                <Card
+                    style={[$card, {marginTop: spacing.medium}]}
+                    ContentComponent={
+                        <ListItem
+                            text='Use your own profile'
+                            subText='Use existing NOSTR profile as your wallet profile. You can then use Minibits to send and receive coins using your public identity on NOSTR social network.'
+                            leftIcon='faKey'
+                            leftIconInverse={true}
+                            leftIconColor={colors.palette.iconViolet200}              
+                            onPress={gotoOwnKeys}                    
+                            style={{paddingRight: spacing.medium}}
+                        />
+                    }
                 />
-            }
-          />
-        </View>
-        <View style={$bottomContainer}>
-                <View style={$buttonContainer}>
-                    <Icon icon='faCopy' size={spacing.small} color={iconNpub as ColorValue} />
-                    <Button
-                        preset='secondary'
-                        textStyle={{fontSize: 12}}
-                        text={npub.slice(0,15)+'...'}
-                        onPress={onCopyNpub}
-                    /> 
-                </View>    
-        </View>
-        {error && <ErrorModal error={error} />}
-        {info && <InfoModal message={info} />}
+            )}           
+            </View>
+            <View style={$bottomContainer}>
+                    <View style={$buttonContainer}>
+                        <Icon icon='faCopy' size={spacing.small} color={iconNpub as ColorValue} />
+                        <Button
+                            preset='secondary'
+                            textStyle={{fontSize: 12}}
+                            text={npub.slice(0,15)+'...'}
+                            onPress={onCopyNpub}
+                        /> 
+                    </View>    
+            </View>
+            {isLoading && <Loading />}
+            {error && <ErrorModal error={error} />}
+            {info && <InfoModal message={info} />}
       </Screen>
     )
   },

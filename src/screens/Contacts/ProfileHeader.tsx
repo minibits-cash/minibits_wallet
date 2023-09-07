@@ -20,7 +20,14 @@ export const ProfileHeader = observer(function (props: ProfileHeaderProps) {
     return (
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
             {picture ? (
-                <Image style={{width: 90, height: 96}} source={{uri: getImageSource(picture)}} />
+                <Image 
+                    style={{
+                        width: 90, 
+                        height: (walletProfileStore.isOwnProfile) ? 90 : 96, 
+                        borderRadius: 45,                        
+                    }} 
+                    source={{uri: getImageSource(picture)}} 
+                />
             ) : (
                 <Icon
                     icon='faCircleUser'                                

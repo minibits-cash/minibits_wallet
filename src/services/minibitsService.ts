@@ -48,13 +48,14 @@ const createWalletProfile = async function (pubkey: string, walletId: string) {
 }
 
 
-const updateWalletProfile = async function (pubkey: string, walletId: string, avatar: string) {    
+const updateWalletProfile = async function (pubkey: string, update: {name: string, avatar: string}) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'PUT'        
     const headers = getHeaders()
+    const { name, avatar } = update
     
-    const requestBody = {            
-        walletId,
+    const requestBody = {       
+        name,
         avatar
     }        
 
@@ -65,6 +66,31 @@ const updateWalletProfile = async function (pubkey: string, walletId: string, av
     })
 
     log.trace(`Updated wallet profile`, walletProfile.pubkey, 'updateWalletProfile')
+
+    return walletProfile
+}
+
+
+const updateWalletProfileNip05 = async function (pubkey: string, update: {newPubkey: string, nip05: string, name: string, avatar: string}) {    
+    const url = MINIBITS_SERVER_API_HOST + '/profile/nip05'
+    const method = 'PUT'        
+    const headers = getHeaders()
+    const { newPubkey, nip05, name, avatar } = update
+    
+    const requestBody = {            
+        newPubkey,
+        nip05,        
+        name,
+        avatar
+    }        
+
+    const walletProfile: WalletProfile = await fetchApi(url + `/${pubkey}`, {
+        method,
+        headers,
+        body: JSON.stringify(requestBody)
+    })
+
+    log.info(`Updated wallet profile nip05`, walletProfile.nip05, 'updateWalletProfileNip05')
 
     return walletProfile
 }
@@ -96,7 +122,23 @@ const getWalletProfileByWalletId = async function (walletId: string) {
         headers,            
     })
 
-    log.trace(`Got response`, walletProfile?.walletId || null, 'getWalletProfile')
+    log.trace(`Got response`, walletProfile?.walletId || null, 'getWalletProfileByWalletId')
+
+    return walletProfile
+}
+
+
+const getWalletProfileByNip05 = async function (nip05: string) {    
+    const url = MINIBITS_SERVER_API_HOST + '/profile'
+    const method = 'GET'        
+    const headers = getHeaders()
+
+    const walletProfile: WalletProfileRecord = await fetchApi(url + `/nip05/${nip05}`, {
+        method,
+        headers,            
+    })
+
+    log.trace(`Got response`, walletProfile?.walletId || null, 'getWalletProfileByNip05')
 
     return walletProfile
 }
@@ -192,8 +234,10 @@ export const MinibitsClient = {
     getWalletProfile,
     createWalletProfile,
     updateWalletProfile,
+    updateWalletProfileNip05,
     getRandomPictures,
     getWalletProfileByWalletId,
+    getWalletProfileByNip05,
     createDonation,
     checkDonationPaid,
     getPublicHeaders,

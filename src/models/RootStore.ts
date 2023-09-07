@@ -7,7 +7,7 @@ import {WalletProfileStoreModel} from './WalletProfileStore'
 import {InvoicesStoreModel} from './InvoicesStore'
 import {ProofsStoreModel} from './ProofsStore'
 
-export const rootStoreModelVersion = 3 // Update this if model changes require migrations defined in setupRootStore.ts
+export const rootStoreModelVersion = 4 // Update this if model changes require migrations defined in setupRootStore.ts
 
 /**
  * A RootStore model.

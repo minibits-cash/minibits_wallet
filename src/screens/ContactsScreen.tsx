@@ -109,11 +109,21 @@ const LeftHeader = observer(function (props: {
     picture: string
     gotoProfile: any
 }) {
+    const {walletProfileStore} = useStores()
 
     return (        
         <Pressable style={{marginHorizontal: spacing.medium}} onPress={props.gotoProfile}>                
             {props.picture ? (                    
-                <Image style={{width: 40, height: 43}} source={{uri: getImageSource(props.picture)}} />                                    
+                <Image 
+                    style={
+                        {
+                            width: 40, 
+                            height: (walletProfileStore.isOwnProfile) ? 40 : 43, 
+                            borderRadius: (walletProfileStore.isOwnProfile) ? 20 : 0,                                        
+                        }
+                    } 
+                    source={{uri: getImageSource(props.picture)}} 
+                />                                    
             ) : (                
                 <Icon
                     icon='faCircleUser'                                

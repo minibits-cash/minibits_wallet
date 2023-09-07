@@ -76,9 +76,9 @@ const getOrCreateKeyPair = async function (): Promise<KeyPair> {
 
     if (!keyPair) {
         keyPair = KeyChain.generateNostrKeyPair() as KeyPair
-      await KeyChain.saveNostrKeyPair(keyPair)
+        await KeyChain.saveNostrKeyPair(keyPair)
 
-      log.info('Created and saved new NOSTR keypair','','getOrCreateKeyPair',)
+        log.info('Created and saved new NOSTR keypair','','getOrCreateKeyPair',)
     }
      
     return keyPair
@@ -94,7 +94,7 @@ const getHexkey = function (key: string): string {
     try {
         const decoded = nip19.decode(key)
 
-        if(decoded && decoded.type === 'npub') {
+        if(decoded) {
             return decoded.data as string
         }
         
