@@ -422,7 +422,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                         </View>
                         <View style={{flexDirection: 'row', alignItems: 'center', margin: spacing.medium}}>
                             <Icon icon='faInfoCircle' />
-                            <Text style={{color: hint}} size='xxs' text='Please accept this is an alpha software running on the test environment. Your data can be lost due to a bug or when migrating to the production.'/>
+                            <Text style={{color: hint}} size='xxs' text='Please accept this is an early beta software. Your data can still be lost due to a bug or unexpected data loss.'/>
                         </View>
                     </>
                     )}

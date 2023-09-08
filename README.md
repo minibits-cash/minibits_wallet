@@ -35,13 +35,14 @@ Receive coins
 - [x] Scan QR code of a coin token
 - [x] Paste coin token from clipboard
 - [x] Receive tokens with coins from multiple mints (untested)
+- [x] Notification on received payment (app needs to come to foreground)
 - [ ] Share payment request to receive
 - [x] Receive coins while being offline, redeem later (MVP version)
 
 Send coins
 - [x] Share coin token to send through another app
 - [x] Show coin token as a QR code
-- [x] Track receive of pending coins by the payee
+- [x] Notification on payment received by the payee (app needs to come to foreground)
 - [x] Send to contact [✨ New!]
 - [ ] Lock coins sent offline to the receiver wallet key
 
@@ -67,10 +68,10 @@ Contacts [✨ New!]
 - [x] Private contacts for payments
 - [x] Public contacts (followed users on NOSTR social network) for tipping and donations
 - [x] Load public contacts from custom NOSTR relay
-- [x] Wallet names as random public NIP05 identifiers (random123@minibits.cash)
+- [x] Wallet names as random public NOSTR addresses (random123@minibits.cash)
 - [x] Custom wallet names (myname@minibits.cash)
 - [ ] Wallet names usable as LNURL addresses
-- [ ] Private contacts with other than minibits.cash NIP05 identifiers and relays
+- [x] Private contacts with other than minibits.cash NOSTR adresses and relays
 
 Backup and recovery
 - [x] Local append-only backup of all coins in a database separate from wallet storage
