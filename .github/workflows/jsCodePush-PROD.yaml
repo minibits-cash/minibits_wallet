@@ -111,7 +111,7 @@ jobs:
         
       - name: Deploy to CodePush Android
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
-        run: appcenter codepush release-react -a minibits-cash/minibits_wallet_android -d Staging --description '${{ env.COMMIT_MESSAGE }} (v${{ env.CURRENT_JS_VERSION }})' --sourcemap-output ./build/index.android.bundle.map --output-dir ./build
+        run: appcenter codepush release-react -a minibits-cash/minibits_wallet_android -d Production --description '${{ env.COMMIT_MESSAGE }} (v${{ env.CURRENT_JS_VERSION }})' --sourcemap-output ./build/index.android.bundle.map --output-dir ./build
         env:
           APPCENTER_ACCESS_TOKEN: ${{ secrets.APPCENTER_ACCESS_TOKEN_ANDROID }}
 
