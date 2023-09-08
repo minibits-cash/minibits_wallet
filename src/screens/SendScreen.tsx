@@ -232,10 +232,12 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 setIsSendModalVisible(false)                
                 setIsProofSelectorModalVisible(false)
 
+                const receiver = (contactToSendTo?.nip05) ? contactToSendTo?.nip05 : 'unknown wallet'
+
                 try {
                     await NotificationService.createLocalNotification(
                         '🚀 That was fast!',
-                        `<b>${amountToSend} sats</b> were received by <b>${contactToSendTo?.nip05}</b>.`,
+                        `<b>${amountToSend} sats</b> were received by <b>${receiver}</b>.`,
                          contactToSendTo?.picture             
                     )
                 } catch(e: any) {
