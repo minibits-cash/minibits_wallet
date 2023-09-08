@@ -32,6 +32,7 @@ import {Invoice} from '../models/Invoice'
 import {poller, stopPolling} from '../utils/poller'
 import EventEmitter from '../utils/eventEmitter'
 import { NostrClient, NostrEvent, NostrFilter } from './nostrService'
+import { MINIBITS_NIP05_DOMAIN, MINIBITS_SERVER_API_HOST } from '@env'
 
 type WalletService = {
     checkPendingSpent: () => Promise<void>
@@ -108,7 +109,7 @@ async function checkPendingSpent() {
 
 
 /*
- * Checks with Minibits relay whether there are tokens to be received.
+ * Checks with NOSTR relays whether there are coins to be received.
  */
 const checkPendingReceived = async function () {
     if(!walletProfileStore.pubkey) {
@@ -123,6 +124,8 @@ const checkPendingReceived = async function () {
             "#p": [walletProfileStore.pubkey],
             since: lastPendingReceivedCheck || 0
         }]
+
+        contactsStore.setLastPendingReceivedCheck() 
 
         log.trace('Creating subscription...', filter, 'checkPendingReceived')
 
@@ -144,19 +147,32 @@ const checkPendingReceived = async function () {
         const sub = pool.sub(relaysToConnect , filter)
 
         let events: NostrEvent[] = []
-        let result: {status: TransactionStatus, message: string} | undefined = undefined
+        let result: {status: TransactionStatus, title?: string,  message: string, iconUrl?: string} | undefined = undefined
 
         sub.on('event', async (event: NostrEvent) => {
+            if(events.some(ev => ev.id === event.id)) {
+                log.error(Err.ALREADY_EXISTS_ERROR, 'Event has just been processed', event.id)
+                return
+            }
+
             events.push(event)
             
-            log.trace('Got NOSTR event, starting receiveFromNostrEvent')
+            log.trace('Got NOSTR event, starting receiveFromNostrEvent', {eventId: event.id, ts: event.created_at})
 
-            const {error, receivedAmount, sentFrom} = await receiveFromNostrEvent(event)
+            const {error, receivedAmount, sentFrom, senderPubkey} = await receiveFromNostrEvent(event)
+
+            let iconUrl: string | undefined = undefined
+
+            if(sentFrom && sentFrom?.includes(MINIBITS_NIP05_DOMAIN)) {
+                iconUrl = MINIBITS_SERVER_API_HOST + '/profile/avatar/' + senderPubkey
+            }
 
             if(receivedAmount > 0) {
                 result = {
                     status: TransactionStatus.COMPLETED ,
-                    message: `You've recieved ${receivedAmount} sats from ${sentFrom}.`
+                    title: `⚡${receivedAmount} sats received!`,
+                    message: `Coins from <b>${sentFrom}</b> are now in your wallet.`,
+                    iconUrl
                 }
     
                 EventEmitter.emit('receiveCompleted', result)
@@ -200,8 +216,7 @@ function getTagValue(tagsArray: [string, string][], tagName: string): string | n
 
 
 const receiveFromNostrEvent = async function (event: NostrEvent) {    
-    try {
-        contactsStore.setLastPendingReceivedCheck() 
+    try {       
         
         if(contactsStore.eventAlreadyReceived(event.id)) {
             throw new AppError(Err.ALREADY_EXISTS_ERROR, 'Duplicate event, skipping...', {id: event.id})
@@ -215,7 +230,8 @@ const receiveFromNostrEvent = async function (event: NostrEvent) {
         }
 
         const decoded: Token = decodeToken(encoded)
-        const sentFrom = getTagValue(event.tags, 'from')        
+        const sentFrom = getTagValue(event.tags, 'from')
+        const senderPubkey = event.pubkey       
         const tokenAmounts = getTokenAmounts(decoded)
         const amountToReceive = tokenAmounts.totalAmount
         const memo = decoded.memo || ''                    
@@ -250,7 +266,8 @@ const receiveFromNostrEvent = async function (event: NostrEvent) {
         return {
             error: null,
             receivedAmount: receivedAmount,
-            sentFrom: transaction?.sentFrom || ''
+            sentFrom: transaction?.sentFrom || '',
+            senderPubkey,
         }
 
     } catch (e: any) {
@@ -307,7 +324,7 @@ async function _checkSpentByMint(mintUrl: string, isPending: boolean = false) {
         const spentCount = spentProofs.length
         const spentAmount = getProofsAmount(spentProofs)
 
-        log.info('spentProofs amount', spentAmount, '_checkSpentByMint')
+        log.trace('spentProofs amount', spentAmount, '_checkSpentByMint')
 
         if (spentProofs.length < 1) {
             log.trace(
@@ -529,14 +546,14 @@ const receive = async function (
         if (amountWithErrors > 0) {
         return {
             transaction: completedTransaction,
-            message: `You received ${receivedAmount} sats to your minibits wallet. ${amountWithErrors} could not be redeemed from the mint`,
+            message: `You've received ${receivedAmount} sats to your minibits wallet. ${amountWithErrors} could not be redeemed from the mint`,
             receivedAmount,
         } as TransactionResult
         }
 
         return {
             transaction: completedTransaction,
-            message: `You received ${receivedAmount} sats to your minibits wallet.`,
+            message: `You've received ${receivedAmount} sats to your minibits wallet.`,
             receivedAmount,
         } as TransactionResult
     } catch (e: any) {

@@ -50,6 +50,7 @@ import {
     CODEPUSH_PRODUCTION_DEPLOYMENT_KEY, 
 } from '@env'
 import { round } from '../utils/number'
+import { NotificationService } from '../services/notificationService'
 
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
 
@@ -123,6 +124,19 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         })
     }, [])
 
+
+    useEffect(() => {
+        InteractionManager.runAfterInteractions(async () => {
+            Wallet.checkPendingReceived() // make sure only one subscription is created
+            // Subscribe to the 'receivedCompleted' event fired by checkPendingReceived
+            EventEmitter.on('receiveCompleted', handleCompleted)
+        })
+
+        return () => {            
+            EventEmitter.off('receiveCompleted', handleCompleted)          
+        }
+    }, [])
+
     const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {
         setIsNativeUpdateAvailable(true)
         toggleUpdateModal()
@@ -141,10 +155,9 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
     useFocusEffect(        
         useCallback(() => {
-            InteractionManager.runAfterInteractions(async () => {         
+            InteractionManager.runAfterInteractions(async () => {                
                 Wallet.checkPendingSpent()
-                Wallet.checkPendingTopups()
-                Wallet.checkPendingReceived()
+                Wallet.checkPendingTopups()                
             })
         }, [])
     )
@@ -169,36 +182,41 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             if (
                 appState.current.match(/inactive|background/) &&
                 nextAppState === 'active') {
-                    
+                
                 InteractionManager.runAfterInteractions(async () => {         
                     Wallet.checkPendingSpent()
-                    Wallet.checkPendingTopups()
-                    Wallet.checkPendingReceived()
+                    Wallet.checkPendingTopups()                    
                 })              
             }
     
             appState.current = nextAppState         
-        })
-
-        // Subscribe to the 'receivedCompleted' event fired by checkPendingReceived
-        EventEmitter.on('receiveCompleted', handleCompleted)
+        })        
     
         return () => {
-          subscription.remove()
-          EventEmitter.off('receiveCompleted', handleCompleted)          
+          subscription.remove()          
         }
     }, [])
 
     
-    const handleCompleted = (result: {status: TransactionStatus, message: string}) => {
+    const handleCompleted = async (result: {
+        status: TransactionStatus, 
+        title: string, 
+        message: string, 
+        iconUrl?: string
+    }) => {
         log.trace('handleCompleted handler for receiveCompleted event trigerred')
 
         if (result.status !== TransactionStatus.COMPLETED) {
           return
         }
 
-        setResultModalInfo(result)            
-        toggleResultModal()        
+        log.trace(result)
+
+        await NotificationService.createLocalNotification(
+            result.title,
+            result.message,
+            result.iconUrl,
+        )     
     } 
 
 

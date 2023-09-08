@@ -409,7 +409,7 @@ const updateStatusAsync = async function (
 
     log.info(
       `[${status}] Transaction status updated`,
-      params,
+      status,
       'updateStatusAsync',
     )
 

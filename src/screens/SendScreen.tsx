@@ -56,6 +56,8 @@ import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { Proof } from '../models/Proof'
 import { Contact } from '../models/Contact'
 import { getImageSource } from '../utils/utils'
+import { NotificationService } from '../services/notificationService'
+import { MINIBITS_SERVER_API_HOST } from '@env'
 
 if (Platform.OS === 'android' &&
     UIManager.setLayoutAnimationEnabledExperimental) {
@@ -177,7 +179,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         }, [route.params?.amountToSend, route.params?.contact, route.params?.relays]),
     )
 
-    // Make sure amountToSend has been set to state ****
+    // Make sure amountToSend has been set to the state
     useEffect(() => {        
         if(isSharedAsNostrDirectMessage && parseInt(amountToSend) > 0) {            
             onAmountEndEditing()  
@@ -212,29 +214,33 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     }, [isInternetReachable])
 
 
+
     useEffect(() => {
-        const handleSendCompleted = (transactionIds: number[]) => {
+        const handleSendCompleted = async (transactionIds: number[]) => {
             log.trace('handleSendCompleted event handler trigerred')
 
             if (!transactionId) return
             // Filter and handle events for a specific transactionId
             if (transactionIds.includes(transactionId)) {
                 log.trace(
-                    'Sent coins have been claimed by receiver for tx',
+                    'Sent coins have been claimed by the receiver for tx',
                     transactionId,
                 )
 
-                setResultModalInfo({
-                    status: TransactionStatus.COMPLETED,
-                    message: `That was fast! ${amountToSend} sats were received by ${contactToSendTo?.name}.`,
-                })
-
                 setTransactionStatus(TransactionStatus.COMPLETED)
-                setIsQRModalVisible(false)
-                setIsSendModalVisible(false)
-                setIsNostrDMModalVisible(false)
+                setIsQRModalVisible(false) // needed ??
+                setIsSendModalVisible(false)                
                 setIsProofSelectorModalVisible(false)
-                setIsResultModalVisible(true)
+
+                try {
+                    await NotificationService.createLocalNotification(
+                        '🚀 That was fast!',
+                        `<b>${amountToSend} sats</b> were received by <b>${contactToSendTo?.nip05}</b>.`,
+                         contactToSendTo?.picture             
+                    )
+                } catch(e: any) {
+                    log.error(e.name, e.message) // silent
+                }
             }
         }
 
