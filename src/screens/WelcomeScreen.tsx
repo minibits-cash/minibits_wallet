@@ -86,7 +86,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
 
     return (
         <Screen style={$container} preset="fixed">
-            <Carousel
+            {/* <Carousel
                 {...baseOptions}
                 // style={{ width: '100%'}}
                 ref={ref}
@@ -135,8 +135,8 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
 
                  
                 )}
-            />
-            {/*<View>
+            /> 
+            <View>
                 <Text
                 tx="welcomeScreen.heading"
                 testID="welcome-heading"
@@ -156,15 +156,21 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
                         contentContainerStyle={{paddingRight: spacing.small}}
                     />
                 </View>
-            </View>
-            <View style={[$bottomContainer, $bottomContainerInsets]}>
-                <Button
-                testID="login-button"
-                tx="welcomeScreen.go"
-                preset="default"
-                onPress={gotoWallet}
+            </View> */}
+            <Text
+                text="Onboarding sequence is being redesigned"                            
+                preset="subheading"
+                style={$welcomeHeading}
+            />
+            <View style={[$bottomContainer]}>
+                <View style={$buttonContainer}>
+                <Button                    
+                    text="Go to the wallet"
+                    preset="default"
+                    onPress={gotoWallet}
                 />
-            </View>*/}
+                </View>
+            </View>
         </Screen>
     )
   }

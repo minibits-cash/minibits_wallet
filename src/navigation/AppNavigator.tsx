@@ -63,10 +63,7 @@ const AppStack = observer(function AppStack() {
         headerShown: false, // managed with hook + custom component   
       }}
     >
-        <>
-            <Stack.Screen name="Welcome" component={WelcomeScreen} />
-            <Stack.Screen name="Tabs" component={TabsNavigator}/>
-        </>
+        <Stack.Screen name="Tabs" component={TabsNavigator} />
         {/* userSettingsStore.isUserOnboarded ? (
             <Stack.Screen name="Tabs" component={TabsNavigator} />
         ) : (
@@ -74,7 +71,7 @@ const AppStack = observer(function AppStack() {
             <Stack.Screen name="Welcome" component={WelcomeScreen} />
             <Stack.Screen name="Tabs" component={TabsNavigator}/>
         </>
-        )*/ }      
+        )*/}      
     </Stack.Navigator>
   )
 })
