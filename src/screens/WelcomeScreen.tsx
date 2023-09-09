@@ -8,6 +8,7 @@ import {
   useColorScheme,
   FlatList,
 } from 'react-native'
+import Carousel, { ICarouselInstance } from 'react-native-reanimated-carousel'
 // import { isRTL } from "../i18n"
 import {useStores} from '../models'
 import {AppStackScreenProps} from '../navigation'
@@ -31,7 +32,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
     const {navigation} = _props
 
     useHeader({
-      backgroundColor: useThemeColor('background'),
+      backgroundColor: colors.palette.primary500,
       StatusBarProps: {barStyle: 'dark-content'},
     })
 
@@ -44,12 +45,21 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
 
     const $bottomContainerInsets = useSafeAreaInsetsStyle(['bottom'])
 
-    const warnings = [
-      {id: '1', tx: 'welcomeScreen.warning1'},
-      {id: '2', tx: 'welcomeScreen.warning2'},
-      {id: '3', tx: 'welcomeScreen.warning3'},
-      {id: '4', tx: 'welcomeScreen.warning4'},
+    const pages = [
+        {heading: 'welcomeScreen.page1.heading', intro: 'welcomeScreen.page1.intro', bullets: [
+            {id: '1', tx: 'welcomeScreen.page1.bullet1'},
+            {id: '2', tx: 'welcomeScreen.page1.bullet2'},
+            {id: '3', tx: 'welcomeScreen.page1.bullet3'},            
+        ], final: 'welcomeScreen.page1.final', go: 'welcomeScreen.page1.go'},
+        {heading: 'welcomeScreen.heading', intro: 'welcomeScreen.intro', bullets: [
+            {id: '1', tx: 'welcomeScreen.bullet1'},
+            {id: '2', tx: 'welcomeScreen.bullet2'},
+            {id: '3', tx: 'welcomeScreen.bullet3'},
+            {id: '4', tx: 'welcomeScreen.bullet4'}
+        ], go: 'welcomeScreen.page1.go'}      
     ]
+
+    const ref = React.useRef<ICarouselInstance>(null);
 
     const renderWarningItem = ({item}: {item: {id: string; tx: string}}) => (
         <View style={$listItem}>
@@ -57,20 +67,76 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
                 <Icon
                 icon="faCheckCircle"
                 size={spacing.large}
-                color={colors.palette.primary400}
+                color={colors.palette.primary200}
                 />
             </View>
             <Text
                 tx={item.tx as TxKeyPath}
                 style={{paddingHorizontal: spacing.small}}
-                size='xs'
+                preset="default"
             />
         </View>
     )
 
+    const baseOptions = {
+        vertical: false,
+        width: spacing.screenWidth,
+        height: spacing.screenHeight,
+      } as const
+
     return (
         <Screen style={$container} preset="fixed">
-            <View>
+            <Carousel
+                {...baseOptions}
+                // style={{ width: '100%'}}
+                ref={ref}
+                pagingEnabled={true}
+                // autoPlay={true}
+                data={pages}
+                // scrollAnimationDuration={1000}
+                // onSnapToItem={(index) => console.log('current index:', index)}
+                renderItem={({ item }) => (
+
+                    <View style={{flexGrow: 0.6, padding: spacing.medium, alignItems: 'center'}}>
+                        <Text
+                            tx={item.heading as TxKeyPath}                            
+                            preset="subheading"
+                            style={$welcomeHeading}
+                        />
+                        <Text
+                            tx={item.intro as TxKeyPath} 
+                            preset="default"
+                            style={$welcomeIntro}
+                        />
+                        <View style={$listContainer}>
+                            <FlatList
+                                data={item.bullets}
+                                renderItem={renderWarningItem}
+                                keyExtractor={item => item.id}
+                                contentContainerStyle={{paddingRight: spacing.small}}
+                            />
+                        </View>
+                        <Text
+                            tx={item.final as TxKeyPath} 
+                            preset="default"
+                            style={$welcomeIntro}
+                        />
+                        <View style={[$bottomContainer]}>
+                            <View style={$buttonContainer}>
+                            <Button
+                                testID="login-button"
+                                tx={item.go as TxKeyPath}
+                                preset="default"
+                                onPress={gotoWallet}
+                            />
+                            </View>
+                        </View>
+                    </View>
+
+                 
+                )}
+            />
+            {/*<View>
                 <Text
                 tx="welcomeScreen.heading"
                 testID="welcome-heading"
@@ -84,14 +150,11 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
                 />
                 <View style={$listContainer}>
                     <FlatList
-                        data={warnings}
+                        data={bullets}
                         renderItem={renderWarningItem}
                         keyExtractor={item => item.id}
                         contentContainerStyle={{paddingRight: spacing.small}}
                     />
-                </View>
-                <View style={{backgroundColor: colors.palette.accent500, borderRadius: spacing.extraSmall, padding: spacing.medium}}>
-                    <Text size='xs' style={{color: 'white'}} text='Check for updates in Settings > Upload manager. During alpha testing, over-the-air updates fix critical bugs.'/>
                 </View>
             </View>
             <View style={[$bottomContainer, $bottomContainerInsets]}>
@@ -101,7 +164,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
                 preset="default"
                 onPress={gotoWallet}
                 />
-            </View>
+            </View>*/}
         </Screen>
     )
   }
@@ -109,10 +172,11 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
 const $container: ViewStyle = {
   alignItems: 'center',
   padding: spacing.medium,
+  backgroundColor: colors.palette.primary500
 }
 
 const $listContainer: ViewStyle = {
-    maxHeight: spacing.screenHeight * 0.4,    
+    maxHeight: spacing.screenHeight * 0.35,    
 }
 
 const $listItem: ViewStyle = {
@@ -126,12 +190,23 @@ const $itemIcon: ViewStyle = {
   marginBottom: spacing.small,
 }
 
+const $buttonContainer: ViewStyle = {
+    flexDirection: 'row',
+    alignSelf: 'center',
+    marginTop: spacing.medium,
+  }
+
 const $bottomContainer: ViewStyle = {
-  flex: 1,
-  justifyContent: 'flex-end',
-  marginBottom: spacing.large,
-  alignSelf: 'stretch',
-}
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flex: 1,
+    justifyContent: 'flex-end',
+    marginBottom: spacing.medium,
+    alignSelf: 'stretch',
+    // opacity: 0,
+  }
 
 const $welcomeHeading: TextStyle = {
   marginBottom: spacing.medium,

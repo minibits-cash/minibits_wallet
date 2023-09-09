@@ -5,6 +5,7 @@ import {
     flow,
     destroy,
     isStateTreeNode,
+    detach,
   } from 'mobx-state-tree'
   import {withSetPropAction} from './helpers/withSetPropAction'
   import {
@@ -45,8 +46,9 @@ import {
               }
   
               if (contactInstance) {
-                  destroy(contactInstance)
-                  log.trace('Contact removed from ContactsStore')
+                    detach(contactInstance) // needed
+                    destroy(contactInstance)
+                    log.trace('Contact removed from ContactsStore')
               }
           },          
       }))
@@ -62,7 +64,7 @@ import {
   
               return contactInstance
           },
-          refreshPicture(pubkey: string) {  // see ContactModel.setPicture                       
+          refreshPicture(pubkey: string) {                     
 
             const contactInstance = self.findByPubkey(pubkey)
             if (contactInstance) {

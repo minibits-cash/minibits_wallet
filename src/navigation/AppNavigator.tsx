@@ -63,14 +63,18 @@ const AppStack = observer(function AppStack() {
         headerShown: false, // managed with hook + custom component   
       }}
     >
-          {userSettingsStore.isUserOnboarded ? (
-              <Stack.Screen name="Tabs" component={TabsNavigator} />
-          ) : (
-            <>
-              <Stack.Screen name="Welcome" component={WelcomeScreen} />
-              <Stack.Screen name="Tabs" component={TabsNavigator}/>
-            </>
-          )}      
+        <>
+            <Stack.Screen name="Welcome" component={WelcomeScreen} />
+            <Stack.Screen name="Tabs" component={TabsNavigator}/>
+        </>
+        {/* userSettingsStore.isUserOnboarded ? (
+            <Stack.Screen name="Tabs" component={TabsNavigator} />
+        ) : (
+        <>
+            <Stack.Screen name="Welcome" component={WelcomeScreen} />
+            <Stack.Screen name="Tabs" component={TabsNavigator}/>
+        </>
+        )*/ }      
     </Stack.Navigator>
   )
 })

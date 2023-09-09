@@ -87,15 +87,15 @@ export const WalletProfileStoreModel = types
         }),      
         updateName: flow(function* update(name: string) {
 
-            let profileRecord: WalletProfileRecord = yield MinibitsClient.updateWalletProfile(
+            let profileRecord: WalletProfileRecord = yield MinibitsClient.updateWalletProfileName(
                 self.pubkey, 
                 {                    
-                    name,
-                    avatar: self.picture
+                    name                   
                 }
             )           
                            
             self.name = profileRecord.name
+            self.nip05 = profileRecord.nip05
             const publishedEvent = yield self.publishToRelays()
             
             log.trace('Wallet name updated in the WalletProfileStore', {self, publishedEvent})
@@ -103,10 +103,9 @@ export const WalletProfileStoreModel = types
         }),
         updatePicture: flow(function* update(picture: string) {
 
-            let profileRecord: WalletProfileRecord = yield MinibitsClient.updateWalletProfile(
+            let profileRecord: WalletProfileRecord = yield MinibitsClient.updateWalletProfileAvatar(
                 self.pubkey, 
-                {                    
-                    name: self.name,
+                {   
                     avatar: picture
                 }
             )   

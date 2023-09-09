@@ -1476,7 +1476,7 @@ const checkPendingTopups = async function () {
             )) as {proofs: Proof[], newKeys: MintKeys}
 
             if (!proofs || proofs.length === 0) {
-                log.info('No proofs returned from mint', [], 'checkPendingTopups')
+                log.trace('No proofs returned from mint', [], 'checkPendingTopups')
                 // remove already expired invoices only after check that they have not been paid
                 // Fixes #3
                 if (isBefore(invoice.expiresAt as Date, new Date())) {

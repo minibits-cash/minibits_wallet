@@ -242,7 +242,7 @@ const getNip05Record = async function (nip05: string) {
 
     try {
         if(!nip05Domain || !nip05Name) {
-            throw new AppError(Err.NOTFOUND_ERROR, 'Contact does not have a valid nip05 identifier.', {nip05})
+            throw new AppError(Err.VALIDATION_ERROR, 'Contact does not have a valid nip05 identifier.', {nip05})
         }
 
         const url = `https://${nip05Domain}/.well-known/nostr.json?name=${nip05Name}`
@@ -261,10 +261,10 @@ const getNip05Record = async function (nip05: string) {
         return nip05Record
         
     } catch(e: any) {
-        if(e.code && e.code === 404) {
-            throw new AppError(
-                Err.NOTFOUND_ERROR, 
-                `${nip05Name} could not be found on the ${nip05Domain} server.`)
+        log.trace('Error', e)
+        if(e.name === Err.NOTFOUND_ERROR) {
+            e.message = `${nip05Name} could not be found on the ${nip05Domain} address server. Your contact might have changed the profile name, please get in touch.`
+            throw e
         } else {
             throw e // Propagate other errors upstream
         }
@@ -281,8 +281,8 @@ const getNip05Record = async function (nip05: string) {
 
 const verifyNip05 = async function (nip05: string, pubkey: string) {
 
-    const nip05Record = await getNip05Record(nip05)
-    const nip05Name = NostrClient.getNameFromNip05(nip05)
+    const nip05Record = await getNip05Record(nip05) // throws
+    const nip05Name = getNameFromNip05(nip05)
 
     if (nip05Record && nip05Record.names[nip05Name as string] === pubkey) {
         return true

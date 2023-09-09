@@ -3,8 +3,8 @@ import * as Sentry from '@sentry/react-native'
 import {Err} from './AppError'
 import {APP_ENV, LOG_LEVEL, SENTRY_ACTIVE} from '@env'
 
-// refresh
-// refresh
+// refresh // refresh
+
 export enum LogLevel {
   TRACE = 'TRACE',
   DEBUG = 'DEBUG',

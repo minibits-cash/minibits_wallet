@@ -13,14 +13,25 @@ const en = {
     offline: "Offline",
   },
   welcomeScreen: {
-    heading: "Welcome to Minibits",
-    intro: "Minibits is an e-cash wallet with a focus on performance and usability for non-techies. Cash is backed by Bitcoin via the Cashu protocol and Lightning Network.",
-    warning1: "This wallet should be used for research purposes only.",
-    warning2: "The wallet is an alpha version with incomplete functionality and both known and unknown bugs.",
-    warning3: "Do not use it with large amounts of coins.",
-    warning4: "Start by connecting to the mint you trust or by receiving coins from another e-cash Cashu wallet.",
-    warning5: "Visit github.com/minibits-cash to give your feedback.",
-    go: "Let's go!"
+    page1: {
+        heading: "Welcome to Minibits",
+        intro: "Minibits is a Lightning and eCash wallet with a focus on performance and usability. eCash is a bearer token issued by custodians (called mints) and backed by Bitcoin. Mints are connected to the Lightning Network.",
+        bullet1: "eCash does not rely on invoices or payment channels",
+        bullet2: "eCash in Minibits can be sent and received while offline, payments settle once online again",
+        bullet3: "eCash is private, the mint does not know wallet's transactions",
+        final: "No Watson, there is no blockchain.",      
+        go: "Next"
+    },
+    page2: {
+        heading: "Welcome to Minibits",
+        intro: "Minibits is a Lightning and eCash wallet with a focus on performance and usability. eCash is a bearer token issued by custodians (called mints) and backed by Bitcoin. Mints are connected to the Lightning Network.",
+        bullet1: "This wallet should be used for research purposes only. Cashu protocol it implements is new and under development",
+        bullet2: "The wallet is a beta version with incomplete functionality and bugs.",
+        bullet3: "Do not use it with large amounts of coins.",
+        bullet4: "Start by connecting to the mint you trust or by receiving coins from another e-cash Cashu wallet.",
+        bullet5: "Visit github.com/minibits-cash to give your feedback.",
+        go: "Let's go!"
+    }
   },
   walletScreen: {
     fund: "Fund wallet",

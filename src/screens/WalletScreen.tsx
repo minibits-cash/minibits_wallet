@@ -469,17 +469,22 @@ const TotalBalanceBlock = observer(function (props: {
     const pendingBalanceColor = colors.palette.primary200
 
     return (
-        <View style={[$headerContainer, {backgroundColor: headerBg}]}>
+        <View style={[$headerContainer, {backgroundColor: headerBg, borderColor: 'red', borderWidth: 1}]}>
+            <Text 
+                text='Satoshi'
+                size='xxs' 
+                style={{color: pendingBalanceColor}}
+            />
             <Text
                 testID='total-balance'
-                preset='heading'
+                preset='heading'              
                 style={{color: balanceColor}}            
                 text={props.totalBalance.toLocaleString()}
             />
             {props.pendingBalance > 0 && (
                 <Text
                     testID='pending-balance'
-                    preset='default'
+                    size='xxs'
                     style={{color: pendingBalanceColor}}
                     text={`Pending: ${props.pendingBalance.toLocaleString()}`}
                 />
@@ -603,7 +608,7 @@ const $screen: ViewStyle = {
 const $headerContainer: TextStyle = {
   alignItems: 'center',
   paddingBottom: spacing.medium,
-  paddingTop: spacing.extraSmall,
+  paddingTop: 0,
   height: spacing.screenHeight * 0.18,
 }
 
@@ -626,8 +631,8 @@ const $card: ViewStyle = {
 }
 
 const $cardHeading: TextStyle = {
-  fontFamily: typography.primary?.medium,
-  fontSize: 20,
+  fontFamily: typography.primary?.normal,
+  fontSize: 18,
 }
 
 const $promoIconContainer: ViewStyle = {
