@@ -469,7 +469,7 @@ const TotalBalanceBlock = observer(function (props: {
     const pendingBalanceColor = colors.palette.primary200
 
     return (
-        <View style={[$headerContainer, {backgroundColor: headerBg, borderColor: 'red', borderWidth: 1}]}>
+        <View style={[$headerContainer, {backgroundColor: headerBg}]}>
             <Text 
                 text='Satoshi'
                 size='xxs' 
