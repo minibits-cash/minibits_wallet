@@ -66,7 +66,7 @@ export const PrivateContacts = observer(function (props: {
         toggleNewContactModal()
 
         const npub = NostrClient.getNpubkey(profileRecord.pubkey)
-        const {pubkey, nip05, avatar: picture, walletId: name} = profileRecord       
+        const {pubkey, nip05, avatar: picture, name} = profileRecord       
         
         const newContact: Contact = {
             type: ContactType.PRIVATE,

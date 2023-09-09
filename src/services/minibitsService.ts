@@ -48,23 +48,45 @@ const createWalletProfile = async function (pubkey: string, walletId: string) {
 }
 
 
-const updateWalletProfile = async function (pubkey: string, walletId: string, avatar: string) {    
+const updateWalletProfileName = async function (pubkey: string, update: { name: string }) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'PUT'        
     const headers = getHeaders()
+    const { name } = update
     
     const requestBody = {            
-        walletId,
-        avatar
+        name
     }        
 
-    const walletProfile: WalletProfile = await fetchApi(url + `/${pubkey}`, {
+    const walletProfile: WalletProfile = await fetchApi(url + `/name/${pubkey}`, {
         method,
         headers,
         body: JSON.stringify(requestBody)
     })
 
-    log.trace(`Updated wallet profile`, walletProfile.pubkey, 'updateWalletProfile')
+    log.trace(`Updated wallet profile`, {name}, 'updateWalletProfileName')
+
+    return walletProfile
+}
+
+
+const updateWalletProfileAvatar = async function (pubkey: string, update: {avatar: string}) {    
+    const url = MINIBITS_SERVER_API_HOST + '/profile'
+    const method = 'PUT'        
+    const headers = getHeaders()
+    const { avatar } = update
+    
+    const requestBody = {
+        avatar
+    }        
+
+    const walletProfile: WalletProfile = await fetchApi(url + `/avatar/${pubkey}`, {
+        method,
+        headers,
+        body: JSON.stringify(requestBody)
+    })
+
+    log.trace(`Updated wallet profile`, {}, 'updateWalletProfileAvatar')
 
     return walletProfile
 }
@@ -191,7 +213,8 @@ const getPublicHeaders = () => {
 export const MinibitsClient = {
     getWalletProfile,
     createWalletProfile,
-    updateWalletProfile,
+    updateWalletProfileName,
+    updateWalletProfileAvatar,
     getRandomPictures,
     getWalletProfileByWalletId,
     createDonation,

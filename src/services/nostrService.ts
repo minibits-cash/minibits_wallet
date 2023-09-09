@@ -252,10 +252,9 @@ const verifyNip05 = async function (nip05: string, pubkey: string) {
             `${nip05Name} is no longer linked to the same public key as in your contacts. Please get in touch with the wallet owner.`)
         
     } catch(e: any) {
-        if(e.code && e.code === 404) {
-            throw new AppError(
-                Err.NOTFOUND_ERROR, 
-                `${nip05Name} could not be found on the ${nip05Domain} server.`)
+        if(e.name === Err.NOTFOUND_ERROR) {
+            e.message = `${nip05Name} could not be found on the ${nip05Domain} address server. Your contact might have changed the profile name, please get in touch.`
+            throw e
         } else {
             throw e // Propagate other errors upstream
         }

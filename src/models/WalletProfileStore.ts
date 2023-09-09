@@ -15,6 +15,7 @@ export type WalletProfileRecord = {
     id: number  
     pubkey: string    
     walletId: string
+    name: string
     nip05: string
     device?: string | null
     avatar: string
@@ -82,7 +83,12 @@ export const WalletProfileStoreModel = types
         }),      
         updateName: flow(function* update(name: string) {
 
-            let profileRecord: WalletProfileRecord = yield MinibitsClient.updateWalletProfile(self.pubkey, name, self.picture)           
+            let profileRecord: WalletProfileRecord = yield MinibitsClient.updateWalletProfileName(
+                self.pubkey, 
+                {  
+                    name
+                }
+            )          
                            
             self.name = profileRecord.walletId
             self.nip05 = profileRecord.nip05
@@ -94,7 +100,12 @@ export const WalletProfileStoreModel = types
         }),
         updatePicture: flow(function* update(picture: string) {
 
-            let profileRecord: WalletProfileRecord = yield MinibitsClient.updateWalletProfile(self.pubkey, self.name, picture)          
+            let profileRecord: WalletProfileRecord = yield MinibitsClient.updateWalletProfileAvatar(
+                self.pubkey, 
+                {
+                    avatar: picture
+                }
+            )
 
             self.picture = profileRecord.avatar + '?r=' + Math.floor(Math.random() * 100) // force refresh as image URL stays the same
 

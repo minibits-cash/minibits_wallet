@@ -5,6 +5,7 @@ import {
     flow,
     destroy,
     isStateTreeNode,
+    detach,
   } from 'mobx-state-tree'
   import {withSetPropAction} from './helpers/withSetPropAction'
   import {
@@ -62,7 +63,7 @@ import {
   
               return contactInstance
           },
-          refreshPicture(pubkey: string) {  // see ContactModel.setPicture                       
+          refreshPicture(pubkey: string) {                   
 
             const contactInstance = self.findByPubkey(pubkey)
             if (contactInstance) {
@@ -89,6 +90,7 @@ import {
             }
 
             if (contactInstance) {
+                detach(contactInstance) // needed
                 destroy(contactInstance)
                 log.info('Contact removed from MintsStore')
             }
