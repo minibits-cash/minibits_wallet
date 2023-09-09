@@ -34,13 +34,7 @@ jobs:
       # Codepush build will continue only if version changed from previous commit    
       - name: Detect version change
         run: |
-          if [ "${{ env.PREV_JS_VERSION }}" != "${{ env.CURRENT_JS_VERSION }}" ]; then
-            echo "IS_VERSION_CHANGED=true" >> $GITHUB_ENV
-            echo "Detected version change"
-          else
-            echo "IS_VERSION_CHANGED=false" >> $GITHUB_ENV
-            echo "No version change, skipping further processing"
-          fi
+          echo "IS_VERSION_CHANGED=true" >> $GITHUB_ENV
               
       # Fetch native app versionName and versionCode from app/build.gradle                
       - name: Get Android native version        
