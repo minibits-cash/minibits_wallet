@@ -17,6 +17,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 2
+          ref: contacts-fixes
       
       # Fetch javascript bundle version from package.json        
       - name: Read package.json version and detect changes
