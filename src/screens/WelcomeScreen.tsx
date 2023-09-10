@@ -1,18 +1,20 @@
 // import { observer } from "mobx-react-lite"
-import React, {FC} from 'react'
+import React, {FC, useRef, useState} from 'react'
 import {
-  ImageStyle,
   TextStyle,
   View,
   ViewStyle,
-  useColorScheme,
   FlatList,
+  Animated,
 } from 'react-native'
-import Carousel, { ICarouselInstance } from 'react-native-reanimated-carousel'
+import PagerView, { PagerViewOnPageScrollEventData } from 'react-native-pager-view'
+import {
+    SlidingBorder,
+  } from 'react-native-animated-pagination-dots'
 // import { isRTL } from "../i18n"
 import {useStores} from '../models'
 import {AppStackScreenProps} from '../navigation'
-import {useThemeColor, spacing, typography, colors} from '../theme'
+import {spacing, colors} from '../theme'
 import {useHeader} from '../utils/useHeader'
 import {useSafeAreaInsetsStyle} from '../utils/useSafeAreaInsetsStyle'
 import {
@@ -20,10 +22,47 @@ import {
   Icon,
   Screen,
   Text,
-  TextField,
-  TextFieldAccessoryProps,
 } from '../components'
 import {TxKeyPath} from '../i18n'
+
+
+const AnimatedPagerView = Animated.createAnimatedComponent(PagerView)
+
+const PAGES = [
+    {
+        key: 1,
+        heading: 'welcomeScreen.page1.heading',
+        intro: 'welcomeScreen.page1.intro',
+        bullets: [
+            {id: '1', tx: 'welcomeScreen.page1.bullet1'},
+            {id: '2', tx: 'welcomeScreen.page1.bullet2'},
+            {id: '3', tx: 'welcomeScreen.page1.bullet3'},            
+        ],
+        final: 'welcomeScreen.page1.final'
+    },
+    {
+        key: 2,
+        heading: 'welcomeScreen.page2.heading',
+        intro: 'welcomeScreen.page2.intro',
+        bullets: [
+            {id: '1', tx: 'welcomeScreen.page2.bullet1'},
+            {id: '2', tx: 'welcomeScreen.page2.bullet2'},
+            {id: '3', tx: 'welcomeScreen.page2.bullet3'},            
+        ],
+        final: 'welcomeScreen.page2.final'
+    },
+    {
+        key: 3,
+        heading: 'welcomeScreen.page3.heading',
+        intro: 'welcomeScreen.page3.intro',
+        bullets: [
+            {id: '1', tx: 'welcomeScreen.page3.bullet1'},
+            {id: '2', tx: 'welcomeScreen.page3.bullet2'},
+            {id: '3', tx: 'welcomeScreen.page3.bullet3'},            
+        ],
+        final: 'welcomeScreen.page3.final'
+    }       
+] 
 
 // const welcomeLogo = require("../../assets/images/logo.png")
 
@@ -33,35 +72,65 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
 
     useHeader({
       backgroundColor: colors.palette.primary500,
-      StatusBarProps: {barStyle: 'dark-content'},
+      //StatusBarProps: {barStyle: 'dark-content'},
     })
 
     const {userSettingsStore} = useStores()
 
+    const [isGotoWalletVisible, setIsGotoWalletVisible] = useState<boolean>(false)
+
+    
+    
     const gotoWallet = function () {
       userSettingsStore.setIsOnboarded(true)
-      navigation.navigate('Tabs', {})
+      navigation.navigate('Tabs')
     }
 
-    const $bottomContainerInsets = useSafeAreaInsetsStyle(['bottom'])
 
-    const pages = [
-        {heading: 'welcomeScreen.page1.heading', intro: 'welcomeScreen.page1.intro', bullets: [
-            {id: '1', tx: 'welcomeScreen.page1.bullet1'},
-            {id: '2', tx: 'welcomeScreen.page1.bullet2'},
-            {id: '3', tx: 'welcomeScreen.page1.bullet3'},            
-        ], final: 'welcomeScreen.page1.final', go: 'welcomeScreen.page1.go'},
-        {heading: 'welcomeScreen.heading', intro: 'welcomeScreen.intro', bullets: [
-            {id: '1', tx: 'welcomeScreen.bullet1'},
-            {id: '2', tx: 'welcomeScreen.bullet2'},
-            {id: '3', tx: 'welcomeScreen.bullet3'},
-            {id: '4', tx: 'welcomeScreen.bullet4'}
-        ], go: 'welcomeScreen.page1.go'}      
-    ]
+    const width = spacing.screenWidth
+    const ref = useRef<PagerView>(null);
+    const scrollOffsetAnimatedValue = React.useRef(new Animated.Value(0)).current;
+    const positionAnimatedValue = React.useRef(new Animated.Value(0)).current;
+    const inputRange = [0, PAGES.length];
+    const scrollX = Animated.add(
+      scrollOffsetAnimatedValue,
+      positionAnimatedValue
+    ).interpolate({
+      inputRange,
+      outputRange: [0, PAGES.length * width],
+    })
+  
+    const onPageScroll = React.useMemo(
+      () =>
+        Animated.event<PagerViewOnPageScrollEventData>(
+          [
+            {
+              nativeEvent: {
+                offset: scrollOffsetAnimatedValue,
+                position: positionAnimatedValue,
+              },
+            },
+          ],
+          {
+            useNativeDriver: false,
+          }
+        ),
+        
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      []
+    )
 
-    const ref = React.useRef<ICarouselInstance>(null);
+    const onPageSelected = function(e: any) {        
+        if(e.nativeEvent.position === PAGES.length - 1) {
+            setIsGotoWalletVisible(true)
+        } else {
+            setIsGotoWalletVisible(false)
+        }
+    }
 
-    const renderWarningItem = ({item}: {item: {id: string; tx: string}}) => (
+    const $bottomContainerInsets = useSafeAreaInsetsStyle(['bottom'])   
+
+    const renderBullet = ({item}: {item: {id: string; tx: string}}) => (
         <View style={$listItem}>
             <View style={$itemIcon}>
                 <Icon
@@ -78,105 +147,86 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
         </View>
     )
 
-    const baseOptions = {
-        vertical: false,
-        width: spacing.screenWidth,
-        height: spacing.screenHeight,
-      } as const
 
     return (
-        <Screen style={$container} preset="fixed">
-            {/* <Carousel
-                {...baseOptions}
-                // style={{ width: '100%'}}
+        <Screen contentContainerStyle={$container} preset="fixed">
+            <AnimatedPagerView
+                testID="pager-view"
+                initialPage={0}
                 ref={ref}
-                pagingEnabled={true}
-                // autoPlay={true}
-                data={pages}
-                // scrollAnimationDuration={1000}
-                // onSnapToItem={(index) => console.log('current index:', index)}
-                renderItem={({ item }) => (
-
-                    <View style={{flexGrow: 0.6, padding: spacing.medium, alignItems: 'center'}}>
+                style={{flex: 1}}
+                // onPageSelected={onPageSelected}
+                onPageScroll={onPageScroll}
+            >
+                {PAGES.map((page) => (
+                    <View key={page.key} style={{alignItems: 'center'}}>
                         <Text
-                            tx={item.heading as TxKeyPath}                            
+                            tx={page.heading as TxKeyPath}                            
                             preset="subheading"
                             style={$welcomeHeading}
                         />
                         <Text
-                            tx={item.intro as TxKeyPath} 
+                            tx={page.intro as TxKeyPath} 
                             preset="default"
                             style={$welcomeIntro}
                         />
                         <View style={$listContainer}>
                             <FlatList
-                                data={item.bullets}
-                                renderItem={renderWarningItem}
+                                data={page.bullets}
+                                renderItem={renderBullet}
                                 keyExtractor={item => item.id}
                                 contentContainerStyle={{paddingRight: spacing.small}}
+                                style={{ flexGrow: 0  }}
                             />
                         </View>
                         <Text
-                            tx={item.final as TxKeyPath} 
+                            tx={page.final as TxKeyPath} 
                             preset="default"
-                            style={$welcomeIntro}
+                            style={$welcomeFinal}
                         />
-                        <View style={[$bottomContainer]}>
+                        {(page.key === PAGES.length) && (
                             <View style={$buttonContainer}>
-                            <Button
-                                testID="login-button"
-                                tx={item.go as TxKeyPath}
-                                preset="default"
-                                onPress={gotoWallet}
-                            />
+                                <Button 
+                                    onPress={gotoWallet}
+                                    preset='secondary'
+                                    text='Got it, take me to the wallet'
+                                />
                             </View>
-                        </View>
-                    </View>
-
-                 
-                )}
-            /> 
-            <View>
-                <Text
-                tx="welcomeScreen.heading"
-                testID="welcome-heading"
-                preset="heading"
-                style={$welcomeHeading}
-                />
-                <Text
-                tx="welcomeScreen.intro"
-                preset="default"
-                style={$welcomeIntro}
-                />
-                <View style={$listContainer}>
-                    <FlatList
-                        data={bullets}
-                        renderItem={renderWarningItem}
-                        keyExtractor={item => item.id}
-                        contentContainerStyle={{paddingRight: spacing.small}}
+                        )}               
+                    </View>                
+                ))}
+            </AnimatedPagerView>
+            <View style={dotsContainer}>               
+                <View style={dotContainer}>                
+                    <SlidingBorder
+                        testID={'sliding-border'}                        
+                        data={PAGES}
+                        slidingIndicatorStyle={{borderColor: colors.palette.primary100}}
+                        dotStyle={{backgroundColor: colors.palette.primary200}}
+                        //@ts-ignore
+                        scrollX={scrollX}
+                        dotSize={24}
                     />
                 </View>
-            </View> */}
-            <Text
-                text="Onboarding sequence is being redesigned"                            
-                preset="subheading"
-                style={$welcomeHeading}
-            />
-            <View style={[$bottomContainer]}>
-                <View style={$buttonContainer}>
-                <Button                    
-                    text="Go to the wallet"
-                    preset="default"
-                    onPress={gotoWallet}
-                />
-                </View>
             </View>
+            
         </Screen>
     )
   }
 
+const dotsContainer: ViewStyle ={
+    height: 50,
+    justifyContent: 'space-evenly',
+}
+
+const dotContainer: ViewStyle ={
+    justifyContent: 'center',
+    alignSelf: 'center',
+}
+
 const $container: ViewStyle = {
-  alignItems: 'center',
+  // alignItems: 'center',
+  flex: 1,
   padding: spacing.medium,
   backgroundColor: colors.palette.primary500
 }
@@ -199,7 +249,7 @@ const $itemIcon: ViewStyle = {
 const $buttonContainer: ViewStyle = {
     flexDirection: 'row',
     alignSelf: 'center',
-    marginTop: spacing.medium,
+    marginTop: spacing.large,
   }
 
 const $bottomContainer: ViewStyle = {
@@ -208,9 +258,10 @@ const $bottomContainer: ViewStyle = {
     left: 0,
     right: 0,
     flex: 1,
-    justifyContent: 'flex-end',
+    // justifyContent: 'flex-end',
     marginBottom: spacing.medium,
     alignSelf: 'stretch',
+    justifyContent: 'space-evenly',
     // opacity: 0,
   }
 
@@ -221,3 +272,7 @@ const $welcomeHeading: TextStyle = {
 const $welcomeIntro: TextStyle = {
   marginBottom: spacing.large,
 }
+
+const $welcomeFinal: TextStyle = {
+    marginTop: spacing.huge,
+  }

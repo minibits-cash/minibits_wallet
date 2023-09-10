@@ -63,15 +63,14 @@ const AppStack = observer(function AppStack() {
         headerShown: false, // managed with hook + custom component   
       }}
     >
-        <Stack.Screen name="Tabs" component={TabsNavigator} />
-        {/* userSettingsStore.isUserOnboarded ? (
+        {userSettingsStore.isUserOnboarded ? (
             <Stack.Screen name="Tabs" component={TabsNavigator} />
         ) : (
         <>
             <Stack.Screen name="Welcome" component={WelcomeScreen} />
             <Stack.Screen name="Tabs" component={TabsNavigator}/>
         </>
-        )*/}      
+        )}      
     </Stack.Navigator>
   )
 })
@@ -84,8 +83,7 @@ export const AppNavigator = observer(function AppNavigator(props: NavigationProp
 
   return (
     <NavigationContainer
-      ref={navigationRef}
-      // theme={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+      ref={navigationRef}      
       {...props}
     >
       <AppStack />

@@ -6852,6 +6852,11 @@ react-native-animatable@1.3.3:
   dependencies:
     prop-types "^15.7.2"
 
+react-native-animated-pagination-dots@^0.1.73:
+  version "0.1.73"
+  resolved "https://registry.yarnpkg.com/react-native-animated-pagination-dots/-/react-native-animated-pagination-dots-0.1.73.tgz#b559bf2faea50b848ff9234a557561ad15298118"
+  integrity sha512-yg6RL0ph3UN+KHX5NDa1iPVxh0J6h9dIn4zoColhJeAGV9TTl8SlaucwcBWaLd7DeUoJgkPxB/O4zJMAcpI/FQ==
+
 react-native-camera-kit@^13.0.0:
   version "13.0.0"
   resolved "https://registry.yarnpkg.com/react-native-camera-kit/-/react-native-camera-kit-13.0.0.tgz#983d9146cdeb0ec0cb0c0a86b7fa5f7690df08f6"
