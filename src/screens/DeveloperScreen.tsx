@@ -176,6 +176,23 @@ Sentry id: ${userSettingsStore.userSettings.walletId}
                   style={$item}
                 />
                 <ListItem
+                  text="Show onboarding again"
+                  subText="Go through onboarding screens again next time you restart Minibits."
+                  leftIcon='faRotate'
+                  leftIconColor={colors.palette.secondary300}
+                  leftIconInverse={true}
+                  RightComponent={<View style={$rightContainer} />}
+                  style={$item}                  
+                  onPress={() => userSettingsStore.setIsOnboarded(false)}
+                /> 
+              
+              </>
+            }
+          />
+          <Card
+            style={[$card, {marginTop: spacing.medium}]}
+            HeadingComponent={
+                <ListItem
                   tx="developerScreen.reset"
                   subTx="developerScreen.resetDescription"
                   leftIcon='faXmark'
@@ -184,10 +201,9 @@ Sentry id: ${userSettingsStore.userSettings.walletId}
                   RightComponent={<View style={$rightContainer} />}
                   style={$item}                  
                   onPress={factoryReset}
-                />                
-              </>
+                />  
             }
-          />
+            />
         </View>
         {isLoading && <Loading />}
         {error && <ErrorModal error={error} />}
