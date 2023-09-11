@@ -24,7 +24,7 @@ const en = {
     page2: {
       heading: "Why Minibits?",
       intro: "Minibits' aim is to research how Lightning and eCash can be integrated into a seamless and instant experience that can work at scale and still provide good privacy.",
-      bullet1: "Minibits provides sharable identifiers using NOSTR addresses. Like account numbers, just better.",
+      bullet1: "Minibits provides sharable wallet identifiers using NOSTR addresses. Like account numbers, just better.",
       bullet2: "Try in-person sends while devices are offline - eCash settles when back online (Proof of concept).",
       bullet3: "You can opt-in for storage encryption and biometric authentication.",
       final: "Minibits is free and open-source software; find us on Github for roadmap and contributions."
