@@ -7,6 +7,7 @@ import {Proof} from '../models/Proof'
 import {
   Transaction,
   TransactionData,
+  TransactionRecord,
   TransactionStatus,
   TransactionType,
 } from '../models/Transaction'
@@ -404,15 +405,19 @@ const receive = async function (
             )
         }
 
-        // Check if we have all mints from the coins added to wallet
-        const missingMints: string[] = mintsStore.getMissingMints(tokenMints)
+        if (tokenMints.length > 1) {
+            throw new AppError(
+                Err.VALIDATION_ERROR,
+                'Wallet does not support receiving of tokens with entries from multiple mints.',
+            )
+        }
+
+        const mintToReceive = tokenMints[0]        
 
         // Let's create new draft receive transaction in database
         transactionData.push({
             status: TransactionStatus.DRAFT,
             amountToReceive,
-            tokenMints,
-            missingMints,
             createdAt: new Date(),
         })
 
@@ -421,15 +426,17 @@ const receive = async function (
             amount: amountToReceive,
             data: JSON.stringify(transactionData),
             memo,
+            mint: mintToReceive,
             status: TransactionStatus.DRAFT,
         }
 
-        const draftTransaction: Transaction = await transactionsStore.addTransaction(newTransaction)
+        const draftTransaction: TransactionRecord = await transactionsStore.addTransaction(newTransaction)
         transactionId = draftTransaction.id as number
 
-        const blockedMints = mintsStore.getBlockedFromList(tokenMints)
+        // Handle blocked mint
+        const isBlocked = mintsStore.isBlocked(mintToReceive)
 
-        if (blockedMints.length > 0) {
+        if (isBlocked) {
             const blockedTransaction = await transactionsStore.updateStatus(
                 transactionId,
                 TransactionStatus.BLOCKED,
@@ -438,40 +445,39 @@ const receive = async function (
 
             return {
                 transaction: blockedTransaction,
-                message: `The mint ${blockedMints.toString()} is blocked. You can unblock it in Settings.`,
+                message: `The mint ${mintToReceive} is blocked. You can unblock it in Settings.`,
             } as TransactionResult
         }
 
-        // if we have missing mints, we add them automatically
-        if (missingMints.length > 0) {
-            log.trace('Missing mints', missingMints, 'receive')
+        // Handle missing mint, we add it automatically
+        const alreadyExists = mintsStore.alreadyExists(mintToReceive)
 
-            for (const mintUrl of missingMints) {
-                log.trace('Adding new mint', mintUrl, 'receive')
+        if (!alreadyExists) {            
 
-                const mintKeys: {
-                    keys: MintKeys
-                    keyset: string
-                } = await MintClient.getMintKeys(mintUrl)
+            log.trace('Adding new mint', mintToReceive, 'receive')
 
-                const newMint: Mint = {
-                    mintUrl,
-                    keys: mintKeys.keys,
-                    keysets: [mintKeys.keyset]
-                }
+            const mintKeys: {
+                keys: MintKeys
+                keyset: string
+            } = await MintClient.getMintKeys(mintToReceive)
 
-                mintsStore.addMint(newMint)
+            const newMint: Mint = {
+                mintUrl: mintToReceive,
+                keys: mintKeys.keys,
+                keysets: [mintKeys.keyset]
             }
+
+            mintsStore.addMint(newMint)
         }
 
         // Now we ask all mints to get fresh outputs for their tokenEntries, and create from them new proofs
         // 0.8.0-rc3 implements multimints receive however CashuMint constructor still expects single mintUrl
         const {updatedToken, errorToken, newKeys} = await MintClient.receiveFromMint(
-            tokenMints[0],
+            mintToReceive,
             encodedToken as string,
         )
 
-        // if(newKeys) {_updateMintKeys(mintUrl, newKeys)} // unclear whose keys do we get in case of more then 1 mint
+        if(newKeys) {_updateMintKeys(mintToReceive, newKeys)}
 
         // Update transaction status
         transactionData.push({
@@ -506,7 +512,7 @@ const receive = async function (
         for (const entry of updatedToken.token) {
             for (const proof of entry.proofs) {
                 proof.tId = transactionId
-                proof.mintUrl = entry.mint //multimint support
+                proof.mintUrl = entry.mint
 
                 newProofs.push(proof)
             }
@@ -544,11 +550,11 @@ const receive = async function (
         await transactionsStore.updateBalanceAfter(transactionId, balanceAfter)
 
         if (amountWithErrors > 0) {
-        return {
-            transaction: completedTransaction,
-            message: `You've received ${receivedAmount} sats to your minibits wallet. ${amountWithErrors} could not be redeemed from the mint`,
-            receivedAmount,
-        } as TransactionResult
+            return {
+                transaction: completedTransaction,
+                message: `You've received ${receivedAmount} sats to your minibits wallet. ${amountWithErrors} could not be redeemed from the mint`,
+                receivedAmount,
+            } as TransactionResult
         }
 
         return {
@@ -556,8 +562,9 @@ const receive = async function (
             message: `You've received ${receivedAmount} sats to your minibits wallet.`,
             receivedAmount,
         } as TransactionResult
+        
     } catch (e: any) {
-        let errorTransaction: Transaction | undefined = undefined
+        let errorTransaction: TransactionRecord | undefined = undefined
 
         if (transactionId > 0) {
             transactionData.push({
@@ -603,15 +610,20 @@ const receiveOfflinePrepare = async function (
             )
         }
 
-        // Check if we have all mints from the coins added to wallet
-        const missingMints: string[] = mintsStore.getMissingMints(tokenMints)
+
+        if (tokenMints.length > 1) {
+            throw new AppError(
+                Err.VALIDATION_ERROR,
+                'Wallet does not support receiving of tokens with entries from multiple mints.',
+            )
+        }
+
+        const mintToReceive = tokenMints[0]        
 
         // Let's create new draft receive transaction in database
         transactionData.push({
             status: TransactionStatus.DRAFT,
             amountToReceive,
-            tokenMints,
-            missingMints,
             createdAt: new Date(),
         })
 
@@ -620,15 +632,18 @@ const receiveOfflinePrepare = async function (
             amount: amountToReceive,
             data: JSON.stringify(transactionData),
             memo,
+            mint: mintToReceive,
             status: TransactionStatus.DRAFT,
         }
 
-        const draftTransaction: Transaction = await transactionsStore.addTransaction(newTransaction)
+
+        const draftTransaction: TransactionRecord = await transactionsStore.addTransaction(newTransaction)
         transactionId = draftTransaction.id as number
 
-        const blockedMints = mintsStore.getBlockedFromList(tokenMints)
+        // Handle blocked mint
+        const isBlocked = mintsStore.isBlocked(mintToReceive)
 
-        if (blockedMints.length > 0) {
+        if (isBlocked) {
             const blockedTransaction = await transactionsStore.updateStatus(
                 transactionId,
                 TransactionStatus.BLOCKED,
@@ -637,7 +652,7 @@ const receiveOfflinePrepare = async function (
 
             return {
                 transaction: blockedTransaction,
-                message: `The mint ${blockedMints.toString()} is blocked. You can unblock it in Settings.`,
+                message: `The mint ${mintToReceive} is blocked. You can unblock it in Settings.`,
             } as TransactionResult
         }
 
@@ -672,7 +687,7 @@ const receiveOfflinePrepare = async function (
         } as TransactionResult
 
     } catch (e: any) {
-        let errorTransaction: Transaction | undefined = undefined
+        let errorTransaction: TransactionRecord | undefined = undefined
 
         if (transactionId > 0) {
             transactionData.push({
@@ -713,44 +728,43 @@ const receiveOfflineComplete = async function (
         
         const token = decodeToken(encodedToken)        
         const tokenMints: string[] = getMintsFromToken(token as Token)
+        const mintToReceive = tokenMints[0]
 
-        // Check if we have all mints from the coins added to wallet
-        const missingMints: string[] = mintsStore.getMissingMints(tokenMints)
-        const blockedMints = mintsStore.getBlockedFromList(tokenMints)
+        // Re-check blocked mint
+        const isBlocked = mintsStore.isBlocked(mintToReceive)
 
-        if (blockedMints.length > 0) {
+        if (isBlocked) {
             const blockedTransaction = await transactionsStore.updateStatus(
                 transaction.id as number,
                 TransactionStatus.BLOCKED,
-                JSON.stringify(transaction.data),
+                JSON.stringify(transactionData),
             )
 
             return {
                 transaction: blockedTransaction,
-                message: `The mint ${blockedMints.toString()} is blocked. You can unblock it in Settings.`,
+                message: `The mint ${mintToReceive} is blocked. You can unblock it in Settings.`,
             } as TransactionResult
         }
 
-        // if we have missing mints, we add them automatically
-        if (missingMints.length > 0) {
-            log.trace('Missing mints', missingMints, 'receive')
+        // Handle missing mint, we add it automatically
+        const alreadyExists = mintsStore.alreadyExists(mintToReceive)
 
-            for (const mintUrl of missingMints) {
-                log.trace('Adding new mint', mintUrl, 'receive')
+        if (!alreadyExists) {            
 
-                const mintKeys: {
-                    keys: MintKeys
-                    keyset: string
-                } = await MintClient.getMintKeys(mintUrl)
+            log.trace('Adding new mint', mintToReceive, 'receive')
 
-                const newMint: Mint = {
-                    mintUrl,
-                    keys: mintKeys.keys,
-                    keysets: [mintKeys.keyset]
-                }
+            const mintKeys: {
+                keys: MintKeys
+                keyset: string
+            } = await MintClient.getMintKeys(mintToReceive)
 
-                mintsStore.addMint(newMint)
+            const newMint: Mint = {
+                mintUrl: mintToReceive,
+                keys: mintKeys.keys,
+                keysets: [mintKeys.keyset]
             }
+
+            mintsStore.addMint(newMint)
         }
 
         // Now we ask all mints to get fresh outputs for their tokenEntries, and create from them new proofs
@@ -780,7 +794,7 @@ const receiveOfflineComplete = async function (
         for (const entry of updatedToken.token) {
             for (const proof of entry.proofs) {
                 proof.tId = transaction.id
-                proof.mintUrl = entry.mint //multimint support
+                proof.mintUrl = entry.mint
 
                 newProofs.push(proof)
             }
@@ -831,7 +845,7 @@ const receiveOfflineComplete = async function (
             receivedAmount,
         } as TransactionResult
     } catch (e: any) {
-        let errorTransaction: Transaction | undefined = undefined
+        let errorTransaction: TransactionRecord | undefined = undefined
             
         const transactionData = JSON.parse(transaction.data)
         transactionData.push({
@@ -885,7 +899,6 @@ const _sendFromMint = async function (
                 {totalAmountFromMint, amountToSend},
             )
         }
-
 
         const selectedProofsAmount = getProofsAmount(selectedProofs)
 
@@ -1020,11 +1033,12 @@ const send = async function (
             amount: amountToSend,
             data: JSON.stringify(transactionData),
             memo,
+            mint: mintUrl,
             status: TransactionStatus.DRAFT,
         }
 
         // store tx in db and in the model
-        const storedTransaction: Transaction =
+        const storedTransaction: TransactionRecord =
         await transactionsStore.addTransaction(newTransaction)
         transactionId = storedTransaction.id as number
 
@@ -1108,7 +1122,7 @@ const send = async function (
         } as TransactionResult
     } catch (e: any) {
         // Update transaction status if we have any
-        let errorTransaction: Transaction | undefined = undefined
+        let errorTransaction: TransactionRecord | undefined = undefined
 
         if (transactionId > 0) {
             transactionData.push({
@@ -1179,11 +1193,12 @@ const transfer = async function (
                 fee: estimatedFee,
                 data: JSON.stringify(transactionData),
                 memo,
+                mint: mintBalanceToTransferFrom.mint,
                 status: TransactionStatus.DRAFT,
             }
 
         // store tx in db and in the model
-        const storedTransaction: Transaction =
+        const storedTransaction: TransactionRecord =
         await transactionsStore.addTransaction(newTransaction)
         
         transactionId = storedTransaction.id as number
@@ -1285,7 +1300,7 @@ const transfer = async function (
         } as TransactionResult
     } catch (e: any) {        
         // Update transaction status if we have any
-        let errorTransaction: Transaction | undefined = undefined
+        let errorTransaction: TransactionRecord | undefined = undefined
 
         if (transactionId > 0) {
             transactionData.push({
@@ -1373,10 +1388,11 @@ const topup = async function (
             amount: amountToTopup,
             data: JSON.stringify(transactionData),
             memo,
+            mint: mintBalanceToTopup.mint,
             status: TransactionStatus.DRAFT,
         }
         // store tx in db and in the model
-        const storedTransaction: Transaction =
+        const storedTransaction: TransactionRecord =
         await transactionsStore.addTransaction(newTransaction)
         transactionId = storedTransaction.id as number
 
@@ -1432,7 +1448,7 @@ const topup = async function (
         } as TransactionResult
 
     } catch (e: any) {
-        let errorTransaction: Transaction | undefined = undefined
+        let errorTransaction: TransactionRecord | undefined = undefined
 
         if (transactionId > 0) {
         transactionData.push({

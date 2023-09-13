@@ -1,5 +1,5 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useState, useEffect, useCallback, useRef} from 'react'
+import React, {FC, useState, useEffect, useCallback, useRef, useMemo, createRef, RefObject} from 'react'
 import {useFocusEffect} from '@react-navigation/native'
 import {
   TextStyle,
@@ -9,12 +9,14 @@ import {
   AppState,
   Image,
   InteractionManager,
+  Animated,
+  findNodeHandle
 } from 'react-native'
-import Animated, {
+/* import Animated, {
   useAnimatedScrollHandler,
   useSharedValue,
   useAnimatedStyle,
-} from 'react-native-reanimated'
+} from 'react-native-reanimated' */
 import codePush, { RemotePackage } from 'react-native-code-push'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
 import {useThemeColor, spacing, colors, typography} from '../theme'
@@ -51,7 +53,10 @@ import {
 } from '@env'
 import { round } from '../utils/number'
 import { NotificationService } from '../services/notificationService'
+import PagerView, { PagerViewOnPageScrollEventData } from 'react-native-pager-view'
+import { ExpandingDot, ScalingDot, SlidingBorder, SlidingDot } from 'react-native-animated-pagination-dots'
 
+const AnimatedPagerView = Animated.createAnimatedComponent(PagerView)
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
 
 interface WalletScreenProps extends WalletStackScreenProps<'Wallet'> {}
@@ -72,7 +77,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
       onLeftPress: () => gotoTranHistory(),
     })
 
-    const scrollY = useSharedValue(0)
+   /*  const scrollY = useSharedValue(0)
 
     const handleScroll = useAnimatedScrollHandler(event => {
       scrollY.value = event.contentOffset.y
@@ -86,7 +91,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
           },
         ],
       }
-    })
+    }) */
 
     
     // const [balances, setBalances] = useState(() => proofsStore.getBalances())    
@@ -300,6 +305,44 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
       navigation.navigate('Topup')
     }
 
+    /* Mints pager */
+
+    const groupedMints = mintsStore.groupedByHostname
+    const width = spacing.screenWidth
+    const pagerRef = useRef<PagerView>(null)
+    const scrollOffsetAnimatedValue = React.useRef(new Animated.Value(0)).current
+    const positionAnimatedValue = React.useRef(new Animated.Value(0)).current
+    const inputRange = [0, groupedMints.length]
+    const scrollX = Animated.add(
+        scrollOffsetAnimatedValue,
+        positionAnimatedValue
+    ).interpolate({
+        inputRange,
+        outputRange: [0, groupedMints.length * width],
+    })
+
+    const onPageScroll = React.useMemo(
+        () =>
+          Animated.event<PagerViewOnPageScrollEventData>(
+            [
+              {
+                nativeEvent: {
+                  offset: scrollOffsetAnimatedValue,
+                  position: positionAnimatedValue,
+                },
+              },
+            ],
+            {
+              useNativeDriver: false,
+            }
+          ),
+          
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        []
+    )
+
+
+
     const handleError = function (e: AppError) {
       setIsLoading(false)
       setError(e)
@@ -310,50 +353,69 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const iconInfo = useThemeColor('textDim')
 
     return (
-      <Screen preset='auto' contentContainerStyle={$screen}>
-        <Animated.ScrollView
-          style={[$screen, {backgroundColor: screenBg}]}
-          scrollEventThrottle={16}
-          onScroll={handleScroll}>
+      <Screen preset='auto' contentContainerStyle={$screen}>        
           <TotalBalanceBlock
             totalBalance={balances.totalBalance}
             pendingBalance={balances.totalPendingBalance}
             // gotoTranHistory={gotoTranHistory}
           />
           <View style={$contentContainer}>
-            {mintsStore.mintCount === 0 && <PromoBlock addMint={addMint} />}
-            {mintsStore.groupedByHostname.map(
-              (mintsByHostname: MintsByHostname) => (
-                <MintsByHostnameListItem
-                  key={mintsByHostname.hostname}
-                  mintsByHostname={mintsByHostname}
-                  mintBalances={balances.mintBalances}
-                />
-              ),
-            )}
-            {transactionsStore.count > 0 && (
-              <Card
-                ContentComponent={
-                  <>
-                    {transactionsStore.recent.map(
-                      (tx: Transaction, index: number) => (
-                        <TransactionListItem
-                          key={tx.id}
-                          tx={tx}
-                          isFirst={index === 0}
-                          gotoTranDetail={gotoTranDetail}
-                        />
-                      ),
-                    )}
-                  </>
-                }
-                style={$card}
-              />
-            )}
+            {mintsStore.mintCount === 0 ? (
+                <PromoBlock addMint={addMint} />
+            ) : (
+                <>
+                    <AnimatedPagerView
+                        testID="pager-view"
+                        initialPage={0}
+                        ref={pagerRef}
+                        style={{ flexGrow: 1}}                                             
+                        onPageScroll={onPageScroll}
+                    >
+                        {groupedMints.map((mints) => (
+                            <View key={mints.hostname} style={{marginHorizontal: spacing.extraSmall}}>
+                                <MintsByHostnameListItem                                    
+                                    mintsByHostname={mints}
+                                    mintBalances={balances.mintBalances}
+                                />
+                                {transactionsStore.count > 0 && (
+                                <Card                                    
+                                    ContentComponent={
+                                    <>
+                                        {transactionsStore.recentByHostname(mints.hostname).map(
+                                        (tx: Transaction, index: number) => (
+                                            <TransactionListItem
+                                                key={tx.id}
+                                                tx={tx}
+                                                isFirst={index === 0}
+                                                gotoTranDetail={gotoTranDetail}
+                                            />
+                                        ),
+                                        )}
+                                    </>
+                                    }
+                                    style={$card}
+                                />
+                                )}
+                            </View>
+                        ))}
+                    </AnimatedPagerView>
+                    <ScalingDot
+                        testID={'sliding-border'}                        
+                        data={groupedMints}
+                        // slidingIndicatorStyle={{borderColor: colors.palette.primary100}}
+                        dotStyle={{backgroundColor: colors.palette.primary400}}
+                        containerStyle={{bottom: 40}}
+                        //@ts-ignore
+                        scrollX={scrollX}
+                        dotSize={40}
+                    />
+                </>
+            )}          
+
             {isLoading && <Loading />}
           </View>
-        </Animated.ScrollView>
-        <Animated.View style={[$bottomContainer, stylez]}>
+        
+        <View style={[$bottomContainer]}>
           <View style={$buttonContainer}>
             <Button
               tx={'walletScreen.receive'}
@@ -391,7 +453,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
               style={[$buttonSend, {borderLeftColor: screenBg}]}
             />
           </View>
-        </Animated.View>
+        </View>
         <BottomModal
           isVisible={isLightningModalVisible ? true : false}
           top={spacing.screenHeight * 0.6}
@@ -527,6 +589,8 @@ const PromoBlock = function (props: {addMint: any}) {
     )
 }
 
+
+
 const MintsByHostnameListItem = observer(function (props: {
     mintsByHostname: MintsByHostname
     mintBalances: MintBalance[]
@@ -602,7 +666,7 @@ const LightningActionsBlock = function (props: {
 }
 
 const $screen: ViewStyle = {
-  flex: 1,
+    flex: 1,
 }
 
 const $headerContainer: TextStyle = {
@@ -620,9 +684,8 @@ const $buttonContainer: ViewStyle = {
 
 const $contentContainer: TextStyle = {
   marginTop: -spacing.extraLarge * 2,
-  flex: 1,
-  padding: spacing.extraSmall,
-  alignItems: 'center',
+  flex: 0.85,
+  paddingTop: spacing.extraSmall,  
 }
 
 const $card: ViewStyle = {
@@ -644,6 +707,16 @@ const $promoText: TextStyle = {
   padding: spacing.small,
   textAlign: 'center',
   fontSize: 18,
+}
+
+const $dotsContainer: ViewStyle ={
+    height: 30,    
+    justifyContent: 'space-evenly',
+}
+
+const $dotContainer: ViewStyle ={
+    justifyContent: 'center',
+    alignSelf: 'center',
 }
 
 const $item: ViewStyle = {

@@ -1,18 +1,19 @@
 import {Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
+import { log } from '../utils/logger'
 
 export interface TransactionRecord {
     id?: number
     type: TransactionType
     amount: number
-    fee?: number
+    fee?: number | null
     data: string
-    sentFrom?: string
-    memo?: string
-    balanceAfter?: number
-    noteToSelf?: string
-    tags?: Array<string>
-    status: TransactionStatus
-    createdAt: string
+    sentFrom?: string | null
+    memo?: string | null  
+    mint?: string | null
+    balanceAfter?: number | null
+    noteToSelf?: string | null
+    tags?: Array<string> | null
+    status: TransactionStatus    
 }
 
 export type TransactionData = {
@@ -51,17 +52,20 @@ export const TransactionModel = types
         sentFrom: types.maybe(types.maybeNull(types.string)),
         sentTo: types.maybe(types.maybeNull(types.string)),
         memo: types.maybe(types.maybeNull(types.string)),
+        mint: types.maybe(types.maybeNull(types.string)),
         balanceAfter: types.maybe(types.maybeNull(types.integer)),
         noteToSelf: types.maybe(types.maybeNull(types.string)),
         tags: types.maybe(types.maybeNull(types.array(types.string))),
         status: types.frozen<TransactionStatus>(),
         createdAt: types.optional(types.Date, new Date()),
-    })
+    })   
+    
 
 export type Transaction = {
     amount: number    
-    type: TransactionType
+    type: TransactionType    
     data: string
+    mint: string
     status: TransactionStatus
 } & Partial<Instance<typeof TransactionModel>>
 export interface TransactionSnapshotOut

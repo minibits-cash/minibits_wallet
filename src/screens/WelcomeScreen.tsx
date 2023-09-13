@@ -196,8 +196,8 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
                     </View>                
                 ))}
             </AnimatedPagerView>
-            <View style={dotsContainer}>               
-                <View style={dotContainer}>                
+            <View style={$dotsContainer}>               
+                <View style={$dotContainer}>                
                     <SlidingBorder
                         testID={'sliding-border'}                        
                         data={PAGES}
@@ -214,12 +214,12 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
     )
   }
 
-const dotsContainer: ViewStyle ={
+const $dotsContainer: ViewStyle ={
     height: 50,
     justifyContent: 'space-evenly',
 }
 
-const dotContainer: ViewStyle ={
+const $dotContainer: ViewStyle ={
     justifyContent: 'center',
     alignSelf: 'center',
 }

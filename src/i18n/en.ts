@@ -106,6 +106,7 @@ const en = {
     memoFromInvoice: "Memo from invoice",
     paidFrom: "Paid from",
     receivedTo: "Received to",
+    topupTo: "Topup to",
     receiveOfflineComplete: "Redeem to wallet",
     isOffline: "Redeem online"
   },

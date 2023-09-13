@@ -445,17 +445,17 @@ const ReceiveInfoBlock = function (props: {
                 </>
             }
         />
+        <Card
+            style={$dataCard}
+            ContentComponent={
+                <TranItem
+                    label="tranDetailScreen.receivedTo"
+                    value={transaction.mint as string}
+                />
+            }
+        />
         {isDataParsable && (
             <>
-                <Card
-                    style={$dataCard}
-                    ContentComponent={
-                        <TranItem
-                            label="tranDetailScreen.receivedTo"
-                            value={getMints(transaction).toString()}
-                        />
-                    }
-                />
                 <Card
                     style={$dataCard}
                     ContentComponent={
@@ -603,17 +603,17 @@ const ReceiveOfflineInfoBlock = function (props: {
                 </>
             }
         />
+        <Card
+            style={$dataCard}
+            ContentComponent={                        
+                <TranItem
+                    label="tranDetailScreen.receivedTo"
+                    value={transaction.mint as string}
+                />
+            }
+        />
         {isDataParsable && (
             <>
-                <Card
-                    style={$dataCard}
-                    ContentComponent={                        
-                        <TranItem
-                            label="tranDetailScreen.receivedTo"
-                            value={getMints(transaction).toString()}
-                        />
-                    }
-                />
                 <Card
                     style={$dataCard}
                     ContentComponent={
@@ -772,6 +772,15 @@ const SendInfoBlock = function (props: {
                     </>
                 }
             />
+            <Card
+                style={$dataCard}
+                ContentComponent={                        
+                    <TranItem
+                        label="tranDetailScreen.sentFrom"
+                        value={transaction.mint as string}
+                    />
+                }
+            />
             {isDataParsable && (
             <>
                 <Card
@@ -910,6 +919,15 @@ const TopupInfoBlock = function (props: {
                 </>
             }
         />
+        <Card
+            style={$dataCard}
+            ContentComponent={                        
+                <TranItem
+                    label="tranDetailScreen.topupTo"
+                    value={transaction.mint as string}
+                />
+            }
+        />
         {isDataParsable && (
             <>
                 <Card
@@ -1006,20 +1024,18 @@ const TransferInfoBlock = function (props: {
             <TranItem label="tranDetailScreen.id" value={`${transaction.id}`} />
           </>
         }
-      />
-      {isDataParsable && (
-        <>
-          <Card
+        />
+        <Card
             style={$dataCard}
             ContentComponent={
-              <TranItem
-                label="tranDetailScreen.paidFrom"
-                value={
-                  JSON.parse(transaction.data)[0].mintBalanceToTransferFrom.mint
-                }
-              />
+                <TranItem
+                    label="tranDetailScreen.paidFrom"
+                    value={transaction.mint as string}
+                />
             }
-          />
+        />
+      {isDataParsable && (        
+      <>
           <Card
             style={[$dataCard]}
             ContentComponent={
@@ -1079,15 +1095,6 @@ const TranItem = function (props: {
             <Text text={props.value} />
         </View>
     )
-}
-
-const getMints = function (transaction: Transaction) {
-    try {        
-        const mints = JSON.parse(transaction.data)[0].tokenMints || []
-        return mints
-    } catch (e) {
-        return []
-    }
 }
 
 

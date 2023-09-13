@@ -19,7 +19,7 @@ import { Contact, ContactType } from '../models/Contact'
 
 let _db: QuickSQLiteConnection
 
-const _dbVersion = 4 // Update this if db changes require migrations
+const _dbVersion = 5 // Update this if db changes require migrations
 
 const getInstance = function () {
   if (!_db) {
@@ -58,6 +58,7 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
         sentFrom TEXT,
         sentTo TEXT,
         memo TEXT,
+        mint TEXT,
         balanceAfter INTEGER,
         noteToSelf TEXT,
         tags TEXT,
@@ -166,6 +167,16 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
         ]) 
 
         log.info(`Prepared database migrations from ${currentVersion} -> 4`)
+    }
+
+
+    if (currentVersion < 5) {
+        migrationQueries.push([
+            `ALTER TABLE transactions
+            ADD COLUMN mint TEXT`,       
+        ]) 
+
+        log.info(`Prepared database migrations from ${currentVersion} -> 5`)
     }
 
 
@@ -361,14 +372,14 @@ const getTransactionById = function (id: number) {
 
 const addTransactionAsync = async function (tx: Transaction) {
   try {
-    const {type, amount, data, memo, status} = tx
+    const {type, amount, data, memo, mint, status} = tx
     const now = new Date()
 
     const query = `
-      INSERT INTO transactions (type, amount, data, memo, status, createdAt)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO transactions (type, amount, data, memo, mint, status, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `
-    const params = [type, amount, data, memo, status, now.toISOString()]
+    const params = [type, amount, data, memo, mint, status, now.toISOString()]
 
     const db = getInstance()
     const result = await db.executeAsync(query, params)

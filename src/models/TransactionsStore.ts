@@ -239,7 +239,7 @@ export const TransactionsStoreModel = types
             return self.transactions.length
         },
         get recent(): Transaction[] {
-            return this.all.slice(0, 3) // Return the first 3 transactions
+            return this.all.slice(0, 4) // Return the first 3 transactions
         },
         get all() {
             return self.transactions
@@ -253,10 +253,13 @@ export const TransactionsStoreModel = types
         },
         get pending() {
             return this.all.filter(t => t.status === TransactionStatus.PENDING)
-        },       
+        }, 
+        recentByHostname(mintHostname: string): Transaction[] {
+            return this.all.filter(t => t.mint?.includes(mintHostname)).slice(0, 4)
+        }             
     }))
 
-
+// refresh
 export interface TransactionsStore
   extends Instance<typeof TransactionsStoreModel> {}
 export interface TransactionsStoreSnapshot

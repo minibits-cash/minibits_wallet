@@ -116,7 +116,8 @@ export const getProofsAmount = function (proofs: Array<Proof>): number {
 }
 
 export const getMintsFromToken = function (token: Token): string[] {
-  return token.token.map(item => item.mint)
+  const mints = token.token.map(item => item.mint)
+  return Array.from(new Set(mints)) // make sure the mints are not duplicated
 }
 
 export const updateMintProofs = function (
