@@ -371,29 +371,32 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                     mintBalances={balances.mintBalances.filter(balance => balance.mint.includes(mints.hostname))}
                                     gotoTopup={gotoTopup}
                                     gotoTransfer={gotoTransfer}
-                                />                                
-                                <Card                                    
-                                    ContentComponent={
-                                    <>
-                                        <FlatList
-                                            data={transactionsStore.recentByHostname(mints.hostname) as Transaction[]}
-                                            renderItem={({item, index}) => {
-                                                return (<TransactionListItem
-                                                    key={item.id}
-                                                    tx={item}
-                                                    isFirst={index === 0}
-                                                    gotoTranDetail={gotoTranDetail}
-                                                />)
+                                />
+                                {transactionsStore.recentByHostname(mints.hostname).length > 0 && (
+                                    <Card                                    
+                                        ContentComponent={
+                                        <>
+                                            <FlatList
+                                                data={transactionsStore.recentByHostname(mints.hostname) as Transaction[]}
+                                                renderItem={({item, index}) => {
+                                                    return (<TransactionListItem
+                                                        key={item.id}
+                                                        tx={item}
+                                                        isFirst={index === 0}
+                                                        gotoTranDetail={gotoTranDetail}
+                                                    />)
+                                                    }
                                                 }
-                                            }
-                                            // keyExtractor={(item, index) => item.id}
-                                            // contentContainerStyle={{paddingRight: spacing.small}}
-                                            style={{ maxHeight: 300 - (mints.mints.length > 1 ? mints.mints.length * 29 : 0)}}
-                                        />
-                                    </>
-                                    }
-                                    style={[$card, {paddingTop: spacing.extraSmall}]}
-                                />                               
+                                                // keyExtractor={(item, index) => item.id}
+                                                // contentContainerStyle={{paddingRight: spacing.small}}
+                                                style={{ maxHeight: 300 - (mints.mints.length > 1 ? mints.mints.length * 29 : 0)}}
+                                            />
+                                        </>
+                                        }
+                                        style={[$card, {paddingTop: spacing.extraSmall}]}
+                                    />
+                                )}                               
+                               
                             </View>
                         ))}
                     </AnimatedPagerView>
