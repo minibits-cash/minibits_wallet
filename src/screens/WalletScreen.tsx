@@ -70,9 +70,9 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const appState = useRef(AppState.currentState);
 
     useHeader({
-      rightIcon: 'faBolt',
-      rightIconColor: colors.palette.primary100,
-      onRightPress: () => toggleLightningModal(),
+      // rightIcon: 'faBolt',
+      // rightIconColor: colors.palette.primary100,
+      // onRightPress: () => toggleLightningModal(),
       leftIcon: 'faListUl',
       leftIconColor: colors.palette.primary100,
       onLeftPress: () => gotoTranHistory(),
@@ -101,7 +101,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const [error, setError] = useState<AppError | undefined>()
     const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus, message: string} | undefined>()
     const [isLoading, setIsLoading] = useState<boolean>(false)
-    const [isLightningModalVisible, setIsLightningModalVisible] = useState<boolean>(false)
+    // const [isLightningModalVisible, setIsLightningModalVisible] = useState<boolean>(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
 
     const [isUpdateAvailable, setIsUpdateAvailable] = useState<boolean>(false)
@@ -463,7 +463,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             />
           </View>
         </View>
-        <BottomModal
+        {/*<BottomModal
           isVisible={isLightningModalVisible ? true : false}
           top={spacing.screenHeight * 0.6}
           ContentComponent={
@@ -474,7 +474,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
           }
           onBackButtonPress={toggleLightningModal}
           onBackdropPress={toggleLightningModal}
-        />
+        />*/}
         <BottomModal
           isVisible={isUpdateModalVisible ? true : false}
           top={spacing.screenHeight * 0.75}
@@ -670,7 +670,7 @@ const MintsByHostnameListItem = observer(function (props: {
     )
 })
 
-const LightningActionsBlock = function (props: {
+/* const LightningActionsBlock = function (props: {
   gotoWithdraw: any
   gotoTopup: any
 }) {
@@ -694,7 +694,7 @@ const LightningActionsBlock = function (props: {
         />
     </>
   )
-}
+} */
 
 const $screen: ViewStyle = {
     flex: 1,
