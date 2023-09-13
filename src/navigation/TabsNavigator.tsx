@@ -33,6 +33,7 @@ import {
 import { Contact } from "../models/Contact"
 import { colors, useThemeColor, spacing, typography } from "../theme"
 import { AppStackParamList, AppStackScreenProps } from "./AppNavigator"
+import { MintBalance } from "../models/Mint"
 
 
 export type TabsParamList = {
@@ -110,8 +111,8 @@ export type WalletStackParamList = {
     Scan: undefined
     TranDetail: {id: number}
     TranHistory: undefined 
-    Transfer: {scannedEncodedInvoice? : string, donationEncodedInvoice? : string}
-    Topup: undefined
+    Transfer: {availableMintBalances?: MintBalance[], scannedEncodedInvoice? : string, donationEncodedInvoice? : string}
+    Topup: {availableMintBalances?: MintBalance[]}
     ContactsNavigator: {screen: string, params: any}
     SettingsNavigator: {screen: string, params: any}
 }

@@ -49,7 +49,7 @@ if (
 }
 
 export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
-  function TopupScreen({navigation}) {
+  function TopupScreen({navigation, route}) {
     useHeader({
       leftIcon: 'faArrowLeft',
       onLeftPress: () => navigation.goBack(),
@@ -64,10 +64,10 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     const [memo, setMemo] = useState('')
     const [availableMintBalances, setAvailableMintBalances] = useState<
       MintBalance[]
-    >([])
+    >(route.params.availableMintBalances || [])
     const [mintBalanceToTopup, setMintBalanceToTopup] = useState<
       MintBalance | undefined
-    >()
+    >(undefined)
     const [transactionStatus, setTransactionStatus] = useState<
       TransactionStatus | undefined
     >()
@@ -94,7 +94,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
       const focus = () => {
         amountInputRef && amountInputRef.current
           ? amountInputRef.current.focus()
-          : false
+          : false        
       }
       const timer = setTimeout(() => focus(), 500)
 
@@ -102,6 +102,15 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         clearTimeout(timer)
       }
     }, [])
+
+
+    /* useEffect(() => {
+        if(route.params && route.params.mintBalanceToTopup) {
+            log.trace('Got balanceToTopup', route.params.mintBalanceToTopup)
+            setMintBalanceToTopup(route.params.mintBalanceToTopup)
+        }
+    }, []) */
+
 
     useEffect(() => {
       const handleCompleted = (invoice: Invoice) => {
@@ -151,22 +160,39 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
           return
         }
 
-        const mintBalances = proofsStore.getBalances().mintBalances
+        const availableAllBalances = proofsStore.getBalances().mintBalances
 
-        if (mintBalances.length === 0) {
-          setInfo(
-            'There is no mint connected to your wallet that you would receive your coins from. Add the mint first.',
-          )
-          return
+        if (availableAllBalances.length === 0) {
+            setInfo(
+              'There is no mint connected to your wallet that you would receive your coins from. Add the mint first.',
+            )
+            return
         }
 
-        log.trace('onAmountEndEditing() availableBalances', mintBalances.length)
+        // Filtered by the balances passed in props
+        let availableFilteredBalances: MintBalance[] = []
 
-        setAvailableMintBalances(mintBalances)
+        // Resulting balances to select from
+        let availableBalances: MintBalance[] = []
+ 
+        if(availableMintBalances.length > 0) {
+            availableFilteredBalances = availableAllBalances.filter((b) => availableMintBalances.find(f => f.mint === b.mint ))
+            log.trace('Filtered', availableFilteredBalances)
+        }
+
+        if (availableFilteredBalances.length > 0) {
+            availableBalances = availableFilteredBalances
+        } else {
+            availableBalances = availableAllBalances
+        }
+
+        log.trace('onAmountEndEditing() availableBalances', availableBalances.length)
+
+        setAvailableMintBalances(availableBalances)
 
         // Set mint to send from immediately if only one is available
-        if (mintBalances.length === 1) {
-          setMintBalanceToTopup(mintBalances[0])
+        if (availableBalances.length === 1) {
+          setMintBalanceToTopup(availableBalances[0])
         }
 
         setIsAmountEndEditing(true)
@@ -254,7 +280,9 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
       }
 
       // Pre-select mint with highest balance and show mint modal to confirm which mint to send from
-      setMintBalanceToTopup(availableMintBalances[0])
+      if(!mintBalanceToTopup) {
+        setMintBalanceToTopup(availableMintBalances[0])
+      }      
       setIsMintSelectorVisible(true)
       // toggleMintModal() // open
     }

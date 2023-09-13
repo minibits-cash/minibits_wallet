@@ -67,10 +67,10 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     const [memo, setMemo] = useState('')
     const [availableMintBalances, setAvailableMintBalances] = useState<
       MintBalance[]
-    >([])
+    >(route.params.availableMintBalances || [])
     const [mintBalanceToTransferFrom, setMintBalanceToTransferFrom] = useState<
       MintBalance | undefined
-    >()
+    >(undefined)
     const [transactionStatus, setTransactionStatus] = useState<
       TransactionStatus | undefined
     >()
@@ -112,7 +112,9 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
   useEffect(() => {
       const getEstimatedFee = async function () {
         try {
-          if (!mintBalanceToTransferFrom) return
+          log.trace('mintBalanceToTransferFrom', mintBalanceToTransferFrom, 'getEstimatedFee')  
+          if (!mintBalanceToTransferFrom || !encodedInvoice) return
+          // if (!encodedInvoice) return
 
           const fee = await MintClient.getLightningFee(
             mintBalanceToTransferFrom.mint,
@@ -181,6 +183,8 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
       try {
         navigation.setParams({scannedEncodedInvoice: undefined})
         navigation.setParams({donationEncodedInvoice: undefined})
+        navigation.setParams({availableMintBalances: undefined})
+
         setEncodedInvoice(encoded)        
 
         const invoice = decodeInvoice(encoded)
@@ -192,14 +196,32 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
         if (!amount || amount === 0) {
           setInfo('Invoice amount should be positive number')
           return
-        }
+        }        
 
-        const availableBalances =
+        // all with enough balance
+        let availableAllBalances =
           proofsStore.getMintBalancesWithEnoughBalance(amount)
 
-        if (availableBalances.length === 0) {
-          setInfo('There is not enough funds to send this amount')
-          return
+        if (availableAllBalances.length === 0) {
+            setInfo('There is not enough funds to send this amount')
+            return
+        }
+
+        // Filtered by the balances passed in props
+        let availableFilteredBalances: MintBalance[] = []
+
+        // Resulting balances to select from
+        let availableBalances: MintBalance[] = []
+
+        if(availableMintBalances.length > 0) {
+            availableFilteredBalances = availableAllBalances.filter((b) => availableMintBalances.find(f => f.mint === b.mint ))
+            log.trace('Filtered', availableFilteredBalances)
+        }
+
+        if (availableFilteredBalances.length > 0) {
+            availableBalances = availableFilteredBalances
+        } else {
+            availableBalances = availableAllBalances
         }
 
         const expiresAt = addSeconds(new Date(), expiry as number)
@@ -214,6 +236,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
 
         setAvailableMintBalances(availableBalances)
         setMintBalanceToTransferFrom(availableBalances[0])
+                
       } catch (e: any) {
         resetState()
         handleError(e)
@@ -310,7 +333,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
                 )}
             </View>
             <View style={$contentContainer}>
-                {!resultModalInfo && !mintBalanceToTransferFrom && (
+                {!resultModalInfo && !encodedInvoice && (
                     <Card
                         style={$optionsCard}
                         ContentComponent={
