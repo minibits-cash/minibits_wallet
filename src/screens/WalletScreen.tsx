@@ -226,9 +226,9 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     } 
 
 
-    const toggleLightningModal = () => {
+    /* const toggleLightningModal = () => {
       setIsLightningModalVisible(previousState => !previousState)
-    }
+    } */
 
     const toggleUpdateModal = () => {
         setIsUpdateModalVisible(previousState => !previousState)
@@ -297,12 +297,12 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     }
 
     const gotoTransfer = function (availableMintBalances: MintBalance[] | undefined) {        
-        setIsLightningModalVisible(false)
+        // setIsLightningModalVisible(false)
         navigation.navigate('Transfer', {availableMintBalances})
     }
 
     const gotoTopup = function (availableMintBalances: MintBalance[] | undefined) {        
-        setIsLightningModalVisible(false)
+        // setIsLightningModalVisible(false)
         navigation.navigate('Topup', {availableMintBalances})
     }
 
