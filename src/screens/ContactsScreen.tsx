@@ -18,10 +18,16 @@ interface ContactsScreenProps extends ContactsStackScreenProps<'Contacts'> {}
 export const ContactsScreen: FC<ContactsScreenProps> = observer(function ContactsScreen({route, navigation}) {    
     const {userSettingsStore, walletProfileStore} = useStores()
 
+    // TODO this should go to useRef or wut?
     let amountToSend: string | undefined
+    let amountToTopup: string | undefined
     
     if(route.params && route.params.amountToSend) {
         amountToSend = route.params.amountToSend
+    }
+
+    if(route.params && route.params.amountToTopup) {
+        amountToTopup = route.params.amountToTopup
     }
     
     
@@ -53,9 +59,9 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
     const renderScene = ({route}: {route: Route}) => {
         switch (route.key) {
           case 'first':
-            return <PrivateContacts navigation={navigation} amountToSend={amountToSend} />
+            return <PrivateContacts navigation={navigation} amountToSend={amountToSend} amountToTopup={amountToTopup} />
           case 'second':
-            return <PublicContacts navigation={navigation} amountToSend={amountToSend} />
+            return <PublicContacts navigation={navigation} amountToSend={amountToSend} amountToTopup={amountToTopup} />
           default:
             return null
         }

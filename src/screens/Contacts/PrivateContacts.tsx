@@ -1,16 +1,15 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react'
-import {FlatList, Image, Pressable, ScrollView, Share, TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import React, {useEffect, useRef, useState} from 'react'
+import {FlatList, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
-import {colors, spacing, typography, useThemeColor} from '../../theme'
-import {BottomModal, Button, Card, ErrorModal, Header, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
+import {colors, spacing, useThemeColor} from '../../theme'
+import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
 import {useStores} from '../../models'
-import {ContactsStackParamList, ContactsStackScreenProps} from '../../navigation'
-import { MinibitsClient, NostrClient, KeyPair, Database } from '../../services'
+import {ContactsStackParamList} from '../../navigation'
+import { MinibitsClient, NostrClient } from '../../services'
 import AppError, { Err } from '../../utils/AppError'
 import {MINIBITS_NIP05_DOMAIN} from '@env'
 import { log } from '../../utils/logger'
-import { useFocusEffect } from '@react-navigation/native'
 import { ContactListItem } from './ContactListItem'
 import { Contact, ContactType } from '../../models/Contact'
 import { StackNavigationProp } from '@react-navigation/stack'
@@ -20,7 +19,8 @@ import { WalletProfileRecord } from '../../models/WalletProfileStore'
 
 export const PrivateContacts = observer(function (props: {
     navigation: StackNavigationProp<ContactsStackParamList, "Contacts", undefined>, 
-    amountToSend: string | undefined}
+    amountToSend: string | undefined,
+    amountToTopup: string | undefined}
 ) { 
     const {contactsStore} = useStores()
     const {navigation} = props
@@ -88,9 +88,12 @@ export const PrivateContacts = observer(function (props: {
     }
 
     const gotoContactDetail = async function (contact: Contact) {
-        const {amountToSend} = props 
+        const {amountToSend, amountToTopup} = props        
         
-        log.trace('amountToSend', amountToSend)
+        log.trace('amountToSend, amountToTopup', {amountToSend, amountToTopup})
+
+        const relays = NostrClient.getMinibitsRelays()
+
         if(amountToSend) { // Send tx contact selection
             try {
                 if(contact.nip05) {                
@@ -102,13 +105,40 @@ export const PrivateContacts = observer(function (props: {
                     params: {
                         amountToSend, 
                         contact, 
-                        relays: NostrClient.getMinibitsRelays()
+                        relays
                     },
                 })
 
                 //reset
                 navigation.setParams({
                     amountToSend: '',
+                })
+                
+                return
+            } catch (e: any) {
+                handleError(e)
+            }
+        }
+
+
+        if(amountToTopup) { // Topup tx contact selection
+            try {
+                if(contact.nip05) {                
+                    await NostrClient.verifyNip05(contact.nip05 as string, contact.pubkey) // throws
+                }
+                
+                navigation.navigate('WalletNavigator', { 
+                    screen: 'Topup',
+                    params: {
+                        amountToTopup, 
+                        contact, 
+                        relays
+                    },
+                })
+
+                //reset
+                navigation.setParams({
+                    amountToTopup: '',
                 })
                 
                 return
@@ -132,10 +162,7 @@ export const PrivateContacts = observer(function (props: {
         setError(e)
     }
     
-    const headerBg = useThemeColor('header')
-    const rightIcon = useThemeColor('textDim')
     const domainText = useThemeColor('textDim')
-    const screenBg = useThemeColor('background')
     const inputBg = useThemeColor('background')
 
     return (

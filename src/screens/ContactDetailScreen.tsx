@@ -19,7 +19,8 @@ interface ContactDetailScreenProps extends ContactsStackScreenProps<'ContactDeta
 export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
   function ContactScreen({route, navigation}) {
     const {contact, relays} = route.params
-    const amountToSendInputRef = useRef<TextInput>(null)    
+    const amountToSendInputRef = useRef<TextInput>(null)
+    const amountToTopupInputRef = useRef<TextInput>(null)    
     const {proofsStore, contactsStore} = useStores()
 
     useHeader({        
@@ -30,21 +31,33 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
     })    
      
     const [amountToSend, setAmountToSend] = useState('')
+    const [amountToTopup, setAmountToTopup] = useState('')
     const [availableBalance, setAvailableBalance] = useState(0)
-    const [isSendModalVisible, setIsSendModalVisible] = useState(false)    
+    const [isSendModalVisible, setIsSendModalVisible] = useState(false)
+    const [isTopupModalVisible, setIsTopupModalVisible] = useState(false)    
     const [isContactModalVisible, setIsContactModalVisible] = useState(false) 
     const [info, setInfo] = useState('')    
     const [error, setError] = useState<AppError | undefined>()
 
     useEffect(() => {
-        const focus = () => {
+        const focusSend = () => {
             amountToSendInputRef && amountToSendInputRef.current
             ? amountToSendInputRef.current.focus()
             : false
         }
+
+        const focusTopup = () => {
+            amountToTopupInputRef && amountToTopupInputRef.current
+            ? amountToTopupInputRef.current.focus()
+            : false
+        }
   
         if (isSendModalVisible) {
-          setTimeout(() => focus(), 100)
+          setTimeout(() => focusSend(), 100)
+        }
+  
+        if (isTopupModalVisible) {
+            setTimeout(() => focusTopup(), 100)
         }
     }, [isSendModalVisible])
 
@@ -66,6 +79,10 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
 
     const toggleSendModal = () => {
         setIsSendModalVisible(previousState => !previousState)
+    }
+
+    const toggleTopupModal = () => {
+        setIsTopupModalVisible(previousState => !previousState)
     }
 
     const onCopyNpub = function () {        
@@ -98,6 +115,36 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                 screen: 'Send',
                 params: {
                     amountToSend, 
+                    contact, 
+                    relays
+                },
+            })
+            
+            return
+        } catch (e: any) {
+            handleError(e)
+        }
+        
+    }
+
+
+    const onRequestTopup = async function () {  
+        if(parseInt(amountToTopup) === 0) {
+            setInfo('Amount should be positive number.')
+            return
+        }
+
+        toggleTopupModal()
+
+        try {
+            if(contact.nip05) {
+                await NostrClient.verifyNip05(contact.nip05 as string, contact.pubkey) // throws
+            }           
+        
+            navigation.navigate('WalletNavigator', { 
+                screen: 'Topup',
+                params: {
+                    amountToTopup, 
                     contact, 
                     relays
                 },
@@ -269,6 +316,38 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
           }
           onBackButtonPress={toggleSendModal}
           onBackdropPress={toggleSendModal}
+        />
+        <BottomModal
+          isVisible={isTopupModalVisible ? true : false}
+          top={spacing.screenHeight * 0.26}
+          ContentComponent={
+                <View style={$payContainer}>
+                    <Text text={`Request ${name} to pay invoice`} preset="subheading" />
+                    <Text text={`Send Lightning invoice to your contact. If paid, coins will topup your wallet balance`} size='xs' style={{color: balanceColor}} />                   
+                    <View style={{alignItems: 'center'}}>
+                        <TextInput
+                            ref={amountToTopupInputRef}
+                            onChangeText={(value) => setAmountToTopup(value)}
+                            value={amountToTopup}
+                            autoCapitalize='none'
+                            keyboardType='numeric'
+                            maxLength={9}                            
+                            selectTextOnFocus={true}
+                            style={[$amountInput]}                        
+                        />
+
+                    </View>
+                    <View style={[$buttonContainer, {marginTop: spacing.medium}]}>
+                        <Button
+                            text='Continue'
+                            style={$sendButton}
+                            onPress={onRequestTopup}                                
+                        /> 
+                    </View>                                 
+                </View>
+          }
+          onBackButtonPress={toggleTopupModal}
+          onBackdropPress={toggleTopupModal}
         />
         {info && <InfoModal message={info} />}
         {error && <ErrorModal error={error} />}

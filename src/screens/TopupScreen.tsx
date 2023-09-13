@@ -1,5 +1,5 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useEffect, useState, useRef} from 'react'
+import React, {FC, useEffect, useState, useRef, useCallback} from 'react'
 import {
   UIManager,
   Platform,
@@ -11,6 +11,8 @@ import {
   LayoutAnimation,
   ScrollView,
   Share,
+  Image,
+  ImageStyle,
 } from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
 import QRCode from 'react-native-qrcode-svg'
@@ -31,7 +33,7 @@ import {
 import {TransactionStatus, Transaction} from '../models/Transaction'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
-import {Wallet} from '../services'
+import {NostrClient, NostrProfile, NostrUnsignedEvent, Wallet} from '../services'
 import {log} from '../utils/logger'
 import AppError from '../utils/AppError'
 
@@ -40,6 +42,9 @@ import {MintListItem} from './Mints/MintListItem'
 import EventEmitter from '../utils/eventEmitter'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {Invoice} from '../models/Invoice'
+import { useFocusEffect } from '@react-navigation/native'
+import { Contact } from '../models/Contact'
+import { getImageSource } from '../utils/utils'
 
 if (
   Platform.OS === 'android' &&
@@ -55,32 +60,28 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
       onLeftPress: () => navigation.goBack(),
     })
 
-    const {proofsStore, mintsStore} = useStores()
+    const {proofsStore, mintsStore, walletProfileStore, transactionsStore} = useStores()
     const amountInputRef = useRef<TextInput>(null)
     const memoInputRef = useRef<TextInput>(null)
     // const tokenInputRef = useRef<TextInput>(null)
 
     const [amountToTopup, setAmountToTopup] = useState<string>('')
+    const [contactToSendFrom, setContactToSendFrom] = useState<Contact| undefined>()    
+    const [contactToSendTo, setContactToSendTo] = useState<Contact| undefined>()        
+    const [relaysToShareTo, setRelaysToShareTo] = useState<string[]>([])
     const [memo, setMemo] = useState('')
-    const [availableMintBalances, setAvailableMintBalances] = useState<
-      MintBalance[]
-    >(route.params.availableMintBalances || [])
-    const [mintBalanceToTopup, setMintBalanceToTopup] = useState<
-      MintBalance | undefined
-    >(undefined)
-    const [transactionStatus, setTransactionStatus] = useState<
-      TransactionStatus | undefined
-    >()
+    const [availableMintBalances, setAvailableMintBalances] = useState<MintBalance[]>(route.params.availableMintBalances || [])
+    const [mintBalanceToTopup, setMintBalanceToTopup] = useState<MintBalance | undefined>(undefined)
+    const [transactionStatus, setTransactionStatus] = useState<TransactionStatus | undefined>()
     const [transactionId, setTransactionId] = useState<number | undefined>()
     const [invoiceToPay, setInvoiceToPay] = useState<string>('')
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
     const [isAmountEndEditing, setIsAmountEndEditing] = useState<boolean>(false)
-    const [resultModalInfo, setResultModalInfo] = useState<
-      {status: TransactionStatus; message: string} | undefined
-    >()
+    const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus; message: string} | undefined>()
     const [isSharedAsText, setIsSharedAsText] = useState<boolean>(false)
     const [isSharedAsQRCode, setIsSharedAsQRCode] = useState<boolean>(false)
+    const [isSharedAsNostrDirectMessage, setIsSharedAsNostrDirectMessage] = useState<boolean>(false)
 
     const [isMemoEndEditing, setIsMemoEndEditing] = useState<boolean>(false)
     const [isLoading, setIsLoading] = useState(false)
@@ -88,7 +89,10 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     const [isMintSelectorVisible, setIsMintSelectorVisible] = useState(false)
     const [isShareModalVisible, setIsShareModalVisible] = useState(false)
     const [isQRModalVisible, setIsQRModalVisible] = useState(false)
+    const [isNostrDMModalVisible, setIsNostrDMModalVisible] = useState(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)
+    const [isNostrDMSending, setIsNostrDMSending] = useState(false)
+    const [isNostrDMSuccess, setIsNostrDMSuccess] = useState(false) 
 
     useEffect(() => {
       const focus = () => {
@@ -104,12 +108,62 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     }, [])
 
 
-    /* useEffect(() => {
-        if(route.params && route.params.mintBalanceToTopup) {
-            log.trace('Got balanceToTopup', route.params.mintBalanceToTopup)
-            setMintBalanceToTopup(route.params.mintBalanceToTopup)
-        }
-    }, []) */
+    // Send to contact
+    useFocusEffect(
+        useCallback(() => {
+            const prepareSendAsNostrDM = () => {
+                if (!route.params?.amountToTopup) {
+                    return
+                }
+
+                if (!route.params?.contact) {
+                    return
+                }
+
+                if (!route.params?.relays) {
+                    return
+                }
+
+                log.trace('prepareSendAsNostrDM')
+
+                const amount = route.params?.amountToTopup
+                const contactTo = route.params?.contact
+                const relays = route.params?.relays
+                const {
+                    pubkey,
+                    npub,
+                    name,
+                    picture,
+                } = walletProfileStore
+
+                const contactFrom: Contact = {
+                    pubkey,
+                    npub,
+                    name,
+                    picture
+                }
+
+                setAmountToTopup(amount)                
+                setContactToSendFrom(contactFrom)                
+                setContactToSendTo(contactTo)                
+                setRelaysToShareTo(relays)
+                // skip showing of sharing options and set this one immediately
+                setIsSharedAsNostrDirectMessage(true)
+            }
+
+            prepareSendAsNostrDM()
+            
+        }, [route.params?.amountToTopup, route.params?.contact, route.params?.relays]),
+    )
+
+
+    // Make sure amountToSend has been set to the state
+    useEffect(() => {        
+        if(isSharedAsNostrDirectMessage && parseInt(amountToTopup) > 0) {            
+            onAmountEndEditing()  
+        }      
+              
+    }, [amountToTopup, isSharedAsNostrDirectMessage])
 
 
     useEffect(() => {
@@ -148,6 +202,8 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
       setIsShareModalVisible(previousState => !previousState)
     const toggleQRModal = () =>
       setIsQRModalVisible(previousState => !previousState)
+    const toggleNostrDMModal = () =>
+      setIsNostrDMModalVisible(previousState => !previousState)
     const toggleResultModal = () =>
       setIsResultModalVisible(previousState => !previousState)
 
@@ -225,6 +281,8 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
           : false
       }
     }
+
+
     const onShareAsText = async function () {
       // if tx has been already executed, re-open SendModal
       if (transactionStatus === TransactionStatus.PENDING) {
@@ -234,9 +292,11 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
       setIsSharedAsText(true)
       setIsSharedAsQRCode(false)
+      setIsSharedAsNostrDirectMessage(false)
       // pass share kind directly to avoid delayed state update
       return onShare('TEXT')
     }
+
 
     const onShareAsQRCode = async function () {
       // if tx has been already executed, re-open QRCodeModal
@@ -247,11 +307,32 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
       setIsSharedAsQRCode(true)
       setIsSharedAsText(false)
+      setIsSharedAsNostrDirectMessage(false)
       // pass share kind directly to avoid delayed state update
       return onShare('QRCODE')
     }
 
-    const onShare = async function (as: 'TEXT' | 'QRCODE'): Promise<void> {
+
+    const onShareAsNostrDM = function () {
+        // Tap on Send to contact option after send completed        
+        if (transactionStatus === TransactionStatus.PENDING) { 
+            toggleNostrDMModal()   
+            return
+        }             
+        
+        // Send initiated from contacts screen
+        if(isSharedAsNostrDirectMessage) {            
+            setIsSharedAsQRCode(false)
+            setIsSharedAsText(false)
+
+            return onShare('NOSTRDM')
+        }
+
+        // Tap on Send to contact after setting amount and memo
+        navigation.navigate('ContactsNavigator', {screen: 'Contacts', params: {amountToTopup}})
+    }
+
+    const onShare = async function (as: 'TEXT' | 'QRCODE' | 'NOSTRDM'): Promise<void> {
       if (amountToTopup.length === 0) {
         setInfo('Provide the top-up amount')
         return
@@ -273,8 +354,13 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         if (as === 'TEXT') {
           toggleShareModal()
         }
+
         if (as === 'QRCODE') {
           toggleQRModal()
+        }
+
+        if (as === 'NOSTRDM') {
+            toggleNostrDMModal()
         }
         return
       }
@@ -306,6 +392,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
         isSharedAsText && toggleShareModal() // open
         isSharedAsQRCode && toggleQRModal() // open
+        isSharedAsNostrDirectMessage && toggleNostrDMModal() 
       }
       setIsMintSelectorVisible(false)
     }
@@ -317,10 +404,15 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     const requestTopup = async function () {
       setIsLoading(true)
 
+      let updatedMemo: string = ''
+      if(isSharedAsNostrDirectMessage && memo === '') {
+          updatedMemo = `Sent from ${contactToSendFrom?.name}`
+      }
+
       const result = await Wallet.topup(
         mintBalanceToTopup as MintBalance,
         parseInt(amountToTopup),
-        memo,
+        memo || updatedMemo,
       )
 
       const {status, id} = result.transaction as Transaction
@@ -335,6 +427,77 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
       return result
     }
 
+
+    const sendAsNostrDM = async function () {
+        try {            
+            setIsNostrDMSending(true)
+            const senderPubkey = walletProfileStore.pubkey            
+            const receiverPubkey = contactToSendTo?.pubkey
+
+            // log.trace('', {senderPrivkey, senderPubkey, receiverPubkey}, 'sendAsNostrDM')
+            const message = `nostr:${walletProfileStore.npub} sent you Lightning invoice for ${amountToTopup} sats from Minibits wallet!`
+            const content = message + '\n' + invoiceToPay
+
+            const encryptedContent = await NostrClient.encryptNip04(                
+                receiverPubkey as string, 
+                content as string
+            )
+            
+            // log.trace('Relays', relaysToShareTo)          
+
+            const dmEvent: NostrUnsignedEvent = {
+                kind: 4,
+                pubkey: senderPubkey,
+                tags: [['p', receiverPubkey], ['from', walletProfileStore.nip05]],
+                content: encryptedContent,                                      
+            }
+
+            const sentEvent: Event | undefined = await NostrClient.publish(
+                dmEvent,
+                relaysToShareTo,                     
+            )
+            
+            setIsNostrDMSending(false)
+
+            if(sentEvent) {                
+                setIsNostrDMSuccess(true)
+
+                if(!transactionId) {
+                    return
+                }
+
+                const transaction = transactionsStore.findById(transactionId)
+
+                if(!transaction) {
+                    return
+                }
+                
+                const updated = JSON.parse(transaction.data)
+
+                updated[2].sentToRelays = relaysToShareTo
+                updated[2].sentEvent = sentEvent    
+                
+                await transactionsStore.updateStatus( // status does not change, just add event and relay info to tx.data
+                    transactionId,
+                    TransactionStatus.PENDING,
+                    JSON.stringify(updated)
+                )
+
+                const txupdate = await transactionsStore.updateSentTo( // set contact to send to to the tx, could be elsewhere //
+                    transactionId,                    
+                    contactToSendTo?.nip05handle as string
+                )
+
+                log.trace('sentTo tx', txupdate, 'sendAsNostrDM')
+            } else {
+                setInfo('Relay could not confirm that the message has been published')
+            }
+        } catch (e: any) {
+            handleError(e)
+        }
+    }
+
+    
     const onShareToApp = async () => {
       try {
         const result = await Share.share({
@@ -365,6 +528,22 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         setInfo(`Could not copy: ${e.message}`)
       }
     }
+
+
+    const onNostrDMSuccessClose = function () {
+        // reset state so it does not interfere next payment
+        setAmountToTopup('')
+        setMemo('')
+        setIsAmountEndEditing(false)
+        setIsMemoEndEditing(false)
+        setIsMintSelectorVisible(false)
+        setIsNostrDMModalVisible(false)
+        setIsSharedAsNostrDirectMessage(false)
+
+        navigation.navigate('Wallet', {})
+    }
+
+
 
     const handleError = function (e: AppError): void {
       setIsLoading(false)
@@ -447,7 +626,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                     leftIconInverse={true}
                     style={$item}
                     bottomSeparator={true}
-                    onPress={() => Alert.alert('Not implemented yet')}
+                    onPress={() => Alert.alert('Work is already in progress')}
                   />
                   <ListItem
                     tx="topupScreen.showInvoiceQRCode"
@@ -515,6 +694,36 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
           onBackdropPress={toggleQRModal}
         />
         <BottomModal
+          isVisible={isNostrDMModalVisible ? true : false}
+          top={spacing.screenHeight * 0.367}
+          style={{marginHorizontal: spacing.extraSmall}}
+          ContentComponent={
+            (isNostrDMSuccess ? (
+            <NostrDMSuccessBlock
+                toggleNostrDMModal={toggleNostrDMModal}
+                contactToSendFrom={contactToSendFrom as Contact}
+                contactToSendTo={contactToSendTo as Contact}                
+                amountToTopup={amountToTopup}
+                onClose={onNostrDMSuccessClose}                
+            />
+            ) : (
+            <SendAsNostrDMBlock
+                toggleNostrDMModal={toggleNostrDMModal}
+                encodedTokenToSend={invoiceToPay as string}
+                contactToSendFrom={contactToSendFrom as Contact}
+                contactToSendTo={contactToSendTo as Contact}
+                relaysToShareTo={relaysToShareTo}
+                amountToTopup={amountToTopup}
+                sendAsNostrDM={sendAsNostrDM}
+                isNostrDMSending={isNostrDMSending}                
+            />
+            ))
+            
+          }
+          onBackButtonPress={toggleNostrDMModal}
+          onBackdropPress={toggleNostrDMModal}
+        />
+        <BottomModal
           isVisible={isResultModalVisible ? true : false}
           top={spacing.screenHeight * 0.5}
           style={{paddingHorizontal: spacing.small}}
@@ -533,7 +742,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                       <Button
                         preset="secondary"
                         tx={'common.close'}
-                        onPress={() => navigation.navigate('Wallet')}
+                        onPress={() => navigation.navigate('Wallet', {})}
                       />
                     </View>
                   </>
@@ -689,6 +898,163 @@ const ShareAsQRCodeBlock = observer(function (props: {
   )
 })
 
+
+const SendAsNostrDMBlock = observer(function (props: {
+    toggleNostrDMModal: any
+    encodedTokenToSend: string
+    contactToSendFrom: Contact
+    contactToSendTo: Contact
+    relaysToShareTo: string[]
+    amountToTopup: string
+    sendAsNostrDM: any 
+    isNostrDMSending: boolean   
+  }) {
+    const sendBg = useThemeColor('background')
+    const tokenTextColor = useThemeColor('textDim')    
+      
+    return (
+      <View style={$bottomModal}>
+        <NostDMInfoBlock
+            contactToSendFrom={props.contactToSendFrom}
+            amountToTopup={props.amountToTopup}
+            contactToSendTo={props.contactToSendTo}
+        />
+        <ScrollView
+          style={[
+            $tokenContainer,
+            {backgroundColor: sendBg, marginHorizontal: spacing.small},
+          ]}>
+          <Text
+            selectable
+            text={props.encodedTokenToSend}
+            style={{color: tokenTextColor, paddingBottom: spacing.medium}}
+            size="xxs"
+          />
+        </ScrollView>
+        {props.isNostrDMSending ? (
+            <View style={$buttonContainer}> 
+                <Loading />
+            </View>            
+        ) : (
+            <View style={$buttonContainer}>            
+                <Button
+                    text="Send"
+                    onPress={props.sendAsNostrDM}
+                    style={{marginRight: spacing.medium}}
+                    LeftAccessory={() => (
+                    <Icon
+                        icon="faPaperPlane"
+                        color="white"
+                        size={spacing.medium}
+                        containerStyle={{marginRight: spacing.small}}
+                    />
+                    )}
+                />          
+                <Button
+                    preset="tertiary"
+                    text="Close"
+                    onPress={props.toggleNostrDMModal}
+                />           
+            </View>
+        )}        
+      </View>
+    )
+  })
+
+
+  const NostrDMSuccessBlock = observer(function (props: {
+    toggleNostrDMModal: any
+    contactToSendFrom: Contact
+    contactToSendTo: Contact
+    amountToTopup: string
+    onClose: any   
+  }) {
+  
+    return (
+      <View style={$bottomModal}>
+        <NostDMInfoBlock
+            contactToSendFrom={props.contactToSendFrom}
+            amountToTopup={props.amountToTopup}
+            contactToSendTo={props.contactToSendTo}
+        />
+        <ResultModalInfo
+            icon="faCheckCircle"
+            iconColor={colors.palette.success200}
+            title="Success!"
+            message="Coins have been succesfully sent."
+        />
+        <View style={$buttonContainer}>
+            <Button
+            preset="secondary"
+            tx={'common.close'}
+            onPress={props.onClose}
+            />
+        </View>
+      </View>
+    )
+})
+
+const NostDMInfoBlock = observer(function (props: {
+    contactToSendFrom: NostrProfile
+    amountToTopup: string
+    contactToSendTo: NostrProfile
+}) {
+
+    const {walletProfileStore} = useStores()
+    const tokenTextColor = useThemeColor('textDim')
+
+    return(
+        <View style={{flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', marginBottom: spacing.medium}}>
+            <View style={{flexDirection: 'column', alignItems: 'center', width: 100}}>
+                    <Image style={[
+                        $profileIcon, {
+                            width: 40, 
+                            height: walletProfileStore.isOwnProfile ? 40 :  43,
+                            borderRadius: walletProfileStore.isOwnProfile ? 20 :  0,
+                        }]} 
+                        source={{
+                            uri: getImageSource(props.contactToSendFrom.picture as string)
+                        }} 
+                    />
+                    <Text size='xxs' style={{color: tokenTextColor}} text={props.contactToSendFrom.name}/>
+            </View>
+            <Text size='xxs' style={{color: tokenTextColor, textAlign: 'center', marginLeft: 30,  marginBottom: 20}} text='...........' />
+            <View style={{flexDirection: 'column', alignItems: 'center'}}>                
+                <Icon
+                        icon='faPaperPlane'                                
+                        size={spacing.medium}                    
+                        color={tokenTextColor}                
+                />
+                <Text size='xxs' style={{color: tokenTextColor, marginBottom: -10}} text={`${props.amountToTopup} sats`} />
+            </View>
+            <Text size='xxs' style={{color: tokenTextColor, textAlign: 'center', marginRight: 30, marginBottom: 20}} text='...........' />
+            <View style={{flexDirection: 'column', alignItems: 'center', width: 100}}>
+                {props.contactToSendTo.picture ? (
+                    <View style={{borderRadius: 20, overflow: 'hidden'}}>
+                        <Image style={[
+                            $profileIcon, {
+                                width: 40, 
+                                height: 40
+                            }]} 
+                            source={{
+                                uri: getImageSource(props.contactToSendTo.picture as string) 
+                            }} 
+                        />
+                    </View>
+                ) : (
+                    <Icon
+                        icon='faCircleUser'                                
+                        size={38}                    
+                        color={tokenTextColor}                
+                    />
+                )}
+                <Text size='xxs' style={{color: tokenTextColor}} text={props.contactToSendTo.name}/>
+            </View>
+        </View>
+    )
+
+})
+
 const $screen: ViewStyle = {
   flex: 1,
 }
@@ -776,4 +1142,8 @@ const $qrCodeContainer: ViewStyle = {
 const $buttonContainer: ViewStyle = {
   flexDirection: 'row',
   alignSelf: 'center',
+}
+
+const $profileIcon: ImageStyle = {
+    padding: spacing.medium,
 }

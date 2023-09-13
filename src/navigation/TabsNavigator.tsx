@@ -112,7 +112,7 @@ export type WalletStackParamList = {
     TranDetail: {id: number}
     TranHistory: undefined 
     Transfer: {availableMintBalances?: MintBalance[], scannedEncodedInvoice? : string, donationEncodedInvoice? : string}
-    Topup: {availableMintBalances?: MintBalance[]}
+    Topup: {availableMintBalances?: MintBalance[], amountToTopup?: string, contact?: Contact, relays?: string[]}
     ContactsNavigator: {screen: string, params: any}
     SettingsNavigator: {screen: string, params: any}
 }
@@ -147,7 +147,7 @@ const WalletNavigator = function WalletNavigator() {
 
 
 export type ContactsStackParamList = {  
-    Contacts: {amountToSend?: string}
+    Contacts: {amountToSend?: string, amountToTopup?: string}
     Profile: undefined
     Picture: undefined
     WalletName: undefined

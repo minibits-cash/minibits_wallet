@@ -19,7 +19,8 @@ const maxContactsToLoad = 20
 
 export const PublicContacts = observer(function (props: {    
     navigation: StackNavigationProp<ContactsStackParamList, "Contacts", undefined>, 
-    amountToSend: string | undefined}
+    amountToSend: string | undefined,
+    amountToTopup: string | undefined}
 ) { 
     const {contactsStore} = useStores()
     const {navigation} = props
@@ -373,8 +374,10 @@ export const PublicContacts = observer(function (props: {
 
 
     const gotoContactDetail = function (contact: Contact) {
-        const {amountToSend} = props
-        contact.type = ContactType.PUBLIC        
+        const {amountToSend, amountToTopup} = props
+        contact.type = ContactType.PUBLIC      // ???
+
+        const relays = contactsStore.publicRelay ? [...NostrClient.getDefaultRelays(), contactsStore.publicRelay] : [contactsStore.publicRelay]
         
         if(amountToSend) {
             navigation.navigate('WalletNavigator', { 
@@ -382,7 +385,21 @@ export const PublicContacts = observer(function (props: {
                 params: {
                     amountToSend, 
                     contact, 
-                    relays: NostrClient.getMinibitsRelays()
+                    relays
+                },
+            })
+
+            return
+        }
+
+
+        if(amountToTopup) {
+            navigation.navigate('WalletNavigator', { 
+                screen: 'Topup',
+                params: {
+                    amountToTopup, 
+                    contact, 
+                    relays
                 },
             })
 

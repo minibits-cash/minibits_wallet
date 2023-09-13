@@ -70,32 +70,11 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const appState = useRef(AppState.currentState);
 
     useHeader({
-      // rightIcon: 'faBolt',
-      // rightIconColor: colors.palette.primary100,
-      // onRightPress: () => toggleLightningModal(),
       leftIcon: 'faListUl',
       leftIconColor: colors.palette.primary100,
       onLeftPress: () => gotoTranHistory(),
-    })
-
-   /*  const scrollY = useSharedValue(0)
-
-    const handleScroll = useAnimatedScrollHandler(event => {
-      scrollY.value = event.contentOffset.y
-    })
-
-    const stylez = useAnimatedStyle(() => {
-      return {
-        transform: [
-          {
-            translateY: scrollY.value,
-          },
-        ],
-      }
-    }) */
-
+    })   
     
-    // const [balances, setBalances] = useState(() => proofsStore.getBalances())    
     const [info, setInfo] = useState<string>('')
     const [defaultMintUrl, setDefaultMintUrl] = useState<string>('https://mint.minibits.cash/Bitcoin')
     const [error, setError] = useState<AppError | undefined>()
