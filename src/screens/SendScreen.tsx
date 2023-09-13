@@ -147,11 +147,12 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                     return
                 }
 
-                log.trace('prepareSendAsNostrDM')
-
                 const amount = route.params?.amountToSend
                 const contactTo = route.params?.contact
                 const relays = route.params?.relays
+
+                log.trace('prepareSendAsNostrDM', {amount, contactTo, relays})
+
                 const {
                     pubkey,
                     npub,

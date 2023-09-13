@@ -377,7 +377,7 @@ export const PublicContacts = observer(function (props: {
         const {amountToSend, amountToTopup} = props
         contact.type = ContactType.PUBLIC      // ???
 
-        const relays = contactsStore.publicRelay ? [...NostrClient.getDefaultRelays(), contactsStore.publicRelay] : [contactsStore.publicRelay]
+        const relays = contactsStore.publicRelay ? [...NostrClient.getDefaultRelays(), contactsStore.publicRelay] : NostrClient.getDefaultRelays()
         
         if(amountToSend) {
             navigation.navigate('WalletNavigator', { 
