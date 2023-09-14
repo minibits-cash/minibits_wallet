@@ -84,40 +84,11 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
 
             setIsLoading(true)
             // get nip05 record from the .well-known server
-            const nip05Record = await NostrClient.getNip05Record(ownNip05)
-            
-            let serverPubkey: string = ''
-            let serverRelays: string[] = []
+            const {nip05Pubkey, nip05Relays} = await NostrClient.getNip05PubkeyAndRelays(ownNip05)
 
-            // retrieve pubkey from the nip05 record
-            if(nip05Record && nip05Record.names && nip05Record.names[nip05Name as string]) {
-                serverPubkey = nip05Record.names[nip05Name as string]
-            } else {
-                throw new AppError(Err.SERVER_ERROR, 'Could not get valid NOSTR address record from the server.', {nip05Record})
-            }            
-            
-            // retrieve recommended relays
-            if(nip05Record.relays && nip05Record.relays[serverPubkey].length > 0) {
-                serverRelays = nip05Record.relays[serverPubkey]
-                log.trace('Got relays from server', serverRelays, 'onConfirmOwnNip05')
-            }           
-            
-            // get profile from the relays for pubkey linked to nip05
-            const filters: NostrFilter[] = [{
-                authors: [serverPubkey],
-                kinds: [0],            
-            }]
+            const relaysToConnect = nip05Relays.length > 0 ? nip05Relays : NostrClient.getDefaultRelays()
 
-            const relaysToConnect = serverRelays.length > 0 ? serverRelays : NostrClient.getDefaultRelays()
-
-            const events: NostrEvent[] = await NostrClient.getEvents(relaysToConnect, filters)
-
-            if(!events || events.length === 0) {
-                throw new AppError(Err.SERVER_ERROR, 'Could not get profile event from the relays.', {serverPubkey})
-            }
-
-            const profile: NostrProfile = JSON.parse(events[0].content)
-            profile.pubkey = events[0].pubkey // pubkey might not be in ev.content
+            const profile: NostrProfile = await NostrClient.getProfileFromRelays(nip05Pubkey, relaysToConnect)
 
             // check that the profile's nip05 matches the one given by user and living on nip05 .well-known server
             if(!profile.nip05) {
@@ -141,9 +112,9 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
             log.trace('Got valid profile', profile)    
             setOwnProfile(profile)
 
-            if(serverRelays.length > 0) {
-                setOwnProfileRelays(serverRelays)
-                contactsStore.setPublicRelay(serverRelays[0]) // TODO extend model to n relays
+            if(relaysToConnect.length > 0) {
+                setOwnProfileRelays(relaysToConnect)
+                contactsStore.setPublicRelay(relaysToConnect[0]) // TODO extend model to n relays
             }
             
             setIsLoading(false)

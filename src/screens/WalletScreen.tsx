@@ -633,7 +633,7 @@ const MintsByHostnameListItem = observer(function (props: {
                         onPress={() => props.gotoTopup(props.mintBalances)}
                         style={{minHeight: verticalScale(30)}}
                         text='Topup'
-                        textStyle={{lineHeight: verticalScale(15), fontSize: 14}}                                                
+                        textStyle={{lineHeight: verticalScale(16), fontSize: 14}}                                                
                     />
                     <Icon icon='faBolt' size={14} color={color}/>
                     <Button
@@ -641,7 +641,7 @@ const MintsByHostnameListItem = observer(function (props: {
                         onPress={() => props.gotoTransfer(props.mintBalances)}
                         style={{minHeight: verticalScale(30)}}
                         text='Transfer'
-                        textStyle={{lineHeight: verticalScale(15), fontSize: 14}}                                                    
+                        textStyle={{lineHeight: verticalScale(16), fontSize: 14}}                                                    
                     />
                 </View>
             }

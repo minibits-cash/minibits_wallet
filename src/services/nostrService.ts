@@ -249,14 +249,14 @@ const getNip05Record = async function (nip05: string) {
         const method = 'GET'        
         const headers = MinibitsClient.getPublicHeaders()
 
-        log.trace(url)
+        log.trace(`Sending request`, {method, url}, 'getNip05Record')
 
         const nip05Record: Nip05VerificationRecord = await MinibitsClient.fetchApi(url, {
             method,            
             headers,            
         })
 
-        log.trace(`Got response`, nip05Record || null, 'verifyNip05')
+        log.trace(`Got response`, nip05Record || null, 'getNip05Record')
 
         return nip05Record
         
@@ -272,12 +272,6 @@ const getNip05Record = async function (nip05: string) {
 }
 
 
-/* function isValidNip05(nip05: string) {
-    // Regular expression pattern for basic email validation
-    const emailPattern = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/    
-    return emailPattern.test(nip05)
-} */
-
 
 const verifyNip05 = async function (nip05: string, pubkey: string) {
 
@@ -291,6 +285,54 @@ const verifyNip05 = async function (nip05: string, pubkey: string) {
     throw new AppError(
         Err.VALIDATION_ERROR, 
         `${nip05Name} is no longer linked to the same public key as in your contacts. Please get in touch with the wallet owner.`)   
+}
+
+
+const getNip05PubkeyAndRelays = async function (nip05: string) {
+
+    const nip05Record = await getNip05Record(nip05) // throws
+    const nip05Name = getNameFromNip05(nip05)
+
+    let nip05Pubkey: string = ''
+    let nip05Relays: string[] = []
+
+    if (nip05Record && nip05Record.names[nip05Name as string]) {
+        nip05Pubkey = nip05Record.names[nip05Name as string]
+    } else {
+        throw new AppError(
+            Err.VALIDATION_ERROR, 
+            `Could not get public key from NOSTR address verification server`, {nip05Record})   
+    }
+
+    // retrieve recommended relays
+    if(nip05Record.relays && nip05Record.relays[nip05Pubkey].length > 0) {
+        nip05Relays = nip05Record.relays[nip05Pubkey]
+        log.trace('Got relays from server', nip05Relays, 'getNip05PubkeyAndRelays')
+    } 
+    
+    return {nip05Pubkey, nip05Relays}
+}
+
+
+
+const getProfileFromRelays = async function (pubkey: string, relays: string[]) {
+
+    // get profile from the relays for pubkey linked to nip05
+    const filters: NostrFilter[] = [{
+        authors: [pubkey],
+        kinds: [0],            
+    }]
+
+    const events: NostrEvent[] = await NostrClient.getEvents(relays, filters)
+
+    if(!events || events.length === 0) {
+        throw new AppError(Err.SERVER_ERROR, 'Could not get profile event from the relays.', {relays})
+    }
+
+    const profile: NostrProfile = JSON.parse(events[events.length - 1].content)
+    profile.pubkey = events[events.length - 1].pubkey // pubkey might not be in ev.content
+
+    return profile
 }
 
 
@@ -352,5 +394,7 @@ export const NostrClient = {
     getEvents,
     getNip05Record,
     verifyNip05,
+    getNip05PubkeyAndRelays,
+    getProfileFromRelays,
     deleteKeyPair
 }

@@ -1248,9 +1248,9 @@ const SendAsNostrDMBlock = observer(function (props: {
 })
 
 const NostDMInfoBlock = observer(function (props: {
-    contactToSendFrom: NostrProfile
+    contactToSendFrom: Contact
     amountToSend: string
-    contactToSendTo: NostrProfile
+    contactToSendTo: Contact
 }) {
 
     const {walletProfileStore} = useStores()
@@ -1287,7 +1287,8 @@ const NostDMInfoBlock = observer(function (props: {
                         <Image style={[
                             $profileIcon, {
                                 width: 40, 
-                                height: 40
+                                height: props.contactToSendTo.isExternalDomain ? 40 :  43,
+                                borderRadius: props.contactToSendTo.isExternalDomain ? 20 :  0,
                             }]} 
                             source={{
                                 uri: getImageSource(props.contactToSendTo.picture as string) 

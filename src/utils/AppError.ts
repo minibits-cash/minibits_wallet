@@ -37,7 +37,7 @@ class AppError extends Error {
     super(...params)
     this.name = name
     this.message = message
-    this.params = params
+    this.params = JSON.stringify(params) // prevent showing just [object] in Sentry
 
     let caller = ''
     const error = new Error()

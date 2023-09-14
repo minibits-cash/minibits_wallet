@@ -1,12 +1,12 @@
 import {observer} from 'mobx-react-lite'
 import React, {useEffect, useRef, useState} from 'react'
-import {FlatList, TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import {FlatList, KeyboardAvoidingView, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
 import {colors, spacing, useThemeColor} from '../../theme'
 import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
 import {useStores} from '../../models'
 import {ContactsStackParamList} from '../../navigation'
-import { MinibitsClient, NostrClient } from '../../services'
+import { MinibitsClient, NostrClient, NostrProfile } from '../../services'
 import AppError, { Err } from '../../utils/AppError'
 import {MINIBITS_NIP05_DOMAIN} from '@env'
 import { log } from '../../utils/logger'
@@ -27,8 +27,9 @@ export const PrivateContacts = observer(function (props: {
     const contactNameInputRef = useRef<TextInput>(null)
  
     const [info, setInfo] = useState('')
-    const [newContactName, setNewContactName] = useState<string>('') 
-    const [isLoading, setIsLoading] = useState(false)        
+    const [newContactName, setNewContactName] = useState<string>('')    
+    const [isLoading, setIsLoading] = useState(false) 
+    const [isExternalDomain, setIsExternalDomain] = useState(false)        
     const [isNewContactModalVisible, setIsNewContactModalVisible] = useState(false)            
     const [error, setError] = useState<AppError | undefined>()
    
@@ -51,35 +52,79 @@ export const PrivateContacts = observer(function (props: {
         setIsNewContactModalVisible(previousState => !previousState)
     }
 
-    const saveNewContact = async function () {        
-        const profileRecord: WalletProfileRecord = 
-            await MinibitsClient.getWalletProfileByNip05(newContactName + MINIBITS_NIP05_DOMAIN)
+    const toggleExternalDomain = () => {
+        setIsExternalDomain(previousState => !previousState)
+    }
 
-        if(!profileRecord) {
-            setNewContactName('')
-            toggleNewContactModal()
-            setInfo(`Wallet profile for ${newContactName + MINIBITS_NIP05_DOMAIN} could not be found. Check that the name is correct.`)
+    const saveNewContact = async function () {      
+        log.trace('Start', newContactName, 'saveNewContact')  
+        /* const profileRecord: WalletProfileRecord = 
+            await MinibitsClient.getWalletProfileByNip05(newContactName + MINIBITS_NIP05_DOMAIN)  */
+        
+        if(!newContactName) {
+            setInfo(`Please enter a wallet address with name@domain.com format`)
             return
         }
 
-        setNewContactName('')
-        toggleNewContactModal()
+        toggleNewContactModal() // close
+        setIsLoading(true)
+        const contactNip05 = (isExternalDomain) ? newContactName : newContactName + MINIBITS_NIP05_DOMAIN
 
-        const npub = NostrClient.getNpubkey(profileRecord.pubkey)
-        const {pubkey, nip05, avatar: picture, name} = profileRecord       
-        
-        const newContact: Contact = {
-            type: ContactType.PRIVATE,
-            pubkey,
-            npub,
-            nip05,
-            name,
-            picture
+        try {
+            
+            let relaysToConnect: string[] = []
+
+            // get nip05 record from the .well-known server
+            const {nip05Pubkey, nip05Relays} = await NostrClient.getNip05PubkeyAndRelays(contactNip05)
+
+            if(nip05Relays.length > 0) {
+                relaysToConnect.push(...nip05Relays) // includes minibits relay in case of minibits.cash profile
+            }
+
+            relaysToConnect.push(...(NostrClient.getDefaultRelays()))            
+
+            const profile: NostrProfile = await NostrClient.getProfileFromRelays(nip05Pubkey, relaysToConnect)
+
+            if(!profile) {
+                setNewContactName('')
+                toggleNewContactModal()
+                setInfo(`Wallet profile for ${contactNip05} could not be found. Check that the name is correct.`)
+                return
+            }
+
+            if(profile.nip05 !== contactNip05) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Profile from the relay does not match the given nip05 identifier', {contactNip05, profile})
+            }
+
+            if(!profile.name) {
+                profile.name = NostrClient.getNameFromNip05(contactNip05) as string
+            }
+
+            if(!profile.pubkey) {
+                profile.pubkey = nip05Pubkey
+            }            
+            
+            const npub = NostrClient.getNpubkey(profile.pubkey)
+            const {pubkey, nip05, picture, name} = profile  
+            
+            const newContact: Contact = {
+                type: ContactType.PRIVATE,
+                pubkey,
+                npub,
+                nip05,
+                name,
+                picture,
+                isExternalDomain,
+            }            
+            
+            contactsStore.addContact(newContact)
+
+            setNewContactName('')
+            setIsLoading(false)
+
+        } catch(e: any) {
+            handleError(e)
         }
-
-        log.trace('New private contact', newContact, 'saveNewContact')
-        
-        contactsStore.addContact(newContact)
     }
     
 
@@ -92,7 +137,9 @@ export const PrivateContacts = observer(function (props: {
         
         log.trace('amountToSend, amountToTopup', {amountToSend, amountToTopup})
 
-        const relays = NostrClient.getMinibitsRelays()
+        const minibitsRelays = NostrClient.getMinibitsRelays()
+        const defaultRelays = NostrClient.getDefaultRelays()
+        const relays = [...minibitsRelays, ...defaultRelays]
 
         if(amountToSend) { // Send tx contact selection
             try {
@@ -236,10 +283,11 @@ export const PrivateContacts = observer(function (props: {
         </View>       
         <BottomModal
             isVisible={isNewContactModalVisible ? true : false}
-            top={spacing.screenHeight * 0.4}
+            top={spacing.screenHeight * 0.3}            
             ContentComponent={
                 <View style={$newContainer}>
                     <Text tx='contactsScreen.newTitle' preset="subheading" />
+                    <Text size='xxs' style={{color: domainText}} text='Private contacts are unique identifiers of other Minibits wallets. You can use them to send or request coins and you can safely share your own with others. Like account numbers, just better.' />
                     <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
                         <TextInput
                             ref={contactNameInputRef}
@@ -247,13 +295,15 @@ export const PrivateContacts = observer(function (props: {
                             value={newContactName}
                             autoCapitalize='none'
                             keyboardType='default'
-                            maxLength={16}
+                            maxLength={16}                            
                             selectTextOnFocus={true}
-                            style={[$contactInput, {backgroundColor: inputBg}]}                        
+                            style={[$contactInput, {backgroundColor: inputBg}, (isExternalDomain) && {marginRight: spacing.small, borderTopRightRadius: spacing.small, borderBottomRightRadius: spacing.small}]}                        
                         />
-                        <View style={[$contactDomain, { backgroundColor: inputBg}]}>
-                            <Text size='xxs' style={{color: domainText}} text={MINIBITS_NIP05_DOMAIN}/>
-                        </View>
+                        {!isExternalDomain && (
+                            <View style={[$contactDomain, { backgroundColor: inputBg}]}>
+                                <Text size='xxs' style={{color: domainText}} text={MINIBITS_NIP05_DOMAIN}/>
+                            </View>
+                        )}
                         <Button
                             tx={'common.save'}
                             style={{
@@ -262,7 +312,14 @@ export const PrivateContacts = observer(function (props: {
                             }}
                             onPress={saveNewContact}
                         />
-                    </View>
+                    </View>                    
+                    <Button
+                        preset='tertiary'
+                        text={isExternalDomain ? 'Use minibits.cash domain' : 'Use another NIP05 domain'}
+                        onPress={toggleExternalDomain}
+                        style={{alignSelf: 'flex-start', minHeight: verticalScale(30)}}
+                        textStyle={{lineHeight: verticalScale(16), fontSize: 12}}   
+                    />
                 </View>
             }
             onBackButtonPress={toggleNewContactModal}

@@ -135,7 +135,7 @@ export const WalletProfileStoreModel = types
             self.picture = profileRecord.avatar
             self.isOwnProfile = isOwnProfile
             
-            // can't publish to relay as the keys have not yet been updated
+            // do not publish to relay as this is external 
             
             log.trace('Wallet nip05 updated in the WalletProfileStore', {self})
             return self         

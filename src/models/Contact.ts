@@ -22,7 +22,8 @@ export const ContactModel = types
         picture: types.maybe(types.string),
         nip05: types.maybe(types.string),
         noteToSelf: types.maybe(types.string),
-        data: types.maybe(types.string),        
+        data: types.maybe(types.string),
+        isExternalDomain: types.optional(types.boolean, false),        
         createdAt: types.optional(types.number, Math.floor(Date.now() / 1000)),
     })
     .actions(self => ({
