@@ -250,7 +250,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
               style={$optionsCard}
               ContentComponent={
                 <>
-                  <ListItem
+                  {/* <ListItem
                     tx="receiveScreen.sharePaymentRequest"
                     subTx="receiveScreen.sharePaymentRequestDescription"
                     leftIcon='faAddressCard'
@@ -259,7 +259,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                     style={$item}
                     bottomSeparator={true}
                     onPress={() => Alert.alert('Not yet implemented')}
-                  />
+                  /> */}
                   <ListItem
                     tx="receiveScreen.scanQRCodeToReceive"
                     subTx="receiveScreen.scanQRCodeToReceiveDescription"

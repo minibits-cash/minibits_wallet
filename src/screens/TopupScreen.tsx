@@ -618,7 +618,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
               style={$card}
               ContentComponent={
                 <>
-                  <ListItem
+                  {/*<ListItem
                     tx="topupScreen.sendInvoiceToContact"
                     subTx="topupScreen.sendInvoiceToContactDescription"
                     leftIcon='faAddressCard'
@@ -627,7 +627,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                     style={$item}
                     bottomSeparator={true}
                     onPress={() => Alert.alert('Work is already in progress')}
-                  />
+                   />*/}
                   <ListItem
                     tx="topupScreen.showInvoiceQRCode"
                     subTx="topupScreen.showInvoiceQRCodeDescription"

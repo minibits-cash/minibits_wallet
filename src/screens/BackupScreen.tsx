@@ -130,7 +130,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
                   }
                   style={$item}
                 />
-                {isLocalBackupOn && (
+                {/* isLocalBackupOn && (
                   <ListItem
                     tx="backupScreen.recoveryTool"
                     subTx="backupScreen.recoveryToolDescription"
@@ -140,7 +140,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
                     style={$item}
                     onPress={gotoLocalRecovery}
                   />
-                )}
+                )*/}
                 <ListItem
                   tx="backupScreen.removeSpentCoins"
                   subTx="backupScreen.removeSpentCoinsDescription"
