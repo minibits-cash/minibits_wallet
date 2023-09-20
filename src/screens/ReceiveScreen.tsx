@@ -94,6 +94,10 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
       navigation.navigate('Scan')
     }
 
+    const gotoContacts = function () {
+        navigation.navigate('ContactsNavigator', {screen: 'Contacts', params: {}})
+    }
+
     // const toggleQRCodeModal = () => setIsQRCodeModalVisible(previousState => !previousState)
     const toggleResultModal = () =>
       setIsResultModalVisible(previousState => !previousState)
@@ -250,16 +254,16 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
               style={$optionsCard}
               ContentComponent={
                 <>
-                  {/* <ListItem
+                  <ListItem
                     tx="receiveScreen.sharePaymentRequest"
                     subTx="receiveScreen.sharePaymentRequestDescription"
-                    leftIcon='faAddressCard'
+                    leftIcon='faPaperPlane'
                     leftIconColor={colors.palette.secondary300}
                     leftIconInverse={true}
                     style={$item}
                     bottomSeparator={true}
-                    onPress={() => Alert.alert('Not yet implemented')}
-                  /> */}
+                    onPress={gotoContacts}
+                  />
                   <ListItem
                     tx="receiveScreen.scanQRCodeToReceive"
                     subTx="receiveScreen.scanQRCodeToReceiveDescription"

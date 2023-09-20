@@ -12,6 +12,7 @@ import { ContactType } from '../models/Contact'
 import { WalletProfileRecord } from '../models/WalletProfileStore'
 import { MinibitsClient, NostrClient } from '../services'
 import { getImageSource } from '../utils/utils'
+import { verticalScale } from '@gocodingnow/rn-size-matters'
 
 
 interface ContactDetailScreenProps extends ContactsStackScreenProps<'ContactDetail'> {}
@@ -45,21 +46,24 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
             ? amountToSendInputRef.current.focus()
             : false
         }
+  
+        if (isSendModalVisible) {
+          setTimeout(() => focusSend(), 200)
+        }
+    }, [isSendModalVisible])
 
+
+    useEffect(() => {
         const focusRequest = () => {
             amountToRequestInputRef && amountToRequestInputRef.current
             ? amountToRequestInputRef.current.focus()
             : false
         }
   
-        if (isSendModalVisible) {
-          setTimeout(() => focusSend(), 100)
-        }
-  
         if (isRequestModalVisible) {
-            setTimeout(() => focusRequest(), 100)
+            setTimeout(() => focusRequest(), 200)
         }
-    }, [isSendModalVisible])
+    }, [isRequestModalVisible])
 
 
     useEffect(() => {
@@ -190,6 +194,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
     const balanceColor = useThemeColor('textDim')
     const headerBg = useThemeColor('header')
     const inputBg = useThemeColor('background')
+    const screenBg = useThemeColor('background')
 
     const {type, name, npub, nip05, picture, about} = contact
     
@@ -216,30 +221,34 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                     content={about}
                 />
             )}
-            <View style={[$buttonContainer, {marginTop: spacing.medium}]}>
-                <Button 
-                    preset='default'
-                    onPress={toggleSendModal}
-                    text={`Send coins`}
-                    style={{marginRight: spacing.medium}}
-                />
-                <Button 
-                    preset='default'
-                    onPress={toggleRequestModal}
-                    text={`Request coins`}
-                />
-            </View> 
         </View>
-        <View style={$bottomContainer}>
-                <View style={$buttonContainer}>
-                    <Icon icon='faCopy' size={spacing.small} color={iconNpub as ColorValue} />
-                    <Button
-                        preset='secondary'
-                        textStyle={{fontSize: 12}}
-                        text={npub.slice(0,15)+'...'}
-                        onPress={onCopyNpub}
-                    /> 
-                </View>    
+        <View style={[$bottomContainer]}>
+          <View style={$buttonContainer}>
+          <Button
+              text={`Request coins`}
+              LeftAccessory={() => (
+                <Icon
+                  icon='faArrowDown'
+                  color='white'
+                  size={spacing.medium}                  
+                />
+              )}
+              onPress={toggleRequestModal}
+              style={[$buttonReceive, {borderRightColor: screenBg}]}
+            />
+            <Button
+              text={`Send coins`}
+              RightAccessory={() => (
+                <Icon
+                  icon='faArrowUp'
+                  color='white'
+                  size={spacing.medium}                  
+                />
+              )}
+              onPress={toggleSendModal}
+              style={$buttonSend}            
+            />
+            </View>
         </View>
         <BottomModal
           isVisible={isContactModalVisible ? true : false}
@@ -288,9 +297,9 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                         <Text text={`Tip or donate to ${name}`} preset="subheading" />
                     )}
                     {type === ContactType.PRIVATE && (
-                        <Text text={`Send to ${name}`} preset="subheading" />
+                        <Text text={`Send coins to ${name}`} preset="subheading" />
                     )}
-                    <Text text={`You can send up to ${availableBalance.toLocaleString()} sats`} size='xs' style={{color: balanceColor}} />                   
+                    <Text text={`You can send up to ${availableBalance.toLocaleString()} sats.`} size='xs' style={{color: balanceColor}} />                   
                     <View style={{alignItems: 'center'}}>
                         <TextInput
                             ref={amountToSendInputRef}
@@ -302,7 +311,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                             selectTextOnFocus={true}
                             style={[$amountInput, {backgroundColor: inputBg,  minWidth: 200, marginTop: spacing.medium}]}                        
                         />
-
+                        <Text size='xxs' style={{color: balanceColor}} text='sats'/>
                     </View>
                     {contact.type === ContactType.PUBLIC && (
                         <View style={$buttonContainer}>
@@ -329,7 +338,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
           ContentComponent={
                 <View style={$payContainer}>
                     <Text text={`Request ${name} to pay`} preset="subheading" />
-                    <Text text={`Send Lightning invoice to your contact. If paid, coins will topup your wallet balance`} size='xs' style={{color: balanceColor}} />                   
+                    <Text text={`Send payment request to your contact. If paid, sats will topup your wallet balance.`} size='xs' style={{color: balanceColor}} />                   
                     <View style={{alignItems: 'center'}}>
                         <TextInput
                             ref={amountToRequestInputRef}
@@ -341,7 +350,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                             selectTextOnFocus={true}
                             style={[$amountInput, {backgroundColor: inputBg, minWidth: 200, marginTop: spacing.medium}]}                        
                         />
-
+                        <Text size='xxs' style={{color: balanceColor}} text='sats'/>
                     </View>
                     <View style={[$buttonContainer, {marginTop: spacing.medium}]}>
                         <Button
@@ -411,13 +420,13 @@ const $sendButton: ViewStyle = {
 
 const $bottomContainer: ViewStyle = {
     position: 'absolute',
-    bottom: 0,
+    bottom: 20,
     left: 0,
     right: 0,
     flex: 1,
     justifyContent: 'flex-end',    
     alignSelf: 'stretch',    
-  }
+}
 
 const $buttonContainer: ViewStyle = {
     flexDirection: 'row',
@@ -444,5 +453,36 @@ const $rightContainer: ViewStyle = {
     padding: spacing.extraSmall,
     alignSelf: 'center',
     marginLeft: spacing.small,
+}
+
+/* const $bottomContainer: ViewStyle = {  
+  position: 'absolute',
+  bottom: 20,
+  justifyContent: 'flex-start',
+  marginBottom: spacing.medium,
+  alignSelf: 'stretch',
+  // opacity: 0,
+} */
+
+const $buttonReceive: ViewStyle = {
+  borderTopLeftRadius: 30,
+  borderBottomLeftRadius: 30,
+  borderTopRightRadius: 0,
+  borderBottomRightRadius: 0,
+  minWidth: verticalScale(130),
+  borderRightWidth: 1,  
+}
+
+const $buttonScan: ViewStyle = {
+  borderRadius: 0,
+  minWidth: verticalScale(60),
+}
+
+const $buttonSend: ViewStyle = {
+  borderTopLeftRadius: 0,
+  borderBottomLeftRadius: 0,
+  borderTopRightRadius: 30,
+  borderBottomRightRadius: 30,
+  minWidth: verticalScale(130),  
 }
 

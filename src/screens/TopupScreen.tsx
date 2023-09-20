@@ -637,7 +637,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                   {<ListItem
                     tx="topupScreen.sendInvoiceToContact"
                     subTx="topupScreen.sendInvoiceToContactDescription"
-                    leftIcon='faAddressCard'
+                    leftIcon='faPaperPlane'
                     leftIconColor={colors.palette.secondary300}
                     leftIconInverse={true}
                     style={$item}

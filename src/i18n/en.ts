@@ -60,10 +60,10 @@ const en = {
     },
     toReceive: "Amount to receive",
     received: "Amount received:",
-    sharePaymentRequest: "Share payment request",
-    sharePaymentRequestDescription: "Share the amount and contact information as a link or QR code, so that the payer can pay you the requested amount.",
+    sharePaymentRequest: "Request to pay",
+    sharePaymentRequestDescription: "Send payment request to one of your contacts, so that the payer can pay you exact amount.",
     scanQRCodeToReceive: "Scan QR code to receive",
-    scanQRCodeToReceiveDescription: "If you see the coins in QR code format on another device, scan it to receive.",
+    scanQRCodeToReceiveDescription: "If you are presented the coins in QR code format on another device, scan it to receive.",
     pasteFromClipboard: "Paste from clipboard",
     pasteFromClipboardDescription: "If you've received your coins through any other app, paste them here to receive."    
   },
@@ -74,8 +74,8 @@ const en = {
     scanLightningInvoiceDescription: "Scan the Bitcoin lightning invoice in QR code format. You can use your coins to pay any service supporting lightning payments."
   },
   topupScreen: {
-    sendInvoiceToContact: "Send invoice to contact",
-    sendInvoiceToContactDescription: "Send a lightning invoice to one of your contacts so they can top up your balance by paying it.",
+    sendInvoiceToContact: "Request to pay",
+    sendInvoiceToContactDescription: "Send payment request to one of your contacts, so that the payer can pay you exact amount.",
     showInvoiceQRCode: "Show invoice QR code",
     showInvoiceQRCodeDescription: "Present the lightning invoice as a QR code so that you can pay it from the wallet on another device.",
     shareInvoiceAsText: "Share invoice as text",
