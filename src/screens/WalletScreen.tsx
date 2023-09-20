@@ -59,6 +59,7 @@ import { NotificationService } from '../services/notificationService'
 import PagerView, { PagerViewOnPageScrollEventData } from 'react-native-pager-view'
 import { ExpandingDot, ScalingDot, SlidingBorder, SlidingDot } from 'react-native-animated-pagination-dots'
 import { PaymentRequest, PaymentRequestStatus } from '../models/PaymentRequest'
+import { Invoice } from '../models/Invoice'
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView)
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
@@ -122,6 +123,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
         EventEmitter.on('receiveTokenCompleted', onReceiveTokenCompleted)
         EventEmitter.on('receivePaymentRequest', onReceivePaymentRequest)
+        EventEmitter.on('topupCompleted', onTopupCompleted)
 
         return () => {            
             EventEmitter.off('receiveTokenCompleted', onReceiveTokenCompleted)
@@ -195,6 +197,16 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             result.title,
             result.message,
             result.picture,
+        )     
+    }
+
+
+    const onReceiveTopupCompleted = async (invoice: Invoice) => { // TODO make it ReceivedEventResult
+        log.trace('onReceiveTopupCompleted event handler trigerred', invoice)
+
+        await NotificationService.createLocalNotification(
+            `⚡ ${invoice.amount} sats received!`,
+            `Your invoice has been paid and your wallet balance credited with ${invoice.amount} sats.`,            
         )     
     }
     

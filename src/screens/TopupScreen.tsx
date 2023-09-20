@@ -184,7 +184,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
           setResultModalInfo({
             status: TransactionStatus.COMPLETED,
-            message: `Payment received! Your wallet has been credited with ${invoice.amount} sats.`,
+            message: `Your invoice has been paid and your wallet balance credited with ${invoice.amount} sats.`,
           })
 
           setTransactionStatus(TransactionStatus.COMPLETED)
@@ -725,7 +725,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
             ) : (
             <SendAsNostrDMBlock
                 toggleNostrDMModal={toggleNostrDMModal}
-                encodedTokenToSend={invoiceToPay as string}
+                encodedInvoiceToSend={invoiceToPay as string}
                 contactToSendFrom={contactToSendFrom as Contact}
                 contactToSendTo={contactToSendTo as Contact}
                 relaysToShareTo={relaysToShareTo}
@@ -917,7 +917,7 @@ const ShareAsQRCodeBlock = observer(function (props: {
 
 const SendAsNostrDMBlock = observer(function (props: {
     toggleNostrDMModal: any
-    encodedTokenToSend: string
+    encodedInvoiceToSend: string
     contactToSendFrom: Contact
     contactToSendTo: Contact
     relaysToShareTo: string[]
@@ -942,7 +942,7 @@ const SendAsNostrDMBlock = observer(function (props: {
           ]}>
           <Text
             selectable
-            text={props.encodedTokenToSend}
+            text={props.encodedInvoiceToSend}
             style={{color: tokenTextColor, paddingBottom: spacing.medium}}
             size="xxs"
           />
@@ -954,7 +954,7 @@ const SendAsNostrDMBlock = observer(function (props: {
         ) : (
             <View style={$buttonContainer}>            
                 <Button
-                    text="Send"
+                    text="Send request"
                     onPress={props.sendAsNostrDM}
                     style={{marginRight: spacing.medium}}
                     LeftAccessory={() => (
@@ -997,7 +997,7 @@ const SendAsNostrDMBlock = observer(function (props: {
             icon="faCheckCircle"
             iconColor={colors.palette.success200}
             title="Success!"
-            message="Coins have been succesfully sent."
+            message="Payment reuest has been succesfully sent."
         />
         <View style={$buttonContainer}>
             <Button

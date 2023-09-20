@@ -27,7 +27,7 @@ export const InvoiceModel = types
             const decoded = decodeInvoice(self.encodedInvoice)
             const {expiry, timestamp} = getInvoiceData(decoded)            
             
-            const expiresAt = addSeconds(new Date(timestamp * 1000), expiry as number)
+            const expiresAt = addSeconds(new Date(timestamp as number * 1000), expiry as number)
 
             log.trace(
                 `Invoice expiry is ${expiry}, setting expiresAt to ${expiresAt}`,
