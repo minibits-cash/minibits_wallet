@@ -781,7 +781,7 @@ const $balance: TextStyle = {
 
 const $bottomContainer: ViewStyle = {  
   flex: 0.1,
-  justifyContent: 'flex-end',
+  justifyContent: 'flex-start',
   marginBottom: spacing.medium,
   alignSelf: 'stretch',
   // opacity: 0,
