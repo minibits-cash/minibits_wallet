@@ -123,11 +123,12 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
         EventEmitter.on('receiveTokenCompleted', onReceiveTokenCompleted)
         EventEmitter.on('receivePaymentRequest', onReceivePaymentRequest)
-        EventEmitter.on('topupCompleted', onTopupCompleted)
+        EventEmitter.on('topupCompleted', onReceiveTopupCompleted)
 
         return () => {            
             EventEmitter.off('receiveTokenCompleted', onReceiveTokenCompleted)
-            EventEmitter.off('receivePaymentRequest', onReceivePaymentRequest)          
+            EventEmitter.off('receivePaymentRequest', onReceivePaymentRequest) 
+            EventEmitter.off('topupCompleted', onReceiveTopupCompleted)          
         }
     }, [])
     
