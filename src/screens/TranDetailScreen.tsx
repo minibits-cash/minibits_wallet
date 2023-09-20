@@ -33,8 +33,6 @@ import {
 } from '../models/Transaction'
 import AppError, {Err} from '../utils/AppError'
 import {log} from '../utils/logger'
-import {getMintsFromToken} from '../services/cashuHelpers'
-import {Token} from '../models/Token'
 import {isArray} from 'lodash'
 import {Database, Wallet} from '../services'
 import {BackupProof, Proof} from '../models/Proof'
@@ -89,7 +87,7 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
         }
 
 
-      setTransaction(tx)
+      setTransaction(tx as Transaction)
       } catch (e: any) {
         handleError(e)
       }
@@ -207,7 +205,7 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
       }
 
       switch (transaction?.type) {
-        case TransactionType.RECEIVE || TransactionType.RECEIVE_NOSTR:
+        case TransactionType.RECEIVE || TransactionType.RECEIVE_OFFLINE:
           return `+${transaction.amount.toLocaleString()}`
         case TransactionType.SEND:
           return `-${transaction.amount.toLocaleString()}`

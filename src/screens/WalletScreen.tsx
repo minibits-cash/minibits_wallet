@@ -11,7 +11,8 @@ import {
   InteractionManager,
   Animated,
   findNodeHandle,
-  FlatList
+  FlatList,
+  Pressable
 } from 'react-native'
 /* import Animated, {
   useAnimatedScrollHandler,
@@ -32,6 +33,7 @@ import {
   Loading,
   BottomModal,
   ErrorModal,
+  Header,
 } from '../components'
 import {useStores} from '../models'
 import EventEmitter from '../utils/eventEmitter'
@@ -43,7 +45,7 @@ import {MintsByHostname} from '../models/MintsStore'
 import {Env, log} from '../utils/logger'
 import {Transaction, TransactionStatus} from '../models/Transaction'
 import {TransactionListItem} from './Transactions/TransactionListItem'
-import {MintClient, MintKeys, Wallet} from '../services'
+import {MintClient, MintKeys, ReceivedEventResult, Wallet} from '../services'
 import {translate} from '../i18n'
 import AppError, { Err } from '../utils/AppError'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
@@ -56,6 +58,7 @@ import { round } from '../utils/number'
 import { NotificationService } from '../services/notificationService'
 import PagerView, { PagerViewOnPageScrollEventData } from 'react-native-pager-view'
 import { ExpandingDot, ScalingDot, SlidingBorder, SlidingDot } from 'react-native-animated-pagination-dots'
+import { PaymentRequest, PaymentRequestStatus } from '../models/PaymentRequest'
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView)
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
@@ -65,23 +68,18 @@ interface WalletScreenProps extends WalletStackScreenProps<'Wallet'> {}
 
 export const WalletScreen: FC<WalletScreenProps> = observer(
   function WalletScreen({route, navigation}) {    
-    const {mintsStore, proofsStore, transactionsStore} = useStores()
+    const {mintsStore, proofsStore, transactionsStore, paymentRequestsStore} = useStores()
     
     const appState = useRef(AppState.currentState);
 
-    useHeader({
-      leftIcon: 'faListUl',
-      leftIconColor: colors.palette.primary100,
-      onLeftPress: () => gotoTranHistory(),
-    })   
-    
+   
     const [info, setInfo] = useState<string>('')
     const [defaultMintUrl, setDefaultMintUrl] = useState<string>('https://mint.minibits.cash/Bitcoin')
     const [error, setError] = useState<AppError | undefined>()
-    const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus, message: string} | undefined>()
+    // const [receivedModalInfo, setReceivedModalInfo] = useState<ReceivedEventResult | undefined>(undefined)
     const [isLoading, setIsLoading] = useState<boolean>(false)
     // const [isLightningModalVisible, setIsLightningModalVisible] = useState<boolean>(false)
-    const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
+    // const [isReceivedModalVisible, setIsReceivedModalVisible] = useState<boolean>(false)
 
     const [isUpdateAvailable, setIsUpdateAvailable] = useState<boolean>(false)
     const [isUpdateModalVisible, setIsUpdateModalVisible] = useState<boolean>(false)
@@ -109,24 +107,29 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         })
     }, [])
 
-
-    useEffect(() => {
-        InteractionManager.runAfterInteractions(async () => {
-            Wallet.checkPendingReceived() // make sure only one subscription is created
-            // Subscribe to the 'receivedCompleted' event fired by checkPendingReceived
-            EventEmitter.on('receiveCompleted', handleCompleted)
-        })
-
-        return () => {            
-            EventEmitter.off('receiveCompleted', handleCompleted)          
-        }
-    }, [])
-
+    
     const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {
         setIsNativeUpdateAvailable(true)
         toggleUpdateModal()
     }
+
     
+    useEffect(() => {
+        InteractionManager.runAfterInteractions(async () => {
+            // subscribe once to receive tokens or payment requests by NOSTR DMs
+            Wallet.checkPendingReceived()
+        })
+
+        EventEmitter.on('receiveTokenCompleted', onReceiveTokenCompleted)
+        EventEmitter.on('receivePaymentRequest', onReceivePaymentRequest)
+
+        return () => {            
+            EventEmitter.off('receiveTokenCompleted', onReceiveTokenCompleted)
+            EventEmitter.off('receivePaymentRequest', onReceivePaymentRequest)          
+        }
+    }, [])
+    
+
     const gotoUpdate = function() {
         navigation.navigate('SettingsNavigator', {screen: 'Update', params: {
             isNativeUpdateAvailable, 
@@ -134,8 +137,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             updateDescription,
             updateSize
         }})
-    }
-    
+    }   
     
 
     useFocusEffect(        
@@ -154,8 +156,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 return
             }
 
-            const scannedMintUrl = route.params?.scannedMintUrl             
-            log.trace('route.params', route.params)
+            const scannedMintUrl = route.params?.scannedMintUrl         
             addMint({scannedMintUrl})
 
         }, [route.params?.scannedMintUrl])
@@ -183,25 +184,29 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     }, [])
 
     
-    const handleCompleted = async (result: {
-        status: TransactionStatus, 
-        title: string, 
-        message: string, 
-        iconUrl?: string
-    }) => {
-        log.trace('handleCompleted handler for receiveCompleted event trigerred')
+    const onReceiveTokenCompleted = async (result: ReceivedEventResult) => {
+        log.trace('onReceiveTokenCompleted event handler trigerred', result)
 
         if (result.status !== TransactionStatus.COMPLETED) {
           return
         }
 
-        log.trace(result)
+        await NotificationService.createLocalNotification(
+            result.title,
+            result.message,
+            result.picture,
+        )     
+    }
+    
+    
+    const onReceivePaymentRequest = async (result: ReceivedEventResult) => {
+        log.trace('onReceivePaymentRequest event handler trigerred', result)
 
         await NotificationService.createLocalNotification(
             result.title,
             result.message,
-            result.iconUrl,
-        )     
+            result.picture,
+        )       
     } 
 
 
@@ -213,9 +218,9 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         setIsUpdateModalVisible(previousState => !previousState)
     }
 
-    const toggleResultModal = () => {
-        setIsResultModalVisible(previousState => !previousState)
-    }
+    /* const toggleReceivedModal = () => {
+        setIsReceivedModalVisible(previousState => !previousState)
+    } */
 
 
     const addMint = async function ({scannedMintUrl = ''} = {}) {
@@ -280,6 +285,10 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         navigation.navigate('Transfer', {availableMintBalances})
     }
 
+    const gotoPaymentRequests = function () {
+        navigation.navigate('PaymentRequests')
+    }
+
     const gotoTopup = function (availableMintBalances: MintBalance[] | undefined) {        
         // setIsLightningModalVisible(false)
         navigation.navigate('Topup', {availableMintBalances})
@@ -333,77 +342,95 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const iconInfo = useThemeColor('textDim')
 
     return (
-      <Screen preset='fixed' contentContainerStyle={$screen}>        
-          <TotalBalanceBlock
-            totalBalance={balances.totalBalance}
-            pendingBalance={balances.totalPendingBalance}
-            // gotoTranHistory={gotoTranHistory}
-          />
-          <View style={$contentContainer}>
-            {mintsStore.mintCount === 0 ? (
-                <PromoBlock addMint={addMint} />
-            ) : (
+      <Screen preset='fixed' contentContainerStyle={$screen}>
+            <Header 
+                leftIcon='faListUl'
+                leftIconColor={colors.palette.primary100}
+                onLeftPress={gotoTranHistory}
+                RightActionComponent={
                 <>
-                    {groupedMints.length > 1 && (
-                        <ScalingDot
-                            testID={'sliding-border'}                        
-                            data={groupedMints}
-                            inActiveDotColor={colors.palette.primary300}
-                            activeDotColor={colors.palette.primary100}
-                            activeDotScale={1.2}
-                            containerStyle={{bottom: undefined, position: undefined, marginTop: -spacing.small, paddingBottom: spacing.medium}}
-                            //@ts-ignore
-                            scrollX={scrollX}
-                            dotSize={30}
-                        />
+                    {paymentRequestsStore.countNotExpired > 0 && (
+                        <Pressable 
+                            style={{flexDirection: 'row', alignItems:'center', marginRight: spacing.medium}}
+                            onPress={() => gotoPaymentRequests()}
+                        >
+                            <Icon icon='faPaperPlane'/>
+                            <Text text={`${paymentRequestsStore.countNotExpired}`}/>
+                        </Pressable>
                     )}
-                    <AnimatedPagerView
-                        testID="pager-view"
-                        initialPage={0}
-                        ref={pagerRef}
-                        style={{ flexGrow: 1}}                                             
-                        onPageScroll={onPageScroll}
-                    >
-                        {groupedMints.map((mints) => (
-                            <View key={mints.hostname} style={{marginHorizontal: spacing.extraSmall, flexGrow: 1}}>
-                                <MintsByHostnameListItem                                    
-                                    mintsByHostname={mints}
-                                    mintBalances={balances.mintBalances.filter(balance => balance.mint.includes(mints.hostname))}
-                                    gotoTopup={gotoTopup}
-                                    gotoTransfer={gotoTransfer}
-                                />
-                                {transactionsStore.recentByHostname(mints.hostname).length > 0 && (
-                                    <Card                                    
-                                        ContentComponent={
-                                        <>
-                                            <FlatList
-                                                data={transactionsStore.recentByHostname(mints.hostname) as Transaction[]}
-                                                renderItem={({item, index}) => {
-                                                    return (<TransactionListItem
-                                                        key={item.id}
-                                                        tx={item}
-                                                        isFirst={index === 0}
-                                                        gotoTranDetail={gotoTranDetail}
-                                                    />)
-                                                    }
-                                                }
-                                                // keyExtractor={(item, index) => item.id}
-                                                // contentContainerStyle={{paddingRight: spacing.small}}
-                                                style={{ maxHeight: 300 - (mints.mints.length > 1 ? mints.mints.length * 29 : 0)}}
-                                            />
-                                        </>
-                                        }
-                                        style={[$card, {paddingTop: spacing.extraSmall}]}
-                                    />
-                                )}                               
-                               
-                            </View>
-                        ))}
-                    </AnimatedPagerView>
                 </>
-            )}          
+                }                
+            />        
+            <TotalBalanceBlock
+                totalBalance={balances.totalBalance}
+                pendingBalance={balances.totalPendingBalance}
+                // gotoTranHistory={gotoTranHistory}
+            />
+            <View style={$contentContainer}>
+                {mintsStore.mintCount === 0 ? (
+                    <PromoBlock addMint={addMint} />
+                ) : (
+                    <>
+                        {groupedMints.length > 1 && (
+                            <ScalingDot
+                                testID={'sliding-border'}                        
+                                data={groupedMints}
+                                inActiveDotColor={colors.palette.primary300}
+                                activeDotColor={colors.palette.primary100}
+                                activeDotScale={1.2}
+                                containerStyle={{bottom: undefined, position: undefined, marginTop: -spacing.small, paddingBottom: spacing.medium}}
+                                //@ts-ignore
+                                scrollX={scrollX}
+                                dotSize={30}
+                            />
+                        )}
+                        <AnimatedPagerView
+                            testID="pager-view"
+                            initialPage={0}
+                            ref={pagerRef}
+                            style={{ flexGrow: 1}}                                             
+                            onPageScroll={onPageScroll}
+                        >
+                            {groupedMints.map((mints) => (
+                                <View key={mints.hostname} style={{marginHorizontal: spacing.extraSmall, flexGrow: 1}}>
+                                    <MintsByHostnameListItem                                    
+                                        mintsByHostname={mints}
+                                        mintBalances={balances.mintBalances.filter(balance => balance.mint.includes(mints.hostname))}
+                                        gotoTopup={gotoTopup}
+                                        gotoTransfer={gotoTransfer}
+                                    />
+                                    {transactionsStore.recentByHostname(mints.hostname).length > 0 && (
+                                        <Card                                    
+                                            ContentComponent={
+                                            <>
+                                                <FlatList
+                                                    data={transactionsStore.recentByHostname(mints.hostname) as Transaction[]}
+                                                    renderItem={({item, index}) => {
+                                                        return (<TransactionListItem
+                                                            key={item.id}
+                                                            tx={item}
+                                                            isFirst={index === 0}
+                                                            gotoTranDetail={gotoTranDetail}
+                                                        />)
+                                                        }
+                                                    }
+                                                    // keyExtractor={(item, index) => item.id}
+                                                    // contentContainerStyle={{paddingRight: spacing.small}}
+                                                    style={{ maxHeight: 300 - (mints.mints.length > 1 ? mints.mints.length * 38 : 0)}}
+                                                />
+                                            </>
+                                            }
+                                            style={[$card, {paddingTop: spacing.extraSmall}]}
+                                        />
+                                    )}                               
+                                
+                                </View>
+                            ))}
+                        </AnimatedPagerView>
+                    </>
+                )}          
 
-            {isLoading && <Loading />}
+                {isLoading && <Loading />}
           </View>
         
         <View style={[$bottomContainer]}>
@@ -479,33 +506,51 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
           onBackButtonPress={toggleUpdateModal}
           onBackdropPress={toggleUpdateModal}
         />        
-        <BottomModal
-          isVisible={isResultModalVisible ? true : false}
+        {/* <BottomModal
+          isVisible={isReceivedModalVisible ? true : false}
           top={spacing.screenHeight * 0.5}
           ContentComponent={
             <>
-              {resultModalInfo && (
+              {receivedModalInfo && receivedModalInfo.paymentRequest && (
                   <>
-                    <ResultModalInfo
-                      icon="faCheckCircle"
-                      iconColor={colors.palette.success200}
-                      title="Success!"
-                      message={resultModalInfo?.message}
+                    <View style={$bottomModal}>                
+                        {receivedModalInfo.picture ? (
+                        <Image 
+                            style={{
+                                width: 90, 
+                                height: 90, 
+                                borderRadius: 45,                        
+                            }} 
+                            source={{uri: receivedModalInfo.picture}} 
+                        />
+                    ) : (
+                        <Icon
+                            icon='faCircleUser'                                
+                            size={80}                    
+                            color={'white'}                
+                        />
+                    )}
+                    <Text preset='bold' text={receivedModalInfo.title} style={{color: 'white', marginBottom: spacing.small}} />
+                    <Text style={{marginTop: spacing.small}} text={receivedModalInfo.message} />
+                    <Text 
+                        style={{textAlign: 'center', marginTop: spacing.small}} 
+                        text={receivedModalInfo.memo} 
                     />
                     <View style={$buttonContainer}>
-                      <Button
-                        preset="secondary"
-                        tx={'common.close'}
-                        onPress={toggleResultModal}
-                      />
+                        <Button                                
+                            text={`Pay invoice`}
+                            onPress={() => gotoTransferWithPaymentRequest(receivedModalInfo.paymentRequest as PaymentRequest)}
+                        />
+                    </View>            
                     </View>
+
                   </>
                 )}              
             </>
           }
-          onBackButtonPress={toggleResultModal}
-          onBackdropPress={toggleResultModal}
-        />
+          onBackButtonPress={toggleReceivedModal}
+          onBackdropPress={toggleReceivedModal}
+        /> */}
         {info && <InfoModal message={info} />}
         {error && <ErrorModal error={error} />}
       </Screen>
@@ -534,14 +579,6 @@ const TotalBalanceBlock = observer(function (props: {
                 style={{color: balanceColor}}            
                 text={props.totalBalance.toLocaleString()}
             />
-            {/*props.pendingBalance > 0 && (
-                <Text
-                    testID='pending-balance'
-                    size='xxs'
-                    style={{color: pendingBalanceColor}}
-                    text={`Pending: ${props.pendingBalance.toLocaleString()}`}
-                />
-            )*/}
         </View>
     )
 })
@@ -772,3 +809,9 @@ const $buttonSend: ViewStyle = {
   minWidth: verticalScale(130),
   borderLeftWidth: 1,  
 }
+
+const $bottomModal: ViewStyle = {    
+    alignItems: 'center',  
+    paddingVertical: spacing.large,
+    paddingHorizontal: spacing.small,  
+  }

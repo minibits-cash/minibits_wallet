@@ -1,5 +1,5 @@
 import {Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
-import {decodeInvoice} from '../services/cashuHelpers'
+import {decodeInvoice, getInvoiceData} from '../services/cashuHelpers'
 import {withSetPropAction} from './helpers/withSetPropAction'
 import {log} from '../utils/logger'
 import addSeconds from 'date-fns/addSeconds'
@@ -25,15 +25,14 @@ export const InvoiceModel = types
     .actions(self => ({
         setExpiresAt() {
             const decoded = decodeInvoice(self.encodedInvoice)
-            let {expiry} = decoded // in seconds
-            if (!expiry) {
-                expiry = 600
-            }
-            const expiresAt = addSeconds(new Date(), expiry)
+            const {expiry, timestamp} = getInvoiceData(decoded)            
+            
+            const expiresAt = addSeconds(new Date(timestamp * 1000), expiry as number)
 
             log.trace(
                 `Invoice expiry is ${expiry}, setting expiresAt to ${expiresAt}`,
             )
+            
             self.expiresAt = new Date(expiresAt)
         },
     }))

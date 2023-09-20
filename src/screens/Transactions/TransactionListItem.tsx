@@ -43,8 +43,7 @@ export const TransactionListItem = observer(function (props: {tx: Transaction, i
   
     const getSubText = function(tx: Transaction) {
   
-      const distance = formatDistance(tx.createdAt as Date, new Date(), {addSuffix: true})
-      
+      const distance = formatDistance(tx.createdAt as Date, new Date(), {addSuffix: true})      
   
       switch(tx.status) {
         case TransactionStatus.COMPLETED:

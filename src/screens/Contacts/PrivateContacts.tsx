@@ -52,17 +52,17 @@ export const PrivateContacts = observer(function (props: {
         setIsNewContactModalVisible(previousState => !previousState)
     }
 
+
     const toggleExternalDomain = () => {
         setIsExternalDomain(previousState => !previousState)
     }
 
+
     const saveNewContact = async function () {      
-        log.trace('Start', newContactName, 'saveNewContact')  
-        /* const profileRecord: WalletProfileRecord = 
-            await MinibitsClient.getWalletProfileByNip05(newContactName + MINIBITS_NIP05_DOMAIN)  */
+        log.trace('Start', newContactName, 'saveNewContact')
         
         if(!newContactName) {
-            setInfo(`Please enter a wallet address with name@domain.com format`)
+            setInfo(`Please enter a wallet profile name in name@domain.com format`)
             return
         }
 
@@ -71,60 +71,88 @@ export const PrivateContacts = observer(function (props: {
         const contactNip05 = (isExternalDomain) ? newContactName : newContactName + MINIBITS_NIP05_DOMAIN
 
         try {
+
+            let newContact: Contact | undefined = undefined
             
-            let relaysToConnect: string[] = []
+            if (isExternalDomain) {
+                // validate and get profile data from nip05 server + relays
+                const profile = await getNostrProfile(contactNip05) as NostrProfile
+                const {pubkey, npub, nip05, name, picture} = profile
 
-            // get nip05 record from the .well-known server
-            const {nip05Pubkey, nip05Relays} = await NostrClient.getNip05PubkeyAndRelays(contactNip05)
+                newContact = {
+                    type: ContactType.PRIVATE,
+                    pubkey,
+                    npub,
+                    nip05,
+                    name,
+                    picture,
+                    isExternalDomain,
+                } as Contact
 
-            if(nip05Relays.length > 0) {
-                relaysToConnect.push(...nip05Relays) // includes minibits relay in case of minibits.cash profile
-            }
+            } else {
+                // do it with single api call for minibts.cash profiles
+                const profileRecord = await MinibitsClient.getWalletProfileByNip05(contactNip05)
+                const npub = NostrClient.getNpubkey(profileRecord.pubkey)
+                const {pubkey, nip05, name, avatar: picture} = profileRecord
 
-            relaysToConnect.push(...(NostrClient.getDefaultRelays()))            
-
-            const profile: NostrProfile = await NostrClient.getProfileFromRelays(nip05Pubkey, relaysToConnect)
-
-            if(!profile) {
-                setNewContactName('')
-                toggleNewContactModal()
-                setInfo(`Wallet profile for ${contactNip05} could not be found. Check that the name is correct.`)
-                return
-            }
-
-            if(profile.nip05 !== contactNip05) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Profile from the relay does not match the given nip05 identifier', {contactNip05, profile})
-            }
-
-            if(!profile.name) {
-                profile.name = NostrClient.getNameFromNip05(contactNip05) as string
-            }
-
-            if(!profile.pubkey) {
-                profile.pubkey = nip05Pubkey
-            }            
-            
-            const npub = NostrClient.getNpubkey(profile.pubkey)
-            const {pubkey, nip05, picture, name} = profile  
-            
-            const newContact: Contact = {
-                type: ContactType.PRIVATE,
-                pubkey,
-                npub,
-                nip05,
-                name,
-                picture,
-                isExternalDomain,
-            }            
+                newContact = {
+                    type: ContactType.PRIVATE,
+                    pubkey,
+                    npub,
+                    nip05,
+                    name,
+                    picture,
+                    isExternalDomain
+                } as Contact
+            }        
             
             contactsStore.addContact(newContact)
 
             setNewContactName('')
+            setIsExternalDomain(false)
             setIsLoading(false)
 
         } catch(e: any) {
             handleError(e)
         }
+    }
+
+
+    const getNostrProfile = async function (contactNip05: string) {        
+        let relaysToConnect: string[] = []
+        // get nip05 record from the .well-known server
+        const {nip05Pubkey, nip05Relays} = await NostrClient.getNip05PubkeyAndRelays(contactNip05)
+
+        if(nip05Relays.length > 0) {
+            relaysToConnect.push(...nip05Relays)
+        }
+
+        relaysToConnect.push(...(NostrClient.getDefaultRelays()))            
+
+        const profile: NostrProfile = await NostrClient.getProfileFromRelays(nip05Pubkey, relaysToConnect)
+
+        if(!profile) {
+            setNewContactName('')
+            toggleNewContactModal()
+            setInfo(`Wallet profile for ${contactNip05} could not be found. Check that the name is correct.`)
+            return
+        }
+
+        if(profile.nip05 !== contactNip05) {
+            throw new AppError(Err.VALIDATION_ERROR, 'Profile from the relay does not match the given nip05 identifier', {contactNip05, profile})
+        }
+
+        if(!profile.name) {
+            profile.name = NostrClient.getNameFromNip05(contactNip05) as string
+        }
+
+        if(!profile.pubkey) {
+            profile.pubkey = nip05Pubkey
+        }            
+        
+        const npub = NostrClient.getNpubkey(profile.pubkey)
+
+        return {...profile, npub} as NostrProfile
     }
     
 

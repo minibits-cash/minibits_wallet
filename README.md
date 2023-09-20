@@ -35,25 +35,25 @@ Receive coins
 - [x] Scan QR code of a coin token
 - [x] Paste coin token from clipboard
 - [x] Receive tokens with coins from multiple mints (untested)
-- [x] Notification on received payment (app needs to come to foreground)
-- [ ] Share payment request to receive
+- [x] Notification on received payment (app needs to be in foreground)
 - [x] Receive coins while being offline, redeem later (MVP version)
 
 Send coins
 - [x] Share coin token to send through another app
 - [x] Show coin token as a QR code
 - [x] Notification on payment received by the payee (app needs to come to foreground)
-- [x] Send to contact [✨ New!]
+- [x] Send coins to contact [✨ New!]
 - [ ] Lock coins sent offline to the receiver wallet key
 
 Top up wallet
 - [x] Show QR code with bitcoin lightning invoice to pay
 - [x] Share encoded bitcoin lightning invoice to pay
-- [ ] Share invoice with contact
+- [x] Share payment request with contact [✨ New!]
 
 Transfer / Cash out from wallet
 - [x] Paste and settle bitcoin lightning invoice with your coins
 - [x] Scan and settle bitcoin lightning invoice with your coins
+- [x] Pay payment request received from another contact [✨ New!]
 - [ ] Transfer (swap) coins to another mint
 
 Transaction history

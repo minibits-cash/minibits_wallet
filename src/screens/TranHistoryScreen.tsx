@@ -28,6 +28,7 @@ import {maxTransactionsInModel} from '../models/TransactionsStore'
 import {Database} from '../services'
 import AppError from '../utils/AppError'
 import {TransactionListItem} from './Transactions/TransactionListItem'
+import { Transaction } from '../models/Transaction'
 
 interface TranHistoryScreenProps
   extends WalletStackScreenProps<'TranHistory'> {}
@@ -161,7 +162,7 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
                   ).map((tx, index: number) => (
                     <TransactionListItem
                       key={tx.id}
-                      tx={tx}
+                      tx={tx as Transaction}
                       gotoTranDetail={gotoTranDetail}
                       isFirst={index === 0}
                     />

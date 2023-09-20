@@ -1,5 +1,5 @@
 import {deriveKeysetId, getEncodedToken} from '@cashu/cashu-ts'
-import {isBefore} from 'date-fns'
+import {addSeconds, isBefore} from 'date-fns'
 import {getSnapshot, isStateTreeNode} from 'mobx-state-tree'
 import {log} from '../utils/logger'
 import {MintClient, MintKeys, MintKeySets} from './cashuMintClient'
@@ -15,7 +15,12 @@ import {rootStoreInstance} from '../models'
 import {
   decodeInvoice,
   decodeToken,
+  extractEncodedCashuToken,
+  extractEncodedLightningInvoice,
+  findEncodedCashuToken,
+  findEncodedLightningInvoice,
   getInvoiceData,
+  getInvoiceExpiresAt,
   getMintsFromToken,
   getProofsAmount,
   getTokenAmounts,
@@ -34,6 +39,7 @@ import {poller, stopPolling} from '../utils/poller'
 import EventEmitter from '../utils/eventEmitter'
 import { NostrClient, NostrEvent, NostrFilter } from './nostrService'
 import { MINIBITS_NIP05_DOMAIN, MINIBITS_SERVER_API_HOST } from '@env'
+import { PaymentRequest, PaymentRequestStatus } from '../models/PaymentRequest'
 
 type WalletService = {
     checkPendingSpent: () => Promise<void>
@@ -85,12 +91,23 @@ export type TransactionResult = {
     [key: string]: any
 }
 
+export type ReceivedEventResult = {
+    status: TransactionStatus | PaymentRequestStatus, 
+    title: string,     
+    message: string, 
+    memo?: string, 
+    picture?: string
+    paymentRequest?: PaymentRequest
+    token?: Token
+}
+
 const {
     walletProfileStore,
     mintsStore,
     proofsStore,
     transactionsStore,
     invoicesStore,
+    paymentRequestsStore,
     contactsStore,
 } = rootStoreInstance
 
@@ -110,12 +127,14 @@ async function checkPendingSpent() {
 
 
 /*
- * Checks with NOSTR relays whether there are coins to be received.
+ * Checks with NOSTR relays whether there are coins to be received or an invoice to be paid.
  */
 const checkPendingReceived = async function () {
     if(!walletProfileStore.pubkey) {
         return
-    }        
+    }
+    
+    // clean expired paymentRequests
 
     try {            
         const { lastPendingReceivedCheck } = contactsStore
@@ -136,103 +155,168 @@ const checkPendingReceived = async function () {
         const defaultRelays = NostrClient.getDefaultRelays()
         const minibitsRelays = NostrClient.getMinibitsRelays()
 
-        if(walletProfileStore.isOwnProfile) {
-            relaysToConnect = defaultRelays
-            if(contactsStore.publicRelay && !relaysToConnect.includes(contactsStore.publicRelay)) {
-                relaysToConnect.push(contactsStore.publicRelay)
-            }
-        } else {
-            relaysToConnect = minibitsRelays
-        }
+        relaysToConnect.push(...defaultRelays, ...minibitsRelays)
+
+        if(contactsStore.publicRelay && !relaysToConnect.includes(contactsStore.publicRelay)) {
+            relaysToConnect.push(contactsStore.publicRelay)
+        }        
 
         const sub = pool.sub(relaysToConnect , filter)
 
         let events: NostrEvent[] = []
-        let result: {status: TransactionStatus, title?: string,  message: string, iconUrl?: string} | undefined = undefined
+        let result: ReceivedEventResult | undefined = undefined
 
         sub.on('event', async (event: NostrEvent) => {
-            if(events.some(ev => ev.id === event.id)) {
-                log.error(Err.ALREADY_EXISTS_ERROR, 'Event has just been processed', event.id)
-                return
-            }
+            try {
+                // ignore all kinds of duplicate events
+                if(events.some(ev => ev.id === event.id)) {
+                    log.error(Err.ALREADY_EXISTS_ERROR, 'Duplicate event received by this subscription, skipping...', event.id)
+                    return
+                }
 
-            events.push(event)
+                events.push(event)
+
+                if(contactsStore.eventAlreadyReceived(event.id)) {
+                    log.error(Err.ALREADY_EXISTS_ERROR, 'Event has been processed in the past, skipping...', {id: event.id})
+                    return
+                }                    
+                
+                // decrypt message content
+                const decrypted = await NostrClient.decryptNip04(event.pubkey, event.content)
+                
+                // check if we've got Cashu token
+                const maybeToken = findEncodedCashuToken(decrypted)
+
+                if(maybeToken) {
+                    log.trace('Got cashu token', maybeToken, 'checkPendingReceived')
+                    const tokenResult = extractEncodedCashuToken(maybeToken) // throws
+
+                    const {
+                        error, 
+                        receivedAmount,
+                        memo,
+                        sentFrom, 
+                        sentFromPubkey
+                    } = await receiveFromNostrEvent(tokenResult.token, event)
+
+                    let picture: string | undefined = undefined
+
+                    if(sentFrom) {
+                        picture = MINIBITS_SERVER_API_HOST + '/profile/avatar/' + sentFromPubkey
+                    }
+        
+                    if(receivedAmount > 0) {
+                        result = {
+                            status: TransactionStatus.COMPLETED,                        
+                            title: `⚡${receivedAmount} sats received!`,
+                            message: `Coins from <b>${sentFrom}</b> are now in your wallet.`,
+                            memo,
+                            picture,
+                            token: decodeToken(tokenResult.token)
+                        }
             
-            log.trace('Got NOSTR event, starting receiveFromNostrEvent', {eventId: event.id, ts: event.created_at})
+                        EventEmitter.emit('receiveTokenCompleted', result)
+                    }
+        
+                    if(error) {
+                        throw new AppError(Err.MINT_ERROR, `Error while receiving transaction: ${error.message}`)                    
+                    }
 
-            const {error, receivedAmount, sentFrom, senderPubkey} = await receiveFromNostrEvent(event)
-
-            let iconUrl: string | undefined = undefined
-
-            if(sentFrom && sentFrom?.includes(MINIBITS_NIP05_DOMAIN)) {
-                iconUrl = MINIBITS_SERVER_API_HOST + '/profile/avatar/' + senderPubkey
-            }
-
-            if(receivedAmount > 0) {
-                result = {
-                    status: TransactionStatus.COMPLETED ,
-                    title: `⚡${receivedAmount} sats received!`,
-                    message: `Coins from <b>${sentFrom}</b> are now in your wallet.`,
-                    iconUrl
+                    return
                 }
-    
-                EventEmitter.emit('receiveCompleted', result)
-            }
 
-            if(error) {
-                result = {
-                    status: TransactionStatus.ERROR ,
-                    message: `Error while receiving transaction: ${error.message}`
+
+                // check if we've got Lightning invoice to pay (transfer)
+                const maybeInvoice = findEncodedLightningInvoice(decrypted)
+                const maybeMemo = findMemo(decrypted) // wallets can not ask the mint for an invoice with custom memo and expiry, we send it inside the message
+
+                if(maybeInvoice) {
+                    log.trace('Got lightning invoice', maybeInvoice, 'checkPendingReceived')
+
+                    const invoiceResult = extractEncodedLightningInvoice(maybeInvoice) // throws
+                    
+                    const sentFrom = getTagValue(event.tags, 'from')
+                    const sentFromPubkey = event.pubkey
+                    
+                    const paymentRequest = paymentRequestsStore.addPaymentRequest(
+                        invoiceResult.invoice, 
+                        sentFrom as string, 
+                        sentFromPubkey, 
+                        maybeMemo as string
+                    )
+
+                    let picture: string | undefined = undefined
+
+                    if(sentFrom) {
+                        picture = MINIBITS_SERVER_API_HOST + '/profile/avatar/' + sentFromPubkey
+                    }    
+                    
+                    result = {
+                        status: PaymentRequestStatus.RECEIVED,
+                        title: `⚡ Please pay ${paymentRequest.amount} sats!`,                    
+                        message: `${sentFrom} has sent you a request to pay an invoice.`,
+                        memo: (maybeMemo) ? maybeMemo : paymentRequest.description,
+                        picture,
+                        paymentRequest,
+                    }
+
+                    EventEmitter.emit('receivePaymentRequest', result)
+                    return
+                }          
+                
+                return
+            } catch(e: any) {
+                const result = {
+                    status: TransactionStatus.ERROR,
+                    message: e.message
                 }
-    
-                EventEmitter.emit('receivedError', result)
+        
+                EventEmitter.emit('receiveTokenOrInvoiceError', result) // so far not used
+                log.error(e.name, e.message)
             }
-
-            // EventEmitter.emit('receiveStarted', {count: events.length})            
         })
 
         sub.on('eose', async () => {
             log.trace(`Eose: Got ${events.length} receive events`, [], 'checkPendingReceived')
-
         })
 
         
     } catch (e: any) {
-        log.error(Err.NETWORK_ERROR, e.message)
+        const result = {
+            status: TransactionStatus.ERROR,
+            message: e.message
+        }
+
+        EventEmitter.emit('receiveTokenOrInvoiceError', result) // so far not used
+        log.error(e.name, e.message)
     }
 }
 
 
-function findCashuToken(content: string) {
-    const words = content.split(/\s+/); // Split text into words
-    const encodedToken = words.find(word => word.startsWith("cashuA"))
-    return encodedToken || null
+function getTagValue(tagsArray: [string, string][], tagName: string): string | undefined {
+    const tag = tagsArray.find(([name]) => name === tagName)
+    return tag ? tag[1] : undefined
 }
 
 
-function getTagValue(tagsArray: [string, string][], tagName: string): string | null {
-    const tag = tagsArray.find(([name]) => name === tagName);
-    return tag ? tag[1] : null;
+function findMemo(message: string): string | undefined {
+    // Find the last occurrence of "memo: "
+    const lastIndex = message.lastIndexOf("memo: ")
+    
+    if (lastIndex !== -1) {        
+        const memoAfterLast = message.substring(lastIndex + 6) // skip "memo: " itself
+        return memoAfterLast;
+    } 
+        
+    return undefined    
 }
 
 
-const receiveFromNostrEvent = async function (event: NostrEvent) {    
-    try {       
-        
-        if(contactsStore.eventAlreadyReceived(event.id)) {
-            throw new AppError(Err.ALREADY_EXISTS_ERROR, 'Duplicate event, skipping...', {id: event.id})
-        }                    
-        
-        const decrypted = await NostrClient.decryptNip04(event.pubkey, event.content)
-        const encoded = findCashuToken(decrypted)
-
-        if(!encoded) {
-            throw new AppError(Err.NOTFOUND_ERROR, 'Could not extract cashu token from NOSTR message', {decrypted})
-        }
-
+const receiveFromNostrEvent = async function (encoded: string, event: NostrEvent) {    
+    try {
         const decoded: Token = decodeToken(encoded)
         const sentFrom = getTagValue(event.tags, 'from')
-        const senderPubkey = event.pubkey       
+        const sentFromPubkey = event.pubkey       
         const tokenAmounts = getTokenAmounts(decoded)
         const amountToReceive = tokenAmounts.totalAmount
         const memo = decoded.memo || ''                    
@@ -267,8 +351,9 @@ const receiveFromNostrEvent = async function (event: NostrEvent) {
         return {
             error: null,
             receivedAmount: receivedAmount,
-            sentFrom: transaction?.sentFrom || '',
-            senderPubkey,
+            memo,
+            sentFrom: sentFrom || '',
+            sentFromPubkey,
         }
 
     } catch (e: any) {
@@ -1167,7 +1252,7 @@ const transfer = async function (
     }
 
     if(isBefore(invoiceExpiry, new Date())) {
-        throw new AppError(Err.VALIDATION_ERROR, 'This invoice has already expired and can not be paid.')
+        throw new AppError(Err.VALIDATION_ERROR, 'This invoice has already expired and can not be paid.', {invoiceExpiry})
     }
 
     // create draft transaction
@@ -1392,21 +1477,19 @@ const topup = async function (
             status: TransactionStatus.DRAFT,
         }
         // store tx in db and in the model
-        const storedTransaction: TransactionRecord =
-        await transactionsStore.addTransaction(newTransaction)
+        const storedTransaction: TransactionRecord = await transactionsStore.addTransaction(newTransaction)
         transactionId = storedTransaction.id as number
 
-        const {encodedInvoice, paymentHash} =
-        await MintClient.requestLightningInvoice(mintUrl, amountToTopup)
+        const {encodedInvoice, paymentHash} = await MintClient.requestLightningInvoice(mintUrl, amountToTopup)
 
         const decodedInvoice = decodeInvoice(encodedInvoice)
         const {amount, expiry, description} = getInvoiceData(decodedInvoice)
 
         if (amount !== amountToTopup) {
-        throw new AppError(
-            Err.MINT_ERROR,
-            'Received lightning invoice amount does not equal requested top-up amount.',
-        )
+            throw new AppError(
+                Err.MINT_ERROR,
+                'Received lightning invoice amount does not equal requested top-up amount.',
+            )
         }
 
         const newInvoice: Invoice = {
@@ -1424,8 +1507,7 @@ const topup = async function (
         const invoice = invoicesStore.addInvoice(newInvoice)
 
         transactionData.push({
-            status: TransactionStatus.PENDING,
-            encodedInvoice,
+            status: TransactionStatus.PENDING,            
             invoice,
         })
 
@@ -1451,16 +1533,16 @@ const topup = async function (
         let errorTransaction: TransactionRecord | undefined = undefined
 
         if (transactionId > 0) {
-        transactionData.push({
-            status: TransactionStatus.ERROR,
-            error: _formatError(e),
-        })
+            transactionData.push({
+                status: TransactionStatus.ERROR,
+                error: _formatError(e),
+            })
 
-        errorTransaction = await transactionsStore.updateStatus(
-            transactionId,
-            TransactionStatus.ERROR,
-            JSON.stringify(transactionData),
-        )
+            errorTransaction = await transactionsStore.updateStatus(
+                transactionId,
+                TransactionStatus.ERROR,
+                JSON.stringify(transactionData),
+            )
         }
 
         log.error(e.name, e.message)

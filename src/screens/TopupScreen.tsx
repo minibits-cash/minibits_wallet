@@ -96,6 +96,10 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
     useEffect(() => {
       const focus = () => {
+        if (route.params?.amountToTopup) {
+            return
+        }
+
         amountInputRef && amountInputRef.current
           ? amountInputRef.current.focus()
           : false        
@@ -124,11 +128,12 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                     return
                 }
 
-                log.trace('prepareSendAsNostrDM')
+                
 
                 const amount = route.params?.amountToTopup
                 const contactTo = route.params?.contact
                 const relays = route.params?.relays
+
                 const {
                     pubkey,
                     npub,
@@ -147,7 +152,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                 setContactToSendFrom(contactFrom)                
                 setContactToSendTo(contactTo)                
                 setRelaysToShareTo(relays)
-                // skip showing of sharing options and set this one immediately
+                // skip showing of sharing options and set this one immediately                
                 setIsSharedAsNostrDirectMessage(true)
             }
 
@@ -157,7 +162,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     )
 
 
-    // Make sure amountToSend has been set to the state
+    // Make sure amountToTopup has been set to the state
     useEffect(() => {        
         if(isSharedAsNostrDirectMessage && parseInt(amountToTopup) > 0) {            
             onAmountEndEditing()  
@@ -253,17 +258,28 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
         setIsAmountEndEditing(true)
 
-        memoInputRef && memoInputRef.current
-          ? memoInputRef.current.focus()
-          : false
+        // Skip memo focus if it is filled / has been done already
+        if(!memo && !isMemoEndEditing) {
+            setTimeout(() => {memoInputRef && memoInputRef.current
+            ? memoInputRef.current.focus()
+            : false}, 200)
+        } else {
+            onMemoEndEditing()
+        }
       } catch (e: any) {
         handleError(e)
       }
     }
+    
 
     const onMemoEndEditing = function () {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-      setIsMemoEndEditing(true)
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+        setIsMemoEndEditing(true)
+
+        // On payment to selected contact we skip showing sharing options, continue immediately
+        if(isSharedAsNostrDirectMessage) {
+            onShareAsNostrDM()
+        }
     }
 
     const onMemoDone = function () {
@@ -402,29 +418,25 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     }
 
     const requestTopup = async function () {
-      setIsLoading(true)
+        setIsLoading(true)
 
-      let updatedMemo: string = ''
-      if(isSharedAsNostrDirectMessage && memo === '') {
-          updatedMemo = `Sent from ${contactToSendFrom?.name}`
-      }
+        
+        const result = await Wallet.topup(
+            mintBalanceToTopup as MintBalance,
+            parseInt(amountToTopup),
+            memo,
+        )
 
-      const result = await Wallet.topup(
-        mintBalanceToTopup as MintBalance,
-        parseInt(amountToTopup),
-        memo || updatedMemo,
-      )
+        const {status, id} = result.transaction as Transaction
+        setTransactionStatus(status)
+        setTransactionId(id)
 
-      const {status, id} = result.transaction as Transaction
-      setTransactionStatus(status)
-      setTransactionId(id)
+        if (result.encodedInvoice) {
+            setInvoiceToPay(result.encodedInvoice)
+        }
 
-      if (result.encodedInvoice) {
-        setInvoiceToPay(result.encodedInvoice)
-      }
-
-      setIsLoading(false)
-      return result
+        setIsLoading(false)
+        return result
     }
 
 
@@ -436,7 +448,11 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
             // log.trace('', {senderPrivkey, senderPubkey, receiverPubkey}, 'sendAsNostrDM')
             const message = `nostr:${walletProfileStore.npub} sent you Lightning invoice for ${amountToTopup} sats from Minibits wallet!`
-            const content = message + '\n' + invoiceToPay
+            let content = message + ' \n' + invoiceToPay + ' \n'
+
+            if (memo) {
+                content += `memo: ${memo}`
+            }
 
             const encryptedContent = await NostrClient.encryptNip04(                
                 receiverPubkey as string, 
@@ -474,8 +490,8 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                 
                 const updated = JSON.parse(transaction.data)
 
-                updated[2].sentToRelays = relaysToShareTo
-                updated[2].sentEvent = sentEvent    
+                updated[1].sentToRelays = relaysToShareTo
+                updated[1].sentEvent = sentEvent    
                 
                 await transactionsStore.updateStatus( // status does not change, just add event and relay info to tx.data
                     transactionId,
@@ -618,7 +634,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
               style={$card}
               ContentComponent={
                 <>
-                  {/*<ListItem
+                  {<ListItem
                     tx="topupScreen.sendInvoiceToContact"
                     subTx="topupScreen.sendInvoiceToContactDescription"
                     leftIcon='faAddressCard'
@@ -626,8 +642,8 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                     leftIconInverse={true}
                     style={$item}
                     bottomSeparator={true}
-                    onPress={() => Alert.alert('Work is already in progress')}
-                   />*/}
+                    onPress={onShareAsNostrDM}
+                   />}
                   <ListItem
                     tx="topupScreen.showInvoiceQRCode"
                     subTx="topupScreen.showInvoiceQRCodeDescription"

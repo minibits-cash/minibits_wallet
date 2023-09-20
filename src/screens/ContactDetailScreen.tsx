@@ -20,7 +20,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
   function ContactScreen({route, navigation}) {
     const {contact, relays} = route.params
     const amountToSendInputRef = useRef<TextInput>(null)
-    const amountToTopupInputRef = useRef<TextInput>(null)    
+    const amountToRequestInputRef = useRef<TextInput>(null)    
     const {proofsStore, contactsStore} = useStores()
 
     useHeader({        
@@ -34,7 +34,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
     const [amountToTopup, setAmountToTopup] = useState('')
     const [availableBalance, setAvailableBalance] = useState(0)
     const [isSendModalVisible, setIsSendModalVisible] = useState(false)
-    const [isTopupModalVisible, setIsTopupModalVisible] = useState(false)    
+    const [isRequestModalVisible, setIsRequestModalVisible] = useState(false)    
     const [isContactModalVisible, setIsContactModalVisible] = useState(false) 
     const [info, setInfo] = useState('')    
     const [error, setError] = useState<AppError | undefined>()
@@ -46,9 +46,9 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
             : false
         }
 
-        const focusTopup = () => {
-            amountToTopupInputRef && amountToTopupInputRef.current
-            ? amountToTopupInputRef.current.focus()
+        const focusRequest = () => {
+            amountToRequestInputRef && amountToRequestInputRef.current
+            ? amountToRequestInputRef.current.focus()
             : false
         }
   
@@ -56,8 +56,8 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
           setTimeout(() => focusSend(), 100)
         }
   
-        if (isTopupModalVisible) {
-            setTimeout(() => focusTopup(), 100)
+        if (isRequestModalVisible) {
+            setTimeout(() => focusRequest(), 100)
         }
     }, [isSendModalVisible])
 
@@ -81,8 +81,8 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
         setIsSendModalVisible(previousState => !previousState)
     }
 
-    const toggleTopupModal = () => {
-        setIsTopupModalVisible(previousState => !previousState)
+    const toggleRequestModal = () => {
+        setIsRequestModalVisible(previousState => !previousState)
     }
 
     const onCopyNpub = function () {        
@@ -128,13 +128,13 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
     }
 
 
-    const onRequestTopup = async function () {  
+    const onPaymentRequest = async function () {  
         if(parseInt(amountToTopup) === 0) {
             setInfo('Amount should be positive number.')
             return
         }
 
-        toggleTopupModal()
+        toggleRequestModal()
 
         try {
             if(contact.nip05) {
@@ -220,7 +220,13 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                 <Button 
                     preset='default'
                     onPress={toggleSendModal}
-                    text={`Send sats to ${name}`}
+                    text={`Send coins`}
+                    style={{marginRight: spacing.medium}}
+                />
+                <Button 
+                    preset='default'
+                    onPress={toggleRequestModal}
+                    text={`Request coins`}
                 />
             </View> 
         </View>
@@ -294,7 +300,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                             keyboardType='numeric'
                             maxLength={9}                            
                             selectTextOnFocus={true}
-                            style={[$amountInput]}                        
+                            style={[$amountInput, {backgroundColor: inputBg,  minWidth: 200, marginTop: spacing.medium}]}                        
                         />
 
                     </View>
@@ -318,22 +324,22 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
           onBackdropPress={toggleSendModal}
         />
         <BottomModal
-          isVisible={isTopupModalVisible ? true : false}
+          isVisible={isRequestModalVisible ? true : false}
           top={spacing.screenHeight * 0.26}
           ContentComponent={
                 <View style={$payContainer}>
-                    <Text text={`Request ${name} to pay invoice`} preset="subheading" />
+                    <Text text={`Request ${name} to pay`} preset="subheading" />
                     <Text text={`Send Lightning invoice to your contact. If paid, coins will topup your wallet balance`} size='xs' style={{color: balanceColor}} />                   
                     <View style={{alignItems: 'center'}}>
                         <TextInput
-                            ref={amountToTopupInputRef}
+                            ref={amountToRequestInputRef}
                             onChangeText={(value) => setAmountToTopup(value)}
                             value={amountToTopup}
                             autoCapitalize='none'
                             keyboardType='numeric'
                             maxLength={9}                            
                             selectTextOnFocus={true}
-                            style={[$amountInput]}                        
+                            style={[$amountInput, {backgroundColor: inputBg, minWidth: 200, marginTop: spacing.medium}]}                        
                         />
 
                     </View>
@@ -341,13 +347,13 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                         <Button
                             text='Continue'
                             style={$sendButton}
-                            onPress={onRequestTopup}                                
+                            onPress={onPaymentRequest}                                
                         /> 
                     </View>                                 
                 </View>
           }
-          onBackButtonPress={toggleTopupModal}
-          onBackdropPress={toggleTopupModal}
+          onBackButtonPress={toggleRequestModal}
+          onBackdropPress={toggleRequestModal}
         />
         {info && <InfoModal message={info} />}
         {error && <ErrorModal error={error} />}

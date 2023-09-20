@@ -11,7 +11,7 @@ import {Token} from '../models/Token'
 import {useHeader} from '../utils/useHeader'
 import {log} from '../utils/logger'
 import AppError, {Err} from '../utils/AppError'
-import {decodeInvoice, decodeToken} from '../services/cashuHelpers'
+import {decodeInvoice, decodeToken, extractEncodedCashuToken, extractEncodedLightningInvoice} from '../services/cashuHelpers'
 
 const hasAndroidCameraPermission = async () => {
     const cameraPermission = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA)
@@ -50,28 +50,26 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
         switch (prevRouteName) {
             case 'Receive':
                 const tokenResult = handleToken(scanned)
-                if (tokenResult.isToken) {
+                if (tokenResult && tokenResult.token) {
                     log.trace('Got token')
                     return navigation.navigate('Receive', {
                         scannedEncodedToken: tokenResult.token,
                     })
-                }
-                handleError(scanned, 'This is not a valid cashu token')
+                }                
                 break
             case 'Transfer':
                 const invoiceResult = handleInvoice(scanned)
-                if (invoiceResult.isInvoice) {
+                if (invoiceResult && invoiceResult.isInvoice) {
                     log.trace('Got invoice')
                     return navigation.navigate('Transfer', {
                         scannedEncodedInvoice: invoiceResult.invoice,
                     })
-                }
-                handleError(scanned, 'This is not a valid lightning invoice')
+                }                
                 break
             default:
                 // generic scan button on wallet screen
                 const tokenResult2 = handleToken(scanned)
-                if (tokenResult2.isToken) {
+                if (tokenResult2 && tokenResult2.isToken) {
                     log.trace('Got token')
                     return navigation.navigate('Receive', {
                         scannedEncodedToken: tokenResult2.token,
@@ -81,7 +79,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
 
                 const invoiceResult2 = handleInvoice(scanned)
                 
-                if (invoiceResult2.isInvoice) {
+                if (invoiceResult2 && invoiceResult2.isInvoice) {
                     log.trace('Got invoice')
                     return navigation.navigate('Transfer', {
                         scannedEncodedInvoice: invoiceResult2.invoice,
@@ -91,7 +89,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                 // this handles scanning from both WalletScreen and MintsScreen,
                 // can't get prevRouteName 'Mints' as it belongs to different navigator
                 const mintResult = handleMintUrl(scanned)                
-                if (mintResult.isMintUrl) {
+                if (mintResult && mintResult.isMintUrl) {
                     log.trace('Got mintUrl')
                     return navigation.navigate('Wallet', {
                         scannedMintUrl: mintResult.mintUrl,
@@ -105,66 +103,23 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
         }
     }           
 
+
     const handleToken = function (scanned: string) {
         try {
-            let validToken: Token | undefined = undefined
-
-            // URL token format
-            const urlToken: string = extractTokenFromURL(scanned) as string
-
-            if (urlToken) {
-                validToken = decodeToken(urlToken) //throws
-
-                return {
-                    isToken: true,
-                    token: urlToken,
-                }
-            }
-
-            // raw encoded token
-            const token: Token = decodeToken(scanned) // throws
-
-            return {
-                isToken: true,
-                token: scanned,
-            }
+            const encoded = extractEncodedCashuToken(scanned)
+            return encoded
         } catch (tokenError: any) {
-            return {
-                isToken: false,
-                error: tokenError.message,
-            }
+            handleError(scanned, tokenError.message)
         }
     }
 
 
     const handleInvoice = function (scanned: string) {
         try {
-            // Attempt to decode the scanned content as a lightning invoice
-            let invoice: any = {}
-
-            if (scanned.startsWith('lightning:')) {
-                const trimmed = scanned.replace('lightning:', '')
-                invoice = decodeInvoice(trimmed) // throws
-                
-                return {
-                    isInvoice: true,
-                    invoice: trimmed,
-                }
-                
-            } else {
-                invoice = decodeInvoice(scanned)
-
-                return {
-                    isInvoice: true,
-                    invoice: scanned
-                }
-    
-            }
+            const invoice = extractEncodedLightningInvoice(scanned)
+            return invoice
         } catch (invoiceError: any) {
-            return {
-                isInvoice: false,
-                error: invoiceError.message,
-            }
+            handleError(scanned, invoiceError.message)
         }
     }
 
@@ -177,10 +132,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                 mintUrl
             }        
         } catch (urlError: any) {
-            return {
-                isMintUrl: false,
-                error: urlError.message,
-            }
+            handleError(mintUrl, urlError.message)
         }
     }
 
@@ -193,20 +145,6 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
       ])
     }
 
-    const extractTokenFromURL = (url: string) => {
-        try {
-            const parsedURL = new URL(url)
-            const tokenParam = parsedURL.searchParams.get('token')
-
-            if (tokenParam) {
-                return tokenParam
-            }
-
-            return undefined // No token parameter found
-        } catch (e: any) {
-            return undefined // Invalid URL
-        }
-    }
 
     return (shouldLoad ? (
         <CameraScreen

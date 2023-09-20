@@ -1,12 +1,13 @@
 export * from './WelcomeScreen'
 
-// TabNavigator
+// WalletNavigator
 export * from './WalletScreen'
 export * from './ReceiveScreen'
 export * from './SendScreen'
 export * from './ScanScreen'
 export * from './TranDetailScreen'
 export * from './TranHistoryScreen'
+export * from './PaymentRequestsScreen'
 export * from './TransferScreen'
 export * from './TopupScreen'
 

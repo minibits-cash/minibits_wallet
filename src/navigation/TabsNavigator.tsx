@@ -26,6 +26,7 @@ import {
   LocalRecoveryScreen,
   TranDetailScreen, 
   TranHistoryScreen,
+  PaymentRequestsScreen,
   TransferScreen,
   TopupScreen,
   OwnKeysScreen,
@@ -34,6 +35,7 @@ import { Contact } from "../models/Contact"
 import { colors, useThemeColor, spacing, typography } from "../theme"
 import { AppStackParamList, AppStackScreenProps } from "./AppNavigator"
 import { MintBalance } from "../models/Mint"
+import { PaymentRequest } from "../models/PaymentRequest"
 
 
 export type TabsParamList = {
@@ -110,8 +112,9 @@ export type WalletStackParamList = {
     Send: {amountToSend?: string, contact?: Contact, relays?: string[]}
     Scan: undefined
     TranDetail: {id: number}
-    TranHistory: undefined 
-    Transfer: {availableMintBalances?: MintBalance[], scannedEncodedInvoice? : string, donationEncodedInvoice? : string}
+    TranHistory: undefined
+    PaymentRequests: undefined 
+    Transfer: {availableMintBalances?: MintBalance[], scannedEncodedInvoice? : string, donationEncodedInvoice? : string, paymentRequest? : PaymentRequest}
     Topup: {availableMintBalances?: MintBalance[], amountToTopup?: string, contact?: Contact, relays?: string[]}
     ContactsNavigator: {screen: string, params: any}
     SettingsNavigator: {screen: string, params: any}
@@ -139,6 +142,7 @@ const WalletNavigator = function WalletNavigator() {
         <WalletStack.Screen name="Scan" component={ScanScreen} />
         <WalletStack.Screen name="TranDetail" component={TranDetailScreen} />
         <WalletStack.Screen name="TranHistory" component={TranHistoryScreen} />
+        <WalletStack.Screen name="PaymentRequests" component={PaymentRequestsScreen} />
         <WalletStack.Screen name="Transfer" component={TransferScreen} />
         <WalletStack.Screen name="Topup" component={TopupScreen} />
     </WalletStack.Navigator>

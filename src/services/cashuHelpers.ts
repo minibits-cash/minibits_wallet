@@ -8,6 +8,8 @@ import AppError, {Err} from '../utils/AppError'
 import {Token} from '../models/Token'
 import {TokenEntry} from '../models/TokenEntry'
 import {Proof} from '../models/Proof'
+import addSeconds from 'date-fns/addSeconds'
+import { log } from '../utils/logger'
 
 
 export type DecodedLightningInvoice = {
@@ -16,6 +18,56 @@ export type DecodedLightningInvoice = {
   readonly expiry: any
   readonly route_hints: any[]
 }
+
+
+export const findEncodedCashuToken = function (content: string) {
+    const words = content.split(/\s+|\n+/) // Split text into words
+    const maybeToken = words.find(word => word.includes("cashuA"))
+    return maybeToken || null
+}
+
+
+export const extractEncodedCashuToken = function (maybeToken: string) {
+    
+    let validToken: Token | undefined = undefined
+
+    // URL token format
+    const urlToken: string | undefined = extractTokenFromURL(maybeToken) as string
+
+    if (urlToken) {
+        validToken = decodeToken(urlToken) //throws
+        return {
+            isToken: true,
+            token: urlToken,
+        }
+    }
+
+    // raw encoded token
+    validToken = decodeToken(maybeToken) // throws
+
+    return {
+        isToken: true,
+        token: maybeToken, // we still return encoded token
+    }
+}
+
+
+const extractTokenFromURL = (url: string) => {
+    try {
+        const parsedURL = new URL(url)
+        const tokenParam = parsedURL.searchParams.get('token')
+
+        if (tokenParam) {
+            return tokenParam
+        }
+
+        return undefined // No token parameter found
+    } catch (e: any) {
+        return undefined // Invalid URL
+    }
+}
+
+
 
 export const decodeToken = function (encoded: string): Token {
   try {
@@ -30,6 +82,38 @@ export const decodeToken = function (encoded: string): Token {
   }
 }
 
+
+export const findEncodedLightningInvoice = function (content: string) {
+    const words = content.split(/\s+|\n+/)
+    const maybeInvoice = words.find(word => word.includes("lnbc"))
+    return maybeInvoice || null
+}
+
+
+export const extractEncodedLightningInvoice = function (maybeInvoice: string) {    
+    // Attempt to decode the scanned content as a lightning invoice
+    let invoice: any = {}
+
+    if (maybeInvoice.startsWith('lightning:')) {
+        const trimmed = maybeInvoice.replace('lightning:', '')
+        invoice = decodeInvoice(trimmed) // throws
+        
+        return {
+            isInvoice: true,
+            invoice: trimmed,
+        }
+        
+    } else {
+        invoice = decodeInvoice(maybeInvoice) // throws
+
+        return {
+            isInvoice: true,
+            invoice: maybeInvoice
+        }
+    }
+}
+
+
 export const decodeInvoice = function (encoded: string): DecodedLightningInvoice {
   try {
     const decoded = getDecodedLnInvoice(encoded)
@@ -43,21 +127,36 @@ export const decodeInvoice = function (encoded: string): DecodedLightningInvoice
   }
 }
 
+
+export const getInvoiceExpiresAt = function (timestamp: number, expiry: number): Date {
+    const expiresAt = addSeconds(new Date(timestamp as number * 1000), expiry as number)
+    return expiresAt   
+}
+
 export const getInvoiceData = function (decoded: DecodedLightningInvoice) {
-  const result: {amount?: number; description?: string; expiry?: number} = {}
+  let result: {amount?: number; description?: string; expiry?: number, payment_hash?: string, timestamp?: number} = {}
 
   for (const item of decoded.sections) {
     switch (item.name) {
-      case 'amount':
-        result.amount = parseInt(item.value) / 1000 //sats
-        break
-      case 'description':
-        result.description = (item.value as string) || ''
-        break
+        case 'amount':
+            result.amount = parseInt(item.value) / 1000 //sats
+            break
+        case 'description':
+            result.description = (item.value as string) || ''
+            break
+        case 'payment_hash':
+            result.payment_hash = (Buffer.from(item.value).toString('hex') as string) || ''
+            break
+        case 'timestamp':
+            result.timestamp = (item.value as number) || Math.floor(Date.now() / 1000) 
+            break
     }
   }
 
-  result.expiry = decoded.expiry
+  result.expiry = decoded.expiry || 600
+
+  log.trace('Invoice data', result, 'getInvoiceData')
+   
   return result
 }
 

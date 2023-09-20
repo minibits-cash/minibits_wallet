@@ -312,6 +312,17 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         handleError(e)
       }
     }
+    
+
+    const onMemoEndEditing = function () {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+      setIsMemoEndEditing(true)
+
+      // On payment to selected contact we skip showing sharing options, continue immediately
+      if(isSharedAsNostrDirectMessage) {
+        onShareAsNostrDM()
+      }
+    }
 
 
     const onMemoDone = function () {
@@ -328,17 +339,6 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             ? amountInputRef.current.focus()
             : false
         }
-      }
-
-
-    const onMemoEndEditing = function () {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-      setIsMemoEndEditing(true)
-
-      // On payment to selected contact we skip showing sharing options, continue immediately
-      if(isSharedAsNostrDirectMessage) {
-        onShareAsNostrDM()
-      }
     }
 
 
@@ -497,7 +497,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
             // log.trace('', {senderPrivkey, senderPubkey, receiverPubkey}, 'sendAsNostrDM')
             const message = `nostr:${walletProfileStore.npub} sent you ${amountToSend} sats from Minibits wallet!`
-            const content = message + '\n' + encodedTokenToSend
+            const content = message + ' \n' + encodedTokenToSend
 
             const encryptedContent = await NostrClient.encryptNip04(                
                 receiverPubkey as string, 

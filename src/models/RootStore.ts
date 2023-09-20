@@ -5,6 +5,7 @@ import {TransactionsStoreModel} from './TransactionsStore'
 import {UserSettingsStoreModel} from './UserSettingsStore'
 import {WalletProfileStoreModel} from './WalletProfileStore'
 import {InvoicesStoreModel} from './InvoicesStore'
+import {PaymentRequestsStoreModel} from './PaymentRequestsStore'
 import {ProofsStoreModel} from './ProofsStore'
 
 export const rootStoreModelVersion = 4 // Update this if model changes require migrations defined in setupRootStore.ts
@@ -21,6 +22,7 @@ export const RootStoreModel = types
         userSettingsStore: types.optional(UserSettingsStoreModel, {}),
         walletProfileStore: types.optional(WalletProfileStoreModel, {}),                
         invoicesStore: types.optional(InvoicesStoreModel, {}),
+        paymentRequestsStore: types.optional(PaymentRequestsStoreModel, {}),
         proofsStore: types.optional(ProofsStoreModel, {}),
         version: types.optional(types.number, rootStoreModelVersion),
     })
