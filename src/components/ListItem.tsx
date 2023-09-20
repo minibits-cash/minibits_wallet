@@ -1,3 +1,4 @@
+import { verticalScale } from "@gocodingnow/rn-size-matters"
 import React, { ReactElement } from "react"
 import { ColorValue, useColorScheme } from "react-native"
 import {
@@ -122,7 +123,7 @@ export function ListItem(props: ListItemProps) {
   const {
     bottomSeparator,
     children,
-    height = 56,
+    height = verticalScale(56),
     LeftComponent,
     leftIcon,
     leftIconColor = useThemeColor('textDim'),

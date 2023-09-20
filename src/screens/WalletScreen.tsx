@@ -603,16 +603,16 @@ const PromoBlock = function (props: {addMint: any}) {
                 </RNText>
             </View>
             }
-            style={$card}
+            style={[$card, {marginHorizontal: spacing.extraSmall}]}
             FooterComponent={
             <View style={{alignItems: 'center'}}>
                 <Button
-                preset='default'
-                onPress={props.addMint}
-                text='Add your first mint'
+                    preset='default'
+                    onPress={props.addMint}
+                    text='Add your first mint'
                 />
             </View>
-            }
+            }            
         />
     )
 }
@@ -745,7 +745,7 @@ const $card: ViewStyle = {
 
 const $cardHeading: TextStyle = {
   fontFamily: typography.primary?.normal,
-  fontSize: 18,
+  fontSize: verticalScale(18),
 }
 
 const $promoIconContainer: ViewStyle = {
@@ -775,7 +775,7 @@ const $balanceContainer: ViewStyle = {
 }
 
 const $balance: TextStyle = {
-  fontSize: 20,
+  fontSize: verticalScale(20),
   fontFamily: typography.primary?.medium,
 }
 

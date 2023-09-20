@@ -1,3 +1,4 @@
+import { verticalScale } from "@gocodingnow/rn-size-matters"
 import React, { ComponentType, Fragment, ReactElement } from "react"
 import {
   StyleProp,
@@ -252,7 +253,7 @@ const $containerBase: ViewStyle = {
   shadowOpacity: 0.2,
   shadowRadius: 8,
   elevation: 5,
-  minHeight: 86,
+  minHeight: verticalScale(86),
   flexDirection: "row",
 }
 
