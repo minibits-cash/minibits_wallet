@@ -10,6 +10,7 @@ import {
     SENTRY_ACTIVE, 
 } from '@env'
 import codePush from 'react-native-code-push'
+import FlashMessage from "react-native-flash-message"
 import {
   initialWindowMetrics,
   SafeAreaProvider,
@@ -73,6 +74,7 @@ function App(props: AppProps) {
         <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <ErrorBoundary catchErrors={Config.catchErrors}>
             <AppNavigator />
+            <FlashMessage position='bottom' />
         </ErrorBoundary>
         </SafeAreaProvider>
     )

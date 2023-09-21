@@ -9,6 +9,7 @@ import { Icon, Text } from "../components"
 import { translate } from "../i18n"
 import { 
   WalletScreen, 
+  ReceiveOptionsScreen,
   ReceiveScreen, 
   SendScreen, 
   ScanScreen, 
@@ -108,14 +109,15 @@ export function TabsNavigator() {
 
 export type WalletStackParamList = {  
     Wallet: {scannedMintUrl? : string}
-    Receive: {scannedEncodedToken? : string}
+    ReceiveOptions: undefined
+    Receive: {encodedToken? : string}
     Send: {amountToSend?: string, contact?: Contact, relays?: string[]}
     Scan: undefined
     TranDetail: {id: number}
     TranHistory: undefined
     PaymentRequests: undefined 
     Transfer: {availableMintBalances?: MintBalance[], scannedEncodedInvoice? : string, donationEncodedInvoice? : string, paymentRequest? : PaymentRequest}
-    Topup: {availableMintBalances?: MintBalance[], amountToTopup?: string, contact?: Contact, relays?: string[]}
+    Topup: {contact?: Contact, relays?: string[]}
     ContactsNavigator: {screen: string, params: any}
     SettingsNavigator: {screen: string, params: any}
 }
@@ -137,6 +139,7 @@ const WalletNavigator = function WalletNavigator() {
         }}
     >        
         <WalletStack.Screen name="Wallet" component={WalletScreen} />
+        <WalletStack.Screen name="ReceiveOptions" component={ReceiveOptionsScreen} />
         <WalletStack.Screen name="Receive" component={ReceiveScreen} />
         <WalletStack.Screen name="Send" component={SendScreen} />
         <WalletStack.Screen name="Scan" component={ScanScreen} />

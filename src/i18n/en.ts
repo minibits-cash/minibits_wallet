@@ -60,12 +60,12 @@ const en = {
     },
     toReceive: "Amount to receive",
     received: "Amount received:",
-    sharePaymentRequest: "Request to pay",
+    sharePaymentRequest: "Send payment request",
     sharePaymentRequestDescription: "Send payment request to one of your contacts, so that the payer can pay you exact amount.",
-    scanQRCodeToReceive: "Scan QR code to receive",
-    scanQRCodeToReceiveDescription: "If you are presented the coins in QR code format on another device, scan it to receive.",
-    pasteFromClipboard: "Paste from clipboard",
-    pasteFromClipboardDescription: "If you've received your coins through any other app, paste them here to receive."    
+    scanOrPasteToReceive: "Paste or scan ecash to receive",
+    scanOrPasteToReceiveDescription: "If you have copied the ecash or see it as a QR code on another device, tap to receive.",
+    showOrShareInvoice: "Show lightning invoice",
+    showOrShareInvoiceDescription: "Present or share lightning invoice for an amount you want to receive."    
   },
   transferScreen: {
     pasteLightningInvoice: "Paste lightning invoice",

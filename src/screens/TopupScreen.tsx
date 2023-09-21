@@ -45,6 +45,7 @@ import {Invoice} from '../models/Invoice'
 import { useFocusEffect } from '@react-navigation/native'
 import { Contact } from '../models/Contact'
 import { getImageSource } from '../utils/utils'
+import { showMessage } from 'react-native-flash-message'
 
 if (
   Platform.OS === 'android' &&
@@ -70,7 +71,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     const [contactToSendTo, setContactToSendTo] = useState<Contact| undefined>()        
     const [relaysToShareTo, setRelaysToShareTo] = useState<string[]>([])
     const [memo, setMemo] = useState('')
-    const [availableMintBalances, setAvailableMintBalances] = useState<MintBalance[]>(route.params.availableMintBalances || [])
+    const [availableMintBalances, setAvailableMintBalances] = useState<MintBalance[]>([])
     const [mintBalanceToTopup, setMintBalanceToTopup] = useState<MintBalance | undefined>(undefined)
     const [transactionStatus, setTransactionStatus] = useState<TransactionStatus | undefined>()
     const [transactionId, setTransactionId] = useState<number | undefined>()
@@ -94,32 +95,10 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     const [isNostrDMSending, setIsNostrDMSending] = useState(false)
     const [isNostrDMSuccess, setIsNostrDMSuccess] = useState(false) 
 
-    useEffect(() => {
-      const focus = () => {
-        if (route.params?.amountToTopup) {
-            return
-        }
-
-        amountInputRef && amountInputRef.current
-          ? amountInputRef.current.focus()
-          : false        
-      }
-      const timer = setTimeout(() => focus(), 500)
-
-      return () => {
-        clearTimeout(timer)
-      }
-    }, [])
-
-
     // Send to contact
     useFocusEffect(
         useCallback(() => {
             const prepareSendAsNostrDM = () => {
-                if (!route.params?.amountToTopup) {
-                    return
-                }
-
                 if (!route.params?.contact) {
                     return
                 }
@@ -128,9 +107,6 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                     return
                 }
 
-                
-
-                const amount = route.params?.amountToTopup
                 const contactTo = route.params?.contact
                 const relays = route.params?.relays
 
@@ -147,8 +123,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                     name,
                     picture
                 }
-
-                setAmountToTopup(amount)                
+                     
                 setContactToSendFrom(contactFrom)                
                 setContactToSendTo(contactTo)                
                 setRelaysToShareTo(relays)
@@ -158,17 +133,8 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
             prepareSendAsNostrDM()
             
-        }, [route.params?.amountToTopup, route.params?.contact, route.params?.relays]),
+        }, [route.params?.contact, route.params?.relays]),
     )
-
-
-    // Make sure amountToTopup has been set to the state
-    useEffect(() => {        
-        if(isSharedAsNostrDirectMessage && parseInt(amountToTopup) > 0) {            
-            onAmountEndEditing()  
-        }      
-              
-    }, [amountToTopup, isSharedAsNostrDirectMessage])
 
 
     useEffect(() => {
@@ -203,57 +169,38 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
       }
     }, [transactionId])
 
-    const toggleShareModal = () =>
-      setIsShareModalVisible(previousState => !previousState)
-    const toggleQRModal = () =>
-      setIsQRModalVisible(previousState => !previousState)
-    const toggleNostrDMModal = () =>
-      setIsNostrDMModalVisible(previousState => !previousState)
-    const toggleResultModal = () =>
-      setIsResultModalVisible(previousState => !previousState)
+
+    const toggleQRModal = () => setIsQRModalVisible(previousState => !previousState)
+    const toggleNostrDMModal = () => setIsNostrDMModalVisible(previousState => !previousState)
+    const toggleResultModal = () => setIsResultModalVisible(previousState => !previousState)
+
 
     const onAmountEndEditing = function () {
       try {
         const amount = parseInt(amountToTopup)
 
         if (!amount || amount === 0) {
-          setInfo('Amount should be positive number')
-          return
-        }
-
-        const availableAllBalances = proofsStore.getBalances().mintBalances
-
-        if (availableAllBalances.length === 0) {
-            setInfo(
-              'There is no mint connected to your wallet that you would receive your coins from. Add the mint first.',
-            )
+            showMessage({
+                message: 'Amount should be positive number.',                
+            })          
             return
         }
 
-        // Filtered by the balances passed in props
-        let availableFilteredBalances: MintBalance[] = []
+        const availableBalances = proofsStore.getBalances().mintBalances
 
-        // Resulting balances to select from
-        let availableBalances: MintBalance[] = []
- 
-        if(availableMintBalances.length > 0) {
-            availableFilteredBalances = availableAllBalances.filter((b) => availableMintBalances.find(f => f.mint === b.mint ))
-            log.trace('Filtered', availableFilteredBalances)
+        if (availableBalances.length === 0) {
+            showMessage({
+                message: 'Add the mint first.',
+                description: 'There is no mint connected to your wallet that you would receive your coins from. '
+            })
+            return
         }
-
-        if (availableFilteredBalances.length > 0) {
-            availableBalances = availableFilteredBalances
-        } else {
-            availableBalances = availableAllBalances
-        }
-
-        log.trace('onAmountEndEditing() availableBalances', availableBalances.length)
 
         setAvailableMintBalances(availableBalances)
 
         // Set mint to send from immediately if only one is available
         if (availableBalances.length === 1) {
-          setMintBalanceToTopup(availableBalances[0])
+            setMintBalanceToTopup(availableBalances[0])
         }
 
         setIsAmountEndEditing(true)
@@ -277,9 +224,9 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         setIsMemoEndEditing(true)
 
         // On payment to selected contact we skip showing sharing options, continue immediately
-        if(isSharedAsNostrDirectMessage) {
+        /* if(isSharedAsNostrDirectMessage) {
             onShareAsNostrDM()
-        }
+        } */
     }
 
     const onMemoDone = function () {
@@ -299,21 +246,6 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     }
 
 
-    const onShareAsText = async function () {
-      // if tx has been already executed, re-open SendModal
-      if (transactionStatus === TransactionStatus.PENDING) {
-        toggleShareModal() // open
-        return
-      }
-
-      setIsSharedAsText(true)
-      setIsSharedAsQRCode(false)
-      setIsSharedAsNostrDirectMessage(false)
-      // pass share kind directly to avoid delayed state update
-      return onShare('TEXT')
-    }
-
-
     const onShareAsQRCode = async function () {
       // if tx has been already executed, re-open QRCodeModal
       if (transactionStatus === TransactionStatus.PENDING) {
@@ -329,7 +261,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     }
 
 
-    const onShareAsNostrDM = function () {
+    /* const onShareAsNostrDM = function () {
         // Tap on Send to contact option after send completed        
         if (transactionStatus === TransactionStatus.PENDING) { 
             toggleNostrDMModal()   
@@ -346,47 +278,42 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
         // Tap on Send to contact after setting amount and memo
         navigation.navigate('ContactsNavigator', {screen: 'Contacts', params: {amountToTopup}})
-    }
+    } */
 
-    const onShare = async function (as: 'TEXT' | 'QRCODE' | 'NOSTRDM'): Promise<void> {
-      if (amountToTopup.length === 0) {
-        setInfo('Provide the top-up amount')
-        return
-      }
-
-      // Skip mint modal and send immediately if only one mint is available
-      if (availableMintBalances.length === 1) {
-        const result = await requestTopup()
-
-        if (result.error) {
-          setResultModalInfo({
-            status: result.transaction?.status as TransactionStatus,
-            message: result.error.message,
-          })
-          setIsResultModalVisible(true)
-          return
+    const onShare = async function (as: 'QRCODE' | 'NOSTRDM'): Promise<void> {
+        if (amountToTopup.length === 0) {
+            setInfo('Provide the top-up amount')
+            return
         }
 
-        if (as === 'TEXT') {
-          toggleShareModal()
+        // Skip mint modal and send immediately if only one mint is available
+        if (availableMintBalances.length === 1) {
+            const result = await requestTopup()
+
+            if (result.error) {
+                setResultModalInfo({
+                    status: result.transaction?.status as TransactionStatus,
+                    message: result.error.message,
+                })
+                setIsResultModalVisible(true)
+                return
+            }
+
+            if (as === 'QRCODE') {
+            toggleQRModal()
+            }
+
+            if (as === 'NOSTRDM') {
+                toggleNostrDMModal()
+            }
+            return
         }
 
-        if (as === 'QRCODE') {
-          toggleQRModal()
-        }
-
-        if (as === 'NOSTRDM') {
-            toggleNostrDMModal()
-        }
-        return
-      }
-
-      // Pre-select mint with highest balance and show mint modal to confirm which mint to send from
-      if(!mintBalanceToTopup) {
-        setMintBalanceToTopup(availableMintBalances[0])
-      }      
-      setIsMintSelectorVisible(true)
-      // toggleMintModal() // open
+        // Pre-select mint with highest balance
+        if(!mintBalanceToTopup) {
+            setMintBalanceToTopup(availableMintBalances[0])
+        }      
+        setIsMintSelectorVisible(true)        
     }
 
     const onMintBalanceSelect = function (balance: MintBalance) {
@@ -405,8 +332,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
           setIsResultModalVisible(true)
           return
         }
-
-        isSharedAsText && toggleShareModal() // open
+        
         isSharedAsQRCode && toggleQRModal() // open
         isSharedAsNostrDirectMessage && toggleNostrDMModal() 
       }
@@ -419,7 +345,6 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
     const requestTopup = async function () {
         setIsLoading(true)
-
         
         const result = await Wallet.topup(
             mintBalanceToTopup as MintBalance,
@@ -520,17 +445,13 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
           message: invoiceToPay as string,
         })
 
-        if (result.action === Share.sharedAction) {
-          toggleShareModal()
+        if (result.action === Share.sharedAction) {          
           setTimeout(
-            () =>
-              setInfo(
-                'Lightning invoice has been shared, waiting to be paid by receiver',
-              ),
+            () => showMessage({message: 'Lightning invoice has been shared, waiting to be paid by receiver'}),              
             500,
           )
         } else if (result.action === Share.dismissedAction) {
-          setInfo('Sharing cancelled')
+            showMessage({message: 'Sharing cancelled'})          
         }
       } catch (e: any) {
         handleError(e)
@@ -628,86 +549,34 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                 />
               </View>
             }
-          />
-          {isAmountEndEditing && isMemoEndEditing && !isMintSelectorVisible && (
-            <Card
-              style={$card}
-              ContentComponent={
-                <>
-                  {<ListItem
-                    tx="topupScreen.sendInvoiceToContact"
-                    subTx="topupScreen.sendInvoiceToContactDescription"
-                    leftIcon='faPaperPlane'
-                    leftIconColor={colors.palette.secondary300}
-                    leftIconInverse={true}
-                    style={$item}
-                    bottomSeparator={true}
-                    onPress={onShareAsNostrDM}
-                   />}
-                  <ListItem
-                    tx="topupScreen.showInvoiceQRCode"
-                    subTx="topupScreen.showInvoiceQRCodeDescription"
-                    leftIcon='faQrcode'
-                    leftIconColor={colors.palette.success200}
-                    leftIconInverse={true}
-                    style={$item}
-                    bottomSeparator={true}
-                    onPress={onShareAsQRCode}
-                  />
-                  <ListItem
-                    tx="topupScreen.shareInvoiceAsText"
-                    subTx="topupScreen.shareInvoiceAsTextDescription"
-                    leftIcon='faShareFromSquare'
-                    leftIconColor={colors.palette.accent300}
-                    leftIconInverse={true}
-                    style={$item}
-                    onPress={onShareAsText}
-                  />
-                </>
-              }
-            />
-          )}
+          />          
           {isMintSelectorVisible &&
             transactionStatus !== TransactionStatus.PENDING && (
-              <MintBalanceSelector
-                availableMintBalances={availableMintBalances}
-                mintBalanceToTopup={mintBalanceToTopup as MintBalance}
-                onMintBalanceSelect={onMintBalanceSelect}
-                onCancel={onMintBalanceCancel}
-                findByUrl={mintsStore.findByUrl}
-                onMintBalanceConfirm={onMintBalanceConfirm}
-              />
+                <MintBalanceSelector
+                    availableMintBalances={availableMintBalances}
+                    mintBalanceToTopup={mintBalanceToTopup as MintBalance}
+                    onMintBalanceSelect={onMintBalanceSelect}
+                    onCancel={onMintBalanceCancel}
+                    findByUrl={mintsStore.findByUrl}
+                    onMintBalanceConfirm={onMintBalanceConfirm}
+                />
             )}
           {isLoading && <Loading />}
-        </View>
+        </View>        
         <BottomModal
-          isVisible={isShareModalVisible ? true : false}
-          top={spacing.screenHeight * 0.367}
-          style={{marginHorizontal: spacing.extraSmall}}
-          ContentComponent={
-            <ShareAsTextBlock
-              toggleSendModal={toggleShareModal}
-              invoiceToPay={invoiceToPay as string}
-              onShareToApp={onShareToApp}
-              onCopy={onCopy}
-            />
-          }
-          onBackButtonPress={toggleShareModal}
-          onBackdropPress={toggleShareModal}
-        />
-        <BottomModal
-          isVisible={isQRModalVisible ? true : false}
-          top={spacing.screenHeight * 0.367}
-          style={{marginHorizontal: spacing.extraSmall}}
-          ContentComponent={
-            <ShareAsQRCodeBlock
-              toggleQRModal={toggleQRModal}
-              encodedTokenToSend={invoiceToPay as string}
-              onCopy={onCopy}
-            />
-          }
-          onBackButtonPress={toggleQRModal}
-          onBackdropPress={toggleQRModal}
+            isVisible={isQRModalVisible ? true : false}
+            top={spacing.screenHeight * 0.367}
+            style={{marginHorizontal: spacing.extraSmall}}
+            ContentComponent={
+                <ShareAsQRCodeBlock
+                    toggleQRModal={toggleQRModal}
+                    invoiceToPay={invoiceToPay as string}
+                    onShareToApp={onShareToApp}
+                    onCopy={onCopy}
+                />
+            }
+            onBackButtonPress={toggleQRModal}
+            onBackdropPress={toggleQRModal}
         />
         <BottomModal
           isVisible={isNostrDMModalVisible ? true : false}
@@ -847,7 +716,7 @@ const MintBalanceSelector = observer(function (props: {
   )
 })
 
-const ShareAsTextBlock = observer(function (props: {
+/* const ShareAsTextBlock = observer(function (props: {
   toggleSendModal: any
   invoiceToPay: string
   onShareToApp: any
@@ -894,21 +763,40 @@ const ShareAsTextBlock = observer(function (props: {
       </View>
     </View>
   )
-})
+}) */
 
 const ShareAsQRCodeBlock = observer(function (props: {
   toggleQRModal: any
-  encodedTokenToSend: string
+  invoiceToPay: string
+  onShareToApp: any  
   onCopy: any
 }) {
   return (
     <View style={[$bottomModal, {marginHorizontal: spacing.small}]}>
       <Text text={'Scan and pay to top-up'} />
       <View style={$qrCodeContainer}>
-        <QRCode size={270} value={props.encodedTokenToSend} />
+        <QRCode size={270} value={props.invoiceToPay} />
       </View>
       <View style={$buttonContainer}>
-        <Button preset="secondary" text="Close" onPress={props.toggleQRModal} />
+        <Button
+          text="Share"
+          onPress={props.onShareToApp}
+          style={{marginRight: spacing.medium}}
+          LeftAccessory={() => (
+            <Icon
+              icon="faShareFromSquare"
+              color="white"
+              size={spacing.medium}
+              containerStyle={{marginRight: spacing.small}}
+            />
+          )}
+        />
+        <Button preset="secondary" text="Copy" onPress={props.onCopy} />
+        <Button
+          preset="tertiary"
+          text="Close"
+          onPress={props.toggleQRModal}
+        />
       </View>
     </View>
   )

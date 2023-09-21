@@ -43,7 +43,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
     })
 
     const isInternetReachable = useIsInternetReachable()
-    const {mintsStore, proofsStore} = useStores()
+    const {mintsStore} = useStores()
 
     const [token, setToken] = useState<Token | undefined>()
     const [encodedToken, setEncodedToken] = useState<string | undefined>()
@@ -62,60 +62,40 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
     >()
 
     useFocusEffect(
-      useCallback(() => {
-        if (!route.params?.scannedEncodedToken) {
-            log.trace('nothing scanned')
-            return
-        }
+        useCallback(() => {
+            if (!route.params?.encodedToken) {
+                log.trace('nothing scanned')
+                return
+            }
 
-        const encoded = route.params?.scannedEncodedToken
-        setEncodedToken(encoded)
-        onEncodedToken(encoded)
-        
-      }, [route.params?.scannedEncodedToken]),
+            const encoded = route.params?.encodedToken
+            setEncodedToken(encoded)
+            onEncodedToken(encoded)
+            
+        }, [route.params?.encodedToken]),
     )
 
     const resetState = function () {
-      setToken(undefined)
-      setEncodedToken(undefined)
-      setAmountToReceive(0)
-      setReceivedAmount(0)
-      setTransactionStatus(undefined)
-      setMemo('')
-      setInfo('')
-      setError(undefined)
-      setIsLoading(false)
-      setIsResultModalVisible(false)
-      setResultModalInfo(undefined)
-      // setIsQRCodeModalVisible(false)
+        setToken(undefined)
+        setEncodedToken(undefined)
+        setAmountToReceive(0)
+        setReceivedAmount(0)
+        setTransactionStatus(undefined)
+        setMemo('')
+        setInfo('')
+        setError(undefined)
+        setIsLoading(false)
+        setIsResultModalVisible(false)
+        setResultModalInfo(undefined)        
     }
 
-    const gotoScan = function () {
-      navigation.navigate('Scan')
-    }
-
-    const gotoContacts = function () {
-        navigation.navigate('ContactsNavigator', {screen: 'Contacts', params: {}})
-    }
-
-    // const toggleQRCodeModal = () => setIsQRCodeModalVisible(previousState => !previousState)
+    
     const toggleResultModal = () =>
       setIsResultModalVisible(previousState => !previousState)
 
-    const onPasteEncodedToken = async function () {
-      const encoded = await Clipboard.getString()
-      if (!encoded) {
-        setInfo('Copy received token first, then paste')
-        return
-      }
-
-      setEncodedToken(encoded)
-      return onEncodedToken(encoded)
-    }
-
     const onEncodedToken = async function (encoded: string) {
       try {
-        navigation.setParams({scannedEncodedToken: undefined})
+        navigation.setParams({encodedToken: undefined})
         
         const decoded: Token = decodeToken(encoded)
         const tokenAmounts = getTokenAmounts(decoded)
@@ -212,81 +192,38 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
     return (
       <Screen preset="auto" contentContainerStyle={$screen}>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          {token && amountToReceive > 0 ? (
+          
             <View style={$amountContainer}>
-              {receivedAmount > 0 ? (
+                {amountToReceive > 0 && (
                 <>
-                  <Text
-                    preset="subheading"
-                    tx="receiveScreen.received"
-                    style={{color: 'white'}}
-                  />
-                  <Text
-                    style={$amountToReceive}
-                    text={receivedAmount.toLocaleString()}
-                  />
+                    <Text
+                        preset="subheading"
+                        tx="receiveScreen.toReceive"
+                        style={{color: 'white'}}
+                    />
+                    <Text
+                        style={$amountToReceive}
+                        text={amountToReceive.toLocaleString()}
+                    />
                 </>
-              ) : (
+                )}
+                {receivedAmount > 0 && (
                 <>
-                  <Text
-                    preset="subheading"
-                    tx="receiveScreen.toReceive"
-                    style={{color: 'white'}}
-                  />
-                  <Text
-                    style={$amountToReceive}
-                    text={amountToReceive.toLocaleString()}
-                  />
+                    <Text
+                        preset="subheading"
+                        tx="receiveScreen.received"
+                        style={{color: 'white'}}
+                    />
+                    <Text
+                        style={$amountToReceive}
+                        text={receivedAmount.toLocaleString()}
+                    />
                 </>
-              )}
-            </View>
-          ) : (
-            <Text
-              preset="heading"
-              tx="receiveScreen.title"
-              style={{color: 'white'}}
-            />
-          )}
+                )} 
+              
+            </View>          
         </View>
-        <View style={$contentContainer}>
-          {!token && amountToReceive === 0 && (
-            <Card
-              style={$optionsCard}
-              ContentComponent={
-                <>
-                  <ListItem
-                    tx="receiveScreen.sharePaymentRequest"
-                    subTx="receiveScreen.sharePaymentRequestDescription"
-                    leftIcon='faPaperPlane'
-                    leftIconColor={colors.palette.secondary300}
-                    leftIconInverse={true}
-                    style={$item}
-                    bottomSeparator={true}
-                    onPress={gotoContacts}
-                  />
-                  <ListItem
-                    tx="receiveScreen.scanQRCodeToReceive"
-                    subTx="receiveScreen.scanQRCodeToReceiveDescription"
-                    leftIcon='faQrcode'
-                    leftIconColor={colors.palette.success200}
-                    leftIconInverse={true}
-                    style={$item}
-                    bottomSeparator={true}
-                    onPress={gotoScan}
-                  />
-                  <ListItem
-                    tx="receiveScreen.pasteFromClipboard"
-                    subTx="receiveScreen.pasteFromClipboardDescription"
-                    leftIcon='faClipboard'
-                    leftIconColor={colors.palette.accent300}
-                    leftIconInverse={true}
-                    style={$item}
-                    onPress={onPasteEncodedToken}
-                  />
-                </>
-              }
-            />
-          )}
+        <View style={$contentContainer}>          
           {token && amountToReceive > 0 && (
             <>
               {memo && (
@@ -319,11 +256,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                 ContentComponent={
                   <>
                     {getMintsFromToken(token).map((mintUrl, index) => {
-                      const mint = mintsStore.findByUrl(mintUrl)
-                      // title is receive from that is confuding with showing local balance
-                      /* const mintBalances = proofsStore.getBalances().mintBalances
-                      const mintBalance = mintBalances.find(b => b.mint === mint?.mintUrl) */
-
+                      const mint = mintsStore.findByUrl(mintUrl)                      
                       if (!mint) {
                         return (
                           <ListItem

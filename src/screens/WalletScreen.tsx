@@ -273,6 +273,10 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         }
     }
 
+    const gotoReceiveOptions = function () {
+        navigation.navigate('ReceiveOptions')
+    }
+
     const gotoReceive = function () {
         navigation.navigate('Receive', {})
     }
@@ -457,7 +461,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                   size={spacing.medium}                  
                 />
               )}
-              onPress={gotoReceive}
+              onPress={gotoReceiveOptions}
               style={[$buttonReceive, {borderRightColor: screenBg}]}
             />
             <Button
@@ -676,7 +680,7 @@ const MintsByHostnameListItem = observer(function (props: {
                 ))}
             </>
             }            
-            FooterComponent={
+            /* FooterComponent={
                 <View style={[$buttonContainer, {backgroundColor: buttonBg, borderRadius: spacing.small, alignItems: 'center', alignSelf: 'flex-start'}]}>
                     <Button
                         preset='tertiary'
@@ -694,9 +698,8 @@ const MintsByHostnameListItem = observer(function (props: {
                         textStyle={{lineHeight: verticalScale(16), fontSize: 14}}                                                    
                     />
                 </View>
-            }
-            contentStyle={{color}}
-            // footer={'Some text'}
+            }*/
+            contentStyle={{color}}            
             style={$card}
         />
     )

@@ -53,7 +53,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                 if (tokenResult && tokenResult.token) {
                     log.trace('Got token')
                     return navigation.navigate('Receive', {
-                        scannedEncodedToken: tokenResult.token,
+                        encodedToken: tokenResult.token,
                     })
                 }                
                 break
@@ -72,7 +72,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                 if (tokenResult2 && tokenResult2.isToken) {
                     log.trace('Got token')
                     return navigation.navigate('Receive', {
-                        scannedEncodedToken: tokenResult2.token,
+                        encodedToken: tokenResult2.token,
                     })
                 }
 

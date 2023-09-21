@@ -2,6 +2,7 @@ export * from './WelcomeScreen'
 
 // WalletNavigator
 export * from './WalletScreen'
+export * from './ReceiveOptionsScreen'
 export * from './ReceiveScreen'
 export * from './SendScreen'
 export * from './ScanScreen'

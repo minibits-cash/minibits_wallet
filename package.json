@@ -46,6 +46,7 @@
     "react-native-code-push": "^8.0.2",
     "react-native-dotenv": "^3.4.8",
     "react-native-exit-app": "^2.0.0",
+    "react-native-flash-message": "^0.4.2",
     "react-native-gesture-handler": "^2.9.0",
     "react-native-json-tree": "^1.3.0",
     "react-native-keychain": "^8.1.1",
