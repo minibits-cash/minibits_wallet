@@ -85,12 +85,12 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
 
       if (result && result.spentAmount > 0) {
         setInfo(
-          `${result.spentCount} coins, ${result.spentAmount} sats in total were removed from the wallet.`,
+          `${result.spentCount} ecash proofs, ${result.spentAmount} sats in total were removed from the wallet.`,
         )
         return
       }
 
-      setInfo('No spent coins found in your wallet')
+      setInfo('No spent ecash found in your wallet')
     }
 
     const handleError = function (e: AppError): void {
@@ -130,7 +130,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
                   }
                   style={$item}
                 />
-                {/* isLocalBackupOn && (
+                {isLocalBackupOn && (
                   <ListItem
                     tx="backupScreen.recoveryTool"
                     subTx="backupScreen.recoveryToolDescription"
@@ -140,7 +140,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
                     style={$item}
                     onPress={gotoLocalRecovery}
                   />
-                )*/}
+                )}
                 <ListItem
                   tx="backupScreen.removeSpentCoins"
                   subTx="backupScreen.removeSpentCoinsDescription"

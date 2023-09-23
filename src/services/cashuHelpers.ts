@@ -76,8 +76,8 @@ export const decodeToken = function (encoded: string): Token {
   } catch (e: any) {
     throw new AppError(
       Err.VALIDATION_ERROR,
-      `Provided coins are invalid: ${encoded}`,
-      e.message,
+      `Provided ecash token is invalid.`,
+      encoded,
     )
   }
 }

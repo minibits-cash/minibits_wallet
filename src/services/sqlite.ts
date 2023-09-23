@@ -854,46 +854,46 @@ const getProofById = function (id: number) {
   }
 }
 
-const getProofs = function (
-  limit: number,
-  offset: number,
-  isPending: boolean = false,
-  isSpent: boolean = false,
-): BackupProof[] {
+const getProofs = async function (
+  isUnspent: boolean,
+  isPending: boolean,
+  isSpent: boolean,
+): Promise<BackupProof[]> {
   let query: string = ''
 
   try {
-    query = `
-      SELECT *
-      FROM proofs 
-      ORDER BY id DESC
-      LIMIT ? OFFSET ?
-    `
+    if (isUnspent) {
+        query = `
+            SELECT *
+            FROM proofs
+            WHERE isPending = 0
+            AND isSpent = 0
+            ORDER BY id DESC        
+        `
+    }
     if (isPending) {
-      query = `
-        SELECT *
-        FROM proofs
-        WHERE isPending = 1
-        AND isSpent = 0
-        ORDER BY id DESC
-        LIMIT ? OFFSET ?
-      `
+        query = `
+            SELECT *
+            FROM proofs
+            WHERE isPending = 1
+            AND isSpent = 0
+            ORDER BY id DESC        
+        `
     }
     if (isSpent) {
-      query = `
-        SELECT *
-        FROM proofs
-        WHERE isSpent = 1
-        ORDER BY id DESC
-        LIMIT ? OFFSET ?
-      `
+        query = `
+            SELECT *
+            FROM proofs
+            WHERE isSpent = 1
+            ORDER BY id DESC        
+        `
     }
-
-    const params = [limit, offset]
+    
     const db = getInstance()
-    const {rows} = db.execute(query, params)
+    const {rows} = await db.executeAsync(query)
 
     return rows?._array as BackupProof[]
+
   } catch (e: any) {
     throw new AppError(
       Err.DATABASE_ERROR,

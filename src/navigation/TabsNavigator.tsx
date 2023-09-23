@@ -10,7 +10,8 @@ import { translate } from "../i18n"
 import { 
   WalletScreen, 
   ReceiveOptionsScreen,
-  ReceiveScreen, 
+  ReceiveScreen,
+  SendOptionsScreen, 
   SendScreen, 
   ScanScreen, 
   ContactsScreen,
@@ -31,6 +32,8 @@ import {
   TransferScreen,
   TopupScreen,
   OwnKeysScreen,
+  ReceiveOption,
+  SendOption,
 } from "../screens"
 import { Contact } from "../models/Contact"
 import { colors, useThemeColor, spacing, typography } from "../theme"
@@ -111,13 +114,14 @@ export type WalletStackParamList = {
     Wallet: {scannedMintUrl? : string}
     ReceiveOptions: undefined
     Receive: {encodedToken? : string}
-    Send: {amountToSend?: string, contact?: Contact, relays?: string[]}
+    SendOptions: undefined
+    Send: {contact?: Contact, relays?: string[], paymentOption?: SendOption}
     Scan: undefined
     TranDetail: {id: number}
     TranHistory: undefined
     PaymentRequests: undefined 
-    Transfer: {availableMintBalances?: MintBalance[], scannedEncodedInvoice? : string, donationEncodedInvoice? : string, paymentRequest? : PaymentRequest}
-    Topup: {contact?: Contact, relays?: string[]}
+    Transfer: {encodedInvoice? : string, donationEncodedInvoice? : string, paymentRequest? : PaymentRequest}
+    Topup: {contact?: Contact, relays?: string[], paymentOption?: ReceiveOption}
     ContactsNavigator: {screen: string, params: any}
     SettingsNavigator: {screen: string, params: any}
 }
@@ -141,6 +145,7 @@ const WalletNavigator = function WalletNavigator() {
         <WalletStack.Screen name="Wallet" component={WalletScreen} />
         <WalletStack.Screen name="ReceiveOptions" component={ReceiveOptionsScreen} />
         <WalletStack.Screen name="Receive" component={ReceiveScreen} />
+        <WalletStack.Screen name="SendOptions" component={SendOptionsScreen} />
         <WalletStack.Screen name="Send" component={SendScreen} />
         <WalletStack.Screen name="Scan" component={ScanScreen} />
         <WalletStack.Screen name="TranDetail" component={TranDetailScreen} />
@@ -154,7 +159,7 @@ const WalletNavigator = function WalletNavigator() {
 
 
 export type ContactsStackParamList = {  
-    Contacts: {amountToSend?: string, amountToTopup?: string}
+    Contacts: {paymentOption?: ReceiveOption | SendOption}
     Profile: undefined
     Picture: undefined
     WalletName: undefined

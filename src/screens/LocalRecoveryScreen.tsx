@@ -7,6 +7,7 @@ import {
   View,
   ScrollView,
   Alert,
+  useColorScheme,
 } from 'react-native'
 import {formatDistance, toDate} from 'date-fns'
 import {useThemeColor, spacing, colors, typography} from '../theme'
@@ -28,7 +29,10 @@ import {Database} from '../services'
 import AppError from '../utils/AppError'
 import {BackupProof, Proof} from '../models/Proof'
 import { useStores } from '../models'
-import { getProofsAmount } from '../services/cashuHelpers'
+import { getMintForToken, getProofsAmount } from '../services/cashuHelpers'
+import JSONTree from 'react-native-json-tree'
+import Clipboard from '@react-native-clipboard/clipboard'
+import { getEncodedToken } from '@cashu/cashu-ts'
 
 interface LocalRecoveryScreenProps
   extends SettingsStackScreenProps<'LocalRecovery'> {}
@@ -40,7 +44,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
   function LocalRecoveryScreen(_props) {
 
   const { navigation } = _props
-  const { proofsStore } = useStores()
+  const { mintsStore } = useStores()
 
   useHeader({
       leftIcon: 'faArrowLeft',
@@ -48,155 +52,118 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
     })
 
 
+    const [showUnspentOnly, setShowUnspentOnly] = useState<boolean>(true)
     const [showPendingOnly, setShowPendingOnly] = useState<boolean>(false)
-    const [showDeletedOnly, setShowDeletedOnly] = useState<boolean>(false)
+    const [showSpentOnly, setShowSpentOnly] = useState<boolean>(false)
     const [proofs, setProofs] = useState<BackupProof[]>([])
-    const [selectedProofs, setSelectedProofs] = useState<BackupProof[]>([])
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState(false)
-    const [offset, setOffset] = useState<number>(0) // load from db those that are not already displayed
-    const [isAll, setIsAll] = useState<boolean>(false)
-
+    
     useEffect(() => {
-      getProofsList()
+      getProofsList(true, false, false)
       // Run on component unmount (cleanup)
       return () => {}
     }, [])
 
-    const getProofsList = function (
-      isPending: boolean = false,
-      isDeleted: boolean = false,
+    const getProofsList = async function (
+        isUnspent: boolean,
+        isPending: boolean,
+        isDeleted: boolean,
     ) {
       try {
-        const proofs = Database.getProofs(limit, offset, isPending, isDeleted)
-
-        if (proofs.length === 0) {
-          setProofs([])
-          setIsAll(true)
-          setOffset(0)
-        } else {
-          if (proofs.length < limit) {
-            setIsAll(true)
-          }
-          setProofs(proofs)
-          setOffset(0)
-        }
-      } catch (e: any) {
-        handleError(e)
-      }
-    }
-
-    const getMore = function (
-      isPending: boolean = false,
-      isDeleted: boolean = false,
-    ) {
-      try {
-        const proofs = Database.getProofs(limit, offset, isPending, isDeleted)
-
-        if (proofs.length === 0) {
-          setProofs([])
-          setIsAll(true)
-          setOffset(0)
-        } else {
-          if (proofs.length < limit) {
-            setIsAll(true)
-          }
-          setProofs(prevProofs => [...prevProofs, ...proofs])
-          setOffset(offset + proofs.length)
-        }
-      } catch (e: any) {
-        handleError(e)
-      }
-    }
-
-    const toggleShowPendingOnly = () =>
-      setShowPendingOnly(previousState => {
-
-    if (previousState) {
-          getProofsList()
-        } else {
-          getProofsList(true, false)
-        }
-
-        setShowDeletedOnly(false)
-        setSelectedProofs([])
-        return !previousState
-      })
-
-    const toggleShowDeletedOnly = async () =>
-      setShowDeletedOnly(previousState => {
-        if (previousState) {
-          getProofsList()
-        } else {
-          getProofsList(false, true)
-        }
-
-        setShowPendingOnly(false)
-        setSelectedProofs([])
-        return !previousState
-      })
-
-    const toggleSelectedProof = function (proof: BackupProof) {
-      setSelectedProofs(prevSelectedProofs => {
-        const isSelected = prevSelectedProofs.some(
-          p => p.secret === proof.secret
-        )
-
-        if (isSelected) {
-          // If the proof is already selected, remove it from the array
-          return prevSelectedProofs.filter(p => p.secret !== proof.secret)
-        } else {
-          // If the proof is not selected, add it to the array
-          return [...prevSelectedProofs, proof]
-        }
-      })
-    }
-
-
-    const recoverPendingToWallet = function () {
-        try {
             setIsLoading(true)
-
-            proofsStore.addProofs(selectedProofs as Proof[])
-            const amount = getProofsAmount(selectedProofs as Proof[])
-
-            log.info('Added proofs with amount', amount)
-    
-            // Remove them from pending if they are returned to the wallet due to failed lightning payment
-            // Do not mark them as spent as they are recovered back to wallet
-            proofsStore.removeProofs(selectedProofs as Proof[], true, true)
-
+            const proofs = await Database.getProofs(isUnspent, isPending, isDeleted)
+            setProofs(proofs)
             setIsLoading(false)
-          
-        } catch (e: any) {
-          handleError(e)
-        }
+           
+      } catch (e: any) {
+        handleError(e)
       }
-
-    /*type ProofGroup = {
-    [date: string]: BackupProof[]
-  }
-
-
-  const proofGroups = proofs.reduce((groups: ProofGroup, proof: BackupProof) => {
-    const date = new Date(proof.updatedAt).toLocaleString() // Get the date part of updatedAt as a string
-
-    if (!groups[date]) {
-      groups[date] = [] // Create an array for the date if it doesn't exist
     }
 
-    groups[date].push(proof) // Add the proof to the corresponding date group
-    return groups
-  }, {}) */
+    const toggleShowUnspentOnly = () =>
+        setShowUnspentOnly(previousState => {
+            if (!previousState) { // if on
+                getProofsList(true, false, false)
+                setShowSpentOnly(false)
+                setShowPendingOnly(false)
+            }
+
+            return !previousState
+    })
+    
+    const toggleShowPendingOnly = () =>
+        setShowPendingOnly(previousState => {
+            if (!previousState) { // if on
+                getProofsList(false, true, false)
+                setShowUnspentOnly(false)
+                setShowSpentOnly(false)
+            }
+    
+            return !previousState
+    })
+
+    const toggleShowSpentOnly = async () =>
+        setShowSpentOnly(previousState => {
+            if (!previousState) { // if on
+                getProofsList(false, false, true)
+                setShowUnspentOnly(false)
+                setShowPendingOnly(false)
+            }
+    
+            return !previousState
+    })
+
+
+    const copyBackupProofs = function (proofs: BackupProof[]) {
+        try {               
+            Clipboard.setString(JSON.stringify(proofs))  
+        } catch (e: any) {
+            setInfo(`Could not copy: ${e.message}`)
+        }
+    }
+
+
+    const copyEncodedTokens = function (proofs: BackupProof[]) {
+        try {
+            const encodedTokens: string[] = []
+            // TODO group by mints
+
+            for (const proof of proofs) {
+                const mint = getMintForToken(proof, mintsStore.allMints)
+                const { tId, isPending, isSpent, updatedAt, ...cleanedProof } = proof
+
+                if(mint) {
+                    const encoded = getEncodedToken({
+                        token: [
+                            {
+                                mint: mint.mintUrl,
+                                proofs: [
+                                    cleanedProof
+                                ]
+                            }
+                        ]
+                    })
+
+                    encodedTokens.push(encoded)
+                }
+            }
+            
+            Clipboard.setString(JSON.stringify(encodedTokens))  
+        } catch (e: any) {
+            setInfo(`Could not copy: ${e.message}`)
+        }
+    }
+
 
     const handleError = function (e: AppError): void {
       setIsLoading(false)
       setError(e)
     }
 
-
-  const headerBg = useThemeColor('header')
+    const colorScheme = useColorScheme()
+    const headerBg = useThemeColor('header')
     const iconColor = useThemeColor('textDim')
     const dateColor = useThemeColor('textDim')
     const iconSelectedColor = useThemeColor('button')
@@ -212,11 +179,6 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
             text="Recovery tool"
             style={{color: 'white'}}
           />
-          <Text
-            text="Do NOT use! Work in progress."
-            preset="default"
-            style={{color: hintColor}}
-          />
         </View>
         <View style={$contentContainer}>
           <Card
@@ -224,7 +186,21 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
             ContentComponent={
               <>
                 <ListItem
-                  text={'Pending only'}
+                  text={'Unspent'}
+                  LeftComponent={
+                    <Icon
+                      containerStyle={$iconContainer}
+                      icon="faCoins"
+                      size={spacing.medium}
+                      color={showUnspentOnly ? activeIconColor : iconColor}
+                    />
+                  }
+                  style={$item}
+                  onPress={toggleShowUnspentOnly}
+                  bottomSeparator={true}
+                />
+                <ListItem
+                  text={'Pending'}
                   LeftComponent={
                     <Icon
                       containerStyle={$iconContainer}
@@ -238,17 +214,17 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
                   bottomSeparator={true}
                 />
                 <ListItem
-                  text={'Spent only'}
+                  text={'Spent'}
                   LeftComponent={
                     <Icon
                       containerStyle={$iconContainer}
                       icon="faBan"
                       size={spacing.medium}
-                      color={showDeletedOnly ? activeIconColor : iconColor}
+                      color={showSpentOnly ? activeIconColor : iconColor}
                     />
                   }
                   style={$item}
-                  onPress={toggleShowDeletedOnly}
+                  onPress={toggleShowSpentOnly}
                 />
               </>
             }
@@ -257,83 +233,51 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
             <Card
               ContentComponent={
                 <>
-                  {/*Object.entries(proofGroups).map(([date, proofs], index) => (
-                    <View key={index}>
-                    <ListItem
-                        key={index}
-                        text={date}
-                        textStyle={{color: dateColor, textAlign: 'center'}}
-                        bottomSeparator={true}
-            />*/}
-                  {proofs.map((proof: BackupProof, index: number) => {
-                    const isSelected = selectedProofs.some(
-                      p => p.secret === proof.secret,
-                    )
-                    return (
-                      <ListItem
-                        key={proof.secret}
-                        text={`${proof.secret}`}
-                        textStyle={$proofText}
-                        subText={`${
-                          proof.isPending
-                            ? 'Pending'
-                            : proof.isSpent
-                            ? 'Spent'
-                            : 'Received'
-                        }`}
-                        leftIcon={isSelected ? 'faCheckCircle' : 'faCircle'}
-                        leftIconColor={
-                          isSelected
-                            ? (iconSelectedColor as string)
-                            : (iconColor as string)
-                        }
-                        RightComponent={
-                          <Text
-                            text={`${proof.amount}`}
-                            style={{
-                              alignSelf: 'center',
-                              marginHorizontal: spacing.medium,
-                            }}
-                          />
-                        }
-                        onPress={() => toggleSelectedProof(proof)}
-                      />
-                    )
-                  })}
+                <Text
+                    style={{color: dateColor, fontSize: 14}}
+                    text="Backed up proofs"
+                />
+                <JSONTree
+                    hideRoot
+                    data={proofs || []}
+                    theme={{
+                    scheme: 'default',
+                    base00: '#eee',
+                    }}
+                    invertTheme={colorScheme === 'light' ? false : true}
+                />                  
                 </>
               }
               FooterComponent={
-                <View style={{alignItems: 'center'}}>
-                  {isAll ? (
-                    <Text text="List is complete" size="xs" />
-                  ) : (
+                <View style={$buttonContainer}>
                     <Button
-                      preset="tertiary"
-                      onPress={() =>
-                        showPendingOnly
-                          ? getMore(true, false)
-                          : showDeletedOnly
-                          ? getMore(false, true)
-                          : getMore()
-                      }
-                      text="View more"
-                      style={{minHeight: 25, paddingVertical: spacing.tiny}}
-                      textStyle={{fontSize: 14}}
+                        preset="tertiary"
+                        onPress={() => copyBackupProofs(proofs)}
+                        text="Copy proofs"
+                        style={{
+                            minHeight: 25,
+                            paddingVertical: spacing.extraSmall,
+                            marginTop: spacing.small,
+                            marginRight: spacing.small                           
+                        }}
+                        textStyle={{fontSize: 14}}
                     />
-                  )}
-                </View>
+                    <Button
+                        preset="tertiary"
+                        onPress={() => copyEncodedTokens(proofs)}
+                        text="Copy as encoded tokens"
+                        style={{
+                            minHeight: 25,
+                            paddingVertical: spacing.extraSmall,
+                            marginTop: spacing.small,                            
+                        }}
+                        textStyle={{fontSize: 14}}
+                    />
+                </View>  
               }
               style={$card}
             />
-          )}
-          {showPendingOnly && selectedProofs.length > 0 && (
-            <Button
-              preset="default"
-              onPress={recoverPendingToWallet}
-              text="Recover back to wallet"
-              style={{marginVertical: spacing.medium, alignSelf: 'center'}}
-            />
-          )}
+          )}          
           {isLoading && <Loading />}
         </View>
         {error && <ErrorModal error={error} />}
@@ -367,6 +311,11 @@ const $actionCard: ViewStyle = {
 const $card: ViewStyle = {
   marginBottom: spacing.small,
   paddingTop: 0,
+}
+
+const $buttonContainer: ViewStyle = {
+    flexDirection: 'row',
+    alignSelf: 'center',
 }
 
 const $cardHeading: TextStyle = {

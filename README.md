@@ -5,7 +5,7 @@
 ⚠️ If you are using this app, please take the following into consideration:
 - This wallet should be used for research purposes only.
 - The wallet is an alpha version with incomplete functionality and both known and unknown bugs.
-- Do not use it with large amounts of coins.
+- Do not use it with large amounts of ecash.
 - The e-cash stored in the wallet is issued by the mint. You trust the mint to back it with bitcoin until you transfer your holdings to another bitcoin Lightning wallet.
 - The Cashu protocol that the wallet implements has not yet received extensive review or testing so far.
 
@@ -31,19 +31,19 @@ Mints
 - [ ] Mint status and information screen
 - [ ] Change mint's short name and color
 
-Receive coins
-- [x] Scan QR code of a coin token
-- [x] Paste coin token from clipboard
-- [x] Receive tokens with coins from multiple mints (untested)
+Receive ecash
+- [x] Scan QR code of a ecash token
+- [x] Paste ecash token from clipboard
+- [x] Receive tokens with ecash from multiple mints (untested)
 - [x] Notification on received payment (app needs to be in foreground)
-- [x] Receive coins while being offline, redeem later (MVP version)
+- [x] Receive ecash while being offline, redeem later (MVP version)
 
-Send coins
-- [x] Share coin token to send through another app
-- [x] Show coin token as a QR code
+Send ecash
+- [x] Share ecash token to send through another app
+- [x] Show ecash token as a QR code
 - [x] Notification on payment received by the payee (app needs to come to foreground)
-- [x] Send coins to contact [✨ New!]
-- [ ] Lock coins sent offline to the receiver wallet key
+- [x] Send ecash to contact [✨ New!]
+- [ ] Lock ecash sent offline to the receiver wallet key
 
 Top up wallet
 - [x] Show QR code with bitcoin lightning invoice to pay
@@ -51,10 +51,10 @@ Top up wallet
 - [x] Share payment request with contact [✨ New!]
 
 Transfer / Cash out from wallet
-- [x] Paste and settle bitcoin lightning invoice with your coins
-- [x] Scan and settle bitcoin lightning invoice with your coins
+- [x] Paste and settle bitcoin lightning invoice with your ecash
+- [x] Scan and settle bitcoin lightning invoice with your ecash
 - [x] Pay payment request received from another contact [✨ New!]
-- [ ] Transfer (swap) coins to another mint
+- [ ] Transfer (swap) ecash to another mint
 
 Transaction history
 - [x] Unified transaction history for all kinds of transactions
@@ -74,9 +74,9 @@ Contacts [✨ New!]
 - [x] Private contacts with other than minibits.cash NOSTR adresses and relays
 
 Backup and recovery
-- [x] Local append-only backup of all coins in a database separate from wallet storage
-- [ ] Recovery tool to recover coins from local backup
-- [x] Recover wallet in case spent coins remain in the wallet due to an exception during a transaction
+- [x] Local append-only backup of all ecash in a database separate from wallet storage
+- [ ] Recovery tool to recover ecash from local backup
+- [x] Recover wallet in case spent ecash remain in the wallet due to an exception during a transaction
 - [ ] Off-device backup
 - [ ] Smooth migration to another device
 
@@ -98,27 +98,28 @@ DevOps
 The wallet's design has been crafted to prioritize the following primary quality properties:
 - Support both Android and iOS mobile platforms
 - Achieve fast startup time and UX (despite using React Native)
-- Minimize the risk of data/coins loss
+- Minimize the risk of data/ecash loss
 - Bring e-cash UX on par with the current standard of traditional finance (tradfi) mobile apps
 
 As a result, the following architectural constraints are in place:
 - Wherever available, use libraries with a fast JSI (JavaScript Interface) to native modules.
 - Avoid Expo modules.
 - Use fast storage for most wallet operations and separate local database storage to store data that incrementally grows.
-- Leverage local database as an append-only coins backup independent from fast storage.
+- Leverage local database as an append-only ecash backup independent from fast storage.
 
 <img src="https://www.minibits.cash/img/minibits_architecture_v2.png">
 
 Open architectural concepts worth wider discussion
-- [x] Contacts management - identities, sharing contacts, send coins with the UX of tradfi instant payment while keeping privacy towards mints - Implemented as NOSTR keypairs and NIP05 public sharable names that coins can be sent to
+- [x] Contacts management - identities, sharing contacts, send ecash with the UX of tradfi instant payment while keeping privacy towards mints - Implemented as NOSTR keypairs and NIP05 public sharable names that ecash can be sent to
 - [ ] Off-device backup strategy - many options exist with or without mint interaction
-- [ ] UX and naming conventions - e-cash is not always intuitive. UX for new users heavily depends on using the right abstractions or terms to describe what is going on. This wallet wants to serve as a means to test what could work. One of the first ideas is to avoid terms such as token or proof and propose the term coin instead.
+- [ ] UX and naming conventions - e-cash is not always intuitive. UX for new users heavily depends on using the right abstractions or terms to describe what is going on. This wallet wants to serve as a means to test what could work. One of the first ideas is to avoid terms such as token or proof and propose the term --coin ++ecash instead.
 
 
 ## Download and test
 
-Minibits wallet is in alpha and available as of now only for Android devices. You have the following options to try it out:
-- [x] Join testing program on Google Play (Closed testing ongoing, submit your email to get an invite on [Minibits.cash](https://www.minibits.cash))
+Minibits wallet is in early beta and available as of now only for Android devices. You have the following options to try it out:
+- [x] Download it from Google Play
+- [x] Join testing program on Google Play to get early releases to test (Submit your email to get an invite on [Minibits.cash](https://www.minibits.cash))
 - [x] Download .apk file from Releases page and install it on your phone
 
 
@@ -128,9 +129,9 @@ Minibits is a bare React Native app written in Typescript. The project structure
 
 The code is derived from Ignite template, however with many libraries, notably Expo, stripped down to achieve fast startup times. Performance bottleneck on some Android devices is react-native-keychain. To overcome this, it has been patched not to warm-up on startup and its use to encrypt storage is opt-in.
 
-Wallet state is managed by mobx-state-tree and persisted in fast MMKV storage. Only the basic mobx concepts are in place, whole model could be improved. All critical wallet code is in services/walletService.ts and all coins state changes are in models/ProofsStore.ts. Wallet communication with the mints is in services/cashuMintClient.ts and uses [cashu-ts](https://github.com/cashubtc/cashu-ts) library.
+Wallet state is managed by mobx-state-tree and persisted in fast MMKV storage. Only the basic mobx concepts are in place, whole model could be improved. All critical wallet code is in services/walletService.ts and all ecash state changes are in models/ProofsStore.ts. Wallet communication with the mints is in services/cashuMintClient.ts and uses [cashu-ts](https://github.com/cashubtc/cashu-ts) library.
 
-Crypto operations are handled by react-native-quick-crypto, that is fast and does not require awful javascript shims. Transaction history and coins backup is stored in sqlite, with fast react-native-quick-sqlite driver that enables to run lighter queries synchronously.
+Crypto operations are handled by react-native-quick-crypto, that is fast and does not require awful javascript shims. Transaction history and ecash backup is stored in sqlite, with fast react-native-quick-sqlite driver that enables to run lighter queries synchronously.
 
 In case of breaking state and data model changes, versioning and code is ready to run necessary migrations on wallet startup.
 

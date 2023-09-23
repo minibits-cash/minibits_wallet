@@ -55,9 +55,10 @@ import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { Proof } from '../models/Proof'
 import { Contact } from '../models/Contact'
-import { getImageSource } from '../utils/utils'
+import { getImageSource, infoMessage } from '../utils/utils'
 import { NotificationService } from '../services/notificationService'
-import { MINIBITS_SERVER_API_HOST } from '@env'
+import { SendOption } from './SendOptionsScreen'
+
 
 if (Platform.OS === 'android' &&
     UIManager.setLayoutAnimationEnabledExperimental) {
@@ -78,35 +79,27 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     const amountInputRef = useRef<TextInput>(null)
     const memoInputRef = useRef<TextInput>(null)
     
+    const [paymentOption, setPaymentOption] = useState<SendOption>(SendOption.SHOW_TOKEN)
     const [encodedTokenToSend, setEncodedTokenToSend] = useState<string | undefined>()
     const [amountToSend, setAmountToSend] = useState<string>('')
     const [contactToSendFrom, setContactToSendFrom] = useState<Contact| undefined>()    
     const [contactToSendTo, setContactToSendTo] = useState<Contact| undefined>()        
     const [relaysToShareTo, setRelaysToShareTo] = useState<string[]>([])
     const [memo, setMemo] = useState('')
-    const [availableMintBalances, setAvailableMintBalances] = useState<
-      MintBalance[]
-    >([])
-    const [mintBalanceToSendFrom, setMintBalanceToSendFrom] = useState<
-      MintBalance | undefined
-    >()
+    const [availableMintBalances, setAvailableMintBalances] = useState<MintBalance[]>([])
+    const [mintBalanceToSendFrom, setMintBalanceToSendFrom] = useState<MintBalance | undefined>()
     const [selectedProofs, setSelectedProofs] = useState<Proof[]>([])
-    const [transactionStatus, setTransactionStatus] = useState<
-      TransactionStatus | undefined
-    >()
+    const [transactionStatus, setTransactionStatus] = useState<TransactionStatus | undefined>()
     const [transactionId, setTransactionId] = useState<number | undefined>()
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
     const [isAmountEndEditing, setIsAmountEndEditing] = useState<boolean>(false)
     const [isSharedAsNostrDirectMessage, setIsSharedAsNostrDirectMessage] = useState<boolean>(false)
-    const [isSharedAsText, setIsSharedAsText] = useState<boolean>(false)
-    const [isSharedAsQRCode, setIsSharedAsQRCode] = useState<boolean>(false)
     const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus, message: string} | undefined>()
     const [isMemoEndEditing, setIsMemoEndEditing] = useState<boolean>(false)
     const [isLoading, setIsLoading] = useState(false)
 
     const [isMintSelectorVisible, setIsMintSelectorVisible] = useState(false)
-    const [isSendModalVisible, setIsSendModalVisible] = useState(false)
     const [isQRModalVisible, setIsQRModalVisible] = useState(false)     
     const [isNostrDMModalVisible, setIsNostrDMModalVisible] = useState(false)
     const [isProofSelectorModalVisible, setIsProofSelectorModalVisible] = useState(false) // offline mode
@@ -116,10 +109,6 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
     useEffect(() => {
         const focus = () => {
-            if (route.params?.amountToSend) {
-                return
-            }
-
             amountInputRef && amountInputRef.current
             ? amountInputRef.current.focus()
             : false
@@ -134,10 +123,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     // Send to contact
     useFocusEffect(
         useCallback(() => {
-            const prepareSendAsNostrDM = () => {
-                if (!route.params?.amountToSend) {
-                    return
-                }
+            const prepareSendToken = () => {                
 
                 if (!route.params?.contact) {
                     return
@@ -146,12 +132,9 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 if (!route.params?.relays) {
                     return
                 }
-
-                const amount = route.params?.amountToSend
+                
                 const contactTo = route.params?.contact
-                const relays = route.params?.relays
-
-                log.trace('prepareSendAsNostrDM', {amount, contactTo, relays})
+                const relays = route.params?.relays                
 
                 const {
                     pubkey,
@@ -167,34 +150,24 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                     picture
                 }
 
-                setAmountToSend(amount)                
+                setPaymentOption(SendOption.SEND_TOKEN)
                 setContactToSendFrom(contactFrom)                
                 setContactToSendTo(contactTo)                
                 setRelaysToShareTo(relays)
-                // skip showing of sharing options and set this one immediately
-                setIsSharedAsNostrDirectMessage(true)
             }
 
-            prepareSendAsNostrDM()
+            prepareSendToken()
             
-        }, [route.params?.amountToSend, route.params?.contact, route.params?.relays]),
+        }, [route.params?.contact, route.params?.relays]),
     )
 
-    // Make sure amountToSend has been set to the state
-    useEffect(() => {        
-        if(isSharedAsNostrDirectMessage && parseInt(amountToSend) > 0) {            
-            onAmountEndEditing()  
-        }      
-              
-    }, [amountToSend, isSharedAsNostrDirectMessage])
-
-
+    
     // Offline send
     useEffect(() => {        
         if(isInternetReachable) return
         log.trace('Offline send effect')
 
-        // if offline we set all non-zero mint balances as available to allow coin selection
+        // if offline we set all non-zero mint balances as available to allow ecash selection
         const availableBalances =
         proofsStore.getMintBalancesWithEnoughBalance(1)
 
@@ -224,13 +197,12 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             // Filter and handle events for a specific transactionId
             if (transactionIds.includes(transactionId)) {
                 log.trace(
-                    'Sent coins have been claimed by the receiver for tx',
+                    'Sent ecash has been claimed by the receiver for tx',
                     transactionId,
                 )
 
                 setTransactionStatus(TransactionStatus.COMPLETED)
-                setIsQRModalVisible(false) // needed ??
-                setIsSendModalVisible(false)                
+                setIsQRModalVisible(false) // needed ??                
                 setIsProofSelectorModalVisible(false)
 
                 const receiver = (contactToSendTo?.nip05) ? contactToSendTo?.nip05 : 'unknown wallet'
@@ -241,6 +213,8 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                         `<b>${amountToSend} sats</b> were received by <b>${receiver}</b>.`,
                          contactToSendTo?.picture             
                     )
+
+                    return navigation.navigate('Wallet', {})
                 } catch(e: any) {
                     log.error(e.name, e.message) // silent
                 }
@@ -256,72 +230,57 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         }
     }, [transactionId])
 
-    const toggleSendModal = () =>
-      setIsSendModalVisible(previousState => !previousState)
-    const toggleQRModal = () =>
-      setIsQRModalVisible(previousState => !previousState)
-    const toggleNostrDMModal = () =>
-      setIsNostrDMModalVisible(previousState => !previousState)
-    const toggleProofSelectorModal = () =>
-       setIsProofSelectorModalVisible(previousState => !previousState)
-    const toggleResultModal = () =>
-      setIsResultModalVisible(previousState => !previousState)
+    
+    const toggleQRModal = () => setIsQRModalVisible(previousState => !previousState)
+    const toggleNostrDMModal = () => setIsNostrDMModalVisible(previousState => !previousState)
+    const toggleProofSelectorModal = () => setIsProofSelectorModalVisible(previousState => !previousState)
+    const toggleResultModal = () => setIsResultModalVisible(previousState => !previousState)
 
 
-  const onAmountEndEditing = function () {
-      try {        
-        const amount = parseInt(amountToSend)
+    const onAmountEndEditing = function () {
+        try {        
+            const amount = parseInt(amountToSend)
 
-        if (!amount || amount === 0) {
-          setInfo('Amount should be positive number')
-          return
+            if (!amount || amount === 0) {
+                infoMessage('Amount should be positive number.')
+                return
+            }
+
+            const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(amount)
+
+            if (availableBalances.length === 0) {
+                infoMessage('There is not enough funds to send this amount')
+                return
+            }            
+
+            setAvailableMintBalances(availableBalances)
+
+            // Set mint to send from immediately if only one is available
+            if (availableBalances.length === 1) {
+                setMintBalanceToSendFrom(availableBalances[0])
+            }
+
+            setIsAmountEndEditing(true)
+            
+            // Skip memo focus if it is filled / has been done already
+            if(!memo && !isMemoEndEditing) {
+                setTimeout(() => {memoInputRef && memoInputRef.current
+                ? memoInputRef.current.focus()
+                : false}, 200)
+            } else {
+                onMemoEndEditing()
+            }
+
+        } catch (e: any) {
+            handleError(e)
         }
-
-        const availableBalances =
-          proofsStore.getMintBalancesWithEnoughBalance(amount)
-
-        if (availableBalances.length === 0) {
-          setInfo('There is not enough funds to send this amount')
-          return
-        }
-
-        log.trace(
-          'availableBalances',
-          availableBalances.length          
-        )
-
-        setAvailableMintBalances(availableBalances)
-
-        // Set mint to send from immediately if only one is available
-        if (availableBalances.length === 1) {
-          setMintBalanceToSendFrom(availableBalances[0])
-        }
-
-        setIsAmountEndEditing(true)
-        
-        // Skip memo focus if it is filled / has been done already
-        if(!memo && !isMemoEndEditing) {
-            setTimeout(() => {memoInputRef && memoInputRef.current
-            ? memoInputRef.current.focus()
-            : false}, 200)
-        } else {
-            onMemoEndEditing()
-        }
-
-      } catch (e: any) {
-        handleError(e)
-      }
     }
     
 
     const onMemoEndEditing = function () {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-      setIsMemoEndEditing(true)
-
-      // On payment to selected contact we skip showing sharing options, continue immediately
-      if(isSharedAsNostrDirectMessage) {
-        onShareAsNostrDM()
-      }
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+        setIsMemoEndEditing(true)
+        onShare()
     }
 
 
@@ -342,64 +301,17 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     }
 
 
-    const onShareAsText = function () {
-      // if tx has been already executed, re-open SendModal
-      if (transactionStatus === TransactionStatus.PENDING) {
-        toggleSendModal() // open
-        return
-      }
-
-      setIsSharedAsText(true)
-      setIsSharedAsQRCode(false)
-      setIsSharedAsNostrDirectMessage(false)
-      // pass share kind directly to avoid delayed state update
-      return onShare('TEXT')
-    }
-
-    const onShareAsQRCode = function () {
-      // if tx has been already executed, re-open QRCodeModal
-      if (transactionStatus === TransactionStatus.PENDING) {
-        toggleQRModal() // open
-        return
-      }
-
-      setIsSharedAsQRCode(true)
-      setIsSharedAsText(false)
-      setIsSharedAsNostrDirectMessage(false)
-      return onShare('QRCODE')
-    }
-
-    const onShareAsNostrDM = function () {
-        // Tap on Send to contact option after send completed        
-        if (transactionStatus === TransactionStatus.PENDING) { 
-            toggleNostrDMModal()   
-            return
-        }             
-        
-        // Send initiated from contacts screen
-        if(isSharedAsNostrDirectMessage) {            
-            setIsSharedAsQRCode(false)
-            setIsSharedAsText(false)
-
-            return onShare('NOSTRDM')
-        }
-
-        // Tap on Send to contact after setting amount and memo
-        navigation.navigate('ContactsNavigator', {screen: 'Contacts', params: {amountToSend}})
-    }
-
-
-    const onShare = async function (as: 'TEXT' | 'QRCODE' | 'NOSTRDM'): Promise<void> {
+    
+    const onShare = async function (): Promise<void> {
         if (amountToSend.length === 0) {
-            setInfo('Provide the amount you want to send')
+            infoMessage('Provide the amount to send.')
             return
         }
 
         // Skip mint selector and send immediately if: 
         // 1. only one mint is available or 
-        // 2. we did coin selection in offline mode
-        if (availableMintBalances.length === 1 || selectedProofs.length > 0) {            
-
+        // 2. we did ecash selection in offline mode
+        if (availableMintBalances.length === 1 || selectedProofs.length > 0) { 
             const result = await send()       
 
             if (result.error) {
@@ -411,17 +323,13 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 return
             }
 
-            if (as === 'TEXT') {
-                toggleSendModal()
-            }
-
-            if (as === 'QRCODE') {
+            if (paymentOption === SendOption.SHOW_TOKEN) {
                 toggleQRModal()
             }
 
-            if (as === 'NOSTRDM') {
+            if (paymentOption === SendOption.SEND_TOKEN) {
                 toggleNostrDMModal()
-            }
+            }           
 
             return
         }
@@ -436,7 +344,9 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     }
 
     const onMintBalanceConfirm = async function () {
-        if (!mintBalanceToSendFrom) return
+        if (!mintBalanceToSendFrom) {
+            return
+        }
 
         const result = await send()
 
@@ -449,11 +359,14 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             return
         }
 
-        // open
-        isSharedAsText && toggleSendModal()
-        isSharedAsQRCode && toggleQRModal()        
-        isSharedAsNostrDirectMessage && toggleNostrDMModal() 
+        if (paymentOption === SendOption.SHOW_TOKEN) {
+            toggleQRModal()
+        }
 
+        if (paymentOption === SendOption.SEND_TOKEN) {
+            toggleNostrDMModal()
+        }
+      
         setIsMintSelectorVisible(false)
     }
 
@@ -560,28 +473,22 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
     const onShareToApp = async () => {
         try {
-            const result = await Share.share({
-                message: encodedTokenToSend as string,
-            })
-
-            if (result.action === Share.sharedAction) {
-                toggleSendModal()
-                setTimeout(
-                    () =>
-                    setInfo(
-                        'Coins have been shared, waiting to be claimed by receiver',
-                    ),
-                    500,
-                )
-            } else if (result.action === Share.dismissedAction) {
-                setInfo(
-                    'Sharing cancelled, coins are waiting to be claimed by receiver',
-                )
-            }
+          const result = await Share.share({
+            message: encodedTokenToSend as string,
+          })
+  
+          if (result.action === Share.sharedAction) {          
+            setTimeout(
+              () => infoMessage('Ecash has been shared, waiting to be claimed by receiver'),              
+              500,
+            )
+          } else if (result.action === Share.dismissedAction) {
+            infoMessage('Sharing cancelled')          
+          }
         } catch (e: any) {
-            handleError(e)
+          handleError(e)
         }
-    }
+      }
 
 
     const onCopy = function () {
@@ -630,7 +537,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     }
 
 
-    const onNostrDMSuccessClose = function () {
+    const resetState = function () {
         // reset state so it does not interfere next payment
         setAmountToSend('')
         setMemo('')
@@ -639,15 +546,24 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         setIsMintSelectorVisible(false)
         setIsNostrDMModalVisible(false)
         setIsSharedAsNostrDirectMessage(false)
+        setIsNostrDMSending(false)
+        setIsNostrDMModalVisible(false)       
+        setIsQRModalVisible(false)
+        setIsProofSelectorModalVisible(false)
+        setIsLoading(false)
 
+        navigation.navigate('Wallet', {})
+    }
+
+    const onNostrDMSuccessClose = function () {
+        resetState()
         navigation.navigate('Wallet', {})
     }
 
 
     const handleError = function(e: AppError): void {
         // TODO resetState() on all tx data on error? Or save txId to state and allow retry / recovery?
-        setIsNostrDMSending(false)
-        setIsSendModalVisible(false)
+        setIsNostrDMSending(false)        
         setIsQRModalVisible(false)
         setIsProofSelectorModalVisible(false)
         setIsNostrDMModalVisible(false)
@@ -659,7 +575,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     // const inputBg = useThemeColor('background')
 
     return (
-      <Screen preset="auto" contentContainerStyle={$screen}>
+      <Screen preset="fixed" contentContainerStyle={$screen}>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text
             preset="subheading"
@@ -722,7 +638,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             {!isInternetReachable && !isMemoEndEditing && (
                 <Button
                     preset="secondary"                    
-                    text="Select coins to send"
+                    text="Select ecash to send"
                     style={{alignSelf: 'center'}}
                     onPress={toggleProofSelectorModal}
                     disabled={
@@ -732,47 +648,8 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                     }
                 />
             )}
-          {isAmountEndEditing && isMemoEndEditing && !isMintSelectorVisible && (
-            <Card
-              style={$card}
-              ContentComponent={
-                <>
-                  <ListItem
-                    tx="sendScreen.sendToContact"
-                    subTx="sendScreen.sendToContactDescription"
-                    leftIcon='faAddressCard'
-                    leftIconColor={colors.palette.secondary300}
-                    leftIconInverse={true}
-                    style={$item}
-                    bottomSeparator={true}
-                    onPress={onShareAsNostrDM}
-                  />
-                  <ListItem
-                    tx="sendScreen.showAsQRCode"
-                    subTx="sendScreen.showAsQRCodeDescription"
-                    leftIcon='faQrcode'
-                    leftIconColor={colors.palette.success200}
-                    leftIconInverse={true}
-                    style={$item}
-                    bottomSeparator={true}
-                    onPress={onShareAsQRCode}
-                  />
-                  <ListItem
-                    tx="sendScreen.shareAsText"
-                    subTx="sendScreen.shareAsTextDescription"
-                    leftIcon='faShareFromSquare'
-                    leftIconColor={colors.palette.accent300}
-                    leftIconInverse={true}
-                    style={$item}
-                    onPress={onShareAsText}
-                  />
-                </>
-              }
-            />
-          )}
-
-          {isMintSelectorVisible &&
-            transactionStatus !== TransactionStatus.PENDING && (
+          
+          {isMintSelectorVisible &&(
               <MintBalanceSelector
                 availableMintBalances={availableMintBalances}
                 mintBalanceToSendFrom={mintBalanceToSendFrom as MintBalance}
@@ -780,8 +657,16 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 onCancel={onMintBalanceCancel}                
                 onMintBalanceConfirm={onMintBalanceConfirm}
               />
-            )}
-          {isLoading && <Loading />}
+        )}
+        {transactionStatus === TransactionStatus.PENDING && encodedTokenToSend && paymentOption && (
+            <ShareFallbackBlock                    
+                toggleNostrDMModal={toggleNostrDMModal}
+                toggleQRModal={toggleQRModal}
+                paymentOption={paymentOption}
+                encodedTokenToSend={encodedTokenToSend}
+            />
+        )}
+        {isLoading && <Loading />}
         </View>
         <BottomModal
           isVisible={isProofSelectorModalVisible ? true : false}
@@ -803,21 +688,6 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
           onBackdropPress={toggleProofSelectorModal}
         />
         <BottomModal
-          isVisible={isSendModalVisible ? true : false}
-          top={spacing.screenHeight * 0.367}
-          style={{marginHorizontal: spacing.extraSmall}}
-          ContentComponent={
-            <SendAsTextBlock
-              toggleSendModal={toggleSendModal}
-              encodedTokenToSend={encodedTokenToSend as string}
-              onShareToApp={onShareToApp}
-              onCopy={onCopy}
-            />
-          }
-          onBackButtonPress={toggleSendModal}
-          onBackdropPress={toggleSendModal}
-        />
-        <BottomModal
           isVisible={isQRModalVisible ? true : false}
           top={spacing.screenHeight * 0.367}
           style={{marginHorizontal: spacing.extraSmall}}
@@ -826,6 +696,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
               toggleQRModal={toggleQRModal}
               encodedTokenToSend={encodedTokenToSend as string}
               onCopy={onCopy}
+              onShareToApp={onShareToApp}
               handleError={handleError}
             />
           }
@@ -938,19 +809,24 @@ const MintBalanceSelector = observer(function (props: {
         headingStyle={{textAlign: 'center', padding: spacing.small}}
         ContentComponent={
           <>
-            {props.availableMintBalances.map(
-              (balance: MintBalance, index: number) => (
-                <MintListItem
-                  key={balance.mint}
-                  mint={mintsStore.findByUrl(balance.mint) as Mint}
-                  mintBalance={balance}
-                  onMintSelect={() => onMintSelect(balance)}
-                  isSelectable={true}
-                  isSelected={props.mintBalanceToSendFrom.mint === balance.mint}
-                  separator={'top'}
-                />
-              )
-            )}
+            <FlatList<MintBalance>
+                data={props.availableMintBalances}
+                renderItem={({ item, index }) => {                                
+                    return(
+                        <MintListItem
+                            key={item.mint}
+                            mint={mintsStore.findByUrl(item.mint) as Mint}
+                            mintBalance={item}
+                            onMintSelect={() => onMintSelect(item)}
+                            isSelectable={true}
+                            isSelected={props.mintBalanceToSendFrom.mint === item.mint}
+                            separator={'top'}
+                        />
+                    )
+                }}                
+                keyExtractor={(item) => item.mint} 
+                style={{ flexGrow: 0, maxHeight: spacing.screenHeight * 0.35 }}
+            />            
           </>
         }
       />
@@ -1000,7 +876,7 @@ const SelectProofsBlock = observer(function (props: {
             <View style={$bottomModal}>
                 <Text text='Select mint to send from' />
                 <Text
-                    text='You can send only exact coin denominations while you are offline.'
+                    text='You can send only exact ecash denominations while you are offline.'
                     style={{color: hintColor, paddingHorizontal: spacing.small, textAlign: 'center', marginBottom: spacing.small}}
                     size='xs'
                 />
@@ -1031,9 +907,9 @@ const SelectProofsBlock = observer(function (props: {
     } else {
         return (
             <View style={$bottomModal}>
-                <Text text='Select coins to send' />
+                <Text text='Select ecash to send' />
                 <Text
-                    text='You can send only exact coin denominations while you are offline.'
+                    text='You can send only exact ecash denominations while you are offline.'
                     style={{color: hintColor, paddingHorizontal: spacing.small, textAlign: 'center', marginBottom: spacing.small}}
                     size='xs'
                 />
@@ -1077,61 +953,75 @@ const SelectProofsBlock = observer(function (props: {
   })
 
 
-const SendAsTextBlock = observer(function (props: {
-  toggleSendModal: any
-  encodedTokenToSend: string
-  onShareToApp: any
-  onCopy: any
+const ShareFallbackBlock = observer(function (props: {
+    toggleNostrDMModal: any
+    toggleQRModal: any
+    encodedTokenToSend: string
+    paymentOption: SendOption    
 }) {
-  const sendBg = useThemeColor('background')
-  const tokenTextColor = useThemeColor('textDim')  
+  const sendBg = useThemeColor('card')
+  const tokenTextColor = useThemeColor('textDim')
 
   return (
-    <View style={$bottomModal}>
-      <Text
-        text={'Share coins'}
-      />
-      <ScrollView
-        style={[
-          $tokenContainer,
-          {backgroundColor: sendBg, marginHorizontal: spacing.small},
-        ]}>
-        <Text
-          selectable
-          text={props.encodedTokenToSend}
-          style={{color: tokenTextColor, paddingBottom: spacing.medium}}
-          size="xxs"
+    <View style={{alignItems: 'center'}}>
+        <Text 
+            size='xs' 
+            text={'Share this ecash token with another wallet to pay.'}
+            style={{marginBottom: spacing.medium}} 
         />
-      </ScrollView>
-      <View style={$buttonContainer}>
-        <Button
-          text="Share"
-          onPress={props.onShareToApp}
-          style={{marginRight: spacing.medium}}
-          LeftAccessory={() => (
-            <Icon
-              icon="faShareFromSquare"
-              color="white"
-              size={spacing.medium}
-              containerStyle={{marginRight: spacing.small}}
+        <ScrollView
+            style={[
+            $tokenContainer,
+            {backgroundColor: sendBg, margin: 0, borderRadius: spacing.large, padding: spacing.medium},
+            ]}>
+            <Text
+            selectable
+            text={props.encodedTokenToSend}
+            style={{color: tokenTextColor, paddingBottom: spacing.medium}}
+            size="xxs"
             />
-          )}
-        />
-        <Button preset="secondary" text="Copy" onPress={props.onCopy} />
-        <Button
-          preset="tertiary"
-          text="Close"
-          onPress={props.toggleSendModal}
-        />
+        </ScrollView>
+        <View style={$buttonContainer}>
+            <Button
+                text='QR code'
+                preset='secondary'
+                onPress={props.toggleQRModal}          
+                LeftAccessory={() => (
+                    <Icon
+                    icon='faQrcode'
+                    color="white"
+                    size={spacing.medium}              
+                    />
+                )}
+            />
+            {props.paymentOption === SendOption.SEND_TOKEN && (
+                <Button
+                    text='Send to contact'
+                    preset='secondary'
+                    onPress={props.toggleNostrDMModal}
+                    style={{marginLeft: spacing.medium}}
+                    LeftAccessory={() => (
+                        <Icon
+                        icon='faPaperPlane'
+                        color="white"
+                        size={spacing.medium}              
+                        />
+                    )} 
+                />
+            )}
       </View>
     </View>
   )
 })
 
+
+
+
 const SendAsQRCodeBlock = observer(function (props: {
   toggleQRModal: any
   encodedTokenToSend: string
   onCopy: any
+  onShareToApp: any  
   handleError: any
 }) {
 
@@ -1145,7 +1035,25 @@ const SendAsQRCodeBlock = observer(function (props: {
             />                
       </View>
       <View style={$buttonContainer}>
-        <Button preset="secondary" text="Close" onPress={props.toggleQRModal} />
+        <Button
+          text="Share"
+          onPress={props.onShareToApp}
+          style={{marginRight: spacing.medium}}
+          LeftAccessory={() => (
+            <Icon
+              icon="faShareFromSquare"
+              color="white"
+              size={spacing.medium}
+              // containerStyle={{marginRight: spacing.small}}
+            />
+          )}
+        />
+        <Button preset="secondary" text="Copy" onPress={props.onCopy} />
+        <Button
+          preset="tertiary"
+          text="Close"
+          onPress={props.toggleQRModal}
+        />
       </View>
     </View>
   )
@@ -1234,7 +1142,7 @@ const SendAsNostrDMBlock = observer(function (props: {
             icon="faCheckCircle"
             iconColor={colors.palette.success200}
             title="Success!"
-            message="Coins have been succesfully sent."
+            message="Ecash has been succesfully sent."
         />
         <View style={$buttonContainer}>
             <Button
@@ -1393,9 +1301,10 @@ const $bottomModal: ViewStyle = {
 }
 
 const $qrCodeContainer: ViewStyle = {
-  backgroundColor: 'white',
-  padding: spacing.small,
-  margin: spacing.small,
+    backgroundColor: 'white',
+    padding: spacing.small,
+    margin: spacing.small,
+    borderRadius: spacing.small
 }
 
 const $buttonContainer: ViewStyle = {

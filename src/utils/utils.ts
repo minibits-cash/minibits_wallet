@@ -1,3 +1,6 @@
+import { showMessage } from "react-native-flash-message"
+import { colors, spacing, useThemeColor } from "../theme"
+
 /**
  * sleep statement.
  *
@@ -18,6 +21,19 @@ export const getImageSource = function(img: string) {
     } else {
         return `data:image/png;base64,${img}`
     }
+}
+
+
+export const infoMessage = function(message: string, description?: string) {
+    const backgroundColor = colors.dark.info
+    
+    return showMessage({
+        message,
+        description,        
+        backgroundColor,
+        color: 'white',
+        style: {minHeight: spacing.screenHeight * 0.15, borderTopLeftRadius: spacing.medium, borderTopRightRadius: spacing.medium},        
+    })
 }
 
 

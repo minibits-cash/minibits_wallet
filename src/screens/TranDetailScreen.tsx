@@ -39,6 +39,7 @@ import {BackupProof, Proof} from '../models/Proof'
 import useColorScheme from '../theme/useThemeColor'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
+import QRCode from 'react-native-qrcode-svg'
 
 type ProofsByStatus = {
   isSpent: Proof[]
@@ -169,21 +170,32 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
 
     const copyToken = function (transaction: Transaction) {
       try {
-        const encoded = getEncodedTokenToSend(transaction)
+            const encoded = getEncodedTokenToSend(transaction)
 
-        if (!encoded) {
-          throw new AppError(
-            Err.VALIDATION_ERROR,
-            'Could not get encoded coins from transaction',
-          )
+            if (!encoded) {
+            throw new AppError(
+                Err.VALIDATION_ERROR,
+                'Could not get encoded ecash token from transaction',
+            )
+            }
+
+            Clipboard.setString(encoded)
+
+        } catch (e: any) {
+            setInfo(`Could not copy: ${e.message}`)
         }
-
-        Clipboard.setString(encoded)
-
-    } catch (e: any) {
-        setInfo(`Could not copy: ${e.message}`)
-      }
     }
+
+
+    const copyBackupProofs = function (proofsByStatus: ProofsByStatus) {
+        try {               
+            Clipboard.setString(JSON.stringify(proofsByStatus))  
+        } catch (e: any) {
+            setInfo(`Could not copy: ${e.message}`)
+        }
+    }
+
+    
 
     const handleError = function (e: AppError): void {
       setIsNoteModalVisible(false)
@@ -325,7 +337,7 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
                     <>
                       <Text
                         style={{color: labelColor, fontSize: 14}}
-                        text="Backed up coins"
+                        text="Backed up ecash"
                       />
                       <JSONTree
                         hideRoot
@@ -340,17 +352,17 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
                   }
                   FooterComponent={
                     <Button
-                      preset="tertiary"
-                      onPress={() => Alert.alert('Not yet implemented')}
-                      text="Recover coins"
-                      style={{
-                        minHeight: 25,
-                        paddingVertical: spacing.extraSmall,
-                        marginTop: spacing.small,
-                        alignSelf: 'center',
-                      }}
-                      textStyle={{fontSize: 14}}
-                    />
+                        preset="tertiary"
+                        onPress={() => copyBackupProofs(proofsByStatus)}
+                        text="Copy"
+                        style={{
+                            minHeight: 25,
+                            paddingVertical: spacing.extraSmall,
+                            marginTop: spacing.small,
+                            alignSelf: 'center',
+                        }}
+                        textStyle={{fontSize: 14}}
+                    />  
                   }
                 />
               )}
@@ -781,17 +793,12 @@ const SendInfoBlock = function (props: {
             />
             {isDataParsable && (
             <>
+                {transaction.status === TransactionStatus.PENDING && (
                 <Card
                     style={$dataCard}
                     ContentComponent={
                         <>
-                            <TranItem
-                                label="tranDetailScreen.paidFrom"
-                                value={
-                                JSON.parse(transaction.data)[0].mintBalanceToSendFrom.mint
-                                }
-                            />
-                            {transaction.status === TransactionStatus.PENDING && (
+                            
                                 <>
                                     <Text
                                         style={{
@@ -807,13 +814,12 @@ const SendInfoBlock = function (props: {
                                         ellipsizeMode="middle"
                                     />
                                 </>
-                            )}
+                            
                         </>
                     }
                     FooterComponent={
-                        <>
-                            {transaction.status === TransactionStatus.PENDING && (
-                                <Button
+                        <>                            
+                            <Button
                                 preset="tertiary"
                                 onPress={() => copyToken(transaction)}
                                 text="Copy"
@@ -824,11 +830,11 @@ const SendInfoBlock = function (props: {
                                     alignSelf: 'center',
                                 }}
                                 textStyle={{fontSize: 14}}
-                                />
-                            )}
+                            />                            
                         </>
                     }
                 />
+                )}
                 <Card
                     style={$dataCard}
                     ContentComponent={
@@ -878,6 +884,17 @@ const TopupInfoBlock = function (props: {
 }) {
   const {transaction, isDataParsable, copyAuditTrail, colorScheme} = props
 
+  const {invoicesStore} = useStores()
+  const invoiceToPay = invoicesStore.findByTransactionId(transaction.id as number)
+
+  const copyInvoice = function () {
+    try {
+      Clipboard.setString(invoiceToPay?.encodedInvoice as string)
+    } catch (e: any) {
+      return false
+    }
+  }
+
   const labelColor = useThemeColor('textDim')
 
   return (
@@ -920,10 +937,38 @@ const TopupInfoBlock = function (props: {
         <Card
             style={$dataCard}
             ContentComponent={                        
+                <>
                 <TranItem
                     label="tranDetailScreen.topupTo"
                     value={transaction.mint as string}
                 />
+                {transaction.status === TransactionStatus.PENDING && invoiceToPay && (
+                    <>
+                        <Text style={{color: labelColor, marginTop: spacing.medium}} text='Invoice to pay'/>
+                        <View style={$qrCodeContainer}>
+                            <QRCode size={270} value={invoiceToPay.encodedInvoice} />
+                        </View>
+                    </>
+                )}
+                </>
+            }
+            FooterComponent={
+                <>
+                {transaction.status === TransactionStatus.PENDING && invoiceToPay && (
+                <Button
+                        preset="tertiary"
+                        onPress={() => copyInvoice()}
+                        text="Copy"
+                        style={{
+                            minHeight: 25,
+                            paddingVertical: spacing.extraSmall,
+                            marginTop: spacing.small,
+                            alignSelf: 'center',
+                        }}
+                        textStyle={{fontSize: 14}}
+                />
+                )}
+                </>
             }
         />
         {isDataParsable && (
@@ -1078,6 +1123,8 @@ const TransferInfoBlock = function (props: {
 const TranItem = function (props: {
     label: TxKeyPath
     value: string
+    labelStyle?: TextStyle
+    valueStyle?: TextStyle 
     isFirst?: boolean
     isLast?: boolean
 }) {
@@ -1087,10 +1134,10 @@ const TranItem = function (props: {
     return (
         <View>
             <Text
-                style={[{color: labelColor, fontSize: 14}, margin]}
+                style={[props.labelStyle, {color: labelColor, fontSize: 14}, margin]}
                 tx={props.label}
             />
-            <Text text={props.value} />
+            <Text style={props.valueStyle || {}} text={props.value} />
         </View>
     )
 }
@@ -1138,54 +1185,62 @@ const getEncodedTokenToSend = (
 const $screen: ViewStyle = {}
 
 const $headerContainer: TextStyle = {
-  alignItems: 'center',
-  padding: spacing.medium,
-  height: spacing.screenHeight * 0.18,
+    alignItems: 'center',
+    padding: spacing.medium,
+    height: spacing.screenHeight * 0.18,
 }
 
 const $contentContainer: TextStyle = {
-  padding: spacing.extraSmall,
+    padding: spacing.extraSmall,
 }
 
 const $actionCard: ViewStyle = {
-  marginBottom: spacing.extraSmall,
-  marginTop: -spacing.extraLarge * 2,
-  paddingTop: 0,
+    marginBottom: spacing.extraSmall,
+    marginTop: -spacing.extraLarge * 2,
+    paddingTop: 0,
 }
 
 const $dataCard: ViewStyle = {
-  padding: spacing.medium,  
-  marginBottom: spacing.extraSmall,
+    padding: spacing.medium,  
+    marginBottom: spacing.extraSmall,
 }
 
 const $item: ViewStyle = {
-  paddingHorizontal: spacing.small,
-  paddingLeft: 0,
+    paddingHorizontal: spacing.small,
+    paddingLeft: 0,
 }
 
 
 const $iconContainer: ViewStyle = {
-  padding: spacing.extraSmall,
-  alignSelf: 'center',
-  marginRight: spacing.medium,
+    padding: spacing.extraSmall,
+    alignSelf: 'center',
+    marginRight: spacing.medium,
 }
 
 const $noteContainer: TextStyle = {
-  padding: spacing.small,
-  alignItems: 'center',
+    padding: spacing.small,
+    alignItems: 'center',
 }
 
 const $noteInput: TextStyle = {
-  flex: 1,
-  margin: spacing.small,
-  borderRadius: spacing.small,
-  fontSize: 16,
-  padding: spacing.small,
-  alignSelf: 'stretch',
-  textAlignVertical: 'top',
+    flex: 1,
+    margin: spacing.small,
+    borderRadius: spacing.small,
+    fontSize: 16,
+    padding: spacing.small,
+    alignSelf: 'stretch',
+    textAlignVertical: 'top',
 }
 
 const $buttonContainer: ViewStyle = {
     flexDirection: 'row',
     alignSelf: 'center',
+}
+
+const $qrCodeContainer: ViewStyle = {
+    backgroundColor: 'white',
+    padding: spacing.small,
+    margin: spacing.small,
+    borderRadius: spacing.small,
+    alignSelf: 'center'
   }

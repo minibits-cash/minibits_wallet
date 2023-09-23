@@ -7,6 +7,7 @@ import {
   TextStyle,
   View,
   ViewStyle,
+  FlatList,
 } from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
 import {spacing, useThemeColor, colors} from '../theme'
@@ -39,8 +40,8 @@ import {MintBalance} from '../models/Mint'
 import {MintListItem} from './Mints/MintListItem'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import addSeconds from 'date-fns/addSeconds'
-import isBefore from 'date-fns/isBefore'
 import { PaymentRequestStatus } from '../models/PaymentRequest'
+import { infoMessage } from '../utils/utils'
 
 if (
   Platform.OS === 'android' &&
@@ -67,12 +68,8 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     const [estimatedFee, setEstimatedFee] = useState<number>(0)
     const [finalFee, setFinalFee] = useState<number>(0)
     const [memo, setMemo] = useState('')
-    const [availableMintBalances, setAvailableMintBalances] = useState<
-      MintBalance[]
-    >(route.params.availableMintBalances || [])
-    const [mintBalanceToTransferFrom, setMintBalanceToTransferFrom] = useState<
-      MintBalance | undefined
-    >(undefined)
+    const [availableMintBalances, setAvailableMintBalances] = useState<MintBalance[]>([])
+    const [mintBalanceToTransferFrom, setMintBalanceToTransferFrom] = useState<MintBalance | undefined>()
     const [transactionStatus, setTransactionStatus] = useState<
       TransactionStatus | undefined
     >()
@@ -83,19 +80,17 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
       useState(false)
     const [isInvoiceDonation, setIsInvoiceDonation] = useState(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)
-    const [resultModalInfo, setResultModalInfo] = useState<
-      {status: TransactionStatus; message: string} | undefined
-    >()
+    const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus; message: string} | undefined>()
 
 
 useFocusEffect(
     useCallback(() => {
-    if (!route.params?.scannedEncodedInvoice) {            
+    if (!route.params?.encodedInvoice) {            
         return
     }
-    const encoded = route.params?.scannedEncodedInvoice
+    const encoded = route.params?.encodedInvoice
     onEncodedInvoice(encoded)
-    }, [route.params?.scannedEncodedInvoice]),
+    }, [route.params?.encodedInvoice]),
 )
 
 
@@ -113,7 +108,7 @@ useFocusEffect(
 
         setPaymentHash(paymentHash)
         onEncodedInvoice(encodedInvoice, description)
-    }, [route.params?.scannedEncodedInvoice]),
+    }, [route.params?.encodedInvoice]),
 )
 
 
@@ -127,6 +122,7 @@ useFocusEffect(
         onEncodedInvoice(encoded)
     }, [route.params?.donationEncodedInvoice]),
 )
+
 
 
 useEffect(() => {
@@ -156,6 +152,8 @@ useEffect(() => {
     getEstimatedFee()
 }, [mintBalanceToTransferFrom])
 
+
+
 const resetState = function () {
     setEncodedInvoice('')
     setInvoice(undefined)      
@@ -175,90 +173,59 @@ const resetState = function () {
     setResultModalInfo(undefined)
 }
 
-const gotoScan = function () {
-    navigation.navigate('Scan')
+const onCancel = function () {
+    resetState()
+    navigation.navigate('Wallet', {})
 }
 
-const togglePasteInvoiceModal = () =>
-    setIsPasteInvoiceModalVisible(previousState => !previousState)
-const toggleResultModal = () =>
-    setIsResultModalVisible(previousState => !previousState)
-
+const togglePasteInvoiceModal = () => setIsPasteInvoiceModalVisible(previousState => !previousState)
+const toggleResultModal = () => setIsResultModalVisible(previousState => !previousState)
 
 const onMintBalanceSelect = function (balance: MintBalance) {
     setMintBalanceToTransferFrom(balance) // this triggers effect to get estimated fees
 }
 
-const onPasteInvoice = async function () {
-    const encoded = await Clipboard.getString()
-    if (!encoded) {
-        setInfo('Copy received invoice first, then paste')
-        return
-    }
-    togglePasteInvoiceModal()
-    return onEncodedInvoice(encoded)
-}
 
 const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: string = '') {
     try {
-    navigation.setParams({scannedEncodedInvoice: undefined})
-    navigation.setParams({donationEncodedInvoice: undefined})
-    navigation.setParams({availableMintBalances: undefined})
-    navigation.setParams({paymentRequest: undefined})
+        navigation.setParams({encodedInvoice: undefined})
+        navigation.setParams({donationEncodedInvoice: undefined})
+        navigation.setParams({paymentRequest: undefined})
 
-    setEncodedInvoice(encoded)        
+        setEncodedInvoice(encoded)        
 
-    const invoice = decodeInvoice(encoded)
-    const {amount, expiry, description, timestamp} = getInvoiceData(invoice)
+        const invoice = decodeInvoice(encoded)
+        const {amount, expiry, description, timestamp} = getInvoiceData(invoice)
 
-    log.trace('Decoded invoice', invoice)
-    log.trace('Invoice data', {amount, expiry, description})
+        log.trace('Decoded invoice', invoice)
+        log.trace('Invoice data', {amount, expiry, description})
 
-    if (!amount || amount === 0) {
-        setInfo('Invoice amount should be positive number')
-        return
-    }        
+        if (!amount || amount === 0) {
+            infoMessage('Invoice amount should be positive number')            
+            return
+        }        
 
-    // all with enough balance
-    let availableAllBalances =
-        proofsStore.getMintBalancesWithEnoughBalance(amount)
+        // all with enough balance
+        let availableBalances = proofsStore.getMintBalancesWithEnoughBalance(amount)
 
-    if (availableAllBalances.length === 0) {
-        setInfo('There is not enough funds to send this amount')
-        return
-    }
+        if (availableBalances.length === 0) {
+            infoMessage('There is not enough funds to send this amount')
+            return
+        }
 
-    // Filtered by the balances passed in props
-    let availableFilteredBalances: MintBalance[] = []
+        const expiresAt = addSeconds(new Date(timestamp as number * 1000), expiry as number)
 
-    // Resulting balances to select from
-    let availableBalances: MintBalance[] = []
-
-    if(availableMintBalances.length > 0) {
-        availableFilteredBalances = availableAllBalances.filter((b) => availableMintBalances.find(f => f.mint === b.mint ))
-        log.trace('Filtered', availableFilteredBalances)
-    }
-
-    if (availableFilteredBalances.length > 0) {
-        availableBalances = availableFilteredBalances
-    } else {
-        availableBalances = availableAllBalances
-    }
-
-    const expiresAt = addSeconds(new Date(timestamp as number * 1000), expiry as number)
-
-    setInvoice(invoice)
-    setAmountToTransfer(amount)
-    setInvoiceExpiry(expiresAt)
-    
-    if (paymentRequestDesc) {
-        setMemo(paymentRequestDesc)
-    } else if(description) {
-        setMemo(description)
-    }
-
-    setAvailableMintBalances(availableBalances)
-    setMintBalanceToTransferFrom(availableBalances[0])
+        setAvailableMintBalances(availableBalances)
+        setMintBalanceToTransferFrom(availableBalances[0])
+        setInvoice(invoice)
+        setAmountToTransfer(amount)
+        setInvoiceExpiry(expiresAt)
+        
+        if (paymentRequestDesc) {
+            setMemo(paymentRequestDesc)
+        } else if(description) {
+            setMemo(description)
+        }
             
     } catch (e: any) {
         resetState()
@@ -342,70 +309,45 @@ const feeColor = colors.palette.primary200
 const iconColor = useThemeColor('textDim')
 
     return (
-        <Screen preset="auto" contentContainerStyle={$screen}>
+        <Screen preset="fixed" contentContainerStyle={$screen}>
             <View style={[$headerContainer, {backgroundColor: headerBg}]}>
                 {invoice && amountToTransfer > 0 ? (
-                <View style={$amountContainer}>
-                    <Text
-                        preset="subheading"
-                        text="Amount to transfer (sats)"
-                        style={{color: 'white'}}
-                    />
-                    <Text
-                        style={$amountToTransfer}
-                        text={amountToTransfer.toLocaleString()}
-                    />
-                    {transactionStatus === TransactionStatus.COMPLETED ? (
-                    <Text
-                        style={{color: feeColor}}
-                        text={`+ final fee ${finalFee.toLocaleString()} sats`}
-                    />
-                    ) : (
-                    <Text
-                        style={{color: feeColor}}
-                        text={`+ estimated fee ${estimatedFee.toLocaleString()} sats`}
-                    />
-                    )}
-                </View>
+                    <View style={$amountContainer}>
+                        <Text
+                            preset="subheading"
+                            text="Amount to transfer"
+                            style={{color: 'white'}}
+                        />
+                        {/*<Text 
+                            text='Satoshi'
+                            size='xxs' 
+                            style={{color: feeColor}}
+                        />*/}
+                        <Text
+                            style={$amountToTransfer}
+                            text={amountToTransfer.toLocaleString()}
+                        />
+                        {transactionStatus === TransactionStatus.COMPLETED ? (
+                            <Text
+                                style={{color: feeColor}}
+                                text={`+ final fee ${finalFee.toLocaleString()} sats`}
+                            />
+                        ) : (
+                            <Text
+                                style={{color: feeColor}}
+                                text={`+ estimated fee ${estimatedFee.toLocaleString()} sats`}
+                            />
+                        )}
+                    </View>
                 ) : (
                     <Text preset="heading" text="Transfer" style={{color: 'white'}} />
                 )}
             </View>
             <View style={$contentContainer}>
-                {!resultModalInfo && !encodedInvoice && (
-                    <Card
-                        style={$optionsCard}
-                        ContentComponent={
-                            <>
-                                <ListItem
-                                    tx="transferScreen.pasteLightningInvoice"
-                                    subTx="transferScreen.pasteLightningInvoiceDescription"
-                                    leftIcon='faBolt'
-                                    leftIconColor={colors.palette.secondary300}
-                                    leftIconInverse={true}
-                                    style={$item}
-                                    bottomSeparator={true}
-                                    onPress={togglePasteInvoiceModal}
-                                />
-                                <ListItem
-                                    tx="transferScreen.scanLightningInvoice"
-                                    subTx="transferScreen.scanLightningInvoiceDescription"
-                                    leftIcon='faQrcode'
-                                    leftIconColor={colors.palette.success200}
-                                    leftIconInverse={true}
-                                    style={$item}
-                                    bottomSeparator={false}
-                                    onPress={gotoScan}
-                                />
-                            </>
-                        }
-                    />
-                )}
-
                 {mintBalanceToTransferFrom &&
-                    availableMintBalances.length > 0 &&
-                    transactionStatus !== TransactionStatus.COMPLETED && (
-                    <>
+                availableMintBalances.length > 0 &&
+                transactionStatus !== TransactionStatus.COMPLETED && (
+                <>
                     {memo && (
                         <Card
                         style={[$card, {minHeight: 0}]}
@@ -425,19 +367,18 @@ const iconColor = useThemeColor('textDim')
                         }
                         />
                     )}
-
                     <MintBalanceSelector
                         availableMintBalances={availableMintBalances}
                         mintBalanceToSendFrom={mintBalanceToTransferFrom as MintBalance}
                         onMintBalanceSelect={onMintBalanceSelect}
-                        onCancel={resetState}
+                        onCancel={onCancel}
                         findByUrl={mintsStore.findByUrl}
                         onMintBalanceConfirm={transfer}
                     />
-                    </>
+                </>
                 )}
                 {transactionStatus === TransactionStatus.COMPLETED && (
-                    <>
+                <>
                     <Card
                         style={$card}
                         ContentComponent={
@@ -465,23 +406,10 @@ const iconColor = useThemeColor('textDim')
                             onPress={onCompletedTransfer}
                         />
                     </View>
-                    </>
+                </>
                 )}
                 {isLoading && <Loading />}
             </View>
-            <BottomModal
-                isVisible={isPasteInvoiceModalVisible ? true : false}
-                top={spacing.screenHeight * 0.5}
-                style={{marginHorizontal: spacing.extraSmall}}
-                ContentComponent={
-                    <PasteInvoiceBlock
-                        togglePasteModal={togglePasteInvoiceModal}
-                        onPasteInvoice={onPasteInvoice}
-                    />
-                }
-                onBackButtonPress={togglePasteInvoiceModal}
-                onBackdropPress={togglePasteInvoiceModal}
-            />
             <BottomModal
                 isVisible={isResultModalVisible ? true : false}
                 top={spacing.screenHeight * 0.5}                
@@ -559,27 +487,6 @@ const iconColor = useThemeColor('textDim')
   }
 )
 
-const PasteInvoiceBlock = function (props: {
-    togglePasteModal: any
-    onPasteInvoice: any
-}) {
-  return (
-    <View style={$bottomModal}>
-        <View style={$buttonContainer}>
-        <Button
-            tx={'common.paste'}
-            onPress={() => props.onPasteInvoice()}
-            style={{marginRight: spacing.medium}}
-        />
-        <Button
-            preset="secondary"
-            tx={'common.cancel'}
-            onPress={props.togglePasteModal}
-        />
-        </View>
-    </View>
-  )
-}
 
 const MintBalanceSelector = observer(function (props: {
   availableMintBalances: MintBalance[]
@@ -603,19 +510,24 @@ const MintBalanceSelector = observer(function (props: {
         headingStyle={{textAlign: 'center', padding: spacing.small}}
         ContentComponent={
           <>
-            {props.availableMintBalances.map(
-              (balance: MintBalance, index: number) => (
-                <MintListItem
-                  key={balance.mint}
-                  mint={props.findByUrl(balance.mint)}
-                  mintBalance={balance}
-                  onMintSelect={() => onMintSelect(balance)}
-                  isSelectable={true}
-                  isSelected={props.mintBalanceToSendFrom.mint === balance.mint}
-                  separator={'top'}
-                />
-              ),
-            )}
+            <FlatList<MintBalance>
+                data={props.availableMintBalances}
+                renderItem={({ item, index }) => {                                
+                    return(
+                        <MintListItem
+                            key={item.mint}
+                            mint={props.findByUrl(item.mint) as Mint}
+                            mintBalance={item}
+                            onMintSelect={() => onMintSelect(item)}
+                            isSelectable={true}
+                            isSelected={props.mintBalanceToSendFrom.mint === item.mint}
+                            separator={'top'}
+                        />
+                    )
+                }}                
+                keyExtractor={(item) => item.mint} 
+                style={{ flexGrow: 0, maxHeight: spacing.screenHeight * 0.35 }}
+            />
           </>
         }
       />
@@ -623,8 +535,7 @@ const MintBalanceSelector = observer(function (props: {
         <Button
           text="Transfer now"
           onPress={props.onMintBalanceConfirm}
-          style={{marginRight: spacing.medium}}
-          // LeftAccessory={() => <Icon icon="faCoins" color="white" size={spacing.medium} containerStyle={{marginRight: spacing.small}}/>}
+          style={{marginRight: spacing.medium}}          
         />
         <Button
           preset="secondary"

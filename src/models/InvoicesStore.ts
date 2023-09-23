@@ -18,6 +18,10 @@ export const InvoicesStoreModel = types
             const invoice = self.invoices.find(i => i.paymentHash === paymentHash)
             return invoice ? invoice : undefined
         },
+        findByTransactionId(transactionId: number) {
+            const invoice = self.invoices.find(i => i.transactionId === transactionId)
+            return invoice ? invoice : undefined
+        },
     }))
     .actions(withSetPropAction)
     .actions(self => ({

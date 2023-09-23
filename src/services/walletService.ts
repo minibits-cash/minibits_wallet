@@ -127,7 +127,7 @@ async function checkPendingSpent() {
 
 
 /*
- * Checks with NOSTR relays whether there are coins to be received or an invoice to be paid.
+ * Checks with NOSTR relays whether there is ecash to be received or an invoice to be paid.
  */
 const checkPendingReceived = async function () {
     if(!walletProfileStore.pubkey) {
@@ -209,7 +209,7 @@ const checkPendingReceived = async function () {
                         result = {
                             status: TransactionStatus.COMPLETED,                        
                             title: `⚡${receivedAmount} sats received!`,
-                            message: `Coins from <b>${sentFrom}</b> are now in your wallet.`,
+                            message: `Ecash from <b>${sentFrom}</b> is now in your wallet.`,
                             memo,
                             picture,
                             token: decodeToken(tokenResult.token)
@@ -486,7 +486,7 @@ const receive = async function (
         if (tokenMints.length === 0) {
             throw new AppError(
                 Err.VALIDATION_ERROR,
-                'Could not get any mint information from the coins.',
+                'Could not get any mint information from the ecash token.',
             )
         }
 
@@ -587,7 +587,7 @@ const receive = async function (
         if (amountWithErrors === amountToReceive) {
             throw new AppError(
                 Err.VALIDATION_ERROR,
-                'Received coins are not valid and can not be redeemed',
+                'Received ecash token is not valid and can not be redeemed.',
             )
         }
 
@@ -691,7 +691,7 @@ const receiveOfflinePrepare = async function (
         if (tokenMints.length === 0) {
             throw new AppError(
                 Err.VALIDATION_ERROR,
-                'Could not get any mint information from the coins.',
+                'Could not get any mint information from the ecash token.',
             )
         }
 
@@ -808,7 +808,7 @@ const receiveOfflineComplete = async function (
         )
 
         if (!encodedToken) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Could not find coin token to redeem', 'receiveOfflineComplete')
+            throw new AppError(Err.VALIDATION_ERROR, 'Could not find ecash token to redeem', 'receiveOfflineComplete')
         }
         
         const token = decodeToken(encodedToken)        
@@ -869,7 +869,7 @@ const receiveOfflineComplete = async function (
         if (amountWithErrors === transaction.amount) {
             throw new AppError(
                 Err.VALIDATION_ERROR,
-                'Received coins are not valid and can not be redeemed',
+                'Received ecash token is not valid and can not be redeemed.',
             )
         }
 
@@ -971,7 +971,7 @@ const _sendFromMint = async function (
         if (proofsFromMint.length < 1) {
             throw new AppError(
                 Err.VALIDATION_ERROR,
-                'Could not find coins for the selected mint',
+                'Could not find ecash for the selected mint',
             )
         }
 
@@ -987,12 +987,12 @@ const _sendFromMint = async function (
 
         const selectedProofsAmount = getProofsAmount(selectedProofs)
 
-        if(selectedProofsAmount > 0 && (amountToSend !== selectedProofsAmount)) { // failsafe for some unknown coin selection UX error
-            throw new AppError(Err.VALIDATION_ERROR, 'Requested amount to send does not equal sum of coin denominations provided.')
+        if(selectedProofsAmount > 0 && (amountToSend !== selectedProofsAmount)) { // failsafe for some unknown ecash selection UX error
+            throw new AppError(Err.VALIDATION_ERROR, 'Requested amount to send does not equal sum of ecash denominations provided.')
         }
 
         /* 
-         * if we have selected coins to send in offline mode, we do not interact with the mint        
+         * if we have selected ecash to send in offline mode, we do not interact with the mint        
          */
 
         if(selectedProofsAmount > 0) {
@@ -1016,7 +1016,7 @@ const _sendFromMint = async function (
 
         
         /* 
-         * if we do not have selected coins and we might need a split of coins by the mint to match exact amount        
+         * if we do not have selected ecash and we might need a split of ecash by the mint to match exact amount        
          */        
         
         const proofsToSendFrom = proofsStore.getProofsToSend(

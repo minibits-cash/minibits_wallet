@@ -151,7 +151,7 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                     ContentComponent={
                         <ListItem
                             text='Use your own profile'
-                            subText='Use existing NOSTR profile as your wallet profile. You can then use Minibits to send and receive coins using your public identity on NOSTR social network.'
+                            subText='Use existing NOSTR profile as your wallet profile. You can then use Minibits to send and receive ecash using your public identity on NOSTR social network.'
                             leftIcon='faKey'
                             leftIconInverse={true}
                             leftIconColor={colors.palette.iconViolet200}              

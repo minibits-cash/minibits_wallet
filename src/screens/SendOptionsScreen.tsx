@@ -20,39 +20,36 @@ import {useHeader} from '../utils/useHeader'
 import {log} from '../utils/logger'
 import AppError from '../utils/AppError'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
-import { Token } from '../models/Token'
-import { decodeToken, findEncodedCashuToken, getTokenAmounts } from '../services/cashuHelpers'
+import { DecodedLightningInvoice, decodeInvoice, findEncodedLightningInvoice } from '../services/cashuHelpers'
 import { infoMessage } from '../utils/utils'
 
-export enum ReceiveOption {
-    SEND_PAYMENT_REQUEST = 'SEND_PAYMENT_REQUEST',
-    PASTE_OR_SCAN_TOKEN = 'PASTE_OR_SCAN_TOKEN',
-    SHOW_INVOICE = 'SHOW_INVOICE',
+export enum SendOption {
+    SEND_TOKEN = 'SEND_TOKEN',
+    PASTE_OR_SCAN_INVOICE = 'PASTE_OR_SCAN_INVOICE',
+    SHOW_TOKEN = 'SHOW_TOKEN',
 }
 
-export const ReceiveOptionsScreen: FC<WalletStackScreenProps<'ReceiveOptions'>> = observer(
-  function ReceiveOptionsScreen({route, navigation}) {
+export const SendOptionsScreen: FC<WalletStackScreenProps<'SendOptions'>> = observer(
+  function SendOptionsScreen({route, navigation}) {
     useHeader({
       leftIcon: 'faArrowLeft',
       onLeftPress: () => navigation.goBack(),
     })
 
-    const isInternetReachable = useIsInternetReachable()
-
-    const [info, setInfo] = useState('')
+    const isInternetReachable = useIsInternetReachable()    
     const [error, setError] = useState<AppError | undefined>()
 
 
     const gotoContacts = function () {
         navigation.navigate('ContactsNavigator', {
             screen: 'Contacts', 
-            params: {paymentOption: ReceiveOption.SEND_PAYMENT_REQUEST}})
+            params: {paymentOption: SendOption.SEND_TOKEN}})
     }
 
 
-    const gotoTopup = function () {
-        navigation.navigate('Topup', {            
-            paymentOption: ReceiveOption.SHOW_INVOICE}
+    const gotoSend = function () {
+        navigation.navigate('Send', {            
+            paymentOption: SendOption.SHOW_TOKEN}
         )
     }
 
@@ -63,23 +60,22 @@ export const ReceiveOptionsScreen: FC<WalletStackScreenProps<'ReceiveOptions'>> 
 
 
     const onPaste = async function () {
-        const maybeToken = await Clipboard.getString()
-        if (!maybeToken) {
-            infoMessage('Please copy the ecash token first.')
+        const maybeInvoice = await Clipboard.getString()
+        if (!maybeInvoice) {
+            infoMessage('Please copy the invoice first.')
         }
 
         try {
-            const encodedToken = findEncodedCashuToken(maybeToken)
+            const encodedInvoice = findEncodedLightningInvoice(maybeInvoice)
 
-            if(encodedToken) {
-                const decoded: Token = decodeToken(encodedToken)
-                infoMessage('Found ecash token in the clipboard.') 
-
-                setTimeout(() => navigation.navigate('Receive', {encodedToken}), 1000)   //TODO rename
+            if(encodedInvoice) {
+                const decoded: DecodedLightningInvoice = decodeInvoice(encodedInvoice)
+                infoMessage('Found lightning invoice in the clipboard.')                
+                setTimeout(() => navigation.navigate('Transfer', {encodedInvoice}), 1000)   //TODO rename
                 return
             }
 
-            infoMessage('Your clipboard does not contain an ecash token.')           
+            infoMessage('Your clipboard does not contain a lightning invoice.')            
         } catch (e: any) {
             handleError(e)
         }
@@ -99,7 +95,7 @@ export const ReceiveOptionsScreen: FC<WalletStackScreenProps<'ReceiveOptions'>> 
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
             <Text
               preset="heading"
-              tx="receiveScreen.title"
+              tx="sendScreen.title"
               style={{color: 'white'}}
             />
         </View>
@@ -109,8 +105,8 @@ export const ReceiveOptionsScreen: FC<WalletStackScreenProps<'ReceiveOptions'>> 
               ContentComponent={
                 <>
                   <ListItem
-                    tx="receiveScreen.sharePaymentRequest"
-                    subTx="receiveScreen.sharePaymentRequestDescription"
+                    tx="sendScreen.sendToContact"
+                    subTx="sendScreen.sendToContactDescription"
                     leftIcon='faPaperPlane'
                     leftIconColor={colors.palette.secondary300}
                     leftIconInverse={true}
@@ -118,22 +114,31 @@ export const ReceiveOptionsScreen: FC<WalletStackScreenProps<'ReceiveOptions'>> 
                     bottomSeparator={true}
                     onPress={gotoContacts}
                   />
-
-                  <ListItem
-                    tx="receiveScreen.showOrShareInvoice"
-                    subTx="receiveScreen.showOrShareInvoiceDescription"
-                    leftIcon='faBolt'
-                    leftIconColor={colors.palette.accent300}
+                  {/*<ListItem
+                    tx="sendScreen.pasteToSend"
+                    subTx="sendScreen.pasteToSendDescription"
+                    leftIcon='faClipboard'
+                    leftIconColor={colors.palette.iconGreyBlue400}
                     leftIconInverse={true}
                     style={$item}
                     bottomSeparator={true}
-                    onPress={gotoTopup}
-                  />
+                    onPress={onPaste}
+                  />*/}
                   <ListItem
-                    tx="receiveScreen.scanToReceive"
-                    subTx="receiveScreen.scanToReceiveDescription"
+                    tx="sendScreen.showOrShareToken"
+                    subTx="sendScreen.showOrShareTokenDescription"
                     leftIcon='faQrcode'
                     leftIconColor={colors.palette.success200}
+                    leftIconInverse={true}
+                    style={$item}
+                    bottomSeparator={true}
+                    onPress={gotoSend}
+                  />
+                  <ListItem
+                    tx="sendScreen.scanToSend"
+                    subTx="sendScreen.scanToSendDescription"
+                    leftIcon='faBolt'
+                    leftIconColor={colors.palette.accent300}
                     leftIconInverse={true}
                     style={$item}                    
                     onPress={onScan}
@@ -143,16 +148,14 @@ export const ReceiveOptionsScreen: FC<WalletStackScreenProps<'ReceiveOptions'>> 
               FooterComponent={
                 <Button 
                     onPress={onPaste}
-                    tx='receiveScreen.pasteToReceive'
+                    tx='sendScreen.pasteToSend'
                     preset='tertiary'
                     textStyle={{fontSize: 14, color: iconColor}}
                     style={{alignSelf: 'flex-start', marginLeft: 33}}
                 />
               }
             />
-        </View>        
-        {info && <InfoModal message={info} />}
-        {error && <ErrorModal error={error} />}
+        </View>
       </Screen>
     )
   },

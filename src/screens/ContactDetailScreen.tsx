@@ -13,6 +13,8 @@ import { WalletProfileRecord } from '../models/WalletProfileStore'
 import { MinibitsClient, NostrClient } from '../services'
 import { getImageSource } from '../utils/utils'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
+import { ReceiveOption } from './ReceiveOptionsScreen'
+import { SendOption } from './SendOptionsScreen'
 
 
 interface ContactDetailScreenProps extends ContactsStackScreenProps<'ContactDetail'> {}
@@ -30,63 +32,38 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
         rightIcon: 'faEllipsisVertical',
         onRightPress: () => toggleContactModal(),       
     })    
-     
-    const [amountToSend, setAmountToSend] = useState('')
-    const [amountToTopup, setAmountToTopup] = useState('')
-    const [availableBalance, setAvailableBalance] = useState(0)
-    const [isSendModalVisible, setIsSendModalVisible] = useState(false)
-    const [isRequestModalVisible, setIsRequestModalVisible] = useState(false)    
+    
+       
     const [isContactModalVisible, setIsContactModalVisible] = useState(false) 
     const [info, setInfo] = useState('')    
     const [error, setError] = useState<AppError | undefined>()
-
-    useEffect(() => {
-        const focusSend = () => {
-            amountToSendInputRef && amountToSendInputRef.current
-            ? amountToSendInputRef.current.focus()
-            : false
-        }
-  
-        if (isSendModalVisible) {
-          setTimeout(() => focusSend(), 200)
-        }
-    }, [isSendModalVisible])
-
-
-    useEffect(() => {
-        const focusRequest = () => {
-            amountToRequestInputRef && amountToRequestInputRef.current
-            ? amountToRequestInputRef.current.focus()
-            : false
-        }
-  
-        if (isRequestModalVisible) {
-            setTimeout(() => focusRequest(), 200)
-        }
-    }, [isRequestModalVisible])
-
-
-    useEffect(() => {
-        const load = async () => {
-            const maxBalance = proofsStore.getMintBalanceWithMaxBalance()
-            if(maxBalance && maxBalance.balance > 0) {
-                setAvailableBalance(maxBalance.balance)
-            }  
-        }
-  
-        load()
-    }, [isSendModalVisible])
-
+    
     const toggleContactModal = () => {
         setIsContactModalVisible(previousState => !previousState)
     }
 
-    const toggleSendModal = () => {
-        setIsSendModalVisible(previousState => !previousState)
+    
+    const gotoTopup = () => {
+        navigation.navigate('WalletNavigator', { 
+            screen: 'Topup',
+            params: {
+                paymentOption: ReceiveOption.SEND_PAYMENT_REQUEST, 
+                contact, 
+                relays
+            },
+        })
     }
 
-    const toggleRequestModal = () => {
-        setIsRequestModalVisible(previousState => !previousState)
+
+    const gotoSend = () => {
+        navigation.navigate('WalletNavigator', { 
+            screen: 'Topup',
+            params: {
+                paymentOption: SendOption.SEND_TOKEN, 
+                contact, 
+                relays
+            },
+        })
     }
 
     const onCopyNpub = function () {        
@@ -97,71 +74,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
         }
     }
 
-    const onSendCoins = async function () {  
-        if(parseInt(amountToSend) > availableBalance) {
-            setInfo('Amount to send is higher than your available balance.')
-            return
-        }
-
-        if(parseInt(amountToSend) === 0) {
-            setInfo('Amount should be positive number.')
-            return
-        }
-
-        toggleSendModal()
-
-        try {
-            if(contact.nip05) {
-                await NostrClient.verifyNip05(contact.nip05 as string, contact.pubkey) // throws
-            }           
-        
-            navigation.navigate('WalletNavigator', { 
-                screen: 'Send',
-                params: {
-                    amountToSend, 
-                    contact, 
-                    relays
-                },
-            })
-            
-            return
-        } catch (e: any) {
-            handleError(e)
-        }
-        
-    }
-
-
-    const onPaymentRequest = async function () {  
-        if(parseInt(amountToTopup) === 0) {
-            setInfo('Amount should be positive number.')
-            return
-        }
-
-        toggleRequestModal()
-
-        try {
-            if(contact.nip05) {
-                await NostrClient.verifyNip05(contact.nip05 as string, contact.pubkey) // throws
-            }           
-        
-            navigation.navigate('WalletNavigator', { 
-                screen: 'Topup',
-                params: {
-                    amountToTopup, 
-                    contact, 
-                    relays
-                },
-            })
-            
-            return
-        } catch (e: any) {
-            handleError(e)
-        }
-        
-    }
-
-
+    
     const onSyncPrivateContact = async function () {
         try {
             if(contact.nip05) {                
@@ -225,7 +138,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
         <View style={[$bottomContainer]}>
           <View style={$buttonContainer}>
           <Button
-              text={`Request coins`}
+              text={`Request ecash`}
               LeftAccessory={() => (
                 <Icon
                   icon='faArrowDown'
@@ -233,11 +146,11 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                   size={spacing.medium}                  
                 />
               )}
-              onPress={toggleRequestModal}
+              onPress={gotoTopup}
               style={[$buttonReceive, {borderRightColor: screenBg}]}
             />
             <Button
-              text={`Send coins`}
+              text={`Send ecash`}
               RightAccessory={() => (
                 <Icon
                   icon='faArrowUp'
@@ -245,7 +158,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                   size={spacing.medium}                  
                 />
               )}
-              onPress={toggleSendModal}
+              onPress={gotoSend}
               style={$buttonSend}            
             />
             </View>
@@ -287,83 +200,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
           }
           onBackButtonPress={toggleContactModal}
           onBackdropPress={toggleContactModal}
-        />
-        <BottomModal
-          isVisible={isSendModalVisible ? true : false}
-          top={spacing.screenHeight * 0.26}
-          ContentComponent={
-                <View style={$payContainer}>
-                    {type === ContactType.PUBLIC && (
-                        <Text text={`Tip or donate to ${name}`} preset="subheading" />
-                    )}
-                    {type === ContactType.PRIVATE && (
-                        <Text text={`Send coins to ${name}`} preset="subheading" />
-                    )}
-                    <Text text={`You can send up to ${availableBalance.toLocaleString()} sats.`} size='xs' style={{color: balanceColor}} />                   
-                    <View style={{alignItems: 'center'}}>
-                        <TextInput
-                            ref={amountToSendInputRef}
-                            onChangeText={(value) => setAmountToSend(value)}
-                            value={amountToSend}
-                            autoCapitalize='none'
-                            keyboardType='numeric'
-                            maxLength={9}                            
-                            selectTextOnFocus={true}
-                            style={[$amountInput, {backgroundColor: inputBg,  minWidth: 200, marginTop: spacing.medium}]}                        
-                        />
-                        <Text size='xxs' style={{color: balanceColor}} text='sats'/>
-                    </View>
-                    {contact.type === ContactType.PUBLIC && (
-                        <View style={$buttonContainer}>
-                            <Button preset='secondary' style={{marginRight: spacing.small}} onPress={() => setAmountToSend('100')} text='100 sats'/>
-                            <Button preset='secondary' style={{marginRight: spacing.small}} onPress={() => setAmountToSend('200')} text='200 sats'/>
-                            <Button preset='secondary' onPress={() => setAmountToSend('1000')} text='1000 sats'/>                    
-                        </View>
-                    )}
-                    <View style={[$buttonContainer, {marginTop: spacing.medium}]}>
-                        <Button
-                            text='Continue'
-                            style={$sendButton}
-                            onPress={onSendCoins}                                
-                        /> 
-                    </View>                                 
-                </View>
-          }
-          onBackButtonPress={toggleSendModal}
-          onBackdropPress={toggleSendModal}
-        />
-        <BottomModal
-          isVisible={isRequestModalVisible ? true : false}
-          top={spacing.screenHeight * 0.26}
-          ContentComponent={
-                <View style={$payContainer}>
-                    <Text text={`Request ${name} to pay`} preset="subheading" />
-                    <Text text={`Send payment request to your contact. If paid, sats will topup your wallet balance.`} size='xs' style={{color: balanceColor}} />                   
-                    <View style={{alignItems: 'center'}}>
-                        <TextInput
-                            ref={amountToRequestInputRef}
-                            onChangeText={(value) => setAmountToTopup(value)}
-                            value={amountToTopup}
-                            autoCapitalize='none'
-                            keyboardType='numeric'
-                            maxLength={9}                            
-                            selectTextOnFocus={true}
-                            style={[$amountInput, {backgroundColor: inputBg, minWidth: 200, marginTop: spacing.medium}]}                        
-                        />
-                        <Text size='xxs' style={{color: balanceColor}} text='sats'/>
-                    </View>
-                    <View style={[$buttonContainer, {marginTop: spacing.medium}]}>
-                        <Button
-                            text='Continue'
-                            style={$sendButton}
-                            onPress={onPaymentRequest}                                
-                        /> 
-                    </View>                                 
-                </View>
-          }
-          onBackButtonPress={toggleRequestModal}
-          onBackdropPress={toggleRequestModal}
-        />
+        />        
         {info && <InfoModal message={info} />}
         {error && <ErrorModal error={error} />}
     </Screen>

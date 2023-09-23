@@ -33,7 +33,7 @@ const en = {
       heading: "Do not forget",
       intro: "Both the Cashu protocol and the Minibits wallet are still experimental, and by using them, you accept known and unknown risks.",
       bullet1: "Mints are, by design, custodial services. Run your own or use them only for research and testing purposes.",
-      bullet2: "eCash is stored on your device, so the loss of the device means the loss of coins. Remote backup protocol is still under research.",
+      bullet2: "eCash is stored on your device, so the loss of the device means the loss of ecash. Remote backup protocol is still under research.",
       bullet3: "Minibits provides its own mint that you can use for testing purposes with small amounts. It is operated on a best-effort basis and without any guarantees.",
       final: "Now, let's move some eCash!",
       go: "Let's go!"
@@ -51,7 +51,7 @@ const en = {
   },
   receiveScreen: {
     title: "Receive", 
-    paste: "Paste coin",
+    paste: "Paste ecash",
     receive: "Receive",
     receiveOffline: "Receive offline",    
     newMintsAdded: {
@@ -62,32 +62,29 @@ const en = {
     received: "Amount received:",
     sharePaymentRequest: "Send payment request",
     sharePaymentRequestDescription: "Send payment request to one of your contacts, so that the payer can pay you exact amount.",
-    scanOrPasteToReceive: "Paste or scan ecash to receive",
-    scanOrPasteToReceiveDescription: "If you have copied the ecash or see it as a QR code on another device, tap to receive.",
+    scanToReceive: "Scan ecash token",
+    scanToReceiveDescription: "Scan ecash token to receive it into your wallet.",
+    pasteToReceive: "Paste from clipboard",
+    pasteoReceiveDescription: "Paste ecash token to receive it into your wallet.",
     showOrShareInvoice: "Show lightning invoice",
-    showOrShareInvoiceDescription: "Present or share lightning invoice for an amount you want to receive."    
+    showOrShareInvoiceDescription: "Present or share the lightning invoice for an amount you want to receive."    
   },
   transferScreen: {
-    pasteLightningInvoice: "Paste lightning invoice",
-    pasteLightningInvoiceDescription: "Paste the Bitcoin lightning invoice you want to pay. The mint will pay this invoice on your behalf in exchange for the coins from your wallet.",
-    scanLightningInvoice: "Scan lightning invoice",
-    scanLightningInvoiceDescription: "Scan the Bitcoin lightning invoice in QR code format. You can use your coins to pay any service supporting lightning payments."
+    
   },
   topupScreen: {
-    sendInvoiceToContact: "Request to pay",
-    sendInvoiceToContactDescription: "Send payment request to one of your contacts, so that the payer can pay you exact amount.",
-    showInvoiceQRCode: "Show invoice QR code",
-    showInvoiceQRCodeDescription: "Present the lightning invoice as a QR code so that you can pay it from the wallet on another device.",
-    shareInvoiceAsText: "Share invoice as text",
-    shareInvoiceAsTextDescription: "Copy and share the invoice with anybody through a secure app of your choice."
+    
   },
   sendScreen: {
+    title: "Send",
     sendToContact: "Send to contact",
-    sendToContactDescription: "Send your coins to one of your contacts stored in your contact list.",
-    showAsQRCode: "Show as QR code",
-    showAsQRCodeDescription: "Present the coins as a QR code so that the recipient can scan it to receive them.",
-    shareAsText: "Share as text",
-    shareAsTextDescription: "Copy and send the coins to anybody through a secure app of your choice."
+    sendToContactDescription: "Send your ecash to one of your contacts stored in your contact list.",
+    scanToSend: "Scan lightning invoice",
+    scanToSendDescription: "Scan lightning invoice to pay it from your wallet.",
+    pasteToSend: "Paste from clipboard",
+    pasteToSendDescription: "Paste lightning invoice from clipboard to pay it from your wallet.",
+    showOrShareToken: "Share ecash token",
+    showOrShareTokenDescription: "Present or share the ecash for an amount you want to send.",
   },
   tranDetailScreen: {
     amount: "Amount (in satoshis)",
@@ -107,6 +104,7 @@ const en = {
     paidFrom: "Paid from",
     receivedTo: "Received to",
     topupTo: "Topup to",
+    invoice: "Lightning invoice to pay",
     receiveOfflineComplete: "Redeem to wallet",
     isOffline: "Redeem online"
   },
@@ -150,20 +148,20 @@ const en = {
     blockMint: "Block receiving from this mint",
     unblockMint: "Unblock receiving from this mint",
     mintRemoved: "The mint has been removed",
-    mintBlocked: "The mint has been blocked. The app will not receive coins from this mint.",
-    mintUnblocked: "The mint has been unblocked. You can now receive coins from this mint."
+    mintBlocked: "The mint has been blocked. The app will not receive ecash from this mint.",
+    mintUnblocked: "The mint has been unblocked. You can now receive ecash from this mint."
   },
   backupScreen: {
     localBackup: "Local backup",
-    localBackupDescription: "Local backup stores a copy of all your coins in the local database. Coins are never deleted unless you switch off the backup. Please note that this backup is not encrypted.",
+    localBackupDescription: "Local backup stores a copy of all your ecash in the local database. Ecash is never deleted unless you switch off the backup. Please note that this backup is not encrypted.",
     recoveryTool: "Recovery tool",
-    recoveryToolDescription: "Show coins backed up in the local database and attempt to recover unspent ones into the wallet in case the wallet storage gets corrupted or a transaction fails due to an unexpected error.",
-    removeSpentCoins: "Remove spent coins",
-    removeSpentCoinsDescription: "In case of a SEND or TRANSFER transaction error, spent coins may remain in your wallet. This blocks further transactions with the mint, making the wallet unusable. This tool removes spent coins from the wallet."
+    recoveryToolDescription: "Show ecash backed up in the local database and attempt to recover unspent ones into the wallet in case the wallet storage gets corrupted or a transaction fails due to an unexpected error.",
+    removeSpentCoins: "Remove spent ecash",
+    removeSpentCoinsDescription: "In case of a SEND or TRANSFER transaction error, spent ecash may remain in your wallet. This blocks further transactions with the mint, making the wallet unusable. This tool removes spent ecash from the wallet."
   },
   securityScreen: {
     encryptStorage: "Encrypt storage",
-    encryptStorageDescription: "Encrypt the storage that stores your coins with the secret key generated on your device and stored in secure keys storage. On some Android devices, this may cause a slightly longer startup of the application.",
+    encryptStorageDescription: "Encrypt the storage that stores your ecash with the secret key generated on your device and stored in secure keys storage. On some Android devices, this may cause a slightly longer startup of the application.",
     biometry: "Biometric authentication",
     biometryAvailable: "Your device supports biometric authentication. If you activate encrypted storage, it will be required for Minibits to start.",
     biometryNone: "You have not setup biometric authentication or your device does not support it."

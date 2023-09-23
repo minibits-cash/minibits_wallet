@@ -12,24 +12,20 @@ import { PublicContacts } from './Contacts/PublicContacts'
 import { log } from '../utils/logger'
 import { getImageSource } from '../utils/utils'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
+import { ReceiveOption } from './ReceiveOptionsScreen'
+import { SendOption } from './SendOptionsScreen'
 
 interface ContactsScreenProps extends ContactsStackScreenProps<'Contacts'> {}
 
 export const ContactsScreen: FC<ContactsScreenProps> = observer(function ContactsScreen({route, navigation}) {    
     const {userSettingsStore, walletProfileStore} = useStores()
-
-    // TODO this should go to useRef or wut?
-    let amountToSend: string | undefined
-    let amountToTopup: string | undefined
     
-    if(route.params && route.params.amountToSend) {
-        amountToSend = route.params.amountToSend
+    let paymentOption: ReceiveOption | SendOption | undefined
+        
+    if(route.params && route.params.paymentOption) {
+        paymentOption = route.params.paymentOption
     }
 
-    if(route.params && route.params.amountToTopup) {
-        amountToTopup = route.params.amountToTopup
-    }
-    
     
     useEffect(() => {
         const load = async () => {
@@ -59,9 +55,9 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
     const renderScene = ({route}: {route: Route}) => {
         switch (route.key) {
           case 'first':
-            return <PrivateContacts navigation={navigation} amountToSend={amountToSend} amountToTopup={amountToTopup} />
+            return <PrivateContacts navigation={navigation}  paymentOption={paymentOption} />
           case 'second':
-            return <PublicContacts navigation={navigation} amountToSend={amountToSend} amountToTopup={amountToTopup} />
+            return <PublicContacts navigation={navigation} paymentOption={paymentOption} />
           default:
             return null
         }

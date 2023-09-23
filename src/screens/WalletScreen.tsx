@@ -277,16 +277,12 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         navigation.navigate('ReceiveOptions')
     }
 
-    const gotoReceive = function () {
-        navigation.navigate('Receive', {})
+    const gotoSendOptions = function () {
+        navigation.navigate('SendOptions')
     }
 
     const gotoScan = function () {
         navigation.navigate('Scan')
-    }
-
-    const gotoSend = function () {
-        navigation.navigate('Send', {})
     }
 
     const gotoTranHistory = function () {
@@ -297,22 +293,11 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
       navigation.navigate('TranDetail', {id} as any)
     }
 
-    const gotoTransfer = function (availableMintBalances: MintBalance[] | undefined) {        
-        // setIsLightningModalVisible(false)
-        navigation.navigate('Transfer', {availableMintBalances})
-    }
-
     const gotoPaymentRequests = function () {
         navigation.navigate('PaymentRequests')
     }
-
-    const gotoTopup = function (availableMintBalances: MintBalance[] | undefined) {        
-        // setIsLightningModalVisible(false)
-        navigation.navigate('Topup', {availableMintBalances})
-    }
-
+    
     /* Mints pager */
-
     const groupedMints = mintsStore.groupedByHostname
     const width = spacing.screenWidth
     const pagerRef = useRef<PagerView>(null)
@@ -412,9 +397,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                 <View key={mints.hostname} style={{marginHorizontal: spacing.extraSmall, flexGrow: 1}}>
                                     <MintsByHostnameListItem                                    
                                         mintsByHostname={mints}
-                                        mintBalances={balances.mintBalances.filter(balance => balance.mint.includes(mints.hostname))}
-                                        gotoTopup={gotoTopup}
-                                        gotoTransfer={gotoTransfer}
+                                        mintBalances={balances.mintBalances.filter(balance => balance.mint.includes(mints.hostname))}                                        
                                     />
                                     {transactionsStore.recentByHostname(mints.hostname).length > 0 && (
                                         <Card                                    
@@ -484,23 +467,11 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                   size={spacing.medium}                  
                 />
               )}
-              onPress={gotoSend}
+              onPress={gotoSendOptions}
               style={[$buttonSend, {borderLeftColor: screenBg}]}
             />
           </View>
         </View>
-        {/*<BottomModal
-          isVisible={isLightningModalVisible ? true : false}
-          top={spacing.screenHeight * 0.6}
-          ContentComponent={
-            <LightningActionsBlock
-              gotoWithdraw={gotoTransfer}
-              gotoTopup={gotoTopup}
-            />
-          }
-          onBackButtonPress={toggleLightningModal}
-          onBackdropPress={toggleLightningModal}
-        />*/}
         <BottomModal
           isVisible={isUpdateModalVisible ? true : false}
           top={spacing.screenHeight * 0.75}
@@ -523,51 +494,6 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
           onBackButtonPress={toggleUpdateModal}
           onBackdropPress={toggleUpdateModal}
         />        
-        {/* <BottomModal
-          isVisible={isReceivedModalVisible ? true : false}
-          top={spacing.screenHeight * 0.5}
-          ContentComponent={
-            <>
-              {receivedModalInfo && receivedModalInfo.paymentRequest && (
-                  <>
-                    <View style={$bottomModal}>                
-                        {receivedModalInfo.picture ? (
-                        <Image 
-                            style={{
-                                width: 90, 
-                                height: 90, 
-                                borderRadius: 45,                        
-                            }} 
-                            source={{uri: receivedModalInfo.picture}} 
-                        />
-                    ) : (
-                        <Icon
-                            icon='faCircleUser'                                
-                            size={80}                    
-                            color={'white'}                
-                        />
-                    )}
-                    <Text preset='bold' text={receivedModalInfo.title} style={{color: 'white', marginBottom: spacing.small}} />
-                    <Text style={{marginTop: spacing.small}} text={receivedModalInfo.message} />
-                    <Text 
-                        style={{textAlign: 'center', marginTop: spacing.small}} 
-                        text={receivedModalInfo.memo} 
-                    />
-                    <View style={$buttonContainer}>
-                        <Button                                
-                            text={`Pay invoice`}
-                            onPress={() => gotoTransferWithPaymentRequest(receivedModalInfo.paymentRequest as PaymentRequest)}
-                        />
-                    </View>            
-                    </View>
-
-                  </>
-                )}              
-            </>
-          }
-          onBackButtonPress={toggleReceivedModal}
-          onBackdropPress={toggleReceivedModal}
-        /> */}
         {info && <InfoModal message={info} />}
         {error && <ErrorModal error={error} />}
       </Screen>
@@ -638,13 +564,10 @@ const PromoBlock = function (props: {addMint: any}) {
 
 const MintsByHostnameListItem = observer(function (props: {
     mintsByHostname: MintsByHostname
-    mintBalances: MintBalance[]
-    gotoTopup: any
-    gotoTransfer: any
+    mintBalances: MintBalance[]    
 }) {
     const color = useThemeColor('textDim')
-    const balanceColor = useThemeColor('amount')
-    const buttonBg = useThemeColor('background')   
+    const balanceColor = useThemeColor('amount')       
 
     return (
         <Card
@@ -679,26 +602,7 @@ const MintsByHostnameListItem = observer(function (props: {
                 />
                 ))}
             </>
-            }            
-            /* FooterComponent={
-                <View style={[$buttonContainer, {backgroundColor: buttonBg, borderRadius: spacing.small, alignItems: 'center', alignSelf: 'flex-start'}]}>
-                    <Button
-                        preset='tertiary'
-                        onPress={() => props.gotoTopup(props.mintBalances)}
-                        style={{minHeight: verticalScale(30)}}
-                        text='Topup'
-                        textStyle={{lineHeight: verticalScale(16), fontSize: 14}}                                                
-                    />
-                    <Icon icon='faBolt' size={14} color={color}/>
-                    <Button
-                        preset='tertiary'
-                        onPress={() => props.gotoTransfer(props.mintBalances)}
-                        style={{minHeight: verticalScale(30)}}
-                        text='Transfer'
-                        textStyle={{lineHeight: verticalScale(16), fontSize: 14}}                                                    
-                    />
-                </View>
-            }*/
+            }
             contentStyle={{color}}            
             style={$card}
         />

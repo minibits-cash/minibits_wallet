@@ -12,15 +12,16 @@ import { log } from '../../utils/logger'
 import { Contact, ContactType } from '../../models/Contact'
 import { StackNavigationProp } from '@react-navigation/stack'
 import { ContactsStackParamList } from '../../navigation'
+import { SendOption } from '../SendOptionsScreen'
+import { ReceiveOption } from '../ReceiveOptionsScreen'
 
 
 const defaultPublicNpub = 'npub14n7frsyufzqsxlvkx8vje22cjah3pcwnnyqncxkuj2243jvt9kmqsdgs52'
 const maxContactsToLoad = 20
 
 export const PublicContacts = observer(function (props: {    
-    navigation: StackNavigationProp<ContactsStackParamList, "Contacts", undefined>, 
-    amountToSend: string | undefined,
-    amountToTopup: string | undefined}
+    navigation: StackNavigationProp<ContactsStackParamList, "Contacts", undefined>,    
+    paymentOption: ReceiveOption | SendOption |undefined}
 ) { 
     const {contactsStore} = useStores()
     const {navigation} = props
@@ -108,41 +109,7 @@ export const PublicContacts = observer(function (props: {
             authors: [contactsStore.publicPubkey],
             kinds: [0, 3],            
         }]        
-        
-        /* const pool = NostrClient.getRelayPool()
-
-        log.trace('Starting own profile and following pubkeys subscription...', { filters, relays: currentRelays.current } )
-
-        const sub = pool.sub(currentRelays.current, filters)
-        sub.on('event', (event: NostrEvent) => {
-            //  log.trace('own or pubkeys event', event)
-            if(ownProfile && ownProfile.name && followingPubkeys && followingPubkeys.length > 0) {
-                return
-            }
-
-            if(event.kind === 0) {
-                const profile: NostrProfile = JSON.parse(event.content)                
                 
-                profile.pubkey = contactsStore.publicPubkey as string
-    
-                log.trace('Updating own profile', profile)    
-                setOwnProfile(profile)                
-            }
-            
-            if(event.kind === 3) {
-                const pubkeys = event.tags
-                    .filter((item: [string, string]) => item[0] === "p")
-                    .map((item: [string, string]) => item[1])
-
-                log.trace('Updating followingPubkeys:', pubkeys.length)
-                setFollowingPubkeys(pubkeys)                
-            }
-        })
-
-        sub.on('eose', () => {
-            sub.unsub()
-        }) */
-
         const events: NostrEvent[] = await NostrClient.getEvents(currentRelays.current, filters)
 
         for (const event of events) {
@@ -187,43 +154,7 @@ export const PublicContacts = observer(function (props: {
             }]
 
             log.trace('Starting following profiles subscription...')
-            
-            /* setIsLoading(true)
-
-            const pool = NostrClient.getRelayPool()
-            const sub = pool.sub(currentRelays.current, filters)
-
-            let events: NostrEvent[] = []
-
-            sub.on('event', (event: NostrEvent) => {
-                // log.trace('Profile event', event)
-                events.push(event)            
-            })
-
-            sub.on('eose', () => {
-                log.trace(`Got ${events.length} profile events`)
-
-                let following: NostrProfile[] = []
-                for (const event of events) {
-                    try {
-                        const profile: NostrProfile = JSON.parse(event.content)
-        
-                        profile.pubkey = event.pubkey
-                        profile.npub = NostrClient.getNpubkey(event.pubkey)
-        
-                        following.push(profile)
-                    } catch(e: any) {
-                        continue
-                    }
-                }
-        
-                log.trace('Updating following profiles', following.length)
-        
-                setFollowingProfiles(following)
-                setIsLoading(false)
-                sub.unsub()
-            })*/
-            
+                                    
             setIsLoading(true)
 
             const events: NostrEvent[] = await NostrClient.getEvents(currentRelays.current, filters)   
@@ -374,33 +305,43 @@ export const PublicContacts = observer(function (props: {
 
 
     const gotoContactDetail = function (contact: Contact) {
-        const {amountToSend, amountToTopup} = props
+        const {paymentOption} = props
         contact.type = ContactType.PUBLIC      // ???
 
         const relays = contactsStore.publicRelay ? [...NostrClient.getDefaultRelays(), contactsStore.publicRelay] : NostrClient.getDefaultRelays()
         
-        if(amountToSend) {
+        if(paymentOption && paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) {
             navigation.navigate('WalletNavigator', { 
-                screen: 'Send',
-                params: {
-                    amountToSend, 
+                screen: 'Topup',
+                params: {   
+                    paymentOption,                 
                     contact, 
                     relays
                 },
+            })
+
+            //reset
+            navigation.setParams({
+                paymentOption: undefined,
             })
 
             return
         }
 
 
-        if(amountToTopup) {
+        if(paymentOption && paymentOption === SendOption.SEND_TOKEN) {
             navigation.navigate('WalletNavigator', { 
-                screen: 'Topup',
-                params: {
-                    amountToTopup, 
+                screen: 'Send',
+                params: {   
+                    paymentOption,                  
                     contact, 
                     relays
                 },
+            })
+
+            //reset
+            navigation.setParams({
+                paymentOption: undefined,
             })
 
             return

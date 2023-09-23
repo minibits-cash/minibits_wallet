@@ -34,6 +34,7 @@ import {
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {MintListItem} from './Mints/MintListItem'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
+import { resolveTxt } from 'dns'
 
 export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
   function ReceiveScreen({route, navigation}) {
@@ -93,6 +94,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
     const toggleResultModal = () =>
       setIsResultModalVisible(previousState => !previousState)
 
+
     const onEncodedToken = async function (encoded: string) {
       try {
         navigation.setParams({encodedToken: undefined})
@@ -113,6 +115,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         handleError(e)
       }
     }
+
 
     const receiveToken = async function () {
         setIsLoading(true)
@@ -180,6 +183,11 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
     }
 
 
+    const gotoWallet = function() {
+        resetState()
+        navigation.goBack()
+    }
+
     const handleError = function (e: AppError): void {
       resetState()
       log.error(e.name, e.message)
@@ -194,7 +202,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           
             <View style={$amountContainer}>
-                {amountToReceive > 0 && (
+                {amountToReceive > 0 && receivedAmount === 0 && (
                 <>
                     <Text
                         preset="subheading"
@@ -290,39 +298,41 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                   />
                 </View>
               ) : (
-                <View style={$buttonContainer}>
-                    {isInternetReachable ? (
-                        <Button
-                            tx={'receiveScreen.receive'}
-                            onPress={receiveToken}
-                            style={{marginRight: spacing.medium}}
-                            LeftAccessory={() => (
-                            <Icon
-                                icon="faArrowDown"
-                                color="white"
-                                size={spacing.medium}                                
+                <View style={$bottomContainer}>
+                    <View style={$buttonContainer}>
+                        {isInternetReachable ? (
+                            <Button
+                                tx={'receiveScreen.receive'}
+                                onPress={receiveToken}
+                                style={{marginRight: spacing.medium}}
+                                LeftAccessory={() => (
+                                <Icon
+                                    icon="faArrowDown"
+                                    color="white"
+                                    size={spacing.medium}                                
+                                />
+                                )}
                             />
+                        ) : (
+                            <Button
+                                tx={'receiveScreen.receiveOffline'}
+                                onPress={receiveOfflineToken}
+                                style={{marginRight: spacing.medium}}
+                                LeftAccessory={() => (
+                                <Icon
+                                    icon="faArrowDown"
+                                    color="white"
+                                    size={spacing.medium}                                
+                                />
                             )}
                         />
-                    ) : (
-                        <Button
-                            tx={'receiveScreen.receiveOffline'}
-                            onPress={receiveOfflineToken}
-                            style={{marginRight: spacing.medium}}
-                            LeftAccessory={() => (
-                            <Icon
-                                icon="faArrowDown"
-                                color="white"
-                                size={spacing.medium}                                
-                            />
-                        )}
+                        )}                  
+                    <Button
+                        preset="secondary"
+                        tx={'common.cancel'}
+                        onPress={gotoWallet}
                     />
-                    )}                  
-                  <Button
-                    preset="secondary"
-                    tx={'common.cancel'}
-                    onPress={resetState}
-                  />
+                    </View>
                 </View>
               )}
             </>
@@ -409,7 +419,7 @@ const $headerContainer: TextStyle = {
 }
 
 const $contentContainer: TextStyle = {
-  // flex: 1,
+  flex: 1,
   padding: spacing.extraSmall,
   // alignItems: 'center',
 }
@@ -455,3 +465,15 @@ const $amountToReceive: TextStyle = {
   textAlignVertical: 'center',
   color: 'white',
 }
+
+const $bottomContainer: ViewStyle = {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flex: 1,
+    justifyContent: 'flex-end',
+    marginBottom: spacing.medium,
+    alignSelf: 'stretch',
+    // opacity: 0,
+  }

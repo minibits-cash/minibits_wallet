@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {useEffect, useRef, useState} from 'react'
-import {FlatList, KeyboardAvoidingView, TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import {FlatList, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
 import {colors, spacing, useThemeColor} from '../../theme'
 import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
@@ -13,14 +13,15 @@ import { log } from '../../utils/logger'
 import { ContactListItem } from './ContactListItem'
 import { Contact, ContactType } from '../../models/Contact'
 import { StackNavigationProp } from '@react-navigation/stack'
-import { WalletProfileRecord } from '../../models/WalletProfileStore'
+import { ReceiveOption } from '../ReceiveOptionsScreen'
+import { SendOption } from '../SendOptionsScreen'
+import { infoMessage } from '../../utils/utils'
 
 
 
 export const PrivateContacts = observer(function (props: {
-    navigation: StackNavigationProp<ContactsStackParamList, "Contacts", undefined>, 
-    amountToSend: string | undefined,
-    amountToTopup: string | undefined}
+    navigation: StackNavigationProp<ContactsStackParamList, "Contacts", undefined>,     
+    paymentOption: ReceiveOption | SendOption | undefined}
 ) { 
     const {contactsStore} = useStores()
     const {navigation} = props
@@ -33,6 +34,18 @@ export const PrivateContacts = observer(function (props: {
     const [isNewContactModalVisible, setIsNewContactModalVisible] = useState(false)            
     const [error, setError] = useState<AppError | undefined>()
    
+    useEffect(() => {        
+        const { paymentOption } = props
+
+        if (paymentOption && paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) {
+            infoMessage('Select contact to send your payment request to.')
+        }
+
+        if (paymentOption && paymentOption === SendOption.SEND_TOKEN) {
+            infoMessage('Select contact to send your ecash to.')
+        }
+    }, [])
+    
     useEffect(() => {        
         const focus = () => {
             contactNameInputRef && contactNameInputRef.current
@@ -47,7 +60,7 @@ export const PrivateContacts = observer(function (props: {
         }
     }, [isNewContactModalVisible])
 
-
+    
     const toggleNewContactModal = () => {
         setIsNewContactModalVisible(previousState => !previousState)
     }
@@ -161,43 +174,17 @@ export const PrivateContacts = observer(function (props: {
     }
 
     const gotoContactDetail = async function (contact: Contact) {
-        const {amountToSend, amountToTopup} = props        
-        
-        log.trace('amountToSend, amountToTopup', {amountToSend, amountToTopup})
+        try {
+            const {paymentOption} = props        
+            
+            log.trace('paymentOption', {paymentOption}, 'gotoContactDetail')
 
-        const minibitsRelays = NostrClient.getMinibitsRelays()
-        const defaultRelays = NostrClient.getDefaultRelays()
-        const relays = [...minibitsRelays, ...defaultRelays]
-
-        if(amountToSend) { // Send tx contact selection
-            try {
-                if(contact.nip05) {                
-                    await NostrClient.verifyNip05(contact.nip05 as string, contact.pubkey) // throws
-                }
+            const minibitsRelays = NostrClient.getMinibitsRelays()
+            const defaultRelays = NostrClient.getDefaultRelays()
+            const relays = [...minibitsRelays, ...defaultRelays]
+            
+            if(paymentOption && paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) { // Topup tx contact selection
                 
-                navigation.navigate('WalletNavigator', { 
-                    screen: 'Send',
-                    params: {
-                        amountToSend, 
-                        contact, 
-                        relays
-                    },
-                })
-
-                //reset
-                navigation.setParams({
-                    amountToSend: '',
-                })
-                
-                return
-            } catch (e: any) {
-                handleError(e)
-            }
-        }
-
-
-        if(amountToTopup) { // Topup tx contact selection
-            try {
                 if(contact.nip05) {                
                     await NostrClient.verifyNip05(contact.nip05 as string, contact.pubkey) // throws
                 }
@@ -205,7 +192,7 @@ export const PrivateContacts = observer(function (props: {
                 navigation.navigate('WalletNavigator', { 
                     screen: 'Topup',
                     params: {
-                        amountToTopup, 
+                        paymentOption, 
                         contact, 
                         relays
                     },
@@ -213,19 +200,43 @@ export const PrivateContacts = observer(function (props: {
 
                 //reset
                 navigation.setParams({
-                    amountToTopup: '',
+                    paymentOption: undefined,
                 })
                 
                 return
-            } catch (e: any) {
-                handleError(e)
-            }
-        }
 
-        navigation.navigate('ContactDetail', {                   
-            contact, 
-            relays: NostrClient.getMinibitsRelays()        
-        })
+            }
+
+            if(paymentOption && paymentOption === SendOption.SEND_TOKEN) { // Send tx contact selection
+            
+                if(contact.nip05) {                
+                    await NostrClient.verifyNip05(contact.nip05 as string, contact.pubkey) // throws
+                }
+                
+                navigation.navigate('WalletNavigator', { 
+                    screen: 'Send',
+                    params: {
+                        paymentOption, 
+                        contact, 
+                        relays
+                    },
+                })
+
+                //reset
+                navigation.setParams({
+                    paymentOption: undefined,
+                })
+                
+                return
+            }
+
+            navigation.navigate('ContactDetail', {                   
+                contact, 
+                relays: NostrClient.getMinibitsRelays()        
+            })
+        } catch (e: any) {
+            handleError(e)
+        }
     }
 
     const gotoProfile = function () {        
@@ -315,7 +326,7 @@ export const PrivateContacts = observer(function (props: {
             ContentComponent={
                 <View style={$newContainer}>
                     <Text tx='contactsScreen.newTitle' preset="subheading" />
-                    <Text size='xxs' style={{color: domainText}} text='Private contacts are unique identifiers of other Minibits wallets. You can use them to send or request coins and you can safely share your own with others. Like account numbers, just better.' />
+                    <Text size='xxs' style={{color: domainText}} text='Private contacts are unique identifiers of other Minibits wallets. You can use them to send or request ecash and you can safely share your own with others. Like account numbers, just better.' />
                     <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
                         <TextInput
                             ref={contactNameInputRef}

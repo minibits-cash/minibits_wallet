@@ -22,10 +22,10 @@ const hasAndroidCameraPermission = async () => {
 export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScreen(_props) {
     const {navigation, route} = _props
     useHeader({
-      title: 'Scan to receive',
-      titleStyle: {fontFamily: typography.primary?.medium},
-      leftIcon: 'faArrowLeft',
-      onLeftPress: () => navigation.goBack(),
+        title: 'Scan to receive',
+        titleStyle: {fontFamily: typography.primary?.medium},
+        leftIcon: 'faArrowLeft',
+        onLeftPress: () => navigation.goBack(),
     })
 
     const [shouldLoad, setShouldLoad] = useState<boolean>(false)
@@ -48,23 +48,27 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
         log.trace('prevRouteName', prevRouteName)
 
         switch (prevRouteName) {
-            case 'Receive':
+            case 'ReceiveOptions':
                 const tokenResult = handleToken(scanned)
                 if (tokenResult && tokenResult.token) {
                     log.trace('Got token')
                     return navigation.navigate('Receive', {
                         encodedToken: tokenResult.token,
                     })
-                }                
+                } else {
+                    handleError(scanned, tokenResult.message)
+                }               
                 break
-            case 'Transfer':
+            case 'SendOptions':
                 const invoiceResult = handleInvoice(scanned)
                 if (invoiceResult && invoiceResult.isInvoice) {
                     log.trace('Got invoice')
                     return navigation.navigate('Transfer', {
-                        scannedEncodedInvoice: invoiceResult.invoice,
+                        encodedInvoice: invoiceResult.invoice,
                     })
-                }                
+                } else {
+                    handleError(scanned, invoiceResult.message)
+                }            
                 break
             default:
                 // generic scan button on wallet screen
@@ -76,13 +80,12 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                     })
                 }
 
-
                 const invoiceResult2 = handleInvoice(scanned)
                 
                 if (invoiceResult2 && invoiceResult2.isInvoice) {
                     log.trace('Got invoice')
                     return navigation.navigate('Transfer', {
-                        scannedEncodedInvoice: invoiceResult2.invoice,
+                        encodedInvoice: invoiceResult2.invoice,
                     })
                 }
 
@@ -109,7 +112,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
             const encoded = extractEncodedCashuToken(scanned)
             return encoded
         } catch (tokenError: any) {
-            handleError(scanned, tokenError.message)
+            return tokenError
         }
     }
 
@@ -119,7 +122,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
             const invoice = extractEncodedLightningInvoice(scanned)
             return invoice
         } catch (invoiceError: any) {
-            handleError(scanned, invoiceError.message)
+            return invoiceError
         }
     }
 
