@@ -154,6 +154,9 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 setContactToSendFrom(contactFrom)                
                 setContactToSendTo(contactTo)                
                 setRelaysToShareTo(relays)
+
+                navigation.setParams({contact: undefined})
+                navigation.setParams({relays: undefined})
             }
 
             prepareSendToken()
@@ -989,7 +992,7 @@ const ShareFallbackBlock = observer(function (props: {
                 LeftAccessory={() => (
                     <Icon
                     icon='faQrcode'
-                    color="white"
+                    //color="white"
                     size={spacing.medium}              
                     />
                 )}
@@ -1003,7 +1006,7 @@ const ShareFallbackBlock = observer(function (props: {
                     LeftAccessory={() => (
                         <Icon
                         icon='faPaperPlane'
-                        color="white"
+                        //color="white"
                         size={spacing.medium}              
                         />
                     )} 
@@ -1107,7 +1110,7 @@ const SendAsNostrDMBlock = observer(function (props: {
                         icon="faPaperPlane"
                         color="white"
                         size={spacing.medium}
-                        containerStyle={{marginRight: spacing.small}}
+                        //containerStyle={{marginRight: spacing.small}}
                     />
                     )}
                 />          

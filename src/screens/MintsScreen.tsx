@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useCallback, useState} from 'react'
-import {Alert, TextStyle, View, ViewStyle} from 'react-native'
+import React, {FC, useCallback, useRef, useState} from 'react'
+import {Alert, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
 import {spacing, typography, useThemeColor, colors} from '../theme'
 import {SettingsStackScreenProps} from '../navigation'
@@ -24,6 +24,7 @@ import {log} from '../utils/logger'
 import AppError from '../utils/AppError'
 import {translate} from '../i18n'
 import {MintListItem} from './Mints/MintListItem'
+import { infoMessage } from '../utils/utils'
 
 
 export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(function MintsScreen({route, navigation}) {    
@@ -33,6 +34,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
     })
 
     const {mintsStore, proofsStore} = useStores()
+    const mintInputRef = useRef<TextInput>(null)
 
     const [mintUrl, setMintUrl] = useState('')
     const [selectedMint, setSelectedMint] = useState<Mint | undefined>()
@@ -67,17 +69,13 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
         navigation.navigate('WalletNavigator', {screen: 'Scan'})
     }
 
-    const pasteTestMintUrl = async () => {
-      // Pastes mintUrl provided here
-      setMintUrl('')
-    }
     
     const addMint = async function () {
       setIsAddMintVisible(false)
 
       if (mintsStore.alreadyExists(mintUrl)) {
         const msg = translate('mintsScreen.mintExists')
-        log.info(msg)
+        log.trace(msg)
         setInfo(msg)
         return
       }
@@ -113,41 +111,40 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
 
 
 	const removeMint = async function () {
-    if (!selectedMint) {return}
+        if (!selectedMint) {return}
 
-      const proofsByMint = proofsStore.getByMint(selectedMint.mintUrl)
+        const proofsByMint = proofsStore.getByMint(selectedMint.mintUrl)
 
+        if (proofsByMint && proofsByMint.length > 0) {
+            setInfo('Your wallet has a positive balance with this mint. Move your ecash elsewhere before removing.')
+            return
+        }
 
-    if (proofsByMint && proofsByMint.length > 0) {
-        setInfo('Your wallet has a positive balance with this mint. Send or transfer your tokens before removing.')
-        return
-    }
-
-      Alert.alert(
-      'Confirmation',
-      'Do you want to remove this mint from the wallet?',
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-            onPress: () => {
-              // Action canceled
+        Alert.alert(
+        'Confirmation',
+        'Do you want to remove this mint from the wallet?',
+            [
+            {
+                text: 'Cancel',
+                style: 'cancel',
+                onPress: () => {
+                // Action canceled
+                },
             },
-          },
-          {
-            text: 'Confirm',
-            onPress: () => {
-              try {
-                onMintUnselect()
-                mintsStore.removeMint(selectedMint as Mint)
-                setInfo(translate('mintsScreen.mintRemoved'))
-              } catch (e: any) {
-                handleError(e)
-              }
+            {
+                text: 'Confirm',
+                onPress: () => {
+                try {
+                    onMintUnselect()
+                    mintsStore.removeMint(selectedMint as Mint)
+                    setInfo(translate('mintsScreen.mintRemoved'))
+                } catch (e: any) {
+                    handleError(e)
+                }
+                },
             },
-          },
-        ],
-      )
+            ],
+        )
     }
 
     const blockMint = async function () {
@@ -189,6 +186,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
 
     const headerBg = useThemeColor('header')
     const iconColor = useThemeColor('textDim')
+    const inputBg = useThemeColor('background')
 
     return (
       <Screen preset="auto" contentContainerStyle={$screen}>
@@ -265,7 +263,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                 />
               )}
               <ListItem
-                leftIcon="faPaintbrush"
+                leftIcon="faPencil"
                 onPress={() => Alert.alert('Not yet implemented')}
                 tx={'mintsScreen.rename'}
                 bottomSeparator={true}
@@ -300,25 +298,63 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
         <BottomModal
           isVisible={isAddMintVisible ? true : false}
           ContentComponent={
-            <View style={$bottomModal}>
-              {mintUrl.length > 0 ? (
-                <PasteMintUrlBlock
-                  mintUrl={mintUrl}
-                  addMint={addMint}
-                  toggleAddMintModal={toggleAddMintModal}
+            <View style={$bottomModal}>            
+                <Text
+                    preset="subheading"
+                    tx={'mintsScreen.addMintUrl'}
+                    style={{marginBottom: spacing.medium, textAlign: 'center'}}
                 />
-              ) : (
-                <AddMintUrlBlock
-                  pasteMintUrl={pasteMintUrl}
-                  gotoScan={gotoScan}
-                  pasteTestMintUrl={pasteTestMintUrl}
-                />
-              )}
-          </View>
+                <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                        <TextInput
+                            ref={mintInputRef}
+                            onChangeText={mintUrl => setMintUrl(mintUrl)}
+                            value={mintUrl}
+                            style={[$mintInput, {backgroundColor: inputBg}]}
+                            maxLength={200}
+                            placeholder='https://'
+                        />
+                        <Button
+                            preset='secondary'
+                            text="Paste"
+                            style={{
+                                borderRadius: 0,                                
+                                marginLeft: 1,                                
+                            }}
+                            onPress={pasteMintUrl}
+                        />
+                        <Button
+                            preset='secondary'
+                            text="Scan"
+                            style={{
+                                borderTopLeftRadius: 0,
+                                borderBottomLeftRadius: 0,  
+                                marginHorizontal: 1,                                
+                            }}
+                            onPress={gotoScan}
+                        />
+                </View>
+                <View style={$buttonContainer}>
+                    <Button
+                        text="Save"
+                        style={{
+                            // borderTopLeftRadius: 0,
+                            // borderBottomLeftRadius: 0,                                
+                            marginRight: spacing.small,
+                            minWidth: 80
+                        }}
+                        onPress={addMint}
+                    />                    
+                    <Button
+                        tx={'common.cancel'}
+                        onPress={toggleAddMintModal}
+                        preset="secondary"
+                    />
+                </View>            
+            </View>
           }
           onBackButtonPress={toggleAddMintModal}
           onBackdropPress={toggleAddMintModal}
-          top={spacing.screenHeight * 0.5}
+          top={spacing.screenHeight * 0.35}
         />
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
@@ -327,72 +363,6 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
 }) 
 
 
-const PasteMintUrlBlock = function (props: {
-  mintUrl: string
-  addMint: any
-  toggleAddMintModal: any
-}) {
-  return (
-    <View style={{alignItems: 'center'}}>
-      <Text
-        preset="subheading"
-        tx={'mintsScreen.mintUrl'}
-        style={{marginBottom: spacing.medium}}
-      />
-      <Text
-        text={props.mintUrl}
-      />
-      <View style={$buttonContainer}>
-        <Button
-          testID="addmint-button"
-          tx={'mintsScreen.addMint'}
-          onPress={props.addMint}
-          style={{marginRight: spacing.medium}}
-        />
-        <Button
-          tx={'common.cancel'}
-          onPress={props.toggleAddMintModal}
-          preset="secondary"
-        />
-      </View>
-    </View>
-  )
-}
-
-const AddMintUrlBlock = function (props: {
-  pasteMintUrl: any
-  gotoScan: any
-  pasteTestMintUrl: any
-}) {
-  return (
-    <View style={{alignItems: 'center'}}>
-      <Text
-        preset="subheading"
-        tx="mintsScreen.mintUrlHint"
-        style={{marginBottom: spacing.medium}}
-      />
-      <View style={$buttonContainer}>
-        <Button
-          testID="pasteminturl-button"
-          tx={'common.paste'}
-          onPress={props.pasteMintUrl}
-          style={{marginRight: spacing.medium}}
-        />
-        <Button
-          tx={'common.scan'}
-          onPress={props.gotoScan}
-          preset="secondary"
-        />
-      </View>
-      {/*<Button      
-      text="Paste test mint"
-      onPress={props.pasteTestMintUrl}
-      style={{marginTop: spacing.medium}}
-      preset="secondary"
-    />*/}
-  </View>
-  )
-}
 
 const $screen: ViewStyle = {
 
@@ -442,6 +412,17 @@ const $bottomContainer: ViewStyle = {
 
 const $bottomModal: ViewStyle = {
   padding: spacing.small,
+}
+
+
+const $mintInput: TextStyle = {
+    flex: 1,    
+    borderTopLeftRadius: spacing.small,
+    borderBottomLeftRadius: spacing.small,
+    fontSize: 16,
+    padding: spacing.small,
+    alignSelf: 'stretch',
+    textAlignVertical: 'top',
 }
 
 const $textField: ViewStyle = {

@@ -695,8 +695,7 @@ const MintBalanceSelector = observer(function (props: {
         <Button
           text="Create invoice"
           onPress={props.onMintBalanceConfirm}
-          style={{marginRight: spacing.medium}}
-          // LeftAccessory={() => <Icon icon="faCoins" color="white" size={spacing.medium} containerStyle={{marginRight: spacing.small}}/>}
+          style={{marginRight: spacing.medium}}          
         />
         <Button
           preset="secondary"
@@ -744,7 +743,7 @@ const ShareFallbackBlock = observer(function (props: {
           LeftAccessory={() => (
             <Icon
               icon='faQrcode'
-              color="white"
+              // color="white"
               size={spacing.medium}              
             />
           )}
@@ -758,7 +757,7 @@ const ShareFallbackBlock = observer(function (props: {
                 LeftAccessory={() => (
                     <Icon
                     icon='faPaperPlane'
-                    color="white"
+                    // color="white"
                     size={spacing.medium}              
                     />
                 )} 

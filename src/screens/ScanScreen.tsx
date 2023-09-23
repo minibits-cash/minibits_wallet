@@ -22,7 +22,7 @@ const hasAndroidCameraPermission = async () => {
 export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScreen(_props) {
     const {navigation, route} = _props
     useHeader({
-        title: 'Scan to receive',
+        title: 'Scan QR code',
         titleStyle: {fontFamily: typography.primary?.medium},
         leftIcon: 'faArrowLeft',
         onLeftPress: () => navigation.goBack(),

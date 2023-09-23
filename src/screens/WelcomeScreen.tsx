@@ -9,6 +9,7 @@ import {
 } from 'react-native'
 import PagerView, { PagerViewOnPageScrollEventData } from 'react-native-pager-view'
 import {
+    ScalingDot,
     SlidingBorder,
   } from 'react-native-animated-pagination-dots'
 // import { isRTL } from "../i18n"
@@ -141,7 +142,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
             </View>
             <Text
                 tx={item.tx as TxKeyPath}
-                style={{paddingHorizontal: spacing.small}}
+                style={{paddingHorizontal: spacing.small, color: 'white'}}
                 preset="default"
             />
         </View>
@@ -197,15 +198,17 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
                 ))}
             </AnimatedPagerView>
             <View style={$dotsContainer}>               
-                <View style={$dotContainer}>                
-                    <SlidingBorder
+                <View style={$dotContainer}>
+                    <ScalingDot
                         testID={'sliding-border'}                        
                         data={PAGES}
-                        slidingIndicatorStyle={{borderColor: colors.palette.primary100}}
-                        dotStyle={{backgroundColor: colors.palette.primary200}}
+                        inActiveDotColor={colors.palette.primary300}
+                        activeDotColor={colors.palette.primary100}
+                        activeDotScale={1.2}
+                        containerStyle={{bottom: undefined, position: undefined, marginTop: -spacing.small, paddingBottom: spacing.medium}}
                         //@ts-ignore
                         scrollX={scrollX}
-                        dotSize={24}
+                        dotSize={30}
                     />
                 </View>
             </View>
@@ -252,27 +255,18 @@ const $buttonContainer: ViewStyle = {
     marginTop: spacing.large,
   }
 
-const $bottomContainer: ViewStyle = {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flex: 1,
-    // justifyContent: 'flex-end',
-    marginBottom: spacing.medium,
-    alignSelf: 'stretch',
-    justifyContent: 'space-evenly',
-    // opacity: 0,
-  }
 
 const $welcomeHeading: TextStyle = {
   marginBottom: spacing.medium,
+  color: 'white',
 }
 
 const $welcomeIntro: TextStyle = {
   marginBottom: spacing.large,
+  color: 'white',
 }
 
 const $welcomeFinal: TextStyle = {
     marginTop: spacing.huge,
+    color: 'white',
   }

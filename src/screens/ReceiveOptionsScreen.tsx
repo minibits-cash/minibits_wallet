@@ -74,15 +74,15 @@ export const ReceiveOptionsScreen: FC<WalletStackScreenProps<'ReceiveOptions'>> 
             if(maybeToken) {
                 const tokenResult = extractEncodedCashuToken(maybeToken)
 
-                if(tokenResult.isToken) {
+                if(tokenResult && tokenResult.isToken) {
                     infoMessage('Found ecash token in the clipboard.')                
-                    setTimeout(() => navigation.navigate('Receive', {encodedToken: tokenResult.token}), 1000)   //TODO rename
+                    setTimeout(() => navigation.navigate('Receive', {encodedToken: tokenResult.token}), 1000)
                     return
                 }
                 
             }
 
-            infoMessage('Your clipboard does not contain a lightning invoice.')            
+            infoMessage('Your clipboard does not contain a valid ecash token.')            
         } catch (e: any) {
             handleError(e)
         }

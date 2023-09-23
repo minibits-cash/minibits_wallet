@@ -1,10 +1,12 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useEffect, useState} from 'react'
+import React, {FC, useCallback, useEffect, useState} from 'react'
 import {TextStyle, View, ViewStyle} from 'react-native'
 import {
     APP_ENV,      
     CODEPUSH_STAGING_DEPLOYMENT_KEY,
-    CODEPUSH_PRODUCTION_DEPLOYMENT_KEY, 
+    CODEPUSH_PRODUCTION_DEPLOYMENT_KEY,
+    MINIBITS_NIP05_DOMAIN,
+    MINIBITS_RELAY_URL, 
 } from '@env'
 import codePush, { RemotePackage } from 'react-native-code-push'
 import {colors, spacing, useThemeColor} from '../theme'
@@ -15,6 +17,8 @@ import {useStores} from '../models'
 import {translate} from '../i18n'
 import { Env, log } from '../utils/logger'
 import { round } from '../utils/number'
+import { NostrClient } from '../services'
+import { useFocusEffect } from '@react-navigation/native'
 
 interface SettingsScreenProps extends SettingsStackScreenProps<'Settings'> {}
 
@@ -28,6 +32,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
 
     const [isUpdateAvailable, setIsUpdateAvailable] = useState<boolean>(false)
     const [updateDescription, setUpdateDescription] = useState<string>('')
+    const [relayConnectionStatus, setRelayConnectionStatus] = useState<'Connected' | 'Disconnected'>('Disconnected')
     const [updateSize, setUpdateSize] = useState<string>('')
     const [isNativeUpdateAvailable, setIsNativeUpdateAvailable] = useState<boolean>(false)
 
@@ -48,6 +53,30 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
         } 
         checkForUpdate()
     }, [])
+
+
+    /*useFocusEffect(
+        useCallback(() => {
+            const connectionStatus = () => {                
+                try {
+                    const status: {relay: string, status: number}[] = NostrClient.getRelaysConnectionStatus() // WIP
+
+                    if(status) {
+                        const connectionCode = status.find(s => s.relay === MINIBITS_RELAY_URL + '/')?.status
+                        
+                        if(connectionCode && connectionCode === 1) {
+                            setRelayConnectionStatus('Connected')
+                        }
+                    }
+                } catch(e: any) {
+
+                }                
+            }
+
+            connectionStatus()
+            
+        }, []),
+    )*/
 
     const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {            
         setIsNativeUpdateAvailable(true)
@@ -158,6 +187,30 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
               </>
             }
           />
+          {/*<Card
+            style={[$card, {marginTop: spacing.medium}]}
+            ContentComponent={
+              <>   
+                <ListItem
+                    text='Relay connection status'
+                    subText={MINIBITS_RELAY_URL}
+                    leftIcon='faPaperPlane'
+                    leftIconColor={colors.palette.iconViolet200}
+                    leftIconInverse={true}
+                    RightComponent={
+                        <View style={$rightContainer}>
+                        <Text
+                            style={$itemRight}                         
+                            text={relayConnectionStatus}
+                        />
+                        </View>
+                    }
+                    style={$item}                  
+                    // onPress={gotoDevOptions}
+                />
+              </>
+            }
+        />*/}
         </View>
       </Screen>
     )

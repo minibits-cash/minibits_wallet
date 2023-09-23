@@ -42,7 +42,13 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
 
     useHeader({
         leftIcon: 'faArrowLeft',
-        onLeftPress: () => navigation.goBack(),
+        onLeftPress: () => {
+            navigation.setParams({isUpdateAvailable: undefined})
+            navigation.setParams({isNativeUpdateAvailable: undefined})
+            navigation.setParams({updateDescription: undefined})
+            navigation.setParams({updateSize: undefined})
+            navigation.goBack()
+        },
     })
 
     // const {userSettingsStore} = useStores()

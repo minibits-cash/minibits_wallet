@@ -45,7 +45,7 @@ import {MintsByHostname} from '../models/MintsStore'
 import {Env, log} from '../utils/logger'
 import {Transaction, TransactionStatus} from '../models/Transaction'
 import {TransactionListItem} from './Transactions/TransactionListItem'
-import {MintClient, MintKeys, ReceivedEventResult, Wallet} from '../services'
+import {MintClient, MintKeys, NostrClient, ReceivedEventResult, Wallet} from '../services'
 import {translate} from '../i18n'
 import AppError, { Err } from '../utils/AppError'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
@@ -60,27 +60,24 @@ import PagerView, { PagerViewOnPageScrollEventData } from 'react-native-pager-vi
 import { ExpandingDot, ScalingDot, SlidingBorder, SlidingDot } from 'react-native-animated-pagination-dots'
 import { PaymentRequest, PaymentRequestStatus } from '../models/PaymentRequest'
 import { Invoice } from '../models/Invoice'
+import { poller } from '../utils/poller'
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView)
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
 
 interface WalletScreenProps extends WalletStackScreenProps<'Wallet'> {}
 
-
 export const WalletScreen: FC<WalletScreenProps> = observer(
   function WalletScreen({route, navigation}) {    
     const {mintsStore, proofsStore, transactionsStore, paymentRequestsStore} = useStores()
     
-    const appState = useRef(AppState.currentState);
-
+    const appState = useRef(AppState.currentState)
    
     const [info, setInfo] = useState<string>('')
     const [defaultMintUrl, setDefaultMintUrl] = useState<string>('https://mint.minibits.cash/Bitcoin')
     const [error, setError] = useState<AppError | undefined>()
-    // const [receivedModalInfo, setReceivedModalInfo] = useState<ReceivedEventResult | undefined>(undefined)
     const [isLoading, setIsLoading] = useState<boolean>(false)
-    // const [isLightningModalVisible, setIsLightningModalVisible] = useState<boolean>(false)
-    // const [isReceivedModalVisible, setIsReceivedModalVisible] = useState<boolean>(false)
+    const [minibitsRelayStatus, setMinibitsRelayStatus] = useState<number>(3)
 
     const [isUpdateAvailable, setIsUpdateAvailable] = useState<boolean>(false)
     const [isUpdateModalVisible, setIsUpdateModalVisible] = useState<boolean>(false)
@@ -118,7 +115,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     useEffect(() => {
         InteractionManager.runAfterInteractions(async () => {
             // subscribe once to receive tokens or payment requests by NOSTR DMs
-            Wallet.checkPendingReceived()
+            Wallet.checkPendingReceived()            
         })
 
         EventEmitter.on('receiveTokenCompleted', onReceiveTokenCompleted)
@@ -351,7 +348,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 onLeftPress={gotoTranHistory}
                 RightActionComponent={
                 <>
-                    {paymentRequestsStore.countNotExpired > 0 && (
+                    {paymentRequestsStore.countNotExpired > 0 ? (
                         <Pressable 
                             style={{flexDirection: 'row', alignItems:'center', marginRight: spacing.medium}}
                             onPress={() => gotoPaymentRequests()}
@@ -359,6 +356,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                             <Icon icon='faPaperPlane'/>
                             <Text text={`${paymentRequestsStore.countNotExpired}`}/>
                         </Pressable>
+                    ) : (
+                        <Text text={`${minibitsRelayStatus}`}/>
                     )}
                 </>
                 }                

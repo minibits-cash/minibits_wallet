@@ -15,27 +15,27 @@ const en = {
   welcomeScreen: {
     page1: {
       heading: "Welcome",
-      intro: "Minibits is an eCash and Lightning wallet with a focus on performance and usability. eCash is a bearer token issued by custodians known as mints.",
-      bullet1: "Minibits follows the Cashu protocol, where mints back eCash with Bitcoin.",
-      bullet2: "eCash is issued or exchanged back to Bitcoin instantly through Lightning payments.",
-      bullet3: "eCash tokens are stored on-device; mints do not keep ledger or wallet balances.",
+      intro: "Minibits is an ecash and Lightning wallet with a focus on performance and usability. ecash is a bearer token issued by custodians known as mints.",
+      bullet1: "Minibits follows the Cashu protocol, where mints back ecash with Bitcoin.",
+      bullet2: "Ecash is issued or exchanged back to Bitcoin instantly through Lightning payments.",
+      bullet3: "Ecash tokens are stored on-device; mints do not keep ledger or wallet balances.",
       final: "No Watson, there is no blockchain."
     },
     page2: {
       heading: "Why Minibits?",
-      intro: "Minibits' aim is to research how Lightning and eCash can be integrated into a seamless and instant experience that can work at scale and still provide good privacy.",
+      intro: "Minibits' aim is to research how Lightning and ecash can be integrated into a seamless and instant experience that can work at scale and still provide good privacy.",
       bullet1: "Minibits provides sharable wallet identifiers using NOSTR addresses. Like account numbers, just better.",
-      bullet2: "Try in-person sends while devices are offline - eCash settles when back online (Proof of concept).",
+      bullet2: "Try in-person sends while devices are offline - ecash settles when back online (Proof of concept).",
       bullet3: "You can opt-in for storage encryption and biometric authentication.",
-      final: "Minibits is free and open-source software; find us on Github for roadmap and contributions."
+      final: "Minibits is free and open-source software; find us on Github for the roadmap and contributions."
     },
     page3: {
       heading: "Do not forget",
       intro: "Both the Cashu protocol and the Minibits wallet are still experimental, and by using them, you accept known and unknown risks.",
       bullet1: "Mints are, by design, custodial services. Run your own or use them only for research and testing purposes.",
-      bullet2: "eCash is stored on your device, so the loss of the device means the loss of ecash. Remote backup protocol is still under research.",
+      bullet2: "Ecash is stored on your device, so the loss of the device means the loss of ecash. Remote backup protocol is still under research.",
       bullet3: "Minibits provides its own mint that you can use for testing purposes with small amounts. It is operated on a best-effort basis and without any guarantees.",
-      final: "Now, let's move some eCash!",
+      final: "Now, let's move some ecash!",
       go: "Let's go!"
     }  
   },
@@ -66,7 +66,7 @@ const en = {
     scanToReceiveDescription: "Scan ecash token to receive it into your wallet.",
     pasteToReceive: "Paste from clipboard",
     pasteoReceiveDescription: "Paste ecash token to receive it into your wallet.",
-    showOrShareInvoice: "Show lightning invoice",
+    showOrShareInvoice: "Create lightning invoice",
     showOrShareInvoiceDescription: "Present or share the lightning invoice for an amount you want to receive."    
   },
   transferScreen: {

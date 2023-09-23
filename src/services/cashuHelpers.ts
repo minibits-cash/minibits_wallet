@@ -11,6 +11,7 @@ import {Proof} from '../models/Proof'
 import addSeconds from 'date-fns/addSeconds'
 import { log } from '../utils/logger'
 
+// TODO refactor all this into own module
 
 export type DecodedLightningInvoice = {
   paymentRequest: string
@@ -28,43 +29,48 @@ export const findEncodedCashuToken = function (content: string) {
 
 
 export const extractEncodedCashuToken = function (maybeToken: string) {
+
+    log.trace('Extract token from', maybeToken, 'extractEncodedCashuToken')
     
-    let validToken: Token | undefined = undefined
-
-    // URL token format
-    const urlToken: string | undefined = extractTokenFromURL(maybeToken) as string
-
-    if (urlToken) {
-        validToken = decodeToken(urlToken) //throws
+    let encodedToken: string | undefined = undefined
+    let decoded: Token | undefined = undefined
+    
+    if (maybeToken.startsWith('cashuA')) {
+        decoded = decodeToken(maybeToken) // throws
         return {
             isToken: true,
-            token: urlToken,
+            token: maybeToken, // we got clean token
         }
     }
 
-    // raw encoded token
-    validToken = decodeToken(maybeToken) // throws
+    // URI token formats
+    const uriPrefixes = [
+		'https://wallet.nutstash.app/#',
+		'https://wallet.cashu.me/?token=',
+		'web+cashu://',
+		'cashu://',
+		'cashu:'
+	]
 
-    return {
-        isToken: true,
-        token: maybeToken, // we still return encoded token
-    }
-}
-
-
-const extractTokenFromURL = (url: string) => {
-    try {
-        const parsedURL = new URL(url)
-        const tokenParam = parsedURL.searchParams.get('token')
-
-        if (tokenParam) {
-            return tokenParam
+	for (const prefix of uriPrefixes) {
+		if (maybeToken.startsWith(prefix)) {            
+            encodedToken = maybeToken.slice(prefix.length)
+            break // necessary
         }
+	}
 
-        return undefined // No token parameter found
-    } catch (e: any) {
-        return undefined // Invalid URL
+    log.trace('Got token', encodedToken, 'extractEncodedCashuToken')
+
+    // try to decode
+    if(encodedToken) {
+        decoded = decodeToken(encodedToken) // throws
+        return {
+            isToken: true,
+            token: encodedToken, // we still return encoded token
+        }
     }
+    
+    throw new AppError(Err.NOTFOUND_ERROR, 'Could not extract valid ecash token from provided string', maybeToken)
 }
 
 
