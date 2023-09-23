@@ -21,7 +21,7 @@ import {log} from '../utils/logger'
 import AppError from '../utils/AppError'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { Token } from '../models/Token'
-import { decodeToken, findEncodedCashuToken, getTokenAmounts } from '../services/cashuHelpers'
+import { decodeToken, extractEncodedCashuToken, findEncodedCashuToken, getTokenAmounts } from '../services/cashuHelpers'
 import { infoMessage } from '../utils/utils'
 
 export enum ReceiveOption {
@@ -63,23 +63,26 @@ export const ReceiveOptionsScreen: FC<WalletStackScreenProps<'ReceiveOptions'>> 
 
 
     const onPaste = async function () {
-        const maybeToken = await Clipboard.getString()
-        if (!maybeToken) {
+        const clipboard = await Clipboard.getString()
+        if (!clipboard) {
             infoMessage('Please copy the ecash token first.')
         }
 
         try {
-            const encodedToken = findEncodedCashuToken(maybeToken)
+            const maybeToken = findEncodedCashuToken(clipboard)
 
-            if(encodedToken) {
-                const decoded: Token = decodeToken(encodedToken)
-                infoMessage('Found ecash token in the clipboard.') 
+            if(maybeToken) {
+                const tokenResult = extractEncodedCashuToken(maybeToken)
 
-                setTimeout(() => navigation.navigate('Receive', {encodedToken}), 1000)   //TODO rename
-                return
+                if(tokenResult.isToken) {
+                    infoMessage('Found ecash token in the clipboard.')                
+                    setTimeout(() => navigation.navigate('Receive', {encodedToken: tokenResult.token}), 1000)   //TODO rename
+                    return
+                }
+                
             }
 
-            infoMessage('Your clipboard does not contain an ecash token.')           
+            infoMessage('Your clipboard does not contain a lightning invoice.')            
         } catch (e: any) {
             handleError(e)
         }

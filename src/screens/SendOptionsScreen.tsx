@@ -20,7 +20,7 @@ import {useHeader} from '../utils/useHeader'
 import {log} from '../utils/logger'
 import AppError from '../utils/AppError'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
-import { DecodedLightningInvoice, decodeInvoice, findEncodedLightningInvoice } from '../services/cashuHelpers'
+import { DecodedLightningInvoice, decodeInvoice, extractEncodedLightningInvoice, findEncodedLightningInvoice } from '../services/cashuHelpers'
 import { infoMessage } from '../utils/utils'
 
 export enum SendOption {
@@ -60,19 +60,23 @@ export const SendOptionsScreen: FC<WalletStackScreenProps<'SendOptions'>> = obse
 
 
     const onPaste = async function () {
-        const maybeInvoice = await Clipboard.getString()
-        if (!maybeInvoice) {
+        const clipboard = await Clipboard.getString()
+        if (!clipboard) {
             infoMessage('Please copy the invoice first.')
         }
 
         try {
-            const encodedInvoice = findEncodedLightningInvoice(maybeInvoice)
+            const maybeInvoice = findEncodedLightningInvoice(clipboard)
 
-            if(encodedInvoice) {
-                const decoded: DecodedLightningInvoice = decodeInvoice(encodedInvoice)
-                infoMessage('Found lightning invoice in the clipboard.')                
-                setTimeout(() => navigation.navigate('Transfer', {encodedInvoice}), 1000)   //TODO rename
-                return
+            if(maybeInvoice) {
+                const invoiceResult = extractEncodedLightningInvoice(maybeInvoice)
+
+                if(invoiceResult.isInvoice) {
+                    infoMessage('Found lightning invoice in the clipboard.')                
+                    setTimeout(() => navigation.navigate('Transfer', {encodedInvoice: invoiceResult.invoice}), 1000)   //TODO rename
+                    return
+                }
+                
             }
 
             infoMessage('Your clipboard does not contain a lightning invoice.')            
