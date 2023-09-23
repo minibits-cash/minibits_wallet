@@ -118,7 +118,6 @@ export const ReceiveOptionsScreen: FC<WalletStackScreenProps<'ReceiveOptions'>> 
                     bottomSeparator={true}
                     onPress={gotoContacts}
                   />
-
                   <ListItem
                     tx="receiveScreen.showOrShareInvoice"
                     subTx="receiveScreen.showOrShareInvoiceDescription"
@@ -177,14 +176,9 @@ const $contentContainer: TextStyle = {
 const $optionsCard: ViewStyle = {
   marginTop: -spacing.extraLarge * 2,
   marginBottom: spacing.small,
-  paddingTop: 0,
+  //paddingTop: 0,
 }
 
-const $card: ViewStyle = {
-  // marginTop: - spacing.extraLarge * 2,
-  marginBottom: spacing.small,
-  paddingTop: 0,
-}
 
 const $item: ViewStyle = {
   paddingHorizontal: spacing.small,

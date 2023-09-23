@@ -114,16 +114,6 @@ export const SendOptionsScreen: FC<WalletStackScreenProps<'SendOptions'>> = obse
                     bottomSeparator={true}
                     onPress={gotoContacts}
                   />
-                  {/*<ListItem
-                    tx="sendScreen.pasteToSend"
-                    subTx="sendScreen.pasteToSendDescription"
-                    leftIcon='faClipboard'
-                    leftIconColor={colors.palette.iconGreyBlue400}
-                    leftIconInverse={true}
-                    style={$item}
-                    bottomSeparator={true}
-                    onPress={onPaste}
-                  />*/}
                   <ListItem
                     tx="sendScreen.showOrShareToken"
                     subTx="sendScreen.showOrShareTokenDescription"
@@ -180,13 +170,7 @@ const $contentContainer: TextStyle = {
 const $optionsCard: ViewStyle = {
   marginTop: -spacing.extraLarge * 2,
   marginBottom: spacing.small,
-  paddingTop: 0,
-}
-
-const $card: ViewStyle = {
-  // marginTop: - spacing.extraLarge * 2,
-  marginBottom: spacing.small,
-  paddingTop: 0,
+  // paddingTop: 0,
 }
 
 const $item: ViewStyle = {
