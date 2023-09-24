@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useCallback, useEffect, useState} from 'react'
-import {TextStyle, View, ViewStyle} from 'react-native'
+import {FlatList, TextStyle, View, ViewStyle} from 'react-native'
 import {
     APP_ENV,      
     CODEPUSH_STAGING_DEPLOYMENT_KEY,
@@ -17,8 +17,8 @@ import {useStores} from '../models'
 import {translate} from '../i18n'
 import { Env, log } from '../utils/logger'
 import { round } from '../utils/number'
-import { NostrClient } from '../services'
-import { useFocusEffect } from '@react-navigation/native'
+import EventEmitter from '../utils/eventEmitter'
+import { Relay } from '../models/Relay'
 
 interface SettingsScreenProps extends SettingsStackScreenProps<'Settings'> {}
 
@@ -28,11 +28,10 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
   function SettingsScreen(_props) {
     const {navigation} = _props
     useHeader({}) // default header component
-    const {mintsStore} = useStores()
+    const {mintsStore, relaysStore} = useStores()
 
     const [isUpdateAvailable, setIsUpdateAvailable] = useState<boolean>(false)
-    const [updateDescription, setUpdateDescription] = useState<string>('')
-    const [relayConnectionStatus, setRelayConnectionStatus] = useState<'Connected' | 'Disconnected'>('Disconnected')
+    const [updateDescription, setUpdateDescription] = useState<string>('')    
     const [updateSize, setUpdateSize] = useState<string>('')
     const [isNativeUpdateAvailable, setIsNativeUpdateAvailable] = useState<boolean>(false)
 
@@ -55,29 +54,6 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
     }, [])
 
 
-    /*useFocusEffect(
-        useCallback(() => {
-            const connectionStatus = () => {                
-                try {
-                    const status: {relay: string, status: number}[] = NostrClient.getRelaysConnectionStatus() // WIP
-
-                    if(status) {
-                        const connectionCode = status.find(s => s.relay === MINIBITS_RELAY_URL + '/')?.status
-                        
-                        if(connectionCode && connectionCode === 1) {
-                            setRelayConnectionStatus('Connected')
-                        }
-                    }
-                } catch(e: any) {
-
-                }                
-            }
-
-            connectionStatus()
-            
-        }, []),
-    )*/
-
     const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {            
         setIsNativeUpdateAvailable(true)
     }
@@ -93,6 +69,10 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
     const gotoDevOptions = function() {
       navigation.navigate('Developer')
     }
+
+    const gotoRelays = function() {
+        navigation.navigate('Relays')
+      }
 
     const gotoBackupRestore = function() {
       navigation.navigate('Backup')
@@ -187,30 +167,28 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
               </>
             }
           />
-          {/*<Card
-            style={[$card, {marginTop: spacing.medium}]}
+          <Card
+            style={[$card, {marginTop: spacing.large}]}
             ContentComponent={
-              <>   
                 <ListItem
-                    text='Relay connection status'
-                    subText={MINIBITS_RELAY_URL}
-                    leftIcon='faPaperPlane'
+                    text={'Nostr relays'}
+                    subText={`Connected: ${relaysStore.connectedCount}`}
+                    leftIcon='faCircleNodes'
                     leftIconColor={colors.palette.iconViolet200}
                     leftIconInverse={true}
                     RightComponent={
                         <View style={$rightContainer}>
                         <Text
                             style={$itemRight}                         
-                            text={relayConnectionStatus}
+                            text={`${relaysStore.allRelays.length} relays`}
                         />
                         </View>
                     }
                     style={$item}                  
-                    // onPress={gotoDevOptions}
+                    onPress={gotoRelays}
                 />
-              </>
             }
-        />*/}
+        />
         </View>
       </Screen>
     )

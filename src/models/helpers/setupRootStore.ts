@@ -17,12 +17,12 @@ import {
 import * as Sentry from '@sentry/react-native'
 import RNExitApp from 'react-native-exit-app'
 import type {RootStore} from '../RootStore'
-import {MMKVStorage} from '../../services'
+import {MMKVStorage, NostrClient} from '../../services'
 import {Database} from '../../services'
 import { log } from  '../../utils/logger'
 import { rootStoreModelVersion } from '../RootStore'
 import AppError, { Err } from '../../utils/AppError'
-import { MINIBITS_NIP05_DOMAIN } from '@env'
+import { MINIBITS_NIP05_DOMAIN, MINIBITS_RELAY_URL } from '@env'
 import { WalletProfileStoreModel } from '../WalletProfileStore'
 import useIsInternetReachable from '../../utils/useIsInternetReachable'
 
@@ -111,7 +111,9 @@ export async function setupRootStore(rootStore: RootStore) {
 async function _runMigrations(rootStore: RootStore) {
   const { 
     userSettingsStore,
-    walletProfileStore
+    walletProfileStore,
+    relaysStore,
+    contactsStore,
   } = rootStore
   
   let currentVersion = rootStore.version
@@ -144,6 +146,27 @@ async function _runMigrations(rootStore: RootStore) {
             await walletProfileStore.publishToRelays()
             log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
         }
+    }
+
+    if(currentVersion < 5) {
+        log.trace(`Starting rootStore migrations from version v${currentVersion} -> v5`)
+        relaysStore.addOrUpdateRelay({
+            url: MINIBITS_RELAY_URL,
+            status: WebSocket.CLOSED
+        })
+        
+        relaysStore.addOrUpdateRelay({
+            url: 'wss://relay.damus.io',
+            status: WebSocket.CLOSED
+        })
+
+        if(contactsStore.publicRelay) {
+            relaysStore.addOrUpdateRelay({
+                url: contactsStore.publicRelay,
+                status: WebSocket.CLOSED
+            })
+        }
+        log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
     }
 
     

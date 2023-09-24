@@ -23,13 +23,12 @@ export const PublicContacts = observer(function (props: {
     navigation: StackNavigationProp<ContactsStackParamList, "Contacts", undefined>,    
     paymentOption: ReceiveOption | SendOption |undefined}
 ) { 
-    const {contactsStore} = useStores()
+    const {contactsStore, relaysStore} = useStores()
     const {navigation} = props
-    const {publicRelay: ownRelay} = contactsStore
+    
     const npubInputRef = useRef<TextInput>(null)    
     const relayInputRef = useRef<TextInput>(null)
-    const currentRelays = useRef<string[]>(ownRelay ? [ownRelay] : NostrClient.getDefaultRelays())
-    
+        
     const [info, setInfo] = useState('')
     const [newPublicPubkey, setNewPublicPubkey] = useState<string>('')
     const [newPublicRelay, setNewPublicRelay] = useState<string>('')    
@@ -110,7 +109,7 @@ export const PublicContacts = observer(function (props: {
             kinds: [0, 3],            
         }]        
                 
-        const events: NostrEvent[] = await NostrClient.getEvents(currentRelays.current, filters)
+        const events: NostrEvent[] = await NostrClient.getEvents(relaysStore.allPublicUrls, filters)
 
         for (const event of events) {
             if(ownProfile && ownProfile.name && followingPubkeys && followingPubkeys.length > 0) {
@@ -157,7 +156,7 @@ export const PublicContacts = observer(function (props: {
                                     
             setIsLoading(true)
 
-            const events: NostrEvent[] = await NostrClient.getEvents(currentRelays.current, filters)   
+            const events: NostrEvent[] = await NostrClient.getEvents(relaysStore.allPublicUrls, filters)   
 
             let following: NostrProfile[] = []
 
@@ -248,8 +247,11 @@ export const PublicContacts = observer(function (props: {
     const onSavePublicRelay = function () {        
         try {
             if(newPublicRelay.startsWith('wss://')) {                       
-                contactsStore.setPublicRelay(newPublicRelay)
-                currentRelays.current = [newPublicRelay]
+                relaysStore.addOrUpdateRelay({
+                    url: newPublicRelay,
+                    status: WebSocket.CLOSED
+                })
+
                 setOwnProfile({
                     pubkey: contactsStore.publicPubkey as string,
                     npub: NostrClient.getNpubkey(contactsStore.publicPubkey as string)
@@ -268,14 +270,14 @@ export const PublicContacts = observer(function (props: {
     }
 
 
-    const onRemovePublicRelay = function () {
-        contactsStore.setPublicRelay('')
-        currentRelays.current = NostrClient.getDefaultRelays()
-        setNewPublicRelay('')
+    const onRemovePublicRelay = function () {        
+        relaysStore.removeRelay(newPublicRelay)
+
         setOwnProfile({
             pubkey: contactsStore.publicPubkey as string,
             npub: NostrClient.getNpubkey(contactsStore.publicPubkey as string)
-        })     
+        }) 
+
         resetContactsState()     
         toggleRelayModal()
 
@@ -349,7 +351,7 @@ export const PublicContacts = observer(function (props: {
 
         navigation.navigate('ContactDetail', {
             contact, 
-            relays: currentRelays.current
+            relays: relaysStore.allPublicUrls // TODO cleanup and use relayStore everywhere
         })
     }
 
@@ -396,7 +398,7 @@ export const PublicContacts = observer(function (props: {
                             </View>
                         }
                         text={ownProfile.name}
-                        subText={currentRelays.current.toString()}
+                        subText={relaysStore.allPublicUrls.toString()}
                         onPress={toggleNpubActionsModal}
                         rightIcon={'faEllipsisVertical'}                                                        
                     />
@@ -548,7 +550,7 @@ export const PublicContacts = observer(function (props: {
                     />
                 </View>
                 <View style={[$buttonContainer, {marginTop: spacing.medium}]}> 
-                    {contactsStore.publicRelay && (                   
+                    {newPublicRelay && (                   
                         <Button preset='tertiary' onPress={onRemovePublicRelay} text='Reset to default'/>                    
                     )}
                     <Button preset='tertiary' onPress={toggleRelayModal} text='Cancel'/>                    

@@ -58,17 +58,6 @@ const getRelayPool = function () {
     return _pool
 }
 
-/* const getRelaysConnectionStatus = function () {
-    const connections = _pool._conn    
-    const relays = ['wss://relay.damus.io/', 'wss://relay.minibits.cash/']    
-
-    const status = relays.map(relay => {        
-        return ({relay, status: connections[relay].status})
-    })
-
-    log.trace('Relays status', status, 'getRelaysConnectionStatus')
-    return status
-} */
 
 const getDefaultRelays = function () {
     return _defaultPublicRelays    

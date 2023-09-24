@@ -38,7 +38,7 @@ import {Invoice} from '../models/Invoice'
 import {poller, stopPolling} from '../utils/poller'
 import EventEmitter from '../utils/eventEmitter'
 import { NostrClient, NostrEvent, NostrFilter } from './nostrService'
-import { MINIBITS_NIP05_DOMAIN, MINIBITS_SERVER_API_HOST } from '@env'
+import { MINIBITS_SERVER_API_HOST } from '@env'
 import { PaymentRequest, PaymentRequestStatus } from '../models/PaymentRequest'
 
 type WalletService = {
@@ -109,6 +109,7 @@ const {
     invoicesStore,
     paymentRequestsStore,
     contactsStore,
+    relaysStore,
 } = rootStoreInstance
 
 /*
@@ -152,16 +153,43 @@ const checkPendingReceived = async function () {
         const pool = NostrClient.getRelayPool()
         let relaysToConnect: string[] = []
 
-        const defaultRelays = NostrClient.getDefaultRelays()
-        const minibitsRelays = NostrClient.getMinibitsRelays()
-
-        relaysToConnect.push(...defaultRelays, ...minibitsRelays)
+        if(relaysStore.allRelays.length === 0) { // TODO clean up
+            const defaultRelays = NostrClient.getDefaultRelays()
+            const minibitsRelays = NostrClient.getMinibitsRelays()
+    
+            relaysToConnect.push(...defaultRelays, ...minibitsRelays)
+        } else {
+            relaysToConnect = relaysStore.allUrls
+        }
 
         if(contactsStore.publicRelay && !relaysToConnect.includes(contactsStore.publicRelay)) {
             relaysToConnect.push(contactsStore.publicRelay)
         }        
 
         const sub = pool.sub(relaysToConnect , filter)
+
+        const relaysConnections = pool._conn        
+
+        for (const url in relaysConnections) {
+            if (relaysConnections.hasOwnProperty(url)) {
+                const relay = relaysConnections[url]                
+
+                relay.on('error', (error: string) => {
+                    const {url, status} = relay                    
+                    relaysStore.addOrUpdateRelay({url, status, error})
+                })
+
+                relay.on('connect', () => {  
+                    const {url, status} = relay                       
+                    relaysStore.addOrUpdateRelay({url, status})
+                })
+
+                relay.on('disconnect', () => {                    
+                    const {url, status} = relay                       
+                    relaysStore.addOrUpdateRelay({url, status})
+                })
+            }            
+        }
 
         let events: NostrEvent[] = []
         let result: ReceivedEventResult | undefined = undefined

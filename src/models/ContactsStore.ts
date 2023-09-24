@@ -20,7 +20,7 @@ import {
       .model('ContactsStore', {
           contacts: types.array(ContactModel),
           publicPubkey: types.maybe(types.string),
-          publicRelay: types.maybe(types.string),
+          publicRelay: types.maybe(types.string), // TODO remove, replaced by relaysStore
           lastPendingReceivedCheck: types.maybe(types.number), // UNIX timestamp
           receivedEventIds: types.optional(types.array(types.string), [])
       })

@@ -26,6 +26,7 @@ import {
   UpdateScreen,
   BackupScreen,
   LocalRecoveryScreen,
+  RelaysScreen,
   TranDetailScreen, 
   TranHistoryScreen,
   PaymentRequestsScreen,
@@ -209,6 +210,7 @@ export type SettingsStackParamList = {
   Backup: undefined
   LocalRecovery: undefined
   Developer: undefined
+  Relays: undefined
   WalletNavigator: {screen: string}  
 }
 
@@ -235,6 +237,7 @@ const SettingsNavigator = function SettingsNavigator() {
       <SettingsStack.Screen name="Backup" component={BackupScreen} />
       <SettingsStack.Screen name="LocalRecovery" component={LocalRecoveryScreen} />
       <SettingsStack.Screen name="Developer" component={DeveloperScreen} />
+      <SettingsStack.Screen name="Relays" component={RelaysScreen} />
     </SettingsStack.Navigator>
   )
 }

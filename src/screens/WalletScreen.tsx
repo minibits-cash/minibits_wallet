@@ -67,6 +67,12 @@ const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY 
 
 interface WalletScreenProps extends WalletStackScreenProps<'Wallet'> {}
 
+type RelayStatus = {
+    relay: string, 
+    status: number, 
+    error?: string
+}
+
 export const WalletScreen: FC<WalletScreenProps> = observer(
   function WalletScreen({route, navigation}) {    
     const {mintsStore, proofsStore, transactionsStore, paymentRequestsStore} = useStores()
@@ -77,7 +83,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const [defaultMintUrl, setDefaultMintUrl] = useState<string>('https://mint.minibits.cash/Bitcoin')
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState<boolean>(false)
-    const [minibitsRelayStatus, setMinibitsRelayStatus] = useState<number>(3)
+    const [relayStatusList, setRelayStatusList] = useState<RelayStatus[]>([])
 
     const [isUpdateAvailable, setIsUpdateAvailable] = useState<boolean>(false)
     const [isUpdateModalVisible, setIsUpdateModalVisible] = useState<boolean>(false)
@@ -120,12 +126,12 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
         EventEmitter.on('receiveTokenCompleted', onReceiveTokenCompleted)
         EventEmitter.on('receivePaymentRequest', onReceivePaymentRequest)
-        EventEmitter.on('topupCompleted', onReceiveTopupCompleted)
+        EventEmitter.on('topupCompleted', onReceiveTopupCompleted)           
 
         return () => {            
             EventEmitter.off('receiveTokenCompleted', onReceiveTokenCompleted)
             EventEmitter.off('receivePaymentRequest', onReceivePaymentRequest) 
-            EventEmitter.off('topupCompleted', onReceiveTopupCompleted)          
+            EventEmitter.off('topupCompleted', onReceiveTopupCompleted)                         
         }
     }, [])
     
@@ -217,20 +223,12 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             result.message,
             result.picture,
         )       
-    } 
+    }
 
-
-    /* const toggleLightningModal = () => {
-      setIsLightningModalVisible(previousState => !previousState)
-    } */
 
     const toggleUpdateModal = () => {
         setIsUpdateModalVisible(previousState => !previousState)
     }
-
-    /* const toggleReceivedModal = () => {
-        setIsReceivedModalVisible(previousState => !previousState)
-    } */
 
 
     const addMint = async function ({scannedMintUrl = ''} = {}) {
@@ -348,7 +346,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 onLeftPress={gotoTranHistory}
                 RightActionComponent={
                 <>
-                    {paymentRequestsStore.countNotExpired > 0 ? (
+                    {paymentRequestsStore.countNotExpired > 0 && (
                         <Pressable 
                             style={{flexDirection: 'row', alignItems:'center', marginRight: spacing.medium}}
                             onPress={() => gotoPaymentRequests()}
@@ -356,8 +354,6 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                             <Icon icon='faPaperPlane'/>
                             <Text text={`${paymentRequestsStore.countNotExpired}`}/>
                         </Pressable>
-                    ) : (
-                        <Text text={`${minibitsRelayStatus}`}/>
                     )}
                 </>
                 }                
