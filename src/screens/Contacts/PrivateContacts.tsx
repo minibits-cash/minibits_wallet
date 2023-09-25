@@ -137,10 +137,15 @@ export const PrivateContacts = observer(function (props: {
         const {nip05Pubkey, nip05Relays} = await NostrClient.getNip05PubkeyAndRelays(contactNip05)
 
         if(nip05Relays.length > 0) {
-            relaysToConnect.push(...nip05Relays)
+            for (const relay of nip05Relays) {
+                relaysStore.addOrUpdateRelay({
+                    url: relay,
+                    status: WebSocket.CLOSED
+                })
+            }
         }
 
-        relaysToConnect.push(...(NostrClient.getDefaultRelays()))            
+        relaysToConnect = relaysStore.allUrls       
 
         const profile: NostrProfile = await NostrClient.getProfileFromRelays(nip05Pubkey, relaysToConnect)
 

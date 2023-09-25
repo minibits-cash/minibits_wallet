@@ -54,7 +54,24 @@ export const WalletProfileStoreModel = types
                 }
 
                 const rootStore = getRootStore(self)
-                const {relaysStore} = rootStore
+                const {relaysStore} = rootStore                
+                
+                // new wallet profile has not yet the relays
+                if(relaysStore.allUrls.length === 0) {
+                    const defaultPublicRelays = NostrClient.getDefaultRelays()
+                    const minibitsRelays = NostrClient.getMinibitsRelays()
+
+                    relaysStore.addOrUpdateRelay({
+                        url: defaultPublicRelays[0],
+                        status: WebSocket.CLOSED
+                    })
+
+                    relaysStore.addOrUpdateRelay({
+                        url: minibitsRelays[0],
+                        status: WebSocket.CLOSED
+                    })
+                }
+                
                 const relaysToPublish: string[]  = relaysStore.allUrls
 
                 log.trace('relaysToPublish', {relaysToPublish},'publishToRelays')

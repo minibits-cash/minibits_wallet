@@ -37,7 +37,7 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
                     const walletId = userSettingsStore.walletId 
                     
                     // create random name, NIP05 identifier, random picture and sharable profile
-                    // announce new profile to the default public and minibits relays
+                    // announce new profile to the added default public and minibits relays
                     await walletProfileStore.create(publicKey, walletId as string)                    
                 }
                 
