@@ -1,5 +1,5 @@
 import {Instance, SnapshotOut, types, flow} from 'mobx-state-tree'
-import {MinibitsClient, NostrClient, NostrUnsignedEvent} from '../services'
+import {MinibitsClient, NostrClient, NostrUnsignedEvent, Wallet} from '../services'
 import {log} from '../utils/logger'
 import { getRootStore } from './helpers/getRootStore'
 
@@ -58,18 +58,8 @@ export const WalletProfileStoreModel = types
                 
                 // new wallet profile has not yet the relays
                 if(relaysStore.allUrls.length === 0) {
-                    const defaultPublicRelays = NostrClient.getDefaultRelays()
-                    const minibitsRelays = NostrClient.getMinibitsRelays()
-
-                    relaysStore.addOrUpdateRelay({
-                        url: defaultPublicRelays[0],
-                        status: WebSocket.CLOSED
-                    })
-
-                    relaysStore.addOrUpdateRelay({
-                        url: minibitsRelays[0],
-                        status: WebSocket.CLOSED
-                    })
+                    // saves default relays and creates subscription for incoming nostr messages
+                    Wallet.checkPendingReceived()
                 }
                 
                 const relaysToPublish: string[]  = relaysStore.allUrls

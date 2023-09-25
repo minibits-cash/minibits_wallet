@@ -195,11 +195,11 @@ const publish = async function (
     
     if(published) {
         log.trace('Event successfully published', published, 'NostrClient.publish')
-        pool.close(relays)
+        // pool.close(relays)
         return published
     }
 
-    pool.close(relays)
+    // pool.close(relays)
     return undefined    
 }
 
@@ -217,7 +217,7 @@ const getEvent = async function (
         return event
     }
 
-    pool.close(relays)
+    // pool.close(relays)
     return null    
 }
 
@@ -234,7 +234,7 @@ const getEvents = async function (
         return events
     }
 
-    pool.close(relays)
+    // pool.close(relays)
     return []    
 }
 
