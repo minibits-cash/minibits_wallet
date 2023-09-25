@@ -57,7 +57,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
 
     const gotoSend = () => {
         navigation.navigate('WalletNavigator', { 
-            screen: 'Topup',
+            screen: 'Send',
             params: {
                 paymentOption: SendOption.SEND_TOKEN, 
                 contact, 

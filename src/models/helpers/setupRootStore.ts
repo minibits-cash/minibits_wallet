@@ -150,16 +150,6 @@ async function _runMigrations(rootStore: RootStore) {
 
     if(currentVersion < 5) {
         log.trace(`Starting rootStore migrations from version v${currentVersion} -> v5`)
-        relaysStore.addOrUpdateRelay({
-            url: MINIBITS_RELAY_URL,
-            status: WebSocket.CLOSED
-        })
-        
-        relaysStore.addOrUpdateRelay({
-            url: 'wss://relay.damus.io',
-            status: WebSocket.CLOSED
-        })
-
         if(contactsStore.publicRelay) {
             relaysStore.addOrUpdateRelay({
                 url: contactsStore.publicRelay,

@@ -1,6 +1,7 @@
-import {Instance, SnapshotOut, types, flow, SnapshotIn} from 'mobx-state-tree'
+import {Instance, SnapshotOut, types, flow} from 'mobx-state-tree'
 import {MinibitsClient, NostrClient, NostrUnsignedEvent} from '../services'
 import {log} from '../utils/logger'
+import { getRootStore } from './helpers/getRootStore'
 
 
 export type WalletProfile = {    
@@ -52,12 +53,15 @@ export const WalletProfileStoreModel = types
                     }),                                      
                 }
 
-                const defaultRelays = NostrClient.getDefaultRelays()
-                const minibitsRelays = NostrClient.getMinibitsRelays()
+                const rootStore = getRootStore(self)
+                const {relaysStore} = rootStore
+                const relaysToPublish: string[]  = relaysStore.allUrls
+
+                log.trace('relaysToPublish', {relaysToPublish},'publishToRelays')
 
                 const publishedEvent: Event | undefined = yield NostrClient.publish(
                     profileEvent,
-                    [ ...defaultRelays, ...minibitsRelays]                    
+                    relaysToPublish                    
                 )
                 
                 return publishedEvent

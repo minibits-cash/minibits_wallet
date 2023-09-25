@@ -351,8 +351,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                             style={{flexDirection: 'row', alignItems:'center', marginRight: spacing.medium}}
                             onPress={() => gotoPaymentRequests()}
                         >
-                            <Icon icon='faPaperPlane'/>
-                            <Text text={`${paymentRequestsStore.countNotExpired}`}/>
+                            <Icon icon='faPaperPlane' color={'white'}/>
+                            <Text text={`${paymentRequestsStore.countNotExpired}`} style={{color: 'white'}} />
                         </Pressable>
                     )}
                 </>

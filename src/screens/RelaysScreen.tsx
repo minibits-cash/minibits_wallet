@@ -3,7 +3,7 @@ import React, {FC, useCallback, useEffect, useState} from 'react'
 import {FlatList, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {SettingsStackScreenProps} from '../navigation' // @demo remove-current-line
-import {Icon, ListItem, Screen, Text, Card} from '../components'
+import {Icon, ListItem, Screen, Text, Card, BottomModal} from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import {translate} from '../i18n'
@@ -25,7 +25,22 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
     })
 
     const {relaysStore} = useStores()
+    
+    const [selectedRelay, setSelectedRelay] = useState<Relay | undefined>()
+    
 
+    const onRelaySelect = function (relay: Relay) {
+        setSelectedRelay(relay)
+    }
+  
+    const onRelayUnselect = function () {
+        setSelectedRelay(undefined)
+    }
+
+    const removeRelay = function () {
+        relaysStore.removeRelay(selectedRelay?.url as string)
+        setSelectedRelay(undefined)        
+    }
     
     const $itemRight = {color: useThemeColor('textDim')}
     const iconColor = useThemeColor('textDim')
@@ -51,7 +66,7 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
                         return(
                             <ListItem
                                 text={item.hostname}
-                                subText={item.error}
+                                subText={item.error ? item.error : item.url}
                                 leftIcon='faCircleNodes'
                                 leftIconColor={iconColor as string}
                                 topSeparator={index === 0 ? false : true}                                
@@ -67,6 +82,7 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
                                     </View>
                                 }
                                 style={$item}
+                                onPress={() => onRelaySelect(item)}
                             />
                         )
                     }}                
@@ -78,6 +94,23 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
             }
         />
         </View>
+        <BottomModal
+          isVisible={selectedRelay ? true : false}
+          top={spacing.screenHeight * 0.5}
+          ContentComponent={
+            <View style={{}}>              
+              <ListItem
+                leftIcon="faXmark"
+                onPress={removeRelay}
+                text={'Remove relay'}
+                bottomSeparator={true}
+                style={{paddingHorizontal: spacing.medium}}
+              />
+            </View>
+          }
+          onBackButtonPress={onRelayUnselect}
+          onBackdropPress={onRelayUnselect}
+        />
       </Screen>
     )
   },

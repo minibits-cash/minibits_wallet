@@ -1,6 +1,5 @@
 import {
-    nip19,
-    getPublicKey,
+    nip19,    
     getEventHash,
     getSignature,
     SimplePool,
@@ -8,6 +7,7 @@ import {
     Event as NostrEvent,
     validateEvent,
     UnsignedEvent as NostrUnsignedEvent,
+    utils
 } from 'nostr-tools'
 import QuickCrypto from 'react-native-quick-crypto'
 import {secp256k1} from '@noble/curves/secp256k1'
@@ -45,8 +45,10 @@ export type Nip05VerificationRecord = {
     }
 }
 
+// TODO cleanup
 const _defaultPublicRelays: string[] = ['wss://relay.damus.io']
 const _minibitsRelays: string[] = [MINIBITS_RELAY_URL]
+
 let _pool: any = undefined
 
 const getRelayPool = function () {
@@ -379,9 +381,13 @@ const deleteKeyPair = async function (): Promise<void> {
 }
 
 
-export const NostrClient = {
-    getRelayPool,
-    // getRelaysConnectionStatus, WIP
+const getNormalizedRelayUrl = function (url: string): string {
+    return utils.normalizeURL(url)
+}
+
+
+export const NostrClient = { // TODO split helper functions to separate module
+    getRelayPool,    
     getDefaultRelays,
     getMinibitsRelays,
     getOrCreateKeyPair,
@@ -398,5 +404,6 @@ export const NostrClient = {
     verifyNip05,
     getNip05PubkeyAndRelays,
     getProfileFromRelays,
-    deleteKeyPair
+    getNormalizedRelayUrl,
+    deleteKeyPair,    
 }

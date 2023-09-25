@@ -23,7 +23,7 @@ export const PrivateContacts = observer(function (props: {
     navigation: StackNavigationProp<ContactsStackParamList, "Contacts", undefined>,     
     paymentOption: ReceiveOption | SendOption | undefined}
 ) { 
-    const {contactsStore} = useStores()
+    const {contactsStore, relaysStore} = useStores()
     const {navigation} = props
     const contactNameInputRef = useRef<TextInput>(null)
  
@@ -178,10 +178,8 @@ export const PrivateContacts = observer(function (props: {
             const {paymentOption} = props        
             
             log.trace('paymentOption', {paymentOption}, 'gotoContactDetail')
-
-            const minibitsRelays = NostrClient.getMinibitsRelays()
-            const defaultRelays = NostrClient.getDefaultRelays()
-            const relays = [...minibitsRelays, ...defaultRelays]
+            
+            const relays = relaysStore.allUrls
             
             if(paymentOption && paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) { // Topup tx contact selection
                 
@@ -194,7 +192,7 @@ export const PrivateContacts = observer(function (props: {
                     params: {
                         paymentOption, 
                         contact, 
-                        relays
+                        relays // TODO remove, switch to relaysStore
                     },
                 })
 
@@ -218,7 +216,7 @@ export const PrivateContacts = observer(function (props: {
                     params: {
                         paymentOption, 
                         contact, 
-                        relays
+                        relays // TODO remove, switch to relaysStore
                     },
                 })
 
@@ -232,7 +230,7 @@ export const PrivateContacts = observer(function (props: {
 
             navigation.navigate('ContactDetail', {                   
                 contact, 
-                relays: NostrClient.getMinibitsRelays()        
+                relays    // TODO remove, switch to relaysStore 
             })
         } catch (e: any) {
             handleError(e)

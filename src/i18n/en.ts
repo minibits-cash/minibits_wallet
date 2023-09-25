@@ -15,7 +15,7 @@ const en = {
   welcomeScreen: {
     page1: {
       heading: "Welcome",
-      intro: "Minibits is an ecash and Lightning wallet with a focus on performance and usability. ecash is a bearer token issued by custodians known as mints.",
+      intro: "Minibits is an ecash and Lightning wallet with a focus on performance and usability. Ecash is a bearer token issued by custodians known as mints.",
       bullet1: "Minibits follows the Cashu protocol, where mints back ecash with Bitcoin.",
       bullet2: "Ecash is issued or exchanged back to Bitcoin instantly through Lightning payments.",
       bullet3: "Ecash tokens are stored on-device; mints do not keep ledger or wallet balances.",

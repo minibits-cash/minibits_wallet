@@ -38,7 +38,7 @@ import {Invoice} from '../models/Invoice'
 import {poller, stopPolling} from '../utils/poller'
 import EventEmitter from '../utils/eventEmitter'
 import { NostrClient, NostrEvent, NostrFilter } from './nostrService'
-import { MINIBITS_SERVER_API_HOST } from '@env'
+import { MINIBITS_RELAY_URL, MINIBITS_SERVER_API_HOST } from '@env'
 import { PaymentRequest, PaymentRequestStatus } from '../models/PaymentRequest'
 
 type WalletService = {
@@ -151,23 +151,21 @@ const checkPendingReceived = async function () {
         log.trace('Creating subscription...', filter, 'checkPendingReceived')
 
         const pool = NostrClient.getRelayPool()
-        let relaysToConnect: string[] = []
+        let relaysToConnect = relaysStore.allUrls
 
-        if(relaysStore.allRelays.length === 0) { // TODO clean up
-            const defaultRelays = NostrClient.getDefaultRelays()
-            const minibitsRelays = NostrClient.getMinibitsRelays()
-    
-            relaysToConnect.push(...defaultRelays, ...minibitsRelays)
-        } else {
-            relaysToConnect = relaysStore.allUrls
-        }
+        // TODO cleanup
+        const defaultPublicRelays = NostrClient.getDefaultRelays()
+        const minibitsRelays = NostrClient.getMinibitsRelays()
 
-        if(contactsStore.publicRelay && !relaysToConnect.includes(contactsStore.publicRelay)) {
-            relaysToConnect.push(contactsStore.publicRelay)
+        if(!relaysStore.alreadyExists(minibitsRelays[0])) {                        
+            relaysToConnect.push(minibitsRelays[0])
         }        
 
-        const sub = pool.sub(relaysToConnect , filter)
+        if(!relaysStore.alreadyExists(defaultPublicRelays[0])) {                        
+            relaysToConnect.push(defaultPublicRelays[0])
+        }
 
+        const sub = pool.sub(relaysToConnect , filter)
         const relaysConnections = pool._conn        
 
         for (const url in relaysConnections) {

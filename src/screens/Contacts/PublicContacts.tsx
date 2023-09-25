@@ -310,7 +310,7 @@ export const PublicContacts = observer(function (props: {
         const {paymentOption} = props
         contact.type = ContactType.PUBLIC      // ???
 
-        const relays = contactsStore.publicRelay ? [...NostrClient.getDefaultRelays(), contactsStore.publicRelay] : NostrClient.getDefaultRelays()
+        const relays = relaysStore.allPublicUrls
         
         if(paymentOption && paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) {
             navigation.navigate('WalletNavigator', { 
@@ -318,7 +318,7 @@ export const PublicContacts = observer(function (props: {
                 params: {   
                     paymentOption,                 
                     contact, 
-                    relays
+                    relays // TODO remove, switch to relaysStore
                 },
             })
 
@@ -337,7 +337,7 @@ export const PublicContacts = observer(function (props: {
                 params: {   
                     paymentOption,                  
                     contact, 
-                    relays
+                    relays // TODO remove, switch to relaysStore
                 },
             })
 
@@ -351,7 +351,7 @@ export const PublicContacts = observer(function (props: {
 
         navigation.navigate('ContactDetail', {
             contact, 
-            relays: relaysStore.allPublicUrls // TODO cleanup and use relayStore everywhere
+            relays // TODO remove, switch to relaysStore
         })
     }
 
