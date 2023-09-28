@@ -30,7 +30,7 @@ import {
   decodeToken,
   getTokenAmounts,
   getMintsFromToken,
-} from '../services/cashuHelpers'
+} from '../services/cashu/cashuUtils'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {MintListItem} from './Mints/MintListItem'
 import useIsInternetReachable from '../utils/useIsInternetReachable'

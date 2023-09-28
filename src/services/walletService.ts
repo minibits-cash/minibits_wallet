@@ -12,20 +12,8 @@ import {
   TransactionType,
 } from '../models/Transaction'
 import {rootStoreInstance} from '../models'
-import {
-  decodeInvoice,
-  decodeToken,
-  extractEncodedCashuToken,
-  extractEncodedLightningInvoice,
-  findEncodedCashuToken,
-  findEncodedLightningInvoice,
-  getInvoiceData,
-  getInvoiceExpiresAt,
-  getMintsFromToken,
-  getProofsAmount,
-  getTokenAmounts,
-  validateMintKeys,
-} from './cashuHelpers'
+import {CashuUtils} from './cashu/cashuUtils'
+import {LightningUtils} from './lightning/lightningUtils'
 import AppError, {Err} from '../utils/AppError'
 import {MintBalance} from '../models/Mint'
 import {Token} from '../models/Token'
@@ -38,8 +26,9 @@ import {Invoice} from '../models/Invoice'
 import {poller, stopPolling} from '../utils/poller'
 import EventEmitter from '../utils/eventEmitter'
 import { NostrClient, NostrEvent, NostrFilter } from './nostrService'
-import { MINIBITS_RELAY_URL, MINIBITS_SERVER_API_HOST } from '@env'
+import { MINIBITS_SERVER_API_HOST } from '@env'
 import { PaymentRequest, PaymentRequestStatus } from '../models/PaymentRequest'
+import { IncomingDataType, IncomingParser } from './incomingParser'
 
 type WalletService = {
     checkPendingSpent: () => Promise<void>
@@ -191,6 +180,7 @@ const checkPendingReceived = async function () {
 
         let events: NostrEvent[] = []
         let result: ReceivedEventResult | undefined = undefined
+        
 
         sub.on('event', async (event: NostrEvent) => {
             try {
@@ -208,14 +198,11 @@ const checkPendingReceived = async function () {
                 }                    
                 
                 // decrypt message content
-                const decrypted = await NostrClient.decryptNip04(event.pubkey, event.content)
-                
-                // check if we've got Cashu token
-                const maybeToken = findEncodedCashuToken(decrypted)
+                const decrypted = await NostrClient.decryptNip04(event.pubkey, event.content)               
 
-                if(maybeToken) {
-                    log.trace('Got cashu token', maybeToken, 'checkPendingReceived')
-                    const tokenResult = extractEncodedCashuToken(maybeToken) // throws
+                const incoming = IncomingParser.findAndExtract(decrypted)
+    
+                if(incoming.type === IncomingDataType.CASHU) {
 
                     const {
                         error, 
@@ -223,7 +210,7 @@ const checkPendingReceived = async function () {
                         memo,
                         sentFrom, 
                         sentFromPubkey
-                    } = await receiveFromNostrEvent(tokenResult.token, event)
+                    } = await receiveFromNostrEvent(incoming.encoded, event)
 
                     let picture: string | undefined = undefined
 
@@ -238,7 +225,7 @@ const checkPendingReceived = async function () {
                             message: `Ecash from <b>${sentFrom}</b> is now in your wallet.`,
                             memo,
                             picture,
-                            token: decodeToken(tokenResult.token)
+                            token: CashuUtils.decodeToken(incoming.encoded)
                         }
             
                         EventEmitter.emit('receiveTokenCompleted', result)
@@ -252,20 +239,14 @@ const checkPendingReceived = async function () {
                 }
 
 
-                // check if we've got Lightning invoice to pay (transfer)
-                const maybeInvoice = findEncodedLightningInvoice(decrypted)
-                const maybeMemo = findMemo(decrypted) // wallets can not ask the mint for an invoice with custom memo and expiry, we send it inside the message
+                if (incoming.type === IncomingDataType.INVOICE) {
 
-                if(maybeInvoice) {
-                    log.trace('Got lightning invoice', maybeInvoice, 'checkPendingReceived')
-
-                    const invoiceResult = extractEncodedLightningInvoice(maybeInvoice) // throws
-                    
                     const sentFrom = getTagValue(event.tags, 'from')
                     const sentFromPubkey = event.pubkey
+                    const maybeMemo = findMemo(decrypted)
                     
                     const paymentRequest = paymentRequestsStore.addPaymentRequest(
-                        invoiceResult.invoice, 
+                        incoming.encoded, 
                         sentFrom as string, 
                         sentFromPubkey, 
                         maybeMemo as string
@@ -288,9 +269,14 @@ const checkPendingReceived = async function () {
 
                     EventEmitter.emit('receivePaymentRequest', result)
                     return
-                }          
-                
-                return
+                }
+                    
+                if (incoming.type === (IncomingDataType.LNURLP || IncomingDataType.LNURLW)) {
+                    throw new AppError(Err.NOTFOUND_ERROR, 'LNURL support is not yet implemented.')
+                }                      
+                   
+                throw new AppError(Err.NOTFOUND_ERROR, 'Received unknown message', incoming)
+               
             } catch(e: any) {
                 const result = {
                     status: TransactionStatus.ERROR,
@@ -340,10 +326,10 @@ function findMemo(message: string): string | undefined {
 
 const receiveFromNostrEvent = async function (encoded: string, event: NostrEvent) {    
     try {
-        const decoded: Token = decodeToken(encoded)
+        const decoded: Token = CashuUtils.decodeToken(encoded)
         const sentFrom = getTagValue(event.tags, 'from')
         const sentFromPubkey = event.pubkey       
-        const tokenAmounts = getTokenAmounts(decoded)
+        const tokenAmounts = CashuUtils.getTokenAmounts(decoded)
         const amountToReceive = tokenAmounts.totalAmount
         const memo = decoded.memo || ''                    
         
@@ -434,7 +420,7 @@ async function _checkSpentByMint(mintUrl: string, isPending: boolean = false) {
         )
 
         const spentCount = spentProofs.length
-        const spentAmount = getProofsAmount(spentProofs)
+        const spentAmount = CashuUtils.getProofsAmount(spentProofs)
 
         log.trace('spentProofs amount', spentAmount, '_checkSpentByMint')
 
@@ -506,7 +492,7 @@ const receive = async function (
   let transactionId: number = 0
 
   try {
-        const tokenMints: string[] = getMintsFromToken(token as Token)
+        const tokenMints: string[] = CashuUtils.getMintsFromToken(token as Token)
         log.trace('receiveToken tokenMints', tokenMints, 'receive')
 
         if (tokenMints.length === 0) {
@@ -606,7 +592,7 @@ const receive = async function (
         let amountWithErrors = 0
 
         if (errorToken && errorToken.token.length > 0) {
-            amountWithErrors += getTokenAmounts(errorToken as Token).totalAmount
+            amountWithErrors += CashuUtils.getTokenAmounts(errorToken as Token).totalAmount
             log.trace('receiveToken amountWithErrors', amountWithErrors, 'receive')
         }
 
@@ -632,7 +618,7 @@ const receive = async function (
         proofsStore.addProofs(newProofs)
 
         // This should be amountToReceive - amountWithErrors but let's set it from updated token
-        const receivedAmount = getTokenAmounts(updatedToken as Token).totalAmount
+        const receivedAmount = CashuUtils.getTokenAmounts(updatedToken as Token).totalAmount
         log.trace('Received amount', receivedAmount, 'receive')
 
         // Update tx amount if full amount was not received
@@ -711,7 +697,7 @@ const receiveOfflinePrepare = async function (
   let transactionId: number = 0
 
   try {
-        const tokenMints: string[] = getMintsFromToken(token as Token)
+        const tokenMints: string[] = CashuUtils.getMintsFromToken(token as Token)
         log.trace('receiveToken tokenMints', tokenMints, 'receive')
 
         if (tokenMints.length === 0) {
@@ -837,8 +823,8 @@ const receiveOfflineComplete = async function (
             throw new AppError(Err.VALIDATION_ERROR, 'Could not find ecash token to redeem', 'receiveOfflineComplete')
         }
         
-        const token = decodeToken(encodedToken)        
-        const tokenMints: string[] = getMintsFromToken(token as Token)
+        const token = CashuUtils.decodeToken(encodedToken)        
+        const tokenMints: string[] = CashuUtils.getMintsFromToken(token as Token)
         const mintToReceive = tokenMints[0]
 
         // Re-check blocked mint
@@ -888,7 +874,7 @@ const receiveOfflineComplete = async function (
         let amountWithErrors = 0
 
         if (errorToken && errorToken.token.length > 0) {
-            amountWithErrors += getTokenAmounts(errorToken as Token).totalAmount
+            amountWithErrors += CashuUtils.getTokenAmounts(errorToken as Token).totalAmount
             log.trace('receiveToken amountWithErrors', amountWithErrors, 'receive')
         }
 
@@ -914,7 +900,7 @@ const receiveOfflineComplete = async function (
         proofsStore.addProofs(newProofs)
 
         // This should be amountToReceive - amountWithErrors but let's set it from updated token
-        const receivedAmount = getTokenAmounts(updatedToken as Token).totalAmount
+        const receivedAmount = CashuUtils.getTokenAmounts(updatedToken as Token).totalAmount
         log.trace('Received amount', receivedAmount, 'receive')
 
         // Update tx amount if full amount was not received
@@ -1001,7 +987,7 @@ const _sendFromMint = async function (
             )
         }
 
-        const totalAmountFromMint = getProofsAmount(proofsFromMint)
+        const totalAmountFromMint = CashuUtils.getProofsAmount(proofsFromMint)
 
         if (totalAmountFromMint < amountToSend) {
             throw new AppError(
@@ -1011,7 +997,7 @@ const _sendFromMint = async function (
             )
         }
 
-        const selectedProofsAmount = getProofsAmount(selectedProofs)
+        const selectedProofsAmount = CashuUtils.getProofsAmount(selectedProofs)
 
         if(selectedProofsAmount > 0 && (amountToSend !== selectedProofsAmount)) { // failsafe for some unknown ecash selection UX error
             throw new AppError(Err.VALIDATION_ERROR, 'Requested amount to send does not equal sum of ecash denominations provided.')
@@ -1322,7 +1308,7 @@ const transfer = async function (
             transactionId,
         )
 
-        const proofsAmount = getProofsAmount(proofsToPay as Proof[])
+        const proofsAmount = CashuUtils.getProofsAmount(proofsToPay as Proof[])
         log.info('Prepared poofsToPay amount', proofsAmount, 'transfer')
 
         // Update transaction status
@@ -1456,7 +1442,7 @@ const _addCashuProofs = function (
     }
     // Creates proper model instances and adds them to storage
     proofsStore.addProofs(proofsToAdd as Proof[])
-    const amount = getProofsAmount(proofsToAdd as Proof[])
+    const amount = CashuUtils.getProofsAmount(proofsToAdd as Proof[])
 
     log.info('Added proofs with amount', { amount, isRecoveredFromPending })
     
@@ -1508,8 +1494,8 @@ const topup = async function (
 
         const {encodedInvoice, paymentHash} = await MintClient.requestLightningInvoice(mintUrl, amountToTopup)
 
-        const decodedInvoice = decodeInvoice(encodedInvoice)
-        const {amount, expiry, description} = getInvoiceData(decodedInvoice)
+        const decodedInvoice = LightningUtils.decodeInvoice(encodedInvoice)
+        const {amount, expiry, description} = LightningUtils.getInvoiceData(decodedInvoice)
 
         if (amount !== amountToTopup) {
             throw new AppError(
@@ -1676,7 +1662,7 @@ const checkPendingTopups = async function () {
 }
 
 const _updateMintKeys = function (mintUrl: string, newKeys: MintKeys) {
-    if(!validateMintKeys(newKeys)) {
+    if(!CashuUtils.validateMintKeys(newKeys)) {
         // silent
         log.info('Invalid mint keys to update, skipping', newKeys)
         return

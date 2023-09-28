@@ -12,7 +12,8 @@ import {
   Animated,
   findNodeHandle,
   FlatList,
-  Pressable
+  Pressable,
+  Linking
 } from 'react-native'
 /* import Animated, {
   useAnimatedScrollHandler,
@@ -61,6 +62,8 @@ import { ExpandingDot, ScalingDot, SlidingBorder, SlidingDot } from 'react-nativ
 import { PaymentRequest, PaymentRequestStatus } from '../models/PaymentRequest'
 import { Invoice } from '../models/Invoice'
 import { poller } from '../utils/poller'
+import Clipboard from '@react-native-clipboard/clipboard'
+import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView)
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
@@ -119,6 +122,23 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
     
     useEffect(() => {
+        // get deeplink if any
+        const getInitialData  = async () => {
+            const url = await Linking.getInitialURL()
+            
+            if (url) {
+                handleDeeplink({url})                
+                return // deeplinks have priority over clipboard
+            }
+
+            const clipboard = await Clipboard.getString()
+
+            if(clipboard) {
+                handleClipboard(clipboard)
+            }
+        }
+         
+
         InteractionManager.runAfterInteractions(async () => {
             // subscribe once to receive tokens or payment requests by NOSTR DMs
             Wallet.checkPendingReceived()            
@@ -126,14 +146,36 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
         EventEmitter.on('receiveTokenCompleted', onReceiveTokenCompleted)
         EventEmitter.on('receivePaymentRequest', onReceivePaymentRequest)
-        EventEmitter.on('topupCompleted', onReceiveTopupCompleted)           
+        EventEmitter.on('topupCompleted', onReceiveTopupCompleted)
+        Linking.addEventListener('url', handleDeeplink)       
+        
+        getInitialData()
 
         return () => {            
             EventEmitter.off('receiveTokenCompleted', onReceiveTokenCompleted)
             EventEmitter.off('receivePaymentRequest', onReceivePaymentRequest) 
-            EventEmitter.off('topupCompleted', onReceiveTopupCompleted)                         
+            EventEmitter.off('topupCompleted', onReceiveTopupCompleted)
         }
     }, [])
+
+
+    const handleDeeplink = function ({url}: {url: string}) {
+        log.trace('deepLink', url, 'handleDeeplink')
+
+        try {
+            
+            const incomingData = IncomingParser.findAndExtract(url)
+            IncomingParser.navigateWithIncomingData(incomingData, navigation)
+
+        } catch (e: any) {
+            handleError(e)
+        }
+    }
+
+
+    const handleClipboard = function (clipboard: string) {
+        log.trace('clipboard', clipboard, 'handleClipboard')
+    }
     
 
     const gotoUpdate = function() {
@@ -150,7 +192,9 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         useCallback(() => {
             InteractionManager.runAfterInteractions(async () => {                
                 Wallet.checkPendingSpent()
-                Wallet.checkPendingTopups()                
+                Wallet.checkPendingTopups()
+                
+                // TODO reconnect relays if disconnected
             })
         }, [])
     )

@@ -5,10 +5,10 @@ import {
   PayLnInvoiceResponse,
   type Proof as CashuProof,
 } from '@cashu/cashu-ts'
-import {validateMintKeys} from './cashuHelpers'
+import {validateMintKeys} from './cashu/cashuUtils'
 import AppError, {Err} from '../utils/AppError'
 import {log} from '../utils/logger'
-import {getProofsAmount} from '../services/cashuHelpers'
+import {getProofsAmount} from './cashu/cashuUtils'
 import {Token} from '../models/Token'
 import {Proof} from '../models/Proof'
 

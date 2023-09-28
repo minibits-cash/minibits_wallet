@@ -352,7 +352,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
             // log.trace('', {senderPrivkey, senderPubkey, receiverPubkey}, 'sendAsNostrDM')
             const message = `nostr:${walletProfileStore.npub} sent you Lightning invoice for ${amountToTopup} sats from Minibits wallet!`
-            let content = message + ' \n' + invoiceToPay + ' \n'
+            let content = message + ' \n' + 'lightning:' + invoiceToPay + ' \n'
 
             if (memo) {
                 content += `memo: ${memo}`

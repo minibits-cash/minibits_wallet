@@ -20,9 +20,8 @@ import {useHeader} from '../utils/useHeader'
 import {log} from '../utils/logger'
 import AppError from '../utils/AppError'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
-import { Token } from '../models/Token'
-import { decodeToken, extractEncodedCashuToken, findEncodedCashuToken, getTokenAmounts } from '../services/cashuHelpers'
 import { infoMessage } from '../utils/utils'
+import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 
 export enum ReceiveOption {
     SEND_PAYMENT_REQUEST = 'SEND_PAYMENT_REQUEST',
@@ -68,21 +67,13 @@ export const ReceiveOptionsScreen: FC<WalletStackScreenProps<'ReceiveOptions'>> 
             infoMessage('Please copy the ecash token first.')
         }
 
-        try {
-            const maybeToken = findEncodedCashuToken(clipboard)
-
-            if(maybeToken) {
-                const tokenResult = extractEncodedCashuToken(maybeToken)
-
-                if(tokenResult && tokenResult.isToken) {
-                    infoMessage('Found ecash token in the clipboard.')                
-                    setTimeout(() => navigation.navigate('Receive', {encodedToken: tokenResult.token}), 1000)
-                    return
-                }
-                
-            }
-
-            infoMessage('Your clipboard does not contain a valid ecash token.')            
+        try {           
+            const incomingData = IncomingParser.findAndExtract(clipboard, IncomingDataType.CASHU)
+            
+            infoMessage('Found ecash token in the clipboard.')                
+            setTimeout(() => navigation.navigate('Receive', {encodedToken: incomingData.encoded}), 1000)
+            return
+              
         } catch (e: any) {
             handleError(e)
         }

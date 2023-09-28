@@ -413,7 +413,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
             // log.trace('', {senderPrivkey, senderPubkey, receiverPubkey}, 'sendAsNostrDM')
             const message = `nostr:${walletProfileStore.npub} sent you ${amountToSend} sats from Minibits wallet!`
-            const content = message + ' \n' + encodedTokenToSend
+            const content = message + ' \n' + 'cashu:' + encodedTokenToSend
 
             const encryptedContent = await NostrClient.encryptNip04(                
                 receiverPubkey as string, 

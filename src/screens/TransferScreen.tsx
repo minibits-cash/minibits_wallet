@@ -35,7 +35,7 @@ import {
   decodeInvoice,
   DecodedLightningInvoice,
   getInvoiceData,
-} from '../services/cashuHelpers'
+} from '../services/cashu/cashuUtils'
 import {MintBalance} from '../models/Mint'
 import {MintListItem} from './Mints/MintListItem'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'

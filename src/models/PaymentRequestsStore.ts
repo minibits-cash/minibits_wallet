@@ -10,7 +10,7 @@ import {withSetPropAction} from './helpers/withSetPropAction'
 import {PaymentRequestModel, PaymentRequest, PaymentRequestStatus} from './PaymentRequest'
 import {log} from '../utils/logger'
 import AppError, { Err } from '../utils/AppError'
-import { decodeInvoice, getInvoiceData, getInvoiceExpiresAt } from '../services/cashuHelpers'
+import { decodeInvoice, getInvoiceData, getInvoiceExpiresAt } from '../services/cashu/cashuUtils'
 import isBefore from 'date-fns/isBefore'
 import isAfter from 'date-fns/isAfter'
 

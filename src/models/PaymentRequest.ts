@@ -1,5 +1,5 @@
 import {Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
-import {decodeInvoice, getInvoiceData} from '../services/cashuHelpers'
+import {decodeInvoice, getInvoiceData} from '../services/cashu/cashuUtils'
 import {withSetPropAction} from './helpers/withSetPropAction'
 import {log} from '../utils/logger'
 import addSeconds from 'date-fns/addSeconds'

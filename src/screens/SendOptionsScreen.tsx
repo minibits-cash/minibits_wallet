@@ -20,8 +20,8 @@ import {useHeader} from '../utils/useHeader'
 import {log} from '../utils/logger'
 import AppError from '../utils/AppError'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
-import { DecodedLightningInvoice, decodeInvoice, extractEncodedLightningInvoice, findEncodedLightningInvoice } from '../services/cashuHelpers'
 import { infoMessage } from '../utils/utils'
+import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 
 export enum SendOption {
     SEND_TOKEN = 'SEND_TOKEN',
@@ -66,22 +66,13 @@ export const SendOptionsScreen: FC<WalletStackScreenProps<'SendOptions'>> = obse
         }
 
         try {
-            const maybeInvoice = findEncodedLightningInvoice(clipboard)
-
-            if(maybeInvoice) {
-                const invoiceResult = extractEncodedLightningInvoice(maybeInvoice)
-
-                if(invoiceResult.isInvoice) {
-                    infoMessage('Found lightning invoice in the clipboard.')                
-                    setTimeout(() => navigation.navigate('Transfer', {encodedInvoice: invoiceResult.invoice}), 1000)   //TODO rename
-                    return
-                }
-                
-            }
-
-            infoMessage('Your clipboard does not contain a lightning invoice.')            
+            const incomingData = IncomingParser.findAndExtract(clipboard, IncomingDataType.INVOICE)
+            
+            infoMessage('Found lightning invoice in the clipboard.')                
+            setTimeout(() => navigation.navigate('Transfer', {encodedInvoice: incomingData.encoded}), 1000)   //TODO rename
+            return
         } catch (e: any) {
-            handleError(e)
+            handleError(e)    
         }
     }
 

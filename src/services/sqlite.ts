@@ -14,7 +14,7 @@ import {UserSettings} from '../models/UserSettingsStore'
 import AppError, {Err} from '../utils/AppError'
 import {log} from '../utils/logger'
 import {BackupProof} from '../models/Proof'
-import { getProofsAmount } from './cashuHelpers'
+import { getProofsAmount } from './cashu/cashuUtils'
 import { Contact, ContactType } from '../models/Contact'
 
 let _db: QuickSQLiteConnection
