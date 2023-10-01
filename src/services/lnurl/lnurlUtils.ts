@@ -40,6 +40,8 @@ const extractEncodedLnurl = function (maybeLnurl: string) {
     // try to decode
     if(encodedLnurl) {
         const decoded = decodelnurl(encodedLnurl) // throws
+        log.trace('decoded lnurl', decoded, 'extractEncodedLnurl')
+        
         return encodedLnurl
     }
 

@@ -41,6 +41,7 @@ import { colors, useThemeColor, spacing, typography } from "../theme"
 import { AppStackParamList, AppStackScreenProps } from "./AppNavigator"
 import { MintBalance } from "../models/Mint"
 import { PaymentRequest } from "../models/PaymentRequest"
+import { LNURLPayParams, LNURLWithdrawParams } from "js-lnurl"
 
 
 export type TabsParamList = {
@@ -121,8 +122,8 @@ export type WalletStackParamList = {
     TranDetail: {id: number}
     TranHistory: undefined
     PaymentRequests: undefined 
-    Transfer: {encodedInvoice? : string, donationEncodedInvoice? : string, paymentRequest? : PaymentRequest}
-    Topup: {contact?: Contact, relays?: string[], paymentOption?: ReceiveOption}
+    Transfer: {encodedInvoice? : string, paymentRequest? : PaymentRequest, lnurlParams?: LNURLPayParams, paymentOption?: SendOption,}
+    Topup: {contact?: Contact, relays?: string[], paymentOption?: ReceiveOption, lnurlParams?: LNURLWithdrawParams}
     ContactsNavigator: {screen: string, params: any}
     SettingsNavigator: {screen: string, params: any}
 }

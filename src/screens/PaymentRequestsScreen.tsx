@@ -28,6 +28,7 @@ import {useStores} from '../models'
 import AppError from '../utils/AppError'
 import { PaymentRequest } from '../models/PaymentRequest'
 import { MINIBITS_NIP05_DOMAIN, MINIBITS_SERVER_API_HOST } from '@env'
+import { SendOption } from './SendOptionsScreen'
 
 interface PaymentRequestsScreenProps
   extends WalletStackScreenProps<'PaymentRequests'> {}
@@ -57,7 +58,10 @@ export const PaymentRequestsScreen: FC<PaymentRequestsScreenProps> = observer(fu
 
 
     const onPressPaymentRequest = function(paymentRequest: PaymentRequest) {
-        navigation.navigate('Transfer', {paymentRequest})
+        navigation.navigate('Transfer', {
+            paymentRequest, 
+            paymentOption: SendOption.PAY_PAYMENT_REQUEST
+        })
     }
 
     const handleError = function (e: AppError): void {

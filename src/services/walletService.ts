@@ -271,7 +271,7 @@ const checkPendingReceived = async function () {
                     return
                 }
                     
-                if (incoming.type === (IncomingDataType.LNURLP || IncomingDataType.LNURLW)) {
+                if (incoming.type === IncomingDataType.LNURL) {
                     throw new AppError(Err.NOTFOUND_ERROR, 'LNURL support is not yet implemented.')
                 }                      
                    

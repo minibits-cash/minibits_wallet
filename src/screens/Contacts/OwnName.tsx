@@ -13,6 +13,7 @@ import QRCode from 'react-native-qrcode-svg'
 import { ResultModalInfo } from '../Wallet/ResultModalInfo'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 import { useFocusEffect } from '@react-navigation/native'
+import { SendOption } from '../SendOptionsScreen'
 
 const DEFAULT_DONATION_AMOUNT = 100
 
@@ -162,7 +163,10 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
             setIsPaidFromWallet(true)            
             return navigation.navigate('WalletNavigator', { 
                 screen: 'Transfer',
-                params: { donationEncodedInvoice: donationInvoice?.payment_request},
+                params: { 
+                    encodedInvoice: donationInvoice?.payment_request, 
+                    paymentOption: SendOption.DONATION
+                },
             })
            
         } catch (e: any) {

@@ -1,5 +1,7 @@
 import notifee, { AndroidImportance } from '@notifee/react-native'
 import { StackNavigationProp } from '@react-navigation/stack'
+import { getParams, LNURLResponse } from 'js-lnurl'
+import { ReceiveOption, SendOption } from '../screens'
 import { colors } from '../theme'
 import AppError, { Err } from '../utils/AppError'
 import { log } from '../utils/logger'
@@ -7,12 +9,12 @@ import { CashuUtils } from './cashu/cashuUtils'
 import { MintClient, MintKeys } from './cashuMintClient'
 import { LightningUtils } from './lightning/lightningUtils'
 import { LnurlUtils } from './lnurl/lnurlUtils'
+import { LnurlClient } from './lnurlService'
 
 export enum IncomingDataType {
     CASHU = 'CASHU',
     INVOICE = 'INVOICE',
-    LNURLP = 'LNURLP',
-    LNURLW = 'LNURLW',
+    LNURL = 'LNURL',    
     MINT_URL = 'MINT_URL',
 }
 
@@ -39,7 +41,7 @@ const findAndExtract = function (
                     type: expectedType,
                     encoded
                 }
-            case (IncomingDataType.LNURLP || IncomingDataType.LNURLW):
+            case (IncomingDataType.LNURL):
                 encoded = LnurlUtils.extractEncodedLnurl(incomingData)                
                 return {
                     type: expectedType,
@@ -73,7 +75,7 @@ const findAndExtract = function (
     const maybeInvoice = LightningUtils.findEncodedLightningInvoice(incomingData)
 
     if(maybeInvoice) {
-        log.trace('Got lightning invoice', maybeInvoice, 'findAndExtract')
+        log.trace('Got maybeInvoice', maybeInvoice, 'findAndExtract')
 
         const encodedInvoice = LightningUtils.extractEncodedLightningInvoice(maybeInvoice) // throws
 
@@ -86,7 +88,7 @@ const findAndExtract = function (
     const maybeLnurl = LnurlUtils.findEncodedLnurl(incomingData)
 
     if(maybeLnurl) {
-        log.trace('Got lightning invoice', maybeInvoice, 'findAndExtract')
+        log.trace('Got maybeLnurl', maybeInvoice, 'findAndExtract')
 
         const encodedLnurl = LnurlUtils.extractEncodedLnurl(maybeLnurl) // throws
 
@@ -96,7 +98,9 @@ const findAndExtract = function (
         }
     }
 
-    const mintUrl = new URL(incomingData) // throws
+    const maybeMintUrl = new URL(incomingData) // throws
+
+    log.trace('Got maybeMintUrl', maybeInvoice, 'findAndExtract')
 
     return {
         type: IncomingDataType.MINT_URL,
@@ -105,7 +109,7 @@ const findAndExtract = function (
 }
 
 
-const navigateWithIncomingData = function (
+const navigateWithIncomingData = async function (
     incoming: {
         type: IncomingDataType, 
         encoded: any
@@ -124,10 +128,26 @@ const navigateWithIncomingData = function (
                 encodedInvoice: incoming.encoded,
             })
 
-        case (IncomingDataType.LNURLP || IncomingDataType.LNURLW):
-            throw new AppError(Err.NOTFOUND_ERROR, 'LNURL support is not yet implemented.')
+        case (IncomingDataType.LNURL):
+            const paramsResult = await LnurlClient.getLnurlParams(incoming.encoded)
+            const {lnurlParams, encodedInvoice} = paramsResult
 
+            if(lnurlParams.tag === 'withdrawRequest') {
+                return navigation.navigate('Topup', {
+                    lnurlParams,
+                    paymentOption: ReceiveOption.LNURL_WITHDRAW
+                })
+            }
 
+            if(lnurlParams.tag === 'payRequest') {
+                return navigation.navigate('Transfer', {
+                    lnurlParams,
+                    encodedInvoice,
+                    paymentOption: SendOption.LNURL_PAY
+                })
+            }
+
+            break
         case IncomingDataType.MINT_URL:
             return navigation.navigate('Wallet', {
                 scannedMintUrl: incoming.encoded,

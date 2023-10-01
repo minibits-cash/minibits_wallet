@@ -27,6 +27,9 @@ export enum SendOption {
     SEND_TOKEN = 'SEND_TOKEN',
     PASTE_OR_SCAN_INVOICE = 'PASTE_OR_SCAN_INVOICE',
     SHOW_TOKEN = 'SHOW_TOKEN',
+    PAY_PAYMENT_REQUEST = 'PAY_PAYMENT_REQUEST',
+    LNURL_PAY = 'LNURL_PAY',
+    DONATION = 'DONATION',
 }
 
 export const SendOptionsScreen: FC<WalletStackScreenProps<'SendOptions'>> = observer(
@@ -69,7 +72,11 @@ export const SendOptionsScreen: FC<WalletStackScreenProps<'SendOptions'>> = obse
             const incomingData = IncomingParser.findAndExtract(clipboard, IncomingDataType.INVOICE)
             
             infoMessage('Found lightning invoice in the clipboard.')                
-            setTimeout(() => navigation.navigate('Transfer', {encodedInvoice: incomingData.encoded}), 1000)   //TODO rename
+            setTimeout(() => navigation.navigate('Transfer', {
+                encodedInvoice: incomingData.encoded, 
+                paymentOption: SendOption.PASTE_OR_SCAN_INVOICE
+            }), 1000)
+
             return
         } catch (e: any) {
             handleError(e)    

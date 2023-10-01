@@ -26,11 +26,7 @@ import {Wallet} from '../services'
 import {log} from '../utils/logger'
 import AppError from '../utils/AppError'
 
-import {
-  decodeToken,
-  getTokenAmounts,
-  getMintsFromToken,
-} from '../services/cashu/cashuUtils'
+import {CashuUtils} from '../services/cashu/cashuUtils'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {MintListItem} from './Mints/MintListItem'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
@@ -99,8 +95,8 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
       try {
         navigation.setParams({encodedToken: undefined})
         
-        const decoded: Token = decodeToken(encoded)
-        const tokenAmounts = getTokenAmounts(decoded)
+        const decoded: Token = CashuUtils.decodeToken(encoded)
+        const tokenAmounts = CashuUtils.getTokenAmounts(decoded)
 
         log.trace('decoded token', decoded)
         log.trace('tokenAmounts', tokenAmounts)
@@ -263,7 +259,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                 headingStyle={{textAlign: 'center', padding: spacing.small}}
                 ContentComponent={
                   <>
-                    {getMintsFromToken(token).map((mintUrl, index) => {
+                    {CashuUtils.getMintsFromToken(token).map((mintUrl, index) => {
                       const mint = mintsStore.findByUrl(mintUrl)                      
                       if (!mint) {
                         return (

@@ -9,7 +9,6 @@ import {CameraScreen} from 'react-native-camera-kit'
 import {typography} from '../theme'
 import {useHeader} from '../utils/useHeader'
 import {log} from '../utils/logger'
-import AppError, {Err} from '../utils/AppError'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 
 const hasAndroidCameraPermission = async () => {

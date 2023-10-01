@@ -31,17 +31,16 @@ import {useHeader} from '../utils/useHeader'
 import {MintClient, Wallet} from '../services'
 import {log} from '../utils/logger'
 import AppError, {Err} from '../utils/AppError'
-import {
-  decodeInvoice,
-  DecodedLightningInvoice,
-  getInvoiceData,
-} from '../services/cashu/cashuUtils'
+import {CashuUtils} from '../services/cashu/cashuUtils'
 import {MintBalance} from '../models/Mint'
 import {MintListItem} from './Mints/MintListItem'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import addSeconds from 'date-fns/addSeconds'
 import { PaymentRequestStatus } from '../models/PaymentRequest'
 import { infoMessage } from '../utils/utils'
+import { DecodedLightningInvoice, LightningUtils } from '../services/lightning/lightningUtils'
+import { SendOption } from './SendOptionsScreen'
+import { LNURLPayParams } from 'js-lnurl'
 
 if (
   Platform.OS === 'android' &&
@@ -65,6 +64,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     const [amountToTransfer, setAmountToTransfer] = useState<number>(0)
     const [invoiceExpiry, setInvoiceExpiry] = useState<Date | undefined>()
     const [paymentHash, setPaymentHash] = useState<string | undefined>()
+    const [lnurlPayParams, setLnurlPayParams] = useState<LNURLPayParams | undefined>()
     const [estimatedFee, setEstimatedFee] = useState<number>(0)
     const [finalFee, setFinalFee] = useState<number>(0)
     const [memo, setMemo] = useState('')
@@ -96,33 +96,76 @@ useFocusEffect(
 
 useFocusEffect(
     useCallback(() => {
-        if (!route.params?.paymentRequest) {            
-            return
+        const { paymentOption } = route.params
+
+        const handlePaymentRequest = () => {
+            try {
+                const {paymentRequest} = route.params
+
+                if (!paymentRequest) {                    
+                    throw new AppError(Err.VALIDATION_ERROR, 'Missing paymentRequest.')
+                }
+
+                log.trace('Payment request', paymentRequest, 'useFocusEffect')
+        
+                const {encodedInvoice, description, paymentHash} = paymentRequest       
+        
+                setPaymentHash(paymentHash)
+                onEncodedInvoice(encodedInvoice, description)
+            } catch (e: any) {
+                handleError(e)
+            }                
         }
 
-        const {paymentRequest} = route.params
 
-        log.trace('Payment request', paymentRequest, 'useFocusEffect')
+        const handleLnurlPay = () => {
+            try {
+                const {lnurlParams, encodedInvoice} = route.params
 
-        const {encodedInvoice, description, paymentHash} = paymentRequest       
+                if (!lnurlParams || !encodedInvoice) {                    
+                    throw new AppError(Err.VALIDATION_ERROR, 'Missing LNURL params or invoice.')
+                }
 
-        setPaymentHash(paymentHash)
-        onEncodedInvoice(encodedInvoice, description)
-    }, [route.params?.encodedInvoice]),
-)
-
-
-useFocusEffect(
-    useCallback(() => {
-        if (!route.params?.donationEncodedInvoice) {
-            return
+                log.trace('LNURL params.', lnurlParams, 'useFocusEffect')
+        
+                setLnurlPayParams(lnurlParams)             
+                onEncodedInvoice(encodedInvoice)
+            } catch (e: any) {
+                handleError(e)
+            }                
         }
-        const encoded = route.params?.donationEncodedInvoice
-        setIsInvoiceDonation(true)
-        onEncodedInvoice(encoded)
-    }, [route.params?.donationEncodedInvoice]),
-)
 
+
+        const handleDonation = () => {
+            try {
+                const {encodedInvoice} = route.params
+
+                if (!encodedInvoice) {                    
+                    throw new AppError(Err.VALIDATION_ERROR, 'Missing donation invoice.')
+                }
+                
+                setIsInvoiceDonation(true)
+                onEncodedInvoice(encodedInvoice)
+            } catch (e: any) {
+                handleError(e)
+            }                
+        }
+
+        if(paymentOption && paymentOption === SendOption.PAY_PAYMENT_REQUEST) {   
+            handlePaymentRequest()
+        }
+
+        if(paymentOption && paymentOption === SendOption.LNURL_PAY) {   
+            handleLnurlPay()
+        }
+
+        if(paymentOption && paymentOption === SendOption.DONATION) {   
+            handleDonation()
+        }
+
+        
+    }, [route.params?.paymentOption]),
+)
 
 
 useEffect(() => {
@@ -189,13 +232,13 @@ const onMintBalanceSelect = function (balance: MintBalance) {
 const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: string = '') {
     try {
         navigation.setParams({encodedInvoice: undefined})
-        navigation.setParams({donationEncodedInvoice: undefined})
         navigation.setParams({paymentRequest: undefined})
+        navigation.setParams({lnurlParams: undefined})
 
         setEncodedInvoice(encoded)        
 
-        const invoice = decodeInvoice(encoded)
-        const {amount, expiry, description, timestamp} = getInvoiceData(invoice)
+        const invoice = LightningUtils.decodeInvoice(encoded)
+        const {amount, expiry, description, timestamp} = LightningUtils.getInvoiceData(invoice)
 
         log.trace('Decoded invoice', invoice)
         log.trace('Invoice data', {amount, expiry, description})
@@ -375,6 +418,9 @@ const iconColor = useThemeColor('textDim')
                         findByUrl={mintsStore.findByUrl}
                         onMintBalanceConfirm={transfer}
                     />
+                    {lnurlPayParams && (
+                        <Text size='xs' text={`This payment has been requested by ${lnurlPayParams.domain}.`}/>
+                    )}
                 </>
                 )}
                 {transactionStatus === TransactionStatus.COMPLETED && (

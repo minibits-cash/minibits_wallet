@@ -36,7 +36,7 @@ import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
 import {NostrClient, NostrProfile, NostrUnsignedEvent, Wallet} from '../services'
 import {log} from '../utils/logger'
-import AppError from '../utils/AppError'
+import AppError, { Err } from '../utils/AppError'
 
 import {MintBalance} from '../models/Mint'
 import {MintListItem} from './Mints/MintListItem'
@@ -47,6 +47,10 @@ import { useFocusEffect } from '@react-navigation/native'
 import { Contact } from '../models/Contact'
 import { getImageSource, infoMessage } from '../utils/utils'
 import { ReceiveOption } from './ReceiveOptionsScreen'
+import { LNURLWithdrawParams } from 'js-lnurl'
+import { roundDown } from '../utils/number'
+import { LnurlClient, LnurlWithdrawResult } from '../services/lnurlService'
+import { update } from 'lodash'
 
 if (
   Platform.OS === 'android' &&
@@ -72,12 +76,15 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     const [contactToSendFrom, setContactToSendFrom] = useState<Contact| undefined>()    
     const [contactToSendTo, setContactToSendTo] = useState<Contact| undefined>()        
     const [relaysToShareTo, setRelaysToShareTo] = useState<string[]>([])
+    const [lnurlWithdrawParams, setLnurlWithdrawParams] = useState<LNURLWithdrawParams | undefined>()
     const [memo, setMemo] = useState('')
     const [availableMintBalances, setAvailableMintBalances] = useState<MintBalance[]>([])
     const [mintBalanceToTopup, setMintBalanceToTopup] = useState<MintBalance | undefined>(undefined)
     const [transactionStatus, setTransactionStatus] = useState<TransactionStatus | undefined>()
     const [transactionId, setTransactionId] = useState<number | undefined>()
     const [invoiceToPay, setInvoiceToPay] = useState<string>('')
+    const [lnurlWithdrawResult, setLnurlWithdrawResult] = useState<LnurlWithdrawResult | undefined>()
+    
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
     const [isAmountEndEditing, setIsAmountEndEditing] = useState<boolean>(false)
@@ -90,9 +97,13 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     const [isMintSelectorVisible, setIsMintSelectorVisible] = useState(false)
     const [isQRModalVisible, setIsQRModalVisible] = useState(false)
     const [isNostrDMModalVisible, setIsNostrDMModalVisible] = useState(false)
+    const [isWithdrawModalVisible, setIsWithdrawModalVisible] = useState(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)
     const [isNostrDMSending, setIsNostrDMSending] = useState(false)
-    const [isNostrDMSuccess, setIsNostrDMSuccess] = useState(false) 
+    const [isNostrDMSuccess, setIsNostrDMSuccess] = useState(false)
+    const [isWithdrawRequestSuccess, setIsWithdrawRequestSuccess] = useState(false)
+
+    
 
     useEffect(() => {
         const focus = () => {
@@ -109,43 +120,71 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     // Send to contact
     useFocusEffect(
         useCallback(() => {
+            const { paymentOption } = route.params
+            
             const prepareSendPaymentRequest = () => {
-                if (!route.params?.contact) {                    
-                    return
+                try {
+                    const {contact, relays} = route.params
+
+                    if (!contact || !relays) {                    
+                        throw new AppError(Err.VALIDATION_ERROR, 'Missing contact or relay')
+                    }
+
+                    const {
+                        pubkey,
+                        npub,
+                        name,
+                        picture,
+                    } = walletProfileStore
+
+                    const contactFrom: Contact = {
+                        pubkey,
+                        npub,
+                        name,
+                        picture
+                    }
+                        
+                    setPaymentOption(ReceiveOption.SEND_PAYMENT_REQUEST)
+                    setContactToSendFrom(contactFrom)                
+                    setContactToSendTo(contact)                
+                    setRelaysToShareTo(relays)
+                } catch(e: any) {
+                    handleError(e)
                 }
-
-                if (!route.params?.relays) {                    
-                    return
-                }
-
-                const contactTo = route.params?.contact
-                const relays = route.params?.relays
-
-                const {
-                    pubkey,
-                    npub,
-                    name,
-                    picture,
-                } = walletProfileStore
-
-                const contactFrom: Contact = {
-                    pubkey,
-                    npub,
-                    name,
-                    picture
-                }
-                     
-                setPaymentOption(ReceiveOption.SEND_PAYMENT_REQUEST)
-                setContactToSendFrom(contactFrom)                
-                setContactToSendTo(contactTo)                
-                setRelaysToShareTo(relays)
             }
 
-            if(route.params && route.params.paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) {                
+
+
+            const prepareLnurlWithdraw = () => {
+                try {
+                    const { lnurlParams } = route.params
+                    if (!lnurlParams) {                    
+                        throw new AppError(Err.VALIDATION_ERROR, 'Missing LNURL params.')
+                    }
+
+                    const amountSats = roundDown(lnurlParams.maxWithdrawable / 1000, 0)
+
+                    setAmountToTopup(`${amountSats}`)
+                    setLnurlWithdrawParams(lnurlParams)
+                    setMemo(lnurlParams.defaultDescription)
+                    setIsMemoEndEditing(true)
+                    setPaymentOption(ReceiveOption.LNURL_WITHDRAW)                
+
+                    onAmountEndEditing(`${amountSats}`)
+                } catch(e: any) {
+                    handleError(e)
+                }
+            }
+
+            if(paymentOption && paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) {                
                 prepareSendPaymentRequest()
             }
+
+            if(paymentOption && paymentOption === ReceiveOption.LNURL_WITHDRAW) {                
+                prepareLnurlWithdraw()
+            }
             
-        }, [route.params?.contact, route.params?.relays, route.params?.paymentOption]),
+        }, [route.params?.paymentOption]),
     )
 
 
@@ -168,6 +207,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
           setTransactionStatus(TransactionStatus.COMPLETED)
           setIsQRModalVisible(false)
           setIsNostrDMModalVisible(false)
+          setIsWithdrawModalVisible(false)
           setIsResultModalVisible(true)
         }
       }
@@ -182,12 +222,13 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
     const toggleQRModal = () => setIsQRModalVisible(previousState => !previousState)
     const toggleNostrDMModal = () => setIsNostrDMModalVisible(previousState => !previousState)
+    const toggleWithdrawModal = () => setIsWithdrawModalVisible(previousState => !previousState)
     const toggleResultModal = () => setIsResultModalVisible(previousState => !previousState)
 
 
-    const onAmountEndEditing = function () {
+    const onAmountEndEditing = function (passedAmount?: string) {
       try {
-        const amount = parseInt(amountToTopup)
+        const amount = passedAmount ? parseInt(passedAmount) : parseInt(amountToTopup)
 
         if (!amount || amount === 0) {
             infoMessage('Amount should be positive number.')          
@@ -275,6 +316,10 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                 toggleNostrDMModal()
             }
 
+            if (paymentOption === ReceiveOption.LNURL_WITHDRAW) {
+                toggleWithdrawModal()
+            }
+
             return
         }
 
@@ -311,6 +356,10 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
         if (paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) {
             toggleNostrDMModal()
+        }
+
+        if (paymentOption === ReceiveOption.LNURL_WITHDRAW) {
+            toggleWithdrawModal()
         }
       
         setIsMintSelectorVisible(false)
@@ -382,14 +431,10 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
             if(sentEvent) {                
                 setIsNostrDMSuccess(true)
 
-                if(!transactionId) {
-                    return
-                }
-
-                const transaction = transactionsStore.findById(transactionId)
+                const transaction = transactionsStore.findById(transactionId as number)
 
                 if(!transaction) {
-                    return
+                    throw new AppError(Err.NOTFOUND_ERROR, 'Could not find transaction in the app state.', {transactionId})
                 }
                 
                 const updated = JSON.parse(transaction.data)
@@ -398,19 +443,19 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                 updated[1].sentEvent = sentEvent    
                 
                 await transactionsStore.updateStatus( // status does not change, just add event and relay info to tx.data
-                    transactionId,
+                    transactionId as number,
                     TransactionStatus.PENDING,
                     JSON.stringify(updated)
                 )
 
                 const txupdate = await transactionsStore.updateSentTo( // set contact to send to to the tx, could be elsewhere //
-                    transactionId,                    
+                    transactionId as number,                    
                     contactToSendTo?.nip05handle as string
                 )
 
                 log.trace('sentTo tx', txupdate, 'sendAsNostrDM')
             } else {
-                setInfo('Relay could not confirm that the message has been published')
+                setInfo('Relay could not confirm that the message has been published.')
             }
         } catch (e: any) {
             handleError(e)
@@ -426,7 +471,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
         if (result.action === Share.sharedAction) {          
           setTimeout(
-            () => infoMessage('Lightning invoice has been shared, waiting to be paid by receiver'),              
+            () => infoMessage('Lightning invoice has been shared, waiting to be paid by receiver.'),              
             500,
           )
         } else if (result.action === Share.dismissedAction) {
@@ -447,7 +492,52 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     }
 
 
-    const onNostrDMSuccessClose = function () {
+    const onLnurlWithdraw = async function () {
+        try {
+            const result = await LnurlClient.withdraw(lnurlWithdrawParams as LNURLWithdrawParams, invoiceToPay)
+
+            if(result.status === 'ERROR') {
+                const transaction = transactionsStore.findById(transactionId as number)
+
+                if(!transaction) {
+                    throw new AppError(Err.NOTFOUND_ERROR, 'Could not find transaction in the app state.', {transactionId})
+                }
+                
+                const updated = JSON.parse(transaction.data)
+    
+                updated.push({
+                    status: TransactionStatus.ERROR,               
+                    error: result.reason,
+                })
+    
+                await transactionsStore.updateStatus( 
+                    transactionId as number,
+                    TransactionStatus.ERROR, 
+                    JSON.stringify(updated),
+                )
+                
+                setResultModalInfo({
+                    status: TransactionStatus.ERROR,
+                    message: result.reason as string,
+                })
+
+                toggleWithdrawModal()
+                setIsResultModalVisible(true)                
+                return
+
+            } else if (result.status === 'OK') {
+                setIsWithdrawRequestSuccess(true)                
+            }
+
+            setLnurlWithdrawResult(result)
+
+        } catch (e: any) {
+            handleError(e)
+        }
+    }
+
+
+    const onSuccess = function () {
         // reset state so it does not interfere next payment
         setAmountToTopup('')
         setMemo('')
@@ -455,6 +545,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         setIsMemoEndEditing(false)
         setIsMintSelectorVisible(false)
         setIsNostrDMModalVisible(false)
+        setIsWithdrawModalVisible(false)
         setPaymentOption(ReceiveOption.SHOW_INVOICE)
 
         navigation.navigate('Wallet', {})
@@ -467,6 +558,17 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     }
 
     const headerBg = useThemeColor('header')
+
+    const getAmountTitle = function () {
+        switch (paymentOption) {
+            case ReceiveOption.SEND_PAYMENT_REQUEST:
+                return 'Requested amount'             
+            case ReceiveOption.LNURL_WITHDRAW:
+                return 'Withdraw amount'
+            default:
+                return 'Topup amount'                
+        }
+    }
     // const inputBg = useThemeColor('background')
 
     return (
@@ -474,7 +576,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text
             preset="subheading"
-            text="Requested amount"
+            text={getAmountTitle()}
             style={{color: 'white'}}
           />
           <View style={$amountContainer}>
@@ -482,7 +584,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
               ref={amountInputRef}
               onChangeText={amount => setAmountToTopup(amount)}
               // onFocus={() => setIsAmountEndEditing(false)}
-              onEndEditing={onAmountEndEditing}
+              onEndEditing={(e) => onAmountEndEditing()}
               value={amountToTopup}
               style={$amountInput}
               maxLength={9}
@@ -576,7 +678,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                 contactToSendFrom={contactToSendFrom as Contact}
                 contactToSendTo={contactToSendTo as Contact}                
                 amountToTopup={amountToTopup}
-                onClose={onNostrDMSuccessClose}                
+                onClose={onSuccess}                
             />
             ) : (
             <SendAsNostrDMBlock
@@ -594,6 +696,33 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
           }
           onBackButtonPress={toggleNostrDMModal}
           onBackdropPress={toggleNostrDMModal}
+        />
+        <BottomModal
+            isVisible={isWithdrawModalVisible ? true : false}
+            top={spacing.screenHeight * 0.367}
+            style={{marginHorizontal: spacing.extraSmall}}
+            ContentComponent={
+                (isWithdrawRequestSuccess ? (
+                    <LnurlWithdrawSuccessBlock 
+                        toggleWithdrawModal={toggleWithdrawModal}
+                        amountToTopup={amountToTopup}
+                        lnurlWithdrawParams={lnurlWithdrawParams as LNURLWithdrawParams}                       
+                        lnurlWithdrawResult={lnurlWithdrawResult as LnurlWithdrawResult}
+                        onClose={onSuccess}
+                    />
+                ) : (
+                    <LnurlWithdrawBlock 
+                        toggleWithdrawModal={toggleWithdrawModal}
+                        amountToTopup={amountToTopup}
+                        lnurlWithdrawParams={lnurlWithdrawParams as LNURLWithdrawParams}                        
+                        memo={memo}      
+                        onLnurlWithdraw={onLnurlWithdraw}                        
+                    />
+                )
+
+            )}
+            onBackButtonPress={toggleWithdrawModal}
+            onBackdropPress={toggleWithdrawModal}
         />
         <BottomModal
           isVisible={isResultModalVisible ? true : false}
@@ -906,6 +1035,8 @@ const SendAsNostrDMBlock = observer(function (props: {
     )
 })
 
+
+
 const NostrDMInfoBlock = observer(function (props: {
     contactToSendFrom: NostrProfile
     amountToTopup: string
@@ -964,7 +1095,75 @@ const NostrDMInfoBlock = observer(function (props: {
             </View>
         </View>
     )
+})
 
+
+const LnurlWithdrawBlock = observer(function (props: {
+    toggleWithdrawModal: any
+    amountToTopup: string
+    lnurlWithdrawParams: any
+    memo: string  
+    onLnurlWithdraw: any     
+}) {
+  return (
+    <View style={[$bottomModal, {marginHorizontal: spacing.small}]}>
+      <Text text={'Withdrawal amount'} />
+      <View style={$amountContainer}>
+        <Text text={props.amountToTopup} />
+      </View>
+      <Text text={props.lnurlWithdrawParams.domain} />
+      <Text text={props.memo} />
+      <View style={$buttonContainer}>
+        <Button
+          text="Withdraw"
+          onPress={props.onLnurlWithdraw}
+          style={{marginRight: spacing.medium}}
+          LeftAccessory={() => (
+            <Icon
+              icon='faArrowTurnDown'
+              color="white"
+              size={spacing.medium}
+              // containerStyle={{marginRight: spacing.small}}
+            />
+          )}
+        />        
+        <Button
+          preset="tertiary"
+          text="Cancel"
+          onPress={props.toggleWithdrawModal}
+        />
+      </View>
+    </View>
+  )
+})
+
+
+const LnurlWithdrawSuccessBlock = observer(function (props: {
+    toggleWithdrawModal: any,
+    amountToTopup: string,
+    lnurlWithdrawParams: LNURLWithdrawParams,                      
+    lnurlWithdrawResult: LnurlWithdrawResult,
+    onClose: any
+  }) {
+  
+    return (
+      <View style={$bottomModal}>
+
+        <ResultModalInfo
+            icon='faCheckCircle'
+            iconColor={colors.palette.success200}
+            title='Success!'
+            message={`Withdrawal request has been accepted by ${props.lnurlWithdrawParams.domain}. Waiting to receive payment.`}
+        />
+        <View style={$buttonContainer}>
+            <Button
+                preset="secondary"
+                tx={'common.close'}
+                onPress={props.onClose}
+            />
+        </View>
+      </View>
+    )
 })
 
 const $screen: ViewStyle = {

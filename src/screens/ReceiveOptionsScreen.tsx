@@ -27,6 +27,7 @@ export enum ReceiveOption {
     SEND_PAYMENT_REQUEST = 'SEND_PAYMENT_REQUEST',
     PASTE_OR_SCAN_TOKEN = 'PASTE_OR_SCAN_TOKEN',
     SHOW_INVOICE = 'SHOW_INVOICE',
+    LNURL_WITHDRAW = 'LNURL_WITHDRAW'
 }
 
 export const ReceiveOptionsScreen: FC<WalletStackScreenProps<'ReceiveOptions'>> = observer(
