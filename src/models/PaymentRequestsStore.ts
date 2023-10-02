@@ -10,7 +10,7 @@ import {withSetPropAction} from './helpers/withSetPropAction'
 import {PaymentRequestModel, PaymentRequest, PaymentRequestStatus} from './PaymentRequest'
 import {log} from '../utils/logger'
 import AppError, { Err } from '../utils/AppError'
-import { decodeInvoice, getInvoiceData, getInvoiceExpiresAt } from '../services/cashu/cashuUtils'
+import {LightningUtils} from '../services/lightning/lightningUtils'
 import isBefore from 'date-fns/isBefore'
 import isAfter from 'date-fns/isAfter'
 
@@ -28,14 +28,14 @@ export const PaymentRequestsStoreModel = types
     .actions(self => ({
         addPaymentRequest(encodedInvoice: string, sentFrom: string, sentFromPubkey: string, memo: string) {           
            
-            const decoded = decodeInvoice(encodedInvoice)
+            const decoded = LightningUtils.decodeInvoice(encodedInvoice)
             const {
                 amount, 
                 description, 
                 expiry, 
                 payment_hash: paymentHash, 
                 timestamp
-            } = getInvoiceData(decoded)                
+            } = LightningUtils.getInvoiceData(decoded)                
 
             if(!amount || !paymentHash) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Missing amount or payment_hash', {encodedInvoice})
@@ -48,7 +48,7 @@ export const PaymentRequestsStoreModel = types
             }
             
             if(timestamp && expiry) {
-                const expiresAt = getInvoiceExpiresAt(timestamp as number, expiry)
+                const expiresAt = LightningUtils.getInvoiceExpiresAt(timestamp as number, expiry)
                 if(isBefore(expiresAt, new Date())) {
                     throw new AppError(Err.VALIDATION_ERROR, 'This invoice has already expired and can not be paid.')
                 }

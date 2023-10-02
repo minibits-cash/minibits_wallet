@@ -1,6 +1,6 @@
-import { getParams, LNURLPayParams, LNURLResponse, LNURLWithdrawParams } from 'js-lnurl';
+import { getParams, LNURLPayParams, LNURLResponse, LNURLWithdrawParams } from 'js-lnurl'
 import AppError, { Err } from "../utils/AppError"
-import { MinibitsClient } from './minibitsService';
+import { MinibitsClient } from './minibitsService'
 
 export type LnurlParamsResult = {
     lnurlParams: LNURLWithdrawParams | LNURLPayParams
@@ -17,7 +17,7 @@ const getLnurlParams = async(encodedLnurl: string) => {
     const lnurlParams = await getParams(encodedLnurl) as any
 
     if((lnurlParams as LNURLResponse).status === 'ERROR') {
-        throw new AppError(Err.CONNECTION_ERROR, lnurlParams.reason, {domain: lnurlParams.domain})
+        throw new AppError(Err.CONNECTION_ERROR, lnurlParams.reason, {domain: lnurlParams.domain, caller: 'getLnurlParams'})
     }
 
     if(lnurlParams.tag === 'withdrawRequest') {
@@ -47,7 +47,7 @@ const getLnurlParams = async(encodedLnurl: string) => {
         if(!amountMsat || amountMsat === 0) {
             amountMsat = lnurlParams.maxSendable
         }
-        
+
         const url = lnurlParams.callback.includes('?') ? `${lnurlParams.callback}&amount=${amountMsat}` : `${lnurlParams.callback}?amount=${amountMsat}`
         const method = 'GET'        
         const headers = MinibitsClient.getPublicHeaders()
@@ -60,7 +60,7 @@ const getLnurlParams = async(encodedLnurl: string) => {
         })
 
         if(invoiceResult.status && invoiceResult.status === 'ERROR') {
-            throw new AppError(Err.CONNECTION_ERROR, invoiceResult.reason, {domain: lnurlParams.domain})
+            throw new AppError(Err.CONNECTION_ERROR, invoiceResult.reason, {domain: lnurlParams.domain, caller: 'getLnurlParams'})
         }
 
         if(invoiceResult.pr) {
@@ -69,7 +69,7 @@ const getLnurlParams = async(encodedLnurl: string) => {
                 encodedInvoice: invoiceResult.pr
             } as LnurlParamsResult
         }
-        throw new AppError(Err.CONNECTION_ERROR, 'Could not get lightning invoice from the LNURL provider', {domain: lnurlParams.domain})
+        throw new AppError(Err.CONNECTION_ERROR, 'Could not get lightning invoice from the LNURL provider', {domain: lnurlParams.domain, caller: 'getLnurlParams'})
 
     }
 
@@ -78,11 +78,11 @@ const getLnurlParams = async(encodedLnurl: string) => {
         // k1: string
         // callback: string
         // domain: string
-        throw new AppError(Err.NOTFOUND_ERROR, 'Login with LNURL is not yet implemented')
+        throw new AppError(Err.NOTFOUND_ERROR, 'Login with LNURL is not yet implemented', {caller: 'getLnurlParams'})
     }
 
     if(lnurlParams.tag === 'channelRequest') {
-        throw new AppError(Err.NOTFOUND_ERROR, 'You do not need to manage lightning channels with Minibits.')
+        throw new AppError(Err.NOTFOUND_ERROR, 'You do not need to manage lightning channels with Minibits.', {caller: 'getLnurlParams'})
     }
 
     throw new AppError(Err.NOTFOUND_ERROR, 'Unknown LNURL tag', {tag: lnurlParams.tag})

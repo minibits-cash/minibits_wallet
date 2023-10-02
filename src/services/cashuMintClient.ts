@@ -5,10 +5,9 @@ import {
   PayLnInvoiceResponse,
   type Proof as CashuProof,
 } from '@cashu/cashu-ts'
-import {validateMintKeys} from './cashu/cashuUtils'
+import {CashuUtils} from './cashu/cashuUtils'
 import AppError, {Err} from '../utils/AppError'
 import {log} from '../utils/logger'
-import {getProofsAmount} from './cashu/cashuUtils'
 import {Token} from '../models/Token'
 import {Proof} from '../models/Proof'
 
@@ -57,7 +56,7 @@ const getMintKeys = async function (mintUrl: string) {
     )
   }
 
-  if (!validateMintKeys(keys)) {
+  if (!CashuUtils.validateMintKeys(keys)) {
     throw new AppError(
       Err.VALIDATION_ERROR,
       'Invalid keys retrieved from the selected mint.',
@@ -119,9 +118,9 @@ const sendFromMint = async function (
     log.trace('[MintClient.sendFromMint] newKeys', newKeys)
 
     // do some basic validations that proof amounts from mints match
-    const totalAmountToSendFrom = getProofsAmount(proofsToSendFrom)
-    const returnedAmount = getProofsAmount(returnChange as Proof[])
-    const proofsAmount = getProofsAmount(send as Proof[])
+    const totalAmountToSendFrom = CashuUtils.getProofsAmount(proofsToSendFrom)
+    const returnedAmount = CashuUtils.getProofsAmount(returnChange as Proof[])
+    const proofsAmount = CashuUtils.getProofsAmount(send as Proof[])
 
     if (proofsAmount !== amountToSend) {
       throw new AppError(

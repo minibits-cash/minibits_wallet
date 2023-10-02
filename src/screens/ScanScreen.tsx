@@ -10,6 +10,8 @@ import {typography} from '../theme'
 import {useHeader} from '../utils/useHeader'
 import {log} from '../utils/logger'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
+import AppError from '../utils/AppError'
+import { ErrorModal } from '../components'
 
 const hasAndroidCameraPermission = async () => {
     const cameraPermission = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA)
@@ -27,7 +29,8 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
     })
 
     const [shouldLoad, setShouldLoad] = useState<boolean>(false)
-    const [isScanned, setIsScanned] = useState<boolean>(false)    
+    const [isScanned, setIsScanned] = useState<boolean>(false)
+    const [error, setError] = useState<AppError | undefined>()
 
     useEffect(() => {
         (async () => {
@@ -37,7 +40,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
 
 
 
-    const onReadCode = function(event: any) {
+    const onReadCode = async function(event: any) {
         setIsScanned(true)
         const scanned = event.nativeEvent.codeStringValue
         log.trace('Scanned', scanned)
@@ -46,49 +49,68 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
         const prevRouteName = routes[routes.length - 2].name
         log.trace('prevRouteName', prevRouteName)
 
-        try {
-            switch (prevRouteName) {
-                case 'ReceiveOptions':               
-                        const tokenResult = IncomingParser.findAndExtract(scanned, IncomingDataType.CASHU)                
-                        log.trace('Got token')
-                        return navigation.navigate('Receive', {
-                            encodedToken: tokenResult.encoded,
-                        })    
-                case 'SendOptions':                    
-                        const invoiceResult = IncomingParser.findAndExtract(scanned, IncomingDataType.INVOICE)                 
-                        log.trace('Got invoice')
-                        return navigation.navigate('Transfer', {
-                            encodedInvoice: invoiceResult.encoded,
-                        })    
-                default:
-                    // generic scan button on wallet screen
-                    const incomingData = IncomingParser.findAndExtract(scanned)    
-                    IncomingParser.navigateWithIncomingData(incomingData, navigation)   
-            }
 
-        } catch (e: any) {
-            handleError(scanned, e.message)
+        switch (prevRouteName) {
+            case 'ReceiveOptions':  
+                try {                  
+                    const tokenResult = IncomingParser.findAndExtract(scanned, IncomingDataType.CASHU)                
+                    log.trace('Got token')
+                    return navigation.navigate('Receive', {
+                        encodedToken: tokenResult.encoded,
+                    })  
+                } catch (e: any) {
+                    e.params = scanned
+                    handleError(e)
+                }   
+            case 'SendOptions':     
+                try {               
+                    const invoiceResult = IncomingParser.findAndExtract(scanned, IncomingDataType.INVOICE)                 
+                    log.trace('Got invoice')
+                    return navigation.navigate('Transfer', {
+                        encodedInvoice: invoiceResult.encoded,
+                    })
+                } catch (e: any) {
+                    e.params = scanned
+                    handleError(e)
+                }                          
+            default:
+                try {
+                // generic scan button on wallet screen
+                    const incomingData = IncomingParser.findAndExtract(scanned)                    
+                    await IncomingParser.navigateWithIncomingData(incomingData, navigation)   
+                } catch (e: any) {
+                    e.params = scanned
+                    handleError(e)
+                }
         }
+
     }           
 
 
-    const handleError = (scanned: string, message: string) => {
+    /* const handleError = (scanned: string, message: string) => {
       Alert.alert(message, scanned, [
         {
           text: 'OK',
           onPress: () => setIsScanned(false),
         },
       ])
+    } */
+
+    const handleError = function(e: AppError): void {        
+        setError(e)
     }
 
 
     return (shouldLoad ? (
-        <CameraScreen
-            actions={{rightButtonText: 'Done', leftButtonText: 'Cancel'}}            
-            scanBarcode
-            onReadCode={event => (isScanned ? undefined : onReadCode(event))}
-            hideControls            
-        />
+        <>
+            <CameraScreen
+                actions={{rightButtonText: 'Done', leftButtonText: 'Cancel'}}            
+                scanBarcode
+                onReadCode={event => (isScanned ? undefined : onReadCode(event))}
+                hideControls            
+            />
+            {error && <ErrorModal error={error} />}
+        </>
         ) : null
     )
 }

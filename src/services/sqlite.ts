@@ -14,7 +14,7 @@ import {UserSettings} from '../models/UserSettingsStore'
 import AppError, {Err} from '../utils/AppError'
 import {log} from '../utils/logger'
 import {BackupProof} from '../models/Proof'
-import { getProofsAmount } from './cashu/cashuUtils'
+import { CashuUtils } from './cashu/cashuUtils'
 import { Contact, ContactType } from '../models/Contact'
 
 let _db: QuickSQLiteConnection
@@ -799,7 +799,7 @@ const addOrUpdateProofs = function (
     const db = getInstance()
     const {rowsAffected} = db.executeBatch(insertQueries)
 
-    const totalAmount = getProofsAmount(proofs)
+    const totalAmount = CashuUtils.getProofsAmount(proofs)
     // DO NOT log proof secrets to Sentry
     log.info(
       `${rowsAffected}${

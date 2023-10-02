@@ -1,5 +1,5 @@
 import {Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
-import {decodeInvoice, getInvoiceData} from '../services/cashu/cashuUtils'
+import {LightningUtils} from '../services/lightning/lightningUtils'
 import {withSetPropAction} from './helpers/withSetPropAction'
 import {log} from '../utils/logger'
 import addSeconds from 'date-fns/addSeconds'
@@ -31,8 +31,8 @@ export const PaymentRequestModel = types
     .actions(withSetPropAction)
     .actions(self => ({
         setExpiresAt() {
-            const decoded = decodeInvoice(self.encodedInvoice)
-            const {expiry, timestamp} = getInvoiceData(decoded)
+            const decoded = LightningUtils.decodeInvoice(self.encodedInvoice)
+            const {expiry, timestamp} = LightningUtils.getInvoiceData(decoded)
             
             if(!expiry || !timestamp) {
                 return

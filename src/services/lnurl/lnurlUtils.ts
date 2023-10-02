@@ -13,11 +13,23 @@ const findEncodedLnurl = function (content: string) {
 
 const extractEncodedLnurl = function (maybeLnurl: string) {    
 
-    let encodedLnurl: string | undefined = undefined    
+    let encodedLnurl: string | null = null    
 
-    if (maybeLnurl.startsWith('lnurl1')) {
+    if (maybeLnurl.toLowerCase().startsWith('lnurl1')) {
         const decoded = decodelnurl(maybeLnurl) // throws
+        log.trace('Extracted lnurl', maybeLnurl, 'extractEncodedLnurl')
         return maybeLnurl
+    }
+
+    if (maybeLnurl.startsWith('http')) { // e.g. lnbits withdraw extension links
+        const parsed = new URL(maybeLnurl)
+        encodedLnurl = parsed.searchParams.get('lightning')
+
+        if(encodedLnurl) {
+            const decoded = decodelnurl(encodedLnurl) // throws
+            log.trace('Extracted lnurl from URL', encodedLnurl, 'extractEncodedLnurl')
+            return encodedLnurl
+        }
     }
 
     // URI token formats
@@ -33,15 +45,12 @@ const extractEncodedLnurl = function (maybeLnurl: string) {
             encodedLnurl = maybeLnurl.slice(prefix.length)
             break // necessary
         }
-	}
+	}    
 
-    log.trace('Got lnurl without prefix', encodedLnurl, 'extractEncodedCashuToken')
-
-    // try to decode
+    
     if(encodedLnurl) {
         const decoded = decodelnurl(encodedLnurl) // throws
-        log.trace('decoded lnurl', decoded, 'extractEncodedLnurl')
-        
+        log.trace('Extracted lnurl from deeplink', encodedLnurl, 'extractEncodedLnurl')
         return encodedLnurl
     }
 

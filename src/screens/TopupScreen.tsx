@@ -494,7 +494,9 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
     const onLnurlWithdraw = async function () {
         try {
+            setIsLoading(true)
             const result = await LnurlClient.withdraw(lnurlWithdrawParams as LNURLWithdrawParams, invoiceToPay)
+            log.trace('Withdraw result', result, 'onLnurlWithdraw')
 
             if(result.status === 'ERROR') {
                 const transaction = transactionsStore.findById(transactionId as number)
@@ -530,6 +532,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
             }
 
             setLnurlWithdrawResult(result)
+            setIsLoading(false)
 
         } catch (e: any) {
             handleError(e)

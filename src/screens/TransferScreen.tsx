@@ -240,8 +240,8 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
         const invoice = LightningUtils.decodeInvoice(encoded)
         const {amount, expiry, description, timestamp} = LightningUtils.getInvoiceData(invoice)
 
-        log.trace('Decoded invoice', invoice)
-        log.trace('Invoice data', {amount, expiry, description})
+        // log.trace('Decoded invoice', invoice, 'onEncodedInvoice')
+        log.trace('Invoice data', {amount, expiry, description}, 'onEncodedInvoice')
 
         if (!amount || amount === 0) {
             infoMessage('Invoice amount should be positive number')            
@@ -419,7 +419,7 @@ const iconColor = useThemeColor('textDim')
                         onMintBalanceConfirm={transfer}
                     />
                     {lnurlPayParams && (
-                        <Text size='xs' text={`This payment has been requested by ${lnurlPayParams.domain}.`}/>
+                        <Text size='xs' text={`This transfer has been requested by ${lnurlPayParams.domain}.`}/>
                     )}
                 </>
                 )}

@@ -88,19 +88,19 @@ const findAndExtract = function (
     const maybeLnurl = LnurlUtils.findEncodedLnurl(incomingData)
 
     if(maybeLnurl) {
-        log.trace('Got maybeLnurl', maybeInvoice, 'findAndExtract')
+        log.trace('Got maybeLnurl', maybeLnurl, 'findAndExtract')
 
         const encodedLnurl = LnurlUtils.extractEncodedLnurl(maybeLnurl) // throws
 
         return {
-            type: IncomingDataType.INVOICE,
+            type: IncomingDataType.LNURL,
             encoded: encodedLnurl
         }
     }
 
     const maybeMintUrl = new URL(incomingData) // throws
 
-    log.trace('Got maybeMintUrl', maybeInvoice, 'findAndExtract')
+    log.trace('Got maybeMintUrl', incomingData, 'findAndExtract')
 
     return {
         type: IncomingDataType.MINT_URL,
@@ -132,7 +132,7 @@ const navigateWithIncomingData = async function (
             const paramsResult = await LnurlClient.getLnurlParams(incoming.encoded)
             const {lnurlParams, encodedInvoice} = paramsResult
 
-            if(lnurlParams.tag === 'withdrawRequest') {
+            if(lnurlParams.tag === 'withdrawRequest') {                
                 return navigation.navigate('Topup', {
                     lnurlParams,
                     paymentOption: ReceiveOption.LNURL_WITHDRAW
