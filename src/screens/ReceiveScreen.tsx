@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useState, useCallback} from 'react'
-import {useFocusEffect} from '@react-navigation/native'
+import {CommonActions, useFocusEffect} from '@react-navigation/native'
 import {Alert, TextStyle, View, ViewStyle} from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
 import {spacing, useThemeColor, colors} from '../theme'
@@ -181,7 +181,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
 
     const gotoWallet = function() {
         resetState()
-        navigation.goBack()
+       navigation.popToTop()
     }
 
     const handleError = function (e: AppError): void {
@@ -290,7 +290,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                   <Button
                     preset="secondary"
                     tx={'common.close'}
-                    onPress={() => navigation.navigate('Wallet', {})}
+                    onPress={gotoWallet}
                   />
                 </View>
               ) : (
@@ -352,7 +352,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                     <Button
                       preset="secondary"
                       tx={'common.close'}
-                      onPress={() => navigation.navigate('Wallet', {})}
+                      onPress={gotoWallet}
                     />
                   </View>
                 </>
@@ -369,7 +369,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                     <Button
                       preset="secondary"
                       tx={'common.close'}
-                      onPress={() => navigation.navigate('Wallet', {})}
+                      onPress={gotoWallet}
                     />
                   </View>
                 </>

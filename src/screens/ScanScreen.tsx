@@ -70,6 +70,14 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                         encodedInvoice: invoiceResult.encoded,
                     })
                 } catch (e: any) {
+                    const lnurlesult = IncomingParser.findAndExtract(scanned, IncomingDataType.LNURL)
+                    
+                    if(lnurlesult) {
+                        log.trace('Got LNURL instead of an invoice')
+                        await IncomingParser.navigateWithIncomingData(lnurlesult, navigation)
+                        return
+                    }
+                    
                     e.params = scanned
                     handleError(e)
                 }                          

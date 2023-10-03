@@ -1594,17 +1594,22 @@ const checkPendingTopups = async function () {
                     
                     const transactionId = invoice.transactionId
                     invoicesStore.removeInvoice(invoice)
-                    // update related tx
-                    const transactionDataUpdate = {
-                        status: TransactionStatus.EXPIRED,
-                        createdAt: new Date(),
-                    }
+                    
+                    // expire related tx - but only if it has not been completed before this check
+                    const transaction = transactionsStore.findById(transactionId)
 
-                    transactionsStore.updateStatuses(
-                        [transactionId as number],
-                        TransactionStatus.EXPIRED,
-                        JSON.stringify(transactionDataUpdate),
-                    )                    
+                    if(transaction && transaction.status !== TransactionStatus.COMPLETED) {
+                        const transactionDataUpdate = {
+                            status: TransactionStatus.EXPIRED,
+                            createdAt: new Date(),
+                        }
+    
+                        transactionsStore.updateStatuses(
+                            [transactionId as number],
+                            TransactionStatus.EXPIRED,
+                            JSON.stringify(transactionDataUpdate),
+                        ) 
+                    }                   
                 }
 
                 continue

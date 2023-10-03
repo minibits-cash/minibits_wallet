@@ -101,6 +101,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)
     const [isNostrDMSending, setIsNostrDMSending] = useState(false)
     const [isNostrDMSuccess, setIsNostrDMSuccess] = useState(false)
+    const [isWithdrawRequestSending, setIsWithdrawRequestSending] = useState(false)
     const [isWithdrawRequestSuccess, setIsWithdrawRequestSuccess] = useState(false)
 
     
@@ -166,11 +167,10 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
                     setAmountToTopup(`${amountSats}`)
                     setLnurlWithdrawParams(lnurlParams)
-                    setMemo(lnurlParams.defaultDescription)
-                    setIsMemoEndEditing(true)
+                    setMemo(lnurlParams.defaultDescription)                    
                     setPaymentOption(ReceiveOption.LNURL_WITHDRAW)                
 
-                    onAmountEndEditing(`${amountSats}`)
+                    // onAmountEndEditing(`${amountSats}`)
                 } catch(e: any) {
                     handleError(e)
                 }
@@ -226,12 +226,17 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     const toggleResultModal = () => setIsResultModalVisible(previousState => !previousState)
 
 
-    const onAmountEndEditing = function (passedAmount?: string) {
+    const onAmountEndEditing = function () {
       try {
-        const amount = passedAmount ? parseInt(passedAmount) : parseInt(amountToTopup)
+        const amount = parseInt(amountToTopup)
 
         if (!amount || amount === 0) {
             infoMessage('Amount should be positive number.')          
+            return
+        }
+
+        if (lnurlWithdrawParams && amount < lnurlWithdrawParams?.minWithdrawable / 1000 ) {
+            infoMessage(`Minimal withdraw amount is ${lnurlWithdrawParams?.minWithdrawable / 1000} sats.`)          
             return
         }
 
@@ -244,21 +249,22 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
         setAvailableMintBalances(availableBalances)
 
-        // Set mint to topup immediately if only one is available
-        if (availableBalances.length === 1) {
-            setMintBalanceToTopup(availableBalances[0])
-        }
+        // Default mint with highest balance to topup
+        setMintBalanceToTopup(availableBalances[0])
+        
 
         setIsAmountEndEditing(true)
+        onMemoEndEditing()
 
         // Skip memo focus if it is filled / has been done already
-        if(!memo && !isMemoEndEditing) {
+ 
+        /* if(!memo || !isMemoEndEditing) {
             setTimeout(() => {memoInputRef && memoInputRef.current
             ? memoInputRef.current.focus()
             : false}, 200)
         } else {
             onMemoEndEditing()
-        }
+        } */
       } catch (e: any) {
         handleError(e)
       }
@@ -324,7 +330,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         }
 
         // Pre-select mint with highest balance        
-        setMintBalanceToTopup(availableMintBalances[0])
+        // setMintBalanceToTopup(availableMintBalances[0])
         setIsMintSelectorVisible(true)        
     }
 
@@ -494,46 +500,44 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
     const onLnurlWithdraw = async function () {
         try {
-            setIsLoading(true)
+            setIsWithdrawRequestSending(true) // replace, not working
             const result = await LnurlClient.withdraw(lnurlWithdrawParams as LNURLWithdrawParams, invoiceToPay)
             log.trace('Withdraw result', result, 'onLnurlWithdraw')
 
-            if(result.status === 'ERROR') {
-                const transaction = transactionsStore.findById(transactionId as number)
-
-                if(!transaction) {
-                    throw new AppError(Err.NOTFOUND_ERROR, 'Could not find transaction in the app state.', {transactionId})
-                }
-                
-                const updated = JSON.parse(transaction.data)
-    
-                updated.push({
-                    status: TransactionStatus.ERROR,               
-                    error: result.reason,
-                })
-    
-                await transactionsStore.updateStatus( 
-                    transactionId as number,
-                    TransactionStatus.ERROR, 
-                    JSON.stringify(updated),
-                )
-                
-                setResultModalInfo({
-                    status: TransactionStatus.ERROR,
-                    message: result.reason as string,
-                })
-
-                toggleWithdrawModal()
-                setIsResultModalVisible(true)                
+            if(result.status === 'OK') {
+                setIsWithdrawRequestSuccess(true)
+                setLnurlWithdrawResult(result)
+                setIsWithdrawRequestSending(false)
                 return
-
-            } else if (result.status === 'OK') {
-                setIsWithdrawRequestSuccess(true)                
             }
+            
+            const transaction = transactionsStore.findById(transactionId as number)
 
-            setLnurlWithdrawResult(result)
-            setIsLoading(false)
+            if(!transaction) {
+                throw new AppError(Err.NOTFOUND_ERROR, 'Could not find transaction in the app state.', {transactionId})
+            }
+            
+            const updated = JSON.parse(transaction.data)
 
+            updated.push({
+                status: TransactionStatus.ERROR,               
+                error: result,
+            })
+
+            await transactionsStore.updateStatus( 
+                transactionId as number,
+                TransactionStatus.ERROR, 
+                JSON.stringify(updated),
+            )
+            
+            setResultModalInfo({
+                status: TransactionStatus.ERROR,
+                message: JSON.stringify(result),
+            })
+
+            toggleWithdrawModal()
+            setIsResultModalVisible(true)                
+            return
         } catch (e: any) {
             handleError(e)
         }
@@ -549,6 +553,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         setIsMintSelectorVisible(false)
         setIsNostrDMModalVisible(false)
         setIsWithdrawModalVisible(false)
+        setIsWithdrawRequestSending(false)
         setPaymentOption(ReceiveOption.SHOW_INVOICE)
 
         navigation.navigate('Wallet', {})
@@ -627,8 +632,8 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                   onPress={onMemoDone}
                   disabled={
                     transactionStatus === TransactionStatus.PENDING
-                      ? false
-                      : true
+                      ? true
+                      : false
                   }
                 />
               </View>
@@ -717,9 +722,11 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                     <LnurlWithdrawBlock 
                         toggleWithdrawModal={toggleWithdrawModal}
                         amountToTopup={amountToTopup}
+                        mintBalanceToTopup={mintBalanceToTopup as MintBalance}
                         lnurlWithdrawParams={lnurlWithdrawParams as LNURLWithdrawParams}                        
                         memo={memo}      
-                        onLnurlWithdraw={onLnurlWithdraw}                        
+                        onLnurlWithdraw={onLnurlWithdraw}
+                        isWithdrawRequestSending={isWithdrawRequestSending}                        
                     />
                 )
 
@@ -1104,38 +1111,56 @@ const NostrDMInfoBlock = observer(function (props: {
 const LnurlWithdrawBlock = observer(function (props: {
     toggleWithdrawModal: any
     amountToTopup: string
+    mintBalanceToTopup: MintBalance
     lnurlWithdrawParams: any
     memo: string  
-    onLnurlWithdraw: any     
+    onLnurlWithdraw: any
+    isWithdrawRequestSending: boolean
 }) {
+
   return (
-    <View style={[$bottomModal, {marginHorizontal: spacing.small}]}>
-      <Text text={'Withdrawal amount'} />
-      <View style={$amountContainer}>
-        <Text text={props.amountToTopup} />
-      </View>
-      <Text text={props.lnurlWithdrawParams.domain} />
-      <Text text={props.memo} />
-      <View style={$buttonContainer}>
-        <Button
-          text="Withdraw"
-          onPress={props.onLnurlWithdraw}
-          style={{marginRight: spacing.medium}}
-          LeftAccessory={() => (
-            <Icon
-              icon='faArrowTurnDown'
-              color="white"
-              size={spacing.medium}
-              // containerStyle={{marginRight: spacing.small}}
-            />
-          )}
-        />        
-        <Button
-          preset="tertiary"
-          text="Cancel"
-          onPress={props.toggleWithdrawModal}
+    <View style={[$bottomModal, {marginHorizontal: spacing.small, alignItems: 'stretch'}]}>
+        <Text style={{textAlign: 'center'}} text={props.lnurlWithdrawParams.domain} />        
+        <ListItem 
+            leftIcon='faCheckCircle'
+            leftIconColor={colors.palette.success200}
+            text={`Withdrawal is available`}
+            subText={`Up to ${props.lnurlWithdrawParams.maxWithdrawable / 1000} sats are available to withdraw`}
+            topSeparator={true}
         />
-      </View>
+        <ListItem 
+            leftIcon='faCheckCircle'
+            leftIconColor={colors.palette.success200}
+            text={`Invoice for ${props.amountToTopup} sats created`}
+            subText={`Your balance to top up is ${props.mintBalanceToTopup.mint}`}
+            bottomSeparator={true}
+        />
+        {props.isWithdrawRequestSending ? (
+            <View style={[$buttonContainer, {marginTop: spacing.medium}]}> 
+                <Loading />
+            </View>            
+        ) : (             
+        <View style={[$buttonContainer, {marginTop: spacing.medium}]}>
+            <Button
+            text="Withdraw"
+            onPress={props.onLnurlWithdraw}
+            style={{marginRight: spacing.medium}}
+            LeftAccessory={() => (
+                <Icon
+                icon='faArrowTurnDown'
+                color="white"
+                size={spacing.medium}
+                // containerStyle={{marginRight: spacing.small}}
+                />
+            )}
+            />        
+            <Button
+            preset="tertiary"
+            text="Cancel"
+            onPress={props.toggleWithdrawModal}
+            />
+        </View>
+        )}
     </View>
   )
 })
@@ -1156,8 +1181,8 @@ const LnurlWithdrawSuccessBlock = observer(function (props: {
             icon='faCheckCircle'
             iconColor={colors.palette.success200}
             title='Success!'
-            message={`Withdrawal request has been accepted by ${props.lnurlWithdrawParams.domain}. Waiting to receive payment.`}
-        />
+            message={`Withdrawal request has been received by ${props.lnurlWithdrawParams.domain}.`}
+        />        
         <View style={$buttonContainer}>
             <Button
                 preset="secondary"

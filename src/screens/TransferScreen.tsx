@@ -391,12 +391,12 @@ const iconColor = useThemeColor('textDim')
                 availableMintBalances.length > 0 &&
                 transactionStatus !== TransactionStatus.COMPLETED && (
                 <>
-                    {memo && (
+                    {(memo || lnurlPayParams) && (
                         <Card
                         style={[$card, {minHeight: 0}]}
                         ContentComponent={
                             <ListItem
-                            text={memo}
+                            text={(memo) ? memo : lnurlPayParams ? `Invoice from ${lnurlPayParams.domain}` : ''}
                             LeftComponent={
                                 <Icon
                                     containerStyle={$iconContainer}
@@ -418,9 +418,6 @@ const iconColor = useThemeColor('textDim')
                         findByUrl={mintsStore.findByUrl}
                         onMintBalanceConfirm={transfer}
                     />
-                    {lnurlPayParams && (
-                        <Text size='xs' text={`This transfer has been requested by ${lnurlPayParams.domain}.`}/>
-                    )}
                 </>
                 )}
                 {transactionStatus === TransactionStatus.COMPLETED && (
