@@ -159,13 +159,13 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     }, [])
 
 
-    const handleDeeplink = function ({url}: {url: string}) {
+    const handleDeeplink = async function ({url}: {url: string}) {
         log.trace('deepLink', url, 'handleDeeplink')
 
         try {
             
             const incomingData = IncomingParser.findAndExtract(url)
-            IncomingParser.navigateWithIncomingData(incomingData, navigation)
+            await IncomingParser.navigateWithIncomingData(incomingData, navigation)
 
         } catch (e: any) {
             handleError(e)
@@ -551,7 +551,7 @@ const TotalBalanceBlock = observer(function (props: {
     return (
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
             <Text 
-                text='Satoshi'
+                text='SATS'
                 size='xxs' 
                 style={{color: pendingBalanceColor}}
             />

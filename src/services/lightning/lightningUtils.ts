@@ -24,13 +24,26 @@ const findEncodedLightningInvoice = function (content: string) {
 
 const extractEncodedLightningInvoice = function (maybeInvoice: string) {    
     // Attempt to decode the scanned content as a lightning invoice
-    let invoice: DecodedLightningInvoice
+    let invoice: DecodedLightningInvoice 
+    let encodedInvoice: string = ''
 
-    if (maybeInvoice.startsWith('lightning:')) {
-        const trimmed = maybeInvoice.replace('lightning:', '')
-        invoice = decodeInvoice(trimmed) // throws
+    if (maybeInvoice.startsWith('lightning:')) {       
+
+        // URI token formats
+        const uriPrefixes = [
+            'lightning://',
+            'lightning:',            
+        ]
+
+        for (const prefix of uriPrefixes) {
+            if (maybeInvoice.startsWith(prefix)) {            
+                encodedInvoice = maybeInvoice.slice(prefix.length)
+                break // necessary
+            }
+        }
         
-        return trimmed
+        invoice = decodeInvoice(encodedInvoice) // throws
+        return encodedInvoice              
         
     } else {
         invoice = decodeInvoice(maybeInvoice) // throws

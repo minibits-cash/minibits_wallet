@@ -149,6 +149,9 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                     setContactToSendFrom(contactFrom)                
                     setContactToSendTo(contact)                
                     setRelaysToShareTo(relays)
+
+                    navigation.setParams({contact: undefined})
+                    navigation.setParams({relays: undefined})
                 } catch(e: any) {
                     handleError(e)
                 }
@@ -251,8 +254,6 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
         // Default mint with highest balance to topup
         setMintBalanceToTopup(availableBalances[0])
-        
-
         setIsAmountEndEditing(true)
         onMemoEndEditing()
 
@@ -592,7 +593,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
               ref={amountInputRef}
               onChangeText={amount => setAmountToTopup(amount)}
               // onFocus={() => setIsAmountEndEditing(false)}
-              onEndEditing={(e) => onAmountEndEditing()}
+              onEndEditing={onAmountEndEditing}
               value={amountToTopup}
               style={$amountInput}
               maxLength={9}

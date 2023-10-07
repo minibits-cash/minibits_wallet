@@ -123,19 +123,14 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     // Send to contact
     useFocusEffect(
         useCallback(() => {
-            const prepareSendToken = () => {                
+            const prepareSendToken = () => {
+                
+                const {contact, relays} = route.params
 
-                if (!route.params?.contact) {
-                    return
-                }
-
-                if (!route.params?.relays) {
-                    return
+                if (!contact || !relays) {                    
+                    throw new AppError(Err.VALIDATION_ERROR, 'Missing contact or relay')
                 }
                 
-                const contactTo = route.params?.contact
-                const relays = route.params?.relays                
-
                 const {
                     pubkey,
                     npub,
@@ -152,16 +147,18 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
                 setPaymentOption(SendOption.SEND_TOKEN)
                 setContactToSendFrom(contactFrom)                
-                setContactToSendTo(contactTo)                
+                setContactToSendTo(contact)                
                 setRelaysToShareTo(relays)
 
                 navigation.setParams({contact: undefined})
                 navigation.setParams({relays: undefined})
             }
 
-            prepareSendToken()
+            if(paymentOption && paymentOption === SendOption.SEND_TOKEN) {
+                prepareSendToken()
+            }
             
-        }, [route.params?.contact, route.params?.relays]),
+        }, [route.params?.paymentOption]),
     )
 
     
@@ -171,8 +168,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         log.trace('Offline send effect')
 
         // if offline we set all non-zero mint balances as available to allow ecash selection
-        const availableBalances =
-        proofsStore.getMintBalancesWithEnoughBalance(1)
+        const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(1)
 
         if (availableBalances.length === 0) {
             setInfo('There is not enough funds to send')
@@ -254,25 +250,23 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             if (availableBalances.length === 0) {
                 infoMessage('There is not enough funds to send this amount')
                 return
-            }            
+            }
 
             setAvailableMintBalances(availableBalances)
 
-            // Set mint to send from immediately if only one is available
-            if (availableBalances.length === 1) {
-                setMintBalanceToSendFrom(availableBalances[0])
-            }
-
+            // Default mint with highest balance to topup
+            setMintBalanceToSendFrom(availableBalances[0])
             setIsAmountEndEditing(true)
+            onMemoEndEditing()
             
             // Skip memo focus if it is filled / has been done already
-            if(!memo && !isMemoEndEditing) {
+            /*if(!memo && !isMemoEndEditing) {
                 setTimeout(() => {memoInputRef && memoInputRef.current
                 ? memoInputRef.current.focus()
                 : false}, 200)
             } else {
                 onMemoEndEditing()
-            }
+            }*/
 
         } catch (e: any) {
             handleError(e)
@@ -338,7 +332,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         }
 
         // Pre-select mint with highest balance and show mint modal to confirm which mint to send from
-        setMintBalanceToSendFrom(availableMintBalances[0])
+        // setMintBalanceToSendFrom(availableMintBalances[0])
         setIsMintSelectorVisible(true)        
     }
 
@@ -631,8 +625,8 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                   onPress={onMemoDone}
                   disabled={
                     transactionStatus === TransactionStatus.PENDING
-                      ? false
-                      : true
+                      ? true
+                      : false
                   }
                 />
               </View>

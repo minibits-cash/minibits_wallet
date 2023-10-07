@@ -84,7 +84,7 @@ const en = {
     pasteToSend: "Paste from clipboard",
     pasteToSendDescription: "Paste lightning invoice from clipboard to pay it from your wallet.",
     showOrShareToken: "Share ecash token",
-    showOrShareTokenDescription: "Present or share the ecash for an amount you want to send.",
+    showOrShareTokenDescription: "Present or share ecash for an amount you want to send.",
   },
   tranDetailScreen: {
     amount: "Amount (in satoshis)",

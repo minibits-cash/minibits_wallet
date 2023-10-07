@@ -37,7 +37,9 @@ const extractEncodedLnurl = function (maybeLnurl: string) {
 		'lightning://',
         'lightning:',
 		'lnurlw://',
+        'lnurlw:',
         'lnurlp://',
+        'lnurlp:',
 	]
 
 	for (const prefix of uriPrefixes) {
