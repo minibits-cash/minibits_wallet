@@ -5,6 +5,7 @@ import {
   PayLnInvoiceResponse,
   type Proof as CashuProof,
 } from '@cashu/cashu-ts'
+import torRequest from './tor/torRequest'
 import {CashuUtils} from './cashu/cashuUtils'
 import AppError, {Err} from '../utils/AppError'
 import {log} from '../utils/logger'
@@ -18,14 +19,22 @@ let _mints: {[mintUrl: string]: CashuMint} = {}
 let _wallets: {[mintUrl: string]: CashuWallet} = {}
 
 const getMint = function (mintUrl: string) {
-  if (_mints[mintUrl]) {
-    return _mints[mintUrl]
-  }
+    if (_mints[mintUrl]) {
+        return _mints[mintUrl]
+    }
 
-  const mint = new CashuMint(mintUrl)
-  _mints[mintUrl] = mint
+    if(mintUrl.includes('.onion')) {
+        log.trace('Creating mint instance with .onion mintUrl', {mintUrl}, 'getMint')
+        const mint = new CashuMint(mintUrl, torRequest)
+        _mints[mintUrl] = mint
 
-  return mint
+        return mint
+    }
+
+    const mint = new CashuMint(mintUrl)
+    _mints[mintUrl] = mint
+
+    return mint
 }
 
 const getWallet = function (mintUrl: string) {
@@ -47,11 +56,12 @@ const getMintKeys = async function (mintUrl: string) {
   
   try {
     // keysets = await mint.getKeySets()
+    log.trace('Sending getKeys request', {mintUrl}, 'getMintKeys')
     keys = await mint.getKeys()
   } catch (e: any) {
     throw new AppError(
       Err.CONNECTION_ERROR,
-      `Could not connect to the selected mint.}`,
+      `Could not connect to the selected mint.`,
       [e.message, mintUrl],
     )
   }
