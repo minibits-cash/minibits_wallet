@@ -49,11 +49,13 @@ Top up wallet
 - [x] Show QR code with bitcoin lightning invoice to pay
 - [x] Share encoded bitcoin lightning invoice to pay
 - [x] Share payment request with contact [✨ New!]
+- [x] Top up balance by LNURL Withdraw [✨ New!]
 
 Transfer / Cash out from wallet
 - [x] Paste and settle bitcoin lightning invoice with your ecash
 - [x] Scan and settle bitcoin lightning invoice with your ecash
 - [x] Pay payment request received from another contact [✨ New!]
+- [x] Pay by LNURL Pay [✨ New!]
 - [ ] Transfer (swap) ecash to another mint
 
 Transaction history
@@ -64,7 +66,7 @@ Transaction history
 - [ ] Tags and related filtering of transactions
 - [ ] Delete incomplete and failed transactions from history
 
-Contacts [✨ New!]
+Contacts
 - [x] Private contacts for payments
 - [x] Public contacts (followed users on NOSTR social network) for tipping and donations
 - [x] Load public contacts from custom NOSTR relay
@@ -80,9 +82,10 @@ Backup and recovery
 - [ ] Off-device backup
 - [ ] Smooth migration to another device
 
-Security
+Security and Privacy
 - [x] Optional AES encryption of wallet storage using a key stored in the device secure keychain
 - [x] Use device biometry to login (if storage encryption is on)
+- [x] Tor daemon to connect to mints with .onion addresses [✨ New!]
 
 Self-funding
 - [X] Donation for custom wallet name
