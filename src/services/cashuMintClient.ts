@@ -5,7 +5,7 @@ import {
   PayLnInvoiceResponse,
   type Proof as CashuProof,
 } from '@cashu/cashu-ts'
-import torRequest from './tor/torRequest'
+import { TorDaemon } from '../services'
 import {CashuUtils} from './cashu/cashuUtils'
 import AppError, {Err} from '../utils/AppError'
 import {log} from '../utils/logger'
@@ -25,7 +25,7 @@ const getMint = function (mintUrl: string) {
 
     if(mintUrl.includes('.onion')) {
         log.trace('Creating mint instance with .onion mintUrl', {mintUrl}, 'getMint')
-        const mint = new CashuMint(mintUrl, torRequest)
+        const mint = new CashuMint(mintUrl, TorDaemon.torRequest)
         _mints[mintUrl] = mint
 
         return mint

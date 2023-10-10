@@ -19,7 +19,7 @@ import { Contact, ContactType } from '../models/Contact'
 
 let _db: QuickSQLiteConnection
 
-const _dbVersion = 5 // Update this if db changes require migrations
+const _dbVersion = 6 // Update this if db changes require migrations
 
 const getInstance = function () {
   if (!_db) {
@@ -73,6 +73,7 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
         isOnboarded BOOLEAN,
         isStorageEncrypted BOOLEAN,
         isLocalBackupOn BOOLEAN,
+        isTorDaemonOn BOOLEAN,
         createdAt TEXT      
     )`,
     ],
@@ -131,20 +132,7 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
     let migrationQueries: SQLBatchTuple[] = []
 
     // Database migrations sequence based on local version numbers
-    const walletId = _generateWalletId() // reset wallet name format for v2 and v3
-    if (currentVersion < 2) {
-        
-        migrationQueries.push([
-            `ALTER TABLE usersettings
-            ADD COLUMN userId TEXT`,       
-        ],[
-            `UPDATE usersettings
-            SET userId = ?
-            WHERE id = ?`, [walletId, 1]
-        ])
-        
-        log.info(`Prepared database migrations from ${currentVersion} -> 2`)
-    }
+    const walletId = _generateWalletId()
 
     if (currentVersion < 3) {
         migrationQueries.push([
@@ -177,6 +165,16 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
         ]) 
 
         log.info(`Prepared database migrations from ${currentVersion} -> 5`)
+    }
+
+
+    if (currentVersion < 6) {
+        migrationQueries.push([
+            `ALTER TABLE usersettings
+            ADD COLUMN isTorDaemonOn BOOLEAN`,       
+        ]) 
+
+        log.info(`Prepared database migrations from ${currentVersion} -> 6`)
     }
 
 
@@ -300,6 +298,7 @@ const getUserSettings = function (): UserSettings {
                 isOnboarded: 0,
                 isStorageEncrypted: 0,
                 isLocalBackupOn: 1,
+                isTorDaemonOn: 0,
             })
             log.trace('Stored default user settings in the database')
             return defaultSettings
@@ -318,11 +317,11 @@ const getUserSettings = function (): UserSettings {
 const updateUserSettings = function (settings: UserSettings): UserSettings {
     try {
         const now = new Date()
-        const {walletId, isOnboarded, isStorageEncrypted, isLocalBackupOn} = settings
+        const {walletId, isOnboarded, isStorageEncrypted, isLocalBackupOn, isTorDaemonOn} = settings
 
         const query = `
-        INSERT OR REPLACE INTO usersettings (id, walletId, isOnboarded, isStorageEncrypted, isLocalBackupOn, createdAt)
-        VALUES (?, ?, ?, ?, ?, ?)      
+        INSERT OR REPLACE INTO usersettings (id, walletId, isOnboarded, isStorageEncrypted, isLocalBackupOn, isTorDaemonOn, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?)      
         `
         const params = [
             1,
@@ -330,6 +329,7 @@ const updateUserSettings = function (settings: UserSettings): UserSettings {
             isOnboarded,
             isStorageEncrypted,
             isLocalBackupOn,
+            isTorDaemonOn,
             now.toISOString(),
         ]
 
@@ -386,7 +386,7 @@ const addTransactionAsync = async function (tx: Transaction) {
 
     log.info(
       'New transaction added to the database',
-      [result.insertId, tx],
+      {id: result.insertId, type, mint, status},
       'addTransactionAsync',
     )
 
@@ -420,7 +420,7 @@ const updateStatusAsync = async function (
 
     log.info(
       `[${status}] Transaction status updated`,
-      status,
+      {id, status},
       'updateStatusAsync',
     )
 
@@ -479,7 +479,7 @@ const updateStatusesAsync = async function (
 
     log.info(
       `[${status}] Transactions statuses updated.`,
-      [{numUpdates: result2.rowsAffected, status, data}],
+      {numUpdates: result2.rowsAffected, status},
       'updateStatusesAsync',
     )
 
@@ -535,7 +535,7 @@ const updateFeeAsync = async function (id: number, fee: number) {
     const db = getInstance()
     await db.executeAsync(query, params)
 
-    log.info('Transaction fee updated', fee)
+    log.info('Transaction fee updated', {id, fee}, 'updateFeeAsync')
 
     const updatedTx = getTransactionById(id as number)
 
@@ -561,7 +561,7 @@ const updateReceivedAmountAsync = async function (id: number, amount: number) {
     const db = getInstance()
     await db.executeAsync(query, params)
 
-    log.info('Transaction received amount updated', amount)
+    log.info('Transaction received amount updated', {id}, 'updateReceivedAmountAsync')
 
     const updatedTx = getTransactionById(id as number)
 
@@ -749,10 +749,8 @@ const addOrUpdateProof = function (
     const result = db.execute(query, params)
     // DO NOT log proof secrets to Sentry
     log.info(
-      `${
-        isPending ? ' Pending' : ''
-      } proof added or updated in the database backup`,
-      [{id: result.insertId, amount: proof.amount, tId: proof.tId, isPending, isSpent}],
+      `${isPending ? ' Pending' : ''} proof added or updated in the database backup`,
+      [{id: result.insertId, tId: proof.tId, isPending, isSpent}],
     )
 
     const newProof = getProofById(result.insertId as number)
@@ -802,10 +800,9 @@ const addOrUpdateProofs = function (
     const totalAmount = CashuUtils.getProofsAmount(proofs)
     // DO NOT log proof secrets to Sentry
     log.info(
-      `${rowsAffected}${
-        isPending ? ' pending' : ''
+      `${rowsAffected}${isPending ? ' pending' : ''
       } proofs were added or updated in the database backup`,
-      {totalAmount, isPending, isSpent}
+      {isPending, isSpent}
     )
 
     return rowsAffected

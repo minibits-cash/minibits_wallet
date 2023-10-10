@@ -129,6 +129,7 @@ const en = {
     go: "Let's go!",
     backupRecovery: "Backup and recovery",
     security: "Security",
+    privacy: "Privacy",
     devOptions: "Developer options", 
     update: "Update manager"
   },
@@ -164,7 +165,12 @@ const en = {
     encryptStorageDescription: "Encrypt the storage that stores your ecash with the secret key generated on your device and stored in secure keys storage. On some Android devices, this may cause a slightly longer startup of the application.",
     biometry: "Biometric authentication",
     biometryAvailable: "Your device supports biometric authentication. If you activate encrypted storage, it will be required for Minibits to start.",
-    biometryNone: "You have not setup biometric authentication or your device does not support it."
+    biometryNone: "You have not setup biometric authentication or your device does not support it.",
+  },
+  privacyScreen: {    
+    torDaemon: "Use Tor network with mints",
+    torDaemonDescription: "Allow connections with mints through Tor .onion addresses.",
+    torStatus: "Tor status"
   },
   updateScreen: {
     updateAvailable: "Update is available",

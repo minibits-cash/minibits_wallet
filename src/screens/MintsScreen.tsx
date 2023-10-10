@@ -33,7 +33,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
       onLeftPress: () => navigation.goBack(),
     })
 
-    const {mintsStore, proofsStore} = useStores()
+    const {mintsStore, proofsStore, userSettingsStore} = useStores()
     const mintInputRef = useRef<TextInput>(null)
 
     const [mintUrl, setMintUrl] = useState('')
@@ -72,6 +72,13 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
     
     const addMint = async function () {
       setIsAddMintVisible(false)
+
+      if(mintUrl.includes('.onion')) {
+        if(!userSettingsStore.isTorDaemonOn) {
+            setInfo('Please enable Tor daemon in Privacy settings before connecting to the mint using .onion address.')
+            return
+        }
+      }
 
       if (mintsStore.alreadyExists(mintUrl)) {
         const msg = translate('mintsScreen.mintExists')

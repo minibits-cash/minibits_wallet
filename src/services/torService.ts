@@ -1,26 +1,34 @@
-import Tor, { RequestMethod } from 'react-native-tor'
-import AppError, { Err } from '../../utils/AppError';
-import { log } from '../../utils/logger';
+import Tor, { RequestMethod, TorType } from 'react-native-tor'
+import AppError, { Err } from '../utils/AppError';
+import { log } from '../utils/logger';
 
-log.trace('Creating tor instance')
-const tor = Tor()
+let _tor: TorType
+let _globalRequestOptions: Partial<RequestOptions> = {};
+
+const getInstance = function () {
+    if (!_tor) {        
+        _tor = Tor()
+        log.trace('Tor initialized')
+    }
+  
+    return _tor
+}
 
 type RequestArgs = {
 	endpoint: string;
 	requestBody?: Record<string, unknown>;
 	headers?: Record<string, string>;
-    method?: RequestMethod,
+    method?: string | RequestMethod,
 };
 
 type RequestOptions = RequestArgs & Omit<RequestInit, 'body' | 'headers'>;
 
-let globalRequestOptions: Partial<RequestOptions> = {};
 
-export function setGlobalRequestOptions(options: Partial<RequestOptions>): void {
-	globalRequestOptions = options;
+const setGlobalRequestOptions = function (options: Partial<RequestOptions>): void {
+	_globalRequestOptions = options;
 }
 
-async function _request<T>({
+const _request = async function<T>({
 	endpoint,
 	requestBody,
 	headers: requestHeaders,
@@ -28,8 +36,11 @@ async function _request<T>({
 	...options
 }: RequestOptions): Promise<T> {
 
-    log.trace('Starting tor if not yer running')
+    const tor = getInstance()
+
+    log.trace('Starting tor if not yet running')
     await tor.startIfNotStarted()
+    log.trace('Tor daemon started')
 
 	const body = requestBody ? JSON.stringify(requestBody) : undefined;
     const method = requestMethod ? requestMethod : RequestMethod.GET
@@ -72,20 +83,26 @@ async function _request<T>({
     throw new AppError(Err.VALIDATION_ERROR, 'Invalid method', {method})
 }
 
-export default async function torRequest<T>(options: RequestOptions): Promise<T> {
-	const response = await _request({ ...options, ...globalRequestOptions });	
+const torRequest = async function<T>(options: RequestOptions): Promise<T> {
+	const response = await _request({ ...options, ..._globalRequestOptions });	
 	checkResponse(response);
 	return response as T;
 }
 
 
-function checkResponse(data: any) {
+const checkResponse = function(data: any) {
 	if (!isObj(data)) {
         throw new AppError(Err.VALIDATION_ERROR, 'Invalid data', {data})
     };
 	
 }
 
-function isObj(v: unknown): v is object {
+const isObj = function(v: unknown): v is object {
 	return typeof v === 'object';
+}
+
+export const TorDaemon = {
+    getInstance,
+    torRequest,
+    setGlobalRequestOptions,
 }

@@ -65,6 +65,8 @@ import { faCircleUser } from '@fortawesome/free-solid-svg-icons/faCircleUser'
 import { faComment } from '@fortawesome/free-solid-svg-icons/faComment'
 import { faKey } from '@fortawesome/free-solid-svg-icons/faKey'
 import { faCircleNodes } from '@fortawesome/free-solid-svg-icons/faCircleNodes'
+import { faBullseye } from '@fortawesome/free-solid-svg-icons/faBullseye'
+import { faEyeSlash } from '@fortawesome/free-solid-svg-icons/faEyeSlash'
 
 
 export type IconTypes = keyof typeof iconRegistry
@@ -120,6 +122,8 @@ export const iconRegistry = {
   faComment: faComment,
   faKey: faKey,
   faCircleNodes: faCircleNodes,
+  faBullseye: faBullseye,
+  faEyeSlash: faEyeSlash, 
 }
 
 

@@ -43,7 +43,7 @@ export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer
     useEffect(() => {
         const getBiometry = async () => {
             const biometry: BIOMETRY_TYPE | null = await KeyChain.getSupportedBiometryType()
-            log.info('supportedBiometryType', biometry, 'getBiometry')
+            log.trace('supportedBiometryType', biometry, 'getBiometry')
             setBiometryType(biometry)
         }
         
@@ -104,82 +104,82 @@ export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer
           <Text preset="heading" text="Security" style={{color: 'white'}} />
         </View>
         <View style={$contentContainer}>
-          <Card
-            style={$card}
-            ContentComponent={
-              <>
-              <ListItem
-                tx="securityScreen.encryptStorage"
-                subTx="securityScreen.encryptStorageDescription"
-                leftIcon={isStorageEncrypted ? 'faLock' : 'faLockOpen'}
-                leftIconColor={
-                    isStorageEncrypted
-                      ? colors.palette.success200
-                      : colors.palette.neutral400
-                }
-                leftIconInverse={true}
-                RightComponent={
-                  <View style={$rightContainer}>
-                    <Switch
-                      onValueChange={toggleEncryptedSwitch}
-                      value={isStorageEncrypted}
-                    />
-                  </View>
-                }
-                style={$item}
-              />
-              <ListItem
-                tx="securityScreen.biometry"
-                subTx={biometryType ? 'securityScreen.biometryAvailable' : 'securityScreen.biometryNone'}
-                leftIcon='faFingerprint'
-                leftIconColor={
-                    biometryType
-                      ? colors.palette.success200
-                      : colors.palette.neutral400
-                }
-                leftIconInverse={true}
-                RightComponent={!!biometryType ? (
-                    <View style={[$rightContainer, {marginLeft: spacing.small}]}>
-                    <Icon
-                        icon='faCheckCircle'
-                        size={spacing.large}
-                        color={
-                        (isStorageEncrypted)
+            <Card
+                style={$card}
+                ContentComponent={
+                <>
+                    <ListItem
+                        tx="securityScreen.encryptStorage"
+                        subTx="securityScreen.encryptStorageDescription"
+                        leftIcon={isStorageEncrypted ? 'faLock' : 'faLockOpen'}
+                        leftIconColor={
+                            isStorageEncrypted
                             ? colors.palette.success200
                             : colors.palette.neutral400
                         }
-                        inverse={false}
+                        leftIconInverse={true}
+                        RightComponent={
+                        <View style={$rightContainer}>
+                            <Switch
+                            onValueChange={toggleEncryptedSwitch}
+                            value={isStorageEncrypted}
+                            />
+                        </View>
+                        }
+                        style={$item}
                     />
-                    </View>
-                ) : (<></>)}
-                style={$item}
-              />
-              </>
-            }
-          />
+                    <ListItem
+                        tx="securityScreen.biometry"
+                        subTx={biometryType ? 'securityScreen.biometryAvailable' : 'securityScreen.biometryNone'}
+                        leftIcon='faFingerprint'
+                        leftIconColor={
+                            biometryType
+                            ? colors.palette.success200
+                            : colors.palette.neutral400
+                        }
+                        leftIconInverse={true}
+                        RightComponent={!!biometryType ? (
+                            <View style={[$rightContainer, {marginLeft: spacing.small}]}>
+                            <Icon
+                                icon='faCheckCircle'
+                                size={spacing.large}
+                                color={
+                                (isStorageEncrypted)
+                                    ? colors.palette.success200
+                                    : colors.palette.neutral400
+                                }
+                                inverse={false}
+                            />
+                            </View>
+                        ) : (<></>)}
+                        style={$item}
+                    />
+                </>
+                }
+            />            
           {isLoading && <Loading />}
         </View>
         <BottomModal
-          isVisible={isEncryptionModalVisible ? true : false}
-          top={spacing.screenHeight * 0.5}
-          // style={{marginHorizontal: spacing.extraSmall}}
-          ContentComponent={
-            <ResultModalInfo
-              icon={isStorageEncrypted ? 'faLock' : 'faLockOpen'}
-              iconColor={
-                isStorageEncrypted
-                  ? colors.palette.success200
-                  : colors.palette.neutral400
-              }
-              title={
-                isStorageEncrypted ? 'Encryption is on' : 'Encryption is off'
-              }
-              message={encryptionResultMessage as string}
-            />
-          }
-          onBackButtonPress={toggleEncryptionModal}
-          onBackdropPress={toggleEncryptionModal}
-        />
+            isVisible={isEncryptionModalVisible ? true : false}
+            top={spacing.screenHeight * 0.5}
+            // style={{marginHorizontal: spacing.extraSmall}}
+            ContentComponent={
+                <ResultModalInfo
+                    icon={isStorageEncrypted ? 'faLock' : 'faLockOpen'}
+                    iconColor={
+                        isStorageEncrypted
+                        ? colors.palette.success200
+                        : colors.palette.neutral400
+                    }
+                    title={
+                        isStorageEncrypted ? 'Encryption is on' : 'Encryption is off'
+                    }
+                    message={encryptionResultMessage as string}
+                />
+            }
+            onBackButtonPress={toggleEncryptionModal}
+            onBackdropPress={toggleEncryptionModal}
+        />        
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}      
       </Screen>

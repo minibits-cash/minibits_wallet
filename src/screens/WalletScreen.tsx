@@ -78,7 +78,7 @@ type RelayStatus = {
 
 export const WalletScreen: FC<WalletScreenProps> = observer(
   function WalletScreen({route, navigation}) {    
-    const {mintsStore, proofsStore, transactionsStore, paymentRequestsStore} = useStores()
+    const {mintsStore, proofsStore, transactionsStore, paymentRequestsStore, userSettingsStore} = useStores()
     
     const appState = useRef(AppState.currentState)
    
@@ -282,6 +282,13 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         const newMintUrl = scannedMintUrl || defaultMintUrl
         
         log.trace('newMintUrl', newMintUrl)
+
+        if(newMintUrl.includes('.onion')) {
+            if(!userSettingsStore.isTorDaemonOn) {
+                setInfo('Please enable Tor daemon in Privacy settings before connecting to the mint using .onion address.')
+                return
+            }
+        }
         
         if (mintsStore.alreadyExists(newMintUrl)) {
             const msg = translate('mintsScreen.mintExists')
