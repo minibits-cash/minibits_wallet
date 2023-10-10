@@ -654,6 +654,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                 <ShareFallbackBlock                    
                     toggleNostrDMModal={toggleNostrDMModal}
                     toggleQRModal={toggleQRModal}
+                    toggleWithdrawModal={toggleWithdrawModal}
                     paymentOption={paymentOption}
                     invoiceToPay={invoiceToPay}
                 />
@@ -704,6 +705,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         />
         <BottomModal
             isVisible={isWithdrawModalVisible ? true : false}
+            style={{alignItems: 'stretch'}}
             ContentComponent={
                 (isWithdrawRequestSuccess ? (
                     <LnurlWithdrawSuccessBlock 
@@ -842,6 +844,7 @@ const MintBalanceSelector = observer(function (props: {
 const ShareFallbackBlock = observer(function (props: {
     toggleNostrDMModal: any
     toggleQRModal: any
+    toggleWithdrawModal: any
     invoiceToPay: string
     paymentOption: ReceiveOption    
 }) {
@@ -850,11 +853,6 @@ const ShareFallbackBlock = observer(function (props: {
 
   return (
     <View style={{alignItems: 'center'}}>
-      <Text 
-        size='xs' 
-        text={'Let anybody pay this lightning invoice to receive the requested amount to your wallet.'}
-        style={{marginBottom: spacing.medium}} 
-      />
         <ScrollView
             style={[
                 $tokenContainer,
@@ -889,6 +887,21 @@ const ShareFallbackBlock = observer(function (props: {
                 LeftAccessory={() => (
                     <Icon
                     icon='faPaperPlane'
+                    // color="white"
+                    size={spacing.medium}              
+                    />
+                )} 
+            />
+        )}
+        {props.paymentOption === ReceiveOption.LNURL_WITHDRAW && (
+            <Button
+                text='Withdraw'
+                preset='secondary'
+                onPress={props.toggleWithdrawModal}
+                style={{marginLeft: spacing.medium}}
+                LeftAccessory={() => (
+                    <Icon
+                    icon='faArrowTurnDown'
                     // color="white"
                     size={spacing.medium}              
                     />
@@ -1112,8 +1125,8 @@ const LnurlWithdrawBlock = observer(function (props: {
 }) {
 
   return (
-    <View style={[$bottomModal, {marginHorizontal: spacing.small, alignItems: 'stretch'}]}>
-        <Text style={{textAlign: 'center'}} text={props.lnurlWithdrawParams.domain} />        
+    <View style={[$bottomModal, {alignItems: 'stretch'}]}>
+        <Text style={{textAlign: 'center', marginBottom: spacing.small}} text={props.lnurlWithdrawParams.domain} preset={'subheading'} />        
         <ListItem 
             leftIcon='faCheckCircle'
             leftIconColor={colors.palette.success200}
@@ -1125,7 +1138,7 @@ const LnurlWithdrawBlock = observer(function (props: {
             leftIcon='faCheckCircle'
             leftIconColor={colors.palette.success200}
             text={`Invoice for ${props.amountToTopup} sats created`}
-            subText={`Your balance to top up is ${props.mintBalanceToTopup.mint}`}
+            subText={`Your selected mint balance to top up is ${props.mintBalanceToTopup.mint}`}
             bottomSeparator={true}
         />
         {props.isWithdrawRequestSending ? (
@@ -1169,7 +1182,6 @@ const LnurlWithdrawSuccessBlock = observer(function (props: {
   
     return (
       <View style={$bottomModal}>
-
         <ResultModalInfo
             icon='faCheckCircle'
             iconColor={colors.palette.success200}
@@ -1242,7 +1254,7 @@ const $tokenContainer: ViewStyle = {
   maxHeight: 150,
   marginTop: spacing.small,
   marginBottom: spacing.large,
-  marginHorizontal: spacing.small
+  // marginHorizontal: spacing.small
 }
 
 const $memoButton: ViewStyle = {

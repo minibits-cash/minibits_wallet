@@ -29,6 +29,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
     })
 
     const [shouldLoad, setShouldLoad] = useState<boolean>(false)
+    const [expected, setExpected] = useState<IncomingDataType>()
     const [isScanned, setIsScanned] = useState<boolean>(false)
     const [error, setError] = useState<AppError | undefined>()
 
@@ -37,6 +38,20 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
           setShouldLoad(Platform.OS !== 'android' || (await hasAndroidCameraPermission()))
         })()
     }, [])
+
+
+    useEffect(() => {
+        const setExpectedType = async () => {   
+          const {expectedType} = route.params
+
+          if(expectedType) {
+            log.trace('Got expectedType', expectedType)
+            setExpected(expectedType)
+          }
+        }
+
+        setExpectedType()
+    }, [route.params?.expectedType])
 
 
 
@@ -52,12 +67,26 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
 
         switch (prevRouteName) {
             case 'ReceiveOptions':  
-                try {                  
-                    const tokenResult = IncomingParser.findAndExtract(scanned, IncomingDataType.CASHU)                
-                    log.trace('Got token')
-                    return navigation.navigate('Receive', {
-                        encodedToken: tokenResult.encoded,
-                    })  
+            log.trace('ReceiveOptions')
+                try {
+                    if(expected === IncomingDataType.CASHU) {
+                        const tokenResult = IncomingParser.findAndExtract(scanned, IncomingDataType.CASHU)                
+                        log.trace('Got token')
+                        return navigation.navigate('Receive', {
+                            encodedToken: tokenResult.encoded,
+                        }) 
+                    }
+                    
+                    if(expected === IncomingDataType.LNURL) {
+                        const lnurlResult = IncomingParser.findAndExtract(scanned, IncomingDataType.LNURL)                
+                        if(lnurlResult) {
+                            log.trace('Got LNURL')
+                            await IncomingParser.navigateWithIncomingData(lnurlResult, navigation)
+                            return
+                        }
+                    }                   
+                    
+ 
                 } catch (e: any) {
                     e.params = scanned
                     handleError(e)
@@ -70,16 +99,17 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                         encodedInvoice: invoiceResult.encoded,
                     })
                 } catch (e: any) {
-                    const lnurlesult = IncomingParser.findAndExtract(scanned, IncomingDataType.LNURL)
+                    const lnurlResult = IncomingParser.findAndExtract(scanned, IncomingDataType.LNURL)
                     
-                    if(lnurlesult) {
+                    if(lnurlResult) {
                         log.trace('Got LNURL instead of an invoice')
-                        await IncomingParser.navigateWithIncomingData(lnurlesult, navigation)
+                        await IncomingParser.navigateWithIncomingData(lnurlResult, navigation)
                         return
                     }
                     
                     e.params = scanned
                     handleError(e)
+                    break
                 }                          
             default:
                 try {

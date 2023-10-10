@@ -67,7 +67,8 @@ const en = {
     pasteToReceive: "Paste from clipboard",
     pasteoReceiveDescription: "Paste ecash token to receive it into your wallet.",
     showOrShareInvoice: "Create lightning invoice",
-    showOrShareInvoiceDescription: "Present or share the lightning invoice for an amount you want to receive."    
+    showOrShareInvoiceDescription: "Present or share the lightning invoice for an amount you want to receive." ,
+    scanWithdrawalLink: "Scan withdrawal link"   
   },
   transferScreen: {
     

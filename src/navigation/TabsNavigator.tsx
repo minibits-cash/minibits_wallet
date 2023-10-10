@@ -43,6 +43,7 @@ import { AppStackParamList, AppStackScreenProps } from "./AppNavigator"
 import { MintBalance } from "../models/Mint"
 import { PaymentRequest } from "../models/PaymentRequest"
 import { LNURLPayParams, LNURLWithdrawParams } from "js-lnurl"
+import { IncomingDataType } from "../services/incomingParser"
 
 
 export type TabsParamList = {
@@ -119,7 +120,7 @@ export type WalletStackParamList = {
     Receive: {encodedToken? : string}
     SendOptions: undefined
     Send: {contact?: Contact, relays?: string[], paymentOption?: SendOption}
-    Scan: undefined
+    Scan: {expectedType?: IncomingDataType}
     TranDetail: {id: number}
     TranHistory: undefined
     PaymentRequests: undefined 

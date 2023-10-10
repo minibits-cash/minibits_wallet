@@ -328,7 +328,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     }
 
     const gotoScan = function () {
-        navigation.navigate('Scan')
+        navigation.navigate('Scan', {})
     }
 
     const gotoTranHistory = function () {

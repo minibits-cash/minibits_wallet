@@ -57,8 +57,12 @@ export const ReceiveOptionsScreen: FC<WalletStackScreenProps<'ReceiveOptions'>> 
     }
 
 
-    const onScan = async function () {
-        navigation.navigate('Scan')
+    const onScanToken = async function () {
+        navigation.navigate('Scan', {expectedType: IncomingDataType.CASHU})
+    }
+
+    const onScanLnurl = async function () {
+        navigation.navigate('Scan', {expectedType: IncomingDataType.LNURL})
     }
 
 
@@ -103,35 +107,42 @@ export const ReceiveOptionsScreen: FC<WalletStackScreenProps<'ReceiveOptions'>> 
               style={$optionsCard}
               ContentComponent={
                 <>
-                  <ListItem
-                    tx="receiveScreen.sharePaymentRequest"
-                    subTx="receiveScreen.sharePaymentRequestDescription"
-                    leftIcon='faPaperPlane'
-                    leftIconColor={colors.palette.secondary300}
-                    leftIconInverse={true}
-                    style={$item}
-                    bottomSeparator={true}
-                    onPress={gotoContacts}
-                  />
-                  <ListItem
-                    tx="receiveScreen.showOrShareInvoice"
-                    subTx="receiveScreen.showOrShareInvoiceDescription"
-                    leftIcon='faBolt'
-                    leftIconColor={colors.palette.accent300}
-                    leftIconInverse={true}
-                    style={$item}
-                    bottomSeparator={true}
-                    onPress={gotoTopup}
-                  />
-                  <ListItem
-                    tx="receiveScreen.scanToReceive"
-                    subTx="receiveScreen.scanToReceiveDescription"
-                    leftIcon='faQrcode'
-                    leftIconColor={colors.palette.success200}
-                    leftIconInverse={true}
-                    style={$item}                    
-                    onPress={onScan}
-                  />
+                    <ListItem
+                        tx="receiveScreen.sharePaymentRequest"
+                        subTx="receiveScreen.sharePaymentRequestDescription"
+                        leftIcon='faPaperPlane'
+                        leftIconColor={colors.palette.secondary300}
+                        leftIconInverse={true}
+                        style={$item}
+                        bottomSeparator={true}
+                        onPress={gotoContacts}
+                    />
+                    <ListItem
+                        tx="receiveScreen.showOrShareInvoice"
+                        subTx="receiveScreen.showOrShareInvoiceDescription"
+                        leftIcon='faBolt'
+                        leftIconColor={colors.palette.accent300}
+                        leftIconInverse={true}
+                        style={$item}                        
+                        onPress={gotoTopup}
+                    />
+                    <Button 
+                        onPress={onScanLnurl}
+                        tx='receiveScreen.scanWithdrawalLink'
+                        preset='tertiary'
+                        textStyle={{fontSize: 14, color: iconColor}}
+                        style={{alignSelf: 'flex-start', marginLeft: 33}}
+                    />
+                    <ListItem
+                        tx="receiveScreen.scanToReceive"
+                        subTx="receiveScreen.scanToReceiveDescription"
+                        leftIcon='faQrcode'
+                        leftIconColor={colors.palette.success200}
+                        leftIconInverse={true}
+                        style={$item} 
+                        topSeparator={true}                   
+                        onPress={onScanToken}
+                    />
                 </>
               }
               FooterComponent={
