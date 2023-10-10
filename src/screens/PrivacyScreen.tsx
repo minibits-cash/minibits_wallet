@@ -56,13 +56,14 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Security'>> = observer(
             const status = await tor.getDaemonStatus()
 
             log.trace('torStatus', status, 'getTorStatus')
-            setTorStatus(status)
+            setTorStatus(status.toUpperCase())
         }
         
         getTorStatus()
         
         return () => {}
     }, [])
+
 
     const toggleTorDaemonSwitch = async () => {
         try {
@@ -73,6 +74,8 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Security'>> = observer(
             )
 
             const tor = TorDaemon.getInstance()
+            const statusBefore = await tor.getDaemonStatus()
+            setTorStatus(statusBefore.toUpperCase())
 
             if(result) {
                 await tor.startIfNotStarted()                
@@ -80,10 +83,11 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Security'>> = observer(
                 await tor.stopIfRunning()
             }
 
-            const status = await tor.getDaemonStatus()
             
+            const statusAfter = await tor.getDaemonStatus()
+            setTorStatus(statusAfter.toUpperCase())
             setIsTorDaemonOn(result)
-            setTorStatus(status)
+            
             setIsLoading(false)
 
             if (result === true) {
@@ -96,6 +100,26 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Security'>> = observer(
 
             setTorResultMessage('Tor daemon has been disabled.')
             toggleTorModal()
+        } catch (e: any) {
+            handleError(e)
+        }
+    }
+
+    const startTor = async () => {
+        try {
+            if(!userSettingsStore.isTorDaemonOn) {
+                return
+            }
+
+            setIsLoading(true)
+
+            const tor = TorDaemon.getInstance()            
+            await tor.startIfNotStarted()
+            
+            const statusAfter = await tor.getDaemonStatus()
+            setTorStatus(statusAfter.toUpperCase())
+            setIsLoading(false)
+            
         } catch (e: any) {
             handleError(e)
         }
@@ -143,7 +167,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Security'>> = observer(
                         }
                         style={$item}
                     />
-                    {isTorDaemonOn && (
+                    
                         <ListItem
                             tx="privacyScreen.torStatus"
                             subText={`${torStatus}`}
@@ -151,7 +175,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Security'>> = observer(
                                 'faBan'
                             ) : (torStatus ===  TorStatus.STARTING) ? (
                                 'faRotate'
-                            ) : (torStatus ===  TorStatus.DONE) ? (
+                            ) : (torStatus ===  `"${TorStatus.DONE}"`) ? (
                                 'faCheckCircle'
                             ) : (
                                 'faTriangleExclamation'
@@ -160,24 +184,23 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Security'>> = observer(
                                colors.palette.neutral400
                             ) : (torStatus ===  TorStatus.STARTING) ? (
                                 colors.palette.accent300
-                            ) : (torStatus ===  TorStatus.DONE) ? (
+                            ) : (torStatus ===  `"${TorStatus.DONE}"`) ? (
                                 colors.palette.success200
                             ) : (
                                 colors.palette.accent300
                             )}                        
                             topSeparator={true}
                             style={$item}
+                            onPress={startTor}
                         /> 
-                    )}
+                
                 </>
                 }
             />
           {isLoading && <Loading />}
         </View>
         <BottomModal
-            isVisible={isTorModalVisible ? true : false}
-            top={spacing.screenHeight * 0.5}
-            // style={{marginHorizontal: spacing.extraSmall}}
+            isVisible={isTorModalVisible ? true : false}            
             ContentComponent={
                 <ResultModalInfo
                 icon={'faBullseye'}

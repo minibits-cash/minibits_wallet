@@ -96,7 +96,7 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
         </View>
         <BottomModal
           isVisible={selectedRelay ? true : false}
-          top={spacing.screenHeight * 0.5}
+          style={{alignItems: 'stretch'}}          
           ContentComponent={
             <View style={{}}>              
               <ListItem

@@ -336,8 +336,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
           {isLoading && <Loading />}
         </View>
         <BottomModal
-          isVisible={isResultModalVisible ? true : false}
-          top={spacing.screenHeight * 0.5}
+          isVisible={isResultModalVisible ? true : false}          
           ContentComponent={
             <>
               {resultModalInfo?.status === TransactionStatus.COMPLETED && (

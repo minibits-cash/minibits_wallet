@@ -520,8 +520,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         </View>
         <BottomModal
           isVisible={isUpdateModalVisible ? true : false}
-          top={spacing.screenHeight * 0.75}
-          style={{padding: spacing.small}}
+          style={{alignItems: 'stretch'}}
           ContentComponent={        
             <ListItem
                 LeftComponent={

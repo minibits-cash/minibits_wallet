@@ -273,6 +273,7 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
     } catch (e: any) {
         resetState()
         handleError(e)
+        navigation.popToTop()
     }
 }
 
@@ -454,8 +455,7 @@ const iconColor = useThemeColor('textDim')
                 {isLoading && <Loading />}
             </View>
             <BottomModal
-                isVisible={isResultModalVisible ? true : false}
-                top={spacing.screenHeight * 0.5}                
+                isVisible={isResultModalVisible}
                 ContentComponent={
                     <>
                         {resultModalInfo &&

@@ -164,8 +164,8 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
             </View>
         </View>
         <BottomModal
-          isVisible={isContactModalVisible ? true : false}
-          top={spacing.screenHeight * 0.55}
+          isVisible={isContactModalVisible}
+          style={{alignItems: 'stretch'}}          
           ContentComponent={               
             <>
                 <ListItem

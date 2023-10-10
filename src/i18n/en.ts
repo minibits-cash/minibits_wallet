@@ -168,7 +168,7 @@ const en = {
     biometryNone: "You have not setup biometric authentication or your device does not support it.",
   },
   privacyScreen: {    
-    torDaemon: "Use Tor network with mints",
+    torDaemon: "Use Tor network",
     torDaemonDescription: "Allow connections with mints through Tor .onion addresses.",
     torStatus: "Tor status"
   },

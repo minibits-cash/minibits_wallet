@@ -146,7 +146,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                 <ListItem
                     tx='settingsScreen.privacy'
                     leftIcon='faEyeSlash'
-                    leftIconColor={colors.palette.orange200}
+                    leftIconColor={colors.palette.blue200}
                     leftIconInverse={true}
                     style={$item}
                     bottomSeparator={true}

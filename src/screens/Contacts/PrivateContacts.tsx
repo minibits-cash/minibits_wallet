@@ -324,8 +324,7 @@ export const PrivateContacts = observer(function (props: {
             </View>
         </View>       
         <BottomModal
-            isVisible={isNewContactModalVisible ? true : false}
-            top={spacing.screenHeight * 0.3}            
+            isVisible={isNewContactModalVisible ? true : false}            
             ContentComponent={
                 <View style={$newContainer}>
                     <Text tx='contactsScreen.newTitle' preset="subheading" />
@@ -410,7 +409,7 @@ const $item: ViewStyle = {
 }
 
 const $newContainer: TextStyle = {
-    padding: spacing.small,
+    //padding: spacing.small,
     alignItems: 'center',
 }
 

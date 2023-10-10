@@ -447,8 +447,8 @@ export const PublicContacts = observer(function (props: {
         </View>
         {isLoading && <Loading />}
         <BottomModal
-          isVisible={isNpubActionsModalVisible ? true : false}
-          top={spacing.screenHeight * 0.5}          
+          isVisible={isNpubActionsModalVisible}
+          style={{alignItems: 'stretch'}}
           ContentComponent={
             <>
                 <ListItem
@@ -481,8 +481,7 @@ export const PublicContacts = observer(function (props: {
           onBackdropPress={toggleNpubActionsModal}
         />      
         <BottomModal
-          isVisible={isNpubModalVisible ? true : false}
-          top={spacing.screenHeight * 0.26}
+          isVisible={isNpubModalVisible}          
           ContentComponent={
             <View style={$newContainer}>
                 <Text text='Add your npub key' preset="subheading" />
@@ -520,8 +519,7 @@ export const PublicContacts = observer(function (props: {
           onBackdropPress={toggleNpubModal}
         />
         <BottomModal
-          isVisible={isRelayModalVisible ? true : false}
-          top={spacing.screenHeight * 0.26}
+          isVisible={isRelayModalVisible ? true : false}          
           ContentComponent={
             <View style={$newContainer}>
                 <Text text='Set your own relay' preset="subheading" />

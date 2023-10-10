@@ -160,9 +160,7 @@ export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer
           {isLoading && <Loading />}
         </View>
         <BottomModal
-            isVisible={isEncryptionModalVisible ? true : false}
-            top={spacing.screenHeight * 0.5}
-            // style={{marginHorizontal: spacing.extraSmall}}
+            isVisible={isEncryptionModalVisible ? true : false}            
             ContentComponent={
                 <ResultModalInfo
                     icon={isStorageEncrypted ? 'faLock' : 'faLockOpen'}

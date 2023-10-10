@@ -666,9 +666,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         {isLoading && <Loading />}
         </View>
         <BottomModal
-          isVisible={isProofSelectorModalVisible ? true : false}
-          top={spacing.screenHeight * 0.255}
-          style={{marginHorizontal: spacing.extraSmall}}
+          isVisible={isProofSelectorModalVisible}
           ContentComponent={
             <SelectProofsBlock
                 availableMintBalances={availableMintBalances}
@@ -686,8 +684,6 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         />
         <BottomModal
           isVisible={isQRModalVisible ? true : false}
-          top={spacing.screenHeight * 0.367}
-          style={{marginHorizontal: spacing.extraSmall}}
           ContentComponent={
             <SendAsQRCodeBlock
               toggleQRModal={toggleQRModal}
@@ -702,8 +698,6 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         />
         <BottomModal
           isVisible={isNostrDMModalVisible ? true : false}
-          top={spacing.screenHeight * 0.367}
-          style={{marginHorizontal: spacing.extraSmall}}
           ContentComponent={
             (isNostrDMSuccess ? (
             <NostrDMSuccessBlock
@@ -731,8 +725,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
           onBackdropPress={toggleNostrDMModal}
         />
         <BottomModal
-          isVisible={isResultModalVisible ? true : false}
-          top={spacing.screenHeight * 0.5}
+          isVisible={isResultModalVisible ? true : false}          
           ContentComponent={
             <>
               {resultModalInfo &&
@@ -1290,11 +1283,9 @@ const $item: ViewStyle = {
   paddingLeft: 0,
 }
 
-const $bottomModal: ViewStyle = {
-  flex: 1,
+const $bottomModal: ViewStyle = {  
   alignItems: 'center',
-  paddingVertical: spacing.large,
-  // paddingHorizontal: spacing.small,
+  paddingVertical: spacing.large,  
 }
 
 const $qrCodeContainer: ViewStyle = {

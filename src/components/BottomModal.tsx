@@ -10,6 +10,7 @@ import {
 } from "react-native"
 import { colors, useThemeColor, spacing } from "../theme"
 import { Text, TextProps } from "./Text"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 
 interface ModalProps extends ViewProps {
@@ -103,12 +104,10 @@ interface ModalProps extends ViewProps {
  */
 export function BottomModal(props: ModalProps) {    
   
-  // TODO based on number of childs
-  const defaultTop = spacing.screenHeight * 0.8
+
 
   const {
-    isVisible = true,
-    top = defaultTop,
+    isVisible = true,    
     onBackdropPress,
     onBackButtonPress,
     backdropOpacity = 0.1,   
@@ -134,8 +133,10 @@ export function BottomModal(props: ModalProps) {
     ...otherProps
   } = props
 
+  const insets = useSafeAreaInsets()
+
   const $innerContainerStyle = [    
-    $innerContainerBase, { backgroundColor: useThemeColor('card') }, $containerStyleOverride   
+    $innerContainerBase, { backgroundColor: useThemeColor('card'), paddingBottom: insets.bottom + 60 }, $containerStyleOverride   
   ]
   
   const isHeadingPresent = !!(HeadingComponent || heading || headingTx)
@@ -167,7 +168,7 @@ export function BottomModal(props: ModalProps) {
       onBackdropPress={onBackdropPress}
       onBackButtonPress={onBackButtonPress}
       backdropOpacity={backdropOpacity}
-      style={[$outerContainerBase, { top }]}      
+      style={[$outerContainerBase]}      
       {...otherProps}
     >     
 
@@ -215,21 +216,19 @@ export function BottomModal(props: ModalProps) {
 }
 
 const $outerContainerBase: ViewStyle = {    
-  margin: 0,    
-  bottom: 0,
-  borderTopLeftRadius: spacing.large,
-  borderTopRightRadius: spacing.large,  
-  shadowColor: colors.palette.neutral900,
-  //shadowOffset: { width: 10, height: -50 },
-  shadowOpacity: 1,
-  shadowRadius: 10,
-  elevation: 10,    
+    flex: 1,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    width: '100%',
+    margin: 0,
 }
 
 const $innerContainerBase: ViewStyle = {
-  flex: 1,
-  borderTopLeftRadius: spacing.large,
-  borderTopRightRadius: spacing.large,  
+    width: '100%',    
+    alignItems: 'center',
+    borderTopLeftRadius: spacing.large,
+    borderTopRightRadius: spacing.large,
+    padding: spacing.small,
 }
 
 

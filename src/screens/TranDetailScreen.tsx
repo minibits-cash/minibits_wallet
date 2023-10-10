@@ -370,8 +370,7 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
           </>
         )}
         <BottomModal
-          isVisible={isNoteModalVisible ? true : false}
-          top={spacing.screenHeight * 0.4}
+          isVisible={isNoteModalVisible}
           ContentComponent={
             <View style={$noteContainer}>
               <Text text="Add your note" preset="subheading" />
@@ -661,8 +660,7 @@ const ReceiveOfflineInfoBlock = function (props: {
             </>
         )}
         <BottomModal
-          isVisible={isResultModalVisible ? true : false}
-          top={spacing.screenHeight * 0.5}
+          isVisible={isResultModalVisible ? true : false}          
           ContentComponent={
             <>
               {(resultModalInfo?.status === TransactionStatus.COMPLETED ||

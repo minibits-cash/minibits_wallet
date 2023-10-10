@@ -267,8 +267,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
             />         
         </View>
         <BottomModal
-          isVisible={isPaymentModalVisible ? true : false}
-          top={spacing.screenHeight * 0.18}
+          isVisible={isPaymentModalVisible}          
           ContentComponent={
             <View style={$bottomModal}>
                 <View style={$iconContainer}>
@@ -376,7 +375,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                                 preset='heading'    
                             />
                             <Text
-                                text={`sats`}
+                                text={`SATS`}
                                 style={{fontSize: 18, marginLeft: spacing.extraSmall}}   
                             />
                         </View>
@@ -388,27 +387,27 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                                 preset="secondary"
                                 style={{marginRight: spacing.small}}
                                 text={`${two.toLocaleString()}`}
-                                onPress={() => setDonationAmount(2000)}                            
+                                onPress={() => setDonationAmount(200)}                            
                             />
                             <Button
                                 preset="secondary"
                                 style={{marginRight: spacing.small}}
                                 text={`${five.toLocaleString()}`}
-                                onPress={() => setDonationAmount(5000)}                            
+                                onPress={() => setDonationAmount(500)}                            
                             />
                             <Button
                                 preset="secondary"                            
                                 text={`${ten.toLocaleString()}`}
-                                onPress={() => setDonationAmount(10000)}                            
+                                onPress={() => setDonationAmount(1000)}                            
                             />   
                         </View>
-                        {(donationAmount === 2000) && (                        
+                        {(donationAmount === 200) && (                        
                             <Text text={`♥`}  size='lg' />
                         )}
-                        {(donationAmount === 5000) && (                        
+                        {(donationAmount === 500) && (                        
                             <Text text={`♥ ♥`}  size='lg' />
                         )}
-                        {(donationAmount === 10000) && (                        
+                        {(donationAmount === 1000) && (                        
                             <Text text={`♥ ♥ ♥`}  size='lg' />
                         )}
                         <View style={[$payButtonContainer, {marginTop: spacing.large}]}>
@@ -440,7 +439,6 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
         />
         <BottomModal
           isVisible={isResultModalVisible ? true : false}
-          top={spacing.screenHeight * 0.5}
           ContentComponent={            
             <>             
                 <ResultModalInfo
@@ -550,9 +548,7 @@ const $invoiceContainer: ViewStyle = {
     marginBottom: spacing.large,
   }
 
-const $bottomModal: ViewStyle = {
-    flex: 1,
+const $bottomModal: ViewStyle = {    
     alignItems: 'center',
     paddingVertical: spacing.large,
-    paddingHorizontal: spacing.small,
 }

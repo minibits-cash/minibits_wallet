@@ -121,15 +121,19 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
         if (!selectedMint) {return}
 
         const proofsByMint = proofsStore.getByMint(selectedMint.mintUrl)
+        let message: string = ''
 
         if (proofsByMint && proofsByMint.length > 0) {
-            setInfo('Your wallet has a positive balance with this mint. Move your ecash elsewhere before removing.')
-            return
+            message = 'Your wallet has a positive balance with this mint. If removed, your ecash will be lost. '            
         }
 
+        message += 'Do you really want to remove this mint from the wallet?'
+
+
+
         Alert.alert(
-        'Confirmation',
-        'Do you want to remove this mint from the wallet?',
+        'Warning',
+        message,
             [
             {
                 text: 'Cancel',
@@ -144,6 +148,9 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                 try {
                     onMintUnselect()
                     mintsStore.removeMint(selectedMint as Mint)
+                    if (proofsByMint && proofsByMint.length > 0) {
+                        proofsStore.removeProofs(proofsByMint)           
+                    }
                     setInfo(translate('mintsScreen.mintRemoved'))
                 } catch (e: any) {
                     handleError(e)
@@ -177,6 +184,15 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
         onMintUnselect()
       }
     }
+
+    const onCopyMintUrl = function () {        
+        try {
+            Clipboard.setString(selectedMint?.mintUrl as string)
+        } catch (e: any) {
+            setInfo(`Could not copy: ${e.message}`)
+        }
+    }
+
 
     const onMintSelect = function (mint: Mint) {
       setSelectedMint(mint)
@@ -242,7 +258,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
         </View>
         <BottomModal
           isVisible={selectedMint ? true : false}
-          top={spacing.screenHeight * 0.5}
+          style={{alignItems: 'stretch'}}          
           ContentComponent={
             <View style={{}}>
               <ListItem
@@ -285,7 +301,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
               />
               <ListItem
                 leftIcon="faCopy"
-                onPress={() => Alert.alert('Not yet implemented')}
+                onPress={onCopyMintUrl}
                 tx={'mintsScreen.copy'}
                 bottomSeparator={true}
                 style={{paddingHorizontal: spacing.medium}}
