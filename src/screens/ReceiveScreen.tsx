@@ -180,7 +180,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
 
 
     const gotoWallet = function() {
-        resetState()
+       resetState()
        navigation.popToTop()
     }
 

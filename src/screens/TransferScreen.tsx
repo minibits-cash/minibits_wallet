@@ -216,11 +216,6 @@ const resetState = function () {
     setResultModalInfo(undefined)
 }
 
-const onCancel = function () {
-    resetState()
-    navigation.navigate('Wallet', {})
-}
-
 const togglePasteInvoiceModal = () => setIsPasteInvoiceModalVisible(previousState => !previousState)
 const toggleResultModal = () => setIsResultModalVisible(previousState => !previousState)
 
@@ -337,9 +332,9 @@ const transfer = async function () {
 }
     
 
-const onCompletedTransfer = function(): void {
+const onClose = function () {
     resetState()
-    navigation.navigate('Wallet', {})        
+    navigation.popToTop
 }
 
 
@@ -415,16 +410,17 @@ const iconColor = useThemeColor('textDim')
                         availableMintBalances={availableMintBalances}
                         mintBalanceToSendFrom={mintBalanceToTransferFrom as MintBalance}
                         onMintBalanceSelect={onMintBalanceSelect}
-                        onCancel={onCancel}
+                        onCancel={onClose}
                         findByUrl={mintsStore.findByUrl}
                         onMintBalanceConfirm={transfer}
                     />
                 </>
                 )}
                 {transactionStatus === TransactionStatus.COMPLETED && (
-                <>
                     <Card
                         style={$card}
+                        heading={'Transferred from'}
+                        headingStyle={{textAlign: 'center', padding: spacing.small}}
                         ContentComponent={
                         <MintListItem
                             mint={
@@ -439,18 +435,21 @@ const iconColor = useThemeColor('textDim')
                                 balance =>
                                 balance.mint === mintBalanceToTransferFrom?.mint,
                             )}
-                            separator={undefined}
+                            separator={'top'}
                         />
                         }
                     />
-                    <View style={$buttonContainer}>
-                        <Button
-                            preset="secondary"
-                            tx={'common.close'}
-                            onPress={onCompletedTransfer}
-                        />
+                )}
+                {transactionStatus === TransactionStatus.COMPLETED && (
+                    <View style={$bottomContainer}>
+                        <View style={$buttonContainer}>
+                            <Button
+                                preset="secondary"
+                                tx={'common.close'}
+                                onPress={onClose}
+                            />
+                        </View>
                     </View>
-                </>
                 )}
                 {isLoading && <Loading />}
             </View>
@@ -591,6 +590,7 @@ const MintBalanceSelector = observer(function (props: {
 })
 
 const $screen: ViewStyle = {
+    flex: 1,
 }
 
 const $headerContainer: TextStyle = {
@@ -615,7 +615,8 @@ const $amountToTransfer: TextStyle = {
 }
 
 const $contentContainer: TextStyle = {
-  padding: spacing.extraSmall,
+    flex: 1,
+    padding: spacing.extraSmall,
 }
 
 const $optionsCard: ViewStyle = {
@@ -659,3 +660,14 @@ const $receiveMsg: ViewStyle = {
   padding: spacing.small,
 }
 
+const $bottomContainer: ViewStyle = {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flex: 1,
+    justifyContent: 'flex-end',
+    marginBottom: spacing.medium,
+    alignSelf: 'stretch',
+    // opacity: 0,
+  }

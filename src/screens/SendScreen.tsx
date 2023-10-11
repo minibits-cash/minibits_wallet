@@ -553,12 +553,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         setIsProofSelectorModalVisible(false)
         setIsLoading(false)
 
-        navigation.navigate('Wallet', {})
-    }
-
-    const onNostrDMSuccessClose = function () {
-        resetState()
-        navigation.navigate('Wallet', {})
+        navigation.popToTop()
     }
 
 
@@ -660,12 +655,25 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
               />
         )}
         {transactionStatus === TransactionStatus.PENDING && encodedTokenToSend && paymentOption && (
-            <ShareFallbackBlock                    
+            <SelectedMintBlock                    
                 toggleNostrDMModal={toggleNostrDMModal}
                 toggleQRModal={toggleQRModal}
                 paymentOption={paymentOption}
                 encodedTokenToSend={encodedTokenToSend}
+                mintBalanceToSendFrom={mintBalanceToSendFrom as MintBalance}
+                gotoWallet={resetState}
             />
+        )}
+        {(transactionStatus === TransactionStatus.PENDING || transactionStatus === TransactionStatus.COMPLETED)  && (
+            <View style={$bottomContainer}>
+                <View style={$buttonContainer}>
+                    <Button
+                        preset="secondary"
+                        tx={'common.close'}
+                        onPress={resetState}
+                    />
+                </View>
+            </View>
         )}
         {isLoading && <Loading />}
         </View>
@@ -709,7 +717,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 contactToSendFrom={contactToSendFrom as Contact}
                 contactToSendTo={contactToSendTo as Contact}                
                 amountToSend={amountToSend}
-                onClose={onNostrDMSuccessClose}                
+                onClose={resetState}                
             />
             ) : (
             <SendAsNostrDMBlock
@@ -947,59 +955,67 @@ const SelectProofsBlock = observer(function (props: {
   })
 
 
-const ShareFallbackBlock = observer(function (props: {
+const SelectedMintBlock = observer(function (props: {
     toggleNostrDMModal: any
     toggleQRModal: any
     encodedTokenToSend: string
-    paymentOption: SendOption    
+    paymentOption: SendOption
+    mintBalanceToSendFrom: MintBalance
+    gotoWallet: any
 }) {
-  const sendBg = useThemeColor('card')
-  const tokenTextColor = useThemeColor('textDim')
+
+    const {mintsStore} = useStores()
+    const sendBg = useThemeColor('card')
+    const tokenTextColor = useThemeColor('textDim')
 
   return (
-    <View style={{alignItems: 'center'}}>
-        <ScrollView
-            style={[
-            $tokenContainer,
-            {backgroundColor: sendBg, margin: 0, borderRadius: spacing.large, padding: spacing.medium},
-        ]}>
-            <Text
-                selectable
-                text={props.encodedTokenToSend}
-                style={{color: tokenTextColor, paddingBottom: spacing.medium}}
-                size="xxs"
-            />
-        </ScrollView>
-        <View style={$buttonContainer}>
-            <Button
-                text='QR code'
-                preset='secondary'
-                onPress={props.toggleQRModal}          
-                LeftAccessory={() => (
-                    <Icon
-                    icon='faQrcode'
-                    //color="white"
-                    size={spacing.medium}              
+        <View>            
+            <Card
+                style={$card}
+                heading={'Send from'}
+                headingStyle={{textAlign: 'center', padding: spacing.small}}
+                ContentComponent={
+                    <MintListItem
+                        mint={
+                        mintsStore.findByUrl(
+                            props.mintBalanceToSendFrom?.mint as string,
+                        ) as Mint
+                        }
+                        isSelectable={false}                
+                        separator={'top'}
                     />
-                )}
-            />
-            {props.paymentOption === SendOption.SEND_TOKEN && (
+                }
+            /> 
+            <View style={$buttonContainer}>
                 <Button
-                    text='Send to contact'
+                    text='QR code'
                     preset='secondary'
-                    onPress={props.toggleNostrDMModal}
-                    style={{marginLeft: spacing.medium}}
+                    onPress={props.toggleQRModal}          
                     LeftAccessory={() => (
                         <Icon
-                        icon='faPaperPlane'
+                        icon='faQrcode'
                         //color="white"
                         size={spacing.medium}              
                         />
-                    )} 
+                    )}
                 />
-            )}
-      </View>
-    </View>
+                {props.paymentOption === SendOption.SEND_TOKEN && (
+                    <Button
+                        text='Send to contact'
+                        preset='secondary'
+                        onPress={props.toggleNostrDMModal}
+                        style={{marginLeft: spacing.medium}}
+                        LeftAccessory={() => (
+                            <Icon
+                            icon='faPaperPlane'
+                            //color="white"
+                            size={spacing.medium}              
+                            />
+                        )} 
+                    />
+                )}
+            </View>
+        </View>
   )
 })
 
@@ -1219,7 +1235,8 @@ const $headerContainer: TextStyle = {
 }
 
 const $contentContainer: TextStyle = {
-  padding: spacing.extraSmall,
+    flex: 1,
+    padding: spacing.extraSmall,
 }
 
 const $amountContainer: ViewStyle = {
@@ -1303,5 +1320,17 @@ const $buttonContainer: ViewStyle = {
 const $profileIcon: ImageStyle = {
     padding: spacing.medium,
 }
+
+const $bottomContainer: ViewStyle = {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flex: 1,
+    justifyContent: 'flex-end',
+    marginBottom: spacing.medium,
+    alignSelf: 'stretch',
+    // opacity: 0,
+  }
 
 

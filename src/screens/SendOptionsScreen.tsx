@@ -58,7 +58,7 @@ export const SendOptionsScreen: FC<WalletStackScreenProps<'SendOptions'>> = obse
 
 
     const onScan = async function () {
-        navigation.navigate('Scan')
+        navigation.navigate('Scan', {expectedType: IncomingDataType.INVOICE})
     }
 
 
