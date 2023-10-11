@@ -47,7 +47,7 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
             navigation.setParams({isNativeUpdateAvailable: undefined})
             navigation.setParams({updateDescription: undefined})
             navigation.setParams({updateSize: undefined})
-            navigation.goBack()
+            navigation.navigate('Settings')
         },
     })
 
