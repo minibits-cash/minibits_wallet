@@ -123,7 +123,11 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     // Send to contact
     useFocusEffect(
         useCallback(() => {
+
+            const {paymentOption} = route.params
+
             const prepareSendToken = () => {
+                log.trace('prepareSendToken start')
                 
                 const {contact, relays} = route.params
 
@@ -152,13 +156,13 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
                 navigation.setParams({contact: undefined})
                 navigation.setParams({relays: undefined})
-            }
+            }            
 
             if(paymentOption && paymentOption === SendOption.SEND_TOKEN) {
                 prepareSendToken()
             }
             
-        }, [route.params?.paymentOption]),
+        }, [route.params?.paymentOption])
     )
 
     

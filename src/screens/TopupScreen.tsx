@@ -187,7 +187,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                 prepareLnurlWithdraw()
             }
             
-        }, [route.params?.paymentOption]),
+        }, [route.params?.paymentOption])
     )
 
 
