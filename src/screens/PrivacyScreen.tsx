@@ -167,7 +167,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Security'>> = observer(
                         }
                         style={$item}
                     />
-                    
+                    {isTorDaemonOn && (
                         <ListItem
                             tx="privacyScreen.torStatus"
                             subText={`${torStatus}`}
@@ -193,7 +193,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Security'>> = observer(
                             style={$item}
                             onPress={startTor}
                         /> 
-                
+                    )}
                 </>
                 }
             />

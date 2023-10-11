@@ -958,21 +958,16 @@ const ShareFallbackBlock = observer(function (props: {
 
   return (
     <View style={{alignItems: 'center'}}>
-        <Text 
-            size='xs' 
-            text={'Share this ecash token with another wallet to pay.'}
-            style={{marginBottom: spacing.medium}} 
-        />
         <ScrollView
             style={[
             $tokenContainer,
             {backgroundColor: sendBg, margin: 0, borderRadius: spacing.large, padding: spacing.medium},
-            ]}>
+        ]}>
             <Text
-            selectable
-            text={props.encodedTokenToSend}
-            style={{color: tokenTextColor, paddingBottom: spacing.medium}}
-            size="xxs"
+                selectable
+                text={props.encodedTokenToSend}
+                style={{color: tokenTextColor, paddingBottom: spacing.medium}}
+                size="xxs"
             />
         </ScrollView>
         <View style={$buttonContainer}>
@@ -1069,6 +1064,7 @@ const SendAsNostrDMBlock = observer(function (props: {
       
     return (
       <View style={$bottomModal}>
+        <Text text={'Send to contact'} />
         <NostDMInfoBlock
             contactToSendFrom={props.contactToSendFrom}
             amountToSend={props.amountToSend}
