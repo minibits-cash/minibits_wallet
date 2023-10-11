@@ -104,6 +104,7 @@ jobs:
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
         run: |-
           cd node_modules/@cashu/cashu-ts
+          npm install
           npm run compile
 
       - name: Install Sentry CLI
