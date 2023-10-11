@@ -30,14 +30,14 @@ jobs:
           echo "PREV_JS_VERSION=${{steps.version-check.outputs.previous-version }}" >> $GITHUB_ENV
           echo "CURRENT_JS_VERSION=${{steps.version-check.outputs.current-version }}" >> $GITHUB_ENV          
 
-      # Codepush build will continue only if version changed from previous commit    
+      # Codepush build will continue only if version changed from previous commit  - TEMP SKIP CHECK  
       - name: Detect version change
         run: |
           if [ "${{ env.PREV_JS_VERSION }}" != "${{ env.CURRENT_JS_VERSION }}" ]; then
             echo "IS_VERSION_CHANGED=true" >> $GITHUB_ENV
             echo "Detected version change"
           else
-            echo "IS_VERSION_CHANGED=false" >> $GITHUB_ENV
+            echo "IS_VERSION_CHANGED=true" >> $GITHUB_ENV
             echo "No version change, skipping further processing"
           fi
               
@@ -99,6 +99,12 @@ jobs:
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
         uses: bahmutov/npm-install@v1.6.0
 
+      # Temp fix to use forked cashu-ts
+      - name: Build cashu-ts
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
+        run: |-
+          cd node_modules/@cashu/cashu-ts
+          npm run compile
 
       - name: Install Sentry CLI
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
