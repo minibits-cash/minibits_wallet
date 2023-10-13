@@ -559,7 +559,7 @@ const TotalBalanceBlock = observer(function (props: {
             <Text 
                 text='SATS'
                 size='xxs' 
-                style={{color: pendingBalanceColor}}
+                style={{color: pendingBalanceColor, fontFamily: typography.primary?.light}}
             />
             <Text
                 testID='total-balance'

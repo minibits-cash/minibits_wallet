@@ -70,16 +70,21 @@ export const SendOptionsScreen: FC<WalletStackScreenProps<'SendOptions'>> = obse
 
         try {
             const incomingData = IncomingParser.findAndExtract(clipboard, IncomingDataType.INVOICE)
-            
-            infoMessage('Found lightning invoice in the clipboard.')                
-            setTimeout(() => navigation.navigate('Transfer', {
-                encodedInvoice: incomingData.encoded, 
-                paymentOption: SendOption.PASTE_OR_SCAN_INVOICE
-            }), 1000)
 
+            infoMessage('Found lightning invoice in the clipboard.')                
+            setTimeout(async() => IncomingParser.navigateWithIncomingData(incomingData, navigation), 1000)
             return
+            
         } catch (e: any) {
-            handleError(e)    
+            const lnurlResult = IncomingParser.findAndExtract(clipboard, IncomingDataType.LNURL)
+                    
+            if(lnurlResult) {
+                log.trace('Found LNURL instead of an invoice')
+                return IncomingParser.navigateWithIncomingData(lnurlResult, navigation)                
+            }
+            
+            e.params = clipboard
+            handleError(e)                    
         }
     }
 
@@ -103,49 +108,48 @@ export const SendOptionsScreen: FC<WalletStackScreenProps<'SendOptions'>> = obse
         </View>
         <View style={$contentContainer}>          
             <Card
-              style={$optionsCard}
-              ContentComponent={
-                <>
-                  <ListItem
-                    tx="sendScreen.sendToContact"
-                    subTx="sendScreen.sendToContactDescription"
-                    leftIcon='faPaperPlane'
-                    leftIconColor={colors.palette.secondary300}
-                    leftIconInverse={true}
-                    style={$item}
-                    bottomSeparator={true}
-                    onPress={gotoContacts}
-                  />
-                  <ListItem
-                    tx="sendScreen.showOrShareToken"
-                    subTx="sendScreen.showOrShareTokenDescription"
-                    leftIcon='faQrcode'
-                    leftIconColor={colors.palette.success200}
-                    leftIconInverse={true}
-                    style={$item}
-                    bottomSeparator={true}
-                    onPress={gotoSend}
-                  />
-                  <ListItem
-                    tx="sendScreen.scanToSend"
-                    subTx="sendScreen.scanToSendDescription"
-                    leftIcon='faBolt'
-                    leftIconColor={colors.palette.accent300}
-                    leftIconInverse={true}
-                    style={$item}                    
-                    onPress={onScan}
-                  />
-                </>
+                style={$optionsCard}
+                ContentComponent={
+                    <>
+                    <ListItem
+                        tx="sendScreen.sendToContact"
+                        subTx="sendScreen.sendToContactDescription"
+                        leftIcon='faPaperPlane'
+                        leftIconColor={colors.palette.secondary300}
+                        leftIconInverse={true}
+                        style={$item}
+                        bottomSeparator={true}
+                        onPress={gotoContacts}
+                    />
+                    <ListItem
+                        tx="sendScreen.scanToSend"
+                        subTx="sendScreen.scanToSendDescription"
+                        leftIcon='faBolt'
+                        leftIconColor={colors.palette.accent300}
+                        leftIconInverse={true}
+                        style={$item}                    
+                        onPress={onScan}
+                    />
+                    <Button 
+                        onPress={onPaste}
+                        tx='sendScreen.pasteToSend'
+                        preset='tertiary'
+                        textStyle={{fontSize: 14, color: iconColor}}
+                        style={{alignSelf: 'flex-start', marginLeft: 33}}
+                    />
+                    <ListItem
+                        tx="sendScreen.showOrShareToken"
+                        subTx="sendScreen.showOrShareTokenDescription"
+                        leftIcon='faQrcode'
+                        leftIconColor={colors.palette.success200}
+                        leftIconInverse={true}
+                        style={$item}
+                        topSeparator={true}
+                        onPress={gotoSend}
+                    />
+                    </>
               }
-              FooterComponent={
-                <Button 
-                    onPress={onPaste}
-                    tx='sendScreen.pasteToSend'
-                    preset='tertiary'
-                    textStyle={{fontSize: 14, color: iconColor}}
-                    style={{alignSelf: 'flex-start', marginLeft: 33}}
-                />
-              }
+
             />
         </View>
       </Screen>
