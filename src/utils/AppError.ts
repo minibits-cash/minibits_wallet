@@ -31,24 +31,28 @@ export interface IAppError {
 class AppError extends Error {
   public name: Err
   public message: string
-  public params: any
+  public params?: any
 
-  constructor(name: Err = Err.UNKNOWN_ERROR, message: string, ...params: any) {
-    super(...params)
+  constructor(name: Err = Err.UNKNOWN_ERROR, message: string, params?: any) {
+    super(name)
     this.name = name
     this.message = message
-    this.params = JSON.stringify(params) // prevent showing just [object] in Sentry
+    this.params = JSON.stringify(params) // prevent showing just [object] in Sentry   
 
-    let caller = ''
+    let callerFunctionName = ''
     const error = new Error()
     const stackTrace = error.stack?.split('\n')
 
     if (stackTrace) {
       const callerLine = stackTrace[2]
-      caller = callerLine !== null ? callerLine.match(/at\s+(.*)\s+\(/)[1] : ''
-    }
+      callerFunctionName = callerLine !== null ? callerLine.match(/at\s+(.*)\s+\(/)[1] : ''
 
-    log.error(name, message, params, caller)
+      if( callerFunctionName === '?anon_0_' || callerFunctionName === 'anonymous') {
+        callerFunctionName = (params && params.caller) ? params.caller : 'unknown'
+      }
+    }  
+
+    log.error(name, message, params, callerFunctionName)
 
     // Sentry trial
     if (!__DEV__ && SENTRY_ACTIVE === SentryActive.TRUE) {

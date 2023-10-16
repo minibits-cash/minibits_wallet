@@ -155,7 +155,15 @@ const sendFromMint = async function (
       newKeys,
     }
   } catch (e: any) {
-    throw new AppError(Err.MINT_ERROR, e.message)
+    throw new AppError(
+        Err.MINT_ERROR, 
+        'The mint could not return proofs split to amounts necessary for this transaction.', 
+        {
+            caller: 'sendFromMint', 
+            mintUrl, 
+            message: e.message
+        }
+    )
   }
 }
 
@@ -168,8 +176,16 @@ const getSpentProofsFromMint = async function (
 
     const spentPendingProofs = await cashuWallet.checkProofsSpent(proofs)
     return spentPendingProofs
-  } catch (e: any) {
-    throw new AppError(Err.MINT_ERROR, e.message)
+  } catch (e: any) {    
+    throw new AppError(
+        Err.MINT_ERROR, 
+        'The mint could not check if the proofs were spent.', 
+        {
+            caller: 'getSpentProofsFromMint', 
+            mintUrl, 
+            message: e.message
+        }
+    )
   }
 }
 
@@ -183,7 +199,15 @@ const getLightningFee = async function (
     log.info('Estimated fee', fee, 'getLightningFee')
     return fee
   } catch (e: any) {
-    throw new AppError(Err.MINT_ERROR, e.message)
+    throw new AppError(
+        Err.MINT_ERROR, 
+        'The mint could not return the lightning fee.', 
+        {
+            caller: 'getLightningFee', 
+            mintUrl, 
+            message: e.message
+        }
+    )
   }
 }
 

@@ -1094,7 +1094,11 @@ const _sendFromMint = async function (
         // We return cleaned proofs to be encoded as a sendable token
         return cleanedProofsToSend
   } catch (e: any) {
-        throw new AppError(Err.WALLET_ERROR, e.message, [e.stack.slice(0, 100)])
+        if (e instanceof AppError) {
+            throw e
+        } else {
+            throw new AppError(Err.WALLET_ERROR, e.message, e.stack.slice(0, 100))
+        }
   }
 }
 
@@ -1232,9 +1236,7 @@ const send = async function (
                 TransactionStatus.ERROR,
                 JSON.stringify(transactionData),
             )
-        }
-
-        log.error(e.name, e.message)
+        }        
 
         return {
             transaction: errorTransaction || undefined,
@@ -1683,7 +1685,7 @@ const _formatError = function (e: AppError) {
     return {
         name: e.name,
         message: e.message.slice(0, 100),
-        params: e.params ? [e.params.toString().slice(0, 200)] : [],
+        params: e.params ? e.params.toString().slice(0, 200) : '',
     } as AppError
 }
 

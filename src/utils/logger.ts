@@ -3,6 +3,8 @@ import * as Sentry from '@sentry/react-native'
 import {Err} from './AppError'
 import {APP_ENV, LOG_LEVEL, SENTRY_ACTIVE} from '@env'
 
+// refresh
+
 export enum LogLevel {
   TRACE = 'TRACE',
   DEBUG = 'DEBUG',
@@ -24,7 +26,7 @@ export enum SentryActive {
 const _showTimestamps: boolean = true
 const _logLevel = LOG_LEVEL as LogLevel
 
-const trace = function (message: any, params: any = [], caller: string = '') {
+const trace = function (message: any, params: any = {}, caller: string = '') {
     if (APP_ENV === Env.PROD) return
 
     let callerFunctionName = ''
@@ -53,7 +55,7 @@ const trace = function (message: any, params: any = [], caller: string = '') {
 
 const debug = function (
   message: string,
-  params: any = [],
+  params: any = {},
   caller: string = '',
 ) {
     if (APP_ENV === Env.PROD) return
@@ -81,7 +83,7 @@ const debug = function (
     }
 }
 
-const info = function (message: string, params: any = [], caller: string = '') {
+const info = function (message: string, params: any = {}, caller: string = '') {
     let callerFunctionName = ''
     const error = new Error()
     const stackTrace = error.stack?.split('\n')
@@ -113,7 +115,7 @@ const info = function (message: string, params: any = [], caller: string = '') {
 const error = function (
   name: Err,
   message: string,
-  params: any = [],
+  params: any = {},
   caller: string = '',
 ) {
     if (_showTimestamps) {
