@@ -98,6 +98,13 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                         log.trace('Got LNURL instead of an invoice')
                         return IncomingParser.navigateWithIncomingData(lnurlResult, navigation)                        
                     }
+
+                    const lnurlAddress = IncomingParser.findAndExtract(scanned, IncomingDataType.LNURL_ADDRESS)
+
+                    if(lnurlAddress) {
+                        log.trace('Found LNURL address instead of an invoice')
+                        return IncomingParser.navigateWithIncomingData(lnurlAddress, navigation)                
+                    }
                     
                     e.params = scanned
                     handleError(e)

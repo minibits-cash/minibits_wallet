@@ -11,6 +11,13 @@ const findEncodedLnurl = function (content: string) {
 }
 
 
+const findEncodedLnurlAddress = function (content: string) {
+    const words = content.split(/\s+|\n+/)
+    const maybeAddress = words.find(word => word.toLowerCase().includes("@"))
+    return maybeAddress || null
+}
+
+
 const extractEncodedLnurl = function (maybeLnurl: string) {    
 
     let encodedLnurl: string | null = null    
@@ -59,8 +66,56 @@ const extractEncodedLnurl = function (maybeLnurl: string) {
     throw new AppError(Err.NOTFOUND_ERROR, 'Could not extract LNURL from the provided string', maybeLnurl)
 }
 
+
+function extractLnurlAddress(maybeAddress: string) {   
+    if(isLnurlAddress(maybeAddress)) {
+        return maybeAddress.toLowerCase()
+    }
+
+    throw new AppError(Err.NOTFOUND_ERROR, 'Could not extract Lightning address from the provided string', maybeAddress)
+}
+
+
+function isLnurlAddress(address: string) {
+    // Regular expression for a basic email validation
+    const regex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/
+    
+    return regex.test(address)
+}
+
+
+const getDomainFromLnurlAddress = function(address: string) {
+    const atIndex = address.lastIndexOf('@')
+
+    if (atIndex !== -1) {
+        const domain = address.slice(atIndex + 1)
+        return domain      
+    }
+    // Invalid email or no domain found
+    return null
+}
+
+
+const getNameFromLnurlAddress = function(address: string) {
+    const atIndex = address.indexOf('@')
+    
+    if (atIndex !== -1) {
+        const name = address.slice(0, atIndex);
+        return name
+    }
+    
+    // Invalid email or no "@" symbol found
+    return null
+}
+
+
 export const LnurlUtils = {
     findEncodedLnurl,
-    extractEncodedLnurl
+    extractEncodedLnurl,
+    findEncodedLnurlAddress,
+    isLnurlAddress,
+    extractLnurlAddress,
+    getDomainFromLnurlAddress,
+    getNameFromLnurlAddress,
 }
   

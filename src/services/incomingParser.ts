@@ -14,7 +14,8 @@ import { LnurlClient } from './lnurlService'
 export enum IncomingDataType {
     CASHU = 'CASHU',
     INVOICE = 'INVOICE',
-    LNURL = 'LNURL',    
+    LNURL = 'LNURL',
+    LNURL_ADDRESS = 'LNURL_ADDRESS',
     MINT_URL = 'MINT_URL',
 }
 
@@ -43,6 +44,12 @@ const findAndExtract = function (
                 }
             case (IncomingDataType.LNURL):
                 encoded = LnurlUtils.extractEncodedLnurl(incomingData)                
+                return {
+                    type: expectedType,
+                    encoded
+                }
+            case (IncomingDataType.LNURL_ADDRESS):
+                encoded = LnurlUtils.extractLnurlAddress(incomingData)                
                 return {
                     type: expectedType,
                     encoded
@@ -98,6 +105,20 @@ const findAndExtract = function (
         }
     }
 
+
+    const maybeLnurlAddress = LnurlUtils.findEncodedLnurlAddress(incomingData)
+
+    if(maybeLnurlAddress) {
+        log.trace('Got maybeLnurlAddress', maybeLnurlAddress, 'findAndExtract')
+
+        const lnurlAddress = LnurlUtils.extractLnurlAddress(maybeLnurlAddress) // throws
+
+        return {
+            type: IncomingDataType.LNURL_ADDRESS,
+            encoded: lnurlAddress
+        }
+    }
+
     const maybeMintUrl = new URL(incomingData) // throws
 
     log.trace('Got maybeMintUrl', incomingData, 'findAndExtract')
@@ -148,6 +169,15 @@ const navigateWithIncomingData = async function (
             }
 
             break
+        case (IncomingDataType.LNURL_ADDRESS):
+            const addressParamsResult = await LnurlClient.getLnurlAddressParams(incoming.encoded)
+
+            return navigation.navigate('Transfer', {
+                lnurlParams: addressParamsResult.lnurlParams,
+                encodedInvoice: addressParamsResult.encodedInvoice,
+                paymentOption: SendOption.LNURL_PAY
+            })
+            
         case IncomingDataType.MINT_URL:
             return navigation.navigate('Wallet', {
                 scannedMintUrl: incoming.encoded,

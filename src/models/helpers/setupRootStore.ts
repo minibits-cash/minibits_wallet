@@ -119,16 +119,6 @@ async function _runMigrations(rootStore: RootStore) {
   let currentVersion = rootStore.version
 
   try {
-    // v1 -> v2 migration
-    if(currentVersion < 2) {
-      log.trace(`Starting rootStore migrations from version v${currentVersion} -> v2`)
-
-      const userSettings = Database.getUserSettings()
-      userSettingsStore.setWalletId(userSettings.userId as string)
-      
-      log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
-    }
-
     if(currentVersion < 3) {
         log.trace(`Starting rootStore migrations from version v${currentVersion} -> v3`)
         if(walletProfileStore.pubkey) {

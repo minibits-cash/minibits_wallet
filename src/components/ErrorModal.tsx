@@ -40,7 +40,7 @@ export const ErrorModal: FC<ErrorModalProps> = function ({ error }) {
                 </View>
                 <ScrollView style={error.params ? {minHeight: 150} : {}}>
                     <Text style={{ color: 'white', marginBottom: spacing.small }}>{error.message}</Text>
-                    <Text style={{ color: colors.dark.textDim }} size="xs">{JSON.stringify(error.params)}</Text> 
+                    <Text style={{ color: colors.dark.textDim }} size="xs">{JSON.stringify(error.params).slice(0, 100)}</Text> 
                 </ScrollView>
             </>
             }

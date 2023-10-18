@@ -81,15 +81,15 @@ export const PrivateContacts = observer(function (props: {
 
         toggleNewContactModal() // close
         setIsLoading(true)
-        const contactNip05 = (isExternalDomain) ? newContactName : newContactName + MINIBITS_NIP05_DOMAIN
+        
 
         try {
 
             let newContact: Contact | undefined = undefined
             
             if (isExternalDomain) {
-                // validate and get profile data from nip05 server + relays
-                const profile = await getNostrProfile(contactNip05) as NostrProfile
+                // validate and get profile data from nip05 server + relays                
+                const profile = await getNostrProfile(newContactName) as NostrProfile
                 const {pubkey, npub, nip05, name, picture} = profile
 
                 newContact = {
@@ -103,8 +103,8 @@ export const PrivateContacts = observer(function (props: {
                 } as Contact
 
             } else {
-                // do it with single api call for minibts.cash profiles
-                const profileRecord = await MinibitsClient.getWalletProfileByNip05(contactNip05)
+                // do it with single api call for minibts.cash profiles                
+                const profileRecord = await MinibitsClient.getWalletProfileByNip05(newContactName + MINIBITS_NIP05_DOMAIN)
                 const npub = NostrClient.getNpubkey(profileRecord.pubkey)
                 const {pubkey, nip05, name, avatar: picture} = profileRecord
 
@@ -152,11 +152,12 @@ export const PrivateContacts = observer(function (props: {
         if(!profile) {
             setNewContactName('')
             toggleNewContactModal()
-            setInfo(`Wallet profile for ${contactNip05} could not be found. Check that the name is correct.`)
-            return
+            throw new AppError(Err.NOTFOUND_ERROR, `Wallet profile could not be found. Check that the name is correct.`, {contactNip05})
         }
 
         if(profile.nip05 !== contactNip05) {
+            setNewContactName('')
+            toggleNewContactModal()
             throw new AppError(Err.VALIDATION_ERROR, 'Profile from the relay does not match the given nip05 identifier', {contactNip05, profile})
         }
 

@@ -82,6 +82,13 @@ export const SendOptionsScreen: FC<WalletStackScreenProps<'SendOptions'>> = obse
                 log.trace('Found LNURL instead of an invoice')
                 return IncomingParser.navigateWithIncomingData(lnurlResult, navigation)                
             }
+
+            const lnurlAddress = IncomingParser.findAndExtract(clipboard, IncomingDataType.LNURL_ADDRESS)
+
+            if(lnurlAddress) {
+                log.trace('Found LNURL address instead of an invoice')
+                return IncomingParser.navigateWithIncomingData(lnurlAddress, navigation)                
+            }
             
             e.params = clipboard
             handleError(e)                    
