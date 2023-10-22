@@ -65,10 +65,11 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
     const gotoSecurity = function() {
       navigation.navigate('Security')
     }
-
+    
+    /* 
     const gotoPrivacy = function() {
         navigation.navigate('Privacy')
-      }
+    } */
 
     const gotoDevOptions = function() {
       navigation.navigate('Developer')
@@ -143,7 +144,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                     bottomSeparator={true}
                     onPress={gotoSecurity}
                 />
-                <ListItem
+                {/*<ListItem
                     tx='settingsScreen.privacy'
                     leftIcon='faEyeSlash'
                     leftIconColor={colors.palette.blue200}
@@ -151,7 +152,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                     style={$item}
                     bottomSeparator={true}
                     onPress={gotoPrivacy}
-                />
+                />*/}
                 <ListItem
                     tx='settingsScreen.update'     
                     leftIcon='faWandMagicSparkles'

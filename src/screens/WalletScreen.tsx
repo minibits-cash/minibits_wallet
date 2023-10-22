@@ -284,10 +284,11 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         log.trace('newMintUrl', newMintUrl)
 
         if(newMintUrl.includes('.onion')) {
-            if(!userSettingsStore.isTorDaemonOn) {
-                setInfo('Please enable Tor daemon in Privacy settings before connecting to the mint using .onion address.')
+            setInfo('Mints available on .onion addresses are not yet supported.')
+            /* if(!userSettingsStore.isTorDaemonOn) {
+                setInfo('Please enable daemon in Privacy settings before connecting to the mint using .onion address.')
                 return
-            }
+            } */
         }
         
         if (mintsStore.alreadyExists(newMintUrl)) {

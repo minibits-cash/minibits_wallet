@@ -74,10 +74,13 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
       setIsAddMintVisible(false)
 
       if(mintUrl.includes('.onion')) {
-        if(!userSettingsStore.isTorDaemonOn) {
-            setInfo('Please enable Tor daemon in Privacy settings before connecting to the mint using .onion address.')
+        setInfo('Mints available on .onion addresses are not yet supported.')
+        return
+        
+        /*if(!userSettingsStore.isTorDaemonOn) {
+            setInfo('Please enable daemon in Privacy settings before connecting to the mint using .onion address.')
             return
-        }
+        }*/
       }
 
       if (mintsStore.alreadyExists(mintUrl)) {
@@ -320,17 +323,20 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
         />
         <BottomModal
           isVisible={isAddMintVisible ? true : false}
+          // style={{alignItems: 'stretch'}}         
           ContentComponent={
-            <View style={$bottomModal}>            
+            <View style={$bottomModal}>                     
                 <Text
                     preset="subheading"
                     tx={'mintsScreen.addMintUrl'}
-                    style={{marginBottom: spacing.medium, textAlign: 'center'}}
+                    // style={{marginBottom: spacing.medium, textAlign: 'center'}}
                 />
-                <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
                         <TextInput
                             ref={mintInputRef}
                             onChangeText={mintUrl => setMintUrl(mintUrl)}
+                            autoCapitalize='none'
+                            keyboardType='default'
                             value={mintUrl}
                             style={[$mintInput, {backgroundColor: inputBg}]}
                             maxLength={200}
@@ -376,8 +382,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
             </View>
           }
           onBackButtonPress={toggleAddMintModal}
-          onBackdropPress={toggleAddMintModal}
-          top={spacing.screenHeight * 0.35}
+          onBackdropPress={toggleAddMintModal}          
         />
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
@@ -402,9 +407,9 @@ const $contentContainer: TextStyle = {
 }
 
 const $actionCard: ViewStyle = {
-  marginBottom: spacing.extraSmall,
+  marginBottom: spacing.small,
   marginTop: -spacing.extraLarge * 1.5,
-  // padding: 0,
+  minHeight: 70,
 }
 
 const $actionItem: ViewStyle = {
@@ -434,7 +439,7 @@ const $bottomContainer: ViewStyle = {
 }
 
 const $bottomModal: ViewStyle = {
-  padding: spacing.small,
+    alignItems: 'center',    
 }
 
 
