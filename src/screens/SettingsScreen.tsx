@@ -43,7 +43,8 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                     setUpdateDescription(update.description)
                     setUpdateSize(`${round(update.packageSize *  0.000001, 2)}MB`)                  
                     setIsUpdateAvailable(true)
-                }
+                    log.info('OTA Update available', update, 'checkForUpdate')
+                }                
                 
             } catch (e: any) {
                 log.info(e.name, e.message)
@@ -54,7 +55,8 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
     }, [])
 
 
-    const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {            
+    const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {    
+        log.info('Native update available', update)        
         setIsNativeUpdateAvailable(true)
     }
 
