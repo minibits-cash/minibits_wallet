@@ -55,7 +55,8 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
 
 
     const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {            
-        setIsNativeUpdateAvailable(true)
+        // silent
+        // setIsNativeUpdateAvailable(true)
     }
 
     const gotoMints = function() {
