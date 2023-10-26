@@ -103,8 +103,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                     setUpdateSize(`${round(update.packageSize *  0.000001, 2)}MB`)                  
                     setIsUpdateAvailable(true)
                     toggleUpdateModal()
-                }
-                log.trace('update', update, 'checkForUpdate')
+                    log.info('OTA Update available', update, 'checkForUpdate')
+                }                
             } catch (e: any) {                
                 return false // silent
             }            
@@ -116,6 +116,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
     
     const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {
+        log.info('Native update available', update)
         setIsNativeUpdateAvailable(true)
         toggleUpdateModal()
     }

@@ -325,12 +325,14 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                 <Text
                     preset="subheading"
                     tx={'mintsScreen.addMintUrl'}
-                    style={{marginBottom: spacing.medium, textAlign: 'center'}}
+                    // style={{marginBottom: spacing.medium, textAlign: 'center'}}
                 />
-                <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
                         <TextInput
                             ref={mintInputRef}
                             onChangeText={mintUrl => setMintUrl(mintUrl)}
+                            autoCapitalize='none'
+                            keyboardType='default'
                             value={mintUrl}
                             style={[$mintInput, {backgroundColor: inputBg}]}
                             maxLength={200}
@@ -376,8 +378,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
             </View>
           }
           onBackButtonPress={toggleAddMintModal}
-          onBackdropPress={toggleAddMintModal}
-          top={spacing.screenHeight * 0.35}
+          onBackdropPress={toggleAddMintModal}          
         />
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
@@ -402,9 +403,9 @@ const $contentContainer: TextStyle = {
 }
 
 const $actionCard: ViewStyle = {
-  marginBottom: spacing.extraSmall,
+  marginBottom: spacing.small,
   marginTop: -spacing.extraLarge * 1.5,
-  // padding: 0,
+  minHeight: 70,
 }
 
 const $actionItem: ViewStyle = {
@@ -433,8 +434,8 @@ const $bottomContainer: ViewStyle = {
   alignSelf: 'stretch',
 }
 
-const $bottomModal: ViewStyle = {
-  padding: spacing.small,
+const $bottomModal: ViewStyle = {  
+  alignItems: 'center',
 }
 
 
