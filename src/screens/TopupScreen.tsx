@@ -17,7 +17,7 @@ import {
 } from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
 import QRCode from 'react-native-qrcode-svg'
-import {spacing, useThemeColor, colors} from '../theme'
+import {spacing, useThemeColor, colors, typography} from '../theme'
 import {WalletStackScreenProps} from '../navigation'
 import {
   Button,
@@ -440,20 +440,22 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
                 const transaction = transactionsStore.findById(transactionId as number)
 
-                if(!transaction) {
-                    throw new AppError(Err.NOTFOUND_ERROR, 'Could not find transaction in the app state.', {transactionId})
+                if(!transaction || !transaction.data) {
+                    return
                 }
                 
                 const updated = JSON.parse(transaction.data)
 
-                updated[1].sentToRelays = relaysToShareTo
-                updated[1].sentEvent = sentEvent    
-                
-                await transactionsStore.updateStatus( // status does not change, just add event and relay info to tx.data
-                    transactionId as number,
-                    TransactionStatus.PENDING,
-                    JSON.stringify(updated)
-                )
+                if(updated.length > 1) {
+                    updated[1].sentToRelays = relaysToShareTo
+                    updated[1].sentEvent = sentEvent    
+                    
+                    await transactionsStore.updateStatus( // status does not change, just add event and relay info to tx.data
+                        transactionId as number,
+                        TransactionStatus.PENDING,
+                        JSON.stringify(updated)
+                    )
+                }
 
                 const txupdate = await transactionsStore.updateSentTo( // set contact to send to to the tx, could be elsewhere //
                     transactionId as number,                    
@@ -579,30 +581,36 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         }
     }
     // const inputBg = useThemeColor('background')
+    const satsColor = colors.palette.primary200
 
     return (
       <Screen preset="fixed" contentContainerStyle={$screen}>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text
-            preset="subheading"
-            text={getAmountTitle()}
-            style={{color: 'white'}}
-          />
-          <View style={$amountContainer}>
-            <TextInput
-              ref={amountInputRef}
-              onChangeText={amount => setAmountToTopup(amount)}
-              // onFocus={() => setIsAmountEndEditing(false)}
-              onEndEditing={onAmountEndEditing}
-              value={amountToTopup}
-              style={$amountInput}
-              maxLength={9}
-              keyboardType="numeric"
-              selectTextOnFocus={true}
-              editable={
-                transactionStatus === TransactionStatus.PENDING ? false : true
-              }
+            <Text
+                preset="subheading"
+                text={getAmountTitle()}
+                style={{color: 'white'}}
             />
+            <View style={$amountContainer}>
+                <Text 
+                    text='SATS' 
+                    size='xxs' 
+                    style={{color: satsColor, fontFamily: typography.primary?.light}}
+                />
+                <TextInput
+                    ref={amountInputRef}
+                    onChangeText={amount => setAmountToTopup(amount)}
+                    // onFocus={() => setIsAmountEndEditing(false)}
+                    onEndEditing={onAmountEndEditing}
+                    value={amountToTopup}
+                    style={$amountInput}
+                    maxLength={9}
+                    keyboardType="numeric"
+                    selectTextOnFocus={true}
+                    editable={
+                        transactionStatus === TransactionStatus.PENDING ? false : true
+                    }
+                />
           </View>
         </View>
         <View style={$contentContainer}>
@@ -1224,7 +1232,7 @@ const $screen: ViewStyle = {
 
 const $headerContainer: TextStyle = {
   alignItems: 'center',
-  padding: spacing.medium,
+  padding: spacing.extraSmall,
   height: spacing.screenHeight * 0.18,
 }
 
@@ -1234,8 +1242,9 @@ const $contentContainer: TextStyle = {
 }
 
 const $amountContainer: ViewStyle = {
-  height: 90,
-  alignSelf: 'center',
+    height: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
 }
 
 const $amountInput: TextStyle = {

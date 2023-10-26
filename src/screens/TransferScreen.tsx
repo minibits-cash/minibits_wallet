@@ -10,7 +10,7 @@ import {
   FlatList,
 } from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
-import {spacing, useThemeColor, colors} from '../theme'
+import {spacing, useThemeColor, colors, typography} from '../theme'
 import {WalletStackScreenProps} from '../navigation'
 import {
   Button,
@@ -334,7 +334,7 @@ const transfer = async function () {
 
 const onClose = function () {
     resetState()
-    navigation.popToTop
+    navigation.popToTop()
 }
 
 
@@ -346,6 +346,7 @@ const handleError = function(e: AppError): void {
 const headerBg = useThemeColor('header')
 const feeColor = colors.palette.primary200
 const iconColor = useThemeColor('textDim')
+const satsColor = colors.palette.primary200
 
     return (
         <Screen preset="fixed" contentContainerStyle={$screen}>
@@ -357,23 +358,25 @@ const iconColor = useThemeColor('textDim')
                             text="Amount to transfer"
                             style={{color: 'white'}}
                         />
-                        {/*<Text 
-                            text='Satoshi'
+                        <Text 
+                            text='SATS' 
                             size='xxs' 
-                            style={{color: feeColor}}
-                        />*/}
+                            style={{color: satsColor, fontFamily: typography.primary?.light}}
+                        />
                         <Text
                             style={$amountToTransfer}
                             text={amountToTransfer.toLocaleString()}
                         />
                         {transactionStatus === TransactionStatus.COMPLETED ? (
                             <Text
-                                style={{color: feeColor}}
+                                style={{color: feeColor, fontFamily: typography.primary?.light}}
+                                size='xxs' 
                                 text={`+ final fee ${finalFee.toLocaleString()} sats`}
                             />
                         ) : (
                             <Text
-                                style={{color: feeColor}}
+                                style={{color: feeColor, fontFamily: typography.primary?.light}}
+                                size='xxs' 
                                 text={`+ estimated fee ${estimatedFee.toLocaleString()} sats`}
                             />
                         )}
@@ -595,23 +598,24 @@ const $screen: ViewStyle = {
 
 const $headerContainer: TextStyle = {
   alignItems: 'center',
-  padding: spacing.medium,
+  padding: spacing.extraSmall,
   paddingTop: 0,
   height: spacing.screenHeight * 0.18,
 }
 
 const $amountContainer: ViewStyle = {
-  alignItems: 'center',
-  justifyContent: 'center',
+    // height: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
 }
 
 const $amountToTransfer: TextStyle = {
-  flex: 1,
-  paddingTop: spacing.extraLarge + 10,
-  fontSize: 52,
-  fontWeight: '400',
-  textAlignVertical: 'center',
-  color: 'white',
+    flex: 1,
+    paddingTop: spacing.extraLarge + 5,
+    fontSize: 52,
+    fontWeight: '400',
+    textAlignVertical: 'center',
+    color: 'white',
 }
 
 const $contentContainer: TextStyle = {

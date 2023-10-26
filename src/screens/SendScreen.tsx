@@ -261,16 +261,8 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             // Default mint with highest balance to topup
             setMintBalanceToSendFrom(availableBalances[0])
             setIsAmountEndEditing(true)
+            // We do not make memo focus mandatory
             onMemoEndEditing()
-            
-            // Skip memo focus if it is filled / has been done already
-            /*if(!memo && !isMemoEndEditing) {
-                setTimeout(() => {memoInputRef && memoInputRef.current
-                ? memoInputRef.current.focus()
-                : false}, 200)
-            } else {
-                onMemoEndEditing()
-            }*/
 
         } catch (e: any) {
             handleError(e)
@@ -280,8 +272,9 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
     const onMemoEndEditing = function () {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-        setIsMemoEndEditing(true)
-        onShare()
+        // Show mint selector
+        setIsMintSelectorVisible(true)
+        setIsMemoEndEditing(true)        
     }
 
 
@@ -302,47 +295,10 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     }
 
 
-    
-    const onShare = async function (): Promise<void> {
-        if (amountToSend.length === 0) {
-            infoMessage('Provide the amount to send.')
-            return
-        }
-
-        // Skip mint selector and send immediately if: 
-        // 1. only one mint is available or 
-        // 2. we did ecash selection in offline mode
-        if (availableMintBalances.length === 1 || selectedProofs.length > 0) { 
-            const result = await send()       
-
-            if (result.error) {
-                setResultModalInfo({
-                    status: result.transaction?.status as TransactionStatus,
-                    message: result.error.message,
-                })
-                setIsResultModalVisible(true)
-                return
-            }
-
-            if (paymentOption === SendOption.SHOW_TOKEN) {
-                toggleQRModal()
-            }
-
-            if (paymentOption === SendOption.SEND_TOKEN) {
-                toggleNostrDMModal()
-            }           
-
-            return
-        }
-
-        // Pre-select mint with highest balance and show mint modal to confirm which mint to send from
-        // setMintBalanceToSendFrom(availableMintBalances[0])
-        setIsMintSelectorVisible(true)        
-    }
-
     const onMintBalanceSelect = function (balance: MintBalance) {
         setMintBalanceToSendFrom(balance)
     }
+
 
     const onMintBalanceConfirm = async function () {
         if (!mintBalanceToSendFrom) {
@@ -371,9 +327,13 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         setIsMintSelectorVisible(false)
     }
 
+
+
     const onMintBalanceCancel = async function () {
         setIsMintSelectorVisible(false)
     }
+
+
 
     const send = async function () {
         setIsLoading(true)
@@ -443,20 +403,22 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
                 const transaction = transactionsStore.findById(transactionId)
 
-                if(!transaction) {
+                if(!transaction || !transaction.data) {
                     return
                 }
                 
                 const updated = JSON.parse(transaction.data)
 
-                updated[2].sentToRelays = relaysToShareTo
-                updated[2].sentEvent = sentEvent    
-                
-                await transactionsStore.updateStatus( // status does not change, just add event and relay info to tx.data
-                    transactionId,
-                    TransactionStatus.PENDING,
-                    JSON.stringify(updated)
-                )
+                if(updated.length > 2) {
+                    updated[2].sentToRelays = relaysToShareTo
+                    updated[2].sentEvent = sentEvent
+                    
+                    await transactionsStore.updateStatus( // status does not change, just add event and relay info to tx.data
+                        transactionId,
+                        TransactionStatus.PENDING,
+                        JSON.stringify(updated)
+                    )
+                }
 
                 const txupdate = await transactionsStore.updateSentTo( // set contact to send to to the tx, could be elsewhere //
                     transactionId,                    
@@ -568,69 +530,75 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     }
 
     const headerBg = useThemeColor('header')
+    const satsColor = colors.palette.primary200
     // const inputBg = useThemeColor('background')
 
     return (
       <Screen preset="fixed" contentContainerStyle={$screen}>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text
-            preset="subheading"
-            text="Amount to send"
-            style={{color: 'white'}}
-          />          
+            <Text
+                preset="subheading"
+                text="Amount to send"
+                style={{color: 'white'}}
+            />          
             <View style={$amountContainer}>
+                <Text 
+                    text='SATS' 
+                    size='xxs' 
+                    style={{color: satsColor, fontFamily: typography.primary?.light}}
+                />
                 <TextInput
-                ref={amountInputRef}
-                onChangeText={amount => setAmountToSend(amount)}                
-                onEndEditing={onAmountEndEditing}
-                value={amountToSend}
-                style={$amountInput}
-                maxLength={9}
-                keyboardType="numeric"
-                selectTextOnFocus={true}
-                editable={
-                    (transactionStatus === TransactionStatus.PENDING || !isInternetReachable)
-                        ? false 
-                        : true
-                }
+                    ref={amountInputRef}
+                    onChangeText={amount => setAmountToSend(amount)}                
+                    onEndEditing={onAmountEndEditing}
+                    value={amountToSend}
+                    style={$amountInput}
+                    maxLength={9}
+                    keyboardType="numeric"
+                    selectTextOnFocus={true}
+                    editable={
+                        (transactionStatus === TransactionStatus.PENDING || !isInternetReachable)
+                            ? false 
+                            : true
+                    }
                 />
             </View>          
         </View>
         <View style={$contentContainer}>
-          <Card
-            style={$memoCard}
-            ContentComponent={
-              <View style={$memoContainer}>
-                <TextInput
-                  ref={memoInputRef}
-                  onChangeText={memo => setMemo(memo)}
-                  onEndEditing={onMemoEndEditing}
-                  value={`${memo}`}
-                  style={$memoInput}
-                  maxLength={200}
-                  keyboardType="default"
-                  selectTextOnFocus={true}
-                  placeholder="Memo for recipient"
-                  editable={
-                    transactionStatus === TransactionStatus.PENDING
-                      ? false
-                      : true
-                  }
-                />
-                <Button
-                  preset="secondary"
-                  style={$memoButton}
-                  text="Done"
-                  onPress={onMemoDone}
-                  disabled={
-                    transactionStatus === TransactionStatus.PENDING
-                      ? true
-                      : false
-                  }
-                />
-              </View>
-            }
-          />
+            <Card
+                style={$memoCard}
+                ContentComponent={
+                <View style={$memoContainer}>
+                    <TextInput
+                        ref={memoInputRef}
+                        onChangeText={memo => setMemo(memo)}
+                        onEndEditing={onMemoEndEditing}
+                        value={`${memo}`}
+                        style={$memoInput}
+                        maxLength={200}
+                        keyboardType="default"
+                        selectTextOnFocus={true}
+                        placeholder="Memo for recipient"
+                        editable={
+                            transactionStatus === TransactionStatus.PENDING
+                            ? false
+                            : true
+                        }
+                    />
+                    <Button
+                        preset="secondary"
+                        style={$memoButton}
+                        text="Done"
+                        onPress={onMemoDone}
+                        disabled={
+                            transactionStatus === TransactionStatus.PENDING
+                            ? true
+                            : false
+                        }
+                    />
+                </View>
+                }
+            />
             {!isInternetReachable && !isMemoEndEditing && (
                 <Button
                     preset="secondary"                    
@@ -645,37 +613,37 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 />
             )}
           
-          {isMintSelectorVisible &&(
-              <MintBalanceSelector
-                availableMintBalances={availableMintBalances}
-                mintBalanceToSendFrom={mintBalanceToSendFrom as MintBalance}
-                onMintBalanceSelect={onMintBalanceSelect}
-                onCancel={onMintBalanceCancel}                
-                onMintBalanceConfirm={onMintBalanceConfirm}
-              />
-        )}
-        {transactionStatus === TransactionStatus.PENDING && encodedTokenToSend && paymentOption && (
-            <SelectedMintBlock                    
-                toggleNostrDMModal={toggleNostrDMModal}
-                toggleQRModal={toggleQRModal}
-                paymentOption={paymentOption}
-                encodedTokenToSend={encodedTokenToSend}
-                mintBalanceToSendFrom={mintBalanceToSendFrom as MintBalance}
-                gotoWallet={resetState}
-            />
-        )}
-        {(transactionStatus === TransactionStatus.PENDING || transactionStatus === TransactionStatus.COMPLETED)  && (
-            <View style={$bottomContainer}>
-                <View style={$buttonContainer}>
-                    <Button
-                        preset="secondary"
-                        tx={'common.close'}
-                        onPress={resetState}
-                    />
+            {isMintSelectorVisible &&(
+                <MintBalanceSelector
+                    availableMintBalances={availableMintBalances}
+                    mintBalanceToSendFrom={mintBalanceToSendFrom as MintBalance}
+                    onMintBalanceSelect={onMintBalanceSelect}
+                    onCancel={onMintBalanceCancel}                
+                    onMintBalanceConfirm={onMintBalanceConfirm}
+                />
+            )}
+            {transactionStatus === TransactionStatus.PENDING && encodedTokenToSend && paymentOption && (
+                <SelectedMintBlock                    
+                    toggleNostrDMModal={toggleNostrDMModal}
+                    toggleQRModal={toggleQRModal}
+                    paymentOption={paymentOption}
+                    encodedTokenToSend={encodedTokenToSend}
+                    mintBalanceToSendFrom={mintBalanceToSendFrom as MintBalance}
+                    gotoWallet={resetState}
+                />
+            )}
+            {(transactionStatus === TransactionStatus.PENDING || transactionStatus === TransactionStatus.COMPLETED)  && (
+                <View style={$bottomContainer}>
+                    <View style={$buttonContainer}>
+                        <Button
+                            preset="secondary"
+                            tx={'common.close'}
+                            onPress={resetState}
+                        />
+                    </View>
                 </View>
-            </View>
-        )}
-        {isLoading && <Loading />}
+            )}
+            {isLoading && <Loading />}
         </View>
         <BottomModal
           isVisible={isProofSelectorModalVisible}
@@ -1230,8 +1198,9 @@ const $screen: ViewStyle = {
 
 const $headerContainer: TextStyle = {
   alignItems: 'center',
-  padding: spacing.medium,
+  padding: spacing.extraSmall,
   height: spacing.screenHeight * 0.18,
+
 }
 
 const $contentContainer: TextStyle = {
@@ -1240,8 +1209,9 @@ const $contentContainer: TextStyle = {
 }
 
 const $amountContainer: ViewStyle = {
-  height: 90,
-  alignSelf: 'center',
+  height: 100,
+  alignItems: 'center',
+  justifyContent: 'center',
 }
 
 const $coinSelectorContainer: ViewStyle = {

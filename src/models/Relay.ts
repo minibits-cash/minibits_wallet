@@ -14,6 +14,9 @@ export const RelayModel = types
     .actions(withSetPropAction)
     .actions(self => ({
         setStatus(status: number) {
+            if(status === WebSocket.OPEN) {
+                self.error = undefined
+            }
             self.status = status
         },
         setHostname() {
