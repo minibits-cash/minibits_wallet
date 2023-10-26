@@ -534,7 +534,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                         />
                     </View>
                 }
-                text={`New Minibits ${isNativeUpdateAvailable && 'native'} version is available`}
+                text={`New Minibits version is available`}
                 subText='Updates provide new functionalities and important bug fixes. View details in the Update manager.'
                 onPress={gotoUpdate}
             />
