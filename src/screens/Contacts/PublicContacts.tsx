@@ -246,7 +246,13 @@ export const PublicContacts = observer(function (props: {
 
     const onSavePublicRelay = function () {        
         try {
-            if(newPublicRelay.startsWith('wss://')) {                       
+            if(newPublicRelay.startsWith('wss://')) {
+                
+                if(relaysStore.alreadyExists(newPublicRelay)) {
+                    setInfo('Relay already exists.')
+                    return
+                }
+
                 relaysStore.addOrUpdateRelay({
                     url: newPublicRelay,
                     status: WebSocket.CLOSED

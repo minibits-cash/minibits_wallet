@@ -3,7 +3,7 @@ import React, {FC, useState, useCallback} from 'react'
 import {CommonActions, useFocusEffect} from '@react-navigation/native'
 import {Alert, TextStyle, View, ViewStyle} from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
-import {spacing, useThemeColor, colors} from '../theme'
+import {spacing, useThemeColor, colors, typography} from '../theme'
 import {WalletStackScreenProps} from '../navigation'
 import {
   Button,
@@ -192,6 +192,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
 
     const headerBg = useThemeColor('header')
     const iconColor = useThemeColor('textDim')
+    const satsColor = colors.palette.primary200
 
     return (
       <Screen preset="auto" contentContainerStyle={$screen}>
@@ -205,6 +206,11 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                         tx="receiveScreen.toReceive"
                         style={{color: 'white'}}
                     />
+                    <Text 
+                        text='SATS' 
+                        size='xxs' 
+                        style={{color: satsColor, fontFamily: typography.primary?.light}}
+                    />
                     <Text
                         style={$amountToReceive}
                         text={amountToReceive.toLocaleString()}
@@ -217,6 +223,11 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                         preset="subheading"
                         tx="receiveScreen.received"
                         style={{color: 'white'}}
+                    />
+                    <Text 
+                        text='SATS' 
+                        size='xxs' 
+                        style={{color: satsColor, fontFamily: typography.primary?.light}}
                     />
                     <Text
                         style={$amountToReceive}
@@ -409,7 +420,7 @@ const $screen: ViewStyle = {
 
 const $headerContainer: TextStyle = {
   alignItems: 'center',
-  padding: spacing.medium,
+  padding: spacing.extraSmall,
   height: spacing.screenHeight * 0.18,
 }
 
@@ -448,17 +459,17 @@ const $buttonContainer: ViewStyle = {
 }
 
 const $amountContainer: ViewStyle = {
-  alignItems: 'center',
-  justifyContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
 }
 
 const $amountToReceive: TextStyle = {
-  flex: 1,
-  paddingTop: spacing.extraLarge + 10,
-  fontSize: 52,
-  fontWeight: '400',
-  textAlignVertical: 'center',
-  color: 'white',
+    flex: 1,
+    paddingTop: spacing.large,
+    fontSize: 52,
+    fontWeight: '400',
+    textAlignVertical: 'center',
+    color: 'white',
 }
 
 const $bottomContainer: ViewStyle = {
