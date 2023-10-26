@@ -117,9 +117,9 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
     
     const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {
-        log.info('Native update available', update)
-        setIsNativeUpdateAvailable(true)
-        toggleUpdateModal()
+        log.info('Native update available - silent', update)
+        // setIsNativeUpdateAvailable(true)
+        // toggleUpdateModal()
     }
 
     
