@@ -12,6 +12,8 @@ import {log} from '../utils/logger'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 import AppError from '../utils/AppError'
 import { ErrorModal } from '../components'
+import { LnurlUtils } from '../services/lnurl/lnurlUtils'
+import { infoMessage } from '../utils/utils'
 
 const hasAndroidCameraPermission = async () => {
     const cameraPermission = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA)
@@ -92,22 +94,40 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                     return IncomingParser.navigateWithIncomingData(invoiceResult, navigation)
                     
                 } catch (e: any) {
-                    const lnurlResult = IncomingParser.findAndExtract(scanned, IncomingDataType.LNURL)
+                    const maybeLnurl = LnurlUtils.findEncodedLnurl(scanned)
                     
-                    if(lnurlResult) {
-                        log.trace('Got LNURL instead of an invoice')
-                        return IncomingParser.navigateWithIncomingData(lnurlResult, navigation)                        
+                    if(maybeLnurl) {
+                        log.trace('Found LNURL link instead of an invoice', maybeLnurl, 'onPaste')
+                        const encodedLnurl = LnurlUtils.extractEncodedLnurl(maybeLnurl)
+        
+                        if(encodedLnurl) {
+                            infoMessage('Found LNURL link in the clipboard.')   
+                            return setTimeout(async() => IncomingParser.navigateWithIncomingData({
+                                type: IncomingDataType.LNURL,
+                                encoded: encodedLnurl
+                            }, navigation), 500)                               
+                        }
+                        return
                     }
-
-                    const lnurlAddress = IncomingParser.findAndExtract(scanned, IncomingDataType.LNURL_ADDRESS)
-
-                    if(lnurlAddress) {
-                        log.trace('Found LNURL address instead of an invoice')
-                        return IncomingParser.navigateWithIncomingData(lnurlAddress, navigation)                
-                    }
+        
+                    const maybeLnurlAddress = LnurlUtils.findEncodedLnurlAddress(scanned)
+        
+                    if(maybeLnurlAddress) {
+                        log.trace('Found Lightning address instead of an invoice', maybeLnurlAddress, 'onPaste')        
+                        const lnurlAddress = LnurlUtils.extractLnurlAddress(maybeLnurlAddress)
+                
+                        if(lnurlAddress) {
+                            infoMessage('Found Lightning address in the clipboard.') 
+                            return setTimeout(async() => IncomingParser.navigateWithIncomingData({
+                                type: IncomingDataType.LNURL_ADDRESS,
+                                encoded: lnurlAddress
+                            }, navigation), 500)      
+                        }
+                        return          
+                    }           
                     
                     e.params = scanned
-                    handleError(e)
+                    handleError(e)  
                     break
                 }                          
             default:
