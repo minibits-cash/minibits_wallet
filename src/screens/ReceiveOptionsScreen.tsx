@@ -129,9 +129,9 @@ export const ReceiveOptionsScreen: FC<WalletStackScreenProps<'ReceiveOptions'>> 
                     <Button 
                         onPress={onScanLnurl}
                         tx='receiveScreen.scanWithdrawalLink'
-                        preset='tertiary'
+                        preset='secondary'
                         textStyle={{fontSize: 14, color: iconColor}}
-                        style={{alignSelf: 'flex-start', marginLeft: 33}}
+                        style={{alignSelf: 'flex-start', marginLeft: 43, minHeight: 25, paddingVertical: spacing.extraSmall, marginBottom: spacing.small}}
                     />
                     <ListItem
                         tx="receiveScreen.scanToReceive"
@@ -149,9 +149,9 @@ export const ReceiveOptionsScreen: FC<WalletStackScreenProps<'ReceiveOptions'>> 
                 <Button 
                     onPress={onPaste}
                     tx='receiveScreen.pasteToReceive'
-                    preset='tertiary'
+                    preset='secondary'
                     textStyle={{fontSize: 14, color: iconColor}}
-                    style={{alignSelf: 'flex-start', marginLeft: 33}}
+                    style={{alignSelf: 'flex-start', marginLeft: 43, minHeight: 25, paddingVertical: spacing.extraSmall, marginBottom: spacing.small}}
                 />
               }
             />

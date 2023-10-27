@@ -174,7 +174,7 @@ const navigateWithIncomingData = async function (
 
             return navigation.navigate('Transfer', {
                 lnurlParams: addressParamsResult.lnurlParams,
-                encodedInvoice: addressParamsResult.encodedInvoice,
+                // encodedInvoice: addressParamsResult.encodedInvoice,
                 paymentOption: SendOption.LNURL_PAY
             })
             

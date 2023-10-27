@@ -157,7 +157,7 @@ const sendFromMint = async function (
   } catch (e: any) {
     throw new AppError(
         Err.MINT_ERROR, 
-        'The mint could not return proofs split to amounts necessary for this transaction.', 
+        `The mint could not return proofs necessary for this transaction. ${e.message}`, 
         {
             caller: 'sendFromMint', 
             mintUrl, 
@@ -242,6 +242,7 @@ const payLightningInvoice = async function (
       newKeys
     }
   } catch (e: any) {
+    console.log(e)    
     throw new AppError(Err.MINT_ERROR, e.message)
   }
 }

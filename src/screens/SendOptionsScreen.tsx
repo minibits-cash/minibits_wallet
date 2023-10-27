@@ -22,6 +22,7 @@ import AppError from '../utils/AppError'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { infoMessage } from '../utils/utils'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
+import { LnurlUtils } from '../services/lnurl/lnurlUtils'
 
 export enum SendOption {
     SEND_TOKEN = 'SEND_TOKEN',
@@ -72,23 +73,41 @@ export const SendOptionsScreen: FC<WalletStackScreenProps<'SendOptions'>> = obse
             const incomingData = IncomingParser.findAndExtract(clipboard, IncomingDataType.INVOICE)
 
             infoMessage('Found lightning invoice in the clipboard.')                
-            setTimeout(async() => IncomingParser.navigateWithIncomingData(incomingData, navigation), 1000)
+            setTimeout(async() => IncomingParser.navigateWithIncomingData(incomingData, navigation), 500)
             return
             
         } catch (e: any) {
-            const lnurlResult = IncomingParser.findAndExtract(clipboard, IncomingDataType.LNURL)
+            const maybeLnurl = LnurlUtils.findEncodedLnurl(clipboard)
                     
-            if(lnurlResult) {
-                log.trace('Found LNURL instead of an invoice')
-                return IncomingParser.navigateWithIncomingData(lnurlResult, navigation)                
+            if(maybeLnurl) {
+                log.trace('Found LNURL link instead of an invoice', maybeLnurl, 'onPaste')
+                const encodedLnurl = LnurlUtils.extractEncodedLnurl(maybeLnurl)
+
+                if(encodedLnurl) {
+                    infoMessage('Found LNURL link in the clipboard.')   
+                    return setTimeout(async() => IncomingParser.navigateWithIncomingData({
+                        type: IncomingDataType.LNURL,
+                        encoded: encodedLnurl
+                    }, navigation), 500)                               
+                }
+                return
             }
 
-            const lnurlAddress = IncomingParser.findAndExtract(clipboard, IncomingDataType.LNURL_ADDRESS)
+            const maybeLnurlAddress = LnurlUtils.findEncodedLnurlAddress(clipboard)
 
-            if(lnurlAddress) {
-                log.trace('Found LNURL address instead of an invoice')
-                return IncomingParser.navigateWithIncomingData(lnurlAddress, navigation)                
-            }
+            if(maybeLnurlAddress) {
+                log.trace('Found Lightning address instead of an invoice', maybeLnurlAddress, 'onPaste')        
+                const lnurlAddress = LnurlUtils.extractLnurlAddress(maybeLnurlAddress)
+        
+                if(lnurlAddress) {
+                    infoMessage('Found Lightning address in the clipboard.') 
+                    return setTimeout(async() => IncomingParser.navigateWithIncomingData({
+                        type: IncomingDataType.LNURL_ADDRESS,
+                        encoded: lnurlAddress
+                    }, navigation), 500)      
+                }
+                return          
+            }           
             
             e.params = clipboard
             handleError(e)                    
@@ -140,9 +159,9 @@ export const SendOptionsScreen: FC<WalletStackScreenProps<'SendOptions'>> = obse
                     <Button 
                         onPress={onPaste}
                         tx='sendScreen.pasteToSend'
-                        preset='tertiary'
+                        preset='secondary'
                         textStyle={{fontSize: 14, color: iconColor}}
-                        style={{alignSelf: 'flex-start', marginLeft: 33}}
+                        style={{alignSelf: 'flex-start', marginLeft: 43, minHeight: 25, paddingVertical: spacing.extraSmall, marginBottom: spacing.small}}
                     />
                     <ListItem
                         tx="sendScreen.showOrShareToken"

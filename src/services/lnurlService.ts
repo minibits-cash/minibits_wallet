@@ -1,5 +1,6 @@
 import { getParams, LNURLPayParams, LNURLResponse, LNURLWithdrawParams } from 'js-lnurl'
 import AppError, { Err } from "../utils/AppError"
+import { log } from '../utils/logger'
 import { LnurlUtils } from './lnurl/lnurlUtils'
 import { MinibitsClient } from './minibitsService'
 
@@ -46,7 +47,11 @@ const getLnurlParams = async (encodedLnurl: string) => {
         // decodedMetadata: string[][]
         // commentAllowed?: number  
 
-        const encodedInvoice = await getInvoice(lnurlParams)       
+        return {
+            lnurlParams        
+        } as LnurlParamsResult
+
+        /*const encodedInvoice = await getInvoice(lnurlParams)       
 
         if(encodedInvoice) {
             return {
@@ -55,7 +60,7 @@ const getLnurlParams = async (encodedLnurl: string) => {
             } as LnurlParamsResult
         }
 
-        throw new AppError(Err.CONNECTION_ERROR, 'Could not get lightning invoice from the LNURL provider', {domain: lnurlParams.domain, caller: 'getLnurlParams'})
+        throw new AppError(Err.CONNECTION_ERROR, 'Could not get lightning invoice from the LNURL provider', {domain: lnurlParams.domain, caller: 'getLnurlParams'})*/
 
     }
 
@@ -94,18 +99,26 @@ const getLnurlAddressParams = async (lnurlAddress: string) => {
         headers,            
     })
 
+    log.trace(`Got LNURL address params from ${domain}`,  lnurlParams, 'getLnurlAddressParams')
+
     if(lnurlParams.status && lnurlParams.status === 'ERROR') {
         throw new AppError(Err.CONNECTION_ERROR, lnurlParams.reason, {domain, caller: 'getLnurlAddressParams'})
     }
 
     lnurlParams.domain = domain
+    lnurlParams.address = lnurlAddress
+
     try {
         lnurlParams.decodedMetadata = JSON.parse(lnurlParams.metadata)      
     } catch (err) {
         lnurlParams.decodedMetadata = []
     }
 
-    const encodedInvoice = await getInvoice(lnurlParams)       
+    return {
+        lnurlParams        
+    } as LnurlParamsResult
+
+    /*const encodedInvoice = await getInvoice(lnurlParams)       
 
     if(encodedInvoice) {
         return {
@@ -114,25 +127,21 @@ const getLnurlAddressParams = async (lnurlAddress: string) => {
         } as LnurlParamsResult
     }
 
-    throw new AppError(Err.CONNECTION_ERROR, 'Could not get lightning invoice from the LNURL provider', {domain: lnurlParams.domain, caller: 'getLnurlAddressParams'})
+    throw new AppError(Err.CONNECTION_ERROR, 'Could not get lightning invoice from the LNURL provider', {domain: lnurlParams.domain, caller: 'getLnurlAddressParams'})*/
 }
 
 
 
-const getInvoice = async(lnurlParams: LNURLPayParams) => {
-    
-    let amountMsat = lnurlParams.minSendable // msat
+const getInvoice = async(lnurlParams: LNURLPayParams, amountMsat?: number) => {
 
     if(!amountMsat || amountMsat === 0) {
-        amountMsat = lnurlParams.maxSendable
+        amountMsat = lnurlParams.minSendable
     }
 
     const url = lnurlParams.callback.includes('?') ? `${lnurlParams.callback}&amount=${amountMsat}` : `${lnurlParams.callback}?amount=${amountMsat}`
     const method = 'GET'        
     const headers = MinibitsClient.getPublicHeaders()
-
-    // to make it aligned with other send payment flows, we prefetch the invoice for minSendable amount
-    // and later pass it to the TransferScreen to pay
+    
     const invoiceResult: any = await MinibitsClient.fetchApi(url, {
         method,
         headers,            
@@ -167,5 +176,6 @@ const withdraw = async(lnurlParams: LNURLWithdrawParams, encodedInvoice: string)
 export const LnurlClient = {
     getLnurlParams,
     getLnurlAddressParams,
+    getInvoice,
     withdraw,
 }

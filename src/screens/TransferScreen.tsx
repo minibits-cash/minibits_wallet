@@ -1,5 +1,5 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useEffect, useState, useCallback} from 'react'
+import React, {FC, useEffect, useState, useCallback, useRef} from 'react'
 import {useFocusEffect} from '@react-navigation/native'
 import {
   UIManager,
@@ -8,8 +8,8 @@ import {
   View,
   ViewStyle,
   FlatList,
+  TextInput,
 } from 'react-native'
-import Clipboard from '@react-native-clipboard/clipboard'
 import {spacing, useThemeColor, colors, typography} from '../theme'
 import {WalletStackScreenProps} from '../navigation'
 import {
@@ -31,7 +31,6 @@ import {useHeader} from '../utils/useHeader'
 import {MintClient, Wallet} from '../services'
 import {log} from '../utils/logger'
 import AppError, {Err} from '../utils/AppError'
-import {CashuUtils} from '../services/cashu/cashuUtils'
 import {MintBalance} from '../models/Mint'
 import {MintListItem} from './Mints/MintListItem'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
@@ -41,6 +40,8 @@ import { infoMessage } from '../utils/utils'
 import { DecodedLightningInvoice, LightningUtils } from '../services/lightning/lightningUtils'
 import { SendOption } from './SendOptionsScreen'
 import { LNURLPayParams } from 'js-lnurl'
+import { roundDown, roundUp } from '../utils/number'
+import { LnurlClient } from '../services/lnurlService'
 
 if (
   Platform.OS === 'android' &&
@@ -57,17 +58,19 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
       onLeftPress: () => navigation.goBack(),
     })
 
+    const amountInputRef = useRef<TextInput>(null)
     const {proofsStore, mintsStore, paymentRequestsStore} = useStores()
 
     const [encodedInvoice, setEncodedInvoice] = useState<string>('')
     const [invoice, setInvoice] = useState<DecodedLightningInvoice | undefined>()
-    const [amountToTransfer, setAmountToTransfer] = useState<number>(0)
+    const [amountToTransfer, setAmountToTransfer] = useState<string>('')
     const [invoiceExpiry, setInvoiceExpiry] = useState<Date | undefined>()
     const [paymentHash, setPaymentHash] = useState<string | undefined>()
     const [lnurlPayParams, setLnurlPayParams] = useState<LNURLPayParams | undefined>()
     const [estimatedFee, setEstimatedFee] = useState<number>(0)
     const [finalFee, setFinalFee] = useState<number>(0)
     const [memo, setMemo] = useState('')
+    const [lnurlDescription, setLnurlDescription] = useState('')
     const [availableMintBalances, setAvailableMintBalances] = useState<MintBalance[]>([])
     const [mintBalanceToTransferFrom, setMintBalanceToTransferFrom] = useState<MintBalance | undefined>()
     const [transactionStatus, setTransactionStatus] = useState<
@@ -83,7 +86,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus; message: string} | undefined>()
 
 
-useFocusEffect(
+/* useFocusEffect(
     useCallback(() => {
     if (!route.params?.encodedInvoice) {            
         return
@@ -91,7 +94,23 @@ useFocusEffect(
     const encoded = route.params?.encodedInvoice
     onEncodedInvoice(encoded)
     }, [route.params?.encodedInvoice]),
-)
+) */
+
+useEffect(() => {
+    const focus = () => {
+        if(route.params?.paymentOption === SendOption.LNURL_PAY) {
+            amountInputRef && amountInputRef.current
+            ? amountInputRef.current.focus()
+            : false
+        }
+    }
+    
+    const timer = setTimeout(() => focus(), 100)   
+    
+    return () => {
+        clearTimeout(timer)
+    }
+}, [])
 
 
 useFocusEffect(
@@ -117,24 +136,39 @@ useFocusEffect(
             }                
         }
 
-
         const handleLnurlPay = () => {
             try {
-                const {lnurlParams, encodedInvoice} = route.params
+                const {lnurlParams} = route.params
 
-                if (!lnurlParams || !encodedInvoice) {                    
-                    throw new AppError(Err.VALIDATION_ERROR, 'Missing LNURL params or invoice.')
+                if (!lnurlParams) {                    
+                    throw new AppError(Err.VALIDATION_ERROR, 'Missing LNURL params.')
                 }
 
-                log.trace('LNURL params.', lnurlParams, 'useFocusEffect')
-        
-                setLnurlPayParams(lnurlParams)             
-                onEncodedInvoice(encodedInvoice)
+                const metadata = lnurlParams.decodedMetadata
+
+                if(metadata) {
+                    let desc: string = ''
+
+                    for (const entry of metadata) {
+                        if (entry[0] === "text/plain") {
+                            desc = entry[1];
+                            break // Exit the loop once we find the "text/plain" entry
+                        }
+                    }
+
+                    if(desc) {
+                        setLnurlDescription(desc)
+                    }
+                }                
+
+                const amountSats = roundUp(lnurlParams.minSendable / 1000, 0)
+
+                setAmountToTransfer(`${amountSats}`)        
+                setLnurlPayParams(lnurlParams)                
             } catch (e: any) {
                 handleError(e)
             }                
         }
-
 
         const handleDonation = () => {
             try {
@@ -170,27 +204,28 @@ useFocusEffect(
 
 useEffect(() => {
     const getEstimatedFee = async function () {
-    try {
-        log.trace('mintBalanceToTransferFrom', mintBalanceToTransferFrom, 'getEstimatedFee')  
-        if (!mintBalanceToTransferFrom || !encodedInvoice) return
-            // if (!encodedInvoice) return
+        try {
+            log.trace('mintBalanceToTransferFrom', mintBalanceToTransferFrom, 'getEstimatedFee')  
+            if (!mintBalanceToTransferFrom || !encodedInvoice) {
+                return
+            }            
 
             const fee = await MintClient.getLightningFee(
-            mintBalanceToTransferFrom.mint,
-            encodedInvoice,
-        )
-        
-        if (amountToTransfer + fee > mintBalanceToTransferFrom.balance) {
-            setInfo(
-                'There is not enough funds to cover expected lightning network fee. Try to select another mint with higher balance.',
+                mintBalanceToTransferFrom.mint,
+                encodedInvoice,
             )
-        }
+            
+            if (parseInt(amountToTransfer) + fee > mintBalanceToTransferFrom.balance) {
+                setInfo(
+                    'There is not enough funds to cover expected lightning network fee. Try to select another mint with higher balance.',
+                )
+            }
 
-        setEstimatedFee(fee)
-    } catch (e: any) {
-        resetState()
-        handleError(e)
-    }
+            setEstimatedFee(fee)
+        } catch (e: any) {
+            resetState()
+            handleError(e)
+        }
     }
     getEstimatedFee()
 }, [mintBalanceToTransferFrom])
@@ -200,7 +235,7 @@ useEffect(() => {
 const resetState = function () {
     setEncodedInvoice('')
     setInvoice(undefined)      
-    setAmountToTransfer(0)
+    setAmountToTransfer('')
     setInvoiceExpiry(undefined)
     setEstimatedFee(0)
     setMemo('')
@@ -222,6 +257,46 @@ const toggleResultModal = () => setIsResultModalVisible(previousState => !previo
 const onMintBalanceSelect = function (balance: MintBalance) {
     setMintBalanceToTransferFrom(balance) // this triggers effect to get estimated fees
 }
+
+
+const onAmountEndEditing = async function () {
+    try {
+        const amount = parseInt(amountToTransfer)
+
+        if (!amount || amount === 0) {
+            infoMessage('Amount should be positive number.')          
+            return
+        }
+
+        if(!lnurlPayParams) {
+            throw new AppError(Err.VALIDATION_ERROR, 'Missing LNURL pay parameters', {caller: 'onAmountEndEditing'})
+        }
+
+        if (lnurlPayParams.minSendable && amount < lnurlPayParams.minSendable / 1000 ) {
+            infoMessage(`Minimal amount to pay is ${lnurlPayParams.minSendable / 1000} sats.`)          
+            return
+        }
+
+        if (lnurlPayParams.maxSendable && amount > lnurlPayParams.maxSendable / 1000 ) {
+            infoMessage(`Maximal amount to pay is ${lnurlPayParams.maxSendable / 1000} sats.`)          
+            return
+        }
+
+        setIsLoading(true)
+        const encoded = await LnurlClient.getInvoice(lnurlPayParams, amount * 1000)
+
+        // TODO validate h
+        setIsLoading(false)
+        if(encoded) {
+            return onEncodedInvoice(encoded)
+        }        
+
+        throw new AppError(Err.NOTFOUND_ERROR, `Could not get lightning invoice from ${lnurlPayParams.domain}`)
+
+    } catch (e: any) {
+      handleError(e)
+    }
+  }
 
 
 const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: string = '') {
@@ -256,7 +331,7 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
         setAvailableMintBalances(availableBalances)
         setMintBalanceToTransferFrom(availableBalances[0])
         setInvoice(invoice)
-        setAmountToTransfer(amount)
+        setAmountToTransfer(`${amount}`)
         setInvoiceExpiry(expiresAt)
         
         if (paymentRequestDesc) {
@@ -278,7 +353,7 @@ const transfer = async function () {
     try {   
         const {transaction, message, error, finalFee} = await Wallet.transfer(
             mintBalanceToTransferFrom as MintBalance,
-            amountToTransfer,
+            parseInt(amountToTransfer),
             estimatedFee,
             invoiceExpiry as Date,
             memo,
@@ -350,65 +425,74 @@ const satsColor = colors.palette.primary200
 
     return (
         <Screen preset="fixed" contentContainerStyle={$screen}>
-            <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-                {invoice && amountToTransfer > 0 ? (
-                    <View style={$amountContainer}>
+            <View style={[$headerContainer, {backgroundColor: headerBg}]}>                
+                
+                <Text
+                    preset="subheading"
+                    text="Amount to pay"
+                    style={{color: 'white'}}
+                />
+                <View style={$amountContainer}>                    
+                    <Text 
+                        text='SATS' 
+                        size='xxs' 
+                        style={{color: satsColor, fontFamily: typography.primary?.light}}
+                    />
+                    <TextInput
+                        ref={amountInputRef}
+                        onChangeText={amount => setAmountToTransfer(amount)}                                
+                        onEndEditing={onAmountEndEditing}
+                        value={amountToTransfer}
+                        style={$amountInput}
+                        maxLength={9}
+                        keyboardType="numeric"
+                        selectTextOnFocus={true}
+                        editable={
+                            encodedInvoice ? false : true
+                        }
+                    />                
+                    {transactionStatus === TransactionStatus.COMPLETED ? (
                         <Text
-                            preset="subheading"
-                            text="Amount to transfer"
-                            style={{color: 'white'}}
-                        />
-                        <Text 
-                            text='SATS' 
+                            style={{color: feeColor, fontFamily: typography.primary?.light}}
                             size='xxs' 
-                            style={{color: satsColor, fontFamily: typography.primary?.light}}
+                            text={`+ final fee ${finalFee.toLocaleString()} sats`}
                         />
-                        <Text
-                            style={$amountToTransfer}
-                            text={amountToTransfer.toLocaleString()}
-                        />
-                        {transactionStatus === TransactionStatus.COMPLETED ? (
-                            <Text
-                                style={{color: feeColor, fontFamily: typography.primary?.light}}
-                                size='xxs' 
-                                text={`+ final fee ${finalFee.toLocaleString()} sats`}
-                            />
-                        ) : (
-                            <Text
-                                style={{color: feeColor, fontFamily: typography.primary?.light}}
-                                size='xxs' 
-                                text={`+ estimated fee ${estimatedFee.toLocaleString()} sats`}
-                            />
-                        )}
-                    </View>
-                ) : (
-                    <Text preset="heading" text="Transfer" style={{color: 'white'}} />
-                )}
+                    ) : (
+                        <>
+                            {encodedInvoice && (
+                                <Text
+                                    style={{position: 'absolute', bottom: -5, color: feeColor, fontFamily: typography.primary?.light}}
+                                    size='xxs' 
+                                    text={`+ estimated fee ${estimatedFee.toLocaleString()} sats`}
+                                />
+                            )} 
+                        </>                       
+                    )}
+                </View>
             </View>
             <View style={$contentContainer}>
-                {mintBalanceToTransferFrom &&
-                availableMintBalances.length > 0 &&
-                transactionStatus !== TransactionStatus.COMPLETED && (
-                <>
-                    {(memo || lnurlPayParams) && (
-                        <Card
+                <>                    
+                    <Card
                         style={[$card, {minHeight: 0}]}
                         ContentComponent={
                             <ListItem
-                            text={(memo) ? memo : lnurlPayParams ? `Invoice from ${lnurlPayParams.domain}` : ''}
-                            LeftComponent={
-                                <Icon
-                                    containerStyle={$iconContainer}
-                                    icon="faPencil"
-                                    size={spacing.medium}
-                                    color={iconColor}
-                                />
-                            }
-                            style={$item}
+                                text={(memo) ? memo : lnurlPayParams ? lnurlPayParams.address ? lnurlPayParams.address : lnurlPayParams.domain : ''}
+                                subText={lnurlDescription}
+                                LeftComponent={
+                                    <Icon
+                                        containerStyle={$iconContainer}
+                                        icon="faPencil"
+                                        size={spacing.medium}
+                                        color={iconColor}
+                                    />
+                                }
+                                style={$item}
                             />
                         }
-                        />
-                    )}
+                    />
+                    {mintBalanceToTransferFrom &&
+                    availableMintBalances.length > 0 &&
+                    transactionStatus !== TransactionStatus.COMPLETED && (
                     <MintBalanceSelector
                         availableMintBalances={availableMintBalances}
                         mintBalanceToSendFrom={mintBalanceToTransferFrom as MintBalance}
@@ -417,8 +501,8 @@ const satsColor = colors.palette.primary200
                         findByUrl={mintsStore.findByUrl}
                         onMintBalanceConfirm={transfer}
                     />
-                </>
-                )}
+                    )}
+                </>                
                 {transactionStatus === TransactionStatus.COMPLETED && (
                     <Card
                         style={$card}
@@ -603,30 +687,26 @@ const $headerContainer: TextStyle = {
   height: spacing.screenHeight * 0.18,
 }
 
+const $contentContainer: TextStyle = {
+    flex: 1,
+    padding: spacing.extraSmall,    
+}
+
 const $amountContainer: ViewStyle = {
-    // height: 100,
+    height: 100,
     alignItems: 'center',
     justifyContent: 'center',
 }
 
-const $amountToTransfer: TextStyle = {
+const $amountInput: TextStyle = {
     flex: 1,
-    paddingTop: spacing.extraLarge + 5,
+    borderRadius: spacing.small,
     fontSize: 52,
     fontWeight: '400',
     textAlignVertical: 'center',
+    textAlign: 'center',    
     color: 'white',
-}
-
-const $contentContainer: TextStyle = {
-    flex: 1,
-    padding: spacing.extraSmall,
-}
-
-const $optionsCard: ViewStyle = {
-  marginTop: -spacing.extraLarge * 2,
-  marginBottom: spacing.small,
-  paddingTop: 0,
+    // borderWidth: 1, borderColor: 'red'
 }
 
 const $iconContainer: ViewStyle = {
