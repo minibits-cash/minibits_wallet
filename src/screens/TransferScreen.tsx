@@ -86,16 +86,6 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus; message: string} | undefined>()
 
 
-/* useFocusEffect(
-    useCallback(() => {
-    if (!route.params?.encodedInvoice) {            
-        return
-    }
-    const encoded = route.params?.encodedInvoice
-    onEncodedInvoice(encoded)
-    }, [route.params?.encodedInvoice]),
-) */
-
 useEffect(() => {
     const focus = () => {
         if(route.params?.paymentOption === SendOption.LNURL_PAY) {
@@ -116,6 +106,22 @@ useEffect(() => {
 useFocusEffect(
     useCallback(() => {
         const { paymentOption } = route.params
+
+        const handleInvoice = () => {
+            try {
+                const {encodedInvoice} = route.params
+
+                if (!encodedInvoice) {                    
+                    throw new AppError(Err.VALIDATION_ERROR, 'Missing invoice.')
+                }
+
+                log.trace('Invoice', encodedInvoice, 'useFocusEffect')        
+                
+                onEncodedInvoice(encodedInvoice)
+            } catch (e: any) {
+                handleError(e)
+            }                
+        }
 
         const handlePaymentRequest = () => {
             try {
@@ -183,6 +189,10 @@ useFocusEffect(
             } catch (e: any) {
                 handleError(e)
             }                
+        }
+
+        if(paymentOption && paymentOption === SendOption.PASTE_OR_SCAN_INVOICE) {   
+            handleInvoice()
         }
 
         if(paymentOption && paymentOption === SendOption.PAY_PAYMENT_REQUEST) {   

@@ -147,11 +147,12 @@ const navigateWithIncomingData = async function (
         case IncomingDataType.INVOICE:
             return navigation.navigate('Transfer', {
                 encodedInvoice: incoming.encoded,
+                paymentOption: SendOption.PASTE_OR_SCAN_INVOICE
             })
 
         case (IncomingDataType.LNURL):
             const paramsResult = await LnurlClient.getLnurlParams(incoming.encoded)
-            const {lnurlParams, encodedInvoice} = paramsResult
+            const {lnurlParams} = paramsResult
 
             if(lnurlParams.tag === 'withdrawRequest') {                
                 return navigation.navigate('Topup', {
@@ -163,7 +164,7 @@ const navigateWithIncomingData = async function (
             if(lnurlParams.tag === 'payRequest') {
                 return navigation.navigate('Transfer', {
                     lnurlParams,
-                    encodedInvoice,
+                    // encodedInvoice,
                     paymentOption: SendOption.LNURL_PAY
                 })
             }
