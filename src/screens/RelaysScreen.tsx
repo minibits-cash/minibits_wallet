@@ -1,4 +1,5 @@
 import {observer} from 'mobx-react-lite'
+import { Observer } from 'mobx-react-lite'
 import Clipboard from '@react-native-clipboard/clipboard'
 import React, {FC, useCallback, useEffect, useRef, useState} from 'react'
 import {FlatList, TextInput, TextStyle, View, ViewStyle} from 'react-native'
@@ -120,8 +121,9 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
                 <>   
                     <FlatList<Relay>
                         data={relaysStore.allRelays}
+                        extraData={relaysStore.allRelays}
                         renderItem={({ item, index }) => {                                
-                            return(
+                            return <Observer>{() => (
                                 <ListItem
                                     text={item.hostname}
                                     subText={item.error ? item.error : item.url}
@@ -142,7 +144,7 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
                                     style={$item}
                                     onPress={() => onRelaySelect(item)}
                                 />
-                            )
+                            )}</Observer>
                         }}                
                         keyExtractor={(item) => item.url} 
                         style={{ flexGrow: 0 }}

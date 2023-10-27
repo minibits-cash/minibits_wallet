@@ -463,7 +463,7 @@ const satsColor = colors.palette.primary200
                     />                
                     {transactionStatus === TransactionStatus.COMPLETED ? (
                         <Text
-                            style={{color: feeColor, fontFamily: typography.primary?.light}}
+                            style={{position: 'absolute', bottom: -5, color: feeColor, fontFamily: typography.primary?.light}}
                             size='xxs' 
                             text={`+ final fee ${finalFee.toLocaleString()} sats`}
                         />

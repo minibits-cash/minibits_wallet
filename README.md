@@ -42,7 +42,7 @@ Send ecash
 - [x] Share ecash token to send through another app
 - [x] Show ecash token as a QR code
 - [x] Notification on payment received by the payee (app needs to come to foreground)
-- [x] Send ecash to contact [✨ New!]
+- [x] Send ecash to contact
 - [ ] Lock ecash sent offline to the receiver wallet key
 
 Top up wallet
@@ -56,6 +56,8 @@ Transfer / Cash out from wallet
 - [x] Scan and settle bitcoin lightning invoice with your ecash
 - [x] Pay payment request received from another contact [✨ New!]
 - [x] Pay by LNURL Pay [✨ New!]
+- [x] Nostr zaps [✨ New!]
+- [x] Pay to Lightning address [✨ New!]
 - [ ] Transfer (swap) ecash to another mint
 
 Transaction history
@@ -85,7 +87,7 @@ Backup and recovery
 Security and Privacy
 - [x] Optional AES encryption of wallet storage using a key stored in the device secure keychain
 - [x] Use device biometry to login (if storage encryption is on)
-- [x] Tor daemon to connect to mints with .onion addresses [✨ New!]
+- [x] Tor daemon to connect to mints with .onion addresses [✨ New!, available in .apk version, download from Releases]
 
 Self-funding
 - [X] Donation for custom wallet name
