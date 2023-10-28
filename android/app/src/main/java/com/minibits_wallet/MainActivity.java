@@ -29,7 +29,7 @@ public class MainActivity extends ReactActivity {
         getMainComponentName(),
         // If you opted-in for the New Architecture, we enable the Fabric Renderer.
         DefaultNewArchitectureEntryPoint.getFabricEnabled());
-  }.
+  }
 
   // react-native-screens fix
   @Override
