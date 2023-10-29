@@ -81,7 +81,7 @@ const getOrCreateKeyPair = async function (): Promise<KeyPair> {
         keyPair = KeyChain.generateNostrKeyPair() as KeyPair
         await KeyChain.saveNostrKeyPair(keyPair)
 
-        log.info('Created and saved new NOSTR keypair','','getOrCreateKeyPair',)
+        log.trace('Created and saved new NOSTR keypair','','getOrCreateKeyPair',)
     }
      
     return keyPair
@@ -304,7 +304,7 @@ const getNip05PubkeyAndRelays = async function (nip05: string) {
     } else {
         throw new AppError(
             Err.VALIDATION_ERROR, 
-            `Could not get public key from NOSTR address verification server`, {nip05Record})   
+            `Could not get public key from NOSTR address verification server`, {nip05, nip05Record})   
     }
 
     // retrieve recommended relays

@@ -228,7 +228,7 @@ const payLightningInvoice = async function (
       )
 
     // if (newKeys) { _setKeys(mintUrl, newKeys) }
-    log.info('payLnInvoice result', {
+    log.trace('payLnInvoice result', {
       isPaid,
       change,
       preimage,
@@ -290,7 +290,10 @@ const requestProofs = async function (
         newKeys
     }
   } catch (e: any) {
-    log.info(`[MINT_ERROR] ${e.message}`,[],'cashuMintClient.requestProofs')
+    if(e.message.includes('Invoice not paid') === false) {
+        log.info(`[MINT_ERROR] ${e.message}`,[],'cashuMintClient.requestProofs')
+    }
+    
     return {proofs: []}
   }
 }

@@ -72,11 +72,11 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
             (status) => {
                 switch (status) {
                     case codePush.SyncStatus.DOWNLOADING_PACKAGE:
-                        log.info('Downloading update...')
+                        log.trace('Downloading update...')
                         setInfo('Downloading update...')
                         break
                     case codePush.SyncStatus.INSTALLING_UPDATE:
-                        log.info('Installing update...')
+                        log.trace('Installing update...')
                         setInfo('Installing update...')
                         break
                 }

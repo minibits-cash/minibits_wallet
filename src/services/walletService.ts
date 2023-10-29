@@ -1257,9 +1257,9 @@ const transfer = async function (
 ) {
     const mintUrl = mintBalanceToTransferFrom.mint
 
-    log.info('mintBalanceToTransferFrom', mintBalanceToTransferFrom, 'transfer')
-    log.info('amountToTransfer', amountToTransfer, 'transfer')
-    log.info('estimatedFee', estimatedFee, 'transfer')
+    log.trace('mintBalanceToTransferFrom', mintBalanceToTransferFrom, 'transfer')
+    log.trace('amountToTransfer', amountToTransfer, 'transfer')
+    log.trace('estimatedFee', estimatedFee, 'transfer')
     
     if (amountToTransfer + estimatedFee > mintBalanceToTransferFrom.balance) {
         throw new AppError(Err.VALIDATION_ERROR, 'Mint balance is insufficient to cover the amount to transfer with expected Lightning fees.')
@@ -1446,7 +1446,7 @@ const _addCashuProofs = function (
     proofsStore.addProofs(proofsToAdd as Proof[])
     const amount = CashuUtils.getProofsAmount(proofsToAdd as Proof[])
 
-    log.info('Added proofs with amount', { amount, isRecoveredFromPending })
+    log.trace('Added proofs with amount', { amount, isRecoveredFromPending })
     
     if(isRecoveredFromPending) {
         // Remove them from pending if they are returned to the wallet due to failed lightning payment
@@ -1592,7 +1592,7 @@ const checkPendingTopups = async function () {
                 // remove already expired invoices only after check that they have not been paid
                 // Fixes #3
                 if (isBefore(invoice.expiresAt as Date, new Date())) {
-                    log.info('Invoice expired, removing', invoice.paymentHash, 'checkPendingTopups')
+                    log.trace('Invoice expired, removing', invoice.paymentHash, 'checkPendingTopups')
                     
                     const transactionId = invoice.transactionId
                     invoicesStore.removeInvoice(invoice)

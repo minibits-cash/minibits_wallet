@@ -44,7 +44,7 @@ export const MintsStoreModel = types
 
             self.mints.push(mintInstance)
 
-            log.info('New mint added to the MintsStore')
+            log.info('New mint added to the MintsStore', newMint.mintUrl)
         },
         removeMint(mintToBeRemoved: Mint) {
             if (self.blockedMintUrls.some(m => m === mintToBeRemoved.mintUrl)) {
@@ -62,16 +62,16 @@ export const MintsStoreModel = types
 
             if (mintInstance) {
                 destroy(mintInstance)
-                log.info('Mint removed from MintsStore')
+                log.trace('Mint removed from MintsStore')
             }
         },
         blockMint(mintToBeBlocked: Mint) {
             self.blockedMintUrls.push(mintToBeBlocked.mintUrl)
-            log.info('Mint blocked in MintsStore')
+            log.trace('Mint blocked in MintsStore')
         },
         unblockMint(blockedMint: Mint) {
             self.blockedMintUrls.remove(blockedMint.mintUrl)
-            log.info('Mint unblocked in MintsStore')
+            log.trace('Mint unblocked in MintsStore')
         },
     }))
     .views(self => ({

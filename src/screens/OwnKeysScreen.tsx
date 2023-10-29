@@ -24,7 +24,7 @@ interface OwnKeysScreenProps extends ContactsStackScreenProps<'OwnKeys'> {}
 
 export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysScreen({navigation}) {    
 
-    const {walletProfileStore, contactsStore} = useStores() 
+    const {walletProfileStore, contactsStore, relaysStore} = useStores() 
 
     useHeader({        
         leftIcon: 'faArrowLeft',
@@ -77,7 +77,7 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
                 setInfo(`Invalid NOSTR address, please check that it follows name@domain.com format`)
             }
 
-            if(nip05Domain && MINIBITS_NIP05_DOMAIN.includes(nip05Domain)) {
+            if(MINIBITS_NIP05_DOMAIN.includes(nip05Domain as string)) {
                 setInfo(`${MINIBITS_NIP05_DOMAIN} names and keys can't be used with multiple wallets.`)
                 return
             }
@@ -86,7 +86,17 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
             // get nip05 record from the .well-known server
             const {nip05Pubkey, nip05Relays} = await NostrClient.getNip05PubkeyAndRelays(ownNip05)
 
-            const relaysToConnect = nip05Relays.length > 0 ? nip05Relays : NostrClient.getDefaultRelays()
+            if(nip05Relays.length > 0) {
+                for (const relay of nip05Relays) {
+                    relaysStore.addOrUpdateRelay({
+                        url: relay,
+                        status: WebSocket.CLOSED
+                    })
+                }
+            }
+
+            const relaysToConnect = relaysStore.allPublicUrls
+            setOwnProfileRelays(relaysToConnect)
 
             const profile: NostrProfile = await NostrClient.getProfileFromRelays(nip05Pubkey, relaysToConnect)
 
@@ -111,11 +121,6 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
 
             log.trace('Got valid profile', profile)    
             setOwnProfile(profile)
-
-            if(relaysToConnect.length > 0) {
-                setOwnProfileRelays(relaysToConnect)
-                contactsStore.setPublicRelay(relaysToConnect[0]) // TODO extend model to n relays
-            }
             
             setIsLoading(false)
         } catch(e: any) {
@@ -212,7 +217,7 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
                             <ListItem
                                 LeftComponent={<View style={[$numIcon, {backgroundColor: iconNip05}]}><Text text='1'/></View>}
                                 text='Enter your NOSTR address'
-                                subText={'Minibits uses NOSTR adress (nip05) as a sharable contact to send and receive ecash.'}                        
+                                subText={'Minibits uses NOSTR address (nip05) as a sharable contact to send and receive ecash.'}                        
                                 bottomSeparator={true}
                                 style={{}}
                             />                    

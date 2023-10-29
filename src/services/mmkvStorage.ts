@@ -21,7 +21,7 @@ const getInstance = function () {
         encryptionKey: _encryptionKey,
       })
 
-      log.info('MMKV encrypted storage initialized')
+      log.trace('MMKV encrypted storage initialized')
     } else {
       _storage = new MMKV({
         id: 'storage-v1',

@@ -49,10 +49,8 @@ export const InvoicesStoreModel = types
             }
 
             if (invoiceInstance) {
-                log.info('Invoice to be removed from InvoicesStore', invoiceToRemove)
+                log.trace('Invoice to be removed from InvoicesStore', invoiceToRemove)
                 destroy(invoiceInstance)
-                log.info('Invoice removed')
-                
             }
         },
     }))
