@@ -336,7 +336,7 @@ const updateUserSettings = function (settings: UserSettings): UserSettings {
         const db = getInstance()
         db.execute(query, params)
 
-        log.info('User settings created or updated in the database', params)
+        log.trace('User settings created or updated in the database', params)
 
         const updated = getUserSettings()
         return updated
@@ -799,7 +799,7 @@ const addOrUpdateProofs = function (
 
     const totalAmount = CashuUtils.getProofsAmount(proofs)
     // DO NOT log proof secrets to Sentry
-    log.info(
+    log.trace(
       `${rowsAffected}${isPending ? ' pending' : ''
       } proofs were added or updated in the database backup`,
       {isPending, isSpent}

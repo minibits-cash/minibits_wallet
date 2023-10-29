@@ -370,7 +370,7 @@ const transfer = async function () {
             encodedInvoice,
         )
 
-        log.info('Transfer result', {transaction, message, error, finalFee}, 'transfer')
+        log.trace('Transfer result', {transaction, message, error, finalFee}, 'transfer')
 
         const {status} = transaction as Transaction
         setTransactionStatus(status)
