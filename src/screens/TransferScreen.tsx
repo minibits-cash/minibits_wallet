@@ -10,6 +10,7 @@ import {
   FlatList,
   TextInput,
 } from 'react-native'
+import QuickCrypto from 'react-native-quick-crypto'
 import {spacing, useThemeColor, colors, typography} from '../theme'
 import {WalletStackScreenProps} from '../navigation'
 import {
@@ -268,7 +269,7 @@ const onMintBalanceSelect = function (balance: MintBalance) {
     setMintBalanceToTransferFrom(balance) // this triggers effect to get estimated fees
 }
 
-
+// Amount is editable only in case of LNURL Pay, while invoice is not yet retrieved
 const onAmountEndEditing = async function () {
     try {
         const amount = parseInt(amountToTransfer)
@@ -295,7 +296,27 @@ const onAmountEndEditing = async function () {
         setIsLoading(true)
         const encoded = await LnurlClient.getInvoice(lnurlPayParams, amount * 1000)
 
-        // TODO validate h
+        const invoice = LightningUtils.decodeInvoice(encoded)
+        const {description_hash} = LightningUtils.getInvoiceData(invoice)
+
+        if(!description_hash || description_hash.length === 0) {
+            throw new AppError(Err.VALIDATION_ERROR, `Invoice from ${lnurlPayParams.domain} is invalid, missing description_hash`)
+        }
+        // check that retrieved invoice matches the previous LNURL pay link
+        const hashedMetadata = QuickCrypto.createHash('sha256')
+        .update(lnurlPayParams.metadata)
+        .digest('hex')
+
+        log.trace('hashedMetadata', hashedMetadata)
+        log.trace('description_hash', description_hash)
+
+        if(hashedMetadata !== description_hash) {
+            throw new AppError(
+                Err.VALIDATION_ERROR, 
+                `Invoice from ${lnurlPayParams.domain} has invalid description_hash ${description_hash}, expected ${hashedMetadata}`
+            )
+        }
+
         setIsLoading(false)
         if(encoded) {
             return onEncodedInvoice(encoded)
@@ -314,11 +335,12 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
         navigation.setParams({encodedInvoice: undefined})
         navigation.setParams({paymentRequest: undefined})
         navigation.setParams({lnurlParams: undefined})
+        navigation.setParams({paymentOption: undefined})
 
         setEncodedInvoice(encoded)        
 
         const invoice = LightningUtils.decodeInvoice(encoded)
-        const {amount, expiry, description, timestamp} = LightningUtils.getInvoiceData(invoice)
+        const {amount, expiry, description, description_hash, timestamp} = LightningUtils.getInvoiceData(invoice)
 
         // log.trace('Decoded invoice', invoice, 'onEncodedInvoice')
         log.trace('Invoice data', {amount, expiry, description}, 'onEncodedInvoice')
@@ -491,7 +513,7 @@ const satsColor = colors.palette.primary200
                                 LeftComponent={
                                     <Icon
                                         containerStyle={$iconContainer}
-                                        icon="faPencil"
+                                        icon="faInfoCircle"
                                         size={spacing.medium}
                                         color={iconColor}
                                     />
