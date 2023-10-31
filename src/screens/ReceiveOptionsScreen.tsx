@@ -3,18 +3,17 @@ import React, {FC, useState, useCallback} from 'react'
 import {useFocusEffect} from '@react-navigation/native'
 import {Alert, TextStyle, View, ViewStyle} from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
+import { SvgXml } from 'react-native-svg'
 import {spacing, useThemeColor, colors} from '../theme'
 import {WalletStackScreenProps} from '../navigation'
 import {
-  Button,
-  Icon,
   Card,
   Screen,
   InfoModal,
   ErrorModal,
   ListItem,
-  BottomModal,
   Text,
+  ScanIcon,
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import {log} from '../utils/logger'
@@ -57,31 +56,8 @@ export const ReceiveOptionsScreen: FC<WalletStackScreenProps<'ReceiveOptions'>> 
     }
 
 
-    const onScanToken = async function () {
-        navigation.navigate('Scan', {expectedType: IncomingDataType.CASHU})
-    }
-
-    const onScanLnurl = async function () {
-        navigation.navigate('Scan', {expectedType: IncomingDataType.LNURL})
-    }
-
-
-    const onPaste = async function () {
-        const clipboard = await Clipboard.getString()
-        if (!clipboard) {
-            infoMessage('Please copy the ecash token first.')
-        }
-
-        try {           
-            const incomingData = IncomingParser.findAndExtract(clipboard, IncomingDataType.CASHU)
-            
-            infoMessage('Found ecash token in the clipboard.')                
-            setTimeout(() => navigation.navigate('Receive', {encodedToken: incomingData.encoded}), 1000)
-            return
-              
-        } catch (e: any) {
-            handleError(e)
-        }
+    const onScan = async function () {
+        navigation.navigate('Scan', {})
     }
 
 
@@ -121,38 +97,40 @@ export const ReceiveOptionsScreen: FC<WalletStackScreenProps<'ReceiveOptions'>> 
                         tx="receiveScreen.showOrShareInvoice"
                         subTx="receiveScreen.showOrShareInvoiceDescription"
                         leftIcon='faBolt'
-                        leftIconColor={colors.palette.accent300}
+                        leftIconColor={colors.palette.orange200}
                         leftIconInverse={true}
                         style={$item}                        
                         onPress={gotoTopup}
                     />
-                    <Button 
-                        onPress={onScanLnurl}
-                        tx='receiveScreen.scanWithdrawalLink'
-                        preset='secondary'
-                        textStyle={{fontSize: 14, color: iconColor}}
-                        style={{alignSelf: 'flex-start', marginLeft: 43, minHeight: 25, paddingVertical: spacing.extraSmall, marginBottom: spacing.small}}
-                    />
                     <ListItem
                         tx="receiveScreen.scanToReceive"
                         subTx="receiveScreen.scanToReceiveDescription"
-                        leftIcon='faQrcode'
-                        leftIconColor={colors.palette.success200}
-                        leftIconInverse={true}
+                        LeftComponent={
+                            <View
+                                style={{
+                                    marginEnd: spacing.small,
+                                    flex: 0,
+                                    borderRadius: spacing.small,
+                                    padding: spacing.extraSmall,
+                                    backgroundColor: colors.palette.success200
+                                }}
+                            >
+                                <SvgXml 
+                                    width={spacing.medium} 
+                                    height={spacing.medium} 
+                                    xml={ScanIcon}
+                                    fill='white'
+                                />
+                            </View>
+                        }                        
+                        // leftIcon='faQrcode'
+                        // leftIconColor={colors.palette.success200}
+                        // leftIconInverse={true}
                         style={$item} 
                         topSeparator={true}                   
-                        onPress={onScanToken}
+                        onPress={onScan}
                     />
                 </>
-              }
-              FooterComponent={
-                <Button 
-                    onPress={onPaste}
-                    tx='receiveScreen.pasteToReceive'
-                    preset='secondary'
-                    textStyle={{fontSize: 14, color: iconColor}}
-                    style={{alignSelf: 'flex-start', marginLeft: 43, minHeight: 25, paddingVertical: spacing.extraSmall, marginBottom: spacing.small}}
-                />
               }
             />
         </View>        

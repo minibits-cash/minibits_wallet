@@ -43,12 +43,19 @@ const extractEncodedLightningInvoice = function (maybeInvoice: string) {
         }
         
         invoice = decodeInvoice(encodedInvoice) // throws
-        return encodedInvoice              
-        
-    } else {
-        invoice = decodeInvoice(maybeInvoice) // throws
-        return maybeInvoice
+        return encodedInvoice        
     }
+
+    if (maybeInvoice.startsWith('bitcoin:')) {        
+        const url = new URL(maybeInvoice)
+        // Use URLSearchParams to get the value of the "lightning" parameter
+        encodedInvoice = url.searchParams.get("lightning") as string
+        invoice = decodeInvoice(encodedInvoice) // throws
+        return encodedInvoice  
+    }
+
+    invoice = decodeInvoice(maybeInvoice) // throws
+    return maybeInvoice
 }
 
 

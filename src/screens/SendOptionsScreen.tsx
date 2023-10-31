@@ -15,6 +15,7 @@ import {
   ListItem,
   BottomModal,
   Text,
+  ScanIcon,
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import {log} from '../utils/logger'
@@ -23,6 +24,7 @@ import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { infoMessage } from '../utils/utils'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 import { LnurlUtils } from '../services/lnurl/lnurlUtils'
+import { SvgXml } from 'react-native-svg'
 
 export enum SendOption {
     SEND_TOKEN = 'SEND_TOKEN',
@@ -63,58 +65,6 @@ export const SendOptionsScreen: FC<WalletStackScreenProps<'SendOptions'>> = obse
     }
 
 
-    const onPaste = async function () {
-        const clipboard = await Clipboard.getString()
-        if (!clipboard) {
-            infoMessage('Please copy the invoice first.')
-        }
-
-        try {
-            const incomingData = IncomingParser.findAndExtract(clipboard, IncomingDataType.INVOICE)
-
-            infoMessage('Found lightning invoice in the clipboard.')                
-            setTimeout(async() => IncomingParser.navigateWithIncomingData(incomingData, navigation), 500)
-            return
-            
-        } catch (e: any) {
-            const maybeLnurl = LnurlUtils.findEncodedLnurl(clipboard)
-                    
-            if(maybeLnurl) {
-                log.trace('Found LNURL link instead of an invoice', maybeLnurl, 'onPaste')
-                const encodedLnurl = LnurlUtils.extractEncodedLnurl(maybeLnurl)
-
-                if(encodedLnurl) {
-                    infoMessage('Found LNURL link in the clipboard.')   
-                    return setTimeout(async() => IncomingParser.navigateWithIncomingData({
-                        type: IncomingDataType.LNURL,
-                        encoded: encodedLnurl
-                    }, navigation), 500)                               
-                }
-                return
-            }
-
-            const maybeLnurlAddress = LnurlUtils.findEncodedLnurlAddress(clipboard)
-
-            if(maybeLnurlAddress) {
-                log.trace('Found Lightning address instead of an invoice', maybeLnurlAddress, 'onPaste')        
-                const lnurlAddress = LnurlUtils.extractLnurlAddress(maybeLnurlAddress)
-        
-                if(lnurlAddress) {
-                    infoMessage('Found Lightning address in the clipboard.') 
-                    return setTimeout(async() => IncomingParser.navigateWithIncomingData({
-                        type: IncomingDataType.LNURL_ADDRESS,
-                        encoded: lnurlAddress
-                    }, navigation), 500)      
-                }
-                return          
-            }           
-            
-            e.params = clipboard
-            handleError(e)                    
-        }
-    }
-
-
     const handleError = function (e: AppError): void {
       log.error(e.name, e.message)
       setError(e)
@@ -146,33 +96,44 @@ export const SendOptionsScreen: FC<WalletStackScreenProps<'SendOptions'>> = obse
                         style={$item}
                         bottomSeparator={true}
                         onPress={gotoContacts}
-                    />
-                    <ListItem
-                        tx="sendScreen.scanToSend"
-                        subTx="sendScreen.scanToSendDescription"
-                        leftIcon='faBolt'
-                        leftIconColor={colors.palette.accent300}
-                        leftIconInverse={true}
-                        style={$item}                    
-                        onPress={onScan}
-                    />
-                    <Button 
-                        onPress={onPaste}
-                        tx='sendScreen.pasteToSend'
-                        preset='secondary'
-                        textStyle={{fontSize: 14, color: iconColor}}
-                        style={{alignSelf: 'flex-start', marginLeft: 43, minHeight: 25, paddingVertical: spacing.extraSmall, marginBottom: spacing.small}}
-                    />
+                    />                 
                     <ListItem
                         tx="sendScreen.showOrShareToken"
                         subTx="sendScreen.showOrShareTokenDescription"
                         leftIcon='faQrcode'
-                        leftIconColor={colors.palette.success200}
+                        leftIconColor={colors.palette.iconViolet300}
                         leftIconInverse={true}
                         style={$item}
-                        topSeparator={true}
                         onPress={gotoSend}
                     />
+                    <ListItem
+                        tx="sendScreen.scanToSend"
+                        subTx="sendScreen.scanToSendDescription"
+                        LeftComponent={
+                            <View
+                                style={{
+                                    marginEnd: spacing.small,
+                                    flex: 0,
+                                    borderRadius: spacing.small,
+                                    padding: spacing.extraSmall,
+                                    backgroundColor: colors.palette.success200
+                                }}
+                            >
+                                <SvgXml 
+                                    width={spacing.medium} 
+                                    height={spacing.medium} 
+                                    xml={ScanIcon}
+                                    fill='white'
+                                />
+                            </View>
+                        } 
+                        // leftIcon='faBolt'
+                        // leftIconColor={colors.palette.success200}
+                        // leftIconInverse={true}
+                        topSeparator={true}
+                        style={$item}                    
+                        onPress={onScan}
+                    />   
                     </>
               }
 

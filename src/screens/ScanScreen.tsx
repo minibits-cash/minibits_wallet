@@ -3,17 +3,20 @@ import {
     Platform,
     PermissionsAndroid,
     Alert,
+    ViewStyle,
+    View,
 } from 'react-native'
 import {WalletStackScreenProps} from '../navigation'
-import {CameraScreen} from 'react-native-camera-kit'
-import {typography} from '../theme'
+import {CameraScreen, CameraType} from 'react-native-camera-kit'
+import {spacing, typography} from '../theme'
 import {useHeader} from '../utils/useHeader'
 import {log} from '../utils/logger'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 import AppError from '../utils/AppError'
-import { ErrorModal } from '../components'
+import { Button, ErrorModal } from '../components'
 import { LnurlUtils } from '../services/lnurl/lnurlUtils'
 import { infoMessage } from '../utils/utils'
+import Clipboard from '@react-native-clipboard/clipboard'
 
 const hasAndroidCameraPermission = async () => {
     const cameraPermission = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA)
@@ -56,48 +59,57 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
     }, [route.params?.expectedType])
 
 
-
     const onReadCode = async function(event: any) {
         setIsScanned(true)
         const scanned = event.nativeEvent.codeStringValue
         log.trace('Scanned', scanned)
 
+        return onIncomingData(scanned)
+    }
+
+
+    const onIncomingData = async function(incoming: any) {
         const routes = navigation.getState()?.routes
         const prevRouteName = routes[routes.length - 2].name
         log.trace('prevRouteName', prevRouteName)
 
-
         switch (prevRouteName) {
             case 'ReceiveOptions':  
             log.trace('ReceiveOptions')
-                try {
-                    if(expected === IncomingDataType.CASHU) {
-                        const tokenResult = IncomingParser.findAndExtract(scanned, IncomingDataType.CASHU)                
-                        log.trace('Got token')
-                        return IncomingParser.navigateWithIncomingData(tokenResult, navigation)                        
-                    }
+                try {                    
+                    const tokenResult = IncomingParser.findAndExtract(incoming, IncomingDataType.CASHU)
+                    return IncomingParser.navigateWithIncomingData(tokenResult, navigation)
                     
-                    if(expected === IncomingDataType.LNURL) {
-                        const lnurlResult = IncomingParser.findAndExtract(scanned, IncomingDataType.LNURL)
-                        log.trace('Got LNURL')
-                        await IncomingParser.navigateWithIncomingData(lnurlResult, navigation)
-                        return                        
-                    }
                 } catch (e: any) {
-                    e.params = scanned
+                    const maybeLnurl = LnurlUtils.findEncodedLnurl(incoming)
+
+                    if(maybeLnurl) {
+                        log.trace('Found LNURL link instead of a token', maybeLnurl, 'onIncomingData')
+                        const encodedLnurl = LnurlUtils.extractEncodedLnurl(maybeLnurl)
+        
+                        if(encodedLnurl) {
+                            infoMessage('Found LNURL link in the clipboard.')   
+                            return setTimeout(async() => IncomingParser.navigateWithIncomingData({
+                                type: IncomingDataType.LNURL,
+                                encoded: encodedLnurl
+                            }, navigation), 500)                               
+                        }
+                        return
+                    }
+
+                    e.params = incoming
                     handleError(e)
                 }   
             case 'SendOptions':     
                 try {               
-                    const invoiceResult = IncomingParser.findAndExtract(scanned, IncomingDataType.INVOICE)                 
-                    log.trace('Got invoice')
+                    const invoiceResult = IncomingParser.findAndExtract(incoming, IncomingDataType.INVOICE)
                     return IncomingParser.navigateWithIncomingData(invoiceResult, navigation)
                     
                 } catch (e: any) {
-                    const maybeLnurl = LnurlUtils.findEncodedLnurl(scanned)
+                    const maybeLnurl = LnurlUtils.findEncodedLnurl(incoming)
                     
                     if(maybeLnurl) {
-                        log.trace('Found LNURL link instead of an invoice', maybeLnurl, 'onPaste')
+                        log.trace('Found LNURL link instead of an invoice', maybeLnurl, 'onIncomingData')
                         const encodedLnurl = LnurlUtils.extractEncodedLnurl(maybeLnurl)
         
                         if(encodedLnurl) {
@@ -110,10 +122,10 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                         return
                     }
         
-                    const maybeLnurlAddress = LnurlUtils.findEncodedLnurlAddress(scanned)
+                    const maybeLnurlAddress = LnurlUtils.findEncodedLnurlAddress(incoming)
         
                     if(maybeLnurlAddress) {
-                        log.trace('Found Lightning address instead of an invoice', maybeLnurlAddress, 'onPaste')        
+                        log.trace('Found Lightning address instead of an invoice', maybeLnurlAddress, 'onIncomingData')        
                         const lnurlAddress = LnurlUtils.extractLnurlAddress(maybeLnurlAddress)
                 
                         if(lnurlAddress) {
@@ -126,22 +138,31 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                         return          
                     }           
                     
-                    e.params = scanned
+                    e.params = incoming
                     handleError(e)  
                     break
                 }                          
             default:
                 try {
                 // generic scan button on wallet screen
-                    const incomingData = IncomingParser.findAndExtract(scanned)                    
+                    const incomingData = IncomingParser.findAndExtract(incoming)                    
                     return IncomingParser.navigateWithIncomingData(incomingData, navigation)   
                 } catch (e: any) {
-                    e.params = scanned
+                    e.params = incoming
                     handleError(e)
                 }
         }
 
-    }           
+    }
+    
+    const onPaste = async function() {        
+        const clipboard = await Clipboard.getString()
+        if (!clipboard) {
+            infoMessage('Please copy the invoice first.')
+        }
+
+        return onIncomingData(clipboard)
+    }
 
 
     /* const handleError = (scanned: string, message: string) => {
@@ -161,14 +182,41 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
     return (shouldLoad ? (
         <>
             <CameraScreen
-                actions={{rightButtonText: 'Done', leftButtonText: 'Cancel'}}            
+                cameraType={CameraType.Back}                      
                 scanBarcode
                 onReadCode={event => (isScanned ? undefined : onReadCode(event))}
                 hideControls            
             />
+            <View style={$bottomContainer}>
+                <View style={$buttonContainer}>
+                    <Button                        
+                        onPress={() => onPaste()}
+                        text={'Paste from clipboard'}
+                        preset='secondary'
+                        style={{marginTop: spacing.medium, minWidth: 120}}                        
+                    />               
+                </View>
+            </View>
             {error && <ErrorModal error={error} />}
         </>
         ) : null
     )
 }
+
+const $buttonContainer: ViewStyle = {
+    flexDirection: 'row',
+    alignSelf: 'center',
+}
+
+const $bottomContainer: ViewStyle = {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flex: 1,
+    justifyContent: 'flex-end',
+    marginBottom: spacing.medium,
+    alignSelf: 'stretch',
+    // opacity: 0,
+  }
 

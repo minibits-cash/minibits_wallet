@@ -1,5 +1,5 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useState, useEffect, useCallback, useRef, useMemo, createRef, RefObject} from 'react'
+import React, {FC, useState, useEffect, useCallback, useRef} from 'react'
 import {useFocusEffect} from '@react-navigation/native'
 import {
   TextStyle,
@@ -10,18 +10,15 @@ import {
   Image,
   InteractionManager,
   Animated,
-  findNodeHandle,
   FlatList,
   Pressable,
   Linking
 } from 'react-native'
-/* import Animated, {
-  useAnimatedScrollHandler,
-  useSharedValue,
-  useAnimatedStyle,
-} from 'react-native-reanimated' */
 import codePush, { RemotePackage } from 'react-native-code-push'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
+import { SvgXml } from 'react-native-svg'
+import PagerView, { PagerViewOnPageScrollEventData } from 'react-native-pager-view'
+import { ScalingDot } from 'react-native-animated-pagination-dots'
 import {useThemeColor, spacing, colors, typography} from '../theme'
 import {
   Button,
@@ -35,12 +32,11 @@ import {
   BottomModal,
   ErrorModal,
   Header,
+  ScanIcon
 } from '../components'
 import {useStores} from '../models'
 import EventEmitter from '../utils/eventEmitter'
 import {WalletStackScreenProps} from '../navigation'
-// import useIsInternetReachable from '../utils/useIsInternetReachable'
-import {useHeader} from '../utils/useHeader'
 import {Mint, MintBalance} from '../models/Mint'
 import {MintsByHostname} from '../models/MintsStore'
 import {Env, log} from '../utils/logger'
@@ -49,7 +45,6 @@ import {TransactionListItem} from './Transactions/TransactionListItem'
 import {MintClient, MintKeys, NostrClient, ReceivedEventResult, Wallet} from '../services'
 import {translate} from '../i18n'
 import AppError, { Err } from '../utils/AppError'
-import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import {
     APP_ENV,      
     CODEPUSH_STAGING_DEPLOYMENT_KEY,
@@ -57,13 +52,13 @@ import {
 } from '@env'
 import { round } from '../utils/number'
 import { NotificationService } from '../services/notificationService'
-import PagerView, { PagerViewOnPageScrollEventData } from 'react-native-pager-view'
-import { ExpandingDot, ScalingDot, SlidingBorder, SlidingDot } from 'react-native-animated-pagination-dots'
 import { PaymentRequest, PaymentRequestStatus } from '../models/PaymentRequest'
 import { Invoice } from '../models/Invoice'
 import { poller } from '../utils/poller'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
+
+
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView)
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
@@ -496,10 +491,11 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             />
             <Button
               RightAccessory={() => (
-                <Icon
-                  icon='faExpand'
-                  color='white'
-                  size={spacing.medium}                  
+                <SvgXml 
+                    width={spacing.medium} 
+                    height={spacing.medium} 
+                    xml={ScanIcon}
+                    fill='white'
                 />
               )}
               onPress={gotoScan}
@@ -655,31 +651,7 @@ const MintsByHostnameListItem = observer(function (props: {
     )
 })
 
-/* const LightningActionsBlock = function (props: {
-  gotoWithdraw: any
-  gotoTopup: any
-}) {
-  return (
-    <>
-        <ListItem
-            tx='walletScreen.topUpWallet'
-            subTx='walletScreen.topUpWalletSubText'
-            leftIcon='faArrowRightToBracket'
-            leftIconTransform='rotate-90'
-            onPress={props.gotoTopup}
-            bottomSeparator={true}
-            style={{paddingHorizontal: spacing.medium}}
-        />
-        <ListItem
-            tx='walletScreen.transferFromWallet'
-            subTx='walletScreen.transferFromWalletSubText'
-            leftIcon='faArrowUpFromBracket'
-            onPress={props.gotoWithdraw}
-            style={{paddingHorizontal: spacing.medium}}
-        />
-    </>
-  )
-} */
+
 
 const $screen: ViewStyle = {
     flex: 1,

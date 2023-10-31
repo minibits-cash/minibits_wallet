@@ -3,7 +3,7 @@ import React, {FC, useCallback, useEffect, useState} from 'react'
 import {ColorValue, Share, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {ContactsStackScreenProps} from '../navigation'
-import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, Loading} from '../components'
+import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, Loading, Header} from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import AppError from '../utils/AppError'
@@ -19,13 +19,6 @@ interface ProfileScreenProps extends ContactsStackScreenProps<'Profile'> {}
 export const ProfileScreen: FC<ProfileScreenProps> = observer(
   function ProfileScreen({navigation}) {    
     
-    useHeader({        
-        leftIcon: 'faArrowLeft',
-        onLeftPress: () => navigation.goBack(),
-        rightIcon: 'faShareFromSquare',
-        onRightPress: () => onShareContact()
-    })
-
     const {walletProfileStore, userSettingsStore} = useStores() 
     const {npub, name, picture, nip05} = walletProfileStore    
 
@@ -116,7 +109,13 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
     const iconNpub = useThemeColor('textDim')
     
     return (
-      <Screen contentContainerStyle={$screen} preset='auto'>        
+      <Screen contentContainerStyle={$screen} preset='auto'>
+            <Header 
+                leftIcon='faArrowLeft'
+                onLeftPress={navigation.goBack}
+                rightIcon='faShareFromSquare'
+                onRightPress={onShareContact}
+            />        
             <ProfileHeader />        
             <View style={$contentContainer}>
             {!walletProfileStore.isOwnProfile && (
