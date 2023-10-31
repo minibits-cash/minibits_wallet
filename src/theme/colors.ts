@@ -45,6 +45,7 @@ const palette = {
   blue200: '#818AFF',
 
   orange200: '#FFAB51',
+  orange400: '#F7931A',
 
   focus100: '#FB4E9E',
   focus200: '#F62586',
@@ -58,6 +59,7 @@ const palette = {
   iconGreyBlue400: '#0E629B',
   iconMagenta200: '#F62586',
   iconViolet200: '#AF00C9',
+  iconViolet300: '#7F38CA',
 } as const
 
 export const colors = {
