@@ -293,6 +293,10 @@ const onAmountEndEditing = async function () {
             return
         }
 
+        if (lnurlPayParams.payerData) {
+            infoMessage(`Minibits does not yet support entering of payer identity data (LUD18).`)   
+        }
+
         setIsLoading(true)
         const encoded = await LnurlClient.getInvoice(lnurlPayParams, amount * 1000)
 
