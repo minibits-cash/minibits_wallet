@@ -262,7 +262,9 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             setMintBalanceToSendFrom(availableBalances[0])
             setIsAmountEndEditing(true)
             // We do not make memo focus mandatory
-            onMemoEndEditing()
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+            // Show mint selector        
+            setIsMintSelectorVisible(true)
 
         } catch (e: any) {
             handleError(e)
@@ -272,8 +274,11 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
     const onMemoEndEditing = function () {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+        
         // Show mint selector
-        setIsMintSelectorVisible(true)
+        if (availableMintBalances.length > 0) {
+            setIsMintSelectorVisible(true)
+        }
         setIsMemoEndEditing(true)        
     }
 
