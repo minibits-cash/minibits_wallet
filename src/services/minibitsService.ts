@@ -1,5 +1,5 @@
 import AppError, { Err } from "../utils/AppError"
-import { Env, log } from "../utils/logger"
+import { Env, log } from "./logService"
 import {
     MINIBITS_SERVER_API_KEY,
     MINIBITS_SERVER_API_HOST,    

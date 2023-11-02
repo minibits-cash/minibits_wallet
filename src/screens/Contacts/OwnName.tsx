@@ -6,7 +6,7 @@ import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loadin
 import {useStores} from '../../models'
 import { MinibitsClient} from '../../services'
 import AppError, { Err } from '../../utils/AppError'
-import {log} from '../../utils/logger'
+import {log} from '../../services/logService'
 import { TransactionStatus } from '../../models/Transaction'
 import { poller, stopPolling } from '../../utils/poller'
 import QRCode from 'react-native-qrcode-svg'

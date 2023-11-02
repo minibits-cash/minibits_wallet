@@ -153,7 +153,6 @@ After the dependecies are installed, continue to create the following .env file 
 
 ```bash
 APP_ENV = 'DEV'
-LOG_LEVEL = 'TRACE'
 SENTRY_ACTIVE = 'FALSE'
 ```
 

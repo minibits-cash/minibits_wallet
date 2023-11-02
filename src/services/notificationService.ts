@@ -1,6 +1,6 @@
 import notifee, { AndroidImportance } from '@notifee/react-native'
 import { colors } from '../theme';
-import { log } from '../utils/logger';
+import { log } from './logService';
 
 
 const createLocalNotification = async function (title: string, body: string, largeIcon?: string) {

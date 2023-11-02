@@ -1,5 +1,6 @@
 # App specific
 .env
+.vscode/
 # OSX
 #
 .DS_Store

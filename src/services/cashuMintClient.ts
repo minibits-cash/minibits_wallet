@@ -8,7 +8,7 @@ import {
 import { TorDaemon } from '../services'
 import {CashuUtils} from './cashu/cashuUtils'
 import AppError, {Err} from '../utils/AppError'
-import {log} from '../utils/logger'
+import {log} from './logService'
 import {Token} from '../models/Token'
 import {Proof} from '../models/Proof'
 

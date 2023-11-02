@@ -1,7 +1,7 @@
 import {Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
 import {LightningUtils} from '../services/lightning/lightningUtils'
 import {withSetPropAction} from './helpers/withSetPropAction'
-import {log} from '../utils/logger'
+import {log} from '../services/logService'
 import addSeconds from 'date-fns/addSeconds'
 
 /**
@@ -40,9 +40,7 @@ export const PaymentRequestModel = types
 
             const expiresAt = addSeconds(new Date(timestamp * 1000), expiry as number)
 
-            log.trace(
-                `PaymentRequest expiry is ${expiry}, setting expiresAt to ${expiresAt}`,
-            )
+            log.debug('[setExpiresAt]', `PaymentRequest expiry is ${expiry}, setting expiresAt to ${expiresAt}`)
             self.expiresAt = new Date(expiresAt)
         },
         setStatus(status: PaymentRequestStatus) {            

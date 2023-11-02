@@ -23,7 +23,7 @@ import {
   MintsScreen, 
   DeveloperScreen,
   SecurityScreen,
-  // PrivacyScreen,
+  PrivacyScreen,
   UpdateScreen,
   BackupScreen,
   LocalRecoveryScreen,
@@ -204,7 +204,7 @@ export type SettingsStackParamList = {
   Settings: undefined
   Mints: {scannedMintUrl? : string}
   Security: undefined
-  // Privacy: undefined
+  Privacy: undefined
   Update: {
     isUpdateAvailable : boolean, 
     isNativeUpdateAvailable: boolean, 
@@ -237,7 +237,7 @@ const SettingsNavigator = function SettingsNavigator() {
       <SettingsStack.Screen name="Settings" component={SettingsScreen} />
       <SettingsStack.Screen name="Mints" component={MintsScreen} />
       <SettingsStack.Screen name="Security" component={SecurityScreen} />
-      {/*<SettingsStack.Screen name="Privacy" component={PrivacyScreen} />*/}
+      <SettingsStack.Screen name="Privacy" component={PrivacyScreen} />
       <SettingsStack.Screen name="Update" component={UpdateScreen} />
       <SettingsStack.Screen name="Backup" component={BackupScreen} />
       <SettingsStack.Screen name="LocalRecovery" component={LocalRecoveryScreen} />

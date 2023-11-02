@@ -10,7 +10,6 @@ import {
 import {moderateScale, scale, verticalScale} from '@gocodingnow/rn-size-matters'
 import { colors, spacing, typography, useThemeColor } from "../theme"
 import { Text, TextProps } from "./Text"
-import { log } from "../utils/logger"
 
 type Presets = keyof typeof $viewPresets
 

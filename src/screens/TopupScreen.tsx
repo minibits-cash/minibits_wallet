@@ -35,7 +35,7 @@ import {TransactionStatus, Transaction} from '../models/Transaction'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
 import {NostrClient, NostrProfile, NostrUnsignedEvent, Wallet} from '../services'
-import {log} from '../utils/logger'
+import {log} from '../services/logService'
 import AppError, { Err } from '../utils/AppError'
 
 import {Mint, MintBalance} from '../models/Mint'

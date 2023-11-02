@@ -3,7 +3,7 @@ import {
 } from '@cashu/cashu-ts'
 import AppError, {Err} from '../../utils/AppError'
 import addSeconds from 'date-fns/addSeconds'
-import { log } from '../../utils/logger'
+import { log } from '../logService'
 
 // TODO refactor all this into own module
 

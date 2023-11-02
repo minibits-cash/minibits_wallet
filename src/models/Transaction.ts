@@ -1,5 +1,5 @@
 import {Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
-import { log } from '../utils/logger'
+import { log } from '../services/logService'
 
 export interface TransactionRecord {
     id?: number
@@ -13,7 +13,8 @@ export interface TransactionRecord {
     balanceAfter?: number | null
     noteToSelf?: string | null
     tags?: Array<string> | null
-    status: TransactionStatus    
+    status: TransactionStatus 
+    createdAt: Date   
 }
 
 export type TransactionData = {

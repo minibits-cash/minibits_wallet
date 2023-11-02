@@ -6,8 +6,7 @@ import {
     JS_BUNDLE_VERSION,
     NATIVE_VERSION_ANDROID,
     CODEPUSH_STAGING_DEPLOYMENT_KEY,
-    CODEPUSH_PRODUCTION_DEPLOYMENT_KEY,
-    SENTRY_ACTIVE, 
+    CODEPUSH_PRODUCTION_DEPLOYMENT_KEY,    
 } from '@env'
 import codePush from 'react-native-code-push'
 import FlashMessage from "react-native-flash-message"
@@ -24,13 +23,14 @@ import {useInitialRootStore, useStores} from './models'
 import {Database} from './services'
 import {ErrorBoundary} from './screens/ErrorScreen/ErrorBoundary'
 import Config from './config'
-import {Env, log, SentryActive} from './utils/logger'
+import {log} from './services'
+import {Env} from './utils/envtypes'
 import AppError from './utils/AppError'
 
 setSizeMattersBaseWidth(375)
 setSizeMattersBaseHeight(812)
 
-if (!__DEV__ && SENTRY_ACTIVE === SentryActive.TRUE) {
+if (!__DEV__) {
     Sentry.init({
         dsn: SENTRY_DSN,
         environment: APP_ENV,
@@ -55,7 +55,7 @@ function App(props: AppProps) {
     const {userSettingsStore} = useStores()
     const {rehydrated} = useInitialRootStore(() => {
         // This runs after the root store has been initialized and rehydrated from storage.
-        log.trace('Root store rehydrated', [], 'useInitialRootStore')
+        
 
         // Creates and opens a sqlite database that stores transactions history and user settings.
         // It triggers db migrations if database version has changed.
@@ -63,7 +63,8 @@ function App(props: AppProps) {
         Database.getDatabaseVersion()
         
         // Syncs userSettings store with the database where they are persisted
-        userSettingsStore.loadUserSettings()        
+        userSettingsStore.loadUserSettings()
+        log.trace('[useInitialRootStore]', 'Root store rehydrated')
     })
 
     if (!rehydrated) {    

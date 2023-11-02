@@ -1,7 +1,7 @@
 
 import {decodelnurl} from 'js-lnurl/lib/helpers/decodelnurl'
 import AppError, {Err} from '../../utils/AppError'
-import { log } from '../../utils/logger'
+import { log } from '../logService'
 
 
 const findEncodedLnurl = function (content: string) {

@@ -4,9 +4,7 @@ import {Alert, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {SettingsStackScreenProps} from '../navigation'
 import {
-    APP_ENV,
-    LOG_LEVEL,
-    SENTRY_ACTIVE,
+    APP_ENV,    
     NATIVE_VERSION_ANDROID,
     JS_BUNDLE_VERSION,
     COMMIT,    
@@ -21,6 +19,8 @@ import {
   Loading,
   ErrorModal,
   InfoModal,
+  BottomModal,
+  Button,
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
@@ -29,7 +29,7 @@ import AppError from '../utils/AppError'
 import {Database, KeyChain, NostrClient} from '../services'
 import {MMKVStorage} from '../services'
 import {maxTransactionsInModel} from '../models/TransactionsStore'
-import { log } from '../utils/logger'
+import { LogLevel } from '../services/log/logTypes'
 
 export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observer(function DeveloperScreen(_props) {
     const {navigation} = _props
@@ -42,6 +42,8 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
 
     const [isLoading, setIsLoading] = useState(false)
     const [rnVersion, setRnVersion] = useState<string>('')
+    const [isLogLevelSelectorVisible, setIsLogLevelSelectorVisible] = useState<boolean>(false)
+    const [selectedLogLevel, setSelectedLogLevel] = useState<LogLevel>(userSettingsStore.logLevel)
     const [error, setError] = useState<AppError | undefined>()
     const [info, setInfo] = useState('')
 
@@ -83,6 +85,22 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
         handleError(e)
       }
     }
+
+
+    const toggleLogLevelSelector = () =>
+        setIsLogLevelSelectorVisible(previousState => !previousState)
+
+
+    const onLogLevelSelect = function (logLevel: LogLevel) {
+        try {
+            const result = userSettingsStore.setLogLevel(logLevel)
+            setSelectedLogLevel(result)
+        } catch (e: any) {
+            handleError(e)
+        }
+        
+    }
+    
 
     const factoryReset = async function () {
       Alert.alert(
@@ -128,6 +146,8 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
     }
     
     const headerBg = useThemeColor('header')
+    const iconSelectedColor = useThemeColor('button')
+    const iconColor = useThemeColor('textDim')
 
     return (
       <Screen style={$screen} preset='auto'>
@@ -144,13 +164,24 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
             HeadingComponent={
               <>
                 <ListItem
+                  tx="developerScreen.logLevel"
+                  subText={userSettingsStore.logLevel.toUpperCase()}
+                  leftIcon='faListUl'
+                  leftIconColor={colors.palette.iconMagenta200}
+                  leftIconInverse={true}
+                  RightComponent={<View style={$rightContainer} />}
+                  style={$item}
+                  bottomSeparator={true}
+                  onPress={toggleLogLevelSelector}
+                />
+                <ListItem
                   tx="developerScreen.transactions"
                   subText={translate(
                     'developerScreen.transactionsDescription',
                     {count: transactionsStore.count},
                   )}
-                  leftIcon='faRotate'
-                  leftIconColor={colors.light.tint}
+                  leftIcon='faDownload'
+                  leftIconColor={colors.palette.iconYellow300}
                   leftIconInverse={true}
                   RightComponent={<View style={$rightContainer} />}
                   style={$item}
@@ -158,28 +189,10 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
                   onPress={syncTransactionsFromDb}
                 />
                 <ListItem
-                  tx="developerScreen.info"
-                  subText={`Environment: ${APP_ENV}
-Native version: ${NATIVE_VERSION_ANDROID}
-JS Bundle version: ${JS_BUNDLE_VERSION}
-React Native: ${rnVersion}
-Commit: ${COMMIT}
-Log level: ${LOG_LEVEL}
-Sentry active: ${SENTRY_ACTIVE}
-Sentry id: ${userSettingsStore.userSettings.walletId}
-                  `}
-                  leftIcon='faInfoCircle'
-                  leftIconColor={colors.palette.iconGreen300}
-                  leftIconInverse={true}
-                  bottomSeparator={true}
-                  RightComponent={<View style={$rightContainer} />}
-                  style={$item}
-                />
-                <ListItem
                   text="Show onboarding again"
                   subText="Go through onboarding screens again next time you restart Minibits."
                   leftIcon='faRotate'
-                  leftIconColor={colors.palette.secondary300}
+                  leftIconColor={colors.light.tint}
                   leftIconInverse={true}
                   RightComponent={<View style={$rightContainer} />}
                   style={$item}                  
@@ -189,6 +202,26 @@ Sentry id: ${userSettingsStore.userSettings.walletId}
               </>
             }
           />
+          <Card
+            style={[$card, {marginTop: spacing.medium}]}
+            HeadingComponent={
+                <ListItem
+                  tx="developerScreen.info"
+                  subText={`Environment: ${APP_ENV}
+Native version: ${NATIVE_VERSION_ANDROID}
+JS Bundle version: ${JS_BUNDLE_VERSION}
+React Native: ${rnVersion}
+Commit: ${COMMIT}
+Sentry id: ${userSettingsStore.userSettings.walletId}
+                  `}
+                  leftIcon='faInfoCircle'
+                  leftIconColor={colors.palette.iconGreen300}
+                  leftIconInverse={true}                  
+                  RightComponent={<View style={$rightContainer} />}
+                  style={$item}
+                /> 
+            }
+            />
           <Card
             style={[$card, {marginTop: spacing.medium}]}
             HeadingComponent={
@@ -205,6 +238,51 @@ Sentry id: ${userSettingsStore.userSettings.walletId}
             }
             />
         </View>
+        <BottomModal
+          isVisible={isLogLevelSelectorVisible ? true : false}
+          style={{alignItems: 'stretch'}}          
+          ContentComponent={
+            <>
+                <ListItem                    
+                    text={LogLevel.ERROR.toUpperCase()}
+                    subText={'Log errors and crashes only, without private data.'}
+                    leftIcon={selectedLogLevel === LogLevel.ERROR ? 'faCheckCircle' : 'faCircle'}          
+                    leftIconColor={selectedLogLevel === LogLevel.ERROR ? iconSelectedColor as string : iconColor as string}                    
+                    onPress={() => onLogLevelSelect(LogLevel.ERROR)}
+                    style={{paddingHorizontal: spacing.small}}                    
+                    bottomSeparator={true}
+                />
+                <ListItem                    
+                    text={LogLevel.INFO.toUpperCase()}
+                    subText={'Log anonymous usage, without private data.'}
+                    leftIcon={selectedLogLevel === LogLevel.INFO ? 'faCheckCircle' : 'faCircle'}          
+                    leftIconColor={selectedLogLevel === LogLevel.INFO ? iconSelectedColor as string : iconColor as string}                    
+                    onPress={() => onLogLevelSelect(LogLevel.INFO)}
+                    style={{paddingHorizontal: spacing.small}}                    
+                    bottomSeparator={true}
+                />
+                <ListItem                    
+                    text={LogLevel.DEBUG.toUpperCase()}
+                    subText={'Log details, set only if testing or on request by support.'}
+                    leftIcon={selectedLogLevel === LogLevel.DEBUG ? 'faCheckCircle' : 'faCircle'}          
+                    leftIconColor={selectedLogLevel === LogLevel.DEBUG ? iconSelectedColor as string : iconColor as string}                    
+                    onPress={() => onLogLevelSelect(LogLevel.DEBUG)}
+                    style={{paddingHorizontal: spacing.small}}                    
+                    bottomSeparator={true}
+                />
+                <View style={$buttonContainer}>
+                    <Button
+                        preset="secondary"
+                        text={'Close'}
+                        onPress={toggleLogLevelSelector}
+                    />
+                </View>
+
+            </>
+          }
+          onBackButtonPress={toggleLogLevelSelector}
+          onBackdropPress={toggleLogLevelSelector}
+        />
         {isLoading && <Loading />}
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
@@ -241,4 +319,11 @@ const $rightContainer: ViewStyle = {
   padding: spacing.extraSmall,
   alignSelf: 'center',
   marginLeft: spacing.small,
+}
+
+const $buttonContainer: ViewStyle = {
+    flexDirection: 'row',
+    alignSelf: 'center',
+    alignItems: 'center',
+    marginTop: spacing.large,
 }

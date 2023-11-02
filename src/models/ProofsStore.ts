@@ -7,7 +7,7 @@ import {
 } from 'mobx-state-tree'
 import {withSetPropAction} from './helpers/withSetPropAction'
 import {ProofModel, Proof} from './Proof'
-import {log} from '../utils/logger'
+import {log} from '../services/logService'
 import {getRootStore} from './helpers/getRootStore'
 import AppError, {Err} from '../utils/AppError'
 import {Mint, MintBalance} from './Mint'
@@ -71,7 +71,7 @@ export const ProofsStoreModel = types
                 }
             }
 
-            log.trace(`Added new ${newProofs.length}${isPending ? ' pending' : ''} proofs to ProofsStore`,)
+            log.debug('[addProofs]', `Added new ${newProofs.length}${isPending ? ' pending' : ''} proofs to ProofsStore`,)
 
             const rootStore = getRootStore(self)
             const {userSettingsStore} = rootStore
@@ -113,7 +113,7 @@ export const ProofsStoreModel = types
 
                 proofs.replace(proofs.filter(proof => !proofsToRemove.includes(proof)))
 
-                log.trace(`${count} ${(isPending) ? 'pending' : ''} proofs removed from ProofsStore`)
+                log.debug('[removeProofs]', `${count} ${(isPending) ? 'pending' : ''} proofs removed from ProofsStore`)
 
             } catch (e: any) {
                 throw new AppError(Err.STORAGE_ERROR, e.message.toString())
@@ -171,9 +171,7 @@ export const ProofsStoreModel = types
                 totalPendingBalance,
                 mintBalances,
                 mintPendingBalances,
-            }
-
-            log.trace(balances)
+            }            
 
             return balances
         },
@@ -199,7 +197,7 @@ export const ProofsStoreModel = types
                 return maxBalance
               }, balances[0])
 
-            log.trace('Max Balance', maxBalance, 'getMintBalanceWithMaxBalance')
+            log.debug('[getMintBalanceWithMaxBalance]', maxBalance)
             return maxBalance
         },
         getProofsToSend: (amount: number, proofs: Proof[]) => {

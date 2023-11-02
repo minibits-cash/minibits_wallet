@@ -32,7 +32,7 @@ import {
   TransactionType,
 } from '../models/Transaction'
 import AppError, {Err} from '../utils/AppError'
-import {log} from '../utils/logger'
+import {log} from '../services/logService'
 import {isArray} from 'lodash'
 import {Database, Wallet} from '../services'
 import {BackupProof, Proof} from '../models/Proof'

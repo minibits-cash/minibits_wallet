@@ -1,7 +1,7 @@
 import {Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
 import {LightningUtils} from '../services/lightning/lightningUtils'
 import {withSetPropAction} from './helpers/withSetPropAction'
-import {log} from '../utils/logger'
+import {log} from '../services/logService'
 import addSeconds from 'date-fns/addSeconds'
 
 /**
@@ -16,7 +16,7 @@ export const InvoiceModel = types
         description: types.optional(types.string, ''),
         paymentHash: types.string,
         expiry: types.optional(types.number, 600),
-        memo: types.optional(types.string, 'Topup of minibits wallet'),
+        memo: types.optional(types.string, 'Topup of Minibits wallet'),
         transactionId: types.number,
         expiresAt: types.maybe(types.Date),
         createdAt: types.optional(types.Date, new Date()),
@@ -29,10 +29,7 @@ export const InvoiceModel = types
             
             const expiresAt = addSeconds(new Date(timestamp as number * 1000), expiry as number)
 
-            log.trace(
-                `Invoice expiry is ${expiry}, setting expiresAt to ${expiresAt}`,
-            )
-            
+            log.trace('[setExpiresAt]', `Invoice expiry is ${expiry}, setting expiresAt to ${expiresAt}`)            
             self.expiresAt = new Date(expiresAt)
         },
     }))
