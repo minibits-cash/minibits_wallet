@@ -12,14 +12,15 @@ import {
 import {getRandomUsername} from '../utils/usernames'
 import {UserSettings} from '../models/UserSettingsStore'
 import AppError, {Err} from '../utils/AppError'
-import {log} from '../utils/logger'
+import {log} from './logService'
+import {LogLevel} from './log/logTypes'
 import {BackupProof} from '../models/Proof'
 import { CashuUtils } from './cashu/cashuUtils'
 import { Contact, ContactType } from '../models/Contact'
 
 let _db: QuickSQLiteConnection
 
-const _dbVersion = 6 // Update this if db changes require migrations
+const _dbVersion = 7 // Update this if db changes require migrations
 
 const getInstance = function () {
   if (!_db) {
@@ -74,6 +75,8 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
         isStorageEncrypted BOOLEAN,
         isLocalBackupOn BOOLEAN,
         isTorDaemonOn BOOLEAN,
+        isLoggerOn BOOLEAN,
+        logLevel TEXT,
         createdAt TEXT      
     )`,
     ],
@@ -106,7 +109,7 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
     }
 
     const {version} = getDatabaseVersion()    
-    log.info('Device database version:', version)
+    log.info('[_createOrUpdateSchema]', `Device database version: ${version}`)
 
     // Trigger migrations if there is versions mismatch
     if (version < _dbVersion) {
@@ -177,6 +180,17 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
         log.info(`Prepared database migrations from ${currentVersion} -> 6`)
     }
 
+    if (currentVersion < 7) {
+        migrationQueries.push([
+            `ALTER TABLE usersettings
+            ADD COLUMN isLoggerOn BOOLEAN`,       
+        ],[
+            `ALTER TABLE usersettings
+            ADD COLUMN logLevel TEXT`,       
+        ]) 
+
+        log.info(`Prepared database migrations from ${currentVersion} -> 6`)
+    }
 
   // Update db version as a part of migration sqls
   migrationQueries.push([
@@ -210,7 +224,7 @@ const _generateWalletId = (): string => {
         const base64Key = btoa(stringKey)*/
 
         const walletId = getRandomUsername()    
-        log.info('New walletId created:', walletId)
+        log.debug('[_generateWalletId]', 'New walletId created:', walletId)
     
         return walletId
     } catch (e: any) {
@@ -235,7 +249,7 @@ const cleanAll = function () {
     const {rowsAffected} = db.executeBatch(dropQueries)
 
     if (rowsAffected && rowsAffected > 0) {
-      log.info('Database tables were deleted')
+      log.info('[cleanAll]', 'Database tables were deleted')
     }
   } catch (e: any) {
     throw new AppError(
@@ -299,8 +313,10 @@ const getUserSettings = function (): UserSettings {
                 isStorageEncrypted: 0,
                 isLocalBackupOn: 1,
                 isTorDaemonOn: 0,
+                isLoggerOn: 1,
+                logLevel: LogLevel.ERROR
             })
-            log.trace('Stored default user settings in the database')
+            log.debug('[getUserSettings]', 'Stored default user settings in the database')
             return defaultSettings
         }
 
@@ -317,11 +333,11 @@ const getUserSettings = function (): UserSettings {
 const updateUserSettings = function (settings: UserSettings): UserSettings {
     try {
         const now = new Date()
-        const {walletId, isOnboarded, isStorageEncrypted, isLocalBackupOn, isTorDaemonOn} = settings
+        const {walletId, isOnboarded, isStorageEncrypted, isLocalBackupOn, isTorDaemonOn, isLoggerOn, logLevel} = settings
 
         const query = `
-        INSERT OR REPLACE INTO usersettings (id, walletId, isOnboarded, isStorageEncrypted, isLocalBackupOn, isTorDaemonOn, createdAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?)      
+        INSERT OR REPLACE INTO usersettings (id, walletId, isOnboarded, isStorageEncrypted, isLocalBackupOn, isTorDaemonOn, isLoggerOn, logLevel, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)      
         `
         const params = [
             1,
@@ -330,13 +346,15 @@ const updateUserSettings = function (settings: UserSettings): UserSettings {
             isStorageEncrypted,
             isLocalBackupOn,
             isTorDaemonOn,
+            isLoggerOn, 
+            logLevel,
             now.toISOString(),
         ]
 
         const db = getInstance()
         db.execute(query, params)
 
-        log.trace('User settings created or updated in the database', params)
+        log.debug('[updateUserSettings]', 'User settings created or updated in the database', params)
 
         const updated = getUserSettings()
         return updated
@@ -384,11 +402,7 @@ const addTransactionAsync = async function (tx: Transaction) {
     const db = getInstance()
     const result = await db.executeAsync(query, params)
 
-    log.info(
-      'New transaction added to the database',
-      {id: result.insertId, type, mint, status},
-      'addTransactionAsync',
-    )
+    log.info('[addTransactionAsync]', 'New transaction added to the database', {type, mint, status})
 
     const newTx = getTransactionById(result.insertId as number)
 
@@ -418,11 +432,7 @@ const updateStatusAsync = async function (
     const db = getInstance()
     await db.executeAsync(query, params)
 
-    log.info(
-      `[${status}] Transaction status updated`,
-      {id, status},
-      'updateStatusAsync',
-    )
+    log.info('[updateStatusAsync]', `[${status}] Transaction status updated`, {id})
 
     const updatedTx = getTransactionById(id as number)
 
@@ -477,11 +487,7 @@ const updateStatusesAsync = async function (
 
     const result2 = await _db.executeAsync(updateQuery, params)
 
-    log.info(
-      `[${status}] Transactions statuses updated.`,
-      {numUpdates: result2.rowsAffected, status},
-      'updateStatusesAsync',
-    )
+    log.info('[updateStatusAsync]', `[${status}] Transactions statuses updated.`, {numUpdates: result2.rowsAffected, status})
 
     return result2
   } catch (e: any) {
@@ -506,10 +512,9 @@ const updateBalanceAfterAsync = async function (
     const params = [balanceAfter, id]
 
     const db = getInstance()
-    await db.executeAsync(query, params)
+    await db.executeAsync(query, params)    
     
-    // DO NOT log balance to Sentry
-    log.trace('Transaction balanceAfter updated')
+    log.debug('[updateBalanceAfterAsync]', 'Transaction balanceAfter updated', {id, balanceAfter})
 
     const updatedTx = getTransactionById(id as number)
 
@@ -535,7 +540,7 @@ const updateFeeAsync = async function (id: number, fee: number) {
     const db = getInstance()
     await db.executeAsync(query, params)
 
-    log.info('Transaction fee updated', {id, fee}, 'updateFeeAsync')
+    log.debug('[updateFeeAsync]', 'Transaction fee updated', {id, fee})
 
     const updatedTx = getTransactionById(id as number)
 
@@ -561,7 +566,7 @@ const updateReceivedAmountAsync = async function (id: number, amount: number) {
     const db = getInstance()
     await db.executeAsync(query, params)
 
-    log.info('Transaction received amount updated', {id}, 'updateReceivedAmountAsync')
+    log.debug('[updateReceivedAmountAsync]', 'Transaction received amount updated', {id})
 
     const updatedTx = getTransactionById(id as number)
 
@@ -587,7 +592,7 @@ const updateNoteAsync = async function (id: number, note: string) {
     const db = getInstance()
     await db.executeAsync(query, params)
     // DO NOT log to Sentry
-    log.trace('Transaction note updated')
+    log.debug('[updateNoteAsync]', 'Transaction note updated')
 
     const updatedTx = getTransactionById(id as number)
 
@@ -614,7 +619,7 @@ const updateSentFromAsync = async function (id: number, sentFrom: string) {
       const db = getInstance()
       await db.executeAsync(query, params)
 
-      log.trace('Transaction sentFrom updated', {sentFrom}, 'updateSentFromAsync')
+      log.debug('[updateSentFromAsync]', 'Transaction sentFrom updated', {id, sentFrom})
   
       const updatedTx = getTransactionById(id as number)
   
@@ -641,7 +646,7 @@ const updateSentToAsync = async function (id: number, sentTo: string) {
       const db = getInstance()
       await db.executeAsync(query, params)
       
-      log.trace('Transaction sentTo updated', {sentTo}, 'updateSentToAsync')
+      log.debug('[updateSentToAsync]', 'Transaction sentFrom updated', {id, sentTo})
   
       const updatedTx = getTransactionById(id as number)
   
@@ -748,9 +753,8 @@ const addOrUpdateProof = function (
     const db = getInstance()
     const result = db.execute(query, params)
     // DO NOT log proof secrets to Sentry
-    log.info(
-      `${isPending ? ' Pending' : ''} proof added or updated in the database backup`,
-      [{id: result.insertId, tId: proof.tId, isPending, isSpent}],
+    log.info('[addOrUpdateProof]', `${isPending ? ' Pending' : ''} proof added or updated in the database backup`,
+      {id: result.insertId, tId: proof.tId, isPending, isSpent},
     )
 
     const newProof = getProofById(result.insertId as number)
@@ -799,7 +803,7 @@ const addOrUpdateProofs = function (
 
     const totalAmount = CashuUtils.getProofsAmount(proofs)
     // DO NOT log proof secrets to Sentry
-    log.trace(
+    log.info('[addOrUpdateProofs]',
       `${rowsAffected}${isPending ? ' pending' : ''
       } proofs were added or updated in the database backup`,
       {isPending, isSpent}
@@ -823,7 +827,7 @@ const removeAllProofs = async function () {
     const db = getInstance()
     db.execute(query)
 
-    log.info('All proofs were removed from the database.')
+    log.info('[removeAllProofs]', 'All proofs were removed from the database.')
 
     return true
   } catch (e: any) {

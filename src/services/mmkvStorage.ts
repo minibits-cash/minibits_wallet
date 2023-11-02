@@ -1,5 +1,5 @@
 import {MMKV} from 'react-native-mmkv'
-import {log} from '../utils/logger'
+import {log} from './logService'
 import AppError, {Err} from '../utils/AppError'
 import {KeyChain} from './keyChain'
 
@@ -21,13 +21,13 @@ const getInstance = function () {
         encryptionKey: _encryptionKey,
       })
 
-      log.trace('MMKV encrypted storage initialized')
+      log.trace('[getInstance]', 'MMKV encrypted storage initialized')
     } else {
       _storage = new MMKV({
         id: 'storage-v1',
       })
 
-      log.trace('MMKV storage initialized')
+      log.trace('[getInstance]', 'MMKV storage initialized')
     }
   }
 

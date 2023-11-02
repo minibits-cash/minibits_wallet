@@ -10,7 +10,7 @@ import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import AppError, { Err } from '../utils/AppError'
 import Clipboard from '@react-native-clipboard/clipboard'
-import { log } from '../utils/logger'
+import { log } from '../services/logService'
 import { KeyChain, KeyPair, NostrClient, NostrEvent, NostrFilter, NostrProfile } from '../services'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 

@@ -20,7 +20,7 @@ import AppError from '../utils/AppError'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import { KeyChain } from '../services'
 import { BIOMETRY_TYPE } from 'react-native-keychain'
-import { log } from '../utils/logger'
+import { log } from '../services/logService'
 
 export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer(function SecurityScreen(_props) {
     const {navigation} = _props

@@ -2,7 +2,7 @@ import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
 import {Switch, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
-import {SettingsStackScreenProps} from '../navigation' // @demo remove-current-line
+import {SettingsStackScreenProps} from '../navigation'
 import {
   Icon,
   ListItem,
@@ -18,8 +18,8 @@ import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import AppError from '../utils/AppError'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
-import { TorDaemon } from '../services'
-import { log } from '../utils/logger'
+// import { TorDaemon } from '../services'
+import { log } from '../services/logService'
 
 enum TorStatus {
     NOTINIT = 'NOTINIT',
@@ -27,7 +27,7 @@ enum TorStatus {
     DONE = 'DONE',
 }
 
-export const PrivacyScreen: FC<SettingsStackScreenProps<'Security'>> = observer(function PrivacyScreen(_props) {
+export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(function PrivacyScreen(_props) {
     const {navigation} = _props
     useHeader({
         leftIcon: 'faArrowLeft',
@@ -40,13 +40,16 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Security'>> = observer(
     const [isTorDaemonOn, setIsTorDaemonOn] = useState<boolean>(
         userSettingsStore.isTorDaemonOn,
     )
+    const [isLoggerOn, setIsLoggerOn] = useState<boolean>(
+        userSettingsStore.isLoggerOn,
+    )
     const [torStatus, setTorStatus] = useState<TorStatus>(TorStatus.NOTINIT)   
     const [error, setError] = useState<AppError | undefined>()    
     const [isTorModalVisible, setIsTorModalVisible] = useState<boolean>(false)    
     const [torResultMessage, setTorResultMessage] = useState<string>()
 
 
-    useEffect(() => {
+    /* useEffect(() => {
         const getTorStatus = async () => {
             if(!userSettingsStore.isTorDaemonOn) {
                 return
@@ -127,7 +130,20 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Security'>> = observer(
 
     const toggleTorModal = () =>
         setIsTorModalVisible(previousState => !previousState)
+    */
 
+    const toggleLoggerSwitch = async () => {
+        try {
+            const result = userSettingsStore.setIsLoggerOn(
+                !isLoggerOn,
+            )
+
+            setIsLoggerOn(result)
+            
+        } catch (e: any) {
+            handleError(e)
+        }
+    }
 
     const handleError = function (e: AppError): void {
         setIsLoading(false)
@@ -147,7 +163,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Security'>> = observer(
                 style={[$card, {marginTop: spacing.medium}]}
                 ContentComponent={
                 <>
-                    <ListItem
+                    {/* <ListItem
                         tx="privacyScreen.torDaemon"
                         subTx="privacyScreen.torDaemonDescription"
                         leftIcon={'faBullseye'}
@@ -193,13 +209,33 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Security'>> = observer(
                             style={$item}
                             onPress={startTor}
                         /> 
-                    )}
+                        )} */}
+                        <ListItem
+                            tx="privacyScreen.logger"
+                            subTx="privacyScreen.loggerDescription"
+                            leftIcon={'faBug'}
+                            leftIconColor={
+                                isLoggerOn
+                                ? colors.palette.angry500
+                                : iconColor as string
+                            }
+                            leftIconInverse={true}
+                            RightComponent={
+                            <View style={$rightContainer}>
+                                <Switch
+                                    onValueChange={toggleLoggerSwitch}
+                                    value={isLoggerOn}
+                                />
+                            </View>
+                            }
+                            style={$item}
+                        />
                 </>
                 }
             />
           {isLoading && <Loading />}
         </View>
-        <BottomModal
+        {/*<BottomModal
             isVisible={isTorModalVisible ? true : false}            
             ContentComponent={
                 <ResultModalInfo
@@ -217,7 +253,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Security'>> = observer(
             }
             onBackButtonPress={toggleTorModal}
             onBackdropPress={toggleTorModal}
-        />
+        />*/}
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}      
       </Screen>

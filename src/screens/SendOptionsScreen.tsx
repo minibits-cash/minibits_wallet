@@ -18,7 +18,7 @@ import {
   ScanIcon,
 } from '../components'
 import {useHeader} from '../utils/useHeader'
-import {log} from '../utils/logger'
+import {log} from '../services/logService'
 import AppError from '../utils/AppError'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { infoMessage } from '../utils/utils'

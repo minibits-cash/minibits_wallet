@@ -7,7 +7,7 @@ import {
 } from 'mobx-state-tree'
 import {withSetPropAction} from './helpers/withSetPropAction'
 import {MintModel, Mint} from './Mint'
-import {log} from '../utils/logger'
+import {log} from '../services/logService'
 
 export type MintsByHostname = {
     hostname: string
@@ -44,12 +44,12 @@ export const MintsStoreModel = types
 
             self.mints.push(mintInstance)
 
-            log.info('New mint added to the MintsStore', newMint.mintUrl)
+            log.info('[addMint]', 'New mint added to the MintsStore', newMint.mintUrl)
         },
         removeMint(mintToBeRemoved: Mint) {
             if (self.blockedMintUrls.some(m => m === mintToBeRemoved.mintUrl)) {
                 self.blockedMintUrls.remove(mintToBeRemoved.mintUrl)
-                log.info('Mint removed from blockedMintUrls')
+                log.debug('[removeMint]', 'Mint removed from blockedMintUrls')
             }
 
             let mintInstance: Mint | undefined
@@ -62,16 +62,16 @@ export const MintsStoreModel = types
 
             if (mintInstance) {
                 destroy(mintInstance)
-                log.trace('Mint removed from MintsStore')
+                log.info('[removeMint]', 'Mint removed from MintsStore')
             }
         },
         blockMint(mintToBeBlocked: Mint) {
             self.blockedMintUrls.push(mintToBeBlocked.mintUrl)
-            log.trace('Mint blocked in MintsStore')
+            log.debug('[blockMint]', 'Mint blocked in MintsStore')
         },
         unblockMint(blockedMint: Mint) {
             self.blockedMintUrls.remove(blockedMint.mintUrl)
-            log.trace('Mint unblocked in MintsStore')
+            log.debug('[unblockMint]', 'Mint unblocked in MintsStore')
         },
     }))
     .views(self => ({

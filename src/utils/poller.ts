@@ -1,4 +1,4 @@
-import { log } from './logger'
+import { log } from '../services/logService'
 import { Err } from './AppError'
 
 const pollers = new Map<string, boolean>() // Map to track active pollers

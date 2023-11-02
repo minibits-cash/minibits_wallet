@@ -12,15 +12,14 @@ import {
     ContactModel,
     Contact,
   } from './Contact'
-  import {log} from '../utils/logger'
+  import {log} from '../services/logService'
   
   // export const maxContactsInModel = 10
   
   export const ContactsStoreModel = types
       .model('ContactsStore', {
           contacts: types.array(ContactModel),
-          publicPubkey: types.maybe(types.string),
-          publicRelay: types.maybe(types.string), // TODO remove, replaced by relaysStore
+          publicPubkey: types.maybe(types.string),          
           lastPendingReceivedCheck: types.maybe(types.number), // UNIX timestamp
           receivedEventIds: types.optional(types.array(types.string), [])
       })
@@ -33,91 +32,71 @@ import {
           findByNpub: (npub: string) => {
             const c = self.contacts.find(c => c.npub === npub)
             return c ? c : undefined
-          },
-          removeContact: (removedContact: Contact) => {
-              let contactInstance: Contact | undefined
-  
-              if (isStateTreeNode(removedContact)) {
-                  contactInstance = removedContact
-              } else {
-                  contactInstance = self.contacts.find(
-                  (c: Contact) => c.pubkey === (removedContact as Contact).pubkey,
-                  )
-              }
-  
-              if (contactInstance) {
-                    detach(contactInstance) // needed
-                    destroy(contactInstance)
-                    log.trace('Contact removed from ContactsStore')
-              }
-          },          
+          },         
       }))
       .actions(self => ({
-          addContact(newContact: Contact) {
+            addContact(newContact: Contact) {
 
-              newContact.createdAt = Math.floor(Date.now() / 1000)                      
-  
-              const contactInstance = ContactModel.create(newContact)
-              self.contacts.push(contactInstance)
-  
-              log.trace('New contact added to the ContactsStore', newContact, 'addContact')
-  
-              return contactInstance
-          },
-          refreshPicture(pubkey: string) {                     
+                newContact.createdAt = Math.floor(Date.now() / 1000)                      
+    
+                const contactInstance = ContactModel.create(newContact)
+                self.contacts.push(contactInstance)
+    
+                log.debug('[addContact]', 'New contact added to the ContactsStore', newContact)
+    
+                return contactInstance
+            },
+            refreshPicture(pubkey: string) {                     
 
-            const contactInstance = self.findByPubkey(pubkey)
-            if (contactInstance) {
-                contactInstance.refreshPicture()
-                log.trace('Contact picture refreshed in ContactsStore')
-            }
+                const contactInstance = self.findByPubkey(pubkey)
+                if (contactInstance) {
+                    contactInstance.refreshPicture()
+                    log.debug('[refreshPicture]', 'Contact picture refreshed in ContactsStore')
+                }
 
-            return contactInstance
-        },
-          saveNote (pubkey: string, note: string) {              
-              const contactInstance = self.findByPubkey(pubkey)
-              if (contactInstance) {
-                  contactInstance.noteToSelf = note
-                  log.trace('Contact note updated in ContactsStore')
-              }
-          },
-          removeContact(contactToBeRemoved: Contact) {
-            let contactInstance: Contact | undefined            
+                return contactInstance
+            },
+            saveNote (pubkey: string, note: string) {              
+                const contactInstance = self.findByPubkey(pubkey)
+                if (contactInstance) {
+                    contactInstance.noteToSelf = note
+                    log.debug('[saveNote]', 'Contact note updated in ContactsStore')
+                }
+            },
+            removeContact(contactToBeRemoved: Contact) {
+                let contactInstance: Contact | undefined            
 
-            if (isStateTreeNode(contactToBeRemoved)) {
-                contactInstance = contactToBeRemoved
-            } else {
-                contactInstance = self.findByNpub((contactToBeRemoved as Contact).npub)
-            }
+                if (isStateTreeNode(contactToBeRemoved)) {
+                    contactInstance = contactToBeRemoved
+                } else {
+                    contactInstance = self.findByNpub((contactToBeRemoved as Contact).npub)
+                }
 
-            if (contactInstance) {
-                destroy(contactInstance)
-                log.info('Contact removed from MintsStore')
-            }
-        },
-        removeAllContacts() {            
-            self.contacts.clear()
-            log.info('Removed all Contacts from ContactsStore')
-        },
-        setPublicPubkey(publicPubkey: string) {            
-            self.publicPubkey = publicPubkey
-            log.info('setPublicPubkey', publicPubkey)
-        },
-        setPublicRelay(publicRelay: string) {
-            self.publicRelay = publicRelay
-            log.info('setPublicRelay', publicRelay)
-        },
-        setLastPendingReceivedCheck() {    
-            const ts: number = Math.floor(Date.now() / 1000)
-            log.trace('Timestamp', {ts}, 'setLastPendingReceivedCheck')
-            self.lastPendingReceivedCheck = ts
-        },
-        addReceivedEventId(id: string) {            
-            self.receivedEventIds.push(id)
-        },
-        eventAlreadyReceived(id: string) {            
-            return self.receivedEventIds.includes(id)
-        },
+                if (contactInstance) {
+                    detach(contactInstance) // needed
+                    destroy(contactInstance)
+                    log.debug('[removeContact]', 'Contact removed from MintsStore')
+                }
+            },
+            removeAllContacts() {            
+                self.contacts.clear()
+                log.debug('[removeAllContacts]', 'Removed all Contacts from ContactsStore')
+            },
+            setPublicPubkey(publicPubkey: string) {            
+                self.publicPubkey = publicPubkey
+                log.debug('[setPublicPubkey]', publicPubkey)
+            },           
+            setLastPendingReceivedCheck() {    
+                const ts: number = Math.floor(Date.now() / 1000)
+                log.trace('[setLastPendingReceivedCheck]', {ts})
+                self.lastPendingReceivedCheck = ts
+            },
+            addReceivedEventId(id: string) {            
+                self.receivedEventIds.push(id)
+            },
+            eventAlreadyReceived(id: string) {            
+                return self.receivedEventIds.includes(id)
+            },
       }))
       .views(self => ({
             get count() {

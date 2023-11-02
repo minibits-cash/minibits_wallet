@@ -15,7 +15,7 @@ import {
     MINIBITS_RELAY_URL,    
 } from '@env'
 import {KeyChain, KeyPair} from './keyChain'
-import {log} from '../utils/logger'
+import {log} from './logService'
 import AppError, { Err } from '../utils/AppError'
 import { MinibitsClient } from './minibitsService'
 

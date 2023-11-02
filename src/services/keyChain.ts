@@ -3,7 +3,7 @@ import AppError, {Err} from '../utils/AppError'
 import QuickCrypto from 'react-native-quick-crypto'
 import * as nostrTools from 'nostr-tools'
 import {btoa, atob, fromByteArray} from 'react-native-quick-base64'
-import {log} from '../utils/logger'
+import {log} from './logService'
 
 export enum KeyChainServiceName {
   MMKV = 'app.minibits.mmkv',

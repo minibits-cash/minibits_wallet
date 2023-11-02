@@ -23,7 +23,7 @@ import {Transaction, TransactionStatus} from '../models/Transaction'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
 import {Wallet} from '../services'
-import {log} from '../utils/logger'
+import {log} from '../services/logService'
 import AppError from '../utils/AppError'
 
 import {CashuUtils} from '../services/cashu/cashuUtils'

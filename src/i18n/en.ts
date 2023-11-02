@@ -171,7 +171,9 @@ const en = {
   privacyScreen: {    
     torDaemon: "Use Tor network",
     torDaemonDescription: "Allow connections with mints through Tor .onion addresses.",
-    torStatus: "Tor status"
+    torStatus: "Tor status",
+    logger: "Enable logging",
+    loggerDescription: "Log anonymous error information in order to identify and fix wallet bugs during beta testing. Switch off for best privacy.",
   },
   updateScreen: {
     updateAvailable: "Update is available",
@@ -192,7 +194,8 @@ const en = {
     resetDescription: "This will wipe out all local data from storage and from the local database. Do only during development or testing.",
     go: "Let's go!",
     devOptions: "Developer options", 
-    info: "About Minibits wallet"
+    info: "About Minibits wallet",
+    logLevel: "Log level"
   },
   errorScreen: {
     title: "Something went wrong!",

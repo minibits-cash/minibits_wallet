@@ -1,6 +1,6 @@
 import { getParams, LNURLPayParams, LNURLResponse, LNURLWithdrawParams } from 'js-lnurl'
 import AppError, { Err } from "../utils/AppError"
-import { log } from '../utils/logger'
+import { log } from './logService'
 import { LnurlUtils } from './lnurl/lnurlUtils'
 import { MinibitsClient } from './minibitsService'
 

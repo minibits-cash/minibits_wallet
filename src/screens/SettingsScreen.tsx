@@ -15,10 +15,10 @@ import {Icon, ListItem, Screen, Text, Card} from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import {translate} from '../i18n'
-import { Env, log } from '../utils/logger'
+import { log } from '../services'
+import {Env} from '../utils/envtypes'
 import { round } from '../utils/number'
-import EventEmitter from '../utils/eventEmitter'
-import { Relay } from '../models/Relay'
+
 
 interface SettingsScreenProps extends SettingsStackScreenProps<'Settings'> {}
 
@@ -65,11 +65,11 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
 
     const gotoSecurity = function() {
       navigation.navigate('Security')
-    }
-
+    }    
+     
     const gotoPrivacy = function() {
         navigation.navigate('Privacy')
-      }
+    }
 
     const gotoDevOptions = function() {
       navigation.navigate('Developer')

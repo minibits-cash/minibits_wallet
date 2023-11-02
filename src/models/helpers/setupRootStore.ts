@@ -19,12 +19,11 @@ import RNExitApp from 'react-native-exit-app'
 import type {RootStore} from '../RootStore'
 import {MMKVStorage, NostrClient} from '../../services'
 import {Database} from '../../services'
-import { log } from  '../../utils/logger'
+import { log } from  '../../services/logService'
 import { rootStoreModelVersion } from '../RootStore'
 import AppError, { Err } from '../../utils/AppError'
-import { MINIBITS_NIP05_DOMAIN, MINIBITS_RELAY_URL } from '@env'
-import { WalletProfileStoreModel } from '../WalletProfileStore'
-import useIsInternetReachable from '../../utils/useIsInternetReachable'
+import { MINIBITS_NIP05_DOMAIN } from '@env'
+import { LogLevel } from '../../services/log/logTypes'
 
 /**
  * The key we'll be saving our state as within storage.
@@ -87,7 +86,7 @@ export async function setupRootStore(rootStore: RootStore) {
 
   // run migrations if needed, needs to be after onSnapshot to be persisted
   try {    
-    log.trace('Device rootStorage version', rootStore.version, 'setupRootStore')    
+    log.debug('[setupRootStore]', `Device rootStore.version is: ${rootStore.version}`)      
 
     if(rootStore.version < rootStoreModelVersion) {
       await _runMigrations(rootStore)
@@ -149,8 +148,15 @@ async function _runMigrations(rootStore: RootStore) {
         log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
     }
 
+    if(currentVersion < 6) {
+        log.trace(`Starting rootStore migrations from version v${currentVersion} -> v6`)
+        userSettingsStore.setLogLevel(LogLevel.ERROR)
+        log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+    }
+
     
     rootStore.setVersion(rootStoreModelVersion)
+
   } catch (e: any) {
     throw new AppError(
       Err.STORAGE_ERROR,
@@ -159,54 +165,3 @@ async function _runMigrations(rootStore: RootStore) {
     )    
   }
 }
-
-/* interface StoreConfig { storageKey: string, store: any }
-
-let _disposers: IDisposer[] = []
-export async function setupRootStore(rootStore: RootStore) {
-
-
-  const storeConfigs: StoreConfig[] = [
-    { storageKey: "mintsStore", store: rootStore.mintsStore },
-    
-    { storageKey: "transactionsStore", store: rootStore.transactionsStore },
-  ]
-
-  const restoredStates: { [key: string]: any } = {}
-
-  try {
-    // retrieve key asynchronously
-    const encryptionKey = await MMKVStorage.getOrCreateMMKVEncryptionKey()
-
-    // initialize or reuse storage with encryption key so we can work in synchronous mode
-    MMKVStorage.getInstance(encryptionKey)
-
-    for (const { storageKey, store } of storeConfigs) {
-      const restoredState = (MMKVStorage.load(storageKey)) || {}
-      applySnapshot(store, restoredState)
-      restoredStates[storageKey] = restoredState
-    }
-  } catch (e: any) {
-    // if there's any problems loading, then inform the dev what happened
-    if (__DEV__) {
-      console.error(e.message, null)
-    }
-  }
-
-  // stop tracking state changes if we've already setup
-  _disposers.forEach(disposer => disposer)
-  _disposers = []
-
-  // track changes & save to AsyncStorage for each store
-  for (const { storageKey, store } of storeConfigs) {
-    const disposer = onSnapshot(store, (snapshot) => MMKVStorage.save(storageKey, snapshot))
-    _disposers.push(disposer)
-  }
-
-  const unsubscribe = () => {
-    _disposers.forEach(disposer => disposer())
-    _disposers = []
-  }
-
-  return { rootStore, restoredStates, unsubscribe }
-} */
