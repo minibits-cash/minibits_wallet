@@ -1,6 +1,6 @@
 import Tor, { RequestMethod, TorType } from 'react-native-tor'
 import AppError, { Err } from '../utils/AppError';
-import { log } from '../utils/logger';
+import { log } from './logService';
 
 let _tor: TorType
 let _globalRequestOptions: Partial<RequestOptions> = {};
@@ -38,9 +38,9 @@ const _request = async function<T>({
 
     const tor = getInstance()
 
-    log.trace('Starting tor if not yet running')
+    log.trace('[_request]', 'Starting tor if not yet running')
     await tor.startIfNotStarted()
-    log.trace('Tor daemon started')
+    log.trace('_request', 'Tor daemon started')
 
 	const body = requestBody ? JSON.stringify(requestBody) : undefined;
     const method = requestMethod ? requestMethod : RequestMethod.GET
@@ -52,15 +52,15 @@ const _request = async function<T>({
 
     switch (method.toLowerCase()) {
         case RequestMethod.GET:
-            log.trace('GET tor request', {endpoint})
+            log.trace('[GET] tor request', {endpoint})
             const getResult = await tor.get(endpoint, headers, true);
             if (getResult.json) {
-                log.trace('GET tor response', {response: getResult.json})
+                log.trace('[GET] tor response', {response: getResult.json})
                 return getResult.json;
             }
             break;
         case RequestMethod.POST:
-            log.trace('POST tor request', {endpoint})
+            log.trace('[POST] tor request', {endpoint})
             const postResult = await tor.post(
                 endpoint,
                 body || '',
@@ -68,7 +68,7 @@ const _request = async function<T>({
                 true
             );
             if (postResult.json) {
-                log.trace('POST tor response', {response: postResult.json})
+                log.trace('[POST] tor response', {response: postResult.json})
                 return postResult.json;
             }
             break;
