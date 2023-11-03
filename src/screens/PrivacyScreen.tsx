@@ -18,7 +18,7 @@ import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import AppError from '../utils/AppError'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
-// import { TorDaemon } from '../services'
+import { TorDaemon } from '../services'
 import { log } from '../services/logService'
 
 enum TorStatus {
@@ -49,7 +49,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
     const [torResultMessage, setTorResultMessage] = useState<string>()
 
 
-    /* useEffect(() => {
+    useEffect(() => {
         const getTorStatus = async () => {
             if(!userSettingsStore.isTorDaemonOn) {
                 return
@@ -130,7 +130,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
 
     const toggleTorModal = () =>
         setIsTorModalVisible(previousState => !previousState)
-    */
+    
 
     const toggleLoggerSwitch = async () => {
         try {
@@ -163,7 +163,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
                 style={[$card, {marginTop: spacing.medium}]}
                 ContentComponent={
                 <>
-                    {/* <ListItem
+                    <ListItem
                         tx="privacyScreen.torDaemon"
                         subTx="privacyScreen.torDaemonDescription"
                         leftIcon={'faBullseye'}
@@ -209,7 +209,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
                             style={$item}
                             onPress={startTor}
                         /> 
-                        )} */}
+                        )}
                         <ListItem
                             tx="privacyScreen.logger"
                             subTx="privacyScreen.loggerDescription"
@@ -235,7 +235,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
             />
           {isLoading && <Loading />}
         </View>
-        {/*<BottomModal
+        <BottomModal
             isVisible={isTorModalVisible ? true : false}            
             ContentComponent={
                 <ResultModalInfo
@@ -253,7 +253,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
             }
             onBackButtonPress={toggleTorModal}
             onBackdropPress={toggleTorModal}
-        />*/}
+        />
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}      
       </Screen>
