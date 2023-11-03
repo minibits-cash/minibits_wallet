@@ -7,7 +7,7 @@ import AppError, {Err} from '../../utils/AppError'
 import {Token} from '../../models/Token'
 import {TokenEntry} from '../../models/TokenEntry'
 import {Proof} from '../../models/Proof'
-import { log } from '../../utils/logger'
+import { log } from '../logService'
 
 
 

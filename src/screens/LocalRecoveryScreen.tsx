@@ -24,7 +24,7 @@ import {
 } from '../components'
 import {SettingsStackScreenProps} from '../navigation'
 import {useHeader} from '../utils/useHeader'
-import {log} from '../utils/logger'
+import {log} from '../services/logService'
 import {Database} from '../services'
 import AppError from '../utils/AppError'
 import {BackupProof, Proof} from '../models/Proof'

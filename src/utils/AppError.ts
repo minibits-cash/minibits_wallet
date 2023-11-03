@@ -1,7 +1,7 @@
 
 import * as Sentry from '@sentry/react-native'
 import {SENTRY_ACTIVE} from '@env'
-import {log, SentryActive} from './logger'
+import {log, SentryActive} from '../services/logService'
 
 export enum Err {
   CONNECTION_ERROR = 'CONNECTION_ERROR',
@@ -52,12 +52,7 @@ class AppError extends Error {
       }
     }  
 
-    log.error(name, message, params, callerFunctionName)
-
-    // Sentry trial
-    if (!__DEV__ && SENTRY_ACTIVE === SentryActive.TRUE) {
-      Sentry.captureException(error)
-    }
+    log.error(`[${callerFunctionName}]`, name, message, params)
 
     Object.setPrototypeOf(this, new.target.prototype)
   }

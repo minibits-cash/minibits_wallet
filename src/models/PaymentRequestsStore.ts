@@ -8,7 +8,7 @@ import {
 } from 'mobx-state-tree'
 import {withSetPropAction} from './helpers/withSetPropAction'
 import {PaymentRequestModel, PaymentRequest, PaymentRequestStatus} from './PaymentRequest'
-import {log} from '../utils/logger'
+import {log} from '../services/logService'
 import AppError, { Err } from '../utils/AppError'
 import {LightningUtils} from '../services/lightning/lightningUtils'
 import isBefore from 'date-fns/isBefore'
@@ -70,7 +70,7 @@ export const PaymentRequestsStoreModel = types
             paymentRequestInstance.setExpiresAt()
             self.paymentRequests.push(paymentRequestInstance)
 
-            log.info('New paymentRequest added to PaymentRequestsStore', newPaymentRequest)
+            log.info('[addPaymentRequest]', 'New paymentRequest added to PaymentRequestsStore', newPaymentRequest)
 
             return paymentRequestInstance       
         },
@@ -90,7 +90,7 @@ export const PaymentRequestsStoreModel = types
             if (paymentRequestInstance) {                
                 detach(paymentRequestInstance)
                 destroy(paymentRequestInstance)
-                log.info('PaymentRequest removed from the store')
+                log.info('[removePaymentRequest]', 'PaymentRequest removed from the store')
                 
             }
         },

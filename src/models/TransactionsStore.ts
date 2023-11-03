@@ -14,7 +14,7 @@ import {
   TransactionRecord,
 } from './Transaction'
 import {Database} from '../services'
-import {log} from '../utils/logger'
+import {log} from '../services/logService'
 
 export const maxTransactionsInModel = 10
 
@@ -27,21 +27,21 @@ export const TransactionsStoreModel = types
         findById: (id: number) => {
             const tx = self.transactions.find(tx => tx.id === id)
             return tx ? tx : undefined
-        },
+        }
+    }))
+    .actions(self => ({        
         removeTransaction: (removedTransaction: Transaction) => {
             let transactionInstance: Transaction | undefined
 
             if (isStateTreeNode(removedTransaction)) {
                 transactionInstance = removedTransaction
             } else {
-                transactionInstance = self.transactions.find(
-                (t: Transaction) => t.id === (removedTransaction as Transaction).id,
-                )
+                transactionInstance = self.findById((removedTransaction as Transaction).id as number)
             }
 
             if (transactionInstance) {
                 destroy(transactionInstance)
-                log.trace('Transaction removed from TransactionsStore')
+                log.info('[removeTransaction]', 'Transaction removed from TransactionsStore')
             }
         },
         removeOldTransactions: () => {
@@ -53,10 +53,9 @@ export const TransactionsStoreModel = types
                 .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()) // Sort transactions by createdAt in descending order
                 .splice(maxTransactionsInModel) // Remove transactions beyond the desired number to keep
 
-                log.trace(
-                `${
+                log.debug('[removeOldTransactions]', `${
                     numTransactions - maxTransactionsInModel
-                } transaction(s) removed from TransactionsStore`,
+                    } transaction(s) removed from TransactionsStore`,
                 )
             }
         },
@@ -73,11 +72,7 @@ export const TransactionsStoreModel = types
             const transactionInstance = TransactionModel.create(inStoreTransaction)
             self.transactions.push(transactionInstance)
 
-            log.trace(
-                'New transaction added to the TransactionsStore',
-                [],
-                'addTransaction',
-            )
+            log.debug('[addTransaction]', 'New transaction added to the TransactionsStore')
 
             // Purge the oldest transaction from the model if the maximum number of transactions is reached
             if (self.transactions.length > maxTransactionsInModel) {
@@ -95,13 +90,12 @@ export const TransactionsStoreModel = types
                 const inStoreTransaction = {...dbTransaction, createdAt}
 
                 const transactionInstance = TransactionModel.create(inStoreTransaction)
-                inStoreTransactions.push(transactionInstance)
+                inStoreTransactions.push(transactionInstance as Transaction)
             }
 
             self.transactions.push(...inStoreTransactions)
 
-            log.trace(
-                `${inStoreTransactions.length} new transactions added to TransactionsStore`,
+            log.debug('[addTransactionsToModel]', `${inStoreTransactions.length} new transactions added to TransactionsStore`,
             )
         },
         updateStatus: flow(function* updateStatus(
@@ -117,10 +111,7 @@ export const TransactionsStoreModel = types
             if (transactionInstance) {
                 transactionInstance.status = status
                 transactionInstance.data = data
-                log.trace(
-                    'Transaction status and data updated in TransactionsStore',
-                    'updateStatus',
-                )
+                log.debug('[updateStatus]', 'Transaction status and data updated in TransactionsStore', {id, status})
             }
 
             return transactionInstance
@@ -146,7 +137,7 @@ export const TransactionsStoreModel = types
                     transactionInstance.data = JSON.stringify(updatedData)
 
 
-                    log.trace('Transaction status and data updated in TransactionsStore',[],'updateStatuses',)
+                    log.debug('[updateStatuses]', 'Transaction statuses and data updated in TransactionsStore', {ids, status})
                 }
             }
         }),
@@ -162,7 +153,7 @@ export const TransactionsStoreModel = types
             // Update in the model
             if (transactionInstance) {
                 transactionInstance.balanceAfter = balanceAfter
-                log.trace('Transaction balanceAfter updated in TransactionsStore',[],'updateBalanceAfter',)
+                log.debug('[updateBalanceAfter]', 'Transaction balanceAfter updated in TransactionsStore', {balanceAfter})
             }
 
             return transactionInstance
@@ -176,7 +167,7 @@ export const TransactionsStoreModel = types
             // Update in the model
             if (transactionInstance) {
                 transactionInstance.fee = fee
-                log.trace('Transaction fee updated in TransactionsStore',[],'updateFee')
+                log.debug('[updateFee]', 'Transaction fee updated in TransactionsStore', {fee})
             }
 
             return transactionInstance
@@ -193,7 +184,7 @@ export const TransactionsStoreModel = types
             // Update in the model
             if (transactionInstance) {
                 transactionInstance.amount = amount
-                log.trace('Transaction amount updated in TransactionsStore')
+                log.debug('[updateReceivedAmount]', 'Transaction amount updated in TransactionsStore', {id, amount})
             }
 
             return transactionInstance
@@ -208,7 +199,7 @@ export const TransactionsStoreModel = types
             // TODO how to handle missing UI updates for older notes that are stored in db only
             if (transactionInstance) {
                 transactionInstance.noteToSelf = note
-                log.trace('Transaction note updated in TransactionsStore')
+                log.debug('[saveNote]', 'Transaction note updated in TransactionsStore', {note})
             }
         }),
         updateSentFrom: flow(function* updateSentFrom(id: number, sentFrom: string) {
@@ -217,7 +208,7 @@ export const TransactionsStoreModel = types
             const transactionInstance = self.findById(id)
             if (transactionInstance) {
                 transactionInstance.sentFrom = sentFrom
-                log.trace('Transaction sentFrom updated in TransactionsStore')
+                log.debug('[updateSentFrom]', 'Transaction sentFrom updated in TransactionsStore', {id, sentFrom})
             }
         }),
         updateSentTo: flow(function* updateSentTo(id: number, sentTo: string) { //
@@ -226,12 +217,12 @@ export const TransactionsStoreModel = types
             const transactionInstance = self.findById(id)
             if (transactionInstance) {
                 transactionInstance.sentTo = sentTo
-                log.trace('Transaction sentTo updated in TransactionsStore')
+                log.debug('[updateSentTo]', 'Transaction sentTo updated in TransactionsStore', {id, sentTo})
             }
         }),
         removeAllTransactions() {
             self.transactions.clear()
-            log.info('Removed all transactions from TransactionsStore')
+            log.debug('[removeAllTransactions]', 'Removed all transactions from TransactionsStore')
         },
     }))
     .views(self => ({

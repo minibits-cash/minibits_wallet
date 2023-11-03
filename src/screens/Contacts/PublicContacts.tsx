@@ -8,7 +8,7 @@ import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loadin
 import {useStores} from '../../models'
 import {NostrClient, NostrEvent, NostrFilter, NostrProfile} from '../../services'
 import AppError, { Err } from '../../utils/AppError'
-import { log } from '../../utils/logger'
+import { log } from '../../services/logService'
 import { Contact, ContactType } from '../../models/Contact'
 import { StackNavigationProp } from '@react-navigation/stack'
 import { ContactsStackParamList } from '../../navigation'

@@ -1,6 +1,6 @@
 import {Instance, SnapshotOut, types, flow} from 'mobx-state-tree'
 import {MinibitsClient, NostrClient, NostrUnsignedEvent, Wallet} from '../services'
-import {log} from '../utils/logger'
+import {log} from '../services/logService'
 import { getRootStore } from './helpers/getRootStore'
 
 
@@ -64,7 +64,7 @@ export const WalletProfileStoreModel = types
                 
                 const relaysToPublish: string[]  = relaysStore.allUrls
 
-                log.trace('relaysToPublish', {relaysToPublish},'publishToRelays')
+                log.debug('[publishToRelays]', 'Publish profile to relays', {profileEvent, relaysToPublish})
 
                 const publishedEvent: Event | undefined = yield NostrClient.publish(
                     profileEvent,
@@ -93,7 +93,7 @@ export const WalletProfileStoreModel = types
             
             const publishedEvent = yield self.publishToRelays()
             
-            log.trace('Wallet profile saved in WalletProfileStore', {self, publishedEvent})
+            log.info('[create]', 'Wallet profile saved in WalletProfileStore', {self, publishedEvent})
             return self           
         }),      
         updateName: flow(function* update(name: string) {
@@ -109,7 +109,7 @@ export const WalletProfileStoreModel = types
             self.nip05 = profileRecord.nip05
             const publishedEvent = yield self.publishToRelays()
             
-            log.trace('Wallet name updated in the WalletProfileStore', {self, publishedEvent})
+            log.debug('[updateName]', 'Wallet name updated in the WalletProfileStore', {self, publishedEvent})
             return self         
         }),
         updatePicture: flow(function* update(picture: string) {
@@ -125,7 +125,7 @@ export const WalletProfileStoreModel = types
 
             const publishedEvent = yield self.publishToRelays()
             
-            log.trace('Wallet picture updated in the WalletProfileStore', {self, publishedEvent})
+            log.debug('[updatePicture]', 'Wallet picture updated in the WalletProfileStore', {self, publishedEvent})
             return self         
         }),
         updateNip05: flow(function* update(newPubkey: string, nip05: string, name: string, picture: string, isOwnProfile: boolean) {
@@ -148,7 +148,7 @@ export const WalletProfileStoreModel = types
             
             // do not publish to relay as this is external 
             
-            log.trace('Wallet nip05 updated in the WalletProfileStore', {self})
+            log.info('[updateNip05]', 'Wallet nip05 updated in the WalletProfileStore', {self})
             return self         
         }),
         setNip05(nip05: string) {   // used in migration to v3 model         

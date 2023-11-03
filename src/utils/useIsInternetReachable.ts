@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo'
-import {log} from './logger'
+import {log} from '../services/logService'
 
 
 export default function useIsInternetReachable() {

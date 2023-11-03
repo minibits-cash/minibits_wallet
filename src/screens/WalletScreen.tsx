@@ -39,7 +39,8 @@ import EventEmitter from '../utils/eventEmitter'
 import {WalletStackScreenProps} from '../navigation'
 import {Mint, MintBalance} from '../models/Mint'
 import {MintsByHostname} from '../models/MintsStore'
-import {Env, log} from '../utils/logger'
+import {log} from '../services'
+import {Env} from '../utils/envtypes'
 import {Transaction, TransactionStatus} from '../models/Transaction'
 import {TransactionListItem} from './Transactions/TransactionListItem'
 import {MintClient, MintKeys, NostrClient, ReceivedEventResult, Wallet} from '../services'
@@ -81,8 +82,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const [defaultMintUrl, setDefaultMintUrl] = useState<string>('https://mint.minibits.cash/Bitcoin')
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState<boolean>(false)
-    const [relayStatusList, setRelayStatusList] = useState<RelayStatus[]>([])
-
+    
     const [isUpdateAvailable, setIsUpdateAvailable] = useState<boolean>(false)
     const [isUpdateModalVisible, setIsUpdateModalVisible] = useState<boolean>(false)
     const [updateDescription, setUpdateDescription] = useState<string>('')

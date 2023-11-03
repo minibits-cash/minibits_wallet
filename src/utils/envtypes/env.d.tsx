@@ -1,7 +1,5 @@
 declare module '@env' {
-    export const APP_ENV: string
-    export const LOG_LEVEL: string
-    export const SENTRY_ACTIVE: string
+    export const APP_ENV: string        
     export const SENTRY_DSN: string    
     export const CODEPUSH_PRODUCTION_DEPLOYMENT_KEY: string
     export const CODEPUSH_STAGING_DEPLOYMENT_KEY: string
@@ -11,9 +9,7 @@ declare module '@env' {
     export const MINIBITS_NIP05_DOMAIN: string
     export const MINIBITS_RELAY_URL: string
     export const JS_BUNDLE_VERSION: string
-    export const COMMIT: string  
-    
-    
+    export const COMMIT: string
 }
 
 

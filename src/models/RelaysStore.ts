@@ -8,7 +8,7 @@ import {
   } from 'mobx-state-tree'
 import {withSetPropAction} from './helpers/withSetPropAction'
 import {RelayModel, Relay} from './Relay'
-import {log} from '../utils/logger'
+import {log} from '../services/logService'
 import { MINIBITS_RELAY_URL } from '@env'
 import { NostrClient } from '../services'
 
@@ -46,19 +46,19 @@ export const RelaysStoreModel = types
                     relayInstance?.setError(error)
                 }
 
-                log.trace('Relay updated in the RelaysStore', {relay}, 'addOrUpdateRelay')
+                log.debug('[addOrUpdateRelay]', 'Relay updated in the RelaysStore', {relay})
             } else {
-                log.trace('Passed URL', relay.url)
+                log.trace('[addOrUpdateRelay]', 'Passed URL', relay.url)
                 const normalized = NostrClient.getNormalizedRelayUrl(relay.url)
 
-                log.trace('Normalized URL', normalized)
+                log.trace('[addOrUpdateRelay]', 'Normalized URL', normalized)
                 relay.url = normalized
 
                 const relayInstance = RelayModel.create(relay)
                 relayInstance.setHostname()                            
                 self.relays.push(relayInstance)
 
-                log.info('New relay added to the RelaysStore', {relay}, 'addOrUpdateRelay')
+                log.info('[addOrUpdateRelay]', 'New relay added to the RelaysStore', {relay})
             }
         },
         removeRelay(relayUrl: string) {
@@ -68,7 +68,7 @@ export const RelaysStoreModel = types
             if (relayInstance) {
                 detach(relayInstance)
                 destroy(relayInstance)
-                log.info('Relay removed from RelaysStore', {relayUrl}, 'removeRelay')
+                log.info('[removeRelay]', 'Relay removed from RelaysStore', {relayUrl})
             }
         },
     }))

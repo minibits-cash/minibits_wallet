@@ -23,7 +23,8 @@ import {
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import AppError from '../utils/AppError'
-import { Env, log } from '../utils/logger'
+import { log } from '../services'
+import {Env} from '../utils/envtypes'
 
 
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY

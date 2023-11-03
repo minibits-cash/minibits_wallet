@@ -1,6 +1,6 @@
 import {Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
 import { MINIBITS_NIP05_DOMAIN, MINIBITS_SERVER_API_HOST } from '@env'
-import { log } from '../utils/logger'
+import { log } from '../services/logService'
 
 export type ContactData = {    
     [index: string]: any
@@ -28,10 +28,9 @@ export const ContactModel = types
     })
     .actions(self => ({
         refreshPicture() {
-            const cleaned = MINIBITS_SERVER_API_HOST + '/profile/avatar/' + self.pubkey // remove refresh suffix
-            log.trace('Cleaned', cleaned)
+            const cleaned = MINIBITS_SERVER_API_HOST + '/profile/avatar/' + self.pubkey // remove refresh suffix            
             self.picture = cleaned + '?r=' + Math.floor(Math.random() * 100) // force url refresh
-            log.trace('Refreshed', self.picture)
+            
         },
     }))
     .views(self => ({        

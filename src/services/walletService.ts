@@ -1,7 +1,7 @@
 import {deriveKeysetId, getEncodedToken} from '@cashu/cashu-ts'
 import {addSeconds, isBefore} from 'date-fns'
 import {getSnapshot, isStateTreeNode} from 'mobx-state-tree'
-import {log} from '../utils/logger'
+import {log} from './logService'
 import {MintClient, MintKeys, MintKeySets} from './cashuMintClient'
 import {Proof} from '../models/Proof'
 import {
@@ -137,7 +137,7 @@ const checkPendingReceived = async function () {
 
         contactsStore.setLastPendingReceivedCheck() 
 
-        log.trace('Creating subscription...', filter, 'checkPendingReceived')
+        log.trace('[checkPendingReceived]', 'Creating Nostr subscription...', filter)
 
         const pool = NostrClient.getRelayPool()
         let relaysToConnect = relaysStore.allUrls
@@ -407,10 +407,7 @@ async function _checkSpentByMint(mintUrl: string, isPending: boolean = false) {
         const proofsFromMint = proofsStore.getByMint(mintUrl, isPending) as Proof[]
 
         if (proofsFromMint.length < 1) {
-            log.trace(
-                `No ${isPending ? 'pending' : ''} proofs found for mint`,
-                mintUrl, '_checkSpentByMint'
-            )
+            log.trace('[_checkSpentByMint]', `No ${isPending ? 'pending' : ''} proofs found for mint`, mintUrl)
             return
         }
 
@@ -422,14 +419,10 @@ async function _checkSpentByMint(mintUrl: string, isPending: boolean = false) {
         const spentCount = spentProofs.length
         const spentAmount = CashuUtils.getProofsAmount(spentProofs)
 
-        log.trace('spentProofs amount', spentAmount, '_checkSpentByMint')
+        log.trace('[_checkSpentByMint]', `spentProofs amount: ${spentAmount}`)
 
         if (spentProofs.length < 1) {
-            log.trace(
-                `No spent ${isPending ? 'pending' : ''} proofs returned from the mint`,
-                mintUrl,
-                '_checkSpentByMint',
-            )
+            log.trace('[_checkSpentByMint]', `No spent ${isPending ? 'pending' : ''} proofs returned from the mint`, mintUrl)
             return
         }
 
@@ -450,11 +443,7 @@ async function _checkSpentByMint(mintUrl: string, isPending: boolean = false) {
         proofsStore.removeProofs(spentProofs as Proof[], isPending)
 
         // Update related transactions statuses
-        log.info(
-            'Transaction id(s) to complete',
-            relatedTransactionIds.toString(),
-            '_checkSpentByMint',
-        )
+        log.debug('[_checkSpentByMint]', 'Transaction id(s) to complete', relatedTransactionIds.toString())
 
         // Complete related transactions in normal wallet operations
         if (isPending) {
@@ -478,7 +467,7 @@ async function _checkSpentByMint(mintUrl: string, isPending: boolean = false) {
 
     } catch (e: any) {
         // silent
-        log.info(e.name, {message: e.message, mintUrl}, '_checkSpentByMint')
+        log.error('[_checkSpentByMint]', e.name, {message: e.message, mintUrl})
     }
 }
 
@@ -493,7 +482,7 @@ const receive = async function (
 
   try {
         const tokenMints: string[] = CashuUtils.getMintsFromToken(token as Token)
-        log.trace('receiveToken tokenMints', tokenMints, 'receive')
+        log.trace('[receive]', 'receiveToken tokenMints', tokenMints)
 
         if (tokenMints.length === 0) {
             throw new AppError(
@@ -549,10 +538,7 @@ const receive = async function (
         // Handle missing mint, we add it automatically
         const alreadyExists = mintsStore.alreadyExists(mintToReceive)
 
-        if (!alreadyExists) {            
-
-            log.trace('Adding new mint', mintToReceive, 'receive')
-
+        if (!alreadyExists) {
             const mintKeys: {
                 keys: MintKeys
                 keyset: string
@@ -593,7 +579,7 @@ const receive = async function (
 
         if (errorToken && errorToken.token.length > 0) {
             amountWithErrors += CashuUtils.getTokenAmounts(errorToken as Token).totalAmount
-            log.trace('receiveToken amountWithErrors', amountWithErrors, 'receive')
+            log.warn('[receive]', 'receiveToken amountWithErrors', amountWithErrors)
         }
 
         if (amountWithErrors === amountToReceive) {
@@ -619,7 +605,7 @@ const receive = async function (
 
         // This should be amountToReceive - amountWithErrors but let's set it from updated token
         const receivedAmount = CashuUtils.getTokenAmounts(updatedToken as Token).totalAmount
-        log.trace('Received amount', receivedAmount, 'receive')
+        log.debug('[receive]', `Received amount: ${receivedAmount}`)
 
         // Update tx amount if full amount was not received
         if (receivedAmount !== amountToReceive) {      
@@ -698,7 +684,7 @@ const receiveOfflinePrepare = async function (
 
   try {
         const tokenMints: string[] = CashuUtils.getMintsFromToken(token as Token)
-        log.trace('receiveToken tokenMints', tokenMints, 'receive')
+        log.trace('[receiveOfflinePrepare]', 'receiveToken tokenMints', tokenMints)
 
         if (tokenMints.length === 0) {
             throw new AppError(
@@ -820,7 +806,7 @@ const receiveOfflineComplete = async function (
         )
 
         if (!encodedToken) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Could not find ecash token to redeem', 'receiveOfflineComplete')
+            throw new AppError(Err.VALIDATION_ERROR, 'Could not find ecash token to redeem', {caller: 'receiveOfflineComplete'})
         }
         
         const token = CashuUtils.decodeToken(encodedToken)        
@@ -846,10 +832,7 @@ const receiveOfflineComplete = async function (
         // Handle missing mint, we add it automatically
         const alreadyExists = mintsStore.alreadyExists(mintToReceive)
 
-        if (!alreadyExists) {            
-
-            log.trace('Adding new mint', mintToReceive, 'receive')
-
+        if (!alreadyExists) {
             const mintKeys: {
                 keys: MintKeys
                 keyset: string
@@ -875,7 +858,7 @@ const receiveOfflineComplete = async function (
 
         if (errorToken && errorToken.token.length > 0) {
             amountWithErrors += CashuUtils.getTokenAmounts(errorToken as Token).totalAmount
-            log.trace('receiveToken amountWithErrors', amountWithErrors, 'receive')
+            log.warn('[receiveOfflineComplete]', 'receiveToken amountWithErrors', amountWithErrors)
         }
 
         if (amountWithErrors === transaction.amount) {
@@ -901,7 +884,7 @@ const receiveOfflineComplete = async function (
 
         // This should be amountToReceive - amountWithErrors but let's set it from updated token
         const receivedAmount = CashuUtils.getTokenAmounts(updatedToken as Token).totalAmount
-        log.trace('Received amount', receivedAmount, 'receive')
+        log.debug('[receiveOfflineComplete]', 'Received amount', receivedAmount)
 
         // Update tx amount if full amount was not received
         if (receivedAmount !== transaction.amount) {      
@@ -978,7 +961,7 @@ const _sendFromMint = async function (
     try {
         const proofsFromMint = proofsStore.getByMint(mintUrl) as Proof[]
 
-        log.trace('proofsFromMint', proofsFromMint.length, '_sendFromMint')
+        log.debug('[_sendFromMint]', 'proofsFromMint count', proofsFromMint.length)
 
         if (proofsFromMint.length < 1) {
             throw new AppError(
@@ -1035,7 +1018,7 @@ const _sendFromMint = async function (
             amountToSend,
             proofsFromMint,
         )
-        log.trace('proofsToSendFrom', proofsToSendFrom, '_sendFromMint')
+        log.debug('[_sendFromMint]', 'proofsToSendFrom', proofsToSendFrom)
 
         // if split to required denominations was necessary, this gets it done with the mint and we get the return
         const {returnedProofs, proofsToSend, newKeys} = await MintClient.sendFromMint(
@@ -1044,8 +1027,8 @@ const _sendFromMint = async function (
             proofsToSendFrom,
         )
 
-        log.trace('returnedProofs', returnedProofs, '_sendFromMint')
-        log.trace('proofsToSend', proofsToSend, '_sendFromMint')
+        log.debug('[_sendFromMint]', 'returnedProofs', returnedProofs)
+        log.debug('[_sendFromMint]', 'proofsToSend', proofsToSend)
 
         if (newKeys) {_updateMintKeys(mintUrl, newKeys)}
 
@@ -1113,9 +1096,9 @@ const send = async function (
     const mintUrl = mintBalanceToSendFrom.mint
 
 
-    log.trace('mintBalanceToSendFrom', mintBalanceToSendFrom, 'send')
-    log.trace('amountToSend', amountToSend, 'send')    
-    log.trace('memo', memo, 'send')
+    log.trace('[send]', 'mintBalanceToSendFrom', mintBalanceToSendFrom)
+    log.trace('[send]', 'amountToSend', amountToSend)    
+    log.trace('[send]', 'memo', memo)
 
     // create draft transaction
     const transactionData: TransactionData[] = [
@@ -1206,13 +1189,12 @@ const send = async function (
             20,
             5,
         )
-        .then(() => log.trace('poller completed', [], '_checkSpentByMint'))
+        .then(() => log.trace('[checkSpentByMintPoller]', 'polling completed'))
         .catch(error =>
             log.error(
                 Err.POLLING_ERROR,
-                'polling error:',
-                error,
-                '_checkSpentByMint',
+                error.message,
+                {caller: '_checkSpentByMint'},
             ),
         )
 
@@ -1257,9 +1239,9 @@ const transfer = async function (
 ) {
     const mintUrl = mintBalanceToTransferFrom.mint
 
-    log.trace('mintBalanceToTransferFrom', mintBalanceToTransferFrom, 'transfer')
-    log.trace('amountToTransfer', amountToTransfer, 'transfer')
-    log.trace('estimatedFee', estimatedFee, 'transfer')
+    log.debug('[transfer]', 'mintBalanceToTransferFrom', mintBalanceToTransferFrom)
+    log.debug('[transfer]', 'amountToTransfer', amountToTransfer)
+    log.debug('[transfer]', 'estimatedFee', estimatedFee)
     
     if (amountToTransfer + estimatedFee > mintBalanceToTransferFrom.balance) {
         throw new AppError(Err.VALIDATION_ERROR, 'Mint balance is insufficient to cover the amount to transfer with expected Lightning fees.')
@@ -1311,7 +1293,7 @@ const transfer = async function (
         )
 
         const proofsAmount = CashuUtils.getProofsAmount(proofsToPay as Proof[])
-        log.info('Prepared poofsToPay amount', proofsAmount, 'transfer')
+        log.debug('[transfer]', 'Prepared poofsToPay amount', proofsAmount)
 
         // Update transaction status
         transactionData.push({
@@ -1388,9 +1370,7 @@ const transfer = async function (
 
         const balanceAfter = proofsStore.getBalances().totalBalance
 
-        await transactionsStore.updateBalanceAfter(transactionId, balanceAfter)
-
-        log.trace('totalBalance after', balanceAfter, 'transfer')
+        await transactionsStore.updateBalanceAfter(transactionId, balanceAfter)       
 
         return {
             transaction: completedTransaction,
@@ -1415,7 +1395,7 @@ const transfer = async function (
 
             // Return tokens intended for payment to the wallet if payment failed with an error
             if (proofsToPay.length > 0) {
-                log.info('Returning proofsToPay to the wallet likely after failed lightning payment', proofsToPay.length, 'transfer')
+                log.info('[transfer]', 'Returning proofsToPay to the wallet likely after failed lightning payment', proofsToPay.length)
                 const amount = _addCashuProofs(proofsToPay, mintUrl, transactionId, true)
             }
         }
@@ -1446,7 +1426,7 @@ const _addCashuProofs = function (
     proofsStore.addProofs(proofsToAdd as Proof[])
     const amount = CashuUtils.getProofsAmount(proofsToAdd as Proof[])
 
-    log.trace('Added proofs with amount', { amount, isRecoveredFromPending })
+    log.trace('[_addCashuProofs]', 'Added proofs with amount', { amount, isRecoveredFromPending })
     
     if(isRecoveredFromPending) {
         // Remove them from pending if they are returned to the wallet due to failed lightning payment
@@ -1464,8 +1444,8 @@ const topup = async function (
     amountToTopup: number,
     memo: string,
 ) {
-    log.info('mintBalanceToTopup', mintBalanceToTopup, 'topup')
-    log.info('amountToTopup', amountToTopup, 'topup')
+    log.info('[topup]', 'mintBalanceToTopup', mintBalanceToTopup)
+    log.info('[topup]', 'amountToTopup', amountToTopup)
 
     // create draft transaction
     const transactionData: TransactionData[] = [
@@ -1534,7 +1514,7 @@ const topup = async function (
         poller('checkPendingTopupsPoller', checkPendingTopups, 6 * 1000, 20, 5)
             .then(() => log.trace('Polling completed', [], 'checkPendingTopups'))
             .catch(error =>
-                log.trace(error.message, [], 'checkPendingTopups'),
+                log.warn(error.message, [], 'checkPendingTopups'),
         )
 
         return {
@@ -1574,7 +1554,7 @@ const checkPendingTopups = async function () {
     const invoices: Invoice[] = invoicesStore.allInvoices
 
     if (invoices.length === 0) {
-        log.trace('No invoices in store', [], 'checkPendingTopups')
+        log.trace('[checkPendingTopups]', 'No invoices in store')
         return
     }
 
@@ -1588,11 +1568,11 @@ const checkPendingTopups = async function () {
             )) as {proofs: Proof[], newKeys: MintKeys}
 
             if (!proofs || proofs.length === 0) {
-                log.trace('No proofs returned from mint', [], 'checkPendingTopups')
+                log.trace('[checkPendingTopups]', 'No proofs returned from mint')
                 // remove already expired invoices only after check that they have not been paid
                 // Fixes #3
                 if (isBefore(invoice.expiresAt as Date, new Date())) {
-                    log.trace('Invoice expired, removing', invoice.paymentHash, 'checkPendingTopups')
+                    log.debug('[checkPendingTopups]', `Invoice expired, removing: ${invoice.paymentHash}`)
                     
                     const transactionId = invoice.transactionId
                     invoicesStore.removeInvoice(invoice)
@@ -1671,7 +1651,7 @@ const checkPendingTopups = async function () {
 const _updateMintKeys = function (mintUrl: string, newKeys: MintKeys) {
     if(!CashuUtils.validateMintKeys(newKeys)) {
         // silent
-        log.info('Invalid mint keys to update, skipping', newKeys)
+        log.warn('[_updateMintKeys]', 'Invalid mint keys to update, skipping', newKeys)
         return
     }
 

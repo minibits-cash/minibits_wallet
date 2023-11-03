@@ -7,7 +7,7 @@ import {
 } from 'mobx-state-tree'
 import {withSetPropAction} from './helpers/withSetPropAction'
 import {InvoiceModel, Invoice} from './Invoice'
-import {log} from '../utils/logger'
+import {log} from '../services/logService'
 
 export const InvoicesStoreModel = types
     .model('Invoices', {
@@ -31,7 +31,7 @@ export const InvoicesStoreModel = types
             invoiceInstance.setExpiresAt()
             self.invoices.push(invoiceInstance)
 
-            log.info('New invoice added to InvoicesStore', newInvoice)
+            log.info('[addInvoice]', 'New invoice added to InvoicesStore', newInvoice)
 
             return invoiceInstance
         },
@@ -49,7 +49,7 @@ export const InvoicesStoreModel = types
             }
 
             if (invoiceInstance) {
-                log.trace('Invoice to be removed from InvoicesStore', invoiceToRemove)
+                log.info('[removeInvoice]', 'Invoice to be removed from InvoicesStore', invoiceToRemove)
                 destroy(invoiceInstance)
             }
         },
