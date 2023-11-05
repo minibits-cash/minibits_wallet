@@ -209,27 +209,34 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
                             style={$item}
                             onPress={startTor}
                         /> 
-                        )}
-                        <ListItem
-                            tx="privacyScreen.logger"
-                            subTx="privacyScreen.loggerDescription"
-                            leftIcon={'faBug'}
-                            leftIconColor={
-                                isLoggerOn
-                                ? colors.palette.angry500
-                                : iconColor as string
-                            }
-                            leftIconInverse={true}
-                            RightComponent={
-                            <View style={$rightContainer}>
-                                <Switch
-                                    onValueChange={toggleLoggerSwitch}
-                                    value={isLoggerOn}
-                                />
-                            </View>
-                            }
-                            style={$item}
-                        />
+                    )}                        
+                </>
+                }
+            />
+            <Card
+                style={[$card, {marginTop: spacing.medium}]}
+                ContentComponent={
+                <>                    
+                    <ListItem
+                        tx="privacyScreen.logger"
+                        subTx="privacyScreen.loggerDescription"
+                        leftIcon={'faBug'}
+                        leftIconColor={
+                            isLoggerOn
+                            ? colors.palette.angry500
+                            : iconColor as string
+                        }
+                        leftIconInverse={true}
+                        RightComponent={
+                        <View style={$rightContainer}>
+                            <Switch
+                                onValueChange={toggleLoggerSwitch}
+                                value={isLoggerOn}
+                            />
+                        </View>
+                        }
+                        style={$item}
+                    />
                 </>
                 }
             />
