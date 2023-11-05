@@ -10,10 +10,12 @@ import { getImageSource } from '../../utils/utils'
 
 
 export interface ContactListProps {
-  Contact: Contact  
+  contact: Contact,
+  isFirst: boolean, 
+  gotoContactDetail: any
 }
 
-export const ContactListItem = observer(function (props: {contact: Contact, isFirst: boolean, gotoContactDetail: any}) {
+export const ContactListItem = observer(function (props: ContactListProps) {
   
     const { contact } = props
   

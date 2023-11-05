@@ -1,200 +1,77 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useState, useEffect, useRef, useMemo} from 'react'
-import {
-  ImageStyle,
-  TextStyle,
-  ViewStyle,
-  View,
-  ScrollView,
-  Alert,
-  Image,
-} from 'react-native'
-import {formatDistance, toDate} from 'date-fns'
-import {useThemeColor, spacing, colors, typography} from '../theme'
-import {
-  Button,
-  Icon,
-  Screen,
-  Text,
-  Card,
-  ListItem,
-  ErrorModal,
-  InfoModal,
-  Loading,
-} from '../components'
-import {WalletStackScreenProps} from '../navigation'
-import {useHeader} from '../utils/useHeader'
-import {useStores} from '../models'
-import AppError from '../utils/AppError'
-import { PaymentRequest } from '../models/PaymentRequest'
-import { MINIBITS_NIP05_DOMAIN, MINIBITS_SERVER_API_HOST } from '@env'
-import { SendOption } from './SendOptionsScreen'
+import React, {FC, useEffect, useState} from 'react'
+import {TextStyle, View, ViewStyle} from 'react-native'
+import { TabBar, TabView, Route } from 'react-native-tab-view'
+import {colors, spacing, useThemeColor} from '../theme'
+import {Screen, Text} from '../components'
+import { IncomingRequests } from './PaymentRequests/IncomingRequests'
+import { OutgoingRequests } from './PaymentRequests/OutgoingRequests'
+import { log } from '../services/logService'
+import { useHeader } from '../utils/useHeader'
+import { WalletStackScreenProps } from '../navigation'
 
-interface PaymentRequestsScreenProps
-  extends WalletStackScreenProps<'PaymentRequests'> {}
+interface PaymentRequestsScreenProps extends WalletStackScreenProps<'PaymentRequests'> {}
 
-
-
-export const PaymentRequestsScreen: FC<PaymentRequestsScreenProps> = observer(function PaymentRequestsScreen(_props) {
-    const {navigation} = _props
-    const {paymentRequestsStore} = useStores()
+export const PaymentRequestsScreen: FC<PaymentRequestsScreenProps> = observer(function PaymentRequestsScreen({route, navigation}) {
     useHeader({
-      leftIcon: 'faArrowLeft',
-      onLeftPress: () => navigation.goBack(),
-    })
-
+        leftIcon: 'faArrowLeft',
+        onLeftPress: () => navigation.goBack(),
+    })    
     
-    const [info, setInfo] = useState('')
-    const [error, setError] = useState<AppError | undefined>()
-    const [isLoading, setIsLoading] = useState(false)
-
-    useEffect(() => {
-        onDeleteExpired()
-    }, [])
-      
-    const onDeleteExpired = function() {
-        paymentRequestsStore.removeExpired()
+    const renderScene = ({route}: {route: Route}) => {
+        switch (route.key) {
+          case 'first':
+            return <IncomingRequests navigation={navigation}/>
+          case 'second':
+            return <OutgoingRequests navigation={navigation}/>
+          default:
+            return null
+        }
     }
+    
+    const [index, setIndex] = useState(0)
+    const [routes] = useState([
+        { key: 'first', title: 'Incoming' },
+        { key: 'second', title: 'Outgoing' },
+    ])
 
+ 
 
-    const onPressPaymentRequest = function(paymentRequest: PaymentRequest) {
-        navigation.navigate('Transfer', {
-            paymentRequest, 
-            paymentOption: SendOption.PAY_PAYMENT_REQUEST
-        })
-    }
-
-    const handleError = function (e: AppError): void {
-        setIsLoading(false)
-        setError(e)
-    }
+    const renderTabBar = (props: any) => (
+        <TabBar
+          {...props}
+          indicatorStyle={{ backgroundColor: activeTabIndicator }}
+          style={{ backgroundColor: headerBg }}
+        />
+    )
 
     const headerBg = useThemeColor('header')
-    const iconColor = useThemeColor('textDim')
-    const hintColor = useThemeColor('textDim')
-    const activeIconColor = useThemeColor('button')
-    
+    const activeTabIndicator = colors.palette.accent400   
 
     return (
-      <Screen style={$screen} preset="auto">
-        <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text preset="heading" text="Payment requests" style={{color: 'white'}} />
-        </View>
-        <View style={$contentContainer}>
-          {/*<Card
-            style={$actionCard}
-            ContentComponent={
-                <ListItem
-                  text={'Delete expired'}
-                  LeftComponent={
-                    <Icon
-                      containerStyle={$iconContainer}
-                      icon='faXmark'
-                      size={spacing.medium}
-                      color={iconColor}
-                    />
-                  }                  
-                  style={$item}
-                  // bottomSeparator={true}
-                  onPress={onDeleteExpired}
-                />
-            }
-            />*/}
-          {paymentRequestsStore.count > 0 ? (
-            <Card
-              ContentComponent={
-                <>
-                  {paymentRequestsStore.all.map((pr, index: number) => (
-                    <ListItem 
-                        key={pr.paymentHash}                      
-                        text={pr.description as string}        
-                        textStyle={$prText}
-                        subText={`${pr.sentFrom} · ${pr.status} · Expires ${formatDistance(pr.expiresAt as Date, new Date(), {addSuffix: true})}`}       
-                        LeftComponent={<Image style={[
-                            $iconContainer, {
-                                width: 40, 
-                                height: pr.sentFrom?.includes(MINIBITS_NIP05_DOMAIN) ? 43 :  40,
-                                borderRadius: pr.sentFrom?.includes(MINIBITS_NIP05_DOMAIN) ? 0 :  20,
-                            }]} 
-                            source={{uri: MINIBITS_SERVER_API_HOST + '/profile/avatar/' + pr.sentFromPubkey}} />
-                        }  
-                        RightComponent={
-                            <Text style={{marginHorizontal: spacing.small}} text={pr.amount.toLocaleString()}/>
-                        }          
-                        topSeparator={index === 0 ? false : true}
-                        style={$item}
-                        onPress={() => onPressPaymentRequest(pr)}
-                    />
-                  ))}                  
-                </>
-              }              
-              style={$card}
+        <Screen contentContainerStyle={$screen}>
+            <View style={[$headerContainer, {backgroundColor: headerBg}]}>
+                <Text preset="heading" text="Payment requests" style={{color: 'white'}} />
+            </View>
+            <TabView
+                renderTabBar={renderTabBar}
+                navigationState={{ index, routes }}
+                renderScene={renderScene}
+                onIndexChange={setIndex}
+                initialLayout={{ width: spacing.screenWidth }}
             />
-          ) : (
-            <Card
-              content={'There are no payment requests to be paid or they have already expired.'}
-              contentStyle={{color: hintColor, padding: spacing.small}}
-              style={$card}
-            />
-          )}
-          {isLoading && <Loading />}
-        </View>
-        {error && <ErrorModal error={error} />}
-        {info && <InfoModal message={info} />}
-      </Screen>
+        </Screen>
     )
-  },
-)
+})
 
 const $screen: ViewStyle = {
-  // borderWidth: 1,
-  // borderColor: 'red'
+    flex: 1,
 }
 
 const $headerContainer: TextStyle = {
-  alignItems: 'center',
-  paddingBottom: spacing.medium,
-  height: spacing.screenHeight * 0.1,
-}
-
-const $contentContainer: TextStyle = {
-  minHeight: spacing.screenHeight * 0.5,
-  padding: spacing.extraSmall,
-}
-
-const $actionCard: ViewStyle = {
-  marginBottom: spacing.extraSmall,
-  marginTop: -spacing.extraLarge * 2,
-  paddingTop: 0,
-}
-
-const $card: ViewStyle = {
-  marginBottom: spacing.small,
-  paddingVertical: 0,
-}
-
-
-const $iconContainer: ImageStyle = {
-  padding: spacing.extraSmall,
-  alignSelf: 'center',
-  marginRight: spacing.medium,
-}
-
-const $item: ViewStyle = {
-  marginHorizontal: spacing.micro,
-}
-
-
-const $txAmount: TextStyle = {
-  fontFamily: typography.primary?.medium,
-  alignSelf: 'center',
-  marginRight: spacing.small,
-}
-
-  
-const $prText: TextStyle = {
-    overflow: 'hidden', 
-    fontSize: 14,  
-}
-
+    alignItems: 'center',
+    paddingBottom: spacing.medium,
+    paddingTop: 0,
+    height: spacing.screenHeight * 0.1,
+  }
 

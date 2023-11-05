@@ -882,12 +882,12 @@ const TopupInfoBlock = function (props: {
 }) {
   const {transaction, isDataParsable, copyAuditTrail, colorScheme} = props
 
-  const {invoicesStore} = useStores()
-  const invoiceToPay = invoicesStore.findByTransactionId(transaction.id as number)
+  const {paymentRequestsStore} = useStores()
+  const paymentRequest = paymentRequestsStore.findByTransactionId(transaction.id as number)
 
   const copyInvoice = function () {
     try {
-      Clipboard.setString(invoiceToPay?.encodedInvoice as string)
+      Clipboard.setString(paymentRequest?.encodedInvoice as string)
     } catch (e: any) {
       return false
     }
@@ -940,11 +940,11 @@ const TopupInfoBlock = function (props: {
                     label="tranDetailScreen.topupTo"
                     value={transaction.mint as string}
                 />
-                {transaction.status === TransactionStatus.PENDING && invoiceToPay && (
+                {transaction.status === TransactionStatus.PENDING && paymentRequest && (
                     <>
                         <Text style={{color: labelColor, marginTop: spacing.medium}} text='Invoice to pay'/>
                         <View style={$qrCodeContainer}>
-                            <QRCode size={270} value={invoiceToPay.encodedInvoice} />
+                            <QRCode size={270} value={paymentRequest.encodedInvoice} />
                         </View>
                     </>
                 )}
@@ -952,7 +952,7 @@ const TopupInfoBlock = function (props: {
             }
             FooterComponent={
                 <>
-                {transaction.status === TransactionStatus.PENDING && invoiceToPay && (
+                {transaction.status === TransactionStatus.PENDING && paymentRequest && (
                 <Button
                         preset="tertiary"
                         onPress={() => copyInvoice()}

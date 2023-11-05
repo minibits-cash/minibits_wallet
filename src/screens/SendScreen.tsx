@@ -252,7 +252,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(amount)
 
             if (availableBalances.length === 0) {
-                infoMessage('There is not enough funds to send this amount')
+                infoMessage('There is not enough funds to send this amount.')
                 return
             }
 

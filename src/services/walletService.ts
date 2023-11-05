@@ -22,13 +22,13 @@ import {
   type Proof as CashuProof,
 } from '@cashu/cashu-ts'
 import {Mint} from '../models/Mint'
-import {Invoice} from '../models/Invoice'
 import {poller, stopPolling} from '../utils/poller'
 import EventEmitter from '../utils/eventEmitter'
 import { NostrClient, NostrEvent, NostrFilter } from './nostrService'
 import { MINIBITS_SERVER_API_HOST } from '@env'
-import { PaymentRequest, PaymentRequestStatus } from '../models/PaymentRequest'
+import { PaymentRequest, PaymentRequestStatus, PaymentRequestType } from '../models/PaymentRequest'
 import { IncomingDataType, IncomingParser } from './incomingParser'
+import { Contact } from '../models/Contact'
 
 type WalletService = {
     checkPendingSpent: () => Promise<void>
@@ -70,6 +70,7 @@ type WalletService = {
         mintBalanceToTopup: MintBalance,
         amountToTopup: number,
         memo: string,
+        contactToSendTo?: Contact
     ) => Promise<TransactionResult>
 }
 
@@ -94,8 +95,7 @@ const {
     walletProfileStore,
     mintsStore,
     proofsStore,
-    transactionsStore,
-    invoicesStore,
+    transactionsStore,    
     paymentRequestsStore,
     contactsStore,
     relaysStore,
@@ -244,13 +244,30 @@ const checkPendingReceived = async function () {
                     const sentFrom = getTagValue(event.tags, 'from')
                     const sentFromPubkey = event.pubkey
                     const maybeMemo = findMemo(decrypted)
+
+                    const decoded = LightningUtils.decodeInvoice(incoming.encoded)
+                    const {
+                        amount, 
+                        description, 
+                        expiry, 
+                        payment_hash: paymentHash, 
+                        timestamp
+                    } = LightningUtils.getInvoiceData(decoded)                
                     
-                    const paymentRequest = paymentRequestsStore.addPaymentRequest(
-                        incoming.encoded, 
-                        sentFrom as string, 
-                        sentFromPubkey, 
-                        maybeMemo as string
-                    )
+                    const paymentRequest = paymentRequestsStore.addPaymentRequest({
+                            type: PaymentRequestType.INCOMING,
+                            status: PaymentRequestStatus.ACTIVE,                            
+                            encodedInvoice: incoming.encoded,
+                            amount: amount || 0,
+                            description: maybeMemo ? maybeMemo : description,                            
+                            paymentHash: paymentHash || '',
+                            sentFrom,
+                            sentFromPubkey,
+                            sentTo: walletProfileStore.nip05,
+                            sentToPubkey: walletProfileStore.pubkey,
+                            expiry: expiry || 600,
+                            createdAt: timestamp ? new Date(timestamp * 1000) : new Date()
+                    })
 
                     let picture: string | undefined = undefined
 
@@ -259,7 +276,7 @@ const checkPendingReceived = async function () {
                     }    
                     
                     result = {
-                        status: PaymentRequestStatus.RECEIVED,
+                        status: PaymentRequestStatus.ACTIVE,
                         title: `⚡ Please pay ${paymentRequest.amount} sats!`,                    
                         message: `${sentFrom} has sent you a request to pay an invoice.`,
                         memo: (maybeMemo) ? maybeMemo : paymentRequest.description,
@@ -467,7 +484,7 @@ async function _checkSpentByMint(mintUrl: string, isPending: boolean = false) {
 
     } catch (e: any) {
         // silent
-        log.error('[_checkSpentByMint]', e.name, {message: e.message, mintUrl})
+        log.warn('[_checkSpentByMint]', e.name, {message: e.message, mintUrl})
     }
 }
 
@@ -1443,6 +1460,7 @@ const topup = async function (
     mintBalanceToTopup: MintBalance,
     amountToTopup: number,
     memo: string,
+    contactToSendTo?: Contact
 ) {
     log.info('[topup]', 'mintBalanceToTopup', mintBalanceToTopup)
     log.info('[topup]', 'amountToTopup', amountToTopup)
@@ -1467,7 +1485,7 @@ const topup = async function (
             amount: amountToTopup,
             data: JSON.stringify(transactionData),
             memo,
-            mint: mintBalanceToTopup.mint,
+            mint: mintUrl,
             status: TransactionStatus.DRAFT,
         }
         // store tx in db and in the model
@@ -1477,7 +1495,7 @@ const topup = async function (
         const {encodedInvoice, paymentHash} = await MintClient.requestLightningInvoice(mintUrl, amountToTopup)
 
         const decodedInvoice = LightningUtils.decodeInvoice(encodedInvoice)
-        const {amount, expiry, description} = LightningUtils.getInvoiceData(decodedInvoice)
+        const {amount, expiry, timestamp} = LightningUtils.getInvoiceData(decodedInvoice)
 
         if (amount !== amountToTopup) {
             throw new AppError(
@@ -1486,23 +1504,29 @@ const topup = async function (
             )
         }
 
-        const newInvoice: Invoice = {
+        const newPaymentRequest: PaymentRequest = {
+            type: PaymentRequestType.OUTGOING,
+            status: PaymentRequestStatus.ACTIVE,
             mint: mintUrl,
             encodedInvoice,
             amount,
-            description,
-            expiry,
-            memo,
+            description: memo || `Pay to ${walletProfileStore.nip05}`,            
             paymentHash,
+            sentFrom: walletProfileStore.nip05,
+            sentFromPubkey: walletProfileStore.pubkey,
+            sentTo: contactToSendTo?.nip05 || undefined,
+            sentToPubkey: contactToSendTo?.pubkey || undefined,
+            expiry: expiry || 600,
             transactionId,
+            createdAt: timestamp ? new Date(timestamp * 1000) : new Date()
         }
 
         // This calculates and sets expiresAt
-        const invoice = invoicesStore.addInvoice(newInvoice)
+        const paymentRequest = paymentRequestsStore.addPaymentRequest(newPaymentRequest)
 
         transactionData.push({
             status: TransactionStatus.PENDING,            
-            invoice,
+            paymentRequest,
         })
 
         const pendingTransaction = await transactionsStore.updateStatus(
@@ -1551,34 +1575,33 @@ const topup = async function (
 
 const checkPendingTopups = async function () {
 
-    const invoices: Invoice[] = invoicesStore.allInvoices
+    const paymentRequests: PaymentRequest[] = paymentRequestsStore.allOutgoing
 
-    if (invoices.length === 0) {
-        log.trace('[checkPendingTopups]', 'No invoices in store')
+    if (paymentRequests.length === 0) {
+        log.trace('[checkPendingTopups]', 'No outgoing payment requests in store')
         return
     }
 
     try {
-        for (const invoice of invoices) {
+        for (const pr of paymentRequests) {
             // claim tokens if invoice is paid
             const {proofs, newKeys} = (await MintClient.requestProofs(
-                invoice.mint,
-                invoice.amount,
-                invoice.paymentHash,
+                pr.mint as string,
+                pr.amount,
+                pr.paymentHash,
             )) as {proofs: Proof[], newKeys: MintKeys}
 
             if (!proofs || proofs.length === 0) {
                 log.trace('[checkPendingTopups]', 'No proofs returned from mint')
-                // remove already expired invoices only after check that they have not been paid
-                // Fixes #3
-                if (isBefore(invoice.expiresAt as Date, new Date())) {
-                    log.debug('[checkPendingTopups]', `Invoice expired, removing: ${invoice.paymentHash}`)
+                // remove already expired invoices only after check that they have not been paid                
+                if (isBefore(pr.expiresAt as Date, new Date())) {
+                    log.debug('[checkPendingTopups]', `Invoice expired, removing: ${pr.paymentHash}`)
                     
-                    const transactionId = invoice.transactionId
-                    invoicesStore.removeInvoice(invoice)
+                    const transactionId = pr.transactionId
+                    paymentRequestsStore.removePaymentRequest(pr)
                     
                     // expire related tx - but only if it has not been completed before this check
-                    const transaction = transactionsStore.findById(transactionId)
+                    const transaction = transactionsStore.findById(transactionId as number)
 
                     if(transaction && transaction.status !== TransactionStatus.COMPLETED) {
                         const transactionDataUpdate = {
@@ -1597,19 +1620,19 @@ const checkPendingTopups = async function () {
                 continue
             }            
 
-            if(newKeys) {_updateMintKeys(invoice.mint, newKeys)}
+            if(newKeys) {_updateMintKeys(pr.mint as string, newKeys)}
 
             // accept whatever we've got
             const receivedAmount = _addCashuProofs(
                 proofs,
-                invoice.mint,
-                invoice.transactionId as number,
+                pr.mint as string,
+                pr.transactionId as number,
             )
 
-            if (receivedAmount !== invoice.amount) {
+            if (receivedAmount !== pr.amount) {
                 throw new AppError(
                 Err.VALIDATION_ERROR,
-                `Received amount ${receivedAmount} sats is not equal to the requested amount ${invoice.amount} sats.`,
+                `Received amount ${receivedAmount} sats is not equal to the requested amount ${pr.amount} sats.`,
                 )
             }
 
@@ -1619,32 +1642,31 @@ const checkPendingTopups = async function () {
                 createdAt: new Date(),
             }
 
-            transactionsStore.updateStatuses(
-                [invoice.transactionId as number],
+            transactionsStore.updateStatus(
+                pr.transactionId as number,
                 TransactionStatus.COMPLETED,
                 JSON.stringify(transactionDataUpdate),
             )
 
             // Fire event that the TopupScreen can listen to
-            EventEmitter.emit('topupCompleted', invoice)
+            EventEmitter.emit('topupCompleted', pr)
 
+            stopPolling('checkPendingTopupsPoller')
+
+            // delete paid pr if we've got our cash
+            paymentRequestsStore.removePaymentRequest(pr)
             // Update tx with current balance
             const balanceAfter = proofsStore.getBalances().totalBalance
 
             await transactionsStore.updateBalanceAfter(
-                invoice.transactionId as number,
+                pr.transactionId as number,
                 balanceAfter,
-            )
-
-            // delete paid invoice if we've got our cash
-            invoicesStore.removeInvoice(invoice)
-            // Stop poller
-            stopPolling('checkPendingTopupsPoller')
+            )            
         }
 
     } catch (e: any) {
         // silent
-        log.info(e.name, e.message, 'checkPendingTopups')        
+        log.warn(e.name, e.message, 'checkPendingTopups')        
     }
 }
 

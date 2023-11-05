@@ -54,7 +54,6 @@ import {
 import { round } from '../utils/number'
 import { NotificationService } from '../services/notificationService'
 import { PaymentRequest, PaymentRequestStatus } from '../models/PaymentRequest'
-import { Invoice } from '../models/Invoice'
 import { poller } from '../utils/poller'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
@@ -246,12 +245,12 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     }
 
 
-    const onReceiveTopupCompleted = async (invoice: Invoice) => { // TODO make it ReceivedEventResult
-        log.trace('onReceiveTopupCompleted event handler trigerred', invoice)
+    const onReceiveTopupCompleted = async (paymentRequest: PaymentRequest) => { // TODO make it ReceivedEventResult
+        log.trace('onReceiveTopupCompleted event handler trigerred', paymentRequest)
 
         await NotificationService.createLocalNotification(
-            `⚡ ${invoice.amount} sats received!`,
-            `Your invoice has been paid and your wallet balance credited with ${invoice.amount} sats.`,            
+            `⚡ ${paymentRequest.amount} sats received!`,
+            `Your invoice has been paid and your wallet balance credited with ${paymentRequest.amount} sats.`,            
         )     
     }
     

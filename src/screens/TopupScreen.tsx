@@ -42,7 +42,7 @@ import {Mint, MintBalance} from '../models/Mint'
 import {MintListItem} from './Mints/MintListItem'
 import EventEmitter from '../utils/eventEmitter'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
-import {Invoice} from '../models/Invoice'
+import {PaymentRequest} from '../models/PaymentRequest'
 import { useFocusEffect } from '@react-navigation/native'
 import { Contact } from '../models/Contact'
 import { getImageSource, infoMessage } from '../utils/utils'
@@ -192,19 +192,19 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
 
     useEffect(() => {
-      const handleCompleted = (invoice: Invoice) => {
+      const handleCompleted = (paymentRequest: PaymentRequest) => {
         log.trace('handleCompleted event handler trigerred')
 
         if (!transactionId) {
           return
         }
         // Filter and handle events only for this topup transactionId
-        if (invoice.transactionId === transactionId) {
-          log.trace('Invoice has been paid and new proofs received')
+        if (paymentRequest.transactionId === transactionId) {
+          log.trace('[handleCompleted]', 'Invoice has been paid and new proofs received')
 
           setResultModalInfo({
             status: TransactionStatus.COMPLETED,
-            message: `Your invoice has been paid and your wallet balance credited with ${invoice.amount} sats.`,
+            message: `Your invoice has been paid and your wallet balance credited with ${paymentRequest.amount} sats.`,
           })
 
           setTransactionStatus(TransactionStatus.COMPLETED)
@@ -231,41 +231,34 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
     const onAmountEndEditing = function () {
       try {
-        const amount = parseInt(amountToTopup)
+            const amount = parseInt(amountToTopup)
 
-        if (!amount || amount === 0) {
-            infoMessage('Amount should be positive number.')          
-            return
-        }
+            if (!amount || amount === 0) {
+                infoMessage('Amount should be positive number.')          
+                return
+            }
 
-        if (lnurlWithdrawParams && amount < lnurlWithdrawParams?.minWithdrawable / 1000 ) {
-            infoMessage(`Minimal withdraw amount is ${lnurlWithdrawParams?.minWithdrawable / 1000} sats.`)          
-            return
-        }
+            if (lnurlWithdrawParams && amount < lnurlWithdrawParams?.minWithdrawable / 1000 ) {
+                infoMessage(`Minimal withdraw amount is ${lnurlWithdrawParams?.minWithdrawable / 1000} sats.`)          
+                return
+            }
 
-        const availableBalances = proofsStore.getBalances().mintBalances
+            const availableBalances = proofsStore.getBalances().mintBalances
 
-        if (availableBalances.length === 0) {
-            infoMessage('Add the mint first.', 'There is no mint connected to your wallet that you would receive your ecash from.')
-            return
-        }
+            if (availableBalances.length === 0) {
+                infoMessage('Add the mint first.', 'There is no mint connected to your wallet that you would receive your ecash from.')
+                return
+            }
 
-        setAvailableMintBalances(availableBalances)
+            setAvailableMintBalances(availableBalances)
 
-        // Default mint with highest balance to topup
-        setMintBalanceToTopup(availableBalances[0])
-        setIsAmountEndEditing(true)
-        onMemoEndEditing()
-
-        // Skip memo focus if it is filled / has been done already
- 
-        /* if(!memo || !isMemoEndEditing) {
-            setTimeout(() => {memoInputRef && memoInputRef.current
-            ? memoInputRef.current.focus()
-            : false}, 200)
-        } else {
-            onMemoEndEditing()
-        } */
+            // Default mint with highest balance to topup
+            setMintBalanceToTopup(availableBalances[0])
+            setIsAmountEndEditing(true)
+            // We do not make memo focus mandatory
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+            // Show mint selector        
+            setIsMintSelectorVisible(true)
       } catch (e: any) {
         handleError(e)
       }
@@ -274,9 +267,14 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
     const onMemoEndEditing = function () {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-        setIsMemoEndEditing(true)
-        onShare()
+        
+        // Show mint selector
+        if (availableMintBalances.length > 0) {
+            setIsMintSelectorVisible(true)
+        }
+        setIsMemoEndEditing(true)    
     }
+
 
     const onMemoDone = function () {
       if (parseInt(amountToTopup) > 0) {
@@ -292,47 +290,6 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
           ? amountInputRef.current.focus()
           : false
       }
-    }
-
-
-
-    const onShare = async function (): Promise<void> {
-        if (amountToTopup.length === 0) {
-            infoMessage('Provide the amount to receive.')
-            return
-        }
-
-        // Skip mint selector and send immediately if only one mint is available
-        if (availableMintBalances.length === 1) {
-            const result = await requestTopup()
-
-            if (result.error) {
-                setResultModalInfo({
-                    status: result.transaction?.status as TransactionStatus,
-                    message: result.error.message,
-                })
-                setIsResultModalVisible(true)
-                return
-            }
-
-            if (paymentOption === ReceiveOption.SHOW_INVOICE) {
-                toggleQRModal()
-            }
-
-            if (paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) {
-                toggleNostrDMModal()
-            }
-
-            if (paymentOption === ReceiveOption.LNURL_WITHDRAW) {
-                toggleWithdrawModal()
-            }
-
-            return
-        }
-
-        // Pre-select mint with highest balance        
-        // setMintBalanceToTopup(availableMintBalances[0])
-        setIsMintSelectorVisible(true)        
     }
 
 
@@ -384,7 +341,8 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         const result = await Wallet.topup(
             mintBalanceToTopup as MintBalance,
             parseInt(amountToTopup),
-            memo,
+            memo,            
+            contactToSendTo
         )
 
         const {status, id} = result.transaction as Transaction
@@ -1106,6 +1064,7 @@ const NostrDMInfoBlock = observer(function (props: {
             </View>
             <Text size='xxs' style={{color: tokenTextColor, textAlign: 'center', marginLeft: 30,  marginBottom: 20}} text='...........' />
             <View style={{flexDirection: 'column', alignItems: 'center'}}>                
+            <Text size='xxs' style={{color: tokenTextColor, marginTop: -20}} text={`requests`} />
                 <Icon
                         icon='faPaperPlane'                                
                         size={spacing.medium}                    

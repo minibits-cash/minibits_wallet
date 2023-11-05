@@ -7,12 +7,12 @@ import {
   detach,
 } from 'mobx-state-tree'
 import {withSetPropAction} from './helpers/withSetPropAction'
-import {PaymentRequestModel, PaymentRequest, PaymentRequestStatus} from './PaymentRequest'
+import {PaymentRequestModel, PaymentRequest, PaymentRequestStatus, PaymentRequestType} from './PaymentRequest'
 import {log} from '../services/logService'
 import AppError, { Err } from '../utils/AppError'
-import {LightningUtils} from '../services/lightning/lightningUtils'
 import isBefore from 'date-fns/isBefore'
 import isAfter from 'date-fns/isAfter'
+import addSeconds from 'date-fns/addSeconds'
 
 export const PaymentRequestsStoreModel = types
     .model('PaymentRequests', {        
@@ -21,24 +21,21 @@ export const PaymentRequestsStoreModel = types
     .views(self => ({
         findByPaymentHash(paymentHash: string) {
             const pr = self.paymentRequests.find(p => p.paymentHash === paymentHash)
-            return pr ? pr : undefined
+            return pr || undefined
+        },
+        findByTransactionId(transactionId: number) {
+            const pr = self.paymentRequests.find(p => p.transactionId === transactionId)
+            return pr || undefined
         },
     }))
     .actions(withSetPropAction)
     .actions(self => ({
-        addPaymentRequest(encodedInvoice: string, sentFrom: string, sentFromPubkey: string, memo: string) {           
-           
-            const decoded = LightningUtils.decodeInvoice(encodedInvoice)
-            const {
-                amount, 
-                description, 
-                expiry, 
-                payment_hash: paymentHash, 
-                timestamp
-            } = LightningUtils.getInvoiceData(decoded)                
+        addPaymentRequest(paymentRequest: PaymentRequest) {
 
-            if(!amount || !paymentHash) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Missing amount or payment_hash', {encodedInvoice})
+            const {paymentHash, encodedInvoice, expiry} = paymentRequest
+
+            if(!paymentHash) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing invoice payment_hash', {encodedInvoice})
             }
 
             const alreadyExists = self.findByPaymentHash(paymentHash)
@@ -47,30 +44,18 @@ export const PaymentRequestsStoreModel = types
                 throw new AppError(Err.ALREADY_EXISTS_ERROR, 'Payment request with this payment_hash exists.', {paymentHash})
             }
             
-            if(timestamp && expiry) {
-                const expiresAt = LightningUtils.getInvoiceExpiresAt(timestamp as number, expiry)
-                if(isBefore(expiresAt, new Date())) {
-                    throw new AppError(Err.VALIDATION_ERROR, 'This invoice has already expired and can not be paid.')
-                }
+            const expiresAt = addSeconds(paymentRequest.createdAt, expiry)
+
+            if(isBefore(expiresAt, new Date())) {
+                throw new AppError(Err.VALIDATION_ERROR, 'This invoice has already expired and can not be paid.')
             }
 
-            const newPaymentRequest: PaymentRequest = {
-                encodedInvoice,
-                amount,
-                description: memo ? memo : description,
-                paymentHash,
-                expiry,
-                sentFrom,
-                sentFromPubkey,
-                status: PaymentRequestStatus.RECEIVED             
-            }
+            paymentRequest.expiresAt = expiresAt
+            const paymentRequestInstance = PaymentRequestModel.create(paymentRequest)
 
-            const paymentRequestInstance = PaymentRequestModel.create(newPaymentRequest)
-            // expiry in Date format
-            paymentRequestInstance.setExpiresAt()
             self.paymentRequests.push(paymentRequestInstance)
 
-            log.info('[addPaymentRequest]', 'New paymentRequest added to PaymentRequestsStore', newPaymentRequest)
+            log.info('[addPaymentRequest]', 'New paymentRequest added to PaymentRequestsStore', paymentRequest)
 
             return paymentRequestInstance       
         },
@@ -90,8 +75,7 @@ export const PaymentRequestsStoreModel = types
             if (paymentRequestInstance) {                
                 detach(paymentRequestInstance)
                 destroy(paymentRequestInstance)
-                log.info('[removePaymentRequest]', 'PaymentRequest removed from the store')
-                
+                log.info('[removePaymentRequest]', 'PaymentRequest removed from the store')                
             }
         },
         removeExpired() {
@@ -109,7 +93,25 @@ export const PaymentRequestsStoreModel = types
         },
         get all() {
             return self.paymentRequests
-        }        
+        },
+        get allIncoming() {
+            return self.paymentRequests.filter(pr => pr.type === PaymentRequestType.INCOMING)
+        },
+        get allOutgoing() {
+            return self.paymentRequests.filter(pr => pr.type === PaymentRequestType.OUTGOING)
+        },
+        filterByMint(mintUrl: string) {
+            let filtered: PaymentRequest[] = []
+
+            filtered = self.paymentRequests.filter(pr => {
+                if (pr.type === PaymentRequestType.OUTGOING && pr.mint === mintUrl) {
+                    return true
+                }
+                return false
+            })
+
+            return filtered
+        },           
     }))
 
 export interface PaymentRequests extends Instance<typeof PaymentRequestsStoreModel> {}
