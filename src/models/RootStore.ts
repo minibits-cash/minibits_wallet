@@ -4,7 +4,6 @@ import {ContactsStoreModel} from './ContactsStore'
 import {TransactionsStoreModel} from './TransactionsStore'
 import {UserSettingsStoreModel} from './UserSettingsStore'
 import {WalletProfileStoreModel} from './WalletProfileStore'
-import {InvoicesStoreModel} from './InvoicesStore'
 import {PaymentRequestsStoreModel} from './PaymentRequestsStore'
 import {ProofsStoreModel} from './ProofsStore'
 import {RelaysStoreModel} from './RelaysStore'
@@ -21,8 +20,7 @@ export const RootStoreModel = types
         contactsStore: types.optional(ContactsStoreModel, {}),
         transactionsStore: types.optional(TransactionsStoreModel, {}),
         userSettingsStore: types.optional(UserSettingsStoreModel, {}),
-        walletProfileStore: types.optional(WalletProfileStoreModel, {}),                
-        invoicesStore: types.optional(InvoicesStoreModel, {}),
+        walletProfileStore: types.optional(WalletProfileStoreModel, {}),
         paymentRequestsStore: types.optional(PaymentRequestsStoreModel, {}),
         proofsStore: types.optional(ProofsStoreModel, {}),
         relaysStore: types.optional(RelaysStoreModel, {}),

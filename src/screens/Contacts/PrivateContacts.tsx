@@ -378,30 +378,12 @@ const $screen: ViewStyle = {
     flex: 1,
 }
 
-const $headerContainer: TextStyle = {
-  alignItems: 'center',
-  justifyContent: 'center',
-  flexDirection: 'row',
-  paddingBottom: spacing.medium,
-  // height: spacing.screenHeight * 0.18,
-}
-
 const $contentContainer: TextStyle = {
-    // flex: 1,
     padding: spacing.extraSmall,
-  }
+}
 
 const $card: ViewStyle = {
   marginBottom: 0,
-  // flex: 1,
-  
-}
-
-const $bottomModal: ViewStyle = {
-  // flex: 1,
-  alignItems: 'center',
-  paddingVertical: spacing.large,
-  paddingHorizontal: spacing.small,
 }
 
 const $item: ViewStyle = {

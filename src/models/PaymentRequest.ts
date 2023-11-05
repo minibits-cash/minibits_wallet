@@ -9,56 +9,58 @@ import addSeconds from 'date-fns/addSeconds'
  */
 
 export enum PaymentRequestStatus {
-    RECEIVED = 'RECEIVED',
+    ACTIVE = 'ACTIVE',
     PAID = 'PAID',
     EXPIRED = 'EXPIRED',
 }
 
+
+export enum PaymentRequestType {
+    INCOMING = 'INCOMING',
+    OUTGOING = 'OUTGOING',    
+}
+
 export const PaymentRequestModel = types
-    .model('PaymentRequest', {        
+    .model('PaymentRequest', {
+        type: types.frozen<PaymentRequestType>(),
+        status: types.frozen<PaymentRequestStatus>(),
+        mint: types.maybe(types.string),    
         encodedInvoice: types.string,
         amount: types.number,
-        description: types.optional(types.string, ''),
+        description: types.optional(types.string, ''),        
         paymentHash: types.string,
         sentFrom: types.maybe(types.string),
         sentFromPubkey: types.maybe(types.string),
-        expiry: types.optional(types.number, 600),        
-        transactionId: types.maybe(types.number),
-        status: types.frozen<PaymentRequestStatus>(),
+        sentTo: types.maybe(types.string),
+        sentToPubkey: types.maybe(types.string),
+        expiry: types.number,        
+        transactionId: types.maybe(types.number),        
         expiresAt: types.maybe(types.Date),
-        createdAt: types.optional(types.Date, new Date()),
+        createdAt: types.Date,
     })
     .actions(withSetPropAction)
     .actions(self => ({
-        setExpiresAt() {
-            const decoded = LightningUtils.decodeInvoice(self.encodedInvoice)
-            const {expiry, timestamp} = LightningUtils.getInvoiceData(decoded)
-            
-            if(!expiry || !timestamp) {
-                return
-            }
-
-            const expiresAt = addSeconds(new Date(timestamp * 1000), expiry as number)
-
-            log.debug('[setExpiresAt]', `PaymentRequest expiry is ${expiry}, setting expiresAt to ${expiresAt}`)
-            self.expiresAt = new Date(expiresAt)
-        },
-        setStatus(status: PaymentRequestStatus) {            
+        setStatus(status: PaymentRequestStatus) {
             self.status = status
-        },
+        }        
     }))
 
 
-export type PaymentRequest = {    
+export type PaymentRequest = {
+    type: PaymentRequestType
+    status: PaymentRequestStatus
+    mint?: string
     encodedInvoice: string
     amount: number
-    description?: string
+    description?: string    
     paymentHash: string
     sentFrom?: string
     sentFromPubkey?: string
-    expiry?: number
-    status: PaymentRequestStatus,   
+    sentTo?: string
+    sentToPubkey?: string
+    expiry: number
     transactionId?: number
+    createdAt: Date
 } & Partial<Instance<typeof PaymentRequestModel>>
 export interface PaymentRequestSnapshotOut extends SnapshotOut<typeof PaymentRequestModel> {}
 export interface PaymentRequestSnapshotIn extends SnapshotIn<typeof PaymentRequestModel> {}

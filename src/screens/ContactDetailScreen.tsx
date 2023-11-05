@@ -22,9 +22,7 @@ interface ContactDetailScreenProps extends ContactsStackScreenProps<'ContactDeta
 export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
   function ContactScreen({route, navigation}) {
     const {contact, relays} = route.params
-    const amountToSendInputRef = useRef<TextInput>(null)
-    const amountToRequestInputRef = useRef<TextInput>(null)    
-    const {proofsStore, contactsStore} = useStores()
+    const {contactsStore} = useStores()
 
     useHeader({        
         leftIcon: 'faArrowLeft',
