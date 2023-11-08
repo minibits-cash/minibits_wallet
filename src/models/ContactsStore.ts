@@ -24,18 +24,25 @@ import {
           receivedEventIds: types.optional(types.array(types.string), [])
       })
       .actions(withSetPropAction)
-      .actions(self => ({          
-          findByPubkey: (pubkey: string) => {
-            const c = self.contacts.find(c => c.pubkey === pubkey)
-            return c ? c : undefined
-          },
-          findByNpub: (npub: string) => {
-            const c = self.contacts.find(c => c.npub === npub)
-            return c ? c : undefined
-          },         
+      .views(self => ({          
+            findByPubkey: (pubkey: string) => {
+                const c = self.contacts.find(c => c.pubkey === pubkey)
+                return c ? c : undefined
+            },
+            findByNpub: (npub: string) => {
+                const c = self.contacts.find(c => c.npub === npub)
+                return c ? c : undefined
+            },
+            alreadyExists(pubkey: string) {
+                return self.contacts.some(m => m.pubkey === pubkey) ? true : false
+            },         
       }))
       .actions(self => ({
             addContact(newContact: Contact) {
+                if(self.alreadyExists(newContact.pubkey)) {
+                    log.warn('[addContact]', 'Contact already exists', newContact)
+                    return
+                }
 
                 newContact.createdAt = Math.floor(Date.now() / 1000)                      
     
@@ -46,8 +53,7 @@ import {
     
                 return contactInstance
             },
-            refreshPicture(pubkey: string) {                     
-
+            refreshPicture(pubkey: string) {
                 const contactInstance = self.findByPubkey(pubkey)
                 if (contactInstance) {
                     contactInstance.refreshPicture()

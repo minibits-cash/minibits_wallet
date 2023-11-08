@@ -14,6 +14,7 @@ import { StackNavigationProp } from '@react-navigation/stack'
 import { ContactsStackParamList } from '../../navigation'
 import { SendOption } from '../SendOptionsScreen'
 import { ReceiveOption } from '../ReceiveOptionsScreen'
+import { useSafeAreaInsetsStyle } from '../../utils/useSafeAreaInsetsStyle'
 
 
 const defaultPublicNpub = 'npub14n7frsyufzqsxlvkx8vje22cjah3pcwnnyqncxkuj2243jvt9kmqsdgs52'
@@ -166,8 +167,13 @@ export const PublicContacts = observer(function (props: {
     
                     profile.pubkey = event.pubkey
                     profile.npub = NostrClient.getNpubkey(event.pubkey)
-    
-                    following.push(profile)
+                    
+                    if (!following.some(f => f.pubkey === profile.pubkey)) {
+                        following.push(profile)
+                    } else {
+                        log.trace('[loadProfiles]', 'Got duplicate profile from relays', profile.pubkey)
+                    }
+                    
                 } catch(e: any) {
                     continue
                 }
@@ -368,7 +374,7 @@ export const PublicContacts = observer(function (props: {
     
 
     const inputBg = useThemeColor('background')
-
+    
     return (
     <Screen contentContainerStyle={$screen}>
         <View style={$contentContainer}>
@@ -442,7 +448,7 @@ export const PublicContacts = observer(function (props: {
                             ) 
                         }}                        
                         keyExtractor={(item) => item.pubkey}
-                        style={{ flexGrow: 0  }}                                            
+                        style={{ flexGrow: 0}}                                            
                     />
 
                 </>
@@ -596,7 +602,7 @@ const $saveButton: ViewStyle = {
 }
 
 const $contentContainer: TextStyle = {
-    flex: 0.85,
+    //flex: 0.85,
     padding: spacing.extraSmall,
   }
 

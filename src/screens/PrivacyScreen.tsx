@@ -159,10 +159,11 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
           <Text preset="heading" text="Privacy" style={{color: 'white'}} />
         </View>
         <View style={$contentContainer}>
-            <Card
+            {/*<Card
                 style={[$card, {marginTop: spacing.medium}]}
                 ContentComponent={
                 <>
+                    <ListItem
                     <ListItem
                         tx="privacyScreen.torDaemon"
                         subTx="privacyScreen.torDaemonDescription"

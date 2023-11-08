@@ -25,10 +25,11 @@ import {Mint} from '../models/Mint'
 import {poller, stopPolling} from '../utils/poller'
 import EventEmitter from '../utils/eventEmitter'
 import { NostrClient, NostrEvent, NostrFilter } from './nostrService'
-import { MINIBITS_SERVER_API_HOST } from '@env'
+import { MINIBITS_NIP05_DOMAIN, MINIBITS_SERVER_API_HOST } from '@env'
 import { PaymentRequest, PaymentRequestStatus, PaymentRequestType } from '../models/PaymentRequest'
 import { IncomingDataType, IncomingParser } from './incomingParser'
-import { Contact } from '../models/Contact'
+import { Contact, ContactType } from '../models/Contact'
+import { MinibitsClient } from './minibitsService'
 
 type WalletService = {
     checkPendingSpent: () => Promise<void>
@@ -198,18 +199,41 @@ const checkPendingReceived = async function () {
                 }                    
                 
                 // decrypt message content
-                const decrypted = await NostrClient.decryptNip04(event.pubkey, event.content)               
+                const decrypted = await NostrClient.decryptNip04(event.pubkey, event.content)
+                
+                // get sender profile and save it as a contact
+                const sentFrom = getTagValue(event.tags, 'from')
+                const sentFromPubkey = event.pubkey
+                const sentFromNpub = NostrClient.getNpubkey(sentFromPubkey)                             
+                const sentFromName = NostrClient.getNameFromNip05(sentFrom as string)
+                let sentFromPicture: string | undefined                
+                
+                if(sentFrom && sentFrom.includes(MINIBITS_NIP05_DOMAIN)) {
+                    sentFromPicture = MINIBITS_SERVER_API_HOST + '/profile/avatar/' + sentFromPubkey
+                }
 
+                // we skip retrieval of external nostr profiles to minimize failures
+                // external contacts will thus miss image...
+                                       
+                const contactFrom = {                        
+                    pubkey: sentFromPubkey,
+                    npub: sentFromNpub,
+                    nip05: sentFrom || undefined,
+                    name: sentFromName || undefined,
+                    picture: sentFromPicture || undefined,
+                    isExternalDomain: sentFrom && sentFrom.includes(MINIBITS_NIP05_DOMAIN) ? false : true                        
+                } as Contact
+                
+                contactsStore.addContact(contactFrom)
+
+                // parse incoming message
                 const incoming = IncomingParser.findAndExtract(decrypted)
     
                 if(incoming.type === IncomingDataType.CASHU) {
-
                     const {
                         error, 
                         receivedAmount,
                         memo,
-                        sentFrom, 
-                        sentFromPubkey
                     } = await receiveFromNostrEvent(incoming.encoded, event)
 
                     let picture: string | undefined = undefined
@@ -240,11 +264,22 @@ const checkPendingReceived = async function () {
 
 
                 if (incoming.type === IncomingDataType.INVOICE) {
-
-                    const sentFrom = getTagValue(event.tags, 'from')
-                    const sentFromPubkey = event.pubkey
-                    const maybeMemo = findMemo(decrypted)
-
+                    
+                    // receiver is current wallet profile
+                    const {
+                        pubkey,
+                        npub,
+                        name,
+                        picture,
+                    } = walletProfileStore
+    
+                    const contactTo: Contact = {
+                        pubkey,
+                        npub,
+                        name,
+                        picture
+                    }                    
+                    
                     const decoded = LightningUtils.decodeInvoice(incoming.encoded)
                     const {
                         amount, 
@@ -252,35 +287,29 @@ const checkPendingReceived = async function () {
                         expiry, 
                         payment_hash: paymentHash, 
                         timestamp
-                    } = LightningUtils.getInvoiceData(decoded)                
+                    } = LightningUtils.getInvoiceData(decoded)
+                    
+                    const maybeMemo = findMemo(decrypted)
                     
                     const paymentRequest = paymentRequestsStore.addPaymentRequest({
-                            type: PaymentRequestType.INCOMING,
-                            status: PaymentRequestStatus.ACTIVE,                            
-                            encodedInvoice: incoming.encoded,
-                            amount: amount || 0,
-                            description: maybeMemo ? maybeMemo : description,                            
-                            paymentHash: paymentHash || '',
-                            sentFrom,
-                            sentFromPubkey,
-                            sentTo: walletProfileStore.nip05,
-                            sentToPubkey: walletProfileStore.pubkey,
-                            expiry: expiry || 600,
-                            createdAt: timestamp ? new Date(timestamp * 1000) : new Date()
+                        type: PaymentRequestType.INCOMING,
+                        status: PaymentRequestStatus.ACTIVE,                            
+                        encodedInvoice: incoming.encoded,
+                        amount: amount || 0,
+                        description: maybeMemo ? maybeMemo : description,                            
+                        paymentHash: paymentHash || '',
+                        contactFrom,
+                        contactTo,                        
+                        expiry: expiry || 600,
+                        createdAt: timestamp ? new Date(timestamp * 1000) : new Date()
                     })
-
-                    let picture: string | undefined = undefined
-
-                    if(sentFrom) {
-                        picture = MINIBITS_SERVER_API_HOST + '/profile/avatar/' + sentFromPubkey
-                    }    
                     
                     result = {
                         status: PaymentRequestStatus.ACTIVE,
                         title: `⚡ Please pay ${paymentRequest.amount} sats!`,                    
                         message: `${sentFrom} has sent you a request to pay an invoice.`,
                         memo: (maybeMemo) ? maybeMemo : paymentRequest.description,
-                        picture,
+                        picture: sentFromPicture,
                         paymentRequest,
                     }
 
@@ -306,7 +335,7 @@ const checkPendingReceived = async function () {
         })
 
         sub.on('eose', async () => {
-            log.trace(`Eose: Got ${events.length} receive events`, [], 'checkPendingReceived')
+            log.trace('[checkPendingReceived]', `Eose: Got ${events.length} receive events`)
         })
 
         
@@ -1476,8 +1505,7 @@ const topup = async function (
 
     let transactionId: number = 0
 
-    try {
-        // const mint = mintsStore.findByUrl(mintBalanceToTopup.mint) as Mint
+    try {        
         const mintUrl = mintBalanceToTopup.mint
 
         const newTransaction: Transaction = {
@@ -1504,18 +1532,33 @@ const topup = async function (
             )
         }
 
+        // sender is current wallet profile
+        const {
+            pubkey,
+            npub,
+            name,
+            nip05,
+            picture,
+        } = walletProfileStore
+
+        const contactFrom: Contact = {
+            pubkey,
+            npub,
+            name,
+            nip05,
+            picture
+        }  
+
         const newPaymentRequest: PaymentRequest = {
             type: PaymentRequestType.OUTGOING,
             status: PaymentRequestStatus.ACTIVE,
             mint: mintUrl,
             encodedInvoice,
             amount,
-            description: memo || `Pay to ${walletProfileStore.nip05}`,            
+            description: memo ? memo : contactToSendTo ? `Pay to ${walletProfileStore.nip05}` : '',         
             paymentHash,
-            sentFrom: walletProfileStore.nip05,
-            sentFromPubkey: walletProfileStore.pubkey,
-            sentTo: contactToSendTo?.nip05 || undefined,
-            sentToPubkey: contactToSendTo?.pubkey || undefined,
+            contactFrom,
+            contactTo: contactToSendTo ? getSnapshot(contactToSendTo) : undefined,
             expiry: expiry || 600,
             transactionId,
             createdAt: timestamp ? new Date(timestamp * 1000) : new Date()

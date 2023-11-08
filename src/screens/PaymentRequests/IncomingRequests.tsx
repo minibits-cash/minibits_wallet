@@ -69,53 +69,27 @@ export const IncomingRequests = observer(function (props: {
 
     return (
     <Screen contentContainerStyle={$screen}>
-        <View style={$contentContainer}>
-          {/*<Card
-            style={$actionCard}
-            ContentComponent={
-                <ListItem
-                  text={'Delete expired'}
-                  LeftComponent={
-                    <Icon
-                      containerStyle={$iconContainer}
-                      icon='faXmark'
-                      size={spacing.medium}
-                      color={iconColor}
-                    />
-                  }                  
-                  style={$item}
-                  // bottomSeparator={true}
-                  onPress={onDeleteExpired}
-                />
-            }
-            />*/}
-          {paymentRequestsStore.allIncoming.length > 0 ? (
-            <Card
-              ContentComponent={
-                <>
-                    <FlatList<PaymentRequest>
-                        data={paymentRequestsStore.allIncoming}
-                        renderItem={({ item, index }) => {                                
-                            return(
-                                <PaymentRequestListItem                                        
-                                    pr={item}
-                                    isFirst={index === 0}
-                                    onPressPaymentRequest={onPressPaymentRequest}                                                
-                                />
-                            )
-                        }}
-                        keyExtractor={(item) => item.paymentHash} 
-                        style={{ flexGrow: 0  }}
-                    />                             
-                </>
-              }              
-              style={$card}
+        <View style={$contentContainer}>          
+          {paymentRequestsStore.allIncoming.length > 0 ? (            
+            <FlatList<PaymentRequest>
+                data={paymentRequestsStore.allIncoming}
+                renderItem={({ item, index }) => {                                
+                    return(
+                        <PaymentRequestListItem                                        
+                            pr={item}
+                            isFirst={index === 0}
+                            onPressPaymentRequest={() => onPressPaymentRequest(item)}                                                
+                        />
+                    )
+                }}
+                keyExtractor={(item) => item.paymentHash} 
+                style={{ flexGrow: 0  }}
             />
           ) : (
             <Card
-              content={'There are no incoming payment requests to be paid or they have already expired.'}
-              contentStyle={{color: hintColor, padding: spacing.small}}
-              style={$card}
+                content={'There are no incoming payment requests to be paid or they have already expired.'}
+                contentStyle={{color: hintColor, padding: spacing.small}}
+                style={$card}
             />
           )}
           {isLoading && <Loading />}
