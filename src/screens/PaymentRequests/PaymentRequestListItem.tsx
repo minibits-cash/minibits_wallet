@@ -88,20 +88,19 @@ export const PaymentRequestListItem = observer(function (props: PaymentRequestLi
                             )}
                         </>
                     )}
-                    {secToExpiry > 0 ? (
+                    {pr.status === PaymentRequestStatus.ACTIVE ? (
                         <Text 
                             style={[$expiry, {backgroundColor: expiryBg}]} 
-                            text={`Expires ${formatDistance(pr.expiresAt as Date, new Date(), {addSuffix: true})}`} 
+                            text={`Expire${secToExpiry > 0 ? 's' : 'd'} ${formatDistance(pr.expiresAt as Date, new Date(), {addSuffix: true})}`} 
                             size='xxs'
                         />
                     ) : (
                         <Text 
-                            style={[$expiry, {backgroundColor: expiryBg}]} 
-                            text={`Expired ${formatDistance(pr.expiresAt as Date, new Date(), {addSuffix: true})}`} 
+                            style={[$expiry, {backgroundColor: colors.palette.success300}]} 
+                            text={pr.status === PaymentRequestStatus.PAID ? `Request has been paid` : ''} 
                             size='xxs'
-                        />                  
-                    )}                                       
-
+                        /> 
+                    )}
                 </>
             }
             FooterComponent={
@@ -112,10 +111,7 @@ export const PaymentRequestListItem = observer(function (props: PaymentRequestLi
                             text={pr.type === PaymentRequestType.INCOMING ? 'Pay from wallet' : 'Receive in person'}
                             onPress={onPressPaymentRequest}
                         />
-                    )}
-                    {pr.status === PaymentRequestStatus.PAID && (
-                        <Text text='This payment request has been paid.'/>
-                    )}                    
+                    )}                                       
                 </View>
             }
             style={$card}
