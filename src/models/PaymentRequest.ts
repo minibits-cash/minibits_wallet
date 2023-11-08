@@ -1,6 +1,7 @@
 import {Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
 import {LightningUtils} from '../services/lightning/lightningUtils'
 import {withSetPropAction} from './helpers/withSetPropAction'
+import {Contact, ContactModel} from './Contact'
 import {log} from '../services/logService'
 import addSeconds from 'date-fns/addSeconds'
 
@@ -29,10 +30,8 @@ export const PaymentRequestModel = types
         amount: types.number,
         description: types.optional(types.string, ''),        
         paymentHash: types.string,
-        sentFrom: types.maybe(types.string),
-        sentFromPubkey: types.maybe(types.string),
-        sentTo: types.maybe(types.string),
-        sentToPubkey: types.maybe(types.string),
+        contactFrom: types.frozen<Contact>(),
+        contactTo: types.maybe(types.frozen<Contact>()),
         expiry: types.number,        
         transactionId: types.maybe(types.number),        
         expiresAt: types.maybe(types.Date),
@@ -54,10 +53,8 @@ export type PaymentRequest = {
     amount: number
     description?: string    
     paymentHash: string
-    sentFrom?: string
-    sentFromPubkey?: string
-    sentTo?: string
-    sentToPubkey?: string
+    contactFrom: Contact
+    contactTo?: Contact
     expiry: number
     transactionId?: number
     createdAt: Date

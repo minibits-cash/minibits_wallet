@@ -159,11 +159,11 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
           <Text preset="heading" text="Privacy" style={{color: 'white'}} />
         </View>
         <View style={$contentContainer}>
-            <Card
+            {/*<Card
                 style={[$card, {marginTop: spacing.medium}]}
                 ContentComponent={
                 <>
-                    {/* <ListItem
+                    <ListItem
                         tx="privacyScreen.torDaemon"
                         subTx="privacyScreen.torDaemonDescription"
                         leftIcon={'faBullseye'}
@@ -209,27 +209,35 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
                             style={$item}
                             onPress={startTor}
                         /> 
-                        )} */}
-                        <ListItem
-                            tx="privacyScreen.logger"
-                            subTx="privacyScreen.loggerDescription"
-                            leftIcon={'faBug'}
-                            leftIconColor={
-                                isLoggerOn
-                                ? colors.palette.angry500
-                                : iconColor as string
-                            }
-                            leftIconInverse={true}
-                            RightComponent={
-                            <View style={$rightContainer}>
-                                <Switch
-                                    onValueChange={toggleLoggerSwitch}
-                                    value={isLoggerOn}
-                                />
-                            </View>
-                            }
-                            style={$item}
-                        />
+                        )} 
+
+                </>
+                }
+            />*/}
+            <Card
+                style={[$card, {marginTop: spacing.medium}]}
+                ContentComponent={
+                <>
+                    <ListItem
+                        tx="privacyScreen.logger"
+                        subTx="privacyScreen.loggerDescription"
+                        leftIcon={'faBug'}
+                        leftIconColor={
+                            isLoggerOn
+                            ? colors.palette.angry500
+                            : iconColor as string
+                        }
+                        leftIconInverse={true}
+                        RightComponent={
+                        <View style={$rightContainer}>
+                            <Switch
+                                onValueChange={toggleLoggerSwitch}
+                                value={isLoggerOn}
+                            />
+                        </View>
+                        }
+                        style={$item}
+                    />
                 </>
                 }
             />
