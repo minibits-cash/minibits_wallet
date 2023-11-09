@@ -58,6 +58,7 @@ import { Contact } from '../models/Contact'
 import { getImageSource, infoMessage } from '../utils/utils'
 import { NotificationService } from '../services/notificationService'
 import { SendOption } from './SendOptionsScreen'
+import { verticalScale } from '@gocodingnow/rn-size-matters'
 
 
 if (Platform.OS === 'android' &&
@@ -1214,7 +1215,7 @@ const $contentContainer: TextStyle = {
 }
 
 const $amountContainer: ViewStyle = {
-  height: 100,
+  height: verticalScale(100) * 1.05,
   alignItems: 'center',
   justifyContent: 'center',
 }
