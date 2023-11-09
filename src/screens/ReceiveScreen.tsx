@@ -31,6 +31,7 @@ import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {MintListItem} from './Mints/MintListItem'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { resolveTxt } from 'dns'
+import { verticalScale } from '@gocodingnow/rn-size-matters'
 
 export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
   function ReceiveScreen({route, navigation}) {
@@ -459,6 +460,7 @@ const $buttonContainer: ViewStyle = {
 }
 
 const $amountContainer: ViewStyle = {
+    // height: verticalScale(100) * 1.05,
     alignItems: 'center',
     justifyContent: 'center',
 }

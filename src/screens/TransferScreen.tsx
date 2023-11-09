@@ -43,6 +43,7 @@ import { SendOption } from './SendOptionsScreen'
 import { LNURLPayParams } from 'js-lnurl'
 import { roundDown, roundUp } from '../utils/number'
 import { LnurlClient } from '../services/lnurlService'
+import { moderateScale, scale, verticalScale } from '@gocodingnow/rn-size-matters'
 
 if (
   Platform.OS === 'android' &&
@@ -729,7 +730,7 @@ const $contentContainer: TextStyle = {
 }
 
 const $amountContainer: ViewStyle = {
-    height: 100,
+    height: verticalScale(100) * 1.05,
     alignItems: 'center',
     justifyContent: 'center',
 }
@@ -739,7 +740,7 @@ const $amountInput: TextStyle = {
     borderRadius: spacing.small,
     fontSize: 52,
     fontWeight: '400',
-    textAlignVertical: 'center',
+    // textAlignVertical: 'bottom',
     textAlign: 'center',    
     color: 'white',
     // borderWidth: 1, borderColor: 'red'

@@ -51,6 +51,7 @@ import { LNURLWithdrawParams } from 'js-lnurl'
 import { roundDown } from '../utils/number'
 import { LnurlClient, LnurlWithdrawResult } from '../services/lnurlService'
 import { update } from 'lodash'
+import { verticalScale } from '@gocodingnow/rn-size-matters'
 
 if (
   Platform.OS === 'android' &&
@@ -1201,7 +1202,7 @@ const $contentContainer: TextStyle = {
 }
 
 const $amountContainer: ViewStyle = {
-    height: 100,
+    height: verticalScale(100) * 1.05,
     alignItems: 'center',
     justifyContent: 'center',
 }

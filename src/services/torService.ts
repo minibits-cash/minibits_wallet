@@ -34,7 +34,7 @@ const _request = async function<T>({
 	headers: requestHeaders,
     method: requestMethod,    
 	...options
-}: RequestOptions): Promise<T> {
+}: RequestOptions): Promise<Response> {
 
     const tor = getInstance()
 
