@@ -112,11 +112,15 @@ async function checkPendingSpent() {
 
     // group proofs by mint so that we do max one call per mint
     for (const mint of mintsStore.allMints) {
+        
         const result = await _checkSpentByMint(mint.mintUrl, true) // pending true
-
-        if(!result) {continue}
-
         let status: MintStatus = MintStatus.ONLINE
+
+        if(!result) {
+            // assume online if check exits because there are no pending proofs or none were spent
+            mint.setStatus(status)
+            continue
+        }        
 
         if(result && result.error) {
             // if error looks like mint is offline
