@@ -1,16 +1,10 @@
 import React, { useState } from "react"
-import { ScrollView, TextStyle, View, ViewStyle } from "react-native"
+import { ColorValue, ScrollView, TextStyle, View, ViewStyle } from "react-native"
 import { observer } from "mobx-react-lite"
 import { Button, Icon, ListItem, Screen, Text } from "../../components"
-import { Mint } from "../../models/Mint"
+import { Mint, MintStatus } from "../../models/Mint"
 import { MintBalance } from "../../models/Mint"
-import { Transaction, TransactionStatus, TransactionType } from "../../models/Transaction"
 import { colors, spacing, typography, useThemeColor } from "../../theme"
-
-export interface TransactionListProps {
-  transaction: Transaction  
-}
-
 
 export const MintListItem = observer(function(props: {  
     mint: Mint,
@@ -33,8 +27,8 @@ export const MintListItem = observer(function(props: {
               subText={props.mint.shortname || ''}
               leftIcon={props.isSelectable ? props.isSelected ? 'faCheckCircle' : 'faCircle' : undefined}          
               leftIconColor={props.isSelected ? iconSelectedColor as string : iconColor as string}
-              rightIcon={props.isBlocked && 'faShieldHalved' || undefined}          
-              rightIconColor={iconBlockedColor}          
+              rightIcon={props.isBlocked ? 'faShieldHalved' : props.mint.status === MintStatus.OFFLINE ? 'faTriangleExclamation' : undefined}
+              rightIconColor={props.isBlocked ? iconBlockedColor : iconColor as string}          
               onPress={props.onMintSelect ? () => props.onMintSelect(props.mint, props.mintBalance) : undefined}                    
               RightComponent={props.mintBalance && <Text text={`${props.mintBalance?.balance}`} style={{alignSelf: 'center', marginRight: spacing.medium}}/>}            
               style={{paddingHorizontal: spacing.small}}

@@ -15,7 +15,7 @@ import {rootStoreInstance} from '../models'
 import {CashuUtils} from './cashu/cashuUtils'
 import {LightningUtils} from './lightning/lightningUtils'
 import AppError, {Err} from '../utils/AppError'
-import {MintBalance} from '../models/Mint'
+import {MintBalance, MintStatus} from '../models/Mint'
 import {Token} from '../models/Token'
 import {
   type TokenEntry as CashuTokenEntry,
@@ -112,7 +112,20 @@ async function checkPendingSpent() {
 
     // group proofs by mint so that we do max one call per mint
     for (const mint of mintsStore.allMints) {
-        await _checkSpentByMint(mint.mintUrl, true) // pending true
+        const result = await _checkSpentByMint(mint.mintUrl, true) // pending true
+
+        if(!result) {continue}
+
+        let status: MintStatus = MintStatus.ONLINE
+
+        if(result && result.error) {
+            // if error looks like mint is offline
+            if(result.error.name === Err.MINT_ERROR) {
+                status = MintStatus.OFFLINE
+            }
+        }
+        
+        mint.setStatus(status)
     }
 }
 
@@ -509,11 +522,19 @@ async function _checkSpentByMint(mintUrl: string, isPending: boolean = false) {
         }
 
         // TODO what to do with tx error status after removing spent proofs
-        return {spentCount, spentAmount}
+        return {
+            mintUrl, 
+            spentCount, 
+            spentAmount
+        }
 
-    } catch (e: any) {
+    } catch (e: any) {        
         // silent
         log.warn('[_checkSpentByMint]', e.name, {message: e.message, mintUrl})
+        return {
+            mintUrl,                
+            error: e,
+        }        
     }
 }
 

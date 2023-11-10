@@ -9,6 +9,11 @@ export type MintBalance = {
     balance: number
 }
 
+export enum MintStatus {
+    ONLINE = 'ONLINE',
+    OFFLINE = 'OFFLINE'
+}
+
 /**
  * This represents a Cashu mint
  */
@@ -20,6 +25,7 @@ export const MintModel = types
         keys: types.frozen<MintKeys>(),
         keysets: types.frozen<string[]>(),
         color: types.optional(types.string, colors.palette.iconBlue200),
+        status: types.optional(types.frozen<MintStatus>(), MintStatus.ONLINE),
         createdAt: types.optional(types.Date, new Date()),
     })
     .actions(withSetPropAction)
@@ -51,6 +57,9 @@ export const MintModel = types
         },
         setColor(color: string) {
             self.color = color
+        },
+        setStatus(status: MintStatus) {
+            self.status = status
         },
         updateKeys(keyset: string, keys: MintKeys) {
             // not sure why to keep keysetIDs history and even keys, cashu-ts seems to (on first look) get current keys before each mint interaction

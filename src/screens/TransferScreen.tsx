@@ -217,7 +217,7 @@ useFocusEffect(
 useEffect(() => {
     const getEstimatedFee = async function () {
         try {
-            log.trace('mintBalanceToTransferFrom', mintBalanceToTransferFrom, 'getEstimatedFee')  
+            log.trace('[getEstimatedFee]', 'mintBalanceToTransferFrom', mintBalanceToTransferFrom)  
             if (!mintBalanceToTransferFrom || !encodedInvoice) {
                 return
             }            
@@ -234,8 +234,7 @@ useEffect(() => {
             }
 
             setEstimatedFee(fee)
-        } catch (e: any) {
-            resetState()
+        } catch (e: any) {            
             handleError(e)
         }
     }

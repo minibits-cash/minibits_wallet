@@ -24,6 +24,7 @@ import { rootStoreModelVersion } from '../RootStore'
 import AppError, { Err } from '../../utils/AppError'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 import { LogLevel } from '../../services/log/logTypes'
+import { MintStatus } from '../Mint'
 
 /**
  * The key we'll be saving our state as within storage.
@@ -113,6 +114,7 @@ async function _runMigrations(rootStore: RootStore) {
     walletProfileStore,
     relaysStore,
     contactsStore,
+    mintsStore,
   } = rootStore
   
   let currentVersion = rootStore.version
@@ -151,6 +153,14 @@ async function _runMigrations(rootStore: RootStore) {
     if(currentVersion < 6) {
         log.trace(`Starting rootStore migrations from version v${currentVersion} -> v6`)
         userSettingsStore.setLogLevel(LogLevel.ERROR)
+        log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+    }
+
+    if(currentVersion < 7) {
+        log.trace(`Starting rootStore migrations from version v${currentVersion} -> v7`)
+        for (const mint of mintsStore.allMints) {
+            mint.setStatus(MintStatus.ONLINE)
+        }
         log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
     }
 

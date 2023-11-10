@@ -37,7 +37,7 @@ import {
 import {useStores} from '../models'
 import EventEmitter from '../utils/eventEmitter'
 import {WalletStackScreenProps} from '../navigation'
-import {Mint, MintBalance} from '../models/Mint'
+import {Mint, MintBalance, MintStatus} from '../models/Mint'
 import {MintsByHostname} from '../models/MintsStore'
 import {log} from '../services'
 import {Env} from '../utils/envtypes'
@@ -57,6 +57,7 @@ import { PaymentRequest, PaymentRequestStatus } from '../models/PaymentRequest'
 import { poller } from '../utils/poller'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
+import useIsInternetReachable from '../utils/useIsInternetReachable'
 
 
 
@@ -76,6 +77,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const {mintsStore, proofsStore, transactionsStore, paymentRequestsStore, userSettingsStore} = useStores()
     
     const appState = useRef(AppState.currentState)
+    const isInternetReachable = useIsInternetReachable()
    
     const [info, setInfo] = useState<string>('')
     const [defaultMintUrl, setDefaultMintUrl] = useState<string>('https://mint.minibits.cash/Bitcoin')
@@ -135,6 +137,9 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
          
 
         InteractionManager.runAfterInteractions(async () => {
+            if(!isInternetReachable) {
+                return
+            }
             // subscribe once to receive tokens or payment requests by NOSTR DMs
             Wallet.checkPendingReceived()            
         })
@@ -185,11 +190,13 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
     useFocusEffect(        
         useCallback(() => {
-            InteractionManager.runAfterInteractions(async () => {                
+            InteractionManager.runAfterInteractions(async () => {
+                if(!isInternetReachable) {
+                    return
+                }
+                                
                 Wallet.checkPendingSpent()
-                Wallet.checkPendingTopups()
-                
-                // TODO reconnect relays if disconnected
+                Wallet.checkPendingTopups()               
             })
         }, [])
     )
@@ -627,7 +634,7 @@ const MintsByHostnameListItem = observer(function (props: {
                     key={mint.mintUrl}
                     text={mint.shortname}
                     textStyle={[$mintText, {color}]}
-                    leftIcon={'faCoins'}
+                    leftIcon={mint.status === MintStatus.OFFLINE ? 'faCoins' : 'faTriangleExclamation'}
                     leftIconColor={mint.color}
                     leftIconInverse={true}
                     RightComponent={
