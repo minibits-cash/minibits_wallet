@@ -252,8 +252,7 @@ export const PublicContacts = observer(function (props: {
 
     const onSavePublicRelay = function () {        
         try {
-            if(newPublicRelay.startsWith('wss://')) {
-                
+            if(newPublicRelay.startsWith('wss://')) {                
                 if(relaysStore.alreadyExists(newPublicRelay)) {
                     setInfo('Relay already exists.')
                     return
@@ -274,7 +273,7 @@ export const PublicContacts = observer(function (props: {
                 setTimeout(() => setShouldReload(true), 1000)
                 return
             } else {
-                throw new AppError(Err.VALIDATION_ERROR, 'Invalid relay URL')
+                throw new AppError(Err.VALIDATION_ERROR, 'Invalid relay URL.', newPublicRelay)
             }
         } catch(e: any) {
             handleError(e)

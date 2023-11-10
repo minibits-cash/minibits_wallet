@@ -37,3 +37,17 @@ export const infoMessage = function(message: string, description?: string) {
 }
 
 
+export const warningMessage = function(message: string, description?: string) {
+    const backgroundColor = colors.palette.accent500
+    
+    return showMessage({
+        message,
+        description,
+        duration: 3000,     
+        backgroundColor,
+        color: 'white',
+        style: {minHeight: spacing.screenHeight * 0.15, borderTopLeftRadius: spacing.medium, borderTopRightRadius: spacing.medium},        
+    })
+}
+
+

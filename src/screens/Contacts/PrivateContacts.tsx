@@ -15,7 +15,7 @@ import { Contact, ContactType } from '../../models/Contact'
 import { StackNavigationProp } from '@react-navigation/stack'
 import { ReceiveOption } from '../ReceiveOptionsScreen'
 import { SendOption } from '../SendOptionsScreen'
-import { infoMessage } from '../../utils/utils'
+import { infoMessage, warningMessage } from '../../utils/utils'
 
 
 
@@ -90,6 +90,9 @@ export const PrivateContacts = observer(function (props: {
             if (isExternalDomain) {
                 // validate and get profile data from nip05 server + relays                
                 const profile = await getNostrProfile(newContactName) as NostrProfile
+
+                log.trace('[saveNewContact]', 'Server profile', profile)
+
                 const {pubkey, npub, nip05, name, picture} = profile
 
                 newContact = {
@@ -105,6 +108,13 @@ export const PrivateContacts = observer(function (props: {
             } else {
                 // do it with single api call for minibts.cash profiles                
                 const profileRecord = await MinibitsClient.getWalletProfileByNip05(newContactName + MINIBITS_NIP05_DOMAIN)
+
+                if(!profileRecord) {
+                    warningMessage(`Profile name ${newContactName + MINIBITS_NIP05_DOMAIN} could not be found. Make sure the name is correct.`)
+                    setIsLoading(false)
+                    return
+                }
+
                 const npub = NostrClient.getNpubkey(profileRecord.pubkey)
                 const {pubkey, nip05, name, avatar: picture} = profileRecord
 

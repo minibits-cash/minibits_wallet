@@ -1,5 +1,5 @@
 import AppError, { Err } from "../utils/AppError"
-import { Env, log } from "./logService"
+import { log } from "./logService"
 import {
     MINIBITS_SERVER_API_KEY,
     MINIBITS_SERVER_API_HOST,    
@@ -19,7 +19,7 @@ const getRandomPictures = async function () {
         headers,            
     })
 
-    log.trace(`Got pictures`, MINIBITS_SERVER_API_HOST, 'getRandomPictures')
+    log.trace('[getRandomPictures]', `Got pictures`)
 
     return avatars
 }
@@ -41,7 +41,7 @@ const createWalletProfile = async function (pubkey: string, walletId: string) {
         body: JSON.stringify(requestBody)
     })
 
-    log.info(`Created new profile`, walletProfile.pubkey, 'createWalletProfile')
+    log.info('[createWalletProfile]', `Created new profile`, walletProfile.pubkey)
 
     return walletProfile
 
@@ -64,7 +64,7 @@ const updateWalletProfileName = async function (pubkey: string, update: {name: s
         body: JSON.stringify(requestBody)
     })
 
-    log.trace(`Updated wallet profile name`, {name}, 'updateWalletProfileName')
+    log.trace('[updateWalletProfileName]', `Updated wallet profile name`, {name})
 
     return walletProfile
 }
@@ -86,7 +86,7 @@ const updateWalletProfileAvatar = async function (pubkey: string, update: {avata
         body: JSON.stringify(requestBody)
     })
 
-    log.trace(`Updated wallet profile name`, {}, 'updateWalletProfileAvatar')
+    log.trace('[updateWalletProfileAvatar]', `Updated wallet profile name`, {avatar})
 
     return walletProfile
 }
@@ -111,7 +111,7 @@ const updateWalletProfileNip05 = async function (pubkey: string, update: {newPub
         body: JSON.stringify(requestBody)
     })
 
-    log.info(`Updated wallet profile nip05`, walletProfile.nip05, 'updateWalletProfileNip05')
+    log.info('[updateWalletProfileNip05]', `Updated wallet profile nip05`, walletProfile.nip05)
 
     return walletProfile
 }
@@ -127,7 +127,7 @@ const getWalletProfile = async function (pubkey: string) {
         headers,            
     })
 
-    log.trace(`Got response`, walletProfile?.pubkey || null, 'getWalletProfile')
+    log.trace('[getWalletProfile]', `Got response`, walletProfile?.pubkey || null)
 
     return walletProfile
 }
@@ -143,7 +143,7 @@ const getWalletProfileByWalletId = async function (walletId: string) {
         headers,            
     })
 
-    log.trace(`Got response`, walletProfile?.walletId || null, 'getWalletProfileByWalletId')
+    log.trace('[getWalletProfileByWalletId]', `Got response`, walletProfile?.walletId || null)
 
     return walletProfile
 }
@@ -159,7 +159,7 @@ const getWalletProfileByNip05 = async function (nip05: string) {
         headers,            
     })
 
-    log.trace(`Got response`, walletProfile?.walletId || null, 'getWalletProfileByNip05')
+    log.trace('[getWalletProfileByNip05]', `Got response`, walletProfile?.walletId || null)
 
     return walletProfile
 }

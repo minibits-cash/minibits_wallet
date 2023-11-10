@@ -89,7 +89,7 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
                 toggleAddRelayModal()
                 onConnect()
             } else {
-                throw new AppError(Err.VALIDATION_ERROR, 'Invalid relay URL.')
+                throw new AppError(Err.VALIDATION_ERROR, 'Invalid relay URL.', newPublicRelay)
             }
         } catch(e: any) {
             handleError(e)
@@ -97,6 +97,7 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
     }
 
     const handleError = function (e: AppError): void {        
+        setIsAddRelayModalVisible(false)
         setError(e)
     }
     

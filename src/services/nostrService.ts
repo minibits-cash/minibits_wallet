@@ -382,7 +382,11 @@ const deleteKeyPair = async function (): Promise<void> {
 
 
 const getNormalizedRelayUrl = function (url: string): string {
-    return utils.normalizeURL(url)
+    try {
+        return utils.normalizeURL(url)
+    } catch (e: any) {
+        throw new AppError(Err.VALIDATION_ERROR, `Invalid relay URL: ${e.message}`)
+    }
 }
 
 
