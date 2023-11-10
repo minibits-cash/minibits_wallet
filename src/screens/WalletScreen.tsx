@@ -634,7 +634,7 @@ const MintsByHostnameListItem = observer(function (props: {
                     key={mint.mintUrl}
                     text={mint.shortname}
                     textStyle={[$mintText, {color}]}
-                    leftIcon={mint.status === MintStatus.OFFLINE ? 'faCoins' : 'faTriangleExclamation'}
+                    leftIcon={mint.status === MintStatus.OFFLINE ? 'faTriangleExclamation' : 'faCoins'}
                     leftIconColor={mint.color}
                     leftIconInverse={true}
                     RightComponent={
