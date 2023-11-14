@@ -167,7 +167,7 @@ const sendFromMint = async function (
   }
 }
 
-const getSpentProofsFromMint = async function (
+const getSpentOrPendingProofsFromMint = async function (
   mintUrl: string,
   proofs: Proof[],
 ) {
@@ -175,13 +175,20 @@ const getSpentProofsFromMint = async function (
     const cashuWallet = getWallet(mintUrl)
 
     const spentPendingProofs = await cashuWallet.checkProofsSpent(proofs)
-    return spentPendingProofs
+
+    log.trace('[getSpentOrPendingProofsFromMint]', spentPendingProofs)
+
+    return spentPendingProofs as {
+        spent: CashuProof[]
+        pending: CashuProof[]
+    }
+
   } catch (e: any) {    
     throw new AppError(
         Err.MINT_ERROR, 
-        'The mint could not check if the proofs were spent.', 
+        'The mint could not check if the proofs were spent or are pending.', 
         {
-            caller: 'getSpentProofsFromMint', 
+            caller: 'getSpentOrPendingProofsFromMint', 
             mintUrl, 
             message: e.message
         }
@@ -241,9 +248,15 @@ const payLightningInvoice = async function (
       preimage,
       newKeys
     }
-  } catch (e: any) {
-    console.log(e)    
-    throw new AppError(Err.MINT_ERROR, e.message)
+  } catch (e: any) {throw new AppError(
+    Err.MINT_ERROR, 
+    'Lightning payment failed.', 
+    {
+        caller: 'payLightningInvoice', 
+        mintUrl, 
+        message: e.message
+    }
+)
   }
 }
 
@@ -291,7 +304,7 @@ const requestProofs = async function (
     }
   } catch (e: any) {
     if(e.message.includes('Invoice not paid') === false) {
-        log.info(`[MINT_ERROR] ${e.message}`,[],'cashuMintClient.requestProofs')
+        log.warn('[requestProofs]', `${e.message}`)
     }
     
     return {proofs: []}
@@ -302,7 +315,7 @@ export const MintClient = {
   getMintKeys,
   receiveFromMint,
   sendFromMint,
-  getSpentProofsFromMint,
+  getSpentOrPendingProofsFromMint,
   getLightningFee,
   payLightningInvoice,
   requestLightningInvoice,

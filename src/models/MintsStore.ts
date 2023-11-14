@@ -17,7 +17,7 @@ export type MintsByHostname = {
 export const MintsStoreModel = types
     .model('MintsStore', {
         mints: types.array(MintModel),
-        blockedMintUrls: types.array(types.string),
+        blockedMintUrls: types.array(types.string),        
     })
     .views(self => ({
         findByUrl: (mintUrl: string | URL) => {
@@ -66,6 +66,10 @@ export const MintsStoreModel = types
             }
         },
         blockMint(mintToBeBlocked: Mint) {
+            if(self.blockedMintUrls.some(url => url === mintToBeBlocked.mintUrl)) {
+                return
+            }
+
             self.blockedMintUrls.push(mintToBeBlocked.mintUrl)
             log.debug('[blockMint]', 'Mint blocked in MintsStore')
         },

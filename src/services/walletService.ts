@@ -474,58 +474,140 @@ async function _checkSpentByMint(mintUrl: string, isPending: boolean = false) {
             return
         }
 
-        const spentProofs = await MintClient.getSpentProofsFromMint(
+        const {spent: spentProofs, pending: pendingProofs} = await MintClient.getSpentOrPendingProofsFromMint(
             mintUrl,
             proofsFromMint,
         )
+        
+        for (const proof of pendingProofs) {
+            proofsStore.addToPendingByMint(proof as Proof)
+        }        
 
         const spentCount = spentProofs.length
-        const spentAmount = CashuUtils.getProofsAmount(spentProofs)
+        const spentAmount = CashuUtils.getProofsAmount(spentProofs as Proof[])
+        const pendingAmount = CashuUtils.getProofsAmount(pendingProofs as Proof[])
 
-        log.trace('[_checkSpentByMint]', `spentProofs amount: ${spentAmount}`)
+        log.trace('[_checkSpentByMint]', `spentProofs and pendingProofs amounts`, {spentAmount, pendingAmount, isPending})
 
-        if (spentProofs.length < 1) {
-            log.trace('[_checkSpentByMint]', `No spent ${isPending ? 'pending' : ''} proofs returned from the mint`, mintUrl)
-            return
-        }
+        if (spentProofs.length > 0) {
+            // we need to identify txIds to update their statuses, there might be more then one tx to complete
+            let relatedTransactionIds: number[] = []
 
-        // we need to identify txIds to update their statuses, there might be more then one tx to complete
-        let relatedTransactionIds: number[] = []
+            for (const spentProof of spentProofs) {
+                const tId = proofsFromMint.find(
+                    (proof: Proof) => proof.secret === spentProof.secret,
+                )?.tId
 
-        for (const spentProof of spentProofs) {
-            const tId = proofsFromMint.find(
-                (proof: Proof) => proof.secret === spentProof.secret,
-            )?.tId
-
-            if (tId && !relatedTransactionIds.includes(tId)) {
-                relatedTransactionIds.push(tId)
-            }
-        }
-
-        // remove spent proofs model instances from pending
-        proofsStore.removeProofs(spentProofs as Proof[], isPending)
-
-        // Update related transactions statuses
-        log.debug('[_checkSpentByMint]', 'Transaction id(s) to complete', relatedTransactionIds.toString())
-
-        // Complete related transactions in normal wallet operations
-        if (isPending) {
-            const transactionDataUpdate = {
-                status: TransactionStatus.COMPLETED,
-                createdAt: new Date(),
+                if (tId && !relatedTransactionIds.includes(tId)) {
+                    relatedTransactionIds.push(tId)
+                }
             }
 
-            await transactionsStore.updateStatuses(
-                relatedTransactionIds,
-                TransactionStatus.COMPLETED,
-                JSON.stringify(transactionDataUpdate),
-            )
+            // Clean pendingByMint secrets if in-flight payment completed and they came back as spent            
+            if(proofsStore.pendingByMintSecrets.length > 0) {
 
-            EventEmitter.emit('sendCompleted', relatedTransactionIds)
-            stopPolling('checkSpentByMintPoller')
+                log.trace('[_checkSpentByMint]', 'Starting sweep of spent pendingByMint proofs')
+
+                for (const proof of spentProofs) {
+                    const secret = proofsStore.pendingByMintSecrets.find((s => s === proof.secret))
+                    if(secret) {
+                        proofsStore.removeFromPendingByMint(proof as Proof)
+                    }
+                }
+            }
+
+            // remove spent proofs model instances from pending
+            proofsStore.removeProofs(spentProofs as Proof[], isPending)
+
+            // Update related transactions statuses
+            log.debug('[_checkSpentByMint]', 'Transaction id(s) to complete', relatedTransactionIds.toString())
+
+            // Complete related transactions in normal wallet operations
+            if (isPending) {
+                const transactionDataUpdate = {
+                    status: TransactionStatus.COMPLETED,
+                    createdAt: new Date(),
+                }
+
+                await transactionsStore.updateStatuses(
+                    relatedTransactionIds,
+                    TransactionStatus.COMPLETED,
+                    JSON.stringify(transactionDataUpdate),
+                )
+
+                EventEmitter.emit('sendCompleted', relatedTransactionIds)
+                stopPolling('checkSpentByMintPoller')
+            }
+        } else {
+            log.trace('[_checkSpentByMint]', `No spent ${isPending ? 'pending' : ''} proofs returned from the mint`, mintUrl)                    
+        }        
+       
+        // Check if remaining pendingByMint secrets are still pending with the mint. 
+        // If not, move related wallet's pending proofs back to spendable as the payment failed and they were not spent. 
+        const remainingSecrets = getSnapshot(proofsStore.pendingByMintSecrets) 
+        
+        log.trace('[_checkSpentByMint]', 'pendingByMintSecrets', remainingSecrets)
+
+        if(remainingSecrets.length > 0 && isPending) {
+
+            log.trace('[_checkSpentByMint]', 'Starting sweep of pendingByMintSecrets')
+           
+            const movedProofs: Proof[] = []
+
+            for (const secret of remainingSecrets) {
+                const proofToMove = proofsStore.getBySecret(secret, true) // find the proof in wallet's pending
+                
+                // only move if it is from current mint
+                if(proofToMove && proofToMove.mintUrl === mintUrl) {                     
+                    const stillPendingByMint = pendingProofs.find((p => p.secret === secret))
+
+                    if(!stillPendingByMint) {
+                        // move it if it is not pending by mint anymore
+                        proofsStore.removeFromPendingByMint(proofToMove as Proof)                            
+                        movedProofs.push(proofToMove)
+                    }
+                }                                
+            }
+
+            if(movedProofs.length > 0) {
+                
+                log.trace('[_checkSpentByMint]', 'Moving proofs from pending to spendable', movedProofs.length)
+
+                // Update related transactions as reverted
+                let relatedTransactionIds: number[] = []
+
+                for (const movedProof of movedProofs) {
+                    const tId = movedProof.tId
+
+                    if (tId && !relatedTransactionIds.includes(tId)) {
+                        relatedTransactionIds.push(tId)
+                    }
+                }
+
+                // remove it from pending proofs in the wallet
+                proofsStore.removeProofs(movedProofs, true, true)
+                // add proofs back to the spendable wallet
+                proofsStore.addProofs(movedProofs)
+
+                if(relatedTransactionIds.length > 0) {
+                    const transactionDataUpdate = {
+                        status: TransactionStatus.REVERTED,
+                        createdAt: new Date(),
+                    }
+
+                    await transactionsStore.updateStatuses(
+                        relatedTransactionIds,
+                        TransactionStatus.REVERTED,
+                        JSON.stringify(transactionDataUpdate),
+                    )
+                }
+            } else {
+                log.trace('[_checkSpentByMint]', `No moved proofs from pending`, mintUrl)                    
+            } 
+            
         }
-
-        // TODO what to do with tx error status after removing spent proofs
+        
+        
         return {
             mintUrl, 
             spentCount, 
@@ -660,19 +742,14 @@ const receive = async function (
             )
         }
 
-        // attach transaction id and mintUrl to the proofs before storing them
-        const newProofs: Proof[] = []
-
         for (const entry of updatedToken.token) {
-            for (const proof of entry.proofs) {
-                proof.tId = transactionId
-                proof.mintUrl = entry.mint
-
-                newProofs.push(proof)
-            }
+            // create ProofModel instances and store them into the proofsStore
+            _addCashuProofs(
+                entry.proofs,
+                entry.mint,
+                transactionId as number                
+            )
         }
-        // create ProofModel instances and store them into the proofsStore
-        proofsStore.addProofs(newProofs)
 
         // This should be amountToReceive - amountWithErrors but let's set it from updated token
         const receivedAmount = CashuUtils.getTokenAmounts(updatedToken as Token).totalAmount
@@ -939,20 +1016,15 @@ const receiveOfflineComplete = async function (
             )
         }
 
-        // attach transaction id and mintUrl to the proofs before storing them
-        const newProofs: Proof[] = []
-
         for (const entry of updatedToken.token) {
-            for (const proof of entry.proofs) {
-                proof.tId = transaction.id
-                proof.mintUrl = entry.mint
-
-                newProofs.push(proof)
-            }
+            // create ProofModel instances and store them into the proofsStore
+            _addCashuProofs(
+                entry.proofs,
+                entry.mint,
+                transaction.id as number                
+            )
         }
-        // create ProofModel instances and store them into the proofsStore
-        proofsStore.addProofs(newProofs)
-
+        
         // This should be amountToReceive - amountWithErrors but let's set it from updated token
         const receivedAmount = CashuUtils.getTokenAmounts(updatedToken as Token).totalAmount
         log.debug('[receiveOfflineComplete]', 'Received amount', receivedAmount)
@@ -1390,36 +1462,60 @@ const transfer = async function (
         if (newKeys) {_updateMintKeys(mintUrl, newKeys)}
 
         // We've sent the proofsToPay to the mint, so we remove those pending proofs from model storage.
-        // Hopefully mint gets important shit done synchronously.
-        // We might not need to await for this and set it up as async poller with 1 poll?
+        // Hopefully mint gets important shit done synchronously.        
         await _checkSpentByMint(mintUrl, true)
 
         // I have no idea yet if this can happen, return sent Proofs to the store an track tx as Reverted
         if (!isPaid) {
-            _addCashuProofs(proofsToPay, mintUrl, transactionId, true)
+            const { amountPendingByMint } = await _moveProofsFromPending(proofsToPay, mintUrl, transactionId)
 
-            transactionData.push({
-                status: TransactionStatus.REVERTED,
-                createdAt: new Date(),
-            })
+            if(amountPendingByMint > 0) {
+                transactionData.push({
+                    status: TransactionStatus.PENDING,                    
+                    amountPendingByMint,
+                })
 
-            const revertedTransaction = await transactionsStore.updateStatus(
-                transactionId,
-                TransactionStatus.REVERTED,
-                JSON.stringify(transactionData),
-            )
+                const pendingTransaction = await transactionsStore.updateStatus(
+                    transactionId,
+                    TransactionStatus.PENDING,
+                    JSON.stringify(transactionData),
+                )
+                
+                // There is not clear way to get refund for saved fees later so we treat estimated fees as final
+                await transactionsStore.updateFee(transactionId, estimatedFee)
 
-            return {
-                transaction: revertedTransaction,
-                message: 'Payment of lightning invoice failed. Coins were returned to your wallet.',
-            } as TransactionResult
+                return {
+                    transaction: pendingTransaction,
+                    message: 'Lightning payment did not complete in time. Your ecash will remain pending until the payment completes or fails.',                    
+                } as TransactionResult
+            } else {
+                transactionData.push({
+                    status: TransactionStatus.REVERTED,
+                    createdAt: new Date(),
+                })
+    
+                const revertedTransaction = await transactionsStore.updateStatus(
+                    transactionId,
+                    TransactionStatus.REVERTED,
+                    JSON.stringify(transactionData),
+                )
+    
+                return {
+                    transaction: revertedTransaction,
+                    message: 'Payment of lightning invoice failed. Coins were returned to your wallet.',
+                } as TransactionResult
+            }            
         }
 
         // If real fees were less then estimated, cash the returned savings.
         let finalFee = estimatedFee
 
         if (feeSavedProofs.length) {
-            const feeSaved = _addCashuProofs(feeSavedProofs, mintUrl, transactionId)
+            const {addedAmount: feeSaved} = _addCashuProofs(
+                feeSavedProofs, 
+                mintUrl, 
+                transactionId                
+            )
 
             finalFee = estimatedFee - feeSaved            
         }
@@ -1445,7 +1541,7 @@ const transfer = async function (
 
         return {
             transaction: completedTransaction,
-            message: `Lightning invoice has been successfully paid and settled with your minibits coins. Final lightning network fee has been ${finalFee} sats.`,
+            message: `Lightning invoice has been successfully paid and settled with your minibits coins. Final network fee has been ${finalFee} sats.`,
             finalFee,
         } as TransactionResult
     } catch (e: any) {        
@@ -1453,6 +1549,42 @@ const transfer = async function (
         let errorTransaction: TransactionRecord | undefined = undefined
 
         if (transactionId > 0) {
+            // Return tokens intended for payment to the wallet if payment failed with an error
+            if (proofsToPay.length > 0) {
+                log.warn('[transfer]', 'Returning proofsToPay to the wallet likely after failed lightning payment.', proofsToPay.length)
+                
+                const { 
+                    amountToMove, 
+                    amountPendingByMint 
+                } = await _moveProofsFromPending(proofsToPay, mintUrl, transactionId)
+
+                // keep tx as pending if proofs were not added because of a mint that keeps them as pending for timed out in-flight payment
+                if(amountPendingByMint > 0) {
+                    transactionData.push({
+                        status: TransactionStatus.PENDING,
+                        error: _formatError(e),
+                        amountToMove,
+                        amountPendingByMint,
+                    })
+    
+                    const pendingTransaction = await transactionsStore.updateStatus(
+                        transactionId,
+                        TransactionStatus.PENDING,
+                        JSON.stringify(transactionData),
+                    )
+                    
+                    // There is not clear way to get refund for saved fees later so we treat estimated fees as final
+                    await transactionsStore.updateFee(transactionId, estimatedFee)
+
+                    return {
+                        transaction: pendingTransaction,
+                        message: 'Lightning payment did not complete in time. Your ecash will remain pending until the payment completes or fails.',
+                        error: _formatError(e),
+                    } as TransactionResult
+                }
+
+            }
+
             transactionData.push({
                 status: TransactionStatus.ERROR,
                 error: _formatError(e),
@@ -1463,12 +1595,6 @@ const transfer = async function (
                 TransactionStatus.ERROR,
                 JSON.stringify(transactionData),
             )
-
-            // Return tokens intended for payment to the wallet if payment failed with an error
-            if (proofsToPay.length > 0) {
-                log.info('[transfer]', 'Returning proofsToPay to the wallet likely after failed lightning payment', proofsToPay.length)
-                const amount = _addCashuProofs(proofsToPay, mintUrl, transactionId, true)
-            }
         }
 
         log.error(e.name, e.message, {}, 'transfer')
@@ -1486,26 +1612,93 @@ const transfer = async function (
 const _addCashuProofs = function (
     proofsToAdd: CashuProof[],
     mintUrl: string,
-    transactionId: number,
-    isRecoveredFromPending: boolean = false
-): number {
+    transactionId: number    
+): {  
+    amountToAdd: number,  
+    addedAmount: number
+} {
+    // Add internal references
     for (const proof of proofsToAdd as Proof[]) {
         proof.tId = transactionId
         proof.mintUrl = mintUrl
     }
-    // Creates proper model instances and adds them to storage
-    proofsStore.addProofs(proofsToAdd as Proof[])
-    const amount = CashuUtils.getProofsAmount(proofsToAdd as Proof[])
-
-    log.trace('[_addCashuProofs]', 'Added proofs with amount', { amount, isRecoveredFromPending })
     
-    if(isRecoveredFromPending) {
-        // Remove them from pending if they are returned to the wallet due to failed lightning payment
-        // Do not mark them as spent as they are recovered back to wallet
-        proofsStore.removeProofs(proofsToAdd as Proof[], true, isRecoveredFromPending)
-    }    
+    const amountToAdd = CashuUtils.getProofsAmount(proofsToAdd as Proof[])    
+    // Creates proper model instances and adds them to the wallet    
+    const addedAmount = proofsStore.addProofs(proofsToAdd as Proof[])
+    
+    log.trace('[_addCashuProofs]', 'Added proofs to the wallet with amount', { amountToAdd, addedAmount })
 
-    return amount
+    return {        
+        amountToAdd,
+        addedAmount
+    }
+}
+
+
+const _moveProofsFromPending = async function (
+    proofsToMove: CashuProof[],
+    mintUrl: string,
+    transactionId: number,    
+): Promise<{
+    amountToMove: number,
+    amountPendingByMint: number,
+    movedAmount: number
+}> {
+    // Add internal references
+    for (const proof of proofsToMove as Proof[]) {
+        proof.tId = transactionId
+        proof.mintUrl = mintUrl
+    }
+
+    const amountToMove = CashuUtils.getProofsAmount(proofsToMove as Proof[])
+    
+    // Here we move proofs from pending back to spendable wallet in case of lightning payment failure
+    
+    // Check with the mint if the proofs are not marked as pending. This happens when lightning payment fails
+    // due to the timeout but mint's node keeps the payment as in-flight (e.g. receiving node holds the invoice)
+    // In this case we need to keep such proofs as pending and not move them back to wallet as in other payment failures.    
+    const {pending: pendingByMint} = await MintClient.getSpentOrPendingProofsFromMint(
+        mintUrl,
+        proofsToMove as Proof[],
+    )
+
+    let amountPendingByMint: number = 0
+    let movedAmount: number = 0
+    const movedProofs: Proof[] = []
+
+    for (const proof of proofsToMove) {
+        // if proof to return to the wallet is tracked by mint as pending we do not move it from wallet's pending
+        if(pendingByMint.some(p => p.secret === proof.secret)){
+            // add it to the list of secrets so we can later handle them based on eventual lightning payment result
+            if(proofsStore.addToPendingByMint(proof as Proof)) {
+                amountPendingByMint += proof.amount
+            }
+        } else {
+            movedAmount += proof.amount
+            movedProofs.push(proof as Proof)
+        }
+    }
+
+    if(movedProofs.length > 0) {
+        // remove it from pending proofs in the wallet
+        proofsStore.removeProofs(movedProofs, true, true)
+        // add proofs back to the spendable wallet
+        proofsStore.addProofs(movedProofs)
+
+        log.trace('[_moveProofsFromPending]', 'Moved proofs back from pending to spendable', {amountToMove, amountPendingByMint, movedAmount})
+    }
+    
+    if(amountPendingByMint > 0 && amountPendingByMint !== amountToMove) {
+        // This should not happen, monitor
+        log.warn('[_moveProofsFromPending]', 'Not all proofs to be moved were pending by the mint')
+    }
+    
+    return {
+        amountToMove,
+        amountPendingByMint,
+        movedAmount
+    }
 }
 
 
@@ -1690,11 +1883,11 @@ const checkPendingTopups = async function () {
 
             if(newKeys) {_updateMintKeys(pr.mint as string, newKeys)}
 
-            // accept whatever we've got
-            const receivedAmount = _addCashuProofs(
+            // accept to the wallet whatever we've got
+            const {addedAmount: receivedAmount} = _addCashuProofs(
                 proofs,
                 pr.mint as string,
-                pr.transactionId as number,
+                pr.transactionId as number                
             )
 
             if (receivedAmount !== pr.amount) {

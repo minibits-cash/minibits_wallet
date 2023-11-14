@@ -646,7 +646,7 @@ const updateSentToAsync = async function (id: number, sentTo: string) {
       const db = getInstance()
       await db.executeAsync(query, params)
       
-      log.debug('[updateSentToAsync]', 'Transaction sentFrom updated', {id, sentTo})
+      log.debug('[updateSentToAsync]', 'Transaction sentTo updated', {id, sentTo})
   
       const updatedTx = getTransactionById(id as number)
   

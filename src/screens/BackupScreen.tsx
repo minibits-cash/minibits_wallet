@@ -140,7 +140,14 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
                     style={$item}
                     onPress={gotoLocalRecovery}
                   />
-                )}
+                )}                
+              </>
+            }
+          />
+        <Card
+            style={$card}
+            HeadingComponent={
+              <>                
                 <ListItem
                   tx="backupScreen.removeSpentCoins"
                   subTx="backupScreen.removeSpentCoinsDescription"
@@ -152,8 +159,8 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
                 />
               </>
             }
-          />
-          {isLoading && <Loading />}
+        />       
+        {isLoading && <Loading />}
         </View>
         <BottomModal
           isVisible={isBackupModalVisible}          
@@ -197,7 +204,7 @@ const $contentContainer: TextStyle = {
 }
 
 const $card: ViewStyle = {
-  marginBottom: 0,
+  marginBottom: spacing.small,
 }
 
 const $item: ViewStyle = {

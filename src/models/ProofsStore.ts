@@ -17,6 +17,7 @@ export const ProofsStoreModel = types
     .model('Proofs', {
         proofs: types.array(ProofModel),
         pendingProofs: types.array(ProofModel),
+        pendingByMintSecrets: types.array(types.string),
     })
     .actions(withSetPropAction)
     .views(self => ({
@@ -55,23 +56,34 @@ export const ProofsStoreModel = types
 
             return proofInstance
         },
-
+        alreadyExists(proof: Proof, isPending: boolean = false) {
+            const proofs = isPending ? self.pendingProofs : self.proofs
+            return proofs.some(p => p.secret === proof.secret) ? true : false
+        },
     }))
     .actions(self => ({
-        addProofs(newProofs: Proof[], isPending: boolean = false) {
+        addProofs(newProofs: Proof[], isPending: boolean = false): number {
         try {
             const proofs = isPending ? self.pendingProofs : self.proofs
+            let addedAmount: number = 0
 
-            for (const proof of newProofs) {
+            for (const proof of newProofs) { 
+                if(self.alreadyExists(proof)) {
+                    log.warn('[addProofs]', `${isPending ? ' pending' : ''} proof already exists in the ProofsStore`, proof.secret)
+                    continue
+                }
+
                 if (isStateTreeNode(proof)) {
-                    proofs.push(proof)
+                    proofs.push(proof)                    
                 } else {
                     const proofInstance = ProofModel.create(proof)
                     proofs.push(proofInstance)
                 }
+
+                addedAmount += proof.amount
             }
 
-            log.debug('[addProofs]', `Added new ${newProofs.length}${isPending ? ' pending' : ''} proofs to ProofsStore`,)
+            log.debug('[addProofs]', `Added new ${newProofs.length}${isPending ? ' pending' : ''} proofs to the ProofsStore`,)
 
             const rootStore = getRootStore(self)
             const {userSettingsStore} = rootStore
@@ -79,6 +91,8 @@ export const ProofsStoreModel = types
             if (userSettingsStore.isLocalBackupOn === true) {
                 Database.addOrUpdateProofs(newProofs, isPending) // isSpent = false
             }
+
+            return addedAmount
         } catch (e: any) {
             throw new AppError(Err.STORAGE_ERROR, e.message)
         }
@@ -118,6 +132,19 @@ export const ProofsStoreModel = types
             } catch (e: any) {
                 throw new AppError(Err.STORAGE_ERROR, e.message.toString())
             }
+        },
+        addToPendingByMint(proof: Proof): boolean {
+            if(self.pendingByMintSecrets.some(s => s === proof.secret)) {
+                return false
+            }
+            
+            self.pendingByMintSecrets.push(proof.secret)
+            log.trace('[addToPendingByMint]', 'Proof marked as pending by mint, secret', proof.secret)
+            return true            
+        },
+        removeFromPendingByMint(proof: Proof) {
+            self.pendingByMintSecrets.remove(proof.secret)
+            log.trace('[removeFromPendingByMint]', 'Proof removed from pending by mint, secret', proof.secret)
         },
     }))
     .views(self => ({

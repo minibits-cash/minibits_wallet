@@ -44,6 +44,7 @@ import { LNURLPayParams } from 'js-lnurl'
 import { roundDown, roundUp } from '../utils/number'
 import { LnurlClient } from '../services/lnurlService'
 import { moderateScale, scale, verticalScale } from '@gocodingnow/rn-size-matters'
+import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
 
 if (
   Platform.OS === 'android' &&
@@ -61,7 +62,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     })
 
     const amountInputRef = useRef<TextInput>(null)
-    const {proofsStore, mintsStore, paymentRequestsStore} = useStores()
+    const {proofsStore, mintsStore, paymentRequestsStore, transactionsStore} = useStores()
 
     const [encodedInvoice, setEncodedInvoice] = useState<string>('')
     const [invoice, setInvoice] = useState<DecodedLightningInvoice | undefined>()
@@ -401,10 +402,17 @@ const transfer = async function () {
         const {status} = transaction as Transaction
         setTransactionStatus(status)
 
-        if (error) {
+        if(transaction && lnurlPayParams && lnurlPayParams.address) {
+            await transactionsStore.updateSentTo( // set ln address to send to to the tx, could be elsewhere //
+                transaction.id as number,                    
+                lnurlPayParams.address as string
+            )
+        }
+
+        if (error) { // This handles timed out pending payments
             setResultModalInfo({
                 status,
-                message: error.message,
+                message: message || error.message,
             })
         } else {
             if(!isInvoiceDonation) {  // Donation polling triggers own ResultModal on paid invoice
@@ -469,10 +477,8 @@ const satsColor = colors.palette.primary200
                     style={{color: 'white'}}
                 />
                 <View style={$amountContainer}>                    
-                    <Text 
-                        text='SATS' 
-                        size='xxs' 
-                        style={{color: satsColor, fontFamily: typography.primary?.light}}
+                    <CurrencySign 
+                        currencyCode={CurrencyCode.SATS}                        
                     />
                     <TextInput
                         ref={amountInputRef}
@@ -597,9 +603,9 @@ const satsColor = colors.palette.primary200
                                         if(isInvoiceDonation) {
                                             navigation.navigate('ContactsNavigator', {screen: 'Contacts', params: {}})
                                         } else {
-                                            navigation.navigate('Wallet', {})}
+                                            navigation.navigate('Wallet', {})
                                         }
-                                    }
+                                    }}
                                 />
                                 </View>
                             </>
@@ -635,6 +641,26 @@ const satsColor = colors.palette.primary200
                                     preset="secondary"
                                     tx={'common.close'}
                                     onPress={toggleResultModal}
+                                />
+                                </View>
+                            </>
+                        )}
+                        {resultModalInfo &&
+                            transactionStatus === TransactionStatus.PENDING && (
+                            <>
+                                <ResultModalInfo
+                                icon="faTriangleExclamation"
+                                iconColor={colors.palette.iconYellow300}
+                                title="Transfer pending"
+                                message={resultModalInfo?.message}
+                                />
+                                <View style={$buttonContainer}>
+                                <Button
+                                    preset="secondary"
+                                    tx={'common.close'}
+                                    onPress={() => {
+                                        navigation.navigate('Wallet', {})
+                                    }}
                                 />
                                 </View>
                             </>

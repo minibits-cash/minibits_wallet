@@ -58,6 +58,7 @@ import { poller } from '../utils/poller'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
+import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
 
 
 
@@ -414,9 +415,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             <TotalBalanceBlock
                 totalBalance={balances.totalBalance}
                 pendingBalance={balances.totalPendingBalance}
-                // gotoTranHistory={gotoTranHistory}
             />
-            <View style={$contentContainer}>
+            <View style={[$contentContainer, groupedMints.length > 1 && ({marginTop: -spacing.extraLarge * 2.5})]}>
                 {mintsStore.mintCount === 0 ? (
                     <PromoBlock addMint={addMint} />
                 ) : (
@@ -428,7 +428,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                 inActiveDotColor={colors.palette.primary300}
                                 activeDotColor={colors.palette.primary100}
                                 activeDotScale={1.2}
-                                containerStyle={{bottom: undefined, position: undefined, marginTop: -spacing.small, paddingBottom: spacing.medium}}
+                                containerStyle={{bottom: undefined, position: undefined, marginTop: -spacing.tiny, paddingBottom: spacing.small}}
                                 //@ts-ignore
                                 scrollX={scrollX}
                                 dotSize={30}
@@ -559,10 +559,9 @@ const TotalBalanceBlock = observer(function (props: {
 
     return (
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-            <Text 
-                text='SATS'
-                size='xxs' 
-                style={{color: pendingBalanceColor, fontFamily: typography.primary?.light}}
+            <CurrencySign 
+                currencyCode={CurrencyCode.SATS}
+                containerStyle={{marginTop: -5}}
             />
             <Text
                 testID='total-balance'
@@ -640,8 +639,8 @@ const MintsByHostnameListItem = observer(function (props: {
                     RightComponent={
                     <View style={$balanceContainer}>
                         <Text style={[$balance, {color: balanceColor}]}>
-                        {props.mintBalances.find(b => b.mint === mint.mintUrl)
-                            ?.balance || 0}
+                        {(props.mintBalances.find(b => b.mint === mint.mintUrl)
+                            ?.balance || 0).toLocaleString()}
                         </Text>
                     </View>
                     }
@@ -667,7 +666,10 @@ const $headerContainer: TextStyle = {
   alignItems: 'center',
   paddingBottom: spacing.medium,
   paddingTop: 0,
+  marginTop: 0,
   height: spacing.screenHeight * 0.18,
+  // borderWidth: 1,
+  // borderColor: 'red',
 }
 
 const $buttonContainer: ViewStyle = {
@@ -679,7 +681,9 @@ const $buttonContainer: ViewStyle = {
 const $contentContainer: TextStyle = {
   marginTop: -spacing.extraLarge * 2,
   flex: 0.9,
-  paddingTop: spacing.extraSmall,  
+  paddingTop: spacing.extraSmall - 3,
+  // borderWidth: 1,
+  // borderColor: 'green',
 }
 
 const $card: ViewStyle = {

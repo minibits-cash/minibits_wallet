@@ -185,8 +185,8 @@ const publish = async function (
     log.trace('Event to be published', event, 'publish')
 
     const pool = getRelayPool()
-    await pool.publish(relays, event)
-    await delay(1000)
+    let pubs = pool.publish(relays, event)
+    await Promise.all(pubs)
 
     const published: NostrEvent = await pool.get(relays, {
         ids: [event.id]

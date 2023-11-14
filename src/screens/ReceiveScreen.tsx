@@ -32,6 +32,7 @@ import {MintListItem} from './Mints/MintListItem'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { resolveTxt } from 'dns'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
+import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
 
 export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
   function ReceiveScreen({route, navigation}) {
@@ -207,10 +208,8 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                         tx="receiveScreen.toReceive"
                         style={{color: 'white'}}
                     />
-                    <Text 
-                        text='SATS' 
-                        size='xxs' 
-                        style={{color: satsColor, fontFamily: typography.primary?.light}}
+                    <CurrencySign 
+                        currencyCode={CurrencyCode.SATS}                        
                     />
                     <Text
                         style={$amountToReceive}
@@ -225,10 +224,9 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                         tx="receiveScreen.received"
                         style={{color: 'white'}}
                     />
-                    <Text 
-                        text='SATS' 
-                        size='xxs' 
-                        style={{color: satsColor, fontFamily: typography.primary?.light}}
+                    <CurrencySign 
+                        currencyCode={CurrencyCode.SATS}
+                        containerStyle={{marginTop: -5}}
                     />
                     <Text
                         style={$amountToReceive}

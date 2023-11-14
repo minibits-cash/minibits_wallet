@@ -782,11 +782,13 @@ const SendInfoBlock = function (props: {
             />
             <Card
                 style={$dataCard}
-                ContentComponent={                        
+                ContentComponent={
+                    <>                        
                     <TranItem
                         label="tranDetailScreen.sentFrom"
                         value={transaction.mint as string}
                     />
+                    </>
                 }
             />
             {isDataParsable && (
@@ -1038,10 +1040,18 @@ const TransferInfoBlock = function (props: {
               label="tranDetailScreen.lightningFee"
               value={`${transaction.fee}`}
             />
+            {transaction.memo && (
             <TranItem
               label="tranDetailScreen.memoFromInvoice"
               value={transaction.memo as string}
             />
+            )}
+            {transaction.sentTo && (
+                <TranItem
+                    label="tranDetailScreen.sentTo"
+                    value={transaction.sentTo as string}
+                />
+            )}
             <TranItem
               label="tranDetailScreen.type"
               value={transaction.type as string}
@@ -1201,6 +1211,7 @@ const $actionCard: ViewStyle = {
 const $dataCard: ViewStyle = {
     padding: spacing.medium,  
     marginBottom: spacing.extraSmall,
+    paddingTop: spacing.extraSmall,
 }
 
 const $item: ViewStyle = {

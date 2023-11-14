@@ -59,6 +59,7 @@ import { getImageSource, infoMessage } from '../utils/utils'
 import { NotificationService } from '../services/notificationService'
 import { SendOption } from './SendOptionsScreen'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
+import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
 
 
 if (Platform.OS === 'android' &&
@@ -548,10 +549,8 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 style={{color: 'white'}}
             />          
             <View style={$amountContainer}>
-                <Text 
-                    text='SATS' 
-                    size='xxs' 
-                    style={{color: satsColor, fontFamily: typography.primary?.light}}
+                <CurrencySign 
+                    currencyCode={CurrencyCode.SATS}
                 />
                 <TextInput
                     ref={amountInputRef}

@@ -28,13 +28,13 @@ export const TransactionListItem = observer(function (props: {tx: Transaction, i
   
       switch(tx.type) {
         case TransactionType.RECEIVE || TransactionType.RECEIVE_OFFLINE:
-          return 'You received'      
+          return tx.sentFrom ? `Received from ${tx.sentFrom}` : 'You received'      
         case TransactionType.SEND:
-          return 'You paid'
+          return tx.sentTo ? `Sent to ${tx.sentTo}` : 'You sent'
         case TransactionType.TOPUP:
-          return 'You funded your wallet'
+          return tx.sentFrom ? `Received from ${tx.sentFrom}` : 'You received'
         case TransactionType.TRANSFER:
-          return 'You transfered'
+          return tx.sentTo ? `Paid to ${tx.sentTo}` : 'You paid'
         default:
           return 'Uknown transaction'
       }

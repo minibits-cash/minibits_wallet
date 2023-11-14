@@ -281,7 +281,7 @@ index f6bc3b1..0bfe1dc 100644
  			method: 'POST',
  			requestBody: restorePayload
 diff --git a/node_modules/@cashu/cashu-ts/src/CashuWallet.ts b/node_modules/@cashu/cashu-ts/src/CashuWallet.ts
-index b7cf354..d3e9f0a 100644
+index b7cf354..d0a9af2 100644
 --- a/node_modules/@cashu/cashu-ts/src/CashuWallet.ts
 +++ b/node_modules/@cashu/cashu-ts/src/CashuWallet.ts
 @@ -1,7 +1,7 @@
@@ -315,6 +315,37 @@ index b7cf354..d3e9f0a 100644
  
  /**
   * Class that represents a Cashu wallet.
+@@ -69,13 +69,16 @@ class CashuWallet {
+ 	 * @param proofs (only the 'secret' field is required)
+ 	 * @returns
+ 	 */
+-	async checkProofsSpent<T extends { secret: string }>(proofs: Array<T>): Promise<Array<T>> {
++	async checkProofsSpent<T extends { secret: string }>(proofs: Array<T>): Promise<{spent: Array<T>, pending: Array<T>}> {
+ 		const payload = {
+ 			//send only the secret
+ 			proofs: proofs.map((p) => ({ secret: p.secret }))
+ 		};
+-		const { spendable } = await this.mint.check(payload);
+-		return proofs.filter((_, i) => !spendable[i]);
++		const { spendable, pending: isPending } = await this.mint.check(payload);
++        
++        const spent = proofs.filter((_, i) => !spendable[i]);
++        const pending = isPending && Array.isArray(isPending) ? proofs.filter((_, i) => isPending[i]) : [];
++		return {spent, pending}
+ 	}
+ 	/**
+ 	 * Starts a minting process by requesting an invoice from the mint
+@@ -512,8 +515,8 @@ class CashuWallet {
+ 		const secrets: Array<Uint8Array> = [];
+ 		const rs: Array<bigint> = [];
+ 		for (let i = 0; i < amounts.length; i++) {
+-			let deterministicR = undefined;
+-			let secret = undefined;
++			let deterministicR: bigint | undefined = undefined;
++			let secret: Uint8Array | undefined = undefined;
+ 			if (this._seed && count != undefined) {
+ 				secret = deriveSecret(this._seed, keysetId??this.keysetId, count + i);
+ 				deterministicR = bytesToNumber(deriveBlindingFactor(this._seed, keysetId??this.keysetId, count + i));
 diff --git a/node_modules/@cashu/cashu-ts/src/DHKE.ts b/node_modules/@cashu/cashu-ts/src/DHKE.ts
 index ca37559..02843b5 100644
 --- a/node_modules/@cashu/cashu-ts/src/DHKE.ts
@@ -352,6 +383,18 @@ index b1f2c00..138c251 100644
  
  export {
  	CashuMint,
+diff --git a/node_modules/@cashu/cashu-ts/src/model/types/index.ts b/node_modules/@cashu/cashu-ts/src/model/types/index.ts
+index 4855c33..4546acc 100644
+--- a/node_modules/@cashu/cashu-ts/src/model/types/index.ts
++++ b/node_modules/@cashu/cashu-ts/src/model/types/index.ts
+@@ -215,6 +215,7 @@ export type CheckSpendableResponse = {
+ 	 * Ordered list for checked proofs. True if the secret has not been redeemed at the mint before
+ 	 */
+ 	spendable: Array<boolean>;
++    pending?: Array<boolean>;
+ } & ApiError;
+ /**
+  * blinded message for sending to the mint
 diff --git a/node_modules/@cashu/cashu-ts/src/secrets.ts b/node_modules/@cashu/cashu-ts/src/secrets.ts
 index ce70d91..4ebe676 100644
 --- a/node_modules/@cashu/cashu-ts/src/secrets.ts

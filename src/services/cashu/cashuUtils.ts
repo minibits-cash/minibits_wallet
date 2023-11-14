@@ -1,6 +1,6 @@
 import {Mint} from '../../models/Mint'
 import {  
-  getDecodedToken,
+  getDecodedToken,  
 } from '@cashu/cashu-ts'
 import cloneDeep from 'lodash.clonedeep'
 import AppError, {Err} from '../../utils/AppError'
@@ -262,7 +262,7 @@ const getMintFromProof = function (
 export const CashuUtils = {
     findEncodedCashuToken,
     extractEncodedCashuToken,
-    decodeToken,
+    decodeToken,    
     getTokenAmounts,
     getTokenEntryAmount,
     getProofsAmount,

@@ -10,6 +10,10 @@ import {
   useColorScheme,
 } from 'react-native'
 import {formatDistance, toDate} from 'date-fns'
+import {
+    type TokenEntry as CashuTokenEntry,
+    type Proof as CashuProof,
+} from '@cashu/cashu-ts'
 import {useThemeColor, spacing, colors, typography} from '../theme'
 import {
   Button,
@@ -29,10 +33,11 @@ import {Database} from '../services'
 import AppError from '../utils/AppError'
 import {BackupProof, Proof} from '../models/Proof'
 import { useStores } from '../models'
-import { getMintForToken, getProofsAmount } from '../services/cashu/cashuUtils'
+import { CashuUtils } from '../services/cashu/cashuUtils'
 import JSONTree from 'react-native-json-tree'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { getEncodedToken } from '@cashu/cashu-ts'
+import { TokenEntry } from '../models/TokenEntry'
 
 interface LocalRecoveryScreenProps
   extends SettingsStackScreenProps<'LocalRecovery'> {}
@@ -127,30 +132,46 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
 
     const copyEncodedTokens = function (proofs: BackupProof[]) {
         try {
+            setIsLoading(true)
             const encodedTokens: string[] = []
             // TODO group by mints
 
-            for (const proof of proofs) {
-                const mint = getMintForToken(proof, mintsStore.allMints)
-                const { tId, isPending, isSpent, updatedAt, ...cleanedProof } = proof
+            for (const mint of mintsStore.allMints) {
+                
+                let proofsByMint: CashuProof[] = []                
 
-                if(mint) {
-                    const encoded = getEncodedToken({
+                for (const proof of proofs) {
+
+                    const proofMint = CashuUtils.getMintFromProof(proof, mintsStore.allMints)
+                    const { tId, isPending, isSpent, updatedAt, ...cleanedProof } = proof
+
+                    if (!proofMint) { continue }                
+
+                    if(mint.mintUrl === proofMint.mintUrl) {                        
+                        proofsByMint.push(cleanedProof)
+                    }                    
+                }
+
+                if (proofsByMint.length > 0) {
+                    const tokenByMint = {
                         token: [
                             {
                                 mint: mint.mintUrl,
-                                proofs: [
-                                    cleanedProof
-                                ]
+                                proofs: proofsByMint
                             }
                         ]
-                    })
+                    }
 
-                    encodedTokens.push(encoded)
+                    log.trace(tokenByMint)
+
+                    const encodedByMint = getEncodedToken(tokenByMint)
+                    encodedTokens.push(encodedByMint)
                 }
-            }
+            }            
             
-            Clipboard.setString(JSON.stringify(encodedTokens))  
+            Clipboard.setString(JSON.stringify(encodedTokens))
+            setIsLoading(false)
+
         } catch (e: any) {
             setInfo(`Could not copy: ${e.message}`)
         }
@@ -234,7 +255,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
               ContentComponent={
                 <>
                 <Text
-                    style={{color: dateColor, fontSize: 14}}
+                    style={{textAlign: 'center', marginVertical: spacing.small}}
                     text="Backed up proofs"
                 />
                 <JSONTree

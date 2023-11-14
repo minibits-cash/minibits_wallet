@@ -36,7 +36,7 @@
     "mobx": "^6.9.0",
     "mobx-react-lite": "^3.4.3",
     "mobx-state-tree": "^5.1.8",
-    "nostr-tools": "^1.14.0",
+    "nostr-tools": "^1.17.0",
     "numbro": "^2.3.6",
     "patch-package": "^7.0.0",
     "postinstall-postinstall": "^2.1.0",

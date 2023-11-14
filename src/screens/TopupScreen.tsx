@@ -52,6 +52,7 @@ import { roundDown } from '../utils/number'
 import { LnurlClient, LnurlWithdrawResult } from '../services/lnurlService'
 import { update } from 'lodash'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
+import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
 
 if (
   Platform.OS === 'android' &&
@@ -551,10 +552,8 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                 style={{color: 'white'}}
             />
             <View style={$amountContainer}>
-                <Text 
-                    text='SATS' 
-                    size='xxs' 
-                    style={{color: satsColor, fontFamily: typography.primary?.light}}
+                <CurrencySign 
+                    currencyCode={CurrencyCode.SATS}                    
                 />
                 <TextInput
                     ref={amountInputRef}

@@ -117,17 +117,6 @@ const getLnurlAddressParams = async (lnurlAddress: string) => {
     return {
         lnurlParams        
     } as LnurlParamsResult
-
-    /*const encodedInvoice = await getInvoice(lnurlParams)       
-
-    if(encodedInvoice) {
-        return {
-            lnurlParams,
-            encodedInvoice
-        } as LnurlParamsResult
-    }
-
-    throw new AppError(Err.CONNECTION_ERROR, 'Could not get lightning invoice from the LNURL provider', {domain: lnurlParams.domain, caller: 'getLnurlAddressParams'})*/
 }
 
 

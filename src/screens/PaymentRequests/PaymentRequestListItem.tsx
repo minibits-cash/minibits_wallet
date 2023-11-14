@@ -11,6 +11,7 @@ import { NostrClient } from "../../services"
 import { colors, spacing, typography, useThemeColor } from "../../theme"
 import { getImageSource } from '../../utils/utils'
 import { ContactListItem } from "../Contacts/ContactListItem"
+import { CurrencyCode, CurrencySign } from "../Wallet/CurrencySign"
 
 
 export interface PaymentRequestListProps {
@@ -38,11 +39,10 @@ export const PaymentRequestListItem = observer(function (props: PaymentRequestLi
                         preset='heading'
                         text={pr.amount.toLocaleString()}
                     /> 
-                    <Text 
-                        text='SATS'
-                        size='xxs' 
-                        style={{color: hintColor, fontFamily: typography.primary?.light, marginBottom: spacing.small}}
-                    />               
+                    <CurrencySign 
+                        currencyCode={CurrencyCode.SATS}
+                        containerStyle={{marginBottom: spacing.small}}
+                    />             
                 </View>
             }
             ContentComponent={
