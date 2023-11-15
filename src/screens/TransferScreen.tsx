@@ -70,6 +70,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     const [invoiceExpiry, setInvoiceExpiry] = useState<Date | undefined>()
     const [paymentHash, setPaymentHash] = useState<string | undefined>()
     const [lnurlPayParams, setLnurlPayParams] = useState<LNURLPayParams | undefined>()
+    const [isWaitingForFees, setIsWaitingForFees] = useState<boolean>(false)
     const [estimatedFee, setEstimatedFee] = useState<number>(0)
     const [finalFee, setFinalFee] = useState<number>(0)
     const [memo, setMemo] = useState('')
@@ -86,7 +87,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
       useState(false)
     const [isInvoiceDonation, setIsInvoiceDonation] = useState(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)
-    const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus; message: string} | undefined>()
+    const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus; title?: string, message: string} | undefined>()
 
 
 useEffect(() => {
@@ -222,11 +223,12 @@ useEffect(() => {
             if (!mintBalanceToTransferFrom || !encodedInvoice) {
                 return
             }            
-
+            setIsWaitingForFees(true)
             const fee = await MintClient.getLightningFee(
                 mintBalanceToTransferFrom.mint,
                 encodedInvoice,
             )
+            setIsWaitingForFees(false)
             
             if (parseInt(amountToTransfer) + fee > mintBalanceToTransferFrom.balance) {
                 setInfo(
@@ -253,6 +255,7 @@ const resetState = function () {
     setMemo('')
     setAvailableMintBalances([])
     setMintBalanceToTransferFrom(undefined)
+    setIsWaitingForFees(false)
     setTransactionStatus(undefined)
     setInfo('')
     setError(undefined)
@@ -397,7 +400,7 @@ const transfer = async function () {
             encodedInvoice,
         )
 
-        log.trace('Transfer result', {transaction, message, error, finalFee}, 'transfer')
+        log.trace('[transfer]', 'Transfer result', {transaction, message, error, finalFee})
 
         const {status} = transaction as Transaction
         setTransactionStatus(status)
@@ -409,10 +412,12 @@ const transfer = async function () {
             )
         }
 
-        if (error) { // This handles timed out pending payments
+        if (error) { // This handles timed out pending payments           
+
             setResultModalInfo({
                 status,
-                message: message || error.message,
+                title: error.message || 'Payment failed',
+                message: JSON.parse(error.params).message || error.message,
             })
         } else {
             if(!isInvoiceDonation) {  // Donation polling triggers own ResultModal on paid invoice
@@ -538,6 +543,7 @@ const satsColor = colors.palette.primary200
                     <MintBalanceSelector
                         availableMintBalances={availableMintBalances}
                         mintBalanceToSendFrom={mintBalanceToTransferFrom as MintBalance}
+                        isWaitingForFees={isWaitingForFees}
                         onMintBalanceSelect={onMintBalanceSelect}
                         onCancel={onClose}
                         findByUrl={mintsStore.findByUrl}
@@ -633,7 +639,7 @@ const satsColor = colors.palette.primary200
                                 <ResultModalInfo
                                 icon="faTriangleExclamation"
                                 iconColor={colors.palette.angry500}
-                                title="Transfer failed"
+                                title={resultModalInfo?.title || 'Payment failed'}
                                 message={resultModalInfo?.message}
                                 />
                                 <View style={$buttonContainer}>
@@ -682,6 +688,7 @@ const satsColor = colors.palette.primary200
 const MintBalanceSelector = observer(function (props: {
   availableMintBalances: MintBalance[]
   mintBalanceToSendFrom: MintBalance
+  isWaitingForFees: boolean
   onMintBalanceSelect: any
   onCancel: any
   findByUrl: any
@@ -724,9 +731,10 @@ const MintBalanceSelector = observer(function (props: {
       />
       <View style={[$buttonContainer, {marginTop: spacing.large}]}>
         <Button
-          text="Transfer now"
+          text={'Pay now'}
           onPress={props.onMintBalanceConfirm}
-          style={{marginRight: spacing.medium}}          
+          style={{marginRight: spacing.medium}}
+          disabled={props.isWaitingForFees}        
         />
         <Button
           preset="secondary"

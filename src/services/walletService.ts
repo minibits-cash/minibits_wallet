@@ -1597,7 +1597,7 @@ const transfer = async function (
             )
         }
 
-        log.error(e.name, e.message, {}, 'transfer')
+        log.error('[transfer]', e.name, e.message, e.params)
 
         return {
             transaction: errorTransaction || undefined,
@@ -1748,7 +1748,7 @@ const topup = async function (
                 Err.MINT_ERROR,
                 'Received lightning invoice amount does not equal requested top-up amount.',
             )
-        }
+        }        
 
         // sender is current wallet profile
         const {
@@ -1765,7 +1765,12 @@ const topup = async function (
             name,
             nip05,
             picture
-        }  
+        }
+
+        // Private contacts are stored in model, public ones are plain objects
+        const contactTo = isStateTreeNode(contactToSendTo) ? getSnapshot(contactToSendTo) : contactToSendTo
+
+        log.trace('[topup]', 'contactTo', contactTo)
 
         const newPaymentRequest: PaymentRequest = {
             type: PaymentRequestType.OUTGOING,
@@ -1773,14 +1778,14 @@ const topup = async function (
             mint: mintUrl,
             encodedInvoice,
             amount,
-            description: memo ? memo : contactToSendTo ? `Pay to ${walletProfileStore.nip05}` : '',         
+            description: memo ? memo : contactTo ? `Pay to ${walletProfileStore.nip05}` : '',
             paymentHash,
             contactFrom,
-            contactTo: contactToSendTo ? getSnapshot(contactToSendTo) : undefined,
+            contactTo: contactTo || undefined,
             expiry: expiry || 600,
             transactionId,
             createdAt: timestamp ? new Date(timestamp * 1000) : new Date()
-        }
+        }        
 
         // This calculates and sets expiresAt
         const paymentRequest = paymentRequestsStore.addPaymentRequest(newPaymentRequest)
@@ -1948,8 +1953,8 @@ const _formatError = function (e: AppError) {
     return {
         name: e.name,
         message: e.message.slice(0, 100),
-        params: e.params ? e.params.toString().slice(0, 200) : '',
-    } as AppError
+        params: e.params || {},
+    } as AppError 
 }
 
 export const Wallet: WalletService = {

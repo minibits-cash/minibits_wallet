@@ -248,15 +248,16 @@ const payLightningInvoice = async function (
       preimage,
       newKeys
     }
-  } catch (e: any) {throw new AppError(
-    Err.MINT_ERROR, 
-    'Lightning payment failed.', 
-    {
-        caller: 'payLightningInvoice', 
-        mintUrl, 
-        message: e.message
-    }
-)
+  } catch (e: any) {
+    throw new AppError(
+        Err.MINT_ERROR, 
+        'Lightning payment failed.', 
+        {
+            caller: 'payLightningInvoice', 
+            mintUrl, 
+            message: e.message
+        }
+    )
   }
 }
 
@@ -268,7 +269,7 @@ const requestLightningInvoice = async function (
     const cashuWallet = getWallet(mintUrl)
     const {pr, hash} = await cashuWallet.requestMint(amount)
 
-    log.info('Invoice', [pr, hash], 'requestLightningInvoice')
+    log.info('[requestLightningInvoice]', {pr, hash})
 
     return {
       encodedInvoice: pr,

@@ -106,7 +106,7 @@ const getInvoiceData = function (decoded: DecodedLightningInvoice) {
 
     result.expiry = decoded.expiry || 600
 
-    log.trace('Invoice data', result, 'getInvoiceData')
+    log.trace('[getInvoiceData]', result)
     
     return result
 }
