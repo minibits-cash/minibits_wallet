@@ -6,7 +6,7 @@
 - This wallet should be used for research purposes only.
 - The wallet is an alpha version with incomplete functionality and both known and unknown bugs.
 - Do not use it with large amounts of ecash.
-- The e-cash stored in the wallet is issued by the mint. You trust the mint to back it with bitcoin until you transfer your holdings to another bitcoin Lightning wallet.
+- The ecash stored in the wallet is issued by the mint. You trust the mint to back it with bitcoin until you transfer your holdings to another bitcoin Lightning wallet.
 - The Cashu protocol that the wallet implements has not yet received extensive review or testing so far.
 
 
@@ -79,7 +79,7 @@ Contacts
 
 Backup and recovery
 - [x] Local append-only backup of all ecash in a database separate from wallet storage
-- [ ] Recovery tool to recover ecash from local backup
+- [x] Recovery tool to recover ecash from local backup
 - [x] Recover wallet in case spent ecash remain in the wallet due to an exception during a transaction
 - [ ] Off-device backup
 - [ ] Smooth migration to another device
@@ -117,7 +117,7 @@ As a result, the following architectural constraints are in place:
 Open architectural concepts worth wider discussion
 - [x] Contacts management - identities, sharing contacts, send ecash with the UX of tradfi instant payment while keeping privacy towards mints - Implemented as NOSTR keypairs and NIP05 public sharable names that ecash can be sent to
 - [ ] Off-device backup strategy - many options exist with or without mint interaction
-- [ ] UX and naming conventions - e-cash is not always intuitive. UX for new users heavily depends on using the right abstractions or terms to describe what is going on. This wallet wants to serve as a means to test what could work. One of the first ideas is to avoid terms such as token or proof and propose the term --coin ++ecash instead.
+- [ ] UX and naming conventions - ecash is not always intuitive. UX for new users heavily depends on using the right abstractions or terms to describe what is going on. This wallet wants to serve as a means to test what could work. One of the first ideas is to avoid terms such as token or proof and propose the term --coin ++ecash instead.
 
 
 ## Download and test

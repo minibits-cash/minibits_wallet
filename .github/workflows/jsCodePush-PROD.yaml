@@ -99,7 +99,7 @@ jobs:
 
       - name: Install Sentry CLI
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
-        run: npm install @sentry/cli
+        run: npm install @sentry/cli --legacy-peer-deps
           
       # Code push with source maps export for Sentry
       - name: Install AppCenter CLI
