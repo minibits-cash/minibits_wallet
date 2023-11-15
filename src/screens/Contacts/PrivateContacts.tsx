@@ -347,7 +347,7 @@ export const PrivateContacts = observer(function (props: {
                             value={newContactName}
                             autoCapitalize='none'
                             keyboardType='default'
-                            maxLength={16}                            
+                            maxLength={60}                            
                             selectTextOnFocus={true}
                             style={[$contactInput, {backgroundColor: inputBg}, (isExternalDomain) && {marginRight: spacing.small, borderTopRightRadius: spacing.small, borderBottomRightRadius: spacing.small}]}                        
                         />

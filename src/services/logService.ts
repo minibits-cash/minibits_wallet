@@ -59,7 +59,7 @@ const log = logger.createLogger<LogLevel.TRACE | LogLevel.DEBUG | LogLevel.INFO 
         warn: 3,
         error: 4,
     },
-    transport: __DEV__ ? mapConsoleTransport : customSentryTransport,
+    transport: customSentryTransport,
     transportOptions: {        
         SENTRY: Sentry,
         mapLevels: {
