@@ -3,7 +3,7 @@ import React, {FC, useRef, useState} from 'react'
 import {Image, LayoutAnimation, Platform, Share, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
 import {getPublicKey} from 'nostr-tools'
 import RNExitApp from 'react-native-exit-app'
-import {spacing, typography, useThemeColor} from '../theme'
+import {colors, spacing, typography, useThemeColor} from '../theme'
 import {ContactsStackScreenProps} from '../navigation'
 import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, Header, Loading} from '../components'
 import {useHeader} from '../utils/useHeader'
@@ -13,6 +13,7 @@ import Clipboard from '@react-native-clipboard/clipboard'
 import { log } from '../services/logService'
 import { KeyChain, KeyPair, NostrClient, NostrEvent, NostrFilter, NostrProfile } from '../services'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
+import { ProfileHeader } from './Contacts/ProfileHeader'
 
 
 if (Platform.OS === 'android' &&
@@ -46,6 +47,7 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState<boolean>(false) 
     const [isSetupCompleted, setIsSetupCompleted] = useState<boolean>(false)
+    const [isProfileChangeCompleted, setIsProfileChangeCompleted] = useState<boolean>(false)
 
 
     const resetState = function () {
@@ -56,6 +58,7 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
         setInfo('')
         setIsLoading(false)
         setIsSetupCompleted(false)
+        setIsProfileChangeCompleted(false)
     }
     
     const onPasteOwnNip05 = async function () {
@@ -180,10 +183,9 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
             await KeyChain.saveNostrKeyPair(ownKeyPair)
 
             setIsLoading(false)
-            setInfo('All set, restarting...')
-
+            setIsProfileChangeCompleted(true)
             // restart
-            setTimeout(() => {RNExitApp.exitApp()}, 1000)            
+            // setTimeout(() => {RNExitApp.exitApp()}, 1000)            
             
         } catch(e: any) {
             handleError(e)
@@ -202,7 +204,7 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
     }
 
     const iconNip05 = useThemeColor('textDim')
-    const textPubkey = useThemeColor('textDim')
+    const textResult = useThemeColor('textDim')
     const inputBg = useThemeColor('background')
     
     return (
@@ -335,6 +337,7 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
                     ContentComponent={
                     <ListItem
                         leftIcon='faCheckCircle'
+                        leftIconColor={colors.palette.success200}
                         text='Profile change is ready'
                         subText='Wallet needs to restart to apply this change.'                      
                         style={{}}
@@ -344,7 +347,7 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
                     <View style={$buttonContainer}>
                         <Button
                             preset="default"
-                            text={'Save and shut down'}
+                            text={'Apply change'}
                             onPress={onConfirmChange}
                         />
                         <Button
@@ -358,6 +361,29 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
             )}
 
         </View>
+        <BottomModal
+            isVisible={isProfileChangeCompleted ? true : false}            
+            ContentComponent={
+                <View style={$bottomModal}>                
+                    <ProfileHeader headerBg='transparent' />
+                    <Text 
+                        style={{color: textResult, textAlign: 'center', marginTop: spacing.small}} 
+                        text={'Profile change is complete.'} 
+                    />
+                    <View style={$buttonContainer}>
+                    <Button
+                        preset="secondary"
+                        tx={'common.close'}
+                        onPress={() => {
+                            navigation.navigate('Contacts', {})
+                        }}
+                    />
+                    </View>             
+                </View>
+            }
+            onBackButtonPress={() => navigation.navigate('Contacts', {})}
+            onBackdropPress={() => navigation.navigate('Contacts', {})}
+        />
         {isLoading && <Loading />}
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
@@ -420,10 +446,9 @@ const $nip05Input: TextStyle = {
 }
 
 const $bottomModal: ViewStyle = {
-    // flex: 1,
-    alignItems: 'center',
+    alignItems: 'center',  
     paddingVertical: spacing.large,
-    paddingHorizontal: spacing.small,
+    paddingHorizontal: spacing.small,  
 }
 
 const $bottomContainer: ViewStyle = {

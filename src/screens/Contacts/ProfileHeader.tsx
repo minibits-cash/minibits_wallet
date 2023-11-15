@@ -9,6 +9,7 @@ import { getImageSource } from '../../utils/utils'
 
 
 export interface ProfileHeaderProps {
+    headerBg?: string
 }
 
 export const ProfileHeader = observer(function (props: ProfileHeaderProps) {
@@ -18,7 +19,7 @@ export const ProfileHeader = observer(function (props: ProfileHeaderProps) {
     const headerBg = useThemeColor('header')
 
     return (
-        <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
+        <View style={[$headerContainer, {backgroundColor: props.headerBg || headerBg}]}>            
             {picture ? (
                 <Image 
                     style={{
