@@ -29,7 +29,7 @@ export const ContactListItem = observer(function (props: ContactListProps) {
             $iconContainer, {
                 width: 40, 
                 height: contact.isExternalDomain ? 40 :  43,
-                borderRadius: contact.isExternalDomain ? 20 :  0,
+                borderRadius: 20,
             }]} source={{uri: getImageSource(contact.picture as string)}} />}  
         RightComponent={
           <></>
