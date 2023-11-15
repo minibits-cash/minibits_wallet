@@ -6,7 +6,7 @@ import {
 import {lightFormat} from 'date-fns'
 import * as Sentry from '@sentry/react-native'
 import {rootStoreInstance} from '../models'
-import {Env, LogLevel} from './log/logTypes'
+import {LogLevel} from './log/logTypes'
 
 const {    
     userSettingsStore

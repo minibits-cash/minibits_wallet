@@ -272,12 +272,21 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
                                     style={{}}
                                 />
                             )}
+                            {isSetupCompleted && (
+                                <ListItem
+                                    leftIcon='faKey'
+                                    text='Private key'
+                                    subText={ownNsec}                        
+                                    topSeparator={true}
+                                    style={{}}
+                                />
+                            )}
                         </>
                     )}
                     </>
                 }
             />
-            {ownProfile && (
+            {ownProfile && !isSetupCompleted && (
                 <Card
                     style={[$card, {marginTop: spacing.medium}]}
                     ContentComponent={
@@ -320,18 +329,32 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
             )}
 
             {ownProfile && isSetupCompleted && (
-                <View style={$buttonContainer}>
-                    <Button
-                        preset="default"
-                        text={'Save and restart'}
-                        onPress={onConfirmChange}
+                <>
+                <Card
+                    style={[$card, {marginTop: spacing.medium}]}
+                    ContentComponent={
+                    <ListItem
+                        leftIcon='faCheckCircle'
+                        text='Profile change is ready'
+                        subText='Wallet needs to restart to apply this change.'                      
+                        style={{}}
                     />
-                    <Button
-                        preset="secondary"
-                        text={'Save my soul'}
-                        onPress={onCancelChange}
+                    }
                     />
-                </View>
+                    <View style={$buttonContainer}>
+                        <Button
+                            preset="default"
+                            text={'Save and shut down'}
+                            onPress={onConfirmChange}
+                        />
+                        <Button
+                            preset="secondary"
+                            text={'Save my soul'}
+                            onPress={onCancelChange}
+                        />
+                    </View>
+                </>
+
             )}
 
         </View>

@@ -138,9 +138,12 @@ export const WalletProfileStoreModel = types
                     name,
                     avatar: picture
                 }
-            )   
+            )
 
+            log.trace('[updateNip05]', 'profileRecord', {profileRecord})
+            
             self.pubkey = newPubkey
+            self.walletId = profileRecord.walletId
             self.nip05 = profileRecord.nip05
             self.name = profileRecord.name
             self.picture = profileRecord.avatar

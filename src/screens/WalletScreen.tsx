@@ -59,6 +59,7 @@ import Clipboard from '@react-native-clipboard/clipboard'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
+import { WalletProfileStoreModel } from '../models/WalletProfileStore'
 
 
 
@@ -75,7 +76,14 @@ type RelayStatus = {
 
 export const WalletScreen: FC<WalletScreenProps> = observer(
   function WalletScreen({route, navigation}) {    
-    const {mintsStore, proofsStore, transactionsStore, paymentRequestsStore, userSettingsStore} = useStores()
+    const {
+        mintsStore, 
+        proofsStore, 
+        transactionsStore, 
+        paymentRequestsStore, 
+        userSettingsStore, 
+        walletProfileStore
+    } = useStores()
     
     const appState = useRef(AppState.currentState)
     const isInternetReachable = useIsInternetReachable()
@@ -134,6 +142,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             if(clipboard) {
                 handleClipboard(clipboard)
             }
+
+            log.trace('[getInitialData]', 'walletProfile', walletProfileStore)
         }
          
 

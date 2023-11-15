@@ -225,8 +225,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                         style={{color: 'white'}}
                     />
                     <CurrencySign 
-                        currencyCode={CurrencyCode.SATS}
-                        containerStyle={{marginTop: -5}}
+                        currencyCode={CurrencyCode.SATS}                        
                     />
                     <Text
                         style={$amountToReceive}

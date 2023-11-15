@@ -598,7 +598,7 @@ const satsColor = colors.palette.primary200
                                 <ResultModalInfo
                                     icon="faCheckCircle"
                                     iconColor={colors.palette.success200}
-                                    title="Transfer completed"
+                                    title="Payment completed"
                                     message={resultModalInfo?.message}
                                 />
                                 <View style={$buttonContainer}>
