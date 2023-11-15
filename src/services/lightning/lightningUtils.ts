@@ -27,7 +27,7 @@ const extractEncodedLightningInvoice = function (maybeInvoice: string) {
     let invoice: DecodedLightningInvoice 
     let encodedInvoice: string = ''
 
-    if (maybeInvoice.startsWith('lightning:')) {       
+    if (maybeInvoice && maybeInvoice.startsWith('lightning:')) {       
 
         // URI token formats
         const uriPrefixes = [
@@ -36,7 +36,7 @@ const extractEncodedLightningInvoice = function (maybeInvoice: string) {
         ]
 
         for (const prefix of uriPrefixes) {
-            if (maybeInvoice.startsWith(prefix)) {            
+            if (maybeInvoice && maybeInvoice.startsWith(prefix)) {            
                 encodedInvoice = maybeInvoice.slice(prefix.length)
                 break // necessary
             }
@@ -46,7 +46,7 @@ const extractEncodedLightningInvoice = function (maybeInvoice: string) {
         return encodedInvoice        
     }
 
-    if (maybeInvoice.startsWith('bitcoin:')) {        
+    if (maybeInvoice && maybeInvoice.startsWith('bitcoin:')) {        
         const url = new URL(maybeInvoice)
         // Use URLSearchParams to get the value of the "lightning" parameter
         encodedInvoice = url.searchParams.get("lightning") as string

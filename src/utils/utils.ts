@@ -16,7 +16,7 @@ export const delay = (ms: number) =>
  */
 
 export const getImageSource = function(img: string) {
-    if(img.startsWith('http')) {
+    if(img && img.startsWith('http')) {
         return img
     } else {
         return `data:image/png;base64,${img}`

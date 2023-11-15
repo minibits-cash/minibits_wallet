@@ -1072,7 +1072,7 @@ const SendAsNostrDMBlock = observer(function (props: {
           />
         </ScrollView>
         {props.isNostrDMSending ? (
-            <View style={$buttonContainer}> 
+            <View style={[$buttonContainer, {minHeight: verticalScale(55)}]}>
                 <Loading />
             </View>            
         ) : (
@@ -1112,11 +1112,11 @@ const SendAsNostrDMBlock = observer(function (props: {
   
     return (
       <View style={$bottomModal}>
-        <NostDMInfoBlock
+        {/*<NostDMInfoBlock
             contactToSendFrom={props.contactToSendFrom}
             amountToSend={props.amountToSend}
             contactToSendTo={props.contactToSendTo}
-        />
+        />*/}
         <ResultModalInfo
             icon="faCheckCircle"
             iconColor={colors.palette.success200}

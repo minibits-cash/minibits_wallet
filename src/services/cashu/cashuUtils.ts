@@ -25,7 +25,7 @@ const extractEncodedCashuToken = function (maybeToken: string): string {
     let encodedToken: string | undefined = undefined
     let decoded: Token | undefined = undefined
     
-    if (maybeToken.startsWith('cashuA')) {
+    if (maybeToken && maybeToken.startsWith('cashuA')) {
         decoded = decodeToken(maybeToken) // throws
         return maybeToken
     }
@@ -40,7 +40,7 @@ const extractEncodedCashuToken = function (maybeToken: string): string {
 	]
 
 	for (const prefix of uriPrefixes) {
-		if (maybeToken.startsWith(prefix)) {            
+		if (maybeToken && maybeToken.startsWith(prefix)) {            
             encodedToken = maybeToken.slice(prefix.length)
             break // necessary
         }

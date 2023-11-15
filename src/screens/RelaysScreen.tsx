@@ -75,7 +75,7 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
 
     const onSavePublicRelay = function () {        
         try {
-            if(newPublicRelay.startsWith('wss://')) {
+            if(newPublicRelay && newPublicRelay.startsWith('wss://')) {
                 if(relaysStore.alreadyExists(newPublicRelay)) {
                     setInfo('Relay already exists.')
                     return

@@ -210,7 +210,7 @@ export const PublicContacts = observer(function (props: {
 
     const onSavePublicPubkey = function () {        
         try {
-            if(newPublicPubkey.startsWith('npub')) {
+            if(newPublicPubkey && newPublicPubkey.startsWith('npub')) {
                 const hexKey = NostrClient.getHexkey(newPublicPubkey)                
                 contactsStore.setPublicPubkey(hexKey)                
                 resetContactsState()
@@ -252,7 +252,7 @@ export const PublicContacts = observer(function (props: {
 
     const onSavePublicRelay = function () {        
         try {
-            if(newPublicRelay.startsWith('wss://')) {                
+            if(newPublicRelay && newPublicRelay.startsWith('wss://')) {                
                 if(relaysStore.alreadyExists(newPublicRelay)) {
                     setInfo('Relay already exists.')
                     return

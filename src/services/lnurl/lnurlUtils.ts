@@ -28,7 +28,7 @@ const extractEncodedLnurl = function (maybeLnurl: string) {
         return maybeLnurl
     }
 
-    if (maybeLnurl.startsWith('http')) { // e.g. lnbits withdraw extension links
+    if (maybeLnurl && maybeLnurl.startsWith('http')) { // e.g. lnbits withdraw extension links
         const parsed = new URL(maybeLnurl)
         encodedLnurl = parsed.searchParams.get('lightning')
 
@@ -50,7 +50,7 @@ const extractEncodedLnurl = function (maybeLnurl: string) {
 	]
 
 	for (const prefix of uriPrefixes) {
-		if (maybeLnurl.startsWith(prefix)) {            
+		if (maybeLnurl && maybeLnurl.startsWith(prefix)) {            
             encodedLnurl = maybeLnurl.slice(prefix.length)
             break // necessary
         }

@@ -974,7 +974,7 @@ const SendAsNostrDMBlock = observer(function (props: {
           />
         </ScrollView>
         {props.isNostrDMSending ? (
-            <View style={[$buttonContainer, {minHeight: verticalScale(50)}]}>
+            <View style={[$buttonContainer, {minHeight: verticalScale(55)}]}>
                 <Loading />
             </View>            
         ) : (
