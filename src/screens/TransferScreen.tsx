@@ -45,6 +45,7 @@ import { roundDown, roundUp } from '../utils/number'
 import { LnurlClient } from '../services/lnurlService'
 import { moderateScale, scale, verticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
+import { FeeBadge } from './Wallet/FeeBadge'
 
 if (
   Platform.OS === 'android' &&
@@ -482,9 +483,6 @@ const satsColor = colors.palette.primary200
                     style={{color: 'white'}}
                 />
                 <View style={$amountContainer}>                    
-                    <CurrencySign 
-                        currencyCode={CurrencyCode.SATS}                        
-                    />
                     <TextInput
                         ref={amountInputRef}
                         onChangeText={amount => setAmountToTransfer(amount)}                                
@@ -497,24 +495,18 @@ const satsColor = colors.palette.primary200
                         editable={
                             encodedInvoice ? false : true
                         }
-                    />                
-                    {transactionStatus === TransactionStatus.COMPLETED ? (
-                        <Text
-                            style={{position: 'absolute', bottom: -5, color: feeColor, fontFamily: typography.primary?.light}}
-                            size='xxs' 
-                            text={`+ final fee ${finalFee.toLocaleString()} sats`}
-                        />
+                    />
+                    {encodedInvoice && (estimatedFee || finalFee) ? (
+                        <FeeBadge
+                            currencyCode={CurrencyCode.SATS}
+                            estimatedFee={estimatedFee}
+                            finalFee={finalFee}              
+                        />    
                     ) : (
-                        <>
-                            {encodedInvoice && (
-                                <Text
-                                    style={{position: 'absolute', bottom: -5, color: feeColor, fontFamily: typography.primary?.light}}
-                                    size='xxs' 
-                                    text={`+ estimated fee ${estimatedFee.toLocaleString()} sats`}
-                                />
-                            )} 
-                        </>                       
-                    )}
+                        <CurrencySign 
+                            currencyCode={CurrencyCode.SATS}                        
+                        />
+                    )}                    
                 </View>
             </View>
             <View style={$contentContainer}>
@@ -751,32 +743,28 @@ const $screen: ViewStyle = {
 }
 
 const $headerContainer: TextStyle = {
-  alignItems: 'center',
-  padding: spacing.extraSmall,
-  paddingTop: 0,
-  height: spacing.screenHeight * 0.18,
-}
+    alignItems: 'center',
+    padding: spacing.extraSmall,
+    paddingTop: 0,
+    height: spacing.screenHeight * 0.18,  
+  }
+  
+  const $amountContainer: ViewStyle = {
+  }
+  
+  const $amountInput: TextStyle = {    
+      borderRadius: spacing.small,
+      margin: 0,
+      padding: 0,
+      fontSize: 52,
+      fontWeight: '400',    
+      textAlign: 'center',
+      color: 'white',    
+  }
 
 const $contentContainer: TextStyle = {
     flex: 1,
     padding: spacing.extraSmall,    
-}
-
-const $amountContainer: ViewStyle = {
-    height: verticalScale(100) * 1.05,
-    alignItems: 'center',
-    justifyContent: 'center',
-}
-
-const $amountInput: TextStyle = {
-    flex: 1,
-    borderRadius: spacing.small,
-    fontSize: 52,
-    fontWeight: '400',
-    // textAlignVertical: 'bottom',
-    textAlign: 'center',    
-    color: 'white',
-    // borderWidth: 1, borderColor: 'red'
 }
 
 const $iconContainer: ViewStyle = {

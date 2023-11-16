@@ -565,13 +565,14 @@ const TotalBalanceBlock = observer(function (props: {
 }) {
     const headerBg = useThemeColor('header')
     const balanceColor = 'white'
-    const pendingBalanceColor = colors.palette.primary200
+    const currencyColor = colors.palette.primary200
 
     return (
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
             <CurrencySign 
                 currencyCode={CurrencyCode.SATS}
-                containerStyle={{marginTop: -5}}
+                containerStyle={{marginTop: -5, backgroundColor: 'transparent'}}
+                textStyle={{color: currencyColor}}
             />
             <Text
                 testID='total-balance'

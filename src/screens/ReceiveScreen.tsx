@@ -1,7 +1,7 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useState, useCallback} from 'react'
 import {CommonActions, useFocusEffect} from '@react-navigation/native'
-import {Alert, TextStyle, View, ViewStyle} from 'react-native'
+import {Alert, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
 import {spacing, useThemeColor, colors, typography} from '../theme'
 import {WalletStackScreenProps} from '../navigation'
@@ -199,42 +199,36 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
     return (
       <Screen preset="auto" contentContainerStyle={$screen}>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          
+            <Text
+                preset="subheading"
+                tx={receivedAmount > 0 ? "receiveScreen.received" : "receiveScreen.toReceive"}
+                style={{color: 'white'}}
+            />
+            {receivedAmount > 0 ? (
             <View style={$amountContainer}>
-                {amountToReceive > 0 && receivedAmount === 0 && (
-                <>
-                    <Text
-                        preset="subheading"
-                        tx="receiveScreen.toReceive"
-                        style={{color: 'white'}}
-                    />
-                    <CurrencySign 
-                        currencyCode={CurrencyCode.SATS}                        
-                    />
-                    <Text
-                        style={$amountToReceive}
-                        text={amountToReceive.toLocaleString()}
-                    />
-                </>
-                )}
-                {receivedAmount > 0 && (
-                <>
-                    <Text
-                        preset="subheading"
-                        tx="receiveScreen.received"
-                        style={{color: 'white'}}
-                    />
-                    <CurrencySign 
-                        currencyCode={CurrencyCode.SATS}                        
-                    />
-                    <Text
-                        style={$amountToReceive}
-                        text={receivedAmount.toLocaleString()}
-                    />
-                </>
-                )} 
-              
-            </View>          
+                <CurrencySign 
+                    currencyCode={CurrencyCode.SATS}                        
+                />
+                <TextInput                                        
+                    value={receivedAmount.toLocaleString()}
+                    style={$amountToReceive}
+                    maxLength={9}                    
+                    editable={false}
+                />
+            </View>
+            ) : (
+            <View style={$amountContainer}>
+                <TextInput                                        
+                    value={amountToReceive.toLocaleString()}
+                    style={$amountToReceive}
+                    maxLength={9}                    
+                    editable={false}
+                />
+                <CurrencySign 
+                    currencyCode={CurrencyCode.SATS}                        
+                />
+            </View>
+           )}
         </View>
         <View style={$contentContainer}>          
           {token && amountToReceive > 0 && (
@@ -417,21 +411,29 @@ const $screen: ViewStyle = {
 }
 
 const $headerContainer: TextStyle = {
-  alignItems: 'center',
-  padding: spacing.extraSmall,
-  height: spacing.screenHeight * 0.18,
+    alignItems: 'center',
+    padding: spacing.extraSmall,
+    paddingTop: 0,
+    height: spacing.screenHeight * 0.18,
+}
+
+const $amountContainer: ViewStyle = {
+}
+
+const $amountToReceive: TextStyle = {    
+    borderRadius: spacing.small,
+    margin: 0,
+    padding: 0,
+    fontSize: 52,
+    fontWeight: '400',    
+    textAlign: 'center',
+    color: 'white',    
 }
 
 const $contentContainer: TextStyle = {
   flex: 1,
   padding: spacing.extraSmall,
   // alignItems: 'center',
-}
-
-const $optionsCard: ViewStyle = {
-  marginTop: -spacing.extraLarge * 2,
-  marginBottom: spacing.small,
-  paddingTop: 0,
 }
 
 const $card: ViewStyle = {
@@ -454,21 +456,6 @@ const $iconContainer: ViewStyle = {
 const $buttonContainer: ViewStyle = {
   flexDirection: 'row',
   alignSelf: 'center',
-}
-
-const $amountContainer: ViewStyle = {
-    // height: verticalScale(100) * 1.05,
-    alignItems: 'center',
-    justifyContent: 'center',
-}
-
-const $amountToReceive: TextStyle = {
-    flex: 1,
-    paddingTop: spacing.large,
-    fontSize: 52,
-    fontWeight: '400',
-    textAlignVertical: 'center',
-    color: 'white',
 }
 
 const $bottomContainer: ViewStyle = {

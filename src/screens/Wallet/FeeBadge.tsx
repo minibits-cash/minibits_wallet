@@ -1,16 +1,18 @@
 import React from "react"
 import { TextStyle, View, ViewStyle } from "react-native"
-import { Text } from "../../components"
+import { Button, Icon, IconTypes, ListItem, Screen, Text } from "../../components"
 import { colors, spacing, typography, useThemeColor } from "../../theme"
 
 export enum CurrencyCode {
     SATS = 'SATS',    
 }
 
-export const CurrencySign = function(props: {
+export const FeeBadge = function(props: {
     currencyCode: CurrencyCode,
+    estimatedFee: number,
+    finalFee: number,
     containerStyle?: ViewStyle,
-    textStyle?: TextStyle
+    textStyle?: TextStyle,
   }
 ) {
   
@@ -28,7 +30,7 @@ export const CurrencySign = function(props: {
             }, props.containerStyle || {}]}
         >
         <Text 
-            text='₿ sats'            
+            text={props.finalFee ? `+ final fee ${props.finalFee} sats` : `+ fee up to ${props.estimatedFee} sats`}
             style={[{
                 color: textColor,
                 fontSize: 10,

@@ -98,7 +98,9 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                     }
 
                     e.params = incoming
+                    e.message = 'Could not extract ecash token nor LNURL withdraw link to receive.'
                     handleError(e)
+                    break
                 }   
             case 'SendOptions':     
                 try {               

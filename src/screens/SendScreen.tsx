@@ -549,9 +549,6 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 style={{color: 'white'}}
             />          
             <View style={$amountContainer}>
-                <CurrencySign 
-                    currencyCode={CurrencyCode.SATS}
-                />
                 <TextInput
                     ref={amountInputRef}
                     onChangeText={amount => setAmountToSend(amount)}                
@@ -566,6 +563,9 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                             ? false 
                             : true
                     }
+                />
+                <CurrencySign 
+                    currencyCode={CurrencyCode.SATS}
                 />
             </View>          
         </View>
@@ -1204,33 +1204,27 @@ const $screen: ViewStyle = {
 const $headerContainer: TextStyle = {
   alignItems: 'center',
   padding: spacing.extraSmall,
+  paddingTop: 0,
   height: spacing.screenHeight * 0.18,
 
+}
+
+const $amountContainer: ViewStyle = {
+}
+
+const $amountInput: TextStyle = {    
+    borderRadius: spacing.small,
+    margin: 0,
+    padding: 0,
+    fontSize: 52,
+    fontWeight: '400',    
+    textAlign: 'center',
+    color: 'white',    
 }
 
 const $contentContainer: TextStyle = {
     flex: 1,
     padding: spacing.extraSmall,
-}
-
-const $amountContainer: ViewStyle = {
-  height: verticalScale(100) * 1.05,
-  alignItems: 'center',
-  justifyContent: 'center',
-}
-
-const $coinSelectorContainer: ViewStyle = {
-    marginTop: spacing.medium
-  }
-
-const $amountInput: TextStyle = {
-  flex: 1,
-  borderRadius: spacing.small,
-  fontSize: 52,
-  fontWeight: '400',
-  textAlignVertical: 'center',
-  textAlign: 'center',
-  color: 'white',
 }
 
 const $memoCard: ViewStyle = {
