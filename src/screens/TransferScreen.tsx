@@ -46,6 +46,7 @@ import { LnurlClient } from '../services/lnurlService'
 import { moderateScale, scale, verticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
 import { FeeBadge } from './Wallet/FeeBadge'
+import { isObj } from '@cashu/cashu-ts/src/utils'
 
 if (
   Platform.OS === 'android' &&
@@ -415,11 +416,20 @@ const transfer = async function () {
 
         if (error) { // This handles timed out pending payments           
 
-            setResultModalInfo({
-                status,
-                title: error.message || 'Payment failed',
-                message: JSON.parse(error.params).message || error.message,
-            })
+            if(status === TransactionStatus.PENDING) {
+                setResultModalInfo({
+                    status,                    
+                    message,
+                })
+            } else {
+                setResultModalInfo({
+                    status,
+                    title: error.params?.message ? error.message : 'Payment failed',
+                    message: error.params?.message || error.message,
+                })
+            }
+            
+
         } else {
             if(!isInvoiceDonation) {  // Donation polling triggers own ResultModal on paid invoice
                 setResultModalInfo({
@@ -629,10 +639,10 @@ const satsColor = colors.palette.primary200
                             transactionStatus === TransactionStatus.ERROR && (
                             <>
                                 <ResultModalInfo
-                                icon="faTriangleExclamation"
-                                iconColor={colors.palette.angry500}
-                                title={resultModalInfo?.title || 'Payment failed'}
-                                message={resultModalInfo?.message}
+                                    icon="faTriangleExclamation"
+                                    iconColor={colors.palette.angry500}
+                                    title={resultModalInfo?.title || 'Payment failed'}
+                                    message={resultModalInfo?.message}
                                 />
                                 <View style={$buttonContainer}>
                                 <Button
@@ -647,10 +657,10 @@ const satsColor = colors.palette.primary200
                             transactionStatus === TransactionStatus.PENDING && (
                             <>
                                 <ResultModalInfo
-                                icon="faTriangleExclamation"
-                                iconColor={colors.palette.iconYellow300}
-                                title="Transfer pending"
-                                message={resultModalInfo?.message}
+                                    icon="faTriangleExclamation"
+                                    iconColor={colors.palette.iconYellow300}
+                                    title="Payment is pending"
+                                    message={resultModalInfo?.message}
                                 />
                                 <View style={$buttonContainer}>
                                 <Button

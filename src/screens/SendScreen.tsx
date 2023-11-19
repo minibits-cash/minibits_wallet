@@ -97,7 +97,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     const [error, setError] = useState<AppError | undefined>()
     const [isAmountEndEditing, setIsAmountEndEditing] = useState<boolean>(false)
     const [isSharedAsNostrDirectMessage, setIsSharedAsNostrDirectMessage] = useState<boolean>(false)
-    const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus, message: string} | undefined>()
+    const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus, title?: string, message: string} | undefined>()
     const [isMemoEndEditing, setIsMemoEndEditing] = useState<boolean>(false)
     const [isLoading, setIsLoading] = useState(false)
 
@@ -317,7 +317,8 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         if (result.error) {
             setResultModalInfo({
                 status: result.transaction?.status as TransactionStatus,
-                message: result.error.message,
+                title: result.error.params?.message ? result.error.message : 'Send failed',
+                message: result.error.params?.message || result.error.message,
             })
             setIsResultModalVisible(true)
             return
@@ -737,7 +738,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                     <ResultModalInfo
                       icon="faTriangleExclamation"
                       iconColor={colors.palette.angry500}
-                      title="Send failed"
+                      title={resultModalInfo?.title || "Send failed"}
                       message={resultModalInfo?.message}
                     />
                     <View style={$buttonContainer}>

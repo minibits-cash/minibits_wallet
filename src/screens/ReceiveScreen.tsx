@@ -57,7 +57,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
     const [isLoading, setIsLoading] = useState(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)
     const [resultModalInfo, setResultModalInfo] = useState<
-      {status: TransactionStatus; message: string} | undefined
+      {status: TransactionStatus; title?: string, message: string} | undefined
     >()
 
     useFocusEffect(
@@ -167,7 +167,8 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         if (error) {
             setResultModalInfo({
                 status,
-                message: error.message,
+                title: error.params?.message ? error.message : 'Receive failed',
+                message: error.params?.message || error.message,
             })
         } else {
             setResultModalInfo({
@@ -382,7 +383,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                   <ResultModalInfo
                     icon="faTriangleExclamation"
                     iconColor={colors.palette.angry500}
-                    title="Receive failed"
+                    title={resultModalInfo?.title as string || 'Receive failed'}
                     message={resultModalInfo?.message as string}
                   />
                   <View style={$buttonContainer}>

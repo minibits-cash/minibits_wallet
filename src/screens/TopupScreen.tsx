@@ -92,7 +92,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     const [isAmountEndEditing, setIsAmountEndEditing] = useState<boolean>(false)
     const [isMemoEndEditing, setIsMemoEndEditing] = useState<boolean>(false)
 
-    const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus; message: string} | undefined>()
+    const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus; title?: string, message: string} | undefined>()
 
     const [isLoading, setIsLoading] = useState(false)
 
@@ -310,7 +310,8 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         if (result.error) {
             setResultModalInfo({
                 status: result.transaction?.status as TransactionStatus,
-                message: result.error.message,
+                title: result.error.params?.message ? result.error.message : 'Topup failed',
+                message: result.error.params?.message || result.error.message,
             })
             setIsResultModalVisible(true)
             return
@@ -736,7 +737,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                     <ResultModalInfo
                       icon="faTriangleExclamation"
                       iconColor={colors.palette.angry500}
-                      title="Topup failed"
+                      title={resultModalInfo?.title || "Topup failed"}
                       message={resultModalInfo?.message}
                     />
                     <View style={$buttonContainer}>

@@ -1952,7 +1952,7 @@ const _updateMintKeys = function (mintUrl: string, newKeys: MintKeys) {
 const _formatError = function (e: AppError) {
     return {
         name: e.name,
-        message: e.message.slice(0, 100),
+        message: e.message.slice(0, 150),
         params: e.params || {},
     } as AppError 
 }
