@@ -75,6 +75,10 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
       navigation.navigate('LocalRecovery')
     }
 
+    const gotoRemoteBackup = function () {
+        navigation.navigate('RemoteBackup')
+      }
+
     const checkSpent = async function () {
       setIsLoading(true)
       const result = (await Wallet.checkSpent()) as {
@@ -144,6 +148,22 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
               </>
             }
           />
+          <Card
+            style={$card}
+            HeadingComponent={
+              <>                
+                <ListItem
+                  tx="backupScreen.remoteBackup"
+                  subTx="backupScreen.remoteBackupDescription"
+                  leftIcon='faDownload'
+                  leftIconColor={colors.palette.blue200}
+                  leftIconInverse={true}
+                  style={$item}
+                  onPress={gotoRemoteBackup}
+                />
+              </>
+            }
+        />
         <Card
             style={$card}
             HeadingComponent={

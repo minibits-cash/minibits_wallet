@@ -26,6 +26,7 @@ import {
   PrivacyScreen,
   UpdateScreen,
   BackupScreen,
+  RemoteBackupScreen,
   LocalRecoveryScreen,
   RelaysScreen,
   TranDetailScreen, 
@@ -212,6 +213,7 @@ export type SettingsStackParamList = {
     updateSize: string,
   }
   Backup: undefined
+  RemoteBackup: undefined
   LocalRecovery: undefined
   Developer: undefined
   Relays: undefined
@@ -240,6 +242,7 @@ const SettingsNavigator = function SettingsNavigator() {
       <SettingsStack.Screen name="Privacy" component={PrivacyScreen} />
       <SettingsStack.Screen name="Update" component={UpdateScreen} />
       <SettingsStack.Screen name="Backup" component={BackupScreen} />
+      <SettingsStack.Screen name="RemoteBackup" component={RemoteBackupScreen} />
       <SettingsStack.Screen name="LocalRecovery" component={LocalRecoveryScreen} />
       <SettingsStack.Screen name="Developer" component={DeveloperScreen} />
       <SettingsStack.Screen name="Relays" component={RelaysScreen} />
