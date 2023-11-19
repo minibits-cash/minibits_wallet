@@ -20,11 +20,14 @@ import {useHeader} from '../utils/useHeader'
 import {useSafeAreaInsetsStyle} from '../utils/useSafeAreaInsetsStyle'
 import {
   Button,
+  ErrorModal,
   Icon,
   Screen,
   Text,
 } from '../components'
 import {TxKeyPath} from '../i18n'
+import AppError from '../utils/AppError'
+import { RestoreClient } from '../services'
 
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView)
@@ -79,12 +82,22 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
     const {userSettingsStore} = useStores()
 
     const [isGotoWalletVisible, setIsGotoWalletVisible] = useState<boolean>(false)
+    const [error, setError] = useState<AppError | undefined>()
 
     
     
-    const gotoWallet = function () {
-      userSettingsStore.setIsOnboarded(true)
-      navigation.navigate('Tabs')
+    const gotoWallet = async function () {
+        try {
+            const seed = await RestoreClient.getOrCreateSeed()
+            userSettingsStore.setIsOnboarded(true)
+            navigation.navigate('Tabs')
+        } catch (e: any) {
+            handleError(e)
+        }      
+    }
+
+    const handleError = function (e: AppError) {        
+        setError(e)
     }
 
 
@@ -120,14 +133,6 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
       // eslint-disable-next-line react-hooks/exhaustive-deps
       []
     )
-
-    const onPageSelected = function(e: any) {        
-        if(e.nativeEvent.position === PAGES.length - 1) {
-            setIsGotoWalletVisible(true)
-        } else {
-            setIsGotoWalletVisible(false)
-        }
-    }
 
     const $bottomContainerInsets = useSafeAreaInsetsStyle(['bottom'])   
 
@@ -192,6 +197,13 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
                                     preset='secondary'
                                     text='Got it, take me to the wallet'
                                 />
+                                <Button 
+                                    onPress={() => true}
+                                    preset='tertiary'
+                                    text='Restore lost wallet'
+                                    LeftAccessory={() => {return<Icon icon='faRotate'/>}}
+                                    style={{marginTop: spacing.medium}}
+                                />
                             </View>
                         )}               
                     </View>                
@@ -212,7 +224,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
                     />
                 </View>
             </View>
-            
+            {error && <ErrorModal error={error} />}
         </Screen>
     )
   }
@@ -235,7 +247,7 @@ const $container: ViewStyle = {
 }
 
 const $listContainer: ViewStyle = {
-    maxHeight: spacing.screenHeight * 0.35,    
+    maxHeight: spacing.screenHeight * 0.4,    
 }
 
 const $listItem: ViewStyle = {
@@ -249,8 +261,7 @@ const $itemIcon: ViewStyle = {
   marginBottom: spacing.small,
 }
 
-const $buttonContainer: ViewStyle = {
-    flexDirection: 'row',
+const $buttonContainer: ViewStyle = {    
     alignSelf: 'center',
     marginTop: spacing.large,
   }
@@ -267,6 +278,6 @@ const $welcomeIntro: TextStyle = {
 }
 
 const $welcomeFinal: TextStyle = {
-    marginTop: spacing.huge,
+    marginTop: spacing.large,
     color: 'white',
   }
