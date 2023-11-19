@@ -45,7 +45,7 @@ class AppError extends Error {
         callerFunctionName = params.caller
     }
 
-    log.error(`[${callerFunctionName}]`, name, message, params)
+    log.error(`[${callerFunctionName}]`, name, message, JSON.stringify(params))
 
     Object.setPrototypeOf(this, new.target.prototype)
   }
