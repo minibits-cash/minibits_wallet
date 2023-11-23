@@ -40,9 +40,8 @@ import { PaymentRequestStatus } from '../models/PaymentRequest'
 import { infoMessage } from '../utils/utils'
 import { DecodedLightningInvoice, LightningUtils } from '../services/lightning/lightningUtils'
 import { SendOption } from './SendOptionsScreen'
-import { LNURLPayParams } from 'js-lnurl'
 import { roundDown, roundUp } from '../utils/number'
-import { LnurlClient } from '../services/lnurlService'
+import { LnurlClient, LNURLPayParams } from '../services/lnurlService'
 import { moderateScale, scale, verticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
 import { FeeBadge } from './Wallet/FeeBadge'
@@ -71,8 +70,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     const [amountToTransfer, setAmountToTransfer] = useState<string>('')
     const [invoiceExpiry, setInvoiceExpiry] = useState<Date | undefined>()
     const [paymentHash, setPaymentHash] = useState<string | undefined>()
-    const [lnurlPayParams, setLnurlPayParams] = useState<LNURLPayParams | undefined>()
-    const [isWaitingForFees, setIsWaitingForFees] = useState<boolean>(false)
+    const [lnurlPayParams, setLnurlPayParams] = useState<LNURLPayParams | undefined>()    
     const [estimatedFee, setEstimatedFee] = useState<number>(0)
     const [finalFee, setFinalFee] = useState<number>(0)
     const [memo, setMemo] = useState('')
@@ -225,12 +223,12 @@ useEffect(() => {
             if (!mintBalanceToTransferFrom || !encodedInvoice) {
                 return
             }            
-            setIsWaitingForFees(true)
+            setIsLoading(true)
             const fee = await MintClient.getLightningFee(
                 mintBalanceToTransferFrom.mint,
                 encodedInvoice,
             )
-            setIsWaitingForFees(false)
+            setIsLoading(false)
             
             if (parseInt(amountToTransfer) + fee > mintBalanceToTransferFrom.balance) {
                 setInfo(
@@ -256,8 +254,7 @@ const resetState = function () {
     setEstimatedFee(0)
     setMemo('')
     setAvailableMintBalances([])
-    setMintBalanceToTransferFrom(undefined)
-    setIsWaitingForFees(false)
+    setMintBalanceToTransferFrom(undefined)    
     setTransactionStatus(undefined)
     setInfo('')
     setError(undefined)
@@ -544,8 +541,7 @@ const satsColor = colors.palette.primary200
                     transactionStatus !== TransactionStatus.COMPLETED && (
                     <MintBalanceSelector
                         availableMintBalances={availableMintBalances}
-                        mintBalanceToSendFrom={mintBalanceToTransferFrom as MintBalance}
-                        isWaitingForFees={isWaitingForFees}
+                        mintBalanceToSendFrom={mintBalanceToTransferFrom as MintBalance}                        
                         onMintBalanceSelect={onMintBalanceSelect}
                         onCancel={onClose}
                         findByUrl={mintsStore.findByUrl}
@@ -689,8 +685,7 @@ const satsColor = colors.palette.primary200
 
 const MintBalanceSelector = observer(function (props: {
   availableMintBalances: MintBalance[]
-  mintBalanceToSendFrom: MintBalance
-  isWaitingForFees: boolean
+  mintBalanceToSendFrom: MintBalance  
   onMintBalanceSelect: any
   onCancel: any
   findByUrl: any
@@ -735,8 +730,7 @@ const MintBalanceSelector = observer(function (props: {
         <Button
           text={'Pay now'}
           onPress={props.onMintBalanceConfirm}
-          style={{marginRight: spacing.medium}}
-          disabled={props.isWaitingForFees}        
+          style={{marginRight: spacing.medium}}          
         />
         <Button
           preset="secondary"

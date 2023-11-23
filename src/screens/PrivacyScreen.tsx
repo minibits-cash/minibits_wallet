@@ -13,6 +13,7 @@ import {
   ErrorModal,
   InfoModal,
   BottomModal,
+  Button,
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
@@ -55,8 +56,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
                 return
             }
 
-            const tor = TorDaemon.getInstance()
-            const status = await tor.getDaemonStatus()
+            const status = await TorDaemon.getStatus()            
 
             log.trace('torStatus', status, 'getTorStatus')
             setTorStatus(status.toUpperCase())
@@ -75,19 +75,18 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
             const result = userSettingsStore.setIsTorDaemonOn(
                 !isTorDaemonOn,
             )
-
-            const tor = TorDaemon.getInstance()
-            const statusBefore = await tor.getDaemonStatus()
+            
+            const statusBefore = await TorDaemon.getStatus() 
             setTorStatus(statusBefore.toUpperCase())
 
             if(result) {
-                await tor.startIfNotStarted()                
+                await TorDaemon.start()                
             } else {
-                await tor.stopIfRunning()
+                await TorDaemon.stop()
             }
 
             
-            const statusAfter = await tor.getDaemonStatus()
+            const statusAfter = await TorDaemon.getStatus() 
             setTorStatus(statusAfter.toUpperCase())
             setIsTorDaemonOn(result)
             
@@ -105,6 +104,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
             toggleTorModal()
         } catch (e: any) {
             handleError(e)
+            await TorDaemon.stop()
         }
     }
 
@@ -115,16 +115,30 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
             }
 
             setIsLoading(true)
-
-            const tor = TorDaemon.getInstance()            
-            await tor.startIfNotStarted()
+            await TorDaemon.start()
             
-            const statusAfter = await tor.getDaemonStatus()
+            const statusAfter = await TorDaemon.getStatus()
             setTorStatus(statusAfter.toUpperCase())
             setIsLoading(false)
             
         } catch (e: any) {
             handleError(e)
+            await TorDaemon.stop()
+        }
+    }
+
+
+    const stopTor = async () => {
+        try {
+            setIsLoading(true)
+            await TorDaemon.stop()
+            
+            const statusAfter = await TorDaemon.getStatus()
+            setTorStatus(statusAfter.toUpperCase())
+            setIsLoading(false)
+            
+        } catch (e: any) {
+            handleError(e)            
         }
     }
 
@@ -207,7 +221,25 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
                             )}                        
                             topSeparator={true}
                             style={$item}
-                            onPress={startTor}
+                            RightComponent={
+                                <>
+                                {torStatus === TorStatus.NOTINIT ? (
+                                    <Button
+                                        style={{maxHeight: 10, marginTop: spacing.medium}}
+                                        preset="secondary"
+                                        text="Start"
+                                        onPress={startTor}
+                                    />
+                                ) : (
+                                    <Button
+                                        style={{maxHeight: 10, marginTop: spacing.medium}}
+                                        preset="secondary"
+                                        text="Stop"
+                                        onPress={stopTor}
+                                    />
+                                )}
+                                </>                                
+                            }
                         /> 
                     )}                        
                 </>

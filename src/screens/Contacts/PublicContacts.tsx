@@ -101,6 +101,7 @@ export const PublicContacts = observer(function (props: {
 
 
     const subscribeToOwnProfileAndPubkeys = async function () {
+        log.trace('subscribeToOwnProfileAndPubkeys start')
         if(!contactsStore.publicPubkey) {
             return
         }
@@ -109,8 +110,10 @@ export const PublicContacts = observer(function (props: {
             authors: [contactsStore.publicPubkey],
             kinds: [0, 3],            
         }]        
-                
+          
+        log.trace('subscribeToOwnProfileAndPubkeys getEvents')
         const events: NostrEvent[] = await NostrClient.getEvents(relaysStore.allPublicUrls, filters)
+        log.trace(events)
 
         for (const event of events) {
             if(ownProfile && ownProfile.name && followingPubkeys && followingPubkeys.length > 0) {

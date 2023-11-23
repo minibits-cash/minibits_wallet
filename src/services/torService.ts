@@ -90,11 +90,29 @@ const torRequest = async function<T>(options: RequestOptions): Promise<T> {
 }
 
 
+const start = async () => { 
+    const tor = getInstance()
+    await tor.startIfNotStarted()
+}
+
+
+const stop = async () => {    
+    const tor = getInstance()
+    await tor.stopIfRunning()    
+}
+
+
+const getStatus = async () => {    
+    const tor = getInstance()
+    const status = await tor.getDaemonStatus()
+    return status    
+}
+
+
 const checkResponse = function(data: any) {
 	if (!isObj(data)) {
         throw new AppError(Err.VALIDATION_ERROR, 'Invalid data', {data})
-    };
-	
+    }	
 }
 
 const isObj = function(v: unknown): v is object {
@@ -102,6 +120,9 @@ const isObj = function(v: unknown): v is object {
 }
 
 export const TorDaemon = {
+    start,
+    stop,
+    getStatus,
     getInstance,
     torRequest,
     setGlobalRequestOptions,

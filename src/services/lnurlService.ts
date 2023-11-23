@@ -1,8 +1,10 @@
-import { getParams, LNURLPayParams, LNURLResponse, LNURLWithdrawParams } from 'js-lnurl'
+import { getParams, LNURLPayParams as JSLNURLPayParams, LNURLResponse, LNURLWithdrawParams } from 'js-lnurl'
 import AppError, { Err } from "../utils/AppError"
 import { log } from './logService'
 import { LnurlUtils } from './lnurl/lnurlUtils'
 import { MinibitsClient } from './minibitsService'
+
+export type LNURLPayParams = JSLNURLPayParams & {address?: string}
 
 export type LnurlParamsResult = {
     lnurlParams: LNURLWithdrawParams | LNURLPayParams
