@@ -17,9 +17,10 @@ import {
   $sizeStyles,
 } from '../components'
 import {useHeader} from '../utils/useHeader'
-import AppError from '../utils/AppError'
+import AppError, { Err } from '../utils/AppError'
 import { log, RestoreClient } from '../services'
 import { scale } from '@gocodingnow/rn-size-matters'
+import Clipboard from '@react-native-clipboard/clipboard'
 
 
 export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = observer(function RemoteBackupScreen(_props) {
@@ -34,7 +35,8 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
     // const {userSettingsStore} = useStores()
 
     const [info, setInfo] = useState('')
-    const [seed, setSeed] = useState<string[]>([])
+    const [seed, setSeed] = useState<string>()
+    const [seedArray, setSeedArray] = useState<string[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<AppError | undefined>()
 
@@ -43,7 +45,8 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
             try {
                 setIsLoading(true)          
                 const seed = await RestoreClient.getOrCreateSeed()
-                setSeed(seed.split(/\s+/))
+                setSeed(seed)
+                setSeedArray(seed.split(/\s+/))
                 setIsLoading(false) 
             } catch (e: any) {
                 handleError(e)
@@ -51,6 +54,19 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
         }
         getSeed()
     }, [])
+
+
+    const onCopy = function (): void {
+        try {
+            if(seed) {
+                Clipboard.setString(seed)
+                return
+            }
+            throw new AppError(Err.VALIDATION_ERROR, 'Missing seed.')          
+        } catch (e: any) {
+            setInfo(`Could not copy: ${e.message}`)
+        }
+    }
 
     const handleError = function (e: AppError): void {
         setIsLoading(false)
@@ -70,7 +86,7 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
             ContentComponent={
                 <ListItem
                     text='Your seed phrase'
-                    subText='These 12 words allow you to recover your ecash balance in case of device loss. Write them down and keep safe outside of the device.'
+                    subText='These 12 words sequence allows you to recover your ecash balance in case of device loss. Keep them in safe place.'
                     leftIcon='faInfoCircle'
                     leftIconColor={colors.palette.iconYellow300}
                     leftIconInverse={true}                  
@@ -83,7 +99,7 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
             ContentComponent={
                 <>  
                 <FlatList
-                    data={seed}
+                    data={seedArray}
                     numColumns={2}
                     renderItem={({ item, index }) => {                                
                         return(
@@ -92,8 +108,8 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
                                 preset={'secondary'}
                                 onPress={() => false}
                                 text={`${index + 1}. ${item}`}
-                                style={{minWidth: scale(150), margin: spacing.tiny}}
-                                textStyle={$sizeStyles.xs}
+                                style={{minWidth: scale(150), margin: spacing.tiny, minHeight: scale(25)}}
+                                textStyle={[$sizeStyles.xs, {padding: 0, margin: 0, lineHeight: 16}]}
                              />
                         )
                     }}
@@ -102,7 +118,17 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
                     contentContainerStyle={{alignItems: 'center'}}
                 />
                 </> 
-            }            
+            }
+            FooterComponent={
+                <View style={$buttonContainer}>                            
+                    <Button
+                        preset="default"
+                        style={{margin: spacing.small}}
+                        text="Copy"
+                        onPress={onCopy}                            
+                    />       
+                </View>
+            }
           />
           {isLoading && <Loading />}
         </View>        
@@ -127,6 +153,11 @@ const $contentContainer: TextStyle = {
 
 const $card: ViewStyle = {
   marginBottom: spacing.small,
+}
+
+const $buttonContainer: ViewStyle = {
+    flexDirection: 'row',
+    alignSelf: 'center',
 }
 
 const $bottomModal: ViewStyle = {

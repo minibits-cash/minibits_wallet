@@ -19,6 +19,19 @@ const getOrCreateSeed = async function (): Promise<string> {
 }
 
 
-export const RestoreClient = {    
-    getOrCreateSeed,      
+const getSeed = async function (): Promise<string | null> {
+    let seed: string | null = null
+    seed = await KeyChain.loadSeed() as string
+
+    if (!seed) {
+        return null        
+    }
+     
+    return seed
+}
+
+
+export const RestoreClient = {        
+    getOrCreateSeed,
+    getSeed,
 }

@@ -80,8 +80,6 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
     })
 
     const {userSettingsStore} = useStores()
-
-    const [isGotoWalletVisible, setIsGotoWalletVisible] = useState<boolean>(false)
     const [error, setError] = useState<AppError | undefined>()
 
     
@@ -91,6 +89,15 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
             const seed = await RestoreClient.getOrCreateSeed()
             userSettingsStore.setIsOnboarded(true)
             navigation.navigate('Tabs')
+        } catch (e: any) {
+            handleError(e)
+        }      
+    }
+
+
+    const gotoRecovery = async function () {
+        try {            
+            navigation.navigate('RemoteRecovery')
         } catch (e: any) {
             handleError(e)
         }      
@@ -198,9 +205,9 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
                                     text='Got it, take me to the wallet'
                                 />
                                 <Button 
-                                    onPress={() => true}
+                                    onPress={gotoRecovery}
                                     preset='tertiary'
-                                    text='Restore lost wallet'
+                                    text='Recover lost wallet'
                                     LeftAccessory={() => {return<Icon icon='faRotate'/>}}
                                     style={{marginTop: spacing.medium}}
                                 />
