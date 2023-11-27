@@ -5,7 +5,7 @@ import {
   PayLnInvoiceResponse,
   type Proof as CashuProof,
 } from '@cashu/cashu-ts'
-import { TorDaemon } from '../services'
+import { RestoreClient, TorDaemon } from '../services'
 import {CashuUtils} from './cashu/cashuUtils'
 import AppError, {Err} from '../utils/AppError'
 import {log} from './logService'
@@ -37,17 +37,23 @@ const getMint = function (mintUrl: string) {
     return mint
 }
 
-const getWallet = function (mintUrl: string) {
+const getWallet = async function (
+    mintUrl: string
+) {
+
   if (_wallets[mintUrl]) {
     return _wallets[mintUrl]
   }
 
   const mint = getMint(mintUrl)
-  const wallet = new CashuWallet(mint)
+  const seed = await RestoreClient.getOrCreateSeed()
+
+  const wallet = new CashuWallet(mint, undefined, seed)
   _wallets[mintUrl] = wallet
 
   return wallet
 }
+
 
 const getMintKeys = async function (mintUrl: string) {
   const mint = getMint(mintUrl)
@@ -62,7 +68,7 @@ const getMintKeys = async function (mintUrl: string) {
     throw new AppError(
       Err.CONNECTION_ERROR,
       `Could not connect to the selected mint.`,
-      [e.message, mintUrl],
+      {message: e.message, mintUrl},
     )
   }
 
@@ -70,7 +76,7 @@ const getMintKeys = async function (mintUrl: string) {
     throw new AppError(
       Err.VALIDATION_ERROR,
       'Invalid keys retrieved from the selected mint.',
-      [mintUrl, keys],
+      {mintUrl, keys},
     )
   }
 
@@ -85,13 +91,20 @@ const getMintKeys = async function (mintUrl: string) {
 }
 
 
-const receiveFromMint = async function (mintUrl: string, encodedToken: string) {
+
+const receiveFromMint = async function (
+    mintUrl: string, 
+    encodedToken: string,
+    counter: number
+) {
   try {
-    const cashuWallet = getWallet(mintUrl)
+    const cashuWallet = await getWallet(mintUrl)
 
     // this method returns quite a mess, we normalize naming of returned parameters
     const {token, tokensWithErrors, newKeys} = await cashuWallet.receive(
       encodedToken,
+      undefined,
+      counter
     )
 
     log.trace('[receiveFromMint] updatedToken', token)
@@ -110,17 +123,22 @@ const receiveFromMint = async function (mintUrl: string, encodedToken: string) {
   }
 }
 
+
+
 const sendFromMint = async function (
   mintUrl: string,
   amountToSend: number,
   proofsToSendFrom: Proof[],
+  counter: number
 ) {
   try {
-    const cashuWallet = getWallet(mintUrl)
+    const cashuWallet = await getWallet(mintUrl)
 
     const {returnChange, send, newKeys} = await cashuWallet.send(
       amountToSend,
       proofsToSendFrom,
+      undefined,
+      counter
     )
 
     log.trace('[MintClient.sendFromMint] returnedProofs', returnChange)
@@ -167,12 +185,14 @@ const sendFromMint = async function (
   }
 }
 
+
+
 const getSpentOrPendingProofsFromMint = async function (
   mintUrl: string,
   proofs: Proof[],
 ) {
   try {
-    const cashuWallet = getWallet(mintUrl)
+    const cashuWallet = await getWallet(mintUrl)
 
     const spentPendingProofs = await cashuWallet.checkProofsSpent(proofs)
 
@@ -186,7 +206,7 @@ const getSpentOrPendingProofsFromMint = async function (
   } catch (e: any) {    
     throw new AppError(
         Err.MINT_ERROR, 
-        'The mint could not check if the proofs were spent or are pending.', 
+        'The mint could not reply if the proofs are spent or pending.', 
         {
             caller: 'getSpentOrPendingProofsFromMint', 
             mintUrl, 
@@ -195,6 +215,8 @@ const getSpentOrPendingProofsFromMint = async function (
     )
   }
 }
+
+
 
 const getLightningFee = async function (
   mintUrl: string,
@@ -218,20 +240,24 @@ const getLightningFee = async function (
   }
 }
 
+
+
 const payLightningInvoice = async function (
   mintUrl: string,
   encodedInvoice: string,
   proofsToPayFrom: CashuProof[],
   estimatedFee: number,
+  counter: number
 ) {
   try {    
-    const cashuWallet = getWallet(mintUrl)
+    const cashuWallet = await getWallet(mintUrl)
 
     const {isPaid, change, preimage, newKeys}: PayLnInvoiceResponse =
       await cashuWallet.payLnInvoice(
         encodedInvoice,
         proofsToPayFrom,
         estimatedFee,
+        counter
       )
 
     // if (newKeys) { _setKeys(mintUrl, newKeys) }
@@ -261,12 +287,14 @@ const payLightningInvoice = async function (
   }
 }
 
+
+
 const requestLightningInvoice = async function (
   mintUrl: string,
   amount: number,
 ) {
   try {
-    const cashuWallet = getWallet(mintUrl)
+    const cashuWallet = await getWallet(mintUrl)
     const {pr, hash} = await cashuWallet.requestMint(amount)
 
     log.info('[requestLightningInvoice]', {pr, hash})
@@ -280,17 +308,22 @@ const requestLightningInvoice = async function (
   }
 }
 
+
+
 const requestProofs = async function (
   mintUrl: string,
   amount: number,
   paymentHash: string,
+  counter: number
 ) {
   try {
-    const cashuWallet = getWallet(mintUrl)
+    const cashuWallet = await getWallet(mintUrl)
     /* eslint-disable @typescript-eslint/no-unused-vars */
     const {proofs, newKeys} = await cashuWallet.requestTokens(
       amount,
       paymentHash,
+      undefined,
+      counter
     )
     /* eslint-enable */
 
@@ -312,6 +345,34 @@ const requestProofs = async function (
   }
 }
 
+const restore = async function (
+    mintUrl: string,
+    indexFrom: number,
+    indexTo: number,    
+  ) {
+    try {
+      const cashuWallet = await getWallet(mintUrl)
+
+      const limit = Math.abs(indexTo - indexFrom)
+      /* eslint-disable @typescript-eslint/no-unused-vars */
+      const {proofs, newKeys} = await cashuWallet.restore(
+        indexFrom,
+        limit,
+      )
+      /* eslint-enable */
+  
+      log.info('[restore]', 'Number of recovered proofs', {proofs: proofs.length, newKeys})
+  
+      return {
+          proofs: proofs || [], 
+          newKeys
+      }
+    } catch (e: any) {
+        log.error(e)
+        throw new AppError(Err.MINT_ERROR, e.message, {mintUrl})
+    }
+}
+
 export const MintClient = {
   getMintKeys,
   receiveFromMint,
@@ -321,4 +382,5 @@ export const MintClient = {
   payLightningInvoice,
   requestLightningInvoice,
   requestProofs,
+  restore,
 }

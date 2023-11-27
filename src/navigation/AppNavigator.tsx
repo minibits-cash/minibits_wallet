@@ -15,7 +15,8 @@ import React from "react"
 import Config from "../config"
 import {
   WelcomeScreen,
-  RemoteRecoveryScreen
+  RemoteRecoveryScreen,
+  MintsScreen
 } from "../screens"
 import { useStores } from "../models"
 import { TabsNavigator, TabsParamList  } from "./TabsNavigator"
@@ -37,6 +38,7 @@ import { navigationRef, useBackButtonHandler } from "./navigationUtilities"
 export type AppStackParamList = {
   Welcome: undefined
   RemoteRecovery: undefined
+  Mints: undefined
   Tabs: NavigatorScreenParams<TabsParamList>  
 }
 
@@ -71,6 +73,7 @@ const AppStack = observer(function AppStack() {
         <>
             <Stack.Screen name="Welcome" component={WelcomeScreen} />
             <Stack.Screen name="RemoteRecovery" component={RemoteRecoveryScreen} />
+            <Stack.Screen name="Mints" component={MintsScreen} />
             <Stack.Screen name="Tabs" component={TabsNavigator}/>
         </>
         )}      

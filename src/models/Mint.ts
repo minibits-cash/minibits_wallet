@@ -1,7 +1,9 @@
-import {Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
+import {cast, Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
 import {withSetPropAction} from './helpers/withSetPropAction'
 import type {MintKeys} from '@cashu/cashu-ts/dist/lib/es5/model/types'
 import {colors, getRandomIconColor} from '../theme'
+import { log } from '../services'
+import { deriveKeysetId } from '@cashu/cashu-ts'
 
 // used as a helper type across app
 export type MintBalance = {
@@ -14,6 +16,11 @@ export enum MintStatus {
     OFFLINE = 'OFFLINE'
 }
 
+export type MintProofsCounter = {
+    keyset: string
+    counter: number
+}
+
 /**
  * This represents a Cashu mint
  */
@@ -24,11 +31,23 @@ export const MintModel = types
         shortname: types.maybe(types.string),
         keys: types.frozen<MintKeys>(),
         keysets: types.frozen<string[]>(),
+        proofsCounters: types.array(
+            types.model('MintProofsCounter', {
+              keyset: types.string,
+              counter: types.number,
+            })
+        ),
         color: types.optional(types.string, colors.palette.iconBlue200),
         status: types.optional(types.frozen<MintStatus>(), MintStatus.ONLINE),
         createdAt: types.optional(types.Date, new Date()),
     })
     .actions(withSetPropAction)
+    .views(self => ({
+        get currentProofsCounter() {
+            const currentKeyset = deriveKeysetId(self.keys)
+            return self.proofsCounters.find(c => c.keyset === currentKeyset)
+        },
+    }))
     .actions(self => ({
         validateURL(url: string) {
             try {
@@ -61,12 +80,36 @@ export const MintModel = types
         setStatus(status: MintStatus) {
             self.status = status
         },
-        updateKeys(keyset: string, keys: MintKeys) {
-            // not sure why to keep keysetIDs history and even keys, cashu-ts seems to (on first look) get current keys before each mint interaction
+        updateKeys(keyset: string, keys: MintKeys) {            
             self.keysets.push(keyset) 
             self.keys = keys
+            self.keysets = cast(self.keysets)            
         },
-  }))
+        increaseProofsCounter(numberOfProofs: number) {
+            const currentCounter = self.currentProofsCounter
+
+            if (currentCounter) {        
+                log.trace('[increaseProofsCounter]', 'Before update', {currentCounter})        
+                currentCounter.counter += numberOfProofs
+                log.trace('[increaseProofsCounter]', 'Updated proofsCounter', {numberOfProofs, currentCounter})
+            } else {
+                // If the counter doesn't exist, create a new one
+                const currentKeyset = deriveKeysetId(self.keys)
+
+                const newCounter = {
+                    keyset: currentKeyset,
+                    counter: numberOfProofs,
+                }
+
+                self.proofsCounters.push(newCounter)
+
+                log.trace('[increaseProofsCounter]', 'Adding new proofsCounter', {newCounter})
+            }
+            // Make sure to cast the frozen array back to a mutable array
+            self.proofsCounters = cast(self.proofsCounters)
+        },
+    }))
+    
 
 export type Mint = {
     mintUrl: string

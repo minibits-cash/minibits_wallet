@@ -3,7 +3,7 @@ import React, {FC, useCallback, useRef, useState} from 'react'
 import {Alert, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
 import {spacing, typography, useThemeColor, colors} from '../theme'
-import {SettingsStackScreenProps} from '../navigation'
+import {AppStackScreenProps, SettingsStackScreenProps} from '../navigation'
 import {
   Button,
   Icon,

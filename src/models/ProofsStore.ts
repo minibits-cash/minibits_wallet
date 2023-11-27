@@ -204,6 +204,14 @@ export const ProofsStoreModel = types
         },
     }))
     .views(self => ({
+        getMintBalance: (mintUrl: string) => {
+            const balances = self.getBalances().mintBalances
+
+            const mintBalance = balances
+                .find((balance: MintBalance) => balance.mint === mintUrl)                
+
+            return mintBalance
+        },
         getMintBalancesWithEnoughBalance: (amount: number) => {
             const balances = self.getBalances().mintBalances
 

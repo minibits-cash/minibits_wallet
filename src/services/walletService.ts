@@ -706,11 +706,14 @@ const receive = async function (
             mintsStore.addMint(newMint)
         }
 
+        const proofsCounter = mintsStore.currentProofsCounterValue(mintToReceive)
+
         // Now we ask all mints to get fresh outputs for their tokenEntries, and create from them new proofs
         // 0.8.0-rc3 implements multimints receive however CashuMint constructor still expects single mintUrl
         const {updatedToken, errorToken, newKeys} = await MintClient.receiveFromMint(
             mintToReceive,
             encodedToken as string,
+            proofsCounter
         )
 
         if(newKeys) {_updateMintKeys(mintToReceive, newKeys)}
@@ -749,6 +752,8 @@ const receive = async function (
                 entry.mint,
                 transactionId as number                
             )
+
+            mintsStore.increaseProofsCounter(mintToReceive as string, entry.proofs.length)
         }
 
         // This should be amountToReceive - amountWithErrors but let's set it from updated token
@@ -995,11 +1000,14 @@ const receiveOfflineComplete = async function (
             mintsStore.addMint(newMint)
         }
 
+        const proofsCounter = mintsStore.currentProofsCounterValue(mintToReceive)
+
         // Now we ask all mints to get fresh outputs for their tokenEntries, and create from them new proofs
         // 0.8.0-rc3 implements multimints receive however CashuMint constructor still expects single mintUrl
         const {updatedToken, errorToken, newKeys} = await MintClient.receiveFromMint(
             tokenMints[0],
             encodedToken as string,
+            proofsCounter
         )
 
         let amountWithErrors = 0
@@ -1023,6 +1031,8 @@ const receiveOfflineComplete = async function (
                 entry.mint,
                 transaction.id as number                
             )
+
+            mintsStore.increaseProofsCounter(mintToReceive as string, entry.proofs.length)
         }
         
         // This should be amountToReceive - amountWithErrors but let's set it from updated token
@@ -1163,11 +1173,14 @@ const _sendFromMint = async function (
         )
         log.debug('[_sendFromMint]', 'proofsToSendFrom', proofsToSendFrom)
 
+        const proofsCounter = mintsStore.currentProofsCounterValue(mintUrl)
+
         // if split to required denominations was necessary, this gets it done with the mint and we get the return
         const {returnedProofs, proofsToSend, newKeys} = await MintClient.sendFromMint(
             mintUrl,
             amountToSend,
             proofsToSendFrom,
+            proofsCounter
         )
 
         log.debug('[_sendFromMint]', 'returnedProofs', returnedProofs)
@@ -1200,6 +1213,7 @@ const _sendFromMint = async function (
             }
             
             proofsStore.addProofs(returnedProofs)
+            mintsStore.increaseProofsCounter(mintUrl as string, returnedProofs.length)
         }
 
         // remove used proofs and move sent proofs to pending
@@ -1450,6 +1464,8 @@ const transfer = async function (
             JSON.stringify(transactionData),
         )
 
+        const proofsCounter = mintsStore.currentProofsCounterValue(mintUrl as string)
+
         // Use prepared proofs to settle with the mint the payment of the invoice on wallet behalf
         const {feeSavedProofs, isPaid, preimage, newKeys} =
             await MintClient.payLightningInvoice(
@@ -1457,6 +1473,7 @@ const transfer = async function (
                 encodedInvoice,
                 proofsToPay,
                 estimatedFee,
+                proofsCounter
             )
         
         if (newKeys) {_updateMintKeys(mintUrl, newKeys)}
@@ -1517,6 +1534,7 @@ const transfer = async function (
                 transactionId                
             )
 
+            mintsStore.increaseProofsCounter(mintUrl as string, feeSavedProofs.length)
             finalFee = estimatedFee - feeSaved            
         }
         // Save final fee in db
@@ -1851,10 +1869,15 @@ const checkPendingTopups = async function () {
     try {
         for (const pr of paymentRequests) {
             // claim tokens if invoice is paid
+
+            
+            const proofsCounter = mintsStore.currentProofsCounterValue(pr.mint as string)
+
             const {proofs, newKeys} = (await MintClient.requestProofs(
                 pr.mint as string,
                 pr.amount,
                 pr.paymentHash,
+                proofsCounter
             )) as {proofs: Proof[], newKeys: MintKeys}
 
             if (!proofs || proofs.length === 0) {
@@ -1894,6 +1917,8 @@ const checkPendingTopups = async function () {
                 pr.mint as string,
                 pr.transactionId as number                
             )
+
+            mintsStore.increaseProofsCounter(pr.mint as string, proofs.length)
 
             if (receivedAmount !== pr.amount) {
                 throw new AppError(
@@ -1952,7 +1977,7 @@ const _updateMintKeys = function (mintUrl: string, newKeys: MintKeys) {
 const _formatError = function (e: AppError) {
     return {
         name: e.name,
-        message: e.message.slice(0, 100),
+        message: e.message.slice(0, 200),
         params: e.params || {},
     } as AppError 
 }
