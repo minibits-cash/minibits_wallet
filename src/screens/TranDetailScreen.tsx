@@ -1205,7 +1205,7 @@ const $contentContainer: TextStyle = {
 const $actionCard: ViewStyle = {
     marginBottom: spacing.extraSmall,
     marginTop: -spacing.extraLarge * 2,
-    paddingTop: 0,
+    paddingVertical: 0,
 }
 
 const $dataCard: ViewStyle = {

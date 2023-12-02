@@ -62,10 +62,11 @@ export const ProofsStoreModel = types
         },
     }))
     .actions(self => ({
-        addProofs(newProofs: Proof[], isPending: boolean = false): number {
+        addProofs(newProofs: Proof[], isPending: boolean = false): {addedAmount: number, addedProofs: Proof[]} {
         try {
             const proofs = isPending ? self.pendingProofs : self.proofs
             let addedAmount: number = 0
+            let addedProofs: Proof[] = []
 
             for (const proof of newProofs) { 
                 if(self.alreadyExists(proof)) {
@@ -81,18 +82,23 @@ export const ProofsStoreModel = types
                 }
 
                 addedAmount += proof.amount
+                addedProofs.push(proof)
             }
 
-            log.debug('[addProofs]', `Added new ${newProofs.length}${isPending ? ' pending' : ''} proofs to the ProofsStore`,)
+            // Handle counter increment
+            const mintsStore = getRootStore(self).mintsStore
+            mintsStore.increaseProofsCounter(newProofs[0].mintUrl as string, addedProofs.length)
+
+            log.debug('[addProofs]', `Added new ${addedProofs.length}${isPending ? ' pending' : ''} proofs to the ProofsStore`,)
 
             const rootStore = getRootStore(self)
             const {userSettingsStore} = rootStore
 
-            if (userSettingsStore.isLocalBackupOn === true) {
-                Database.addOrUpdateProofs(newProofs, isPending) // isSpent = false
+            if (userSettingsStore.isLocalBackupOn === true && addedProofs.length > 0) {
+                Database.addOrUpdateProofs(addedProofs, isPending) // isSpent = false
             }
 
-            return addedAmount
+            return { addedAmount, addedProofs }
         } catch (e: any) {
             throw new AppError(Err.STORAGE_ERROR, e.message)
         }

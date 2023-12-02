@@ -6,16 +6,19 @@ import * as nostrTools from 'nostr-tools'
 import {btoa, atob, fromByteArray} from 'react-native-quick-base64'
 import {log} from './logService'
 
+
 export enum KeyChainServiceName {
   MMKV = 'app.minibits.mmkv',
   NOSTR = 'app.minibits.nostr',
   SEED = 'app.minibits.seed',
+  MNEMONIC = 'app.minibits.mnemonic',
 }
 
 export type KeyPair = {
     publicKey: string,
     privateKey: string
 }
+
 
 const getSupportedBiometryType = async function () {
     try {
@@ -28,37 +31,34 @@ const getSupportedBiometryType = async function () {
 }
 
 
-
-const generateSeed = function () {
+const generateMnemonic = function () {
     try {
-        const seed = generateNewMnemonic()
+        log.trace('[generateMnemonic]', 'start')
 
-        log.trace('[generateSeed]', 'New SEED created:', seed)
+        const mnemonic = generateNewMnemonic()
 
-        return seed as string
+        log.trace('[generateMnemonic]', 'New mnemonic created:', mnemonic)
+
+        return mnemonic as string
     } catch (e: any) {
       throw new AppError(Err.KEYCHAIN_ERROR, e.message, e)
     }
 }
 
-/**
- * Save seed to KeyChain/KeyStore
- *
- * @param seed The key to save.
- */
-const saveSeed = async function (
-    seed: string,  
+
+const saveMnemonic = async function (
+    mnemonic: string,  
   ): Promise<_Keychain.Result | false> {
     try {
       const result = await _Keychain.setGenericPassword(
-          KeyChainServiceName.SEED,
-          seed,
+          KeyChainServiceName.MNEMONIC,
+          mnemonic,
           {
-              service: KeyChainServiceName.SEED            
+              service: KeyChainServiceName.MNEMONIC            
           },
       )
   
-      log.trace('[saveSeed]', 'Saved seed to the KeyChain', seed)
+      log.trace('[saveMnemonic]', 'Saved new mnemonic to the KeyChain', mnemonic)
   
       return result
     } catch (e: any) {
@@ -67,19 +67,98 @@ const saveSeed = async function (
   }
   
   /**
-   * Loads seed from the KeyChain/KeyStore
+   * Loads mnemonic from the KeyChain/KeyStore
    *
    */
-  const loadSeed = async function (): Promise<string | undefined> {
+  const loadMnemonic = async function (): Promise<string | undefined> {    
     try {
+      log.trace('[loadMnemonic]', 'start')
+
       const result = await _Keychain.getGenericPassword({
-          service: KeyChainServiceName.SEED
+          service: KeyChainServiceName.MNEMONIC
       })
+      
   
       if (result) {
-        const seed = result.password
+        const mnemonic = result.password
+        log.trace('[loadMnemonic]', 'complete', {mnemonic})
+        return mnemonic
+      }
+
+      log.trace('[loadMnemonic]', 'Did not find existing mnemonic in the KeyChain')
+      return undefined
+    } catch (e: any) {
+      throw new AppError(Err.KEYCHAIN_ERROR, e.message)
+    }
+}
+
+
+/**
+ * Removes mnemonic from KeyChain/KeyStore
+ *
+ * @param service The key to kill.
+ */
+const removeMnemonic = async function (): Promise<boolean> {
+    try {
+        const result = await _Keychain.resetGenericPassword({
+            service: KeyChainServiceName.MNEMONIC
+        })
+        log.trace('[removeMnemonic]', 'Removed mnemonic.')
+        return result
+    } catch (e: any) {
+        throw new AppError(Err.KEYCHAIN_ERROR, e.message)
+    }
+}
+
+
+/**
+ * Save seed to KeyChain/KeyStore
+ *
+ * @param seed The key to save.
+ */
+const saveSeed = async function (
+    seed: Uint8Array,  
+  ): Promise<_Keychain.Result | false> {
+    try {
+    
+      const seedStr: string = Buffer.from(seed).toString('base64')
+
+      log.trace('[saveSeed]', 'Saved seed base64', seedStr)
+
+      const result = await _Keychain.setGenericPassword(
+          KeyChainServiceName.SEED,
+          seedStr,
+          {
+              service: KeyChainServiceName.SEED            
+          },
+      )
+  
+      log.trace('[saveSeed]', 'Saved seed to the KeyChain')
+  
+      return result
+    } catch (e: any) {
+      throw new AppError(Err.KEYCHAIN_ERROR, e.message, e)
+    }
+  }
+  
+  /**
+   * Loads mnemonic from the KeyChain/KeyStore
+   *
+   */
+  const loadSeed = async function (): Promise<Uint8Array | undefined> {    
+    try {
+      log.trace('[loadSeed]', 'start')
+      const result = await _Keychain.getGenericPassword({
+          service: KeyChainServiceName.SEED
+      })      
+  
+      if (result) {
+        const seedStr = result.password
+        log.trace('[loadSeed]', 'base64', {seedStr})
+        const seed: Uint8Array = new Uint8Array(Buffer.from(seedStr, 'base64'))        
         return seed
       }
+
       log.trace('[loadSeed]', 'Did not find existing seed in the KeyChain')
       return undefined
     } catch (e: any) {
@@ -89,11 +168,11 @@ const saveSeed = async function (
 
 
 /**
- * Removes seed from KeyChain/KeyStore
+ * Removes mnemonic from KeyChain/KeyStore
  *
  * @param service The key to kill.
  */
-/* const removeSeed = async function (): Promise<boolean> {
+const removeSeed = async function (): Promise<boolean> {
     try {
         const result = await _Keychain.resetGenericPassword({
             service: KeyChainServiceName.SEED
@@ -103,7 +182,7 @@ const saveSeed = async function (
     } catch (e: any) {
         throw new AppError(Err.KEYCHAIN_ERROR, e.message)
     }
-}*/
+}
 
 
 const generateNostrKeyPair = function () {
@@ -278,13 +357,17 @@ const removeMmkvEncryptionKey = async function (): Promise<boolean> {
 }
 
 
-export const KeyChain = {  
+export const KeyChain = {
     getSupportedBiometryType,
     
-    generateSeed,
+    generateMnemonic,
+    saveMnemonic,
+    loadMnemonic,
+    removeMnemonic,
+
     saveSeed,
     loadSeed,
-    // removeSeed,
+    removeSeed,
 
     generateNostrKeyPair,    
     saveNostrKeyPair,

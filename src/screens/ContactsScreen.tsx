@@ -6,12 +6,11 @@ import {colors, spacing, typography, useThemeColor} from '../theme'
 import {Header, Icon, Screen} from '../components'
 import {useStores} from '../models'
 import {ContactsStackScreenProps} from '../navigation'
-import { NostrClient, NostrUnsignedEvent } from '../services'
+import { NostrClient } from '../services'
 import { PrivateContacts } from './Contacts/PrivateContacts'
 import { PublicContacts } from './Contacts/PublicContacts'
 import { log } from '../services/logService'
 import { getImageSource } from '../utils/utils'
-import { MINIBITS_NIP05_DOMAIN } from '@env'
 import { ReceiveOption } from './ReceiveOptionsScreen'
 import { SendOption } from './SendOptionsScreen'
 
@@ -55,7 +54,7 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
     const renderScene = ({route}: {route: Route}) => {
         switch (route.key) {
           case 'first':
-            return <PrivateContacts navigation={navigation}  paymentOption={paymentOption} />
+            return <PrivateContacts navigation={navigation} paymentOption={paymentOption} />
           case 'second':
             return <PublicContacts navigation={navigation} paymentOption={paymentOption} />
           default:

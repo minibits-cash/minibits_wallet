@@ -117,23 +117,27 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
           {
             text: 'Confirm',
             onPress: async () => {
-              setIsLoading(true)
-              try {
-                // Delete database
-                Database.cleanAll()                
-                // Delete Nostr keys
-                await KeyChain.removeNostrKeypair()
-                // Delete Encryption key
-                await KeyChain.removeMmkvEncryptionKey()
-                // Clean mobx storage
-                MMKVStorage.clearAll()
-                // recreate db schema
-                Database.getInstance()
-                setIsLoading(false)
-                setInfo('Factory reset completed, please restart immediately.')
-              } catch (e: any) {
-                handleError(e)
-              }
+                setIsLoading(true)
+                try {
+                    // Delete database
+                    Database.cleanAll()                
+                    // Delete Nostr keys
+                    await KeyChain.removeNostrKeypair()
+                    // Delete Encryption key
+                    await KeyChain.removeMmkvEncryptionKey()
+                    // Delete mnemonic
+                    await KeyChain.removeMnemonic()
+                    // Delete seed
+                    await KeyChain.removeSeed()
+                    // Clean mobx storage
+                    MMKVStorage.clearAll()
+                    // recreate db schema
+                    Database.getInstance()
+                    setIsLoading(false)
+                    setInfo('Factory reset completed, please restart immediately.')
+                } catch (e: any) {
+                    handleError(e)
+                }
             },
           },
         ],

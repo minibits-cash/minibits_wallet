@@ -31,7 +31,7 @@ export const InfoModal: FC<InfoModalProps> = function ({ message }) {
             onBackdropPress={() => onClose()}
             onBackButtonPress={() => onClose()}
             ContentComponent={                
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: spacing.medium}}>
+                <View style={{ padding: spacing.small, flexDirection: 'row', alignItems: 'center', marginRight: spacing.medium}}>
                     <Icon icon="faInfoCircle" size={spacing.large} color="white" />
                     <Text style={{ marginHorizontal: spacing.extraSmall}}>{message}</Text>                                    
                 </View>                

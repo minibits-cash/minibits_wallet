@@ -25,6 +25,7 @@ import AppError from '../utils/AppError'
 import {translate} from '../i18n'
 import {MintListItem} from './Mints/MintListItem'
 import { infoMessage } from '../utils/utils'
+import { spyReportEnd } from 'mobx/dist/internal'
 
 
 export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(function MintsScreen({route, navigation}) {    
@@ -37,6 +38,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
     const mintInputRef = useRef<TextInput>(null)
 
     const [mintUrl, setMintUrl] = useState('')
+    const [defaultMintUrl, setDefaultMintUrl] = useState<string>('https://mint.minibits.cash/Bitcoin')
     const [selectedMint, setSelectedMint] = useState<Mint | undefined>()
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
@@ -117,6 +119,12 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
     }
 
 
+    const addDefaultMint = async function () {
+        setMintUrl(defaultMintUrl)
+        toggleAddMintModal()
+    }
+
+
 	const removeMint = async function () {
         if (!selectedMint) {return}
 
@@ -128,8 +136,6 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
         }
 
         message += 'Do you really want to remove this mint from the wallet?'
-
-
 
         Alert.alert(
         'Warning',
@@ -220,6 +226,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
             <Card
                 style={$actionCard}
                 ContentComponent={
+                    <>
                     <ListItem
                         text={'Add mint'}
                         LeftComponent={<Icon
@@ -232,6 +239,22 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                         style={$actionItem}
                         onPress={toggleAddMintModal}
                     />
+                    {!mintsStore.alreadyExists(defaultMintUrl) && (
+                    <ListItem
+                        text={'Add Minibits mint'}
+                        LeftComponent={<Icon
+                            containerStyle={$iconContainer}
+                            icon="faCoins"
+                            size={spacing.medium}
+                            color={iconColor}                  
+                        />
+                        }                
+                        style={$actionItem}
+                        onPress={addDefaultMint}
+                        topSeparator={true}
+                    />
+                    )}
+                    </>
                 }
             />
           {mintsStore.mintCount > 0 && (
@@ -313,6 +336,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                 bottomSeparator={true}
                 style={{paddingHorizontal: spacing.medium}}
               />
+              <Text text={`Current recovery index: ${selectedMint?.currentProofsCounter?.counter}`} size='xxs' style={{alignSelf: 'center', marginTop: spacing.small}} />
             </View>
           }
           onBackButtonPress={onMintUnselect}
@@ -404,8 +428,9 @@ const $contentContainer: TextStyle = {
 
 const $actionCard: ViewStyle = {
   marginBottom: spacing.small,
-  marginTop: -spacing.extraLarge * 1.5,
+  marginTop: -spacing.extraLarge * 2,
   minHeight: 70,
+  paddingVertical: 0,  
 }
 
 const $actionItem: ViewStyle = {

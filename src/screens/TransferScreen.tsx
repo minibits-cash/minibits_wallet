@@ -304,29 +304,8 @@ const onAmountEndEditing = async function () {
 
         setIsLoading(true)
         const encoded = await LnurlClient.getInvoice(lnurlPayParams, amount * 1000)
-
-        const invoice = LightningUtils.decodeInvoice(encoded)
-        const {description_hash} = LightningUtils.getInvoiceData(invoice)
-
-        if(!description_hash || description_hash.length === 0) {
-            throw new AppError(Err.VALIDATION_ERROR, `Invoice from ${lnurlPayParams.domain} is invalid, missing description_hash`)
-        }
-        // check that retrieved invoice matches the previous LNURL pay link
-        const hashedMetadata = QuickCrypto.createHash('sha256')
-        .update(lnurlPayParams.metadata)
-        .digest('hex')
-
-        log.trace('hashedMetadata', hashedMetadata)
-        log.trace('description_hash', description_hash)
-
-        if(hashedMetadata !== description_hash) {
-            throw new AppError(
-                Err.VALIDATION_ERROR, 
-                `Invoice from ${lnurlPayParams.domain} has invalid description_hash ${description_hash}, expected ${hashedMetadata}`
-            )
-        }
-
         setIsLoading(false)
+
         if(encoded) {
             return onEncodedInvoice(encoded)
         }        
@@ -349,7 +328,7 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
         setEncodedInvoice(encoded)        
 
         const invoice = LightningUtils.decodeInvoice(encoded)
-        const {amount, expiry, description, description_hash, timestamp} = LightningUtils.getInvoiceData(invoice)
+        const {amount, expiry, description, timestamp} = LightningUtils.getInvoiceData(invoice)
 
         // log.trace('Decoded invoice', invoice, 'onEncodedInvoice')
         log.trace('Invoice data', {amount, expiry, description}, 'onEncodedInvoice')

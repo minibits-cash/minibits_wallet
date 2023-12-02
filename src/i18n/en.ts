@@ -59,7 +59,7 @@ const en = {
       other: "{{count}} mints have been added to your wallet",
     },
     toReceive: "Amount to receive",
-    received: "Amount received:",
+    received: "Amount received",
     sharePaymentRequest: "Send payment request",
     sharePaymentRequestDescription: "Send payment request to one of your contacts, so that the payer can pay you exact amount.",
     scanToReceive: "Scan or paste to receive",

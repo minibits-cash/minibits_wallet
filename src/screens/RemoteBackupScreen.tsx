@@ -18,7 +18,7 @@ import {
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import AppError, { Err } from '../utils/AppError'
-import { log, RestoreClient } from '../services'
+import { log, MintClient } from '../services'
 import { scale } from '@gocodingnow/rn-size-matters'
 import Clipboard from '@react-native-clipboard/clipboard'
 
@@ -35,34 +35,34 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
     // const {userSettingsStore} = useStores()
 
     const [info, setInfo] = useState('')
-    const [seed, setSeed] = useState<string>()
-    const [seedArray, setSeedArray] = useState<string[]>([])
+    const [mnemonic, setMnemonic] = useState<string>()
+    const [mnemonicArray, setMnemonicArray] = useState<string[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<AppError | undefined>()
 
     useEffect(() => {
-        const getSeed = async () => {  
+        const getmnemonic = async () => {  
             try {
                 setIsLoading(true)          
-                const seed = await RestoreClient.getOrCreateSeed()
-                setSeed(seed)
-                setSeedArray(seed.split(/\s+/))
+                const mnemonic = await MintClient.getOrCreateMnemonic()
+                setMnemonic(mnemonic)
+                setMnemonicArray(mnemonic.split(/\s+/))
                 setIsLoading(false) 
             } catch (e: any) {
                 handleError(e)
             } 
         }
-        getSeed()
+        getmnemonic()
     }, [])
 
 
     const onCopy = function (): void {
         try {
-            if(seed) {
-                Clipboard.setString(seed)
+            if(mnemonic) {
+                Clipboard.setString(mnemonic)
                 return
             }
-            throw new AppError(Err.VALIDATION_ERROR, 'Missing seed.')          
+            throw new AppError(Err.VALIDATION_ERROR, 'Missing mnemonic.')          
         } catch (e: any) {
             setInfo(`Could not copy: ${e.message}`)
         }
@@ -85,7 +85,7 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
             style={$card}
             ContentComponent={
                 <ListItem
-                    text='Your seed phrase'
+                    text='Your mnemonic phrase'
                     subText='These 12 words sequence allows you to recover your ecash balance in case of device loss. Keep them in safe place.'
                     leftIcon='faInfoCircle'
                     leftIconColor={colors.palette.iconYellow300}
@@ -99,7 +99,7 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
             ContentComponent={
                 <>  
                 <FlatList
-                    data={seedArray}
+                    data={mnemonicArray}
                     numColumns={2}
                     renderItem={({ item, index }) => {                                
                         return(

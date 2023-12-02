@@ -110,76 +110,76 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
           <Text preset="heading" text="Backup" style={{color: 'white'}} />
         </View>
         <View style={$contentContainer}>
-          <Card
-            style={$card}
-            HeadingComponent={
-              <>
-                <ListItem
-                  tx="backupScreen.localBackup"
-                  subTx="backupScreen.localBackupDescription"
-                  leftIcon='faDownload'
-                  leftIconColor={
-                    isLocalBackupOn
-                      ? colors.palette.success200
-                      : colors.palette.neutral400
-                  }
-                  leftIconInverse={true}
-                  RightComponent={
-                    <View style={$rightContainer}>
-                      <Switch
-                        onValueChange={toggleBackupSwitch}
-                        value={isLocalBackupOn}
-                      />
-                    </View>
-                  }
-                  style={$item}
-                />
-                {isLocalBackupOn && (
-                  <ListItem
-                    tx="backupScreen.recoveryTool"
-                    subTx="backupScreen.recoveryToolDescription"
-                    leftIcon='faUpload'
-                    leftIconColor={colors.palette.focus300}
+            <Card
+                style={$card}
+                HeadingComponent={
+                <>                
+                    <ListItem
+                    tx="backupScreen.remoteBackup"
+                    subTx="backupScreen.remoteBackupDescription"
+                    leftIcon='faDownload'
+                    leftIconColor={colors.palette.blue200}
                     leftIconInverse={true}
                     style={$item}
-                    onPress={gotoLocalRecovery}
-                  />
-                )}                
-              </>
-            }
-          />
-          <Card
-            style={$card}
-            HeadingComponent={
-              <>                
-                <ListItem
-                  tx="backupScreen.remoteBackup"
-                  subTx="backupScreen.remoteBackupDescription"
-                  leftIcon='faDownload'
-                  leftIconColor={colors.palette.blue200}
-                  leftIconInverse={true}
-                  style={$item}
-                  onPress={gotoRemoteBackup}
-                />
-              </>
-            }
-        />
-        <Card
-            style={$card}
-            HeadingComponent={
-              <>                
-                <ListItem
-                  tx="backupScreen.removeSpentCoins"
-                  subTx="backupScreen.removeSpentCoinsDescription"
-                  leftIcon='faRecycle'
-                  leftIconColor={colors.palette.secondary300}
-                  leftIconInverse={true}
-                  style={$item}
-                  onPress={checkSpent}
-                />
-              </>
-            }
-        />       
+                    onPress={gotoRemoteBackup}
+                    />
+                </>
+                }
+            />
+            <Card
+                style={$card}
+                HeadingComponent={
+                <>
+                    <ListItem
+                    tx="backupScreen.localBackup"
+                    subTx="backupScreen.localBackupDescription"
+                    leftIcon='faDownload'
+                    leftIconColor={
+                        isLocalBackupOn
+                        ? colors.palette.success200
+                        : colors.palette.neutral400
+                    }
+                    leftIconInverse={true}
+                    RightComponent={
+                        <View style={$rightContainer}>
+                        <Switch
+                            onValueChange={toggleBackupSwitch}
+                            value={isLocalBackupOn}
+                        />
+                        </View>
+                    }
+                    style={$item}
+                    />
+                    {isLocalBackupOn && (
+                    <ListItem
+                        tx="backupScreen.recoveryTool"
+                        subTx="backupScreen.recoveryToolDescription"
+                        leftIcon='faUpload'
+                        leftIconColor={colors.palette.focus300}
+                        leftIconInverse={true}
+                        style={$item}
+                        onPress={gotoLocalRecovery}
+                    />
+                    )}                
+                </>
+                }
+            />
+            <Card
+                style={$card}
+                HeadingComponent={
+                <>                
+                    <ListItem
+                    tx="backupScreen.removeSpentCoins"
+                    subTx="backupScreen.removeSpentCoinsDescription"
+                    leftIcon='faRecycle'
+                    leftIconColor={colors.palette.secondary300}
+                    leftIconInverse={true}
+                    style={$item}
+                    onPress={checkSpent}
+                    />
+                </>
+                }
+            />       
         {isLoading && <Loading />}
         </View>
         <BottomModal

@@ -1,8 +1,6 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useState, useCallback} from 'react'
-import {useFocusEffect} from '@react-navigation/native'
+import React, {FC, useState, useCallback, useEffect} from 'react'
 import {Alert, TextStyle, View, ViewStyle} from 'react-native'
-import Clipboard from '@react-native-clipboard/clipboard'
 import {spacing, useThemeColor, colors} from '../theme'
 import {WalletStackScreenProps} from '../navigation'
 import {
@@ -20,11 +18,10 @@ import {
 import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
 import AppError from '../utils/AppError'
-import useIsInternetReachable from '../utils/useIsInternetReachable'
-import { infoMessage } from '../utils/utils'
-import { IncomingDataType, IncomingParser } from '../services/incomingParser'
-import { LnurlUtils } from '../services/lnurl/lnurlUtils'
+import { IncomingDataType } from '../services/incomingParser'
 import { SvgXml } from 'react-native-svg'
+import { KeyChain, MintClient } from '../services'
+import { deriveSeedFromMnemonic } from '@cashu/cashu-ts/src/secrets'
 
 export enum SendOption {
     SEND_TOKEN = 'SEND_TOKEN',
@@ -41,10 +38,28 @@ export const SendOptionsScreen: FC<WalletStackScreenProps<'SendOptions'>> = obse
       leftIcon: 'faArrowLeft',
       onLeftPress: () => navigation.goBack(),
     })
-
-    const isInternetReachable = useIsInternetReachable()    
+ 
     const [error, setError] = useState<AppError | undefined>()
 
+    /* useEffect(() => {
+        const getMnemonic = async () => {  
+            try {
+                    
+                const mnemonic = await KeyChain.loadMnemonic()
+                log.trace(mnemonic)
+                const seed = deriveSeedFromMnemonic(mnemonic as string)
+                log.trace('real seed', seed)
+                await KeyChain.saveSeed(seed)
+
+                const storedseed = await KeyChain.loadSeed()
+                
+                
+            } catch (e: any) {
+                handleError(e)
+            } 
+        }
+        getMnemonic()
+    }, []) */
 
     const gotoContacts = function () {
         navigation.navigate('ContactsNavigator', {

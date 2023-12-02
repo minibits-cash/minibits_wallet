@@ -1,8 +1,10 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useRef, useState} from 'react'
-import {FlatList, ImageBackground, LayoutAnimation, Linking, Platform, Switch, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
+import {LayoutAnimation, Platform, Switch, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
+import {validateMnemonic} from '@scure/bip39'
+import { wordlist } from '@scure/bip39/wordlists/english'
 import {colors, spacing, useThemeColor} from '../theme'
-import {AppStackScreenProps, SettingsStackScreenProps} from '../navigation' // @demo remove-current-line
+import {AppStackScreenProps} from '../navigation' // @demo remove-current-line
 import {
   Icon,
   ListItem,
@@ -18,25 +20,27 @@ import {
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import AppError, { Err } from '../utils/AppError'
-import { log, MintClient, MintKeys, RestoreClient } from '../services'
+import { KeyChain, log, MintClient, MintKeys } from '../services'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { useStores } from '../models'
 import { MintListItem } from './Mints/MintListItem'
 import { Mint } from '../models/Mint'
-import { deriveKeysetId } from '@cashu/cashu-ts'
+import { CashuMint, deriveKeysetId } from '@cashu/cashu-ts'
 import { CashuUtils } from '../services/cashu/cashuUtils'
 import { Proof } from '../models/Proof'
 import {
     type Proof as CashuProof,
 } from '@cashu/cashu-ts'
 import { Transaction, TransactionData, TransactionRecord, TransactionStatus, TransactionType } from '../models/Transaction'
+import { ResultModalInfo } from './Wallet/ResultModalInfo'
+import { deriveSeedFromMnemonic } from '@cashu/cashu-ts/src/secrets'
 
 if (Platform.OS === 'android' &&
     UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
-const RESTORE_INDEX_INTERVAL = 100
+const RESTORE_INDEX_INTERVAL = 50
 
 export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = observer(function RemoteRecoveryScreen(_props) {
     const {navigation, route} = _props    
@@ -48,68 +52,96 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
     })
 
     const {mintsStore, proofsStore, userSettingsStore, transactionsStore} = useStores()
-    const seedInputRef = useRef<TextInput>(null)
+    const mnemonicInputRef = useRef<TextInput>(null)
 
     const [info, setInfo] = useState('')
-    const [seed, setSeed] = useState<string>('')        
-    const [seedExists, setSeedExists] = useState(false)
-    const [isValidSeed, setIsValidSeed] = useState(false)
+    const [mnemonic, setMnemonic] = useState<string>('')        
+    const [mnemonicExists, setMnemonicExists] = useState(false)
+    const [isValidMnemonic, setIsValidMnemonic] = useState(false)
+    const [seed, setSeed] = useState<Uint8Array>()
     const [startIndex, setStartIndex] = useState<number>(0) // start of interval of indexes of proofs to recover
     const [endIndex, setEndIndex] = useState<number>(RESTORE_INDEX_INTERVAL) // end of interval
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<AppError | undefined>()
     const [isErrorsModalVisible, setIsErrorsModalVisible] = useState(false)
+    const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus, message: string} | undefined>()
+    const [isResultModalVisible, setIsResultModalVisible] = useState(false)
+    const [lastRecoveredAmount, setLastRecoveredAmount] = useState<number>(0)
     const [recoveryErrors, setRecoveryErrors] = useState<AppError[]>([])
+    const [statusMessage, setStatusMessage] = useState<string>()
 
     useEffect(() => {
-        const getSeed = async () => {  
+        const getMnemonic = async () => {  
             try {
                 setIsLoading(true)          
-                const existing = await RestoreClient.getSeed()
+                const existing = await MintClient.getMnemonic()
 
                 if(existing) {
-                    //setSeedExists(true) // TEMP!!!
+                    setMnemonicExists(true)
                 }
                 setIsLoading(false) 
             } catch (e: any) {
                 handleError(e)
             } 
         }
-        getSeed()
+        getMnemonic()
     }, [])
+
+
+    const toggleResultModal = () => {
+        if(isResultModalVisible === true) {
+            setResultModalInfo(undefined)
+        }
+        setIsResultModalVisible(previousState => !previousState)        
+    }
+
+
+    const toggleErrorsModal = () => {
+        setIsErrorsModalVisible(previousState => !previousState)
+    }
 
 
     const onPaste = async function () {
         try {
-            const maybeSeed = await Clipboard.getString()
+            const maybeMnemonic = await Clipboard.getString()
 
-            if(!maybeSeed) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Missing seed phrase.')
+            if(!maybeMnemonic) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing mnemonic phrase.')
             }
 
-            setSeed(maybeSeed)
+            setMnemonic(maybeMnemonic)
         } catch (e: any) {
             handleError(e)
         }
     }
 
 
-    const onConfirm = function (): void {
+    const onConfirm = async function () {
         try {
+            setStatusMessage('Deriving seed, this takes a while...')
             setIsLoading(true)
-            if(!seed) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Missing seed.')
+            if(!mnemonic) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing mnemonic.')
             }
             
-            const seedArray: string[] = seed.trim().split(/\s+/)
-            if(seedArray.length !== 12) {
-                // throw new AppError(Err.VALIDATION_ERROR, 'Invalid seed phrase. Provide 12 word sequence separated by blank spaces.')  // TEMP!!!
-            }
+            /* const mnemonicArray: string[] = mnemonic.trim().split(/\s+/)
+            if(mnemonicArray.length !== 12) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Invalid mnemonic phrase. Provide 12 word sequence separated by blank spaces.')
+            } */
+            if (!validateMnemonic(mnemonic, wordlist)) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Invalid mnemonic phrase. Provide 12 words sequence separated by blank spaces.')
+            }          
 
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+            // 
 
-            setIsValidSeed(true)
-            setIsLoading(false)
+            setTimeout(() => {
+                // LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+                
+                const binarySeed = deriveSeedFromMnemonic(mnemonic) // expensive
+                setSeed(binarySeed)
+                setIsValidMnemonic(true)
+                setIsLoading(false)
+            }, 200)
         } catch (e: any) {
             handleError(e)
         }
@@ -125,12 +157,20 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
     }
 
 
-    const doRecovery = async function () {
+    const startRecovery = async function () {
+        setStatusMessage('Starting recovery...')
+        setIsLoading(true)        
+        setTimeout(() => doRecovery(), 200)        
+    }
 
-        setIsLoading(true)
+    const doRecovery = async function () {        
         let errors: AppError[] = []
+        let recoveredAmount: number = 0
+        let alreadySpentAmount: number = 0
         
-        for (const mint of mintsStore.allMints) {
+        setStatusMessage('Loading mints...')
+        
+        for (const mint of mintsStore.allMints) {            
             const transactionData: TransactionData[] = []            
             let transactionId: number = 0
 
@@ -140,24 +180,41 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
             try {
                 // TODO allow input or get previous keysets from mint and try to restore from them
 
+                setStatusMessage(`Restoring from ${mint.hostname}...`)
+                log.info('[restore]', `Restoring from ${mint.hostname}...`)
+                
                 const { proofs, newKeys } = await MintClient.restore(
                     mint.mintUrl, 
                     startIndex, 
-                    endIndex
+                    endIndex,
+                    seed as Uint8Array
                 )
+
+                log.debug('[restore]', `Restored proofs`, proofs.length)                
+                setStatusMessage(`Found ${proofs.length} proofs...`)
                 
                 if(newKeys) {updateMintKeys(mint.mintUrl as string, newKeys)}
-
+                
                 const {spent, pending} = await MintClient.getSpentOrPendingProofsFromMint(
                     mint.mintUrl,
                     proofs as Proof[]
                 )
 
-                const unspent = proofs.filter(proof => !spent.includes(proof))
+                log.debug('[restore]', `Spent and pending proofs`, {spent: spent.length, pending: pending.length})
 
+                setStatusMessage(`${spent.length} proofs were already spent...`)
+
+                const spentAmount = CashuUtils.getProofsAmount(spent as Proof[])
+                alreadySpentAmount += spentAmount
+
+                const unspent = proofs.filter(proof => !spent.includes(proof))
+                
                 if(unspent && unspent.length > 0) {
+                    
+                    setStatusMessage(`Completing recovery...`)
 
                     const amount = CashuUtils.getProofsAmount(unspent as Proof[])
+                    recoveredAmount += amount
                     
                     // Let's create new draft receive transaction in database
                     transactionData.push({
@@ -170,7 +227,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                         type: TransactionType.RECEIVE,
                         amount,
                         data: JSON.stringify(transactionData),
-                        memo: 'Recovered ecash',
+                        memo: 'Wallet recovery',
                         mint: mint.mintUrl,
                         status: TransactionStatus.PREPARED,
                     }
@@ -178,11 +235,20 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                     const draftTransaction: TransactionRecord = await transactionsStore.addTransaction(newTransaction)
                     transactionId = draftTransaction.id as number
 
-                    addCashuProofs(
+                    const { amountToAdd, addedAmount } = addCashuProofs(
                         unspent,
                         mint.mintUrl,
                         transactionId as number                
-                    )
+                    )                    
+
+                    if (amountToAdd !== addedAmount) {
+                        await transactionsStore.updateReceivedAmount(
+                            transactionId as number,
+                            addedAmount,
+                        )
+
+                        recoveredAmount = recoveredAmount - amount + addedAmount
+                    }
 
                     // Finally, update completed transaction
                     transactionData.push({
@@ -190,14 +256,22 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                         createdAt: new Date(),
                     })
 
-                    const completedTransaction = await transactionsStore.updateStatus(
+                    await transactionsStore.updateStatus(
                         transactionId,
                         TransactionStatus.COMPLETED,
                         JSON.stringify(transactionData),
                     )
+
+                    const balanceAfter = proofsStore.getBalances().totalBalance
+                    await transactionsStore.updateBalanceAfter(transactionId, balanceAfter)
                 }
            
                 if(pending && pending.length > 0) {
+
+                    // infoMessage(`Found pending ecash...`)
+                    setStatusMessage(`Found ${pending.length} pending proofs...`)
+                    log.debug(`Found pending ecash with ${mint.hostname}...`)
+
                     const amount = CashuUtils.getProofsAmount(pending as Proof[])
                     
                     // Let's create new draft receive transaction in database
@@ -211,7 +285,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                         type: TransactionType.RECEIVE,
                         amount,
                         data: JSON.stringify(transactionData),
-                        memo: 'Recovered pending ecash',
+                        memo: 'Wallet recovery - pending',
                         mint: mint.mintUrl,
                         status: TransactionStatus.PREPARED,
                     }
@@ -219,12 +293,19 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                     const draftTransaction: TransactionRecord = await transactionsStore.addTransaction(newTransaction)
                     pendingTransactionId = draftTransaction.id as number
 
-                    addCashuProofs(
+                    const { amountToAdd, addedAmount } = addCashuProofs(
                         pending,
                         mint.mintUrl,
                         pendingTransactionId as number,
                         true  // isPending = true              
                     )
+
+                    if (amountToAdd !== addedAmount) {
+                        await transactionsStore.updateReceivedAmount(
+                            transactionId as number,
+                            addedAmount,
+                        )
+                    }
 
                     // Finally, update pending transaction
                     pendingTransactionData.push({
@@ -232,7 +313,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                         createdAt: new Date(),
                     })
 
-                    const pendingTransaction = await transactionsStore.updateStatus(
+                    await transactionsStore.updateStatus(
                         pendingTransactionId,
                         TransactionStatus.PENDING,
                         JSON.stringify(pendingTransactionData),
@@ -240,7 +321,12 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                 }
 
             } catch(e: any) {
-                e.params.mintUrl = mint.mintUrl
+                
+                if (mint) {
+                    e.params = {mintUrl: mint.mintUrl}
+                }
+
+                // log.error(e, {mintUrl: mint.mintUrl})
                 errors.push(e)
 
                 if (transactionId > 0) {
@@ -250,7 +336,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                         createdAt: new Date(),
                     })
     
-                    const errorTransaction = await transactionsStore.updateStatus(
+                    await transactionsStore.updateStatus(
                         transactionId,
                         TransactionStatus.ERROR,
                         JSON.stringify(transactionData),
@@ -264,25 +350,53 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                         createdAt: new Date(),
                     })
     
-                    const errorTransaction = await transactionsStore.updateStatus(
+                    await transactionsStore.updateStatus(
                         pendingTransactionId,
                         TransactionStatus.ERROR,
                         JSON.stringify(pendingTransactionData),
                     )
                 }
-
+                setStatusMessage(undefined)
                 continue
             }
         }
 
+        setLastRecoveredAmount(recoveredAmount)
         setStartIndex(startIndex + RESTORE_INDEX_INTERVAL)
-        setEndIndex(endIndex + RESTORE_INDEX_INTERVAL)
+        setEndIndex(endIndex + RESTORE_INDEX_INTERVAL)       
+        setStatusMessage(undefined)
         setIsLoading(false)
-        
-        if(errors.length > 0) {
-            setRecoveryErrors(errors)
-            toggleErrorsModal() // open
+
+        if(recoveredAmount > 0) {
+            setResultModalInfo({
+                status: TransactionStatus.COMPLETED, 
+                message: `${recoveredAmount} sats were recovered into your wallet.`
+            })
+        } else {
+            if(errors.length > 0) {
+                setResultModalInfo({
+                    status: TransactionStatus.ERROR, 
+                    message: `Recovery ended up with errors.`
+                })            
+                setRecoveryErrors(errors)
+            } else {
+                if(alreadySpentAmount > 0) {
+                    setResultModalInfo({
+                        status: TransactionStatus.EXPIRED, 
+                        message: `Good news is that already spent ecash has been found. Continue with next recovery interval.`
+                    }) 
+                } else {
+                    setResultModalInfo({
+                        status: TransactionStatus.EXPIRED, 
+                        message: `Nothing has been found in this recovery interval.`
+                    }) 
+                }
+
+            }
         }
+
+        toggleResultModal() // open
+
     }
 
 
@@ -297,7 +411,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
         const keyset = deriveKeysetId(newKeys)
         const mint = mintsStore.findByUrl(mintUrl)
     
-        return mint?.updateKeys(keyset, newKeys)
+        return mint?.updateKeys(keyset, newKeys) // TODO make only newKeys as param
     }
 
 
@@ -309,7 +423,8 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
         isPending: boolean = false    
     ): {  
         amountToAdd: number,  
-        addedAmount: number
+        addedAmount: number,
+        addedProofs: Proof[]
     } {
         // Add internal references
         for (const proof of proofsToAdd as Proof[]) {
@@ -319,13 +434,14 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
         
         const amountToAdd = CashuUtils.getProofsAmount(proofsToAdd as Proof[])    
         // Creates proper model instances and adds them to the wallet    
-        const addedAmount = proofsStore.addProofs(proofsToAdd as Proof[], isPending)
-        
+        const {addedAmount, addedProofs} = proofsStore.addProofs(proofsToAdd as Proof[], isPending)
+                
         log.trace('[addCashuProofs]', 'Added recovered proofs to the wallet with amount', { amountToAdd, addedAmount, isPending })
     
         return {        
             amountToAdd,
-            addedAmount
+            addedAmount,
+            addedProofs
         }
     }
 
@@ -339,8 +455,20 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
     }
 
 
-    const toggleErrorsModal = () => {
-        setIsErrorsModalVisible(previousState => !previousState)
+    const onComplete = async () => {
+        try {
+            if(!seed || !mnemonic) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing mnemonic or seed.')
+            }
+
+            await KeyChain.saveMnemonic(mnemonic)
+            await KeyChain.saveSeed(seed as Uint8Array)
+
+            userSettingsStore.setIsOnboarded(true)
+            navigation.navigate('Tabs')        
+        } catch (e: any) {
+            handleError(e)
+        }
     }
 
 
@@ -368,13 +496,13 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
         </View>
 
         <View style={$contentContainer}>
-            {seedExists ? (
+            {mnemonicExists ? (
             <Card
                 style={$card}
                 ContentComponent={
                     <ListItem
-                        text='Seed exists'
-                        subText='Your wallet already has another seed in its secure storage. Recovery process works only with freshly installed wallet to avoid loss of your funds.'
+                        text='Mnemonic exists'
+                        subText='Your wallet already has another mnemonic in its secure storage. Recovery process works only with freshly installed wallet to avoid loss of your funds.'
                         leftIcon='faTriangleExclamation'
                         // leftIconColor='red'                  
                         style={$item}                    
@@ -393,14 +521,14 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
             />
             ) : (
                 <>
-                {isValidSeed ? (
+                {isValidMnemonic ? (
                     <>
                     <Card
                         style={$card}
                         ContentComponent={
                             <ListItem
-                                text='Your seed phrase'
-                                subText={seed}
+                                text='Your mnemonic phrase'
+                                subText={mnemonic}
                                 LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='1'/></View>}                  
                                 style={$item}                            
                             /> 
@@ -409,21 +537,32 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                     <Card
                         style={$card}
                         HeadingComponent={
+                            <>
                             <ListItem
                                 text='Recovery from mints'
                                 subText='Identify mints to recover your ecash from and add them to the list.'
-                                LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='2'/></View>}
-                                RightComponent={
+                                LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='2'/></View>} 
+                                RightComponent={mintsStore.mintCount > 0 ? (
                                     <View style={$rightContainer}>
                                         <Button
                                             onPress={onAddMints}
-                                            text='Add mints'
-                                            preset='secondary'        
+                                            text='Mints'
+                                            preset='secondary'                                           
                                         /> 
                                     </View>
-                                }               
+                                    ) : (undefined)        
+                                }                        
                                 style={$item}                            
                             />
+                            {mintsStore.mintCount === 0 && (
+                                <View style={$buttonContainer}>
+                                    <Button
+                                        onPress={onAddMints}
+                                        text='Add mints'                                            
+                                    /> 
+                                </View>
+                            )}
+                            </>
                         }
                         ContentComponent={
                             <>
@@ -443,21 +582,29 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                         }
                         FooterComponent={
                             <>
-                            {mintsStore.mintCount > 0 && (
-                            <>
-                            <View style={$buttonContainer}>               
-                                <Button
-                                    onPress={doRecovery}
-                                    text={startIndex === 0 ? 'Start recovery' : 'Continue recovery'}    
-                                />                        
-                            </View>
-                            <Text 
-                                text={`Next interval ${startIndex} - ${endIndex}`} 
-                                size='xxs' 
-                                style={{color: textHint, alignSelf: 'center', marginTop: spacing.small}}
-                            />
-                            </>  
-                            )}
+                                {mintsStore.mintCount > 0 && (
+                                <>
+                                    <View style={$buttonContainer}> 
+                                        {startIndex > 0 && (
+                                            <Button
+                                                onPress={onComplete}
+                                                text={'Complete'}
+                                                style={{marginRight: spacing.small}}                                        
+                                            />
+                                        )}               
+                                        <Button
+                                            onPress={startRecovery}
+                                            text={startIndex === 0 ? 'Start recovery' : 'Next interval'}
+                                            preset={startIndex === 0 ? 'default' : 'secondary'}    
+                                        />                        
+                                    </View>
+                                    <Text 
+                                        text={`Recovery interval ${startIndex} - ${endIndex}`} 
+                                        size='xxs' 
+                                        style={{color: textHint, alignSelf: 'center', marginTop: spacing.small}}
+                                    />
+                                </>  
+                                )}
                             </>   
                         }         
                     />
@@ -467,7 +614,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                     style={$card}
                     ContentComponent={
                         <ListItem
-                            text='Insert backup seed phrase'
+                            text='Insert backup mnemonic phrase'
                             subText='Paste or rewrite 12 words phrase to recover your ecash balance on this device. Separate words by blank spaces.'
                             LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='1'/></View>}                  
                             style={$item}                            
@@ -476,20 +623,20 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                     FooterComponent={
                         <>
                         <TextInput
-                            ref={seedInputRef}
-                            onChangeText={(seed: string) => setSeed(seed)}
-                            value={seed}
+                            ref={mnemonicInputRef}
+                            onChangeText={(mnemonic: string) => setMnemonic(mnemonic)}
+                            value={mnemonic}
                             numberOfLines={3}
                             multiline={true}
                             autoCapitalize='none'
                             keyboardType='default'
                             maxLength={150}
-                            placeholder='Seed phrase...'
+                            placeholder='Mnemonic phrase...'
                             selectTextOnFocus={true}                    
-                            style={[$seedInput, {backgroundColor: inputBg, flexWrap: 'wrap'}]}
+                            style={[$mnemonicInput, {backgroundColor: inputBg, flexWrap: 'wrap'}]}
                         />
                         <View style={$buttonContainer}>
-                            {seed ? (
+                            {mnemonic ? (
                                 <Button
                                     onPress={onConfirm}
                                     text='Confirm'                        
@@ -507,31 +654,94 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                 />
                 )}                
             </>
-            )}     
-            {isLoading && <Loading />}
+            )}
         </View>
         <BottomModal
           isVisible={isErrorsModalVisible}
           style={{alignItems: 'stretch'}}          
           ContentComponent={
             <>
-              {recoveryErrors?.map(err => {
-                return(
-                    <ListItem
-                        leftIcon='faTriangleExclamation'
-                        leftIconColor={colors.palette.angry500}                       
-                        text={err.message}
-                        subText={err.params.mintUrl || ''}
-                        bottomSeparator={true}
-                        style={{paddingHorizontal: spacing.small}}
-                    />             
-                )
-              })}
+                {recoveryErrors?.map((err, index) => (
+                        <ListItem
+                            key={index}
+                            leftIcon='faTriangleExclamation'
+                            leftIconColor={colors.palette.angry500}                       
+                            text={err.message}
+                            subText={err.params ? err.params.mintUrl : ''}
+                            bottomSeparator={true}
+                            style={{paddingHorizontal: spacing.small}}
+                        />             
+                    )
+                )}
             </>
           }
           onBackButtonPress={toggleErrorsModal}
           onBackdropPress={toggleErrorsModal}
-        />        
+        />
+        <BottomModal
+          isVisible={isResultModalVisible ? true : false}          
+          ContentComponent={
+            <>
+              {resultModalInfo &&
+                resultModalInfo.status === TransactionStatus.COMPLETED && (
+                  <>
+                    <ResultModalInfo
+                      icon="faCheckCircle"
+                      iconColor={colors.palette.success200}
+                      title="Recovery success!"
+                      message={resultModalInfo?.message}
+                    />
+                    <View style={$buttonContainer}>
+                      <Button
+                        preset="secondary"
+                        tx={'common.close'}
+                        onPress={toggleResultModal}
+                      />
+                    </View>
+                  </>
+                )}
+              {resultModalInfo &&
+                resultModalInfo.status === TransactionStatus.ERROR && (
+                  <>
+                    <ResultModalInfo
+                      icon="faTriangleExclamation"
+                      iconColor={colors.palette.angry500}
+                      title="Recovery failed"
+                      message={resultModalInfo?.message}
+                    />
+                    <View style={$buttonContainer}>
+                      <Button
+                        preset="secondary"
+                        text={'Show errors'}
+                        onPress={toggleErrorsModal}
+                      />
+                    </View>
+                  </>
+                )}
+              {resultModalInfo &&
+                resultModalInfo.status === TransactionStatus.EXPIRED && (
+                  <>
+                    <ResultModalInfo
+                      icon='faInfoCircle'
+                      iconColor={colors.palette.neutral400}
+                      title="No ecash recovered"
+                      message={resultModalInfo?.message}
+                    />
+                    <View style={$buttonContainer}>
+                      <Button
+                        preset="secondary"
+                        tx={'common.close'}
+                        onPress={toggleResultModal}
+                      />
+                    </View>
+                  </>
+                )}
+            </>
+          }
+          onBackButtonPress={toggleResultModal}
+          onBackdropPress={toggleResultModal}
+        />
+        {isLoading && <Loading statusMessage={statusMessage} opacity={0.8}/>}      
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}      
       </Screen>
@@ -564,7 +774,7 @@ const $numIcon: ViewStyle = {
     marginRight: spacing.medium
 }
 
-const $seedInput: TextStyle = {
+const $mnemonicInput: TextStyle = {
     // flex: 1,    
     borderRadius: spacing.small,    
     fontSize: 16,

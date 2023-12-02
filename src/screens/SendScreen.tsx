@@ -323,21 +323,26 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             return
         }
 
+        setIsMintSelectorVisible(false)
+
         if (paymentOption === SendOption.SHOW_TOKEN) {
             toggleQRModal()
         }
 
         if (paymentOption === SendOption.SEND_TOKEN) {
             toggleNostrDMModal()
-        }
-      
-        setIsMintSelectorVisible(false)
+        }      
+        
     }
 
 
 
     const onMintBalanceCancel = async function () {
         setIsMintSelectorVisible(false)
+        
+        amountInputRef && amountInputRef.current
+        ? amountInputRef.current.focus()
+        : false
     }
 
 
@@ -675,7 +680,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
               encodedTokenToSend={encodedTokenToSend as string}
               onCopy={onCopy}
               onShareToApp={onShareToApp}
-              handleError={handleError}
+              // handleError={handleError}
             />
           }
           onBackButtonPress={toggleQRModal}
@@ -777,7 +782,7 @@ const MintBalanceSelector = observer(function (props: {
   const {mintsStore} = useStores()
 
   return (
-    <>
+    <View style={{flex: 1}}>
       <Card
         style={$card}
         heading={'Pay from'}
@@ -805,20 +810,22 @@ const MintBalanceSelector = observer(function (props: {
           </>
         }
       />
-      <View style={[$buttonContainer, {marginTop: spacing.large}]}>
-        <Button
-          text="Send now"
-          onPress={props.onMintBalanceConfirm}
-          style={{marginRight: spacing.medium}}
-          // LeftAccessory={() => <Icon icon="faCoins" color="white" size={spacing.medium} containerStyle={{marginRight: spacing.small}}/>}
-        />
-        <Button
-          preset="secondary"
-          tx={'common.cancel'}
-          onPress={props.onCancel}
-        />
+      <View style={$bottomContainer}>
+        <View style={[$buttonContainer, {marginTop: spacing.large}]}>
+            <Button
+            text="Send now"
+            onPress={props.onMintBalanceConfirm}
+            style={{marginRight: spacing.medium}}
+            // LeftAccessory={() => <Icon icon="faCoins" color="white" size={spacing.medium} containerStyle={{marginRight: spacing.small}}/>}
+            />
+            <Button
+            preset="secondary"
+            tx={'common.cancel'}
+            onPress={props.onCancel}
+            />
+        </View>
       </View>
-    </>
+    </View>
   )
 })
 
@@ -1000,17 +1007,33 @@ const SendAsQRCodeBlock = observer(function (props: {
   encodedTokenToSend: string
   onCopy: any
   onShareToApp: any  
-  handleError: any
+  // handleError: any
 }) {
+
+    const [qrError, setQrError] = useState<Error | undefined>()
+
+    const handleQrError = function (error: Error) {
+        setQrError(error)
+    }
 
   return (
     <View style={[$bottomModal, {marginHorizontal: spacing.small}]}>
       <Text text={'Scan to receive'} />
-      <View style={$qrCodeContainer}>                  
-            <QRCode 
-                size={spacing.screenWidth - spacing.large * 2} value={props.encodedTokenToSend} 
-                onError={props.handleError}
-            />                
+      <View style={$qrCodeContainer}>
+            {qrError ? (
+                <ListItem 
+                    text='Could not show QR code'
+                    subText={qrError.message || ''}
+                    leftIcon='faTriangleExclamation'
+                    leftIconColor={colors.palette.angry500}
+                />
+            ) : (
+                <QRCode 
+                    size={spacing.screenWidth - spacing.large * 2} value={props.encodedTokenToSend} 
+                    onError={(error: any) => handleQrError(error)}
+                />                
+            )}                 
+            
       </View>
       <View style={$buttonContainer}>
         <Button
@@ -1291,7 +1314,7 @@ const $profileIcon: ImageStyle = {
 }
 
 const $bottomContainer: ViewStyle = {
-    position: 'absolute',
+    // position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,

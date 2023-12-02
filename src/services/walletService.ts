@@ -745,19 +745,20 @@ const receive = async function (
             )
         }
 
+        let receivedAmount = 0
+
         for (const entry of updatedToken.token) {
             // create ProofModel instances and store them into the proofsStore
-            _addCashuProofs(
+            const { addedProofs, addedAmount } = _addCashuProofs(
                 entry.proofs,
                 entry.mint,
                 transactionId as number                
             )
 
-            mintsStore.increaseProofsCounter(mintToReceive as string, entry.proofs.length)
+            receivedAmount += addedAmount            
         }
 
-        // This should be amountToReceive - amountWithErrors but let's set it from updated token
-        const receivedAmount = CashuUtils.getTokenAmounts(updatedToken as Token).totalAmount
+        // const receivedAmount = CashuUtils.getTokenAmounts(updatedToken as Token).totalAmount
         log.debug('[receive]', `Received amount: ${receivedAmount}`)
 
         // Update tx amount if full amount was not received
@@ -1024,19 +1025,20 @@ const receiveOfflineComplete = async function (
             )
         }
 
+        let receivedAmount = 0
+
         for (const entry of updatedToken.token) {
             // create ProofModel instances and store them into the proofsStore
-            _addCashuProofs(
+            const { addedProofs, addedAmount } = _addCashuProofs(
                 entry.proofs,
                 entry.mint,
                 transaction.id as number                
             )
-
-            mintsStore.increaseProofsCounter(mintToReceive as string, entry.proofs.length)
+            
+            receivedAmount += addedAmount            
         }
         
-        // This should be amountToReceive - amountWithErrors but let's set it from updated token
-        const receivedAmount = CashuUtils.getTokenAmounts(updatedToken as Token).totalAmount
+        // const receivedAmount = CashuUtils.getTokenAmounts(updatedToken as Token).totalAmount
         log.debug('[receiveOfflineComplete]', 'Received amount', receivedAmount)
 
         // Update tx amount if full amount was not received
@@ -1188,37 +1190,25 @@ const _sendFromMint = async function (
 
         if (newKeys) {_updateMintKeys(mintUrl, newKeys)}
 
-        // these might be original proofToSendFrom if they matched the exact amount and split was not necessary
-        for (const proof of proofsToSend) {
-            if (isStateTreeNode(proof)) {
-                proof.setTransactionId(transactionId)
-                proof.setMintUrl(mintUrl)
-            } else {
-                ;(proof as Proof).tId = transactionId
-                ;(proof as Proof).mintUrl = mintUrl
-            }
-        }
-
         // add proofs returned by the mint after the split
         if (returnedProofs.length > 0) {
-            // these should be fresh proofs from the mint but let's be defensive and cover the case that we over-send proofs while matching denominations
-            for (const proof of returnedProofs) {
-                if (isStateTreeNode(proof)) {
-                    proof.setTransactionId(transactionId)
-                    proof.setMintUrl(mintUrl)
-                } else {
-                    ;(proof as Proof).tId = transactionId
-                    ;(proof as Proof).mintUrl = mintUrl
-                }
-            }
-            
-            proofsStore.addProofs(returnedProofs)
-            mintsStore.increaseProofsCounter(mintUrl as string, returnedProofs.length)
+            const { addedProofs, addedAmount } = _addCashuProofs(
+                returnedProofs,
+                mintUrl,
+                transactionId          
+            )            
         }
 
         // remove used proofs and move sent proofs to pending
         proofsStore.removeProofs(proofsToSendFrom)
-        proofsStore.addProofs(proofsToSend, true) // pending true
+
+        // these might be original proofToSendFrom if they matched the exact amount and split was not necessary        
+        const { addedProofs, addedAmount } = _addCashuProofs(
+            proofsToSend,
+            mintUrl,
+            transactionId,
+            true       
+        ) 
 
         // Clean private properties to not to send them out. This returns plain js array, not model objects.
         const cleanedProofsToSend = proofsToSend.map(proof => {
@@ -1528,13 +1518,13 @@ const transfer = async function (
         let finalFee = estimatedFee
 
         if (feeSavedProofs.length) {
+            
             const {addedAmount: feeSaved} = _addCashuProofs(
                 feeSavedProofs, 
                 mintUrl, 
                 transactionId                
             )
-
-            mintsStore.increaseProofsCounter(mintUrl as string, feeSavedProofs.length)
+            
             finalFee = estimatedFee - feeSaved            
         }
         // Save final fee in db
@@ -1630,26 +1620,34 @@ const transfer = async function (
 const _addCashuProofs = function (
     proofsToAdd: CashuProof[],
     mintUrl: string,
-    transactionId: number    
+    transactionId: number,
+    isPending: boolean = false  
 ): {  
     amountToAdd: number,  
-    addedAmount: number
+    addedAmount: number,
+    addedProofs: Proof[]
 } {
     // Add internal references
     for (const proof of proofsToAdd as Proof[]) {
-        proof.tId = transactionId
-        proof.mintUrl = mintUrl
+        if (isStateTreeNode(proof)) {
+            proof.setTransactionId(transactionId)
+            proof.setMintUrl(mintUrl)
+        } else {
+            ;(proof as Proof).tId = transactionId
+            ;(proof as Proof).mintUrl = mintUrl
+        }
     }
-    
+
     const amountToAdd = CashuUtils.getProofsAmount(proofsToAdd as Proof[])    
     // Creates proper model instances and adds them to the wallet    
-    const addedAmount = proofsStore.addProofs(proofsToAdd as Proof[])
-    
+    const { addedAmount, addedProofs} = proofsStore.addProofs(proofsToAdd as Proof[], isPending)
+   
     log.trace('[_addCashuProofs]', 'Added proofs to the wallet with amount', { amountToAdd, addedAmount })
 
     return {        
         amountToAdd,
-        addedAmount
+        addedAmount,
+        addedProofs
     }
 }
 
@@ -1869,7 +1867,6 @@ const checkPendingTopups = async function () {
     try {
         for (const pr of paymentRequests) {
             // claim tokens if invoice is paid
-
             
             const proofsCounter = mintsStore.currentProofsCounterValue(pr.mint as string)
 
@@ -1916,9 +1913,7 @@ const checkPendingTopups = async function () {
                 proofs,
                 pr.mint as string,
                 pr.transactionId as number                
-            )
-
-            mintsStore.increaseProofsCounter(pr.mint as string, proofs.length)
+            )            
 
             if (receivedAmount !== pr.amount) {
                 throw new AppError(

@@ -22,12 +22,13 @@ import {
   Button,
   ErrorModal,
   Icon,
+  Loading,
   Screen,
   Text,
 } from '../components'
 import {TxKeyPath} from '../i18n'
 import AppError from '../utils/AppError'
-import { RestoreClient } from '../services'
+import { MintClient } from '../services'
 
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView)
@@ -81,12 +82,16 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
 
     const {userSettingsStore} = useStores()
     const [error, setError] = useState<AppError | undefined>()
+    const [isLoading, setIsLoading] = useState<boolean>(false)    
 
-    
     
     const gotoWallet = async function () {
         try {
-            const seed = await RestoreClient.getOrCreateSeed()
+            // do not overwrite if one was set during recovery
+            setIsLoading(true)
+            const mnemonic = await MintClient.getOrCreateMnemonic()
+            setIsLoading(false)
+            
             userSettingsStore.setIsOnboarded(true)
             navigation.navigate('Tabs')
         } catch (e: any) {
@@ -103,7 +108,8 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
         }      
     }
 
-    const handleError = function (e: AppError) {        
+    const handleError = function (e: AppError) { 
+        setIsLoading(false)      
         setError(e)
     }
 
@@ -232,6 +238,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
                 </View>
             </View>
             {error && <ErrorModal error={error} />}
+            {isLoading && <Loading statusMessage='Creating wallet seed, this takes a while...' opacity={0.8}/>}
         </Screen>
     )
   }
