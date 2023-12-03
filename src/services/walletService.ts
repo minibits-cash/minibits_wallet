@@ -1185,8 +1185,8 @@ const _sendFromMint = async function (
             proofsCounter
         )
 
-        log.debug('[_sendFromMint]', 'returnedProofs', returnedProofs)
-        log.debug('[_sendFromMint]', 'proofsToSend', proofsToSend)
+        // log.debug('[_sendFromMint]', 'returnedProofs', returnedProofs)
+        // log.debug('[_sendFromMint]', 'proofsToSend', proofsToSend)
 
         if (newKeys) {_updateMintKeys(mintUrl, newKeys)}
 

@@ -179,7 +179,6 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
 
             try {
                 // TODO allow input or get previous keysets from mint and try to restore from them
-
                 setStatusMessage(`Restoring from ${mint.hostname}...`)
                 log.info('[restore]', `Restoring from ${mint.hostname}...`)
                 
@@ -192,6 +191,9 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
 
                 log.debug('[restore]', `Restored proofs`, proofs.length)                
                 setStatusMessage(`Found ${proofs.length} proofs...`)
+
+                // need to move counter by ALL previous proofs!!!
+                mintsStore.increaseProofsCounter(mint.mintUrl, proofs.length)
                 
                 if(newKeys) {updateMintKeys(mint.mintUrl as string, newKeys)}
                 

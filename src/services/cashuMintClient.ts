@@ -220,9 +220,9 @@ const sendFromMint = async function (
       counter
     )
 
-    log.trace('[MintClient.sendFromMint] returnedProofs', returnChange)
-    log.trace('[MintClient.sendFromMint] sentProofs', send)
-    log.trace('[MintClient.sendFromMint] newKeys', newKeys)
+    log.debug('[MintClient.sendFromMint] returnedProofs', returnChange)
+    log.debug('[MintClient.sendFromMint] sentProofs', send)
+    log.debug('[MintClient.sendFromMint] newKeys', newKeys)
 
     // do some basic validations that proof amounts from mints match
     const totalAmountToSendFrom = CashuUtils.getProofsAmount(proofsToSendFrom)

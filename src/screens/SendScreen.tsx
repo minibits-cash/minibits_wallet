@@ -816,6 +816,13 @@ const MintBalanceSelector = observer(function (props: {
             text="Send now"
             onPress={props.onMintBalanceConfirm}
             style={{marginRight: spacing.medium}}
+            LeftAccessory={() => (
+                <Icon
+                    icon="faArrowUp"
+                    color="white"
+                    size={spacing.medium}                                
+                />
+            )}
             // LeftAccessory={() => <Icon icon="faCoins" color="white" size={spacing.medium} containerStyle={{marginRight: spacing.small}}/>}
             />
             <Button
