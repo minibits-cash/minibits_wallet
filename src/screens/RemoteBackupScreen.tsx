@@ -1,6 +1,8 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
 import {FlatList, Linking, Platform, Switch, TextStyle, View, ViewStyle} from 'react-native'
+import {validateMnemonic} from '@scure/bip39'
+import { wordlist } from '@scure/bip39/wordlists/english'
 import {colors, spacing, useThemeColor} from '../theme'
 import {SettingsStackScreenProps} from '../navigation' // @demo remove-current-line
 import {
@@ -18,9 +20,10 @@ import {
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import AppError, { Err } from '../utils/AppError'
-import { log, MintClient } from '../services'
+import { KeyChain, log, MintClient } from '../services'
 import { scale } from '@gocodingnow/rn-size-matters'
 import Clipboard from '@react-native-clipboard/clipboard'
+import { deriveSeedFromMnemonic } from '@cashu/cashu-ts/src/secrets'
 
 
 export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = observer(function RemoteBackupScreen(_props) {
@@ -38,13 +41,27 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
     const [mnemonic, setMnemonic] = useState<string>()
     const [mnemonicArray, setMnemonicArray] = useState<string[]>([])
     const [isLoading, setIsLoading] = useState(false)
+    const [isNewMnemonic, setIsNewMnemonic] = useState(false)
     const [error, setError] = useState<AppError | undefined>()
 
     useEffect(() => {
         const getmnemonic = async () => {  
             try {
-                setIsLoading(true)          
-                const mnemonic = await MintClient.getOrCreateMnemonic()
+                setIsLoading(true)
+                let mnemonic: string | undefined = undefined
+
+                mnemonic = await MintClient.getMnemonic()
+
+                if(!mnemonic) {
+                    // wallets upgraded from 0.1.4 with no generated seed                    
+                    mnemonic = await MintClient.getOrCreateMnemonic() // expensive, derives seed
+                    setIsNewMnemonic(true)
+                }
+
+                if (!validateMnemonic(mnemonic, wordlist)) {
+                    throw new AppError(Err.VALIDATION_ERROR, 'Corrupted or invalid mnemonic. Please move funds and reinstall this wallet.')
+                }
+
                 setMnemonic(mnemonic)
                 setMnemonicArray(mnemonic.split(/\s+/))
                 setIsLoading(false) 
@@ -60,6 +77,11 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
         try {
             if(mnemonic) {
                 Clipboard.setString(mnemonic)
+
+                if(isNewMnemonic) {
+                    setInfo('To apply backup to your existing funds, send your whole balance to yourself. Otherwise only funds from now on can be restored.')
+                }
+
                 return
             }
             throw new AppError(Err.VALIDATION_ERROR, 'Missing mnemonic.')          
@@ -131,7 +153,7 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
             }
           />
           {isLoading && <Loading />}
-        </View>        
+        </View>      
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}      
       </Screen>

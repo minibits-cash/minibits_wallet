@@ -119,27 +119,22 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
     const onConfirm = async function () {
         try {
             setStatusMessage('Deriving seed, this takes a while...')
-            setIsLoading(true)
+            
             if(!mnemonic) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Missing mnemonic.')
             }
-            
-            /* const mnemonicArray: string[] = mnemonic.trim().split(/\s+/)
-            if(mnemonicArray.length !== 12) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Invalid mnemonic phrase. Provide 12 word sequence separated by blank spaces.')
-            } */
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+            setIsLoading(true)
+
             if (!validateMnemonic(mnemonic, wordlist)) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Invalid mnemonic phrase. Provide 12 words sequence separated by blank spaces.')
             }          
 
-            // 
-
-            setTimeout(() => {
-                // LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-                
+            setTimeout(() => {                                
                 const binarySeed = deriveSeedFromMnemonic(mnemonic) // expensive
                 setSeed(binarySeed)
                 setIsValidMnemonic(true)
+                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
                 setIsLoading(false)
             }, 200)
         } catch (e: any) {
@@ -192,8 +187,13 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                 log.debug('[restore]', `Restored proofs`, proofs.length)                
                 setStatusMessage(`Found ${proofs.length} proofs...`)
 
-                // need to move counter by ALL previous proofs!!!
-                mintsStore.increaseProofsCounter(mint.mintUrl, proofs.length)
+                // exit if nothing recovered
+                if (proofs.length === 0) {
+                    continue
+                }
+
+                // need to move counter by whole interval to avoid duplicate _B!!!
+                mintsStore.increaseProofsCounter(mint.mintUrl, endIndex)
                 
                 if(newKeys) {updateMintKeys(mint.mintUrl as string, newKeys)}
                 
@@ -485,7 +485,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
     const inputBg = useThemeColor('background')
 
     return (
-      <Screen style={$screen} preset="auto">
+      <Screen contentContainerStyle={$screen} preset="auto">
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
             <Text preset="heading" text="Wallet recovery" style={{color: 'white', zIndex: 10}} />
             {/*<SvgXml                
@@ -742,15 +742,15 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
           }
           onBackButtonPress={toggleResultModal}
           onBackdropPress={toggleResultModal}
-        />
-        {isLoading && <Loading statusMessage={statusMessage} opacity={0.8}/>}      
+        />             
         {error && <ErrorModal error={error} />}
-        {info && <InfoModal message={info} />}      
+        {info && <InfoModal message={info} />}
+        {isLoading && <Loading statusMessage={statusMessage} style={{backgroundColor: headerBg, opacity: 1}}/>}    
       </Screen>
     )
 })
 
-const $screen: ViewStyle = {}
+const $screen: ViewStyle = {flex: 1}
 
 const $headerContainer: TextStyle = {
   alignItems: 'center',
@@ -758,9 +758,10 @@ const $headerContainer: TextStyle = {
   height: spacing.screenHeight * 0.18,
 }
 
-const $contentContainer: TextStyle = {  
-  marginTop: -spacing.extraLarge * 2,
-  padding: spacing.extraSmall,  
+const $contentContainer: TextStyle = {
+    flex: 1,
+    marginTop: -spacing.extraLarge * 2,
+    padding: spacing.extraSmall,  
 }
 
 const $card: ViewStyle = {

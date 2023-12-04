@@ -15,7 +15,7 @@ import {
 // import { isRTL } from "../i18n"
 import {useStores} from '../models'
 import {AppStackScreenProps} from '../navigation'
-import {spacing, colors} from '../theme'
+import {spacing, colors, useThemeColor} from '../theme'
 import {useHeader} from '../utils/useHeader'
 import {useSafeAreaInsetsStyle} from '../utils/useSafeAreaInsetsStyle'
 import {
@@ -90,10 +90,9 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
             // do not overwrite if one was set during recovery
             setIsLoading(true)
             const mnemonic = await MintClient.getOrCreateMnemonic()
-            setIsLoading(false)
-            
             userSettingsStore.setIsOnboarded(true)
             navigation.navigate('Tabs')
+            setIsLoading(false)
         } catch (e: any) {
             handleError(e)
         }      
@@ -147,7 +146,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
       []
     )
 
-    const $bottomContainerInsets = useSafeAreaInsetsStyle(['bottom'])   
+    const headerBg = useThemeColor('header')  
 
     const renderBullet = ({item}: {item: {id: string; tx: string}}) => (
         <View style={$listItem}>
@@ -168,7 +167,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
 
 
     return (
-        <Screen contentContainerStyle={$container} preset="fixed">
+        <Screen contentContainerStyle={$container} preset="fixed" style={{backgroundColor: headerBg}}>
             <AnimatedPagerView
                 testID="pager-view"
                 initialPage={0}
@@ -238,7 +237,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
                 </View>
             </View>
             {error && <ErrorModal error={error} />}
-            {isLoading && <Loading statusMessage='Creating wallet seed, this takes a while...' opacity={0.8}/>}
+            {isLoading && <Loading statusMessage={'Creating wallet seed, this takes a while...'} style={{backgroundColor: headerBg, opacity: 1}}/>}
         </Screen>
     )
   }
@@ -256,8 +255,7 @@ const $dotContainer: ViewStyle ={
 const $container: ViewStyle = {
   // alignItems: 'center',
   flex: 1,
-  padding: spacing.medium,
-  backgroundColor: colors.palette.primary500
+  padding: spacing.medium,  
 }
 
 const $listContainer: ViewStyle = {
