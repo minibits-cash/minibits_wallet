@@ -193,7 +193,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                 }
 
                 // need to move counter by whole interval to avoid duplicate _B!!!
-                mintsStore.increaseProofsCounter(mint.mintUrl, endIndex)
+                mintsStore.increaseProofsCounter(mint.mintUrl, Math.abs(endIndex - startIndex))
                 
                 if(newKeys) {updateMintKeys(mint.mintUrl as string, newKeys)}
                 

@@ -89,7 +89,8 @@ jobs:
           echo MINIBITS_SERVER_API_KEY='${{ secrets.MINIBITS_SERVER_API_KEY }}' >> .env
           echo MINIBITS_SERVER_API_HOST='https://api.minibits.cash' >> .env
           echo MINIBITS_NIP05_DOMAIN='@minibits.cash' >> .env
-          echo MINIBITS_RELAY_URL='wss://relay.minibits.cash/test' >> .env          
+          echo MINIBITS_RELAY_URL='wss://relay.minibits.cash/test' >> .env
+          echo MINIBITS_MINT_URL='wss://mint.minibits.cash/Bitcoin' >> .env         
           echo COMMIT='${{ env.COMMIT_HASH }}' >> .env
           
       # Install dependecies from package.json

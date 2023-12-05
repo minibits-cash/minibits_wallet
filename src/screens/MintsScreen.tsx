@@ -2,6 +2,9 @@ import {observer} from 'mobx-react-lite'
 import React, {FC, useCallback, useRef, useState} from 'react'
 import {Alert, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
+import {
+    MINIBITS_MINT_URL 
+} from '@env'
 import {spacing, typography, useThemeColor, colors} from '../theme'
 import {AppStackScreenProps, SettingsStackScreenProps} from '../navigation'
 import {
@@ -19,13 +22,12 @@ import {
 import {Mint} from '../models/Mint'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
-import {MintKeys, MintKeySets, MintClient} from '../services'
+import {MintKeys, MintClient} from '../services'
 import {log} from '../services/logService'
 import AppError from '../utils/AppError'
 import {translate} from '../i18n'
 import {MintListItem} from './Mints/MintListItem'
-import { infoMessage } from '../utils/utils'
-import { spyReportEnd } from 'mobx/dist/internal'
+
 
 
 export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(function MintsScreen({route, navigation}) {    
@@ -38,7 +40,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
     const mintInputRef = useRef<TextInput>(null)
 
     const [mintUrl, setMintUrl] = useState('')
-    const [defaultMintUrl, setDefaultMintUrl] = useState<string>('https://mint.minibits.cash/Bitcoin')
+    const [defaultMintUrl, setDefaultMintUrl] = useState<string>(MINIBITS_MINT_URL)
     const [selectedMint, setSelectedMint] = useState<Mint | undefined>()
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
@@ -439,8 +441,8 @@ const $actionItem: ViewStyle = {
 }
 
 const $card: ViewStyle = {
-  marginBottom: spacing.small,
-  paddingTop: 0,
+    marginBottom: spacing.small,
+  // paddingTop: 0,
 }
 
 const $cardHeading: TextStyle = {

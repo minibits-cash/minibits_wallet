@@ -49,7 +49,8 @@ import AppError, { Err } from '../utils/AppError'
 import {
     APP_ENV,      
     CODEPUSH_STAGING_DEPLOYMENT_KEY,
-    CODEPUSH_PRODUCTION_DEPLOYMENT_KEY, 
+    CODEPUSH_PRODUCTION_DEPLOYMENT_KEY,
+    MINIBITS_MINT_URL 
 } from '@env'
 import { round } from '../utils/number'
 import { NotificationService } from '../services/notificationService'
@@ -89,7 +90,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const isInternetReachable = useIsInternetReachable()
    
     const [info, setInfo] = useState<string>('')
-    const [defaultMintUrl, setDefaultMintUrl] = useState<string>('https://mint.minibits.cash/Bitcoin')
+    const [defaultMintUrl, setDefaultMintUrl] = useState<string>(MINIBITS_MINT_URL)
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState<boolean>(false)
     

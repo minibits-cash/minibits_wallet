@@ -117,7 +117,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
                     <ListItem
                     tx="backupScreen.remoteBackup"
                     subTx="backupScreen.remoteBackupDescription"
-                    leftIcon='faDownload'
+                    leftIcon='faUpRightFromSquare'
                     leftIconColor={colors.palette.blue200}
                     leftIconInverse={true}
                     style={$item}
@@ -159,6 +159,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
                         leftIconInverse={true}
                         style={$item}
                         onPress={gotoLocalRecovery}
+                        topSeparator={true}
                     />
                     )}                
                 </>

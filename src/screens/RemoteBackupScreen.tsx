@@ -99,7 +99,7 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
     return (
       <Screen style={$screen}>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text preset="heading" text="Remote backup" style={{color: 'white'}} />
+          <Text preset="heading" text="Off-device backup" style={{color: 'white'}} />
         </View>
         <View style={$contentContainer}>
           <Card
@@ -111,7 +111,7 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
                     leftIcon='faInfoCircle'
                     leftIconColor={colors.palette.iconYellow300}
                     leftIconInverse={true}                  
-                    style={$item}
+                    style={$item}                    
                 /> 
             }            
           />
