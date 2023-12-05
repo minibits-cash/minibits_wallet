@@ -23,7 +23,6 @@ import AppError, { Err } from '../utils/AppError'
 import { KeyChain, log, MintClient } from '../services'
 import { scale } from '@gocodingnow/rn-size-matters'
 import Clipboard from '@react-native-clipboard/clipboard'
-import { deriveSeedFromMnemonic } from '@cashu/cashu-ts/src/secrets'
 
 
 export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = observer(function RemoteBackupScreen(_props) {

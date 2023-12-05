@@ -12,7 +12,7 @@ import AppError, {Err} from '../utils/AppError'
 import {log} from './logService'
 import {Token} from '../models/Token'
 import {Proof} from '../models/Proof'
-import { deriveSeedFromMnemonic } from '@cashu/cashu-ts/src/secrets'
+import { deriveSeedFromMnemonic } from '@cashu/cashu-ts'
 
 export type MintKeys = {[k: number]: string}
 export type MintKeySets = {keysets: Array<string>}

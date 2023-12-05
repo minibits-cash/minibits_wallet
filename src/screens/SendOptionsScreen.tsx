@@ -20,8 +20,6 @@ import {log} from '../services/logService'
 import AppError from '../utils/AppError'
 import { IncomingDataType } from '../services/incomingParser'
 import { SvgXml } from 'react-native-svg'
-import { KeyChain, MintClient } from '../services'
-import { deriveSeedFromMnemonic } from '@cashu/cashu-ts/src/secrets'
 
 export enum SendOption {
     SEND_TOKEN = 'SEND_TOKEN',
@@ -40,26 +38,6 @@ export const SendOptionsScreen: FC<WalletStackScreenProps<'SendOptions'>> = obse
     })
  
     const [error, setError] = useState<AppError | undefined>()
-
-    /* useEffect(() => {
-        const getMnemonic = async () => {  
-            try {
-                    
-                const mnemonic = await KeyChain.loadMnemonic()
-                log.trace(mnemonic)
-                const seed = deriveSeedFromMnemonic(mnemonic as string)
-                log.trace('real seed', seed)
-                await KeyChain.saveSeed(seed)
-
-                const storedseed = await KeyChain.loadSeed()
-                
-                
-            } catch (e: any) {
-                handleError(e)
-            } 
-        }
-        getMnemonic()
-    }, []) */
 
     const gotoContacts = function () {
         navigation.navigate('ContactsNavigator', {

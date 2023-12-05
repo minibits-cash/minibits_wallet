@@ -33,7 +33,7 @@ import {
 } from '@cashu/cashu-ts'
 import { Transaction, TransactionData, TransactionRecord, TransactionStatus, TransactionType } from '../models/Transaction'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
-import { deriveSeedFromMnemonic } from '@cashu/cashu-ts/src/secrets'
+import { deriveSeedFromMnemonic } from '@cashu/cashu-ts'
 
 if (Platform.OS === 'android' &&
     UIManager.setLayoutAnimationEnabledExperimental) {

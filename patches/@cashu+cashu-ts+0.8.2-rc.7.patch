@@ -281,7 +281,7 @@ index f6bc3b1..d055786 100644
  			method: 'POST',
  			requestBody: restorePayload
 diff --git a/node_modules/@cashu/cashu-ts/src/CashuWallet.ts b/node_modules/@cashu/cashu-ts/src/CashuWallet.ts
-index b7cf354..0565096 100644
+index b7cf354..febd9bd 100644
 --- a/node_modules/@cashu/cashu-ts/src/CashuWallet.ts
 +++ b/node_modules/@cashu/cashu-ts/src/CashuWallet.ts
 @@ -1,7 +1,7 @@
@@ -304,7 +304,7 @@ index b7cf354..0565096 100644
  import {
  	bytesToNumber,
  	cleanToken,
-@@ -25,8 +25,8 @@ import {
+@@ -25,8 +25,10 @@ import {
  	getDecodedToken,
  	getDefaultAmountPreference,
  	splitAmount
@@ -312,32 +312,39 @@ index b7cf354..0565096 100644
 -import { deriveBlindingFactor, deriveSecret, deriveSeedFromMnemonic } from './secrets.js';
 +} from './utils';
 +import { deriveBlindingFactor, deriveSecret, deriveSeedFromMnemonic } from './secrets';
++import { validateMnemonic } from '@scure/bip39';
++import { wordlist } from '@scure/bip39/wordlists/english.js';
  
  /**
   * Class that represents a Cashu wallet.
-@@ -43,15 +43,18 @@ class CashuWallet {
+@@ -43,15 +45,23 @@ class CashuWallet {
  	 * @param mint Cashu mint instance is used to make api calls
  	 * @param mnemonic mnemonic seed phrase to initial derivation key for this wallets deterministic secrets
  	 */
 -	constructor(mint: CashuMint, keys?: MintKeys, mnemonic?: string) {
-+	constructor(mint: CashuMint, keys?: MintKeys, seed?: Uint8Array) {
++	constructor(mint: CashuMint, keys?: MintKeys, mnemonicOrSeed?: string | Uint8Array) {
  		this._keys = keys || {};
  		this.mint = mint;
  		if (keys) {
  			this._keysetId = deriveKeysetId(this._keys);
  		}
 -		if (mnemonic) {
-+		/* if (mnemonic) {
- 			this._seed = deriveSeedFromMnemonic(mnemonic);
--		}
-+		}*/
-+        if (seed) {
-+            this._seed = seed;
-+        }
+-			this._seed = deriveSeedFromMnemonic(mnemonic);
++        if (!mnemonicOrSeed) {
++			return
+ 		}
++		if (mnemonicOrSeed instanceof Uint8Array) {
++			this._seed = mnemonicOrSeed
++			return
++		}
++		if (!validateMnemonic(mnemonicOrSeed, wordlist)) {
++			throw new Error('Tried to instantiate with mnemonic, but mnemonic was invalid');
++		}
++		this._seed = deriveSeedFromMnemonic(mnemonicOrSeed);
  	}
  
  	get keys(): MintKeys {
-@@ -69,13 +72,16 @@ class CashuWallet {
+@@ -69,13 +79,16 @@ class CashuWallet {
  	 * @param proofs (only the 'secret' field is required)
  	 * @returns
  	 */
@@ -357,7 +364,7 @@ index b7cf354..0565096 100644
  	}
  	/**
  	 * Starts a minting process by requesting an invoice from the mint
-@@ -512,8 +518,8 @@ class CashuWallet {
+@@ -512,8 +525,8 @@ class CashuWallet {
  		const secrets: Array<Uint8Array> = [];
  		const rs: Array<bigint> = [];
  		for (let i = 0; i < amounts.length; i++) {
@@ -385,7 +392,7 @@ index ca37559..02843b5 100644
  import { bytesToHex } from '@noble/curves/abstract/utils';
  
 diff --git a/node_modules/@cashu/cashu-ts/src/index.ts b/node_modules/@cashu/cashu-ts/src/index.ts
-index b1f2c00..138c251 100644
+index b1f2c00..0c0f85c 100644
 --- a/node_modules/@cashu/cashu-ts/src/index.ts
 +++ b/node_modules/@cashu/cashu-ts/src/index.ts
 @@ -1,10 +1,10 @@
@@ -400,11 +407,19 @@ index b1f2c00..138c251 100644
  import { decode as getDecodedLnInvoice } from '@gandlaf21/bolt11-decode';
 -import { generateNewMnemonic } from './secrets.js';
 -export * from './model/types/index.js';
-+import { generateNewMnemonic } from './secrets';
++import { generateNewMnemonic, deriveSeedFromMnemonic } from './secrets';
 +export * from './model/types/index';
  
  export {
  	CashuMint,
+@@ -14,5 +14,6 @@ export {
+ 	deriveKeysetId,
+ 	getDecodedLnInvoice,
+ 	setGlobalRequestOptions,
+-	generateNewMnemonic
++	generateNewMnemonic,
++	deriveSeedFromMnemonic
+ };
 diff --git a/node_modules/@cashu/cashu-ts/src/model/types/index.ts b/node_modules/@cashu/cashu-ts/src/model/types/index.ts
 index 4855c33..4546acc 100644
 --- a/node_modules/@cashu/cashu-ts/src/model/types/index.ts
