@@ -710,7 +710,7 @@ const receive = async function (
 
         // Now we ask all mints to get fresh outputs for their tokenEntries, and create from them new proofs
         // 0.8.0-rc3 implements multimints receive however CashuMint constructor still expects single mintUrl
-        const {updatedToken, errorToken, newKeys} = await MintClient.receiveFromMint(
+        const {updatedToken, errorToken, newKeys, errors} = await MintClient.receiveFromMint(
             mintToReceive,
             encodedToken as string,
             proofsCounter
@@ -735,13 +735,14 @@ const receive = async function (
 
         if (errorToken && errorToken.token.length > 0) {
             amountWithErrors += CashuUtils.getTokenAmounts(errorToken as Token).totalAmount
-            log.warn('[receive]', 'receiveToken amountWithErrors', amountWithErrors)
+            log.warn('[receive]', 'receiveToken amountWithErrors', amountWithErrors, errors)
         }
 
         if (amountWithErrors === amountToReceive) {
             throw new AppError(
                 Err.VALIDATION_ERROR,
-                'Received ecash token is not valid and can not be redeemed.',
+                'Ecash could not be redeemed.',
+                {caller: 'receive', message: errors?.length ? errors[0]?.message : undefined}
             )
         }
 
@@ -1005,7 +1006,7 @@ const receiveOfflineComplete = async function (
 
         // Now we ask all mints to get fresh outputs for their tokenEntries, and create from them new proofs
         // 0.8.0-rc3 implements multimints receive however CashuMint constructor still expects single mintUrl
-        const {updatedToken, errorToken, newKeys} = await MintClient.receiveFromMint(
+        const {updatedToken, errorToken, newKeys, errors} = await MintClient.receiveFromMint(
             tokenMints[0],
             encodedToken as string,
             proofsCounter
@@ -1021,7 +1022,8 @@ const receiveOfflineComplete = async function (
         if (amountWithErrors === transaction.amount) {
             throw new AppError(
                 Err.VALIDATION_ERROR,
-                'Received ecash token is not valid and can not be redeemed.',
+                'Ecash could not be redeemed.',
+                {caller: 'receiveOfflineComplete', message: errors?.length ? errors[0]?.message : undefined}
             )
         }
 

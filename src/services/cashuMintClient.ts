@@ -182,7 +182,7 @@ const receiveFromMint = async function (
     log.trace('[receiveFromMint] calling cashuWallet.receive', {encodedToken, counter})
 
     // this method returns quite a mess, we normalize naming of returned parameters
-    const {token, tokensWithErrors, newKeys} = await cashuWallet.receive(
+    const {token, tokensWithErrors, newKeys, errors} = await cashuWallet.receive(
       encodedToken,
       undefined,
       counter
@@ -191,11 +191,13 @@ const receiveFromMint = async function (
     log.trace('[receiveFromMint] updatedToken', token)
     log.trace('[receiveFromMint] tokensWithErrors', tokensWithErrors)
     log.trace('[receiveFromMint] newKeys', newKeys)
+    log.trace('[receiveFromMint] errors', errors)
 
     return {
       updatedToken: token as Token,
       errorToken: tokensWithErrors as Token,
       newKeys,
+      errors
     }
   } catch (e: any) {
     throw new AppError(Err.MINT_ERROR, e.message)
