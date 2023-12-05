@@ -38,49 +38,11 @@ export const ReceiveOptionsScreen: FC<WalletStackScreenProps<'ReceiveOptions'>> 
       onLeftPress: () => navigation.goBack(),
     })
 
-    useEffect(() => {
-        const getTorStatus = async () => {
-            const proof = JSON.parse(`
-            
-            {"C":"034f44d87e7461d00e28dbd837a97765ca802feb2e5c999946f392cefb798b7294","amount":4,"id":"fBAf2puc1EXU","isPending":0,"isSpent":0,"secret":"xqK2+0TWBBqvQ25PyyaM8XXn8ZMu5QufmSUmc0PiOkk=","tId":126,"updatedAt":"2023-11-14T21:11:23.704Z"}
-            
-            `)
-            log.info(proof)
-            const { tId, isPending, isSpent, updatedAt, ...cleanedProof } = proof
-            const mint = 'http://ayu3rgzm2o36upozjwkvgfktkvuer26ll2mjtmzddfzmt27uxvwlklqd.onion:3338'
-            log.info(cleanedProof)
 
-            setDecoded(cleanedProof)
-
-            const token: Token = {
-                token: [{mint, proofs: [cleanedProof]}]
-            }
-            
-            setEncoded(getEncodedToken(token))
-
-        }
-        
-        getTorStatus()
-        
-        return () => {}
-    }, [])
-
-    const isInternetReachable = useIsInternetReachable()
-
-    
+    const isInternetReachable = useIsInternetReachable()    
 
     const [info, setInfo] = useState('')
-    const [decoded, setDecoded] = useState<Proof>()
-    const [encoded, setEncoded] = useState(``)
     const [error, setError] = useState<AppError | undefined>()
-
-    const onCopyEncoded = function () {
-        try {
-            Clipboard.setString(encoded as string)
-        } catch (e: any) {
-            setInfo(`Could not copy: ${e.message}`)
-        }
-    }
 
     const gotoContacts = function () {
         navigation.navigate('ContactsNavigator', {
@@ -169,10 +131,6 @@ export const ReceiveOptionsScreen: FC<WalletStackScreenProps<'ReceiveOptions'>> 
                         style={$item} 
                         topSeparator={true}                   
                         onPress={onScan}
-                    />
-                    <ListItem 
-                        text={encoded}
-                        onPress={onCopyEncoded}
                     />
                 </>
               }
