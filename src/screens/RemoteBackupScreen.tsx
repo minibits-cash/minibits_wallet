@@ -118,7 +118,8 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
           <Card
             style={$card}
             ContentComponent={
-                <>  
+                <>
+                {isLoading && <Loading />} 
                 <FlatList
                     data={mnemonicArray}
                     numColumns={2}
@@ -150,8 +151,7 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
                     />       
                 </View>
             }
-          />
-          {isLoading && <Loading />}
+          />          
         </View>      
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}      

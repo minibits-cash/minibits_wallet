@@ -642,7 +642,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                     gotoWallet={resetState}
                 />
             )}
-            {(transactionStatus === TransactionStatus.PENDING || transactionStatus === TransactionStatus.COMPLETED)  && (
+            {(transactionStatus === TransactionStatus.COMPLETED)  && (
                 <View style={$bottomContainer}>
                     <View style={$buttonContainer}>
                         <Button
@@ -956,7 +956,7 @@ const SelectedMintBlock = observer(function (props: {
     const tokenTextColor = useThemeColor('textDim')
 
   return (
-        <View>            
+        <View style={{flex: 1}}>
             <Card
                 style={$card}
                 heading={'Send from'}
@@ -972,8 +972,9 @@ const SelectedMintBlock = observer(function (props: {
                         separator={'top'}
                     />
                 }
-            /> 
-            <View style={$buttonContainer}>
+            />
+            <View style={$bottomContainer}>
+                <View style={$buttonContainer}>
                 <Button
                     text='QR code'
                     preset='secondary'
@@ -991,7 +992,7 @@ const SelectedMintBlock = observer(function (props: {
                         text='Send to contact'
                         preset='secondary'
                         onPress={props.toggleNostrDMModal}
-                        style={{marginLeft: spacing.medium}}
+                        style={{marginLeft: spacing.small}}
                         LeftAccessory={() => (
                             <Icon
                             icon='faPaperPlane'
@@ -1001,7 +1002,15 @@ const SelectedMintBlock = observer(function (props: {
                         )} 
                     />
                 )}
-            </View>
+                    <Button
+                        preset="secondary"
+                        tx={'common.close'}
+                        onPress={props.gotoWallet}
+                        style={{marginLeft: spacing.small}}
+                    />
+                </View>
+            </View> 
+
         </View>
   )
 })
@@ -1024,15 +1033,15 @@ const SendAsQRCodeBlock = observer(function (props: {
     }
 
   return (
-    <View style={[$bottomModal, {marginHorizontal: spacing.small}]}>
-      <Text text={'Scan to receive'} />
+    <View style={[{marginHorizontal: spacing.small}]}>
+      <Text text={'Scan to receive'} style={{alignSelf: 'center'}}/>
       
             {qrError ? (
                 <ListItem 
-                    text='Could not display QR code.'
-                    subText={qrError.message || ''}
+                    text='Could not display QR code, copy token instead.'
+                    subText={qrError ? qrError.message : ''}
                     leftIcon='faTriangleExclamation'
-                    style={{alignSelf: 'stretch'}}
+                    containerStyle={{marginVertical: spacing.large}}
                     leftIconColor={colors.palette.angry500}
                 />
             ) : (
