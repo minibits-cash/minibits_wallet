@@ -1026,22 +1026,25 @@ const SendAsQRCodeBlock = observer(function (props: {
   return (
     <View style={[$bottomModal, {marginHorizontal: spacing.small}]}>
       <Text text={'Scan to receive'} />
-      <View style={$qrCodeContainer}>
+      
             {qrError ? (
                 <ListItem 
-                    text='Could not show QR code'
+                    text='Could not display QR code.'
                     subText={qrError.message || ''}
                     leftIcon='faTriangleExclamation'
+                    style={{alignSelf: 'stretch'}}
                     leftIconColor={colors.palette.angry500}
                 />
             ) : (
-                <QRCode 
-                    size={spacing.screenWidth - spacing.large * 2} value={props.encodedTokenToSend} 
-                    onError={(error: any) => handleQrError(error)}
-                />                
+                <View style={$qrCodeContainer}>
+                    <QRCode 
+                        size={spacing.screenWidth - spacing.large * 2} value={props.encodedTokenToSend} 
+                        onError={(error: any) => handleQrError(error)}
+                    />
+                </View>              
             )}                 
             
-      </View>
+      
       <View style={$buttonContainer}>
         <Button
           text="Share"
