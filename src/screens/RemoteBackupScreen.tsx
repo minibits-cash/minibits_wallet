@@ -54,6 +54,7 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
                 if(!mnemonic) {
                     // wallets upgraded from 0.1.4 with no generated seed                    
                     mnemonic = await MintClient.getOrCreateMnemonic() // expensive, derives seed
+                    MintClient.resetCachedWallets() // force all cached wallet instances to be recreated with seed
                     setIsNewMnemonic(true)
                 }
 

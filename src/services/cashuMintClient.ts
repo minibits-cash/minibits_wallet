@@ -28,7 +28,7 @@ const { mintsStore } = rootStoreInstance
 const getOrCreateMnemonic = async function (): Promise<string> {    
     let mnemonic: string | undefined = undefined
 
-    mnemonic = await getMnemonic()    
+    mnemonic = await getMnemonic() // returns cached or saved mnemonic   
 
     if (!mnemonic) {
         mnemonic = KeyChain.generateMnemonic() as string
@@ -118,10 +118,18 @@ const getWallet = async function (
     const mint = mintsStore.findByUrl(mintUrl)
 
     if(withSeed) {
-        const seed = await getSeed()    
+        let seed: Uint8Array | undefined = undefined
+        seed = await getSeed()
+
+        // Handle legacy pre-0.1.5 created wallets
+        if(!seed) {
+            const mnemonic = await getOrCreateMnemonic()
+            seed = await getSeed()
+            resetCachedWallets() // force all wallet instances to be recreated with seed
+        }
         
         const seedWallet = new CashuWallet(cashuMint, mint ? mint.keys : undefined, seed)
-        log.trace('[getWallet]', 'Saving CahuWallet instance to cache')
+        log.trace('[getWallet]', 'Returning new cashuWallet instance with seed')
 
         _seedWallets[mintUrl] = seedWallet        
         return seedWallet
@@ -134,6 +142,11 @@ const getWallet = async function (
     return wallet
 }
 
+
+const resetCachedWallets = function () {
+    _seedWallets = {}
+    _wallets = {}
+}
 
 const getMintKeys = async function (mintUrl: string) {
   const mint = getMint(mintUrl)
@@ -466,7 +479,8 @@ const restore = async function (
 export const MintClient = {
     getOrCreateMnemonic,
     getMnemonic,
-    getSeed,   
+    getSeed,
+    resetCachedWallets,  
     getMintKeys,
     receiveFromMint,
     sendFromMint,
