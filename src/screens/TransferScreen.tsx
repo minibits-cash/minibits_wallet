@@ -507,7 +507,7 @@ const satsColor = colors.palette.primary200
                         style={[$card, {minHeight: 0}]}
                         ContentComponent={
                             <ListItem
-                                text={(memo) ? memo : lnurlPayParams ? lnurlPayParams.address ? lnurlPayParams.address : lnurlPayParams.domain : ''}
+                                text={lnurlPayParams?.address || memo || lnurlPayParams?.domain || 'Payment info'}
                                 subText={lnurlDescription}
                                 LeftComponent={
                                     <Icon
