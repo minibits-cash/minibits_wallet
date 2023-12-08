@@ -70,7 +70,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     const [amountToTransfer, setAmountToTransfer] = useState<string>('')
     const [invoiceExpiry, setInvoiceExpiry] = useState<Date | undefined>()
     const [paymentHash, setPaymentHash] = useState<string | undefined>()
-    const [lnurlPayParams, setLnurlPayParams] = useState<LNURLPayParams | undefined>()
+    const [lnurlPayParams, setLnurlPayParams] = useState<LNURLPayParams & {address?: string} | undefined>()
     const [isWaitingForFees, setIsWaitingForFees] = useState<boolean>(false)
     const [estimatedFee, setEstimatedFee] = useState<number>(0)
     const [finalFee, setFinalFee] = useState<number>(0)
@@ -159,6 +159,7 @@ useFocusEffect(
 
                 if(metadata) {
                     let desc: string = ''
+                    let address: string = ''
 
                     for (const entry of metadata) {
                         if (entry[0] === "text/plain") {
@@ -167,8 +168,20 @@ useFocusEffect(
                         }
                     }
 
+                    for (const entry of metadata) {
+                        if (entry[0] === "text/identifier" || entry[0] === "text/email") {
+                            address = entry[1];
+                            break
+                        }
+                    }
+
                     if(desc) {
                         setLnurlDescription(desc)
+                    }
+
+                    if(address) {
+                        // overwrite sender address set by wallet with the address from the lnurl response
+                        lnurlParams.address = address
                     }
                 }                
 

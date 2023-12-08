@@ -488,13 +488,6 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
       <Screen contentContainerStyle={$screen} preset="auto">
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
             <Text preset="heading" text="Wallet recovery" style={{color: 'white', zIndex: 10}} />
-            {/*<SvgXml                
-                xml={headerBgSvg}
-                //width='200%'
-                //height='100%'
-                //style={{position: 'absolute', bottom: 0, opacity: 1, zIndex: 1}}
-                viewBox='40 -80 180 180'       
-            />*/}
         </View>
 
         <View style={$contentContainer}>

@@ -125,7 +125,7 @@ export type WalletStackParamList = {
     TranDetail: {id: number}
     TranHistory: undefined
     PaymentRequests: undefined 
-    Transfer: {encodedInvoice?: string, paymentRequest?: PaymentRequest, lnurlParams?: LNURLPayParams, paymentOption?: SendOption,}
+    Transfer: {encodedInvoice?: string, paymentRequest?: PaymentRequest, lnurlParams?: LNURLPayParams & {address?: string}, paymentOption?: SendOption,}
     Topup: {contact?: Contact, relays?: string[], paymentOption?: ReceiveOption, lnurlParams?: LNURLWithdrawParams}
     ContactsNavigator: {screen: string, params: any}
     SettingsNavigator: {screen: string, params: any}

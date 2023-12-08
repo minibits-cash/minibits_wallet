@@ -163,8 +163,7 @@ const navigateWithIncomingData = async function (
 
             if(lnurlParams.tag === 'payRequest') {
                 return navigation.navigate('Transfer', {
-                    lnurlParams,
-                    // encodedInvoice,
+                    lnurlParams,                    
                     paymentOption: SendOption.LNURL_PAY
                 })
             }
@@ -174,8 +173,7 @@ const navigateWithIncomingData = async function (
             const addressParamsResult = await LnurlClient.getLnurlAddressParams(incoming.encoded)
 
             return navigation.navigate('Transfer', {
-                lnurlParams: addressParamsResult.lnurlParams,
-                // encodedInvoice: addressParamsResult.encodedInvoice,
+                lnurlParams: addressParamsResult.lnurlParams,                
                 paymentOption: SendOption.LNURL_PAY
             })
             

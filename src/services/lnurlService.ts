@@ -5,7 +5,7 @@ import { LnurlUtils } from './lnurl/lnurlUtils'
 import { MinibitsClient } from './minibitsService'
 
 export type LnurlParamsResult = {
-    lnurlParams: LNURLWithdrawParams | LNURLPayParams
+    lnurlParams: LNURLWithdrawParams | LNURLPayParams & {address: string}
     encodedInvoice?: string
 }
 
@@ -87,14 +87,14 @@ const getLnurlAddressParams = async (lnurlAddress: string) => {
     const name = LnurlUtils.getNameFromLnurlAddress(lnurlAddress)
 
     if(!domain || !name) {
-        throw new AppError(Err.NOTFOUND_ERROR, 'Could not get lightning address name or domain', {caller: 'getLnurlAddressParams'})
+        throw new AppError(Err.NOTFOUND_ERROR, 'Could not get lightning address name or domain', {caller: 'getLnurlAddressParams', lnurlAddress })
     }
 
     const url = `https://${domain}/.well-known/lnurlp/${name}`
     const method = 'GET'        
     const headers = MinibitsClient.getPublicHeaders()
     
-    const lnurlParams = await MinibitsClient.fetchApi(url, {
+    const lnurlParams: LNURLPayParams & LNURLResponse & {address?: string} = await MinibitsClient.fetchApi(url, {
         method,
         headers,            
     })
