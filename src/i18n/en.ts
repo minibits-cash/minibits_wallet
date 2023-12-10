@@ -59,7 +59,7 @@ const en = {
       other: "{{count}} mints have been added to your wallet",
     },
     toReceive: "Amount to receive",
-    received: "Amount received:",
+    received: "Amount received",
     sharePaymentRequest: "Send payment request",
     sharePaymentRequestDescription: "Send payment request to one of your contacts, so that the payer can pay you exact amount.",
     scanToReceive: "Scan or paste to receive",
@@ -156,6 +156,8 @@ const en = {
   backupScreen: {
     localBackup: "Local backup",
     localBackupDescription: "Local backup stores a copy of all your ecash in the local database. Ecash is never deleted unless you switch off the backup. Please note that this backup is not encrypted.",
+    remoteBackup: "Off-device backup",
+    remoteBackupDescription: "Seed phrase allows you to recover your ecash balance in case of device loss.",
     recoveryTool: "Recovery tool",
     recoveryToolDescription: "Show ecash backed up in the local database and attempt to recover unspent ones into the wallet in case the wallet storage gets corrupted or a transaction fails due to an unexpected error.",
     removeSpentCoins: "Remove spent ecash",

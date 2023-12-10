@@ -70,7 +70,8 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     const [amountToTransfer, setAmountToTransfer] = useState<string>('')
     const [invoiceExpiry, setInvoiceExpiry] = useState<Date | undefined>()
     const [paymentHash, setPaymentHash] = useState<string | undefined>()
-    const [lnurlPayParams, setLnurlPayParams] = useState<LNURLPayParams | undefined>()    
+    const [lnurlPayParams, setLnurlPayParams] = useState<LNURLPayParams & {address?: string} | undefined>()
+    const [isWaitingForFees, setIsWaitingForFees] = useState<boolean>(false)
     const [estimatedFee, setEstimatedFee] = useState<number>(0)
     const [finalFee, setFinalFee] = useState<number>(0)
     const [memo, setMemo] = useState('')
@@ -158,6 +159,7 @@ useFocusEffect(
 
                 if(metadata) {
                     let desc: string = ''
+                    let address: string = ''
 
                     for (const entry of metadata) {
                         if (entry[0] === "text/plain") {
@@ -166,8 +168,20 @@ useFocusEffect(
                         }
                     }
 
+                    for (const entry of metadata) {
+                        if (entry[0] === "text/identifier" || entry[0] === "text/email") {
+                            address = entry[1];
+                            break
+                        }
+                    }
+
                     if(desc) {
                         setLnurlDescription(desc)
+                    }
+
+                    if(address) {
+                        // overwrite sender address set by wallet with the address from the lnurl response
+                        lnurlParams.address = address
                     }
                 }                
 
@@ -302,29 +316,8 @@ const onAmountEndEditing = async function () {
 
         setIsLoading(true)
         const encoded = await LnurlClient.getInvoice(lnurlPayParams, amount * 1000)
-
-        const invoice = LightningUtils.decodeInvoice(encoded)
-        const {description_hash} = LightningUtils.getInvoiceData(invoice)
-
-        if(!description_hash || description_hash.length === 0) {
-            throw new AppError(Err.VALIDATION_ERROR, `Invoice from ${lnurlPayParams.domain} is invalid, missing description_hash`)
-        }
-        // check that retrieved invoice matches the previous LNURL pay link
-        const hashedMetadata = QuickCrypto.createHash('sha256')
-        .update(lnurlPayParams.metadata)
-        .digest('hex')
-
-        log.trace('hashedMetadata', hashedMetadata)
-        log.trace('description_hash', description_hash)
-
-        if(hashedMetadata !== description_hash) {
-            throw new AppError(
-                Err.VALIDATION_ERROR, 
-                `Invoice from ${lnurlPayParams.domain} has invalid description_hash ${description_hash}, expected ${hashedMetadata}`
-            )
-        }
-
         setIsLoading(false)
+
         if(encoded) {
             return onEncodedInvoice(encoded)
         }        
@@ -347,7 +340,7 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
         setEncodedInvoice(encoded)        
 
         const invoice = LightningUtils.decodeInvoice(encoded)
-        const {amount, expiry, description, description_hash, timestamp} = LightningUtils.getInvoiceData(invoice)
+        const {amount, expiry, description, timestamp} = LightningUtils.getInvoiceData(invoice)
 
         // log.trace('Decoded invoice', invoice, 'onEncodedInvoice')
         log.trace('Invoice data', {amount, expiry, description}, 'onEncodedInvoice')
@@ -522,7 +515,7 @@ const satsColor = colors.palette.primary200
                         style={[$card, {minHeight: 0}]}
                         ContentComponent={
                             <ListItem
-                                text={(memo) ? memo : lnurlPayParams ? lnurlPayParams.address ? lnurlPayParams.address : lnurlPayParams.domain : ''}
+                                text={lnurlPayParams?.address || memo || lnurlPayParams?.domain || 'Payment info'}
                                 subText={lnurlDescription}
                                 LeftComponent={
                                     <Icon

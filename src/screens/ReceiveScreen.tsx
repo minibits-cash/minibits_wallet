@@ -132,7 +132,8 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         if (error) {
             setResultModalInfo({
                 status,
-                message: error.message,
+                title: error.message || 'Receive failed',
+                message: JSON.parse(error.params).message || error.message,
             })
         } else {
             setResultModalInfo({
@@ -290,12 +291,14 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                 }
               />
               {transactionStatus === TransactionStatus.COMPLETED ? (
-                <View style={$buttonContainer}>
-                  <Button
-                    preset="secondary"
-                    tx={'common.close'}
-                    onPress={gotoWallet}
-                  />
+                <View style={$bottomContainer}>
+                    <View style={$buttonContainer}>
+                    <Button
+                        preset="secondary"
+                        tx={'common.close'}
+                        onPress={gotoWallet}
+                    />
+                    </View>
                 </View>
               ) : (
                 <View style={$bottomContainer}>

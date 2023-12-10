@@ -25,14 +25,19 @@ export const getImageSource = function(img: string) {
 
 
 export const infoMessage = function(message: string, description?: string) {
-    const backgroundColor = colors.dark.info
+    const backgroundColor = colors.palette.success300
+    const textColor = 'white'
     
     return showMessage({
         message,
         description,        
         backgroundColor,
-        color: 'white',
-        style: {minHeight: spacing.screenHeight * 0.15, borderTopLeftRadius: spacing.medium, borderTopRightRadius: spacing.medium},        
+        color: textColor,
+        style: {
+            minHeight: spacing.screenHeight * 0.15, 
+            borderTopLeftRadius: spacing.medium, 
+            borderTopRightRadius: spacing.medium
+        },        
     })
 }
 
@@ -46,7 +51,11 @@ export const warningMessage = function(message: string, description?: string) {
         duration: 3000,     
         backgroundColor,
         color: 'white',
-        style: {minHeight: spacing.screenHeight * 0.15, borderTopLeftRadius: spacing.medium, borderTopRightRadius: spacing.medium},        
+        style: {
+            minHeight: spacing.screenHeight * 0.15, 
+            borderTopLeftRadius: spacing.medium, 
+            borderTopRightRadius: spacing.medium
+        },        
     })
 }
 

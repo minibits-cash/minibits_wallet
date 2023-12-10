@@ -13,7 +13,7 @@ index af7649e..91a54c4 100644
  		"type": "git",
  		"url": "git+https://github.com/cashubtc/cashu-ts"
 diff --git a/node_modules/@cashu/cashu-ts/src/CashuMint.ts b/node_modules/@cashu/cashu-ts/src/CashuMint.ts
-index f6bc3b1..0bfe1dc 100644
+index f6bc3b1..e260dcf 100644
 --- a/node_modules/@cashu/cashu-ts/src/CashuMint.ts
 +++ b/node_modules/@cashu/cashu-ts/src/CashuMint.ts
 @@ -6,14 +6,14 @@ import {
@@ -189,7 +189,15 @@ index f6bc3b1..0bfe1dc 100644
  			endpoint: joinUrls(mintUrl, 'split'),
  			method: 'POST',
  			requestBody: splitPayload
-@@ -158,7 +188,7 @@ class CashuMint {
+@@ -149,7 +179,6 @@ class CashuMint {
+ 		if (!isObj(data) || !Array.isArray(data?.promises)) {
+ 			throw new Error('bad response');
+ 		}        
+-
+ 		return data;
+ 	}
+ 	/**
+@@ -158,7 +187,7 @@ class CashuMint {
  	 * @returns split tokens
  	 */
  	async split(splitPayload: SplitPayload): Promise<SplitResponse> {
@@ -198,7 +206,7 @@ index f6bc3b1..0bfe1dc 100644
  	}
  	/**
  	 * Ask mint to perform a melt operation. This pays a lightning invoice and destroys tokens matching its amount + fees
-@@ -166,8 +196,13 @@ class CashuMint {
+@@ -166,8 +195,13 @@ class CashuMint {
  	 * @param meltPayload
  	 * @returns
  	 */
@@ -214,7 +222,7 @@ index f6bc3b1..0bfe1dc 100644
  			endpoint: joinUrls(mintUrl, 'melt'),
  			method: 'POST',
  			requestBody: meltPayload
-@@ -189,7 +224,7 @@ class CashuMint {
+@@ -189,7 +223,7 @@ class CashuMint {
  	 * @returns
  	 */
  	async melt(meltPayload: MeltPayload): Promise<MeltResponse> {
@@ -223,7 +231,7 @@ index f6bc3b1..0bfe1dc 100644
  	}
  	/**
  	 * Estimate fees for a given LN invoice
-@@ -199,9 +234,11 @@ class CashuMint {
+@@ -199,9 +233,11 @@ class CashuMint {
  	 */
  	public static async checkFees(
  		mintUrl: string,
@@ -237,7 +245,7 @@ index f6bc3b1..0bfe1dc 100644
  			endpoint: joinUrls(mintUrl, 'checkfees'),
  			method: 'POST',
  			requestBody: checkfeesPayload
-@@ -220,7 +257,7 @@ class CashuMint {
+@@ -220,7 +256,7 @@ class CashuMint {
  	 * @returns estimated Fee
  	 */
  	async checkFees(checkfeesPayload: { pr: string }): Promise<{ fee: number }> {
@@ -246,7 +254,7 @@ index f6bc3b1..0bfe1dc 100644
  	}
  	/**
  	 * Checks if specific proofs have already been redeemed
-@@ -230,9 +267,11 @@ class CashuMint {
+@@ -230,9 +266,11 @@ class CashuMint {
  	 */
  	public static async check(
  		mintUrl: string,
@@ -260,7 +268,7 @@ index f6bc3b1..0bfe1dc 100644
  			endpoint: joinUrls(mintUrl, 'check'),
  			method: 'POST',
  			requestBody: checkPayload
-@@ -250,14 +289,16 @@ class CashuMint {
+@@ -250,14 +288,16 @@ class CashuMint {
  	 * @returns redeemed and unredeemed ordered list of booleans
  	 */
  	async check(checkPayload: CheckSpendablePayload): Promise<CheckSpendableResponse> {
@@ -281,7 +289,7 @@ index f6bc3b1..0bfe1dc 100644
  			method: 'POST',
  			requestBody: restorePayload
 diff --git a/node_modules/@cashu/cashu-ts/src/CashuWallet.ts b/node_modules/@cashu/cashu-ts/src/CashuWallet.ts
-index b7cf354..d0a9af2 100644
+index b7cf354..38dd081 100644
 --- a/node_modules/@cashu/cashu-ts/src/CashuWallet.ts
 +++ b/node_modules/@cashu/cashu-ts/src/CashuWallet.ts
 @@ -1,7 +1,7 @@
@@ -304,7 +312,7 @@ index b7cf354..d0a9af2 100644
  import {
  	bytesToNumber,
  	cleanToken,
-@@ -25,8 +25,8 @@ import {
+@@ -25,8 +25,10 @@ import {
  	getDecodedToken,
  	getDefaultAmountPreference,
  	splitAmount
@@ -312,10 +320,39 @@ index b7cf354..d0a9af2 100644
 -import { deriveBlindingFactor, deriveSecret, deriveSeedFromMnemonic } from './secrets.js';
 +} from './utils';
 +import { deriveBlindingFactor, deriveSecret, deriveSeedFromMnemonic } from './secrets';
++import { validateMnemonic } from '@scure/bip39';
++import { wordlist } from '@scure/bip39/wordlists/english.js';
  
  /**
   * Class that represents a Cashu wallet.
-@@ -69,13 +69,16 @@ class CashuWallet {
+@@ -43,15 +45,23 @@ class CashuWallet {
+ 	 * @param mint Cashu mint instance is used to make api calls
+ 	 * @param mnemonic mnemonic seed phrase to initial derivation key for this wallets deterministic secrets
+ 	 */
+-	constructor(mint: CashuMint, keys?: MintKeys, mnemonic?: string) {
++	constructor(mint: CashuMint, keys?: MintKeys, mnemonicOrSeed?: string | Uint8Array) {
+ 		this._keys = keys || {};
+ 		this.mint = mint;
+ 		if (keys) {
+ 			this._keysetId = deriveKeysetId(this._keys);
+ 		}
+-		if (mnemonic) {
+-			this._seed = deriveSeedFromMnemonic(mnemonic);
++        if (!mnemonicOrSeed) {
++			return
+ 		}
++		if (mnemonicOrSeed instanceof Uint8Array) {
++			this._seed = mnemonicOrSeed
++			return
++		}
++		if (!validateMnemonic(mnemonicOrSeed, wordlist)) {
++			throw new Error('Tried to instantiate with mnemonic, but mnemonic was invalid');
++		}
++		this._seed = deriveSeedFromMnemonic(mnemonicOrSeed);
+ 	}
+ 
+ 	get keys(): MintKeys {
+@@ -69,13 +79,16 @@ class CashuWallet {
  	 * @param proofs (only the 'secret' field is required)
  	 * @returns
  	 */
@@ -335,7 +372,84 @@ index b7cf354..d0a9af2 100644
  	}
  	/**
  	 * Starts a minting process by requesting an invoice from the mint
-@@ -512,8 +515,8 @@ class CashuWallet {
+@@ -166,6 +179,7 @@ class CashuWallet {
+ 		const { token } = cleanToken(getDecodedToken(encodedToken));
+ 		const tokenEntries: Array<TokenEntry> = [];
+ 		const tokenEntriesWithError: Array<TokenEntry> = [];
++        let errors: Error[] = []
+ 		let newKeys: MintKeys | undefined;
+ 		for (const tokenEntry of token) {
+ 			if (!tokenEntry?.proofs?.length) {
+@@ -175,8 +189,12 @@ class CashuWallet {
+ 				const {
+ 					proofsWithError,
+ 					proofs,
+-					newKeys: newKeysFromReceive
++					newKeys: newKeysFromReceive,
++                    error
+ 				} = await this.receiveTokenEntry(tokenEntry, preference, count);
++
++                if(error) {errors.push(error)}
++                
+ 				if (proofsWithError?.length) {                    
+ 					tokenEntriesWithError.push(tokenEntry);                    
+ 					continue;
+@@ -185,15 +203,16 @@ class CashuWallet {
+ 				if (!newKeys) {
+ 					newKeys = newKeysFromReceive;
+ 				}
+-			} catch (error) {
+-				console.error(error);
++			} catch (e: any) {                
++				errors.push(e)
+ 				tokenEntriesWithError.push(tokenEntry);
+ 			}
+ 		}
+ 		return {
+ 			token: { token: tokenEntries },
+ 			tokensWithErrors: tokenEntriesWithError.length ? { token: tokenEntriesWithError } : undefined,
+-			newKeys
++			newKeys,
++            errors: errors.length ? errors : undefined
+ 		};
+ 	}
+ 
+@@ -212,6 +231,7 @@ class CashuWallet {
+ 		const proofsWithError: Array<Proof> = [];
+ 		const proofs: Array<Proof> = [];
+ 		let newKeys: MintKeys | undefined;
++        let err: Error | undefined = undefined
+ 		try {
+ 			const amount = tokenEntry.proofs.reduce((total, curr) => total + curr.amount, 0);
+ 			if (!preference) {
+@@ -224,6 +244,7 @@ class CashuWallet {
+ 				count
+ 			);
+ 			const { promises, error } = await CashuMint.split(tokenEntry.mint, payload);
++            if(error) {err = {name: 'Error', message: error}}
+ 			const newProofs = dhke.constructProofs(
+ 				promises,
+ 				blindedMessages.rs,
+@@ -235,14 +256,15 @@ class CashuWallet {
+ 				tokenEntry.mint === this.mint.mintUrl
+ 					? await this.changedKeys([...(promises || [])])
+ 					: undefined;
+-		} catch (error) {
+-			console.error(error);
++		} catch (e: any) {
++			err = e
+ 			proofsWithError.push(...tokenEntry.proofs);
+ 		}
+ 		return {
+ 			proofs,
+ 			proofsWithError: proofsWithError.length ? proofsWithError : undefined,
+-			newKeys
++			newKeys,
++            error: err
+ 		};
+ 	}
+ 
+@@ -512,8 +534,8 @@ class CashuWallet {
  		const secrets: Array<Uint8Array> = [];
  		const rs: Array<bigint> = [];
  		for (let i = 0; i < amounts.length; i++) {
@@ -363,7 +477,7 @@ index ca37559..02843b5 100644
  import { bytesToHex } from '@noble/curves/abstract/utils';
  
 diff --git a/node_modules/@cashu/cashu-ts/src/index.ts b/node_modules/@cashu/cashu-ts/src/index.ts
-index b1f2c00..138c251 100644
+index b1f2c00..0c0f85c 100644
 --- a/node_modules/@cashu/cashu-ts/src/index.ts
 +++ b/node_modules/@cashu/cashu-ts/src/index.ts
 @@ -1,10 +1,10 @@
@@ -378,16 +492,42 @@ index b1f2c00..138c251 100644
  import { decode as getDecodedLnInvoice } from '@gandlaf21/bolt11-decode';
 -import { generateNewMnemonic } from './secrets.js';
 -export * from './model/types/index.js';
-+import { generateNewMnemonic } from './secrets';
++import { generateNewMnemonic, deriveSeedFromMnemonic } from './secrets';
 +export * from './model/types/index';
  
  export {
  	CashuMint,
+@@ -14,5 +14,6 @@ export {
+ 	deriveKeysetId,
+ 	getDecodedLnInvoice,
+ 	setGlobalRequestOptions,
+-	generateNewMnemonic
++	generateNewMnemonic,
++	deriveSeedFromMnemonic
+ };
 diff --git a/node_modules/@cashu/cashu-ts/src/model/types/index.ts b/node_modules/@cashu/cashu-ts/src/model/types/index.ts
-index 4855c33..4546acc 100644
+index 4855c33..91e45bb 100644
 --- a/node_modules/@cashu/cashu-ts/src/model/types/index.ts
 +++ b/node_modules/@cashu/cashu-ts/src/model/types/index.ts
-@@ -215,6 +215,7 @@ export type CheckSpendableResponse = {
+@@ -41,6 +41,8 @@ export type ReceiveTokenEntryResponse = {
+ 	 * If the mint has rotated keys, this field will be populated with the new keys.
+ 	 */
+ 	newKeys?: MintKeys;
++
++    error?: Error
+ };
+ 
+ /**
+@@ -76,6 +78,8 @@ export type ReceiveResponse = {
+ 	 * If the mint has rotated keys, this field will be populated with the new keys.
+ 	 */
+ 	newKeys?: MintKeys;
++
++    errors?: Error[] | undefined;
+ };
+ 
+ /**
+@@ -215,6 +219,7 @@ export type CheckSpendableResponse = {
  	 * Ordered list for checked proofs. True if the secret has not been redeemed at the mint before
  	 */
  	spendable: Array<boolean>;

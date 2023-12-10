@@ -15,16 +15,20 @@ import {
 // import { isRTL } from "../i18n"
 import {useStores} from '../models'
 import {AppStackScreenProps} from '../navigation'
-import {spacing, colors} from '../theme'
+import {spacing, colors, useThemeColor} from '../theme'
 import {useHeader} from '../utils/useHeader'
 import {useSafeAreaInsetsStyle} from '../utils/useSafeAreaInsetsStyle'
 import {
   Button,
+  ErrorModal,
   Icon,
+  Loading,
   Screen,
   Text,
 } from '../components'
 import {TxKeyPath} from '../i18n'
+import AppError from '../utils/AppError'
+import { MintClient } from '../services'
 
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView)
@@ -77,14 +81,35 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
     })
 
     const {userSettingsStore} = useStores()
-
-    const [isGotoWalletVisible, setIsGotoWalletVisible] = useState<boolean>(false)
+    const [error, setError] = useState<AppError | undefined>()
+    const [isLoading, setIsLoading] = useState<boolean>(false)    
 
     
-    
-    const gotoWallet = function () {
-      userSettingsStore.setIsOnboarded(true)
-      navigation.navigate('Tabs')
+    const gotoWallet = async function () {
+        try {
+            // do not overwrite if one was set during recovery
+            setIsLoading(true)
+            const mnemonic = await MintClient.getOrCreateMnemonic()
+            userSettingsStore.setIsOnboarded(true)
+            navigation.navigate('Tabs')
+            setIsLoading(false)
+        } catch (e: any) {
+            handleError(e)
+        }      
+    }
+
+
+    const gotoRecovery = async function () {
+        try {            
+            navigation.navigate('RemoteRecovery')
+        } catch (e: any) {
+            handleError(e)
+        }      
+    }
+
+    const handleError = function (e: AppError) { 
+        setIsLoading(false)      
+        setError(e)
     }
 
 
@@ -121,15 +146,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
       []
     )
 
-    const onPageSelected = function(e: any) {        
-        if(e.nativeEvent.position === PAGES.length - 1) {
-            setIsGotoWalletVisible(true)
-        } else {
-            setIsGotoWalletVisible(false)
-        }
-    }
-
-    const $bottomContainerInsets = useSafeAreaInsetsStyle(['bottom'])   
+    const headerBg = useThemeColor('header')  
 
     const renderBullet = ({item}: {item: {id: string; tx: string}}) => (
         <View style={$listItem}>
@@ -150,7 +167,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
 
 
     return (
-        <Screen contentContainerStyle={$container} preset="fixed">
+        <Screen contentContainerStyle={$container} preset="fixed" style={{backgroundColor: headerBg}}>
             <AnimatedPagerView
                 testID="pager-view"
                 initialPage={0}
@@ -192,6 +209,13 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
                                     preset='secondary'
                                     text='Got it, take me to the wallet'
                                 />
+                                <Button 
+                                    onPress={gotoRecovery}
+                                    preset='tertiary'
+                                    text='Recover lost wallet'
+                                    LeftAccessory={() => {return<Icon icon='faRotate'/>}}
+                                    style={{marginTop: spacing.medium}}
+                                />
                             </View>
                         )}               
                     </View>                
@@ -212,7 +236,8 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
                     />
                 </View>
             </View>
-            
+            {error && <ErrorModal error={error} />}
+            {isLoading && <Loading statusMessage={'Creating wallet seed, this takes a while...'} style={{backgroundColor: headerBg, opacity: 1}}/>}
         </Screen>
     )
   }
@@ -230,12 +255,11 @@ const $dotContainer: ViewStyle ={
 const $container: ViewStyle = {
   // alignItems: 'center',
   flex: 1,
-  padding: spacing.medium,
-  backgroundColor: colors.palette.primary500
+  padding: spacing.medium,  
 }
 
 const $listContainer: ViewStyle = {
-    maxHeight: spacing.screenHeight * 0.35,    
+    maxHeight: spacing.screenHeight * 0.4,    
 }
 
 const $listItem: ViewStyle = {
@@ -249,8 +273,7 @@ const $itemIcon: ViewStyle = {
   marginBottom: spacing.small,
 }
 
-const $buttonContainer: ViewStyle = {
-    flexDirection: 'row',
+const $buttonContainer: ViewStyle = {    
     alignSelf: 'center',
     marginTop: spacing.large,
   }
@@ -267,6 +290,6 @@ const $welcomeIntro: TextStyle = {
 }
 
 const $welcomeFinal: TextStyle = {
-    marginTop: spacing.huge,
+    marginTop: spacing.large,
     color: 'white',
   }

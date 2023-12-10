@@ -1,5 +1,5 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useState, useCallback} from 'react'
+import React, {FC, useState, useCallback, useEffect} from 'react'
 import {useFocusEffect} from '@react-navigation/native'
 import {Alert, TextStyle, View, ViewStyle} from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
@@ -19,8 +19,6 @@ import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
 import AppError from '../utils/AppError'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
-import { infoMessage } from '../utils/utils'
-import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 
 export enum ReceiveOption {
     SEND_PAYMENT_REQUEST = 'SEND_PAYMENT_REQUEST',
@@ -36,11 +34,11 @@ export const ReceiveOptionsScreen: FC<WalletStackScreenProps<'ReceiveOptions'>> 
       onLeftPress: () => navigation.goBack(),
     })
 
-    const isInternetReachable = useIsInternetReachable()
+
+    const isInternetReachable = useIsInternetReachable()    
 
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
-
 
     const gotoContacts = function () {
         navigation.navigate('ContactsNavigator', {

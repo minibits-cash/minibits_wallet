@@ -5,26 +5,86 @@ import {
   PayLnInvoiceResponse,
   type Proof as CashuProof,
 } from '@cashu/cashu-ts'
-import { TorDaemon } from '../services'
+import {rootStoreInstance} from '../models'
+import { KeyChain, TorDaemon } from '../services'
 import {CashuUtils} from './cashu/cashuUtils'
 import AppError, {Err} from '../utils/AppError'
 import {log} from './logService'
 import {Token} from '../models/Token'
 import {Proof} from '../models/Proof'
+import { deriveSeedFromMnemonic } from '@cashu/cashu-ts'
 
 export type MintKeys = {[k: number]: string}
 export type MintKeySets = {keysets: Array<string>}
 
 let _mints: {[mintUrl: string]: CashuMint} = {}
-let _wallets: {[mintUrl: string]: CashuWallet} = {}
+let _wallets: {[mintUrl: string]: CashuWallet} = {} // used where seed is not required (perf)
+let _seedWallets: {[mintUrl: string]: CashuWallet} = {} // wallet instances with seeds from keystore
+let _mnemonic: string | undefined = undefined
+let _seed: Uint8Array | undefined = undefined
 
-const getMint = function (mintUrl: string) {
+const { mintsStore } = rootStoreInstance
+
+const getOrCreateMnemonic = async function (): Promise<string> {    
+    let mnemonic: string | undefined = undefined
+
+    mnemonic = await getMnemonic() // returns cached or saved mnemonic   
+
+    if (!mnemonic) {
+        mnemonic = KeyChain.generateMnemonic() as string
+        const seed = deriveSeedFromMnemonic(mnemonic) // expensive
+               
+        await KeyChain.saveMnemonic(mnemonic)
+        await KeyChain.saveSeed(seed)
+
+        log.trace('[getOrCreateMnemonic]', 'Created and saved new mnemonic and seed')
+    }
+     
+    return mnemonic
+}
+
+// caching mnemonic
+const getMnemonic = async function (): Promise<string | undefined> {    
+    if (_mnemonic) {        
+        log.trace('[getMnemonic]', 'returning cached mnemonic')
+        return _mnemonic
+    }
+
+    const mnemonic = await KeyChain.loadMnemonic() as string
+
+    if (!mnemonic) {
+        return undefined        
+    }
+
+    _mnemonic = mnemonic
+    return mnemonic
+}
+
+
+const getSeed = async function (): Promise<Uint8Array | undefined> {
+    if (_seed) {        
+        log.trace('[getSeed]', 'returning cached seed')
+        return _seed
+    }
+
+    const seed = await KeyChain.loadSeed()
+
+    if (!seed) {
+        return undefined        
+    }
+
+    _seed = seed
+    return seed
+}
+
+
+const getMint = function (mintUrl: string) {    
     if (_mints[mintUrl]) {
         return _mints[mintUrl]
     }
 
     if(mintUrl.includes('.onion')) {
-        log.trace('Creating mint instance with .onion mintUrl', {mintUrl}, 'getMint')
+        log.trace('[getMint]', 'Creating mint instance with .onion mintUrl', {mintUrl})
         const mint = new CashuMint(mintUrl, TorDaemon.torRequest)
         _mints[mintUrl] = mint
 
@@ -37,16 +97,55 @@ const getMint = function (mintUrl: string) {
     return mint
 }
 
-const getWallet = function (mintUrl: string) {
-  if (_wallets[mintUrl]) {
-    return _wallets[mintUrl]
-  }
 
-  const mint = getMint(mintUrl)
-  const wallet = new CashuWallet(mint)
-  _wallets[mintUrl] = wallet
+const getWallet = async function (
+    mintUrl: string,
+    withSeed: boolean = false
+) {
+    log.trace('[getWallet] start')
 
-  return wallet
+    if (withSeed && _seedWallets[mintUrl]) {
+        log.trace('[getWallet]', 'Returning existing cashuWallet instance with seed')
+        return _seedWallets[mintUrl]
+    }
+
+    if (!withSeed && _wallets[mintUrl]) {
+        log.trace('[getWallet]', 'Returning existing cashuWallet instance')
+        return _wallets[mintUrl]
+    }
+
+    const cashuMint = getMint(mintUrl)
+    const mint = mintsStore.findByUrl(mintUrl)
+
+    if(withSeed) {
+        let seed: Uint8Array | undefined = undefined
+        seed = await getSeed()
+
+        // Handle legacy pre-0.1.5 created wallets
+        if(!seed) {
+            const mnemonic = await getOrCreateMnemonic()
+            seed = await getSeed()
+            resetCachedWallets() // force all wallet instances to be recreated with seed
+        }
+        
+        const seedWallet = new CashuWallet(cashuMint, mint ? mint.keys : undefined, seed)
+        log.trace('[getWallet]', 'Returning new cashuWallet instance with seed')
+
+        _seedWallets[mintUrl] = seedWallet        
+        return seedWallet
+    }
+    
+    const wallet = new CashuWallet(cashuMint, mint ? mint.keys : undefined)
+    _wallets[mintUrl] = wallet
+
+    log.trace('[getWallet]', 'Returning new cashuWallet instance')
+    return wallet
+}
+
+
+const resetCachedWallets = function () {
+    _seedWallets = {}
+    _wallets = {}
 }
 
 const getMintKeys = async function (mintUrl: string) {
@@ -56,13 +155,12 @@ const getMintKeys = async function (mintUrl: string) {
   
   try {
     // keysets = await mint.getKeySets()
-    log.trace('Sending getKeys request', {mintUrl}, 'getMintKeys')
     keys = await mint.getKeys()
   } catch (e: any) {
     throw new AppError(
       Err.CONNECTION_ERROR,
       `Could not connect to the selected mint.`,
-      [e.message, mintUrl],
+      {message: e.message, mintUrl},
     )
   }
 
@@ -70,7 +168,7 @@ const getMintKeys = async function (mintUrl: string) {
     throw new AppError(
       Err.VALIDATION_ERROR,
       'Invalid keys retrieved from the selected mint.',
-      [mintUrl, keys],
+      {mintUrl, keys},
     )
   }
 
@@ -85,47 +183,61 @@ const getMintKeys = async function (mintUrl: string) {
 }
 
 
-const receiveFromMint = async function (mintUrl: string, encodedToken: string) {
+
+const receiveFromMint = async function (
+    mintUrl: string, 
+    encodedToken: string,
+    counter: number
+) {
   try {
-    const cashuWallet = getWallet(mintUrl)
+    const cashuWallet = await getWallet(mintUrl, true) // with seed
+
+    log.trace('[receiveFromMint] calling cashuWallet.receive', {encodedToken, counter})
 
     // this method returns quite a mess, we normalize naming of returned parameters
-    const {token, tokensWithErrors, newKeys} = await cashuWallet.receive(
+    const {token, tokensWithErrors, newKeys, errors} = await cashuWallet.receive(
       encodedToken,
+      undefined,
+      counter
     )
 
     log.trace('[receiveFromMint] updatedToken', token)
     log.trace('[receiveFromMint] tokensWithErrors', tokensWithErrors)
     log.trace('[receiveFromMint] newKeys', newKeys)
-
-    // if (newKeys) { _setKeys(mintUrl, newKeys) }
+    log.trace('[receiveFromMint] errors', errors)
 
     return {
       updatedToken: token as Token,
       errorToken: tokensWithErrors as Token,
       newKeys,
+      errors
     }
   } catch (e: any) {
     throw new AppError(Err.MINT_ERROR, e.message)
   }
 }
 
+
+
 const sendFromMint = async function (
   mintUrl: string,
   amountToSend: number,
   proofsToSendFrom: Proof[],
+  counter: number
 ) {
   try {
-    const cashuWallet = getWallet(mintUrl)
+    const cashuWallet = await getWallet(mintUrl, true) // with seed
 
     const {returnChange, send, newKeys} = await cashuWallet.send(
       amountToSend,
       proofsToSendFrom,
+      undefined,
+      counter
     )
 
-    log.trace('[MintClient.sendFromMint] returnedProofs', returnChange)
-    log.trace('[MintClient.sendFromMint] sentProofs', send)
-    log.trace('[MintClient.sendFromMint] newKeys', newKeys)
+    log.debug('[MintClient.sendFromMint] returnedProofs', returnChange)
+    log.debug('[MintClient.sendFromMint] sentProofs', send)
+    log.debug('[MintClient.sendFromMint] newKeys', newKeys)
 
     // do some basic validations that proof amounts from mints match
     const totalAmountToSendFrom = CashuUtils.getProofsAmount(proofsToSendFrom)
@@ -157,7 +269,7 @@ const sendFromMint = async function (
   } catch (e: any) {
     throw new AppError(
         Err.MINT_ERROR, 
-        `The mint could not return proofs necessary for this transaction. ${e.message}`, 
+        `The mint could not return signatures necessary for this transaction. ${e.message}`, 
         {
             caller: 'sendFromMint', 
             mintUrl, 
@@ -167,12 +279,14 @@ const sendFromMint = async function (
   }
 }
 
+
+
 const getSpentOrPendingProofsFromMint = async function (
   mintUrl: string,
   proofs: Proof[],
 ) {
   try {
-    const cashuWallet = getWallet(mintUrl)
+    const cashuWallet = await getWallet(mintUrl)
 
     const spentPendingProofs = await cashuWallet.checkProofsSpent(proofs)
 
@@ -186,7 +300,7 @@ const getSpentOrPendingProofsFromMint = async function (
   } catch (e: any) {    
     throw new AppError(
         Err.MINT_ERROR, 
-        'The mint could not check if the proofs were spent or are pending.', 
+        'The mint could not reply if the proofs are spent or pending.', 
         {
             caller: 'getSpentOrPendingProofsFromMint', 
             mintUrl, 
@@ -195,6 +309,8 @@ const getSpentOrPendingProofsFromMint = async function (
     )
   }
 }
+
+
 
 const getLightningFee = async function (
   mintUrl: string,
@@ -218,20 +334,24 @@ const getLightningFee = async function (
   }
 }
 
+
+
 const payLightningInvoice = async function (
   mintUrl: string,
   encodedInvoice: string,
   proofsToPayFrom: CashuProof[],
   estimatedFee: number,
+  counter: number
 ) {
   try {    
-    const cashuWallet = getWallet(mintUrl)
+    const cashuWallet = await getWallet(mintUrl, true) // with seed
 
     const {isPaid, change, preimage, newKeys}: PayLnInvoiceResponse =
       await cashuWallet.payLnInvoice(
         encodedInvoice,
         proofsToPayFrom,
         estimatedFee,
+        counter
       )
 
     // if (newKeys) { _setKeys(mintUrl, newKeys) }
@@ -261,12 +381,14 @@ const payLightningInvoice = async function (
   }
 }
 
+
+
 const requestLightningInvoice = async function (
   mintUrl: string,
   amount: number,
 ) {
   try {
-    const cashuWallet = getWallet(mintUrl)
+    const cashuWallet = await getWallet(mintUrl)
     const {pr, hash} = await cashuWallet.requestMint(amount)
 
     log.info('[requestLightningInvoice]', {pr, hash})
@@ -280,17 +402,22 @@ const requestLightningInvoice = async function (
   }
 }
 
+
+
 const requestProofs = async function (
   mintUrl: string,
   amount: number,
   paymentHash: string,
+  counter: number
 ) {
   try {
-    const cashuWallet = getWallet(mintUrl)
+    const cashuWallet = await getWallet(mintUrl, true) // with seed
     /* eslint-disable @typescript-eslint/no-unused-vars */
     const {proofs, newKeys} = await cashuWallet.requestTokens(
       amount,
       paymentHash,
+      undefined,
+      counter
     )
     /* eslint-enable */
 
@@ -312,13 +439,55 @@ const requestProofs = async function (
   }
 }
 
+const restore = async function (
+    mintUrl: string,
+    indexFrom: number,
+    indexTo: number,
+    seed: Uint8Array   
+  ) {
+    try {
+        // need special wallet instance to pass seed directly
+        const cashuMint = getMint(mintUrl)
+        const mint = mintsStore.findByUrl(mintUrl)
+
+        if(!mint) {
+            throw new AppError(Err.MINT_ERROR, 'Could not find mint in wallet state', {caller: 'restore', mintUrl})
+        }
+        
+        const seedWallet = new CashuWallet(cashuMint, mint.keys, seed)
+        const count = Math.abs(indexTo - indexFrom)      
+        
+        /* eslint-disable @typescript-eslint/no-unused-vars */
+        const {proofs, newKeys} = await seedWallet.restore(
+            count,
+            indexFrom,
+        )
+        /* eslint-enable */
+    
+        log.info('[restore]', 'Number of recovered proofs', {proofs: proofs.length, newKeys})
+    
+        return {
+            proofs: proofs || [], 
+            newKeys
+        }
+    } catch (e: any) {
+        log.error(e)
+        throw new AppError(Err.MINT_ERROR, e.message, {mintUrl})
+    }
+}
+
 export const MintClient = {
-  getMintKeys,
-  receiveFromMint,
-  sendFromMint,
-  getSpentOrPendingProofsFromMint,
-  getLightningFee,
-  payLightningInvoice,
-  requestLightningInvoice,
-  requestProofs,
+    getOrCreateMnemonic,
+    getMnemonic,
+    getSeed,
+    resetCachedWallets,  
+    getMintKeys,
+    receiveFromMint,
+    sendFromMint,
+    getSpentOrPendingProofsFromMint,
+    getLightningFee,
+    payLightningInvoice,
+    requestLightningInvoice,
+    requestProofs,
+    restore,
 }

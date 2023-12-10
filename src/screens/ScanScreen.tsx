@@ -108,6 +108,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                     return IncomingParser.navigateWithIncomingData(invoiceResult, navigation)
                     
                 } catch (e: any) {
+                    log.trace('CATCH')
                     const maybeLnurl = LnurlUtils.findEncodedLnurl(incoming)
                     
                     if(maybeLnurl) {

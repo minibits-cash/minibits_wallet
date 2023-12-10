@@ -49,7 +49,8 @@ import AppError, { Err } from '../utils/AppError'
 import {
     APP_ENV,      
     CODEPUSH_STAGING_DEPLOYMENT_KEY,
-    CODEPUSH_PRODUCTION_DEPLOYMENT_KEY, 
+    CODEPUSH_PRODUCTION_DEPLOYMENT_KEY,
+    MINIBITS_MINT_URL 
 } from '@env'
 import { round } from '../utils/number'
 import { NotificationService } from '../services/notificationService'
@@ -89,7 +90,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const isInternetReachable = useIsInternetReachable()
    
     const [info, setInfo] = useState<string>('')
-    const [defaultMintUrl, setDefaultMintUrl] = useState<string>('https://mint.minibits.cash/Bitcoin')
+    const [defaultMintUrl, setDefaultMintUrl] = useState<string>(MINIBITS_MINT_URL)
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState<boolean>(false)
     
@@ -107,17 +108,23 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                     setUpdateDescription(update.description)
                     setUpdateSize(`${round(update.packageSize *  0.000001, 2)}MB`)                  
                     setIsUpdateAvailable(true)
-                    toggleUpdateModal()
+                    // toggleUpdateModal()
                     log.info('OTA Update available', update, 'checkForUpdate')
                 }                
             } catch (e: any) {                
                 return false // silent
             }            
         } 
-        InteractionManager.runAfterInteractions(async () => {
+        
+        setTimeout(() => {
+            if(!isInternetReachable) {
+                return
+            }
             checkForUpdate()
-        })
+        }, 100)
+        
     }, [])
+
 
     
     const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {
@@ -147,13 +154,13 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         }
          
 
-        InteractionManager.runAfterInteractions(async () => {
+        setTimeout(async () => {
             if(!isInternetReachable) {
                 return
             }
             // subscribe once to receive tokens or payment requests by NOSTR DMs
             Wallet.checkPendingReceived()            
-        })
+        }, 200)
 
         EventEmitter.on('receiveTokenCompleted', onReceiveTokenCompleted)
         EventEmitter.on('receivePaymentRequest', onReceivePaymentRequest)
@@ -201,14 +208,14 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
     useFocusEffect(        
         useCallback(() => {
-            InteractionManager.runAfterInteractions(async () => {
+            setTimeout(() => {
                 if(!isInternetReachable) {
                     return
                 }
                                 
                 Wallet.checkPendingSpent()
                 Wallet.checkPendingTopups()               
-            })
+            }, 100)
         }, [])
     )
 
@@ -232,10 +239,14 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 appState.current.match(/inactive|background/) &&
                 nextAppState === 'active') {
                 
-                InteractionManager.runAfterInteractions(async () => {         
+                setTimeout(() => {
+                    if(!isInternetReachable) {
+                        return
+                    }
+                                    
                     Wallet.checkPendingSpent()
-                    Wallet.checkPendingTopups()                    
-                })              
+                    Wallet.checkPendingTopups()               
+                }, 100)            
             }
     
             appState.current = nextAppState         
