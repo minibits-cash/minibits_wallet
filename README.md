@@ -21,6 +21,7 @@ Platform support
 - [ ] iOS app
 - [x] Light and dark mode
 - [x] i18n support
+- [ ] Other then EN languange support
 
 Mints
 - [x] Add multiple mints
@@ -33,8 +34,7 @@ Mints
 
 Receive ecash
 - [x] Scan QR code of a ecash token
-- [x] Paste ecash token from clipboard
-- [x] Receive tokens with ecash from multiple mints (untested)
+- [x] Paste ecash token from the clipboard
 - [x] Notification on received payment (app needs to be in foreground)
 - [x] Receive ecash while being offline, redeem later (MVP version)
 
@@ -42,7 +42,7 @@ Send ecash
 - [x] Share ecash token to send through another app
 - [x] Show ecash token as a QR code
 - [x] Notification on payment received by the payee (app needs to come to foreground)
-- [x] Send ecash to contact
+- [x] Send ecash to contact (NOSTR address)
 - [ ] Lock ecash sent offline to the receiver wallet key
 
 Top up wallet
@@ -56,7 +56,7 @@ Transfer / Cash out from wallet
 - [x] Scan and settle bitcoin lightning invoice with your ecash
 - [x] Pay payment request received from another contact [✨ New!]
 - [x] Pay by LNURL Pay [✨ New!]
-- [x] Nostr zaps [✨ New!]
+- [x] One click zaps - tips on NOSTR social network [✨ New!]
 - [x] Pay to Lightning address [✨ New!]
 - [ ] Transfer (swap) ecash to another mint
 
@@ -69,7 +69,7 @@ Transaction history
 - [ ] Delete incomplete and failed transactions from history
 
 Contacts
-- [x] Private contacts for payments
+- [x] Private contacts address book for payments
 - [x] Public contacts (followed users on NOSTR social network) for tipping and donations
 - [x] Load public contacts from custom NOSTR relay
 - [x] Wallet names as random public NOSTR addresses (random123@minibits.cash)
@@ -81,13 +81,13 @@ Backup and recovery
 - [x] Local append-only backup of all ecash in a database separate from wallet storage
 - [x] Recovery tool to recover ecash from local backup
 - [x] Recover wallet in case spent ecash remain in the wallet due to an exception during a transaction
-- [ ] Off-device backup
+- [x] Off-device backup and recovery using 12 words based seed [✨ New!]
 - [ ] Smooth migration to another device
 
 Security and Privacy
-- [x] Optional AES encryption of wallet storage using a key stored in the device secure keychain
+- [x] Optional AES encryption of wallet storage using a key stored in the device secure key storage
 - [x] Use device biometry to login (if storage encryption is on)
-- [x] Tor daemon to connect to mints with .onion addresses [✨ New!, available in .apk version, download from Releases]
+- [x] Tor daemon to connect to mints with .onion addresses [✨ New!]
 
 Self-funding
 - [X] Donation for custom wallet name
@@ -109,15 +109,16 @@ The wallet's design has been crafted to prioritize the following primary quality
 As a result, the following architectural constraints are in place:
 - Wherever available, use libraries with a fast JSI (JavaScript Interface) to native modules.
 - Avoid Expo modules.
-- Use fast storage for most wallet operations and separate local database storage to store data that incrementally grows.
+- Use fastest available storage for most wallet operations and separate local database storage to store data that incrementally grows.
 - Leverage local database as an append-only ecash backup independent from fast storage.
 
 <img src="https://www.minibits.cash/img/minibits_architecture_v2.png">
 
-Open architectural concepts worth wider discussion
+Open architectural concepts that were still open for discussion when the wallet had been released
 - [x] Contacts management - identities, sharing contacts, send ecash with the UX of tradfi instant payment while keeping privacy towards mints - Implemented as NOSTR keypairs and NIP05 public sharable names that ecash can be sent to
-- [ ] Off-device backup strategy - many options exist with or without mint interaction
+- [x] Off-device backup strategy - Implemented using @gandlafbtc concept of deterministic secrets
 - [ ] UX and naming conventions - ecash is not always intuitive. UX for new users heavily depends on using the right abstractions or terms to describe what is going on. This wallet wants to serve as a means to test what could work. One of the first ideas is to avoid terms such as token or proof and propose the term --coin ++ecash instead.
+- [ ] Suitable Tor daemon available to replace not maintained react-native-tor.
 
 
 ## Download and test
@@ -130,13 +131,16 @@ Minibits wallet is in early beta and available as of now only for Android device
 
 # Development
 
-Minibits is a bare React Native app written in Typescript. The project structure and code itself are intentionally verbose to support readability. Critical wallet code is reasonably documented. However, there is vast space for existing code improvements, refactoring, and bug fixing. This is an alpha software and the author does not code for a living.
+Minibits is a bare React Native app written in Typescript. The project structure and code itself are intentionally verbose to support readability. Critical wallet code is reasonably documented. However, there is vast space for existing code improvements, refactoring, and bug fixing. This is an early beta software and the author does not code for a living.
 
-The code is derived from Ignite template, however with many libraries, notably Expo, stripped down to achieve fast startup times. Performance bottleneck on some Android devices is react-native-keychain. To overcome this, it has been patched not to warm-up on startup and its use to encrypt storage is opt-in.
+The code is derived from Ignite template, however with many libraries, notably Expo, stripped down to achieve fast startup times. Performance bottleneck on some Android devices is react-native-keychain. To overcome this, it has been patched not to warm-up on startup, caching for wallet operatoions is in place and its use to encrypt storage is opt-in.
 
 Wallet state is managed by mobx-state-tree and persisted in fast MMKV storage. Only the basic mobx concepts are in place, whole model could be improved. All critical wallet code is in services/walletService.ts and all ecash state changes are in models/ProofsStore.ts. Wallet communication with the mints is in services/cashuMintClient.ts and uses [cashu-ts](https://github.com/cashubtc/cashu-ts) library.
 
 Crypto operations are handled by react-native-quick-crypto, that is fast and does not require awful javascript shims. Transaction history and ecash backup is stored in sqlite, with fast react-native-quick-sqlite driver that enables to run lighter queries synchronously.
+
+Wallet included own Tor daemon using react-native-tor library to connect to the mints over Tor network. However this seems not to be long term approach as this library is
+not properly maintained and future updates of React native will likely break it. Help with replacement would be appreciated.
 
 In case of breaking state and data model changes, versioning and code is ready to run necessary migrations on wallet startup.
 
@@ -153,7 +157,7 @@ After the dependecies are installed, continue to create the following .env file 
 
 ```bash
 APP_ENV = 'DEV'
-SENTRY_ACTIVE = 'FALSE'
+LOG_LEVEL='DEBUG'
 ```
 
 Then make sure you have the Android device connected by running:
