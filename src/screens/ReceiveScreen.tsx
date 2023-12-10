@@ -132,8 +132,8 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         if (error) {
             setResultModalInfo({
                 status,
-                title: error.message || 'Receive failed',
-                message: JSON.parse(error.params).message || error.message,
+                title: error.params?.message ? error.message : 'Receive failed',
+                message: error.params?.message || error.message,
             })
         } else {
             setResultModalInfo({
@@ -168,7 +168,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         if (error) {
             setResultModalInfo({
                 status,
-                title: error.params?.message ? error.message : 'Receive failed',
+                title: error.params?.message ? error.message : 'Offline receive failed',
                 message: error.params?.message || error.message,
             })
         } else {

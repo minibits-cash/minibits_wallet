@@ -1,7 +1,5 @@
 
-import * as Sentry from '@sentry/react-native'
-import {SENTRY_ACTIVE} from '@env'
-import {log, SentryActive} from '../services/logService'
+import {log} from '../services/logService'
 
 export enum Err {
   CONNECTION_ERROR = 'CONNECTION_ERROR',
