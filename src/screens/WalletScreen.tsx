@@ -159,7 +159,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 return
             }
             // subscribe once to receive tokens or payment requests by NOSTR DMs
-            Wallet.checkPendingReceived()            
+            Wallet.checkPendingReceived().catch(e => false) 
+          
         }, 200)
 
         EventEmitter.on('receiveTokenCompleted', onReceiveTokenCompleted)
@@ -180,8 +181,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const handleDeeplink = async function ({url}: {url: string}) {
         log.trace('deepLink', url, 'handleDeeplink')
 
-        try {
-            
+        try {            
             const incomingData = IncomingParser.findAndExtract(url)
             await IncomingParser.navigateWithIncomingData(incomingData, navigation)
 
@@ -212,9 +212,10 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 if(!isInternetReachable) {
                     return
                 }
-                                
-                Wallet.checkPendingSpent()
-                Wallet.checkPendingTopups()               
+
+                Wallet.checkPendingSpent().catch(e => false) 
+                Wallet.checkPendingTopups().catch(e => false)  
+      
             }, 100)
         }, [])
     )
@@ -244,8 +245,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                         return
                     }
                                     
-                    Wallet.checkPendingSpent()
-                    Wallet.checkPendingTopups()               
+                    Wallet.checkPendingSpent().catch(e => false) 
+                    Wallet.checkPendingTopups().catch(e => false)   
                 }, 100)            
             }
     

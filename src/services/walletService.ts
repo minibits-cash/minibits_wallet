@@ -139,7 +139,7 @@ async function checkPendingSpent() {
  */
 const checkPendingReceived = async function () {
     if(!walletProfileStore.pubkey) {
-        return
+        throw new AppError(Err.VALIDATION_ERROR, 'Missing wallet profile, visit Contacts to generate new one.', {caller: 'checkPendingReceived'})        
     }
     
     // clean expired paymentRequests

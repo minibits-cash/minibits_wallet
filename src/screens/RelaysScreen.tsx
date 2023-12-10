@@ -10,7 +10,7 @@ import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import { Relay } from '../models/Relay'
 import AppError, { Err } from '../utils/AppError'
-import { Wallet } from '../services'
+import { log, Wallet } from '../services'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 
 interface SettingsScreenProps extends SettingsStackScreenProps<'Relays'> {}
@@ -55,7 +55,8 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
     }
 
     const onConnect = function () {
-        Wallet.checkPendingReceived()
+        log.trace('onConnect')
+        Wallet.checkPendingReceived().catch(handleError)
         setSelectedRelay(undefined)        
     }
 
