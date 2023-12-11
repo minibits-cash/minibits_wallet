@@ -43,7 +43,7 @@ import {log} from '../services'
 import {Env} from '../utils/envtypes'
 import {Transaction, TransactionStatus} from '../models/Transaction'
 import {TransactionListItem} from './Transactions/TransactionListItem'
-import {MintClient, MintKeys, NostrClient, ReceivedEventResult, Wallet} from '../services'
+import {MintClient, MintKeys, ReceivedEventResult, Wallet} from '../services'
 import {translate} from '../i18n'
 import AppError, { Err } from '../utils/AppError'
 import {
@@ -54,15 +54,13 @@ import {
 } from '@env'
 import { round } from '../utils/number'
 import { NotificationService } from '../services/notificationService'
-import { PaymentRequest, PaymentRequestStatus } from '../models/PaymentRequest'
-import { poller } from '../utils/poller'
+import { PaymentRequest } from '../models/PaymentRequest'
 import Clipboard from '@react-native-clipboard/clipboard'
-import { IncomingDataType, IncomingParser } from '../services/incomingParser'
+import { IncomingParser } from '../services/incomingParser'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
-import { WalletProfileStoreModel } from '../models/WalletProfileStore'
 
-
+// refresh
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView)
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY

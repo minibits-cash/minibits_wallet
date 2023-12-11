@@ -5,10 +5,9 @@ import {
     MINIBITS_SERVER_API_HOST,    
 } from '@env'
 import { WalletProfile, WalletProfileRecord } from "../models/WalletProfileStore"
-import { NostrClient } from "./nostrService"
-
 
 // refresh
+
 const getRandomPictures = async function () {
     const url = MINIBITS_SERVER_API_HOST + '/profile'  
     const method = 'GET'        
@@ -33,18 +32,19 @@ const createWalletProfile = async function (pubkey: string, walletId: string) {
     const requestBody = {
         pubkey,
         walletId
-    }        
-
+    }
+    
+    log.trace('[createWalletProfile]', `Create new profile`, {url})
+    
     const walletProfile: WalletProfileRecord = await fetchApi(url, {
         method,
         headers,
         body: JSON.stringify(requestBody)
     })
 
-    log.info('[createWalletProfile]', `Created new profile`, walletProfile.pubkey)
+    log.info('[createWalletProfile]', `Created new profile`, {walletProfile})
 
     return walletProfile
-
 }
 
 
@@ -219,14 +219,14 @@ const fetchApi = async (url: string, options: any, timeout = 15000) => { //ms
 
     if (!response) {
         controller.abort()
-        throw new Error('API takes too long to respond')
+        throw new AppError(Err.NETWORK_ERROR, 'API takes too long to respond', {caller: 'fetchApi'})
     }    
 
     const responseJson = await response.json()        
 
     if(responseJson && responseJson.error) {            
         const {error} = responseJson
-        throw new AppError(error.name, error.message, error.params)
+        throw new AppError(error.name || Err.NETWORK_ERROR, error.message, {caller: 'fetchApi', message: error.params.message})
     }
 
     return responseJson    

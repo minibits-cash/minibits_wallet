@@ -5,8 +5,6 @@ import {
     APP_ENV,      
     CODEPUSH_STAGING_DEPLOYMENT_KEY,
     CODEPUSH_PRODUCTION_DEPLOYMENT_KEY,
-    MINIBITS_NIP05_DOMAIN,
-    MINIBITS_RELAY_URL, 
 } from '@env'
 import codePush, { RemotePackage } from 'react-native-code-push'
 import {colors, spacing, useThemeColor} from '../theme'

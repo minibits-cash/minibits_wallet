@@ -13,6 +13,7 @@ import { log } from '../services/logService'
 import { getImageSource } from '../utils/utils'
 import { ReceiveOption } from './ReceiveOptionsScreen'
 import { SendOption } from './SendOptionsScreen'
+import { WalletProfile } from '../models/WalletProfileStore'
 
 interface ContactsScreenProps extends ContactsStackScreenProps<'Contacts'> {}
 
@@ -28,10 +29,11 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
     
     useEffect(() => {
         const load = async () => {
+            let profile: WalletProfile
             try {                
                 log.trace(walletProfileStore)
 
-                if(!walletProfileStore.pubkey || !walletProfileStore.picture) {
+                if(!walletProfileStore.pubkey || !walletProfileStore.picture) { // pic needed
                     const {publicKey} = await NostrClient.getOrCreateKeyPair()
                     const walletId = userSettingsStore.walletId 
                     
@@ -42,7 +44,7 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
                 
                 // log.trace('Pic', walletProfileStore.picture)
 
-            } catch(e: any) {
+            } catch(e: any) {                
                 return false // silent
             }
         }

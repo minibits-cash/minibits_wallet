@@ -7,7 +7,11 @@ import {
     APP_ENV,    
     NATIVE_VERSION_ANDROID,
     JS_BUNDLE_VERSION,
-    COMMIT,    
+    COMMIT,
+    MINIBITS_MINT_URL,
+    MINIBITS_RELAY_URL,
+    MINIBITS_NIP05_DOMAIN,
+    MINIBITS_SERVER_API_HOST 
 } from '@env'
 import packageJson from '../../package.json'
 import {
@@ -30,6 +34,8 @@ import {Database, KeyChain, NostrClient} from '../services'
 import {MMKVStorage} from '../services'
 import {maxTransactionsInModel} from '../models/TransactionsStore'
 import { LogLevel } from '../services/log/logTypes'
+
+// refresh
 
 export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observer(function DeveloperScreen(_props) {
     const {navigation} = _props
