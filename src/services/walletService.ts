@@ -217,34 +217,41 @@ const checkPendingReceived = async function () {
                 
                 // decrypt message content
                 const decrypted = await NostrClient.decryptNip04(event.pubkey, event.content)
+
+                log.trace('Received event', {decrypted})
                 
                 // get sender profile and save it as a contact
-                const sentFrom = getTagValue(event.tags, 'from')
                 const sentFromPubkey = event.pubkey
-                const sentFromNpub = NostrClient.getNpubkey(sentFromPubkey)                             
-                const sentFromName = NostrClient.getNameFromNip05(sentFrom as string)
-                let sentFromPicture: string | undefined                
-                
-                if(sentFrom && sentFrom.includes(MINIBITS_NIP05_DOMAIN)) {
-                    sentFromPicture = MINIBITS_SERVER_API_HOST + '/profile/avatar/' + sentFromPubkey
-                }
+                const sentFrom = getTagValue(event.tags, 'from') // this is not available when receiving from LNURL
+                const sentFromNpub = NostrClient.getNpubkey(sentFromPubkey)             
 
-                // we skip retrieval of external nostr profiles to minimize failures
-                // external contacts will thus miss image...
-                                       
-                const contactFrom = {                        
-                    pubkey: sentFromPubkey,
-                    npub: sentFromNpub,
-                    nip05: sentFrom || undefined,
-                    name: sentFromName || undefined,
-                    picture: sentFromPicture || undefined,
-                    isExternalDomain: sentFrom && sentFrom.includes(MINIBITS_NIP05_DOMAIN) ? false : true                        
-                } as Contact
-                
-                contactsStore.addContact(contactFrom)
+                if(sentFrom) {
+                    const sentFromName = NostrClient.getNameFromNip05(sentFrom as string)
+                    let sentFromPicture: string | undefined                
+                    
+                    if(sentFrom.includes(MINIBITS_NIP05_DOMAIN)) {
+                        sentFromPicture = MINIBITS_SERVER_API_HOST + '/profile/avatar/' + sentFromPubkey
+                    }
+
+                    // we skip retrieval of external nostr profiles to minimize failures
+                    // external contacts will thus miss image...
+                                        
+                    const contactFrom = {                        
+                        pubkey: sentFromPubkey,
+                        npub: sentFromNpub,
+                        nip05: sentFrom || undefined,
+                        name: sentFromName || undefined,
+                        picture: sentFromPicture || undefined,
+                        isExternalDomain: sentFrom && sentFrom.includes(MINIBITS_NIP05_DOMAIN) ? false : true                        
+                    } as Contact
+                    
+                    contactsStore.addContact(contactFrom)
+                }
 
                 // parse incoming message
                 const incoming = IncomingParser.findAndExtract(decrypted)
+
+                log.trace('Incoming data', {incoming})
     
                 if(incoming.type === IncomingDataType.CASHU) {
                     const {
@@ -263,7 +270,7 @@ const checkPendingReceived = async function () {
                         result = {
                             status: TransactionStatus.COMPLETED,                        
                             title: `⚡${receivedAmount} sats received!`,
-                            message: `Ecash from <b>${sentFrom}</b> is now in your wallet.`,
+                            message: `Ecash from <b>${sentFrom || 'uknown payer'}</b> is now in your wallet.`,
                             memo,
                             picture,
                             token: CashuUtils.decodeToken(incoming.encoded)
