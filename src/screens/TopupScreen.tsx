@@ -624,9 +624,10 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                         paymentOption={paymentOption}
                         invoiceToPay={invoiceToPay}
                         mintBalanceToTopup={mintBalanceToTopup as MintBalance}
+                        gotoWallet={resetState}
                     />
             )}
-            {(transactionStatus === TransactionStatus.PENDING || transactionStatus === TransactionStatus.COMPLETED)  && (
+            {(transactionStatus === TransactionStatus.COMPLETED)  && (
                 <View style={$bottomContainer}>
                     <View style={$buttonContainer}>
                         <Button
@@ -826,6 +827,7 @@ const SelectedMintBlock = observer(function (props: {
     invoiceToPay: string
     paymentOption: ReceiveOption
     mintBalanceToTopup: MintBalance
+    gotoWallet: any
 }) {
 
     const {mintsStore} = useStores()
@@ -833,7 +835,7 @@ const SelectedMintBlock = observer(function (props: {
     const tokenTextColor = useThemeColor('textDim')
 
     return (
-        <View>            
+        <View style={{flex: 1}}>           
             <Card
                 style={$card}
                 heading={'Mint to topup'}
@@ -849,51 +851,59 @@ const SelectedMintBlock = observer(function (props: {
                         separator={'top'}
                     />
                 }
-            />        
-            <View style={$buttonContainer}>
-                <Button
-                text='QR code'
-                preset='secondary'
-                onPress={props.toggleQRModal}          
-                LeftAccessory={() => (
-                    <Icon
-                    icon='faQrcode'
-                    // color="white"
-                    size={spacing.medium}              
-                    />
-                )}
-                />
-                {props.paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST && (
+            />      
+            <View style={$bottomContainer}>
+                <View style={$buttonContainer}>
                     <Button
-                        text='Send to contact'
-                        preset='secondary'
-                        onPress={props.toggleNostrDMModal}
-                        style={{marginLeft: spacing.medium}}
-                        LeftAccessory={() => (
-                            <Icon
-                            icon='faPaperPlane'
-                            // color="white"
-                            size={spacing.medium}              
-                            />
-                        )} 
+                    text='QR code'
+                    preset='secondary'
+                    onPress={props.toggleQRModal}          
+                    LeftAccessory={() => (
+                        <Icon
+                        icon='faQrcode'
+                        // color="white"
+                        size={spacing.medium}              
+                        />
+                    )}
                     />
-                )}
-                {props.paymentOption === ReceiveOption.LNURL_WITHDRAW && (
+                    {props.paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST && (
+                        <Button
+                            text='Send to contact'
+                            preset='secondary'
+                            onPress={props.toggleNostrDMModal}
+                            style={{marginLeft: spacing.medium}}
+                            LeftAccessory={() => (
+                                <Icon
+                                icon='faPaperPlane'
+                                // color="white"
+                                size={spacing.medium}              
+                                />
+                            )} 
+                        />
+                    )}
+                    {props.paymentOption === ReceiveOption.LNURL_WITHDRAW && (
+                        <Button
+                            text='Withdraw'
+                            preset='secondary'
+                            onPress={props.toggleWithdrawModal}
+                            style={{marginLeft: spacing.medium}}
+                            LeftAccessory={() => (
+                                <Icon
+                                icon='faArrowTurnDown'
+                                // color="white"
+                                size={spacing.medium}              
+                                />
+                            )} 
+                        />
+                    )}
                     <Button
-                        text='Withdraw'
-                        preset='secondary'
-                        onPress={props.toggleWithdrawModal}
-                        style={{marginLeft: spacing.medium}}
-                        LeftAccessory={() => (
-                            <Icon
-                            icon='faArrowTurnDown'
-                            // color="white"
-                            size={spacing.medium}              
-                            />
-                        )} 
+                        preset="secondary"
+                        tx={'common.close'}
+                        onPress={props.gotoWallet}
+                        style={{marginLeft: spacing.small}}
                     />
-                )}
-            </View>
+                </View>
+            </View>  
         </View>
     )
 })
