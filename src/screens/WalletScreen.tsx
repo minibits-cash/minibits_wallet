@@ -50,7 +50,8 @@ import {
     APP_ENV,      
     CODEPUSH_STAGING_DEPLOYMENT_KEY,
     CODEPUSH_PRODUCTION_DEPLOYMENT_KEY,
-    MINIBITS_MINT_URL 
+    MINIBITS_MINT_URL,
+    NATIVE_VERSION_ANDROID
 } from '@env'
 import { round } from '../utils/number'
 import { NotificationService } from '../services/notificationService'
@@ -106,7 +107,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                     setUpdateDescription(update.description)
                     setUpdateSize(`${round(update.packageSize *  0.000001, 2)}MB`)                  
                     setIsUpdateAvailable(true)
-                    // toggleUpdateModal()
+                    toggleUpdateModal()
                     log.info('OTA Update available', update, 'checkForUpdate')
                 }                
             } catch (e: any) {                
@@ -126,7 +127,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
     
     const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {
-        log.info('Native update available, silent', update)
+        log.info('[handleBinaryVersionMismatchCallback] trigerred', NATIVE_VERSION_ANDROID, update)
         // setIsNativeUpdateAvailable(true)
         // toggleUpdateModal()
     }
