@@ -117,8 +117,8 @@ const en = {
   profileScreen: {    
     changeAvatar: "Change picture",
     changeAvatarSubtext: "Select one from randomly generated pictures.",
-    changeWalletname: "Change wallet name",
-    changeWalletnameSubtext: "Change unique wallet name. Your wallet name can be shared with other people. Like an account number, just better.",
+    changeWalletaddress: "Change wallet address",
+    changeWalletaddressSubtext: "Change unique wallet address. Select one of randomly generated or choose your own.",
   },
   settingsScreen: {
     title: "Settings", 

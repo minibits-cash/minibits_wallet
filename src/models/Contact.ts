@@ -29,8 +29,10 @@ export const ContactModel = types
     .actions(self => ({
         refreshPicture() {
             const cleaned = MINIBITS_SERVER_API_HOST + '/profile/avatar/' + self.pubkey // remove refresh suffix            
-            self.picture = cleaned + '?r=' + Math.floor(Math.random() * 100) // force url refresh
-            
+            self.picture = cleaned + '?r=' + Math.floor(Math.random() * 100) // force url refresh            
+        },
+        setNoteToSelf(note: string) {
+            self.noteToSelf = note        
         },
     }))
     .views(self => ({        

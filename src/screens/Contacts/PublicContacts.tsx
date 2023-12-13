@@ -471,7 +471,6 @@ export const PublicContacts = observer(function (props: {
                     subText={'Add or change your NOSTR social network public key (npub).'}
                     onPress={toggleNpubModal}
                     bottomSeparator={true}
-                    style={{paddingHorizontal: spacing.medium}}
                 />
                 <ListItem
                     leftIcon='faCircleNodes'
@@ -479,15 +478,12 @@ export const PublicContacts = observer(function (props: {
                     subText={'Add or change your own relay if your profile and follows are not hosted on the default relays.'}
                     onPress={toggleRelayModal}
                     bottomSeparator={true}
-                    style={{paddingHorizontal: spacing.medium}}
                 />
                 <ListItem
                     leftIcon='faBan'
                     text='Remove your public key'
                     subText={'Remove your npub key and stop loading public contacts.'}
                     onPress={onRemovePublicPubKey}
-                    bottomSeparator={true}
-                    style={{paddingHorizontal: spacing.medium}}
                 /> 
             </>
           }

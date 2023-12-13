@@ -68,6 +68,7 @@ import { faCircleNodes } from '@fortawesome/free-solid-svg-icons/faCircleNodes'
 import { faBullseye } from '@fortawesome/free-solid-svg-icons/faBullseye'
 import { faEyeSlash } from '@fortawesome/free-solid-svg-icons/faEyeSlash'
 import { faUpRightFromSquare } from '@fortawesome/free-solid-svg-icons/faUpRightFromSquare'
+import { faShareNodes } from '@fortawesome/free-solid-svg-icons/faShareNodes'
 
 
 export type IconTypes = keyof typeof iconRegistry
@@ -126,6 +127,7 @@ export const iconRegistry = {
   faBullseye: faBullseye,
   faEyeSlash: faEyeSlash,
   faUpRightFromSquare: faUpRightFromSquare,
+  faShareNodes: faShareNodes,
 }
 
 

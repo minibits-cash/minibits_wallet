@@ -22,7 +22,9 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
     const {walletProfileStore, userSettingsStore} = useStores() 
     const {npub, name, picture, nip05} = walletProfileStore    
 
-    const [isLoading, setIsLoading] = useState<boolean>(false) 
+    const [isUpdateModalVisible, setIsUpdateModalVisible] = useState<boolean>(false)
+    const [isShareModalVisible, setIsShareModalVisible] = useState<boolean>(false)
+    const [isLoading, setIsLoading] = useState<boolean>(false)
     const [info, setInfo] = useState('')    
     const [error, setError] = useState<AppError | undefined>()
 
@@ -33,35 +35,33 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                 message: `${nip05}`,
             })
 
-            if (result.action === Share.sharedAction) {                
-                setTimeout(
-                    () =>
-                    setInfo(
-                        'Contact has been shared',
-                    ),
-                    500,
-                )
-            } else if (result.action === Share.dismissedAction) {
-                setInfo(
-                    'Contact sharing cancelled',
-                )
-            }
         } catch (e: any) {
             handleError(e)
         }
     }
+
+    const toggleUpdateModal = () => {
+        setIsUpdateModalVisible(previousState => !previousState)
+    }
+
+    const toggleShareModal = () => {
+        setIsShareModalVisible(previousState => !previousState)
+    }
         
     const gotoAvatar = function() {
-      navigation.navigate('Picture')
+        toggleUpdateModal()
+        navigation.navigate('Picture')
     }
 
     const gotoWalletName = function() {
-      navigation.navigate('WalletName')
+        toggleUpdateModal()
+        navigation.navigate('WalletName')
     }
 
 
     const gotoOwnKeys = function() {
-      navigation.navigate('OwnKeys')
+        toggleUpdateModal()
+        navigation.navigate('OwnKeys')
     }
 
     const onCopyNpub = function () {        
@@ -113,65 +113,92 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
             <Header 
                 leftIcon='faArrowLeft'
                 onLeftPress={navigation.goBack}
-                rightIcon='faShareFromSquare'
-                onRightPress={onShareContact}
             />        
             <ProfileHeader />        
             <View style={$contentContainer}>
-            {!walletProfileStore.isOwnProfile && (
-            <Card
-                style={$card}
+                <Card
+                    ContentComponent={
+                        <>
+                        <ListItem
+                            text='Your Minibits wallet address'
+                            subText={`Share your wallet address to receive encrypted ecash over Nostr, or as your Lightning address, so that you can receive from any Lightning wallet.`}
+                            leftIcon='faCircleUser'
+                            bottomSeparator={true}
+                            style={{paddingRight: spacing.small}}
+                        />
+                        <View style={$buttonContainer}>                            
+                            <Button
+                                preset='secondary'                                
+                                text={'Share'}
+                                LeftAccessory={() => <Icon icon='faShareNodes'/>}
+                                onPress={toggleShareModal}
+                            />
+                            <Button
+                                preset='secondary'                                
+                                text={'Update'}
+                                style={{marginLeft: spacing.small}}
+                                LeftAccessory={() => <Icon icon='faRotate'/>}
+                                onPress={toggleUpdateModal}
+                            />  
+                        </View>  
+                        </>
+                    }
+                />
+            </View>
+            <BottomModal
+                isVisible={isUpdateModalVisible ? true : false}
+                style={{alignItems: 'stretch'}}
                 ContentComponent={
-                    <WalletProfileActionsBlock 
-                        gotoAvatar={gotoAvatar}
-                        gotoWalletName={gotoWalletName}
-                    />
+                    <>       
+                        {!walletProfileStore.isOwnProfile && (
+                            <WalletProfileActionsBlock 
+                                gotoAvatar={gotoAvatar}
+                                gotoWalletName={gotoWalletName}
+                            />
+                        )}
+                        {walletProfileStore.isOwnProfile ? (
+                            <ListItem
+                                text='Reset own profile'
+                                subText='Stop using your own NOSTR address and re-create Minibits wallet profile with random NOSTR address.'
+                                leftIcon='faRotate'
+                                onPress={resetProfile}
+                            />
+                        ) : (
+                            <ListItem
+                                text='Use own Nostr profile'
+                                subText='Use existing NOSTR address as your wallet address. You can then use Minibits to send and receive ecash using your public identity on NOSTR social network.'
+                                leftIcon='faKey'          
+                                onPress={gotoOwnKeys}
+                            />
+                        )} 
+                    </>
                 }
+                onBackButtonPress={toggleUpdateModal}
+                onBackdropPress={toggleUpdateModal}
             />
-            )}
-            {walletProfileStore.isOwnProfile ? (
-                <Card
-                    style={[$card, {marginTop: spacing.medium}]}
-                    ContentComponent={
+            <BottomModal
+                isVisible={isShareModalVisible ? true : false}
+                style={{alignItems: 'stretch'}}
+                ContentComponent={
+                    <>   
                         <ListItem
-                            text='Reset own profile'
-                            subText='Stop using your own NOSTR profile and re-create Minibits wallet profile with random NOSTR address.'
-                            leftIcon='faRotate'
-                            leftIconInverse={true}
-                            leftIconColor={colors.palette.iconViolet200}              
-                            onPress={resetProfile}                    
-                            style={{paddingRight: spacing.medium}}
-                        />
-                    }
-                />
-            ) : (
-                <Card
-                    style={[$card, {marginTop: spacing.medium}]}
-                    ContentComponent={
+                            text='Share wallet address'
+                            subText={nip05}
+                            leftIcon='faShareNodes'
+                            onPress={onShareContact}
+                            bottomSeparator={true}
+                        />    
                         <ListItem
-                            text='Use your own profile'
-                            subText='Use existing NOSTR profile as your wallet profile. You can then use Minibits to send and receive ecash using your public identity on NOSTR social network.'
-                            leftIcon='faKey'
-                            leftIconInverse={true}
-                            leftIconColor={colors.palette.iconViolet200}              
-                            onPress={gotoOwnKeys}                    
-                            style={{paddingRight: spacing.medium}}
-                        />
-                    }
-                />
-            )}           
-            </View>
-            <View style={$bottomContainer}>
-                    <View style={$buttonContainer}>
-                        <Icon icon='faCopy' size={spacing.small} color={iconNpub as ColorValue} />
-                        <Button
-                            preset='secondary'
-                            textStyle={{fontSize: 12}}
-                            text={npub.slice(0,15)+'...'}
+                            text='Copy Nostr public key'
+                            subText={npub}
+                            leftIcon='faCopy'
                             onPress={onCopyNpub}
-                        /> 
-                    </View>    
-            </View>
+                        />
+                    </>
+                }
+                onBackButtonPress={toggleShareModal}
+                onBackdropPress={toggleShareModal}
+            />
             {isLoading && <Loading />}
             {error && <ErrorModal error={error} />}
             {info && <InfoModal message={info} />}
@@ -189,21 +216,16 @@ return (
         <ListItem
             tx='profileScreen.changeAvatar'
             subTx='profileScreen.changeAvatarSubtext'
-            leftIcon='faCircleUser'
-            leftIconInverse={true}
-            leftIconColor={colors.palette.iconMagenta200}              
+            leftIcon='faCircleUser'            
             onPress={props.gotoAvatar}
-            bottomSeparator={true}
-            style={{paddingRight: spacing.medium}}
+            bottomSeparator={true}            
         />
         <ListItem
-            tx='profileScreen.changeWalletname'
-            subTx='profileScreen.changeWalletnameSubtext'
+            tx='profileScreen.changeWalletaddress'
+            subTx='profileScreen.changeWalletaddressSubtext'
             leftIcon='faPencil'
-            leftIconInverse={true} 
-            leftIconColor={colors.palette.iconBlue200}
             onPress={props.gotoWalletName}
-            style={{paddingRight: spacing.medium}}
+            bottomSeparator={true}            
         />
     </>
 )
@@ -243,6 +265,7 @@ const $bottomContainer: ViewStyle = {
   }
 
 const $buttonContainer: ViewStyle = {
+    marginTop: spacing.small,
     flexDirection: 'row',
     alignSelf: 'center',
     alignItems: 'center',

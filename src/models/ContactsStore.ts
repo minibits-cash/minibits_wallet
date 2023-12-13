@@ -65,7 +65,7 @@ import {
             saveNote (pubkey: string, note: string) {              
                 const contactInstance = self.findByPubkey(pubkey)
                 if (contactInstance) {
-                    contactInstance.noteToSelf = note
+                    contactInstance.setNoteToSelf(note)
                     log.debug('[saveNote]', 'Contact note updated in ContactsStore')
                 }
             },

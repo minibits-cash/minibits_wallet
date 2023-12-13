@@ -5,7 +5,7 @@ import {getPublicKey} from 'nostr-tools'
 import RNExitApp from 'react-native-exit-app'
 import {colors, spacing, typography, useThemeColor} from '../theme'
 import {ContactsStackScreenProps} from '../navigation'
-import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, Header, Loading} from '../components'
+import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, Header, Loading, $sizeStyles} from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import AppError, { Err } from '../utils/AppError'
@@ -31,7 +31,7 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
         leftIcon: 'faArrowLeft',
         onLeftPress: () => navigation.goBack(),
         title: walletProfileStore.nip05,
-        titleStyle: {fontFamily: typography.primary?.medium}      
+        titleStyle: {fontFamily: typography.primary?.medium, fontSize: 16}      
     })
 
     const ownNip05InputRef = useRef<TextInput>(null)
