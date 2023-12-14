@@ -464,6 +464,8 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                 throw new AppError(Err.VALIDATION_ERROR, 'Missing mnemonic or seed.')
             }
 
+            setStatusMessage('Recovering wallet address...')
+            setIsLoading(true)
             await KeyChain.saveMnemonic(mnemonic)
             await KeyChain.saveSeed(seed as Uint8Array)
 
@@ -484,6 +486,8 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
             }
 
             userSettingsStore.setIsOnboarded(true)
+            setStatusMessage('')
+            setIsLoading(false)
             navigation.navigate('Tabs')        
         } catch (e: any) {
             handleError(e)

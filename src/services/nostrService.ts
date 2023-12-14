@@ -288,7 +288,7 @@ const verifyNip05 = async function (nip05: string, pubkey: string) {
     
     throw new AppError(
         Err.VALIDATION_ERROR, 
-        `${nip05Name} is no longer linked to the same public key as in your contacts. Please get in touch with the wallet owner.`)   
+        `${nip05} is no longer linked to the same public key as in your contacts. Please get in touch with the intended recipient to make sure the address is valid. Then, remove the contact and add it again.`)
 }
 
 
