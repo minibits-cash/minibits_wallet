@@ -124,7 +124,7 @@ jobs:
           --strip-prefix /build \
           --dist ${{ env.NATIVE_VERSION }} \
           --org ${{ secrets.SENTRY_ORG }} \
-          --project react-native \
+          --project minibits-wallet \
           ./build/index.android.bundle.map ./build/Codepush/index.android.bundle
                            
       
