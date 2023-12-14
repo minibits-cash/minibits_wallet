@@ -179,7 +179,7 @@ async function _runMigrations(rootStore: RootStore) {
         log.trace(`Starting rootStore migrations from version v${currentVersion} -> v8`)
         const seedHash = await KeyChain.loadSeedHash()        
 
-        if(seedHash) {
+        if(seedHash && walletProfileStore.pubkey) {
             await MinibitsClient.migrateSeedHash(
                 walletProfileStore.pubkey, 
                 {
