@@ -66,8 +66,8 @@ const decodeInvoice = function (encoded: string): DecodedLightningInvoice {
   } catch (e: any) {
     throw new AppError(
       Err.VALIDATION_ERROR,
-      `Provided invoice is invalid: ${encoded}`,
-      e.message,
+      `Provided invoice is invalid: ${e.message}`,
+      {encoded},
     )
   }
 }

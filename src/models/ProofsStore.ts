@@ -70,7 +70,7 @@ export const ProofsStoreModel = types
 
             for (const proof of newProofs) { 
                 if(self.alreadyExists(proof)) {
-                    log.warn('[addProofs]', `${isPending ? ' pending' : ''} proof already exists in the ProofsStore`, proof.secret)
+                    log.error('[addProofs]', `${isPending ? ' pending' : ''} proof with this secret already exists in the ProofsStore`, {proof})
                     continue
                 }
 
@@ -131,7 +131,7 @@ export const ProofsStoreModel = types
                     }                    
                 }) 
 
-                proofs.replace(proofs.filter(proof => !proofsToRemove.includes(proof)))
+                proofs.replace(proofs.filter(proof => !proofsToRemove.some(removed => removed.secret === proof.secret)))
 
                 log.debug('[removeProofs]', `${count} ${(isPending) ? 'pending' : ''} proofs removed from ProofsStore`)
 

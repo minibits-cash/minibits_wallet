@@ -138,8 +138,8 @@ async function checkPendingSpent() {
  * Checks with NOSTR relays whether there is ecash to be received or an invoice to be paid.
  */
 const checkPendingReceived = async function () {
-    if(!walletProfileStore.pubkey) {
-        throw new AppError(Err.VALIDATION_ERROR, 'Missing wallet profile, visit Contacts to generate new one.', {caller: 'checkPendingReceived'})        
+    if(!walletProfileStore.pubkey) { // New profile not yet created in ContactsScreen
+        return       
     }
     
     // clean expired paymentRequests
@@ -223,11 +223,13 @@ const checkPendingReceived = async function () {
                 // get sender profile and save it as a contact
                 const sentFromPubkey = event.pubkey
                 const sentFrom = getTagValue(event.tags, 'from') // this is not available when receiving from LNURL
-                const sentFromNpub = NostrClient.getNpubkey(sentFromPubkey)             
+                const sentFromNpub = NostrClient.getNpubkey(sentFromPubkey)
+                let contactFrom: Contact | undefined = undefined 
+                let sentFromPicture: string | undefined = undefined          
 
                 if(sentFrom) {
                     const sentFromName = NostrClient.getNameFromNip05(sentFrom as string)
-                    let sentFromPicture: string | undefined                
+                                  
                     
                     if(sentFrom.includes(MINIBITS_NIP05_DOMAIN)) {
                         sentFromPicture = MINIBITS_SERVER_API_HOST + '/profile/avatar/' + sentFromPubkey
@@ -236,13 +238,13 @@ const checkPendingReceived = async function () {
                     // we skip retrieval of external nostr profiles to minimize failures
                     // external contacts will thus miss image...
                                         
-                    const contactFrom = {                        
+                    contactFrom = {                        
                         pubkey: sentFromPubkey,
                         npub: sentFromNpub,
-                        nip05: sentFrom || undefined,
+                        nip05: sentFrom,
                         name: sentFromName || undefined,
                         picture: sentFromPicture || undefined,
-                        isExternalDomain: sentFrom && sentFrom.includes(MINIBITS_NIP05_DOMAIN) ? false : true                        
+                        isExternalDomain: sentFrom.includes(MINIBITS_NIP05_DOMAIN) ? false : true                        
                     } as Contact
                     
                     contactsStore.addContact(contactFrom)
@@ -262,7 +264,7 @@ const checkPendingReceived = async function () {
 
                     let picture: string | undefined = undefined
 
-                    if(sentFrom) {
+                    if(sentFrom && sentFrom.includes(MINIBITS_NIP05_DOMAIN)) {
                         picture = MINIBITS_SERVER_API_HOST + '/profile/avatar/' + sentFromPubkey
                     }
         
@@ -322,7 +324,7 @@ const checkPendingReceived = async function () {
                         amount: amount || 0,
                         description: maybeMemo ? maybeMemo : description,                            
                         paymentHash: paymentHash || '',
-                        contactFrom,
+                        contactFrom: contactFrom || {pubkey: sentFromPubkey, npub: sentFromNpub},
                         contactTo,                        
                         expiry: expiry || 600,
                         createdAt: timestamp ? new Date(timestamp * 1000) : new Date()

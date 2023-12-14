@@ -269,10 +269,11 @@ const sendFromMint = async function (
   } catch (e: any) {
     throw new AppError(
         Err.MINT_ERROR, 
-        `The mint could not return signatures necessary for this transaction. ${e.message}`, 
+        `The mint could not return signatures necessary for this transaction: ${e.message}`, 
         {
             caller: 'sendFromMint', 
-            mintUrl, 
+            mintUrl,
+            proofsToSendFrom, 
             message: e.message
         }
     )
