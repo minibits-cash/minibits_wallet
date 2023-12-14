@@ -6,7 +6,7 @@ import {colors, spacing, typography, useThemeColor} from '../theme'
 import {Header, Icon, Screen} from '../components'
 import {useStores} from '../models'
 import {ContactsStackScreenProps} from '../navigation'
-import { NostrClient } from '../services'
+import { KeyChain, MintClient, NostrClient } from '../services'
 import { PrivateContacts } from './Contacts/PrivateContacts'
 import { PublicContacts } from './Contacts/PublicContacts'
 import { log } from '../services/logService'
@@ -28,21 +28,16 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
 
     
     useEffect(() => {
-        const load = async () => {
-            let profile: WalletProfile
+        const load = async () => {            
             try {                
                 log.trace(walletProfileStore)
 
-                if(!walletProfileStore.pubkey || !walletProfileStore.picture) { // pic needed
-                    const {publicKey} = await NostrClient.getOrCreateKeyPair()
-                    const walletId = userSettingsStore.walletId 
-                    
+                if(!walletProfileStore.pubkey || !walletProfileStore.picture) { // pic needed                    
                     // create random name, NIP05 identifier, random picture and sharable profile
                     // announce new profile to the added default public and minibits relays
-                    await walletProfileStore.create(publicKey, walletId as string)                    
+                    const walletId = userSettingsStore.walletId
+                    await walletProfileStore.create(walletId as string)                    
                 }
-                
-                // log.trace('Pic', walletProfileStore.picture)
 
             } catch(e: any) {                
                 return false // silent

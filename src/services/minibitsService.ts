@@ -24,14 +24,15 @@ const getRandomPictures = async function () {
 }
 
 
-const createWalletProfile = async function (pubkey: string, walletId: string) {    
+const createWalletProfile = async function (pubkey: string, walletId: string, seedHash: string) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'POST'        
     const headers = getHeaders()
     
     const requestBody = {
         pubkey,
-        walletId
+        walletId,
+        seedHash
     }
     
     log.trace('[createWalletProfile]', `Create new profile`, {url})
@@ -93,7 +94,7 @@ const updateWalletProfileAvatar = async function (pubkey: string, update: {avata
 
 
 const updateWalletProfileNip05 = async function (pubkey: string, update: {newPubkey: string, nip05: string, name: string, avatar: string}) {    
-    const url = MINIBITS_SERVER_API_HOST + '/profile/nip05'
+    const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'PUT'        
     const headers = getHeaders()
     const { newPubkey, nip05, name, avatar } = update
@@ -105,13 +106,57 @@ const updateWalletProfileNip05 = async function (pubkey: string, update: {newPub
         avatar
     }        
 
-    const walletProfile: WalletProfile = await fetchApi(url + `/${pubkey}`, {
+    const walletProfile: WalletProfile = await fetchApi(url + `/nip05/${pubkey}`, {
         method,
         headers,
         body: JSON.stringify(requestBody)
     })
 
     log.info('[updateWalletProfileNip05]', `Updated wallet profile nip05`, walletProfile.nip05)
+
+    return walletProfile
+}
+
+
+const recoverProfile = async function (seedHash: string, update: {newPubkey: string}) {    
+    const url = MINIBITS_SERVER_API_HOST + '/profile'
+    const method = 'PUT'        
+    const headers = getHeaders()
+    const { newPubkey } = update
+    
+    const requestBody = {            
+        newPubkey,        
+    }        
+
+    const walletProfile: WalletProfile = await fetchApi(url + `/recover/seedHash/${seedHash}`, {
+        method,
+        headers,
+        body: JSON.stringify(requestBody)
+    })
+
+    log.info('[recoverProfile]', `Recovered wallet profile with seedHash`, seedHash)
+
+    return walletProfile
+}
+
+
+const migrateSeedHash = async function (pubkey: string, update: {seedHash: string}) {    
+    const url = MINIBITS_SERVER_API_HOST + '/profile'
+    const method = 'PUT'        
+    const headers = getHeaders()
+    const { seedHash } = update
+    
+    const requestBody = {            
+        seedHash,        
+    }        
+
+    const walletProfile: WalletProfile = await fetchApi(url + `/migrate/pubkey/${pubkey}`, {
+        method,
+        headers,
+        body: JSON.stringify(requestBody)
+    })
+
+    log.info('[migrateSeedHash]', `Migrated seedHash`, seedHash)
 
     return walletProfile
 }
@@ -160,6 +205,22 @@ const getWalletProfileByNip05 = async function (nip05: string) {
     })
 
     log.trace('[getWalletProfileByNip05]', `Got response`, walletProfile?.walletId || null)
+
+    return walletProfile
+}
+
+
+const getWalletProfileBySeedHash = async function (seedHash: string) {    
+    const url = MINIBITS_SERVER_API_HOST + '/profile'
+    const method = 'GET'        
+    const headers = getHeaders()
+
+    const walletProfile: WalletProfileRecord = await fetchApi(url + `/seedHash/${seedHash}`, {
+        method,
+        headers,            
+    })
+
+    log.trace('[getWalletProfileBySeedHash]', `Got response`, walletProfile?.walletId || null)
 
     return walletProfile
 }
@@ -257,9 +318,12 @@ export const MinibitsClient = {
     updateWalletProfileName,
     updateWalletProfileAvatar,
     updateWalletProfileNip05,
+    recoverProfile,
+    migrateSeedHash,
     getRandomPictures,
     getWalletProfileByWalletId,
     getWalletProfileByNip05,
+    getWalletProfileBySeedHash,
     createDonation,
     checkDonationPaid,
     getPublicHeaders,

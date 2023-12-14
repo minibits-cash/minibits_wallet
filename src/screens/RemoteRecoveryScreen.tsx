@@ -20,7 +20,7 @@ import {
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import AppError, { Err } from '../utils/AppError'
-import { KeyChain, log, MintClient, MintKeys } from '../services'
+import { KeyChain, log, MinibitsClient, MintClient, MintKeys, NostrClient } from '../services'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { useStores } from '../models'
 import { MintListItem } from './Mints/MintListItem'
@@ -34,6 +34,7 @@ import {
 import { Transaction, TransactionData, TransactionRecord, TransactionStatus, TransactionType } from '../models/Transaction'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import { deriveSeedFromMnemonic } from '@cashu/cashu-ts'
+import { MINIBITS_NIP05_DOMAIN } from '@env'
 
 if (Platform.OS === 'android' &&
     UIManager.setLayoutAnimationEnabledExperimental) {
@@ -51,7 +52,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
         },
     })
 
-    const {mintsStore, proofsStore, userSettingsStore, transactionsStore} = useStores()
+    const {mintsStore, proofsStore, userSettingsStore, transactionsStore, walletProfileStore} = useStores()
     const mnemonicInputRef = useRef<TextInput>(null)
 
     const [info, setInfo] = useState('')
@@ -328,7 +329,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                     e.params = {mintUrl: mint.mintUrl}
                 }
 
-                // log.error(e, {mintUrl: mint.mintUrl})
+                log.error(e, {mintUrl: mint.mintUrl})
                 errors.push(e)
 
                 if (transactionId > 0) {
@@ -465,6 +466,22 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
 
             await KeyChain.saveMnemonic(mnemonic)
             await KeyChain.saveSeed(seed as Uint8Array)
+
+            // Wallet address recovery
+            const seedHash = await KeyChain.loadSeedHash()
+            const profileToRecover = await MinibitsClient.getWalletProfileBySeedHash(seedHash as string)
+
+            // Skip external profiles beacause we do not control keys
+            if(profileToRecover && profileToRecover.nip05.includes(MINIBITS_NIP05_DOMAIN)) {
+                
+                log.trace('[onComplete] recovery', {profileToRecover})                
+                const {publicKey: newPublicKey} = await NostrClient.getOrCreateKeyPair()                                
+                
+                // Updates pubkey and imports wallet profile
+                await walletProfileStore.recover(seedHash as string, newPublicKey)
+                // Align walletId in userSettings with recovered profile
+                userSettingsStore.setWalletId(walletProfileStore.walletId)
+            }
 
             userSettingsStore.setIsOnboarded(true)
             navigation.navigate('Tabs')        

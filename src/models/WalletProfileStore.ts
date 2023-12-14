@@ -1,5 +1,5 @@
 import {Instance, SnapshotOut, types, flow} from 'mobx-state-tree'
-import {MinibitsClient, NostrClient, NostrUnsignedEvent, Wallet} from '../services'
+import {KeyChain, MinibitsClient, NostrClient, NostrUnsignedEvent, Wallet} from '../services'
 import {log} from '../services/logService'
 import { getRootStore } from './helpers/getRootStore'
 
@@ -34,6 +34,7 @@ export const WalletProfileStoreModel = types
         nip05: types.optional(types.string, ''),
         picture: types.optional(types.string, ''),
         device: types.maybe(types.maybeNull(types.string)),
+        seedHash: types.maybe(types.maybeNull(types.string)),
         isOwnProfile: types.optional(types.boolean, false),       
     })
     .actions(self => ({  
@@ -80,13 +81,17 @@ export const WalletProfileStoreModel = types
         }),
     }))   
     .actions(self => ({  
-        create: flow(function* create(pubkey: string, walletId: string) {
+        create: flow(function* create(walletId: string) {
 
-            let profileRecord: WalletProfileRecord = yield MinibitsClient.createWalletProfile(pubkey, walletId)
+            const {publicKey} = yield NostrClient.getOrCreateKeyPair()
+            const seedHash = yield KeyChain.loadSeedHash() // used to recover wallet address
+
+            let profileRecord: WalletProfileRecord = yield MinibitsClient.createWalletProfile(publicKey, walletId, seedHash)
 
             const {nip05, name, avatar} = profileRecord
             
-            self.pubkey = pubkey            
+            self.pubkey = publicKey
+            self.seedHash = seedHash         
             self.name = name // default name is set on server side, equals walletId
             self.nip05 = nip05 // default is name@minibits.cash set on server side
             self.picture = avatar // default picture is set on server side
@@ -96,7 +101,7 @@ export const WalletProfileStoreModel = types
             log.info('[create]', 'Wallet profile saved in WalletProfileStore', {self, publishedEvent})
             return self           
         }),      
-        updateName: flow(function* update(name: string) {
+        updateName: flow(function* updateName(name: string) {
 
             let profileRecord: WalletProfileRecord = yield MinibitsClient.updateWalletProfileName(
                 self.pubkey, 
@@ -112,7 +117,7 @@ export const WalletProfileStoreModel = types
             log.debug('[updateName]', 'Wallet name updated in the WalletProfileStore', {self, publishedEvent})
             return self         
         }),
-        updatePicture: flow(function* update(picture: string) {
+        updatePicture: flow(function* updatePicture(picture: string) {
 
             let profileRecord: WalletProfileRecord = yield MinibitsClient.updateWalletProfileAvatar(
                 self.pubkey, 
@@ -128,7 +133,7 @@ export const WalletProfileStoreModel = types
             log.debug('[updatePicture]', 'Wallet picture updated in the WalletProfileStore', {self, publishedEvent})
             return self         
         }),
-        updateNip05: flow(function* update(newPubkey: string, nip05: string, name: string, picture: string, isOwnProfile: boolean) {
+        updateNip05: flow(function* updateNip05(newPubkey: string, nip05: string, name: string, picture: string, isOwnProfile: boolean) {
 
             let profileRecord: WalletProfileRecord = yield MinibitsClient.updateWalletProfileNip05(
                 self.pubkey, 
@@ -154,11 +159,36 @@ export const WalletProfileStoreModel = types
             log.info('[updateNip05]', 'Wallet nip05 updated in the WalletProfileStore', {self})
             return self         
         }),
+        recover: flow(function* recover(seedHash: string, newPubkey: string) {
+
+            let profileRecord: WalletProfileRecord = yield MinibitsClient.recoverProfile(
+                seedHash, 
+                { 
+                    newPubkey
+                }
+            )
+
+            log.trace('[recover]', 'profileRecord from server', {profileRecord})
+            
+            self.pubkey = newPubkey
+            self.seedHash = seedHash
+            self.walletId = profileRecord.walletId
+            self.nip05 = profileRecord.nip05
+            self.name = profileRecord.name
+            self.picture = profileRecord.avatar                        
+            
+            const publishedEvent = yield self.publishToRelays()
+            log.info('[recover]', 'Wallet profile recovered in WalletProfileStore', {self, publishedEvent})
+            return self         
+        }),
         setNip05(nip05: string) {   // used in migration to v3 model         
             self.nip05 = nip05             
         },
         setWalletId(walletId: string) {   // used in migration to v4 model         
             self.walletId = walletId             
+        },
+        setSeedHash(seedHash: string) {   // used in migration to v8 model         
+            self.seedHash = seedHash             
         }
         /* setPicture(picture: string) {            
             self.picture = picture             

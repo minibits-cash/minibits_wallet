@@ -17,7 +17,7 @@ import {
 import * as Sentry from '@sentry/react-native'
 import RNExitApp from 'react-native-exit-app'
 import type {RootStore} from '../RootStore'
-import {MMKVStorage, NostrClient} from '../../services'
+import {KeyChain, MinibitsClient, MMKVStorage, NostrClient} from '../../services'
 import {Database} from '../../services'
 import { log } from  '../../services/logService'
 import { rootStoreModelVersion } from '../RootStore'
@@ -25,6 +25,7 @@ import AppError, { Err } from '../../utils/AppError'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 import { LogLevel } from '../../services/log/logTypes'
 import { MintStatus } from '../Mint'
+import useIsInternetReachable from '../../utils/useIsInternetReachable'
 
 /**
  * The key we'll be saving our state as within storage.
@@ -125,8 +126,10 @@ async function _runMigrations(rootStore: RootStore) {
         if(walletProfileStore.pubkey) {
             walletProfileStore.setNip05(walletProfileStore.name+MINIBITS_NIP05_DOMAIN)
             log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+            rootStore.setVersion(rootStoreModelVersion)
         }
     }
+
 
     if(currentVersion < 4) {
         log.trace(`Starting rootStore migrations from version v${currentVersion} -> v4`)
@@ -136,8 +139,10 @@ async function _runMigrations(rootStore: RootStore) {
             // publish profile to relays
             await walletProfileStore.publishToRelays()
             log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+            rootStore.setVersion(rootStoreModelVersion)
         }
     }
+
 
     if(currentVersion < 5) {
         log.trace(`Starting rootStore migrations from version v${currentVersion} -> v5`)
@@ -148,13 +153,17 @@ async function _runMigrations(rootStore: RootStore) {
             })
         }
         log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+        rootStore.setVersion(rootStoreModelVersion)
     }
+
 
     if(currentVersion < 6) {
         log.trace(`Starting rootStore migrations from version v${currentVersion} -> v6`)
         userSettingsStore.setLogLevel(LogLevel.ERROR)
         log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+        rootStore.setVersion(rootStoreModelVersion)
     }
+
 
     if(currentVersion < 7) {
         log.trace(`Starting rootStore migrations from version v${currentVersion} -> v7`)
@@ -162,10 +171,27 @@ async function _runMigrations(rootStore: RootStore) {
             mint.setStatus(MintStatus.ONLINE)
         }
         log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+        rootStore.setVersion(rootStoreModelVersion)
     }
 
-    
-    rootStore.setVersion(rootStoreModelVersion)
+
+    if(currentVersion < 8) {
+        log.trace(`Starting rootStore migrations from version v${currentVersion} -> v8`)
+        const seedHash = await KeyChain.loadSeedHash()        
+
+        if(seedHash) {
+            await MinibitsClient.migrateSeedHash(
+                walletProfileStore.pubkey, 
+                {
+                    seedHash
+                }
+            )
+
+            walletProfileStore.setSeedHash(seedHash)
+            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+            rootStore.setVersion(rootStoreModelVersion)
+        }
+    }
 
   } catch (e: any) {
     throw new AppError(

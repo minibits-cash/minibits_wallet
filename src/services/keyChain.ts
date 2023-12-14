@@ -5,6 +5,7 @@ import { generateNewMnemonic } from '@cashu/cashu-ts'
 import * as nostrTools from 'nostr-tools'
 import {btoa, atob, fromByteArray} from 'react-native-quick-base64'
 import {log} from './logService'
+import { createHash } from 'crypto'
 
 
 export enum KeyChainServiceName {
@@ -161,6 +162,31 @@ const saveSeed = async function (
 
       log.trace('[loadSeed]', 'Did not find existing seed in the KeyChain')
       return undefined
+    } catch (e: any) {
+      throw new AppError(Err.KEYCHAIN_ERROR, e.message)
+    }
+}
+  /**
+   * Hash seed that is used for wallet address recovery
+   *
+   */
+
+const loadSeedHash = async function (): Promise<string | undefined> {    
+    try {
+      log.trace('[loadSeedHash]', 'start')
+      const seed = await loadSeed()
+
+      if(!seed) {
+        return undefined
+      }
+
+      const seedHash = QuickCrypto.createHash('sha256')
+      .update(seed)
+      .digest('hex')
+
+      log.trace('[loadSeedHash]', {seedHash})
+      return seedHash
+
     } catch (e: any) {
       throw new AppError(Err.KEYCHAIN_ERROR, e.message)
     }
@@ -367,6 +393,7 @@ export const KeyChain = {
 
     saveSeed,
     loadSeed,
+    loadSeedHash,
     removeSeed,
 
     generateNostrKeyPair,    
