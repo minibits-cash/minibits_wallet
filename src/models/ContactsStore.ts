@@ -35,12 +35,20 @@ import {
             },
             alreadyExists(pubkey: string) {
                 return self.contacts.some(m => m.pubkey === pubkey) ? true : false
+            },
+            nip05AlreadyExists(nip05: string) {
+                return self.contacts.some(m => m.nip05 === nip05) ? true : false
             },         
       }))
       .actions(self => ({
             addContact(newContact: Contact) {
                 if(self.alreadyExists(newContact.pubkey)) {
                     log.warn('[addContact]', 'Contact already exists', newContact)
+                    return
+                }
+
+                if(self.nip05AlreadyExists(newContact.nip05 as string)) {
+                    log.warn('[addContact]', 'Contact NIP05 already exists with different pubkey', newContact)
                     return
                 }
 
