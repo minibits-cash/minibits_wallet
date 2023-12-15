@@ -166,11 +166,13 @@ const checkPendingReceived = async function () {
 
         if(!relaysStore.alreadyExists(minibitsRelays[0])) {                        
             relaysToConnect.push(minibitsRelays[0])
+        }       
+        
+        for (const relayUrl of defaultPublicRelays) {
+            if(!relaysStore.alreadyExists(relayUrl) && __DEV__ === false) {                        
+                relaysToConnect.push(relayUrl)
+            }
         }        
-
-        if(!relaysStore.alreadyExists(defaultPublicRelays[0]) && __DEV__ === false) {                        
-            relaysToConnect.push(defaultPublicRelays[0])
-        }
 
         const sub = pool.sub(relaysToConnect , filter)
         const relaysConnections = pool._conn        

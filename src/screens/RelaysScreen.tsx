@@ -10,8 +10,9 @@ import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import { Relay } from '../models/Relay'
 import AppError, { Err } from '../utils/AppError'
-import { log, Wallet } from '../services'
+import { log, NostrClient, Wallet } from '../services'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
+import { MINIBITS_MINT_URL, MINIBITS_RELAY_URL } from '@env'
 
 interface SettingsScreenProps extends SettingsStackScreenProps<'Relays'> {}
 
@@ -93,6 +94,22 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
                 throw new AppError(Err.VALIDATION_ERROR, 'Invalid relay URL.', newPublicRelay)
             }
         } catch(e: any) {
+            handleError(e)
+        }
+    }
+
+
+    const resetDefaultRelays = function () {
+        try {
+            for (const relay of relaysStore.allPublicRelays) {
+                relaysStore.removeRelay(relay.url)
+            }
+
+            relaysStore.addDefaultRelays()
+
+            toggleAddRelayModal()
+            onConnect()
+        } catch (e: any) {
             handleError(e)
         }
     }
@@ -226,7 +243,8 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
                     />
                 </View>
                 <View style={[$buttonContainer, {marginTop: spacing.medium}]}> 
-                    <Button preset='tertiary' onPress={toggleAddRelayModal} text='Cancel'/>                    
+                    <Button preset='tertiary' onPress={resetDefaultRelays} text='Reset default'/>
+                    <Button preset='tertiary' onPress={toggleAddRelayModal} style={{marginLeft: spacing.small}} text='Cancel'/>
                 </View>                
             </View>
           }

@@ -37,6 +37,12 @@ export const PrivateContacts = observer(function (props: {
     useEffect(() => {        
         const { paymentOption } = props
 
+        if (paymentOption) {
+            if(relaysStore.allPublicRelays.length === 0) {
+                relaysStore.addDefaultRelays()
+            }
+        }
+
         if (paymentOption && paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) {
             infoMessage('Select contact to send your payment request to.')
         }

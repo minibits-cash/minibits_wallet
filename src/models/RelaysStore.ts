@@ -72,6 +72,21 @@ export const RelaysStoreModel = types
             }
         },
     }))
+    .actions(self => ({
+        addDefaultRelays() {
+            for (const relayUrl of NostrClient.getDefaultRelays()) {
+                self.addOrUpdateRelay({
+                    url: relayUrl,
+                    status: WebSocket.CLOSED
+                })
+            }
+
+            self.addOrUpdateRelay({
+                url: MINIBITS_RELAY_URL,
+                status: WebSocket.CLOSED
+            })
+        },
+    })) 
     .views(self => ({
         get allUrls() {
             return self.relays.map(r => r.url)

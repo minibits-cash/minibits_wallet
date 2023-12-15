@@ -46,7 +46,7 @@ export type Nip05VerificationRecord = {
 }
 
 // TODO cleanup
-const _defaultPublicRelays: string[] = ['wss://relay.damus.io']
+const _defaultPublicRelays: string[] = ['wss://relay.damus.io', 'wss://nostr.mom']
 const _minibitsRelays: string[] = [MINIBITS_RELAY_URL]
 
 let _pool: any = undefined

@@ -82,6 +82,10 @@ export const PublicContacts = observer(function (props: {
             npub: NostrClient.getNpubkey(contactsStore.publicPubkey)
         }) // set backup profile w/o name
 
+        if(relaysStore.allPublicRelays.length === 0) {
+            relaysStore.addDefaultRelays()
+        }
+
         InteractionManager.runAfterInteractions(async () => {        
             subscribeToOwnProfileAndPubkeys()
         })
