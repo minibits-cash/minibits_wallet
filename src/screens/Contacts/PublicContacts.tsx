@@ -17,7 +17,8 @@ import { ReceiveOption } from '../ReceiveOptionsScreen'
 import { useSafeAreaInsetsStyle } from '../../utils/useSafeAreaInsetsStyle'
 
 
-const defaultPublicNpub = 'npub14n7frsyufzqsxlvkx8vje22cjah3pcwnnyqncxkuj2243jvt9kmqsdgs52'
+// const defaultPublicNpub = 'npub14n7frsyufzqsxlvkx8vje22cjah3pcwnnyqncxkuj2243jvt9kmqsdgs52'
+const defaultPublicNpub = 'npub1emy455yz6uuqxlk0vwq4aws98rz3ev792cdjgcpakqewkjeryvtqvy7yyq'
 const maxContactsToLoad = 20
 
 export const PublicContacts = observer(function (props: {    

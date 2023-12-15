@@ -368,12 +368,13 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
             const receiverPubkey = contactToSendTo?.pubkey
 
             // log.trace('', {senderPrivkey, senderPubkey, receiverPubkey}, 'sendAsNostrDM')
-            const message = `nostr:${walletProfileStore.npub} sent you Lightning invoice for ${amountToTopup} sats from Minibits wallet!`
-            let content = message + ' \n' + invoiceToPay
-
+            let message = `nostr:${walletProfileStore.npub} sent you Lightning invoice for ${amountToTopup} sats from Minibits wallet!`
+            
             if (memo) {
-                content += `memo: ${memo}`
+                message += ` Memo: ${memo}`
             }
+            
+            const content = message + ' \n' + invoiceToPay           
 
             const encryptedContent = await NostrClient.encryptNip04(                
                 receiverPubkey as string, 

@@ -1946,12 +1946,10 @@ const checkPendingTopups = async function () {
             )
 
             // Fire event that the TopupScreen can listen to
-            EventEmitter.emit('topupCompleted', pr)
+            EventEmitter.emit('topupCompleted', {...pr})
 
             stopPolling('checkPendingTopupsPoller')
-
-            // delete paid pr if we've got our cash
-            paymentRequestsStore.removePaymentRequest(pr)
+            
             // Update tx with current balance
             const balanceAfter = proofsStore.getBalances().totalBalance
 
@@ -1959,6 +1957,9 @@ const checkPendingTopups = async function () {
                 pr.transactionId as number,
                 balanceAfter,
             )            
+
+            // delete paid pr if we've got our cash
+            paymentRequestsStore.removePaymentRequest(pr)
         }
 
     } catch (e: any) {
