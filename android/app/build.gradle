@@ -102,7 +102,7 @@ android {
         applicationId "com.minibits_wallet"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 30
+        versionCode 31
         versionName "0.1.5"
         ndk { 
             abiFilters 'arm64-v8a', 'x86_64', 'x86', 'armeabi-v7a'
