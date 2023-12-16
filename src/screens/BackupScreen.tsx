@@ -13,6 +13,7 @@ import {
   ErrorModal,
   InfoModal,
   BottomModal,
+  Button,
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
@@ -27,7 +28,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
         onLeftPress: () => navigation.goBack(),
     })
 
-    const {userSettingsStore, proofsStore} = useStores()
+    const {userSettingsStore, proofsStore, mintsStore} = useStores()
 
     const [isLoading, setIsLoading] = useState(false)
     const [isLocalBackupOn, setIsLocalBackupOn] = useState<boolean>(
@@ -96,6 +97,16 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
 
       setInfo('No spent ecash found in your wallet')
     }
+
+
+    const increaseCounters = async function () {
+        for (const mint of mintsStore.allMints) {
+            mint.increaseProofsCounter(50)
+        }
+  
+        setInfo('Recovery indexes increased by 50')
+    }
+
 
     const handleError = function (e: AppError): void {
       setIsLoading(false)
@@ -170,13 +181,45 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
                 HeadingComponent={
                 <>                
                     <ListItem
-                    tx="backupScreen.removeSpentCoins"
-                    subTx="backupScreen.removeSpentCoinsDescription"
-                    leftIcon='faRecycle'
-                    leftIconColor={colors.palette.secondary300}
-                    leftIconInverse={true}
-                    style={$item}
-                    onPress={checkSpent}
+                        tx="backupScreen.removeSpentCoins"
+                        subTx="backupScreen.removeSpentCoinsDescription"
+                        leftIcon='faRecycle'
+                        leftIconColor={colors.palette.secondary300}
+                        leftIconInverse={true}
+                        RightComponent={
+                            <View style={$rightContainer}>
+                                <Button
+                                    onPress={checkSpent}
+                                    text='Remove'
+                                    preset='secondary'                                           
+                                /> 
+                            </View>                           
+                        }
+                        style={$item}                        
+                    />                    
+                </>
+                }
+            /> 
+            <Card
+                style={$card}
+                HeadingComponent={
+                <>                
+                    <ListItem
+                        text="Increase recovery indexes"
+                        subText={`After migration from old wallet to the wallet that can be recovered with seed phrase, you may in rare cases encounter 'duplicate outputs' error when trying to send. This resets your recovery indexes to higher value in order to resolve the issue.`}
+                        leftIcon='faArrowUp'
+                        leftIconColor={colors.palette.success300}
+                        leftIconInverse={true}
+                        RightComponent={
+                            <View style={$rightContainer}>
+                                <Button
+                                    onPress={increaseCounters}
+                                    text='Increase'
+                                    preset='secondary'                                           
+                                /> 
+                            </View>                           
+                        } 
+                        style={$item}                        
                     />
                 </>
                 }
@@ -235,6 +278,7 @@ const $item: ViewStyle = {
 
 const $rightContainer: ViewStyle = {
   // padding: spacing.extraSmall,
-  alignSelf: 'center',
-  // marginLeft: spacing.small,
+  // alignSelf: 'center',
+  marginLeft: spacing.tiny,
+  marginRight: -10
 }

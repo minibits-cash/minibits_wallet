@@ -39,7 +39,8 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
                     await walletProfileStore.create(walletId as string)                    
                 }
 
-            } catch(e: any) {                
+            } catch(e: any) {
+                log.error(e.name, e.message)                
                 return false // silent
             }
         }

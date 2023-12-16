@@ -36,7 +36,7 @@ export const ProfileHeader = observer(function (props: ProfileHeaderProps) {
                     color={'white'}                
                 />
             )}
-            <Text preset='bold' text={nip05} style={{color: 'white', marginBottom: spacing.small}} />          
+            <Text preset='bold' text={nip05 || 'Not yet created'} style={{color: 'white', marginBottom: spacing.small}} />          
         </View>
     )
 })

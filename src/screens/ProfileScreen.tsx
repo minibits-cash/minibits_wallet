@@ -6,11 +6,11 @@ import {ContactsStackScreenProps} from '../navigation'
 import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, Loading, Header} from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
-import AppError from '../utils/AppError'
+import AppError, { Err } from '../utils/AppError'
 import { ProfileHeader } from './Contacts/ProfileHeader'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { log } from '../services/logService'
-import { KeyChain, MinibitsClient } from '../services'
+import { KeyChain, MinibitsClient, NostrClient, NostrProfile } from '../services'
 import { getRandomUsername } from '../utils/usernames'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 
@@ -19,7 +19,7 @@ interface ProfileScreenProps extends ContactsStackScreenProps<'Profile'> {}
 export const ProfileScreen: FC<ProfileScreenProps> = observer(
   function ProfileScreen({navigation}) {    
     
-    const {walletProfileStore, userSettingsStore} = useStores() 
+    const {walletProfileStore, userSettingsStore, relaysStore} = useStores() 
     const {npub, name, picture, nip05} = walletProfileStore    
 
     const [isUpdateModalVisible, setIsUpdateModalVisible] = useState<boolean>(false)
@@ -28,6 +28,28 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
     const [info, setInfo] = useState('')    
     const [error, setError] = useState<AppError | undefined>()
 
+    // Re-attempt to create profile if it failed before
+    useEffect(() => {
+        const load = async () => {            
+            try {                
+                await createProfile()
+            } catch(e: any) {   
+                log.error(e.name, e.message || '')             
+                return false // silent
+            }
+        }
+        load()
+        return () => {}        
+    }, [])
+
+    const createProfile = async () => {
+        log.trace(walletProfileStore)
+
+        if(!walletProfileStore.pubkey || !walletProfileStore.picture) { // pic needed
+            const walletId = userSettingsStore.walletId
+            await walletProfileStore.create(walletId as string)                    
+        }
+    }
 
     const onShareContact = async () => {
         try {
@@ -72,6 +94,37 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
         }
     }
 
+
+    const onSyncOwnProfile = async function () {
+        try {
+            setIsLoading(true)
+            toggleUpdateModal()
+            
+            if(!walletProfileStore.nip05) {                
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing address', {caller: 'onSyncOwnProfile'})
+            }
+            
+            const profile: NostrProfile = await NostrClient.getNormalizedNostrProfile(walletProfileStore.nip05, relaysStore.allUrls)
+            
+            if(profile.pubkey !== walletProfileStore.pubkey) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Profile from relays public key differs from your pubkey. Remove profile and import again with new keys.', {caller: 'onSyncOwnProfile', profile, pubkey: walletProfileStore.pubkey})
+            }
+
+            log.trace('[onSyncOwnProfile]', {profile})
+
+            // update name and pic based on data from relays
+            await MinibitsClient.updateWalletProfileAvatar(profile.pubkey, {avatar: profile.picture || ''})
+            await MinibitsClient.updateWalletProfileName(profile.pubkey, {name: profile.name || ''})
+                 
+            setIsLoading(false)
+            setInfo('Sync completed')
+            return
+        } catch (e: any) {                 
+            handleError(e)
+        }        
+    }
+
+    
     const resetProfile = async function() {
         setIsLoading(true)
 
@@ -87,7 +140,7 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
             const pictures = await MinibitsClient.getRandomPictures() // TODO PERF
 
             // update wallet profile
-            const updatedProfile =  await walletProfileStore.updateNip05(
+            await walletProfileStore.updateNip05(
                 keyPair.publicKey,
                 name + MINIBITS_NIP05_DOMAIN,
                 name,
@@ -119,28 +172,47 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                 <Card
                     ContentComponent={
                         <>
-                        <ListItem
-                            text='Your Minibits wallet address'
-                            subText={`Share your wallet address to receive encrypted ecash over Nostr, or as your Lightning address, so that you can receive from any Lightning wallet.`}
-                            leftIcon='faCircleUser'
-                            bottomSeparator={true}
-                            style={{paddingRight: spacing.small}}
-                        />
-                        <View style={$buttonContainer}>                            
-                            <Button
-                                preset='secondary'                                
-                                text={'Share'}
-                                LeftAccessory={() => <Icon icon='faShareNodes'/>}
-                                onPress={toggleShareModal}
+                        {!walletProfileStore.pubkey || !walletProfileStore.picture ? (
+                            <>
+                            <ListItem 
+                                text='Create wallet address'
+                                subText='Your wallet address allows you to receive encrypted ecash over Nostr. At the same time it serves as your Lightning address, so that you can receive payments from any Lightning wallet.'
                             />
-                            <Button
-                                preset='secondary'                                
-                                text={'Update'}
-                                style={{marginLeft: spacing.small}}
-                                LeftAccessory={() => <Icon icon='faRotate'/>}
-                                onPress={toggleUpdateModal}
-                            />  
-                        </View>  
+                            <View style={$buttonContainer}> 
+                                <Button
+                                    preset='secondary'                                
+                                    text={'Create'}                                    
+                                    LeftAccessory={() => <Icon icon='faCircleUser'/>}
+                                    onPress={createProfile}
+                                />                                                            
+                            </View>
+                            </>
+                        ) : (
+                            <>
+                                <ListItem
+                                    text='Your Minibits wallet address'
+                                    subText={`Share your wallet address to receive encrypted ecash over Nostr. At the same time it serves as your Lightning address, so that you can receive payments from any Lightning wallet.`}
+                                    leftIcon='faCircleUser'
+                                    bottomSeparator={true}
+                                    style={{paddingRight: spacing.small}}
+                                />
+                                <View style={$buttonContainer}>                            
+                                    <Button
+                                        preset='secondary'                                
+                                        text={'Share'}
+                                        LeftAccessory={() => <Icon icon='faShareNodes'/>}
+                                        onPress={toggleShareModal}
+                                    />
+                                    <Button
+                                        preset='secondary'                                
+                                        text={'Change'}
+                                        style={{marginLeft: spacing.small}}
+                                        LeftAccessory={() => <Icon icon='faRotate'/>}
+                                        onPress={toggleUpdateModal}
+                                    />  
+                                </View>
+                            </>
+                        )}                          
                         </>
                     }
                 />
@@ -157,12 +229,21 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                             />
                         )}
                         {walletProfileStore.isOwnProfile ? (
+                            <>
+                            <ListItem
+                                text='Sync own profile'
+                                subText='Synchronize your profile name and picture with up to date information from Nostr relays.'
+                                leftIcon='faRotate'
+                                onPress={onSyncOwnProfile}
+                                bottomSeparator={true}
+                            />
                             <ListItem
                                 text='Reset own profile'
                                 subText='Stop using your own NOSTR address and re-create Minibits wallet profile with random NOSTR address.'
-                                leftIcon='faRotate'
+                                leftIcon='faXmark'
                                 onPress={resetProfile}
                             />
+                            </>
                         ) : (
                             <ListItem
                                 text='Use own Nostr profile'

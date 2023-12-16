@@ -226,7 +226,7 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
                             <View style={{flexDirection: 'row', alignItems: 'center', marginVertical: spacing.medium}}>                            
                                 <TextInput
                                     ref={ownNip05InputRef}
-                                    onChangeText={(name) => setOwnNip05(name)}
+                                    onChangeText={(name) => setOwnNip05(name.trim())}
                                     value={ownNip05}
                                     autoCapitalize='none'
                                     keyboardType='default'
@@ -304,7 +304,7 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
                             
                             <TextInput
                                 ref={ownNsecInputRef}
-                                onChangeText={(name) => setOwnNsec(name)}
+                                onChangeText={(name) => setOwnNsec(name.trim())}
                                 value={ownNsec}
                                 autoCapitalize='none'
                                 keyboardType='default'

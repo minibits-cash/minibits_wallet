@@ -135,6 +135,8 @@ export const WalletProfileStoreModel = types
         }),
         updateNip05: flow(function* updateNip05(newPubkey: string, nip05: string, name: string, picture: string, isOwnProfile: boolean) {
 
+            log.trace('[updateNip05]', {currentPubkey: self.pubkey, newPubkey})
+
             let profileRecord: WalletProfileRecord = yield MinibitsClient.updateWalletProfileNip05(
                 self.pubkey, 
                 { 
@@ -166,9 +168,7 @@ export const WalletProfileStoreModel = types
                 { 
                     newPubkey
                 }
-            )
-
-            log.trace('[recover]', 'profileRecord from server', {profileRecord})
+            )           
             
             self.pubkey = newPubkey
             self.seedHash = seedHash

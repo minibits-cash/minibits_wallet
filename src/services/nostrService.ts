@@ -18,6 +18,7 @@ import {KeyChain, KeyPair} from './keyChain'
 import {log} from './logService'
 import AppError, { Err } from '../utils/AppError'
 import { MinibitsClient } from './minibitsService'
+import { rootStoreInstance } from '../models'
 
 export {     
     Event as NostrEvent, 
@@ -48,8 +49,9 @@ export type Nip05VerificationRecord = {
 // TODO cleanup
 const _defaultPublicRelays: string[] = ['wss://relay.damus.io', 'wss://nostr.mom']
 const _minibitsRelays: string[] = [MINIBITS_RELAY_URL]
-
 let _pool: any = undefined
+const {relaysStore
+} = rootStoreInstance
 
 const getRelayPool = function () {
     if(!_pool) {
@@ -252,15 +254,13 @@ const getNip05Record = async function (nip05: string) {
         const url = `https://${nip05Domain}/.well-known/nostr.json?name=${nip05Name}`
         const method = 'GET'        
         const headers = MinibitsClient.getPublicHeaders()
-
-        log.trace(`Sending request`, {method, url}, 'getNip05Record')
-
+        
         const nip05Record: Nip05VerificationRecord = await MinibitsClient.fetchApi(url, {
             method,            
             headers,            
         })
 
-        log.trace(`Got response`, nip05Record || null, 'getNip05Record')
+        log.trace('[getNip05Record]', `Got response`, nip05Record || null)
 
         return nip05Record
         
@@ -312,8 +312,8 @@ const getNip05PubkeyAndRelays = async function (nip05: string) {
     if(nip05Record.relays && nip05Record.relays[nip05Pubkey].length > 0) {
         nip05Relays = nip05Record.relays[nip05Pubkey]
         log.trace('Got relays from server', nip05Relays, 'getNip05PubkeyAndRelays')
-    } 
-    
+    }
+        
     return {nip05Pubkey, nip05Relays}
 }
 
@@ -329,6 +329,7 @@ const getProfileFromRelays = async function (pubkey: string, relays: string[]) {
 
     const events: NostrEvent[] = await NostrClient.getEvents(relays, filters)
 
+    
     if(!events || events.length === 0) {
         throw new AppError(Err.SERVER_ERROR, 'Could not get profile event from the relays.', {relays})
     }
@@ -336,7 +337,52 @@ const getProfileFromRelays = async function (pubkey: string, relays: string[]) {
     const profile: NostrProfile = JSON.parse(events[events.length - 1].content)
     profile.pubkey = events[events.length - 1].pubkey // pubkey might not be in ev.content
 
+    log.trace('[getProfileFromRelays]', {profile})
+
     return profile
+}
+
+
+const getNormalizedNostrProfile = async function (nip05: string, relays: string[]) {        
+    let relaysToConnect: string[] = []
+    relaysToConnect.push(...relays)
+
+    // get nip05 record from the .well-known server
+    const {nip05Pubkey, nip05Relays} = await getNip05PubkeyAndRelays(nip05)
+    
+    if(nip05Relays.length > 0) {
+        for (const relay of nip05Pubkey) {
+            if(!relays.includes(relay)) {
+                relaysToConnect.push(relay)
+                relaysStore.addOrUpdateRelay({
+                    url: relay,
+                    status: WebSocket.CLOSED
+                })
+            }
+        }        
+    }
+
+    const profile: NostrProfile = await NostrClient.getProfileFromRelays(nip05Pubkey, relaysToConnect)
+
+    if(!profile) {
+        throw new AppError(Err.NOTFOUND_ERROR, `Profile could not be found on Nostr relays.`, {nip05})
+    }
+
+    if(profile.nip05 !== nip05) {        
+        throw new AppError(Err.VALIDATION_ERROR, 'Profile from the relay does not match the given nip05 identifier', {nip05, profile})
+    }
+
+    if(!profile.name) {
+        profile.name = getNameFromNip05(nip05) as string
+    }
+
+    if(!profile.pubkey) {
+        profile.pubkey = nip05Pubkey
+    }            
+    
+    const npub = NostrClient.getNpubkey(profile.pubkey)
+
+    return {...profile, npub} as NostrProfile
 }
 
 
@@ -410,5 +456,6 @@ export const NostrClient = { // TODO split helper functions to separate module
     getNip05PubkeyAndRelays,
     getProfileFromRelays,
     getNormalizedRelayUrl,
+    getNormalizedNostrProfile,
     deleteKeyPair,    
 }

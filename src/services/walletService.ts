@@ -158,21 +158,10 @@ const checkPendingReceived = async function () {
         log.trace('[checkPendingReceived]', 'Creating Nostr subscription...', filter)
 
         const pool = NostrClient.getRelayPool()
+
+        // make sure we have at least default relays
+        relaysStore.addDefaultRelays()
         let relaysToConnect = relaysStore.allUrls
-
-        // TODO cleanup
-        const defaultPublicRelays = NostrClient.getDefaultRelays()
-        const minibitsRelays = NostrClient.getMinibitsRelays()
-
-        if(!relaysStore.alreadyExists(minibitsRelays[0])) {                        
-            relaysToConnect.push(minibitsRelays[0])
-        }       
-        
-        for (const relayUrl of defaultPublicRelays) {
-            if(!relaysStore.alreadyExists(relayUrl) && __DEV__ === false) {                        
-                relaysToConnect.push(relayUrl)
-            }
-        }        
 
         const sub = pool.sub(relaysToConnect , filter)
         const relaysConnections = pool._conn        
@@ -1186,7 +1175,8 @@ const _sendFromMint = async function (
             amountToSend,
             proofsFromMint,
         )
-        log.debug('[_sendFromMint]', 'proofsToSendFrom', proofsToSendFrom)
+        
+        log.debug('[_sendFromMint]', 'proofsToSendFrom count', proofsToSendFrom.length)
 
         const proofsCounter = mintsStore.currentProofsCounterValue(mintUrl)
 

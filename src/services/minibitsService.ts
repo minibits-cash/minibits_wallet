@@ -139,7 +139,7 @@ const recoverProfile = async function (seedHash: string, update: {newPubkey: str
     return walletProfile
 }
 
-
+// Serves for migration from pre-seed wallet version
 const migrateSeedHash = async function (pubkey: string, update: {seedHash: string}) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'PUT'        
@@ -287,7 +287,7 @@ const fetchApi = async (url: string, options: any, timeout = 15000) => { //ms
 
     if(responseJson && responseJson.error) {            
         const {error} = responseJson
-        throw new AppError(error.name || Err.NETWORK_ERROR, error.message, {caller: 'fetchApi', message: error.params.message})
+        throw new AppError(error.name || Err.NETWORK_ERROR, error.message || '', {caller: 'fetchApi', message: error.params?.message || ''})
     }
 
     return responseJson    

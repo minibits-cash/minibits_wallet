@@ -66,8 +66,8 @@ export async function setupRootStore(rootStore: RootStore) {
     // If a user updates the empty app state, it is stored unencrypted and returned after restart as primary one,
     // making encrypted data inaccessible or later overwritten.
     // Therefore this ugly app exit on unsuccessful auth.
-    const isCancellPressed = e.params.some((p: string) => p.includes('code: 13'))
-    const isBackPressed = e.params.some((p: string) => p.includes('code: 10'))
+    const isCancellPressed = e.params?.some((p: string) => p.includes('code: 13'))
+    const isBackPressed = e.params?.some((p: string) => p.includes('code: 10'))
 
     if(isCancellPressed || isBackPressed) {
         log.info('Exiting app', e.params, 'setupRootStore')

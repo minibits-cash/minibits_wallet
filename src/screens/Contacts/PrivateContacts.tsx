@@ -94,8 +94,9 @@ export const PrivateContacts = observer(function (props: {
             let newContact: Contact | undefined = undefined
             
             if (isExternalDomain) {
-                // validate and get profile data from nip05 server + relays                
-                const profile = await getNostrProfile(newContactName) as NostrProfile
+                // validate and get profile data from nip05 server + relays
+
+                const profile = await NostrClient.getNormalizedNostrProfile(newContactName, relaysStore.allPublicUrls) as NostrProfile
 
                 log.trace('[saveNewContact]', 'Server profile', profile)
 
@@ -147,50 +148,7 @@ export const PrivateContacts = observer(function (props: {
     }
 
 
-    const getNostrProfile = async function (contactNip05: string) {        
-        let relaysToConnect: string[] = []
-        // get nip05 record from the .well-known server
-        const {nip05Pubkey, nip05Relays} = await NostrClient.getNip05PubkeyAndRelays(contactNip05)
-
-        if(nip05Relays.length > 0) {
-            for (const relay of nip05Relays) {
-                relaysStore.addOrUpdateRelay({
-                    url: relay,
-                    status: WebSocket.CLOSED
-                })
-            }
-        }
-
-        relaysToConnect = relaysStore.allUrls       
-
-        const profile: NostrProfile = await NostrClient.getProfileFromRelays(nip05Pubkey, relaysToConnect)
-
-        if(!profile) {
-            setNewContactName('')
-            toggleNewContactModal()
-            throw new AppError(Err.NOTFOUND_ERROR, `Wallet profile could not be found. Check that the name is correct.`, {contactNip05})
-        }
-
-        if(profile.nip05 !== contactNip05) {
-            setNewContactName('')
-            toggleNewContactModal()
-            throw new AppError(Err.VALIDATION_ERROR, 'Profile from the relay does not match the given nip05 identifier', {contactNip05, profile})
-        }
-
-        if(!profile.name) {
-            profile.name = NostrClient.getNameFromNip05(contactNip05) as string
-        }
-
-        if(!profile.pubkey) {
-            profile.pubkey = nip05Pubkey
-        }            
-        
-        const npub = NostrClient.getNpubkey(profile.pubkey)
-
-        return {...profile, npub} as NostrProfile
-    }
     
-
     const gotoNew = function () {        
         toggleNewContactModal()
     }
@@ -204,6 +162,7 @@ export const PrivateContacts = observer(function (props: {
             const relays = relaysStore.allUrls
             
             if(paymentOption && paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) { // Topup tx contact selection
+                setIsLoading(true)
                 
                 if(contact.nip05) {                
                     await NostrClient.verifyNip05(contact.nip05 as string, contact.pubkey) // throws
@@ -222,13 +181,14 @@ export const PrivateContacts = observer(function (props: {
                 navigation.setParams({
                     paymentOption: undefined,
                 })
-                
+                setIsLoading(false)
                 return
 
             }
 
             if(paymentOption && paymentOption === SendOption.SEND_TOKEN) { // Send tx contact selection
-            
+                setIsLoading(true)
+
                 if(contact.nip05) {                
                     await NostrClient.verifyNip05(contact.nip05 as string, contact.pubkey) // throws
                 }
@@ -246,7 +206,7 @@ export const PrivateContacts = observer(function (props: {
                 navigation.setParams({
                     paymentOption: undefined,
                 })
-                
+                setIsLoading(false)
                 return
             }
 

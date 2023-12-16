@@ -35,6 +35,7 @@ import { Transaction, TransactionData, TransactionRecord, TransactionStatus, Tra
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import { deriveSeedFromMnemonic } from '@cashu/cashu-ts'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
+import { delay } from '../utils/utils'
 
 if (Platform.OS === 'android' &&
     UIManager.setLayoutAnimationEnabledExperimental) {
@@ -466,23 +467,34 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
 
             setStatusMessage('Recovering wallet address...')
             setIsLoading(true)
+            
             await KeyChain.saveMnemonic(mnemonic)
             await KeyChain.saveSeed(seed as Uint8Array)
 
             // Wallet address recovery
             const seedHash = await KeyChain.loadSeedHash()
-            const profileToRecover = await MinibitsClient.getWalletProfileBySeedHash(seedHash as string)
+
+            log.trace('[onComplete]', 'getWalletProfileBySeedHash')
+            const profileToRecover = await MinibitsClient.getWalletProfileBySeedHash(seedHash as string)            
 
             // Skip external profiles beacause we do not control keys
-            if(profileToRecover && profileToRecover.nip05.includes(MINIBITS_NIP05_DOMAIN)) {
-                
-                log.trace('[onComplete] recovery', {profileToRecover})                
-                const {publicKey: newPublicKey} = await NostrClient.getOrCreateKeyPair()                                
-                
-                // Updates pubkey and imports wallet profile
-                await walletProfileStore.recover(seedHash as string, newPublicKey)
-                // Align walletId in userSettings with recovered profile
-                userSettingsStore.setWalletId(walletProfileStore.walletId)
+            if(profileToRecover) {
+                log.info('[onComplete] recovery', {profileToRecover})
+                setStatusMessage(`Found ${profileToRecover.nip05}`)
+
+                if(profileToRecover.nip05.includes(MINIBITS_NIP05_DOMAIN)) {                                    
+                    const {publicKey: newPublicKey} = await NostrClient.getOrCreateKeyPair()
+                    // Updates pubkey and imports wallet profile
+                    await walletProfileStore.recover(seedHash as string, newPublicKey)
+                    // Align walletId in userSettings with recovered profile
+                    userSettingsStore.setWalletId(walletProfileStore.walletId)                    
+                    await delay(1000)
+                    setStatusMessage(`Recovery completed`)
+                    await delay(2000)
+                } else {
+                    setInfo(`You used wallet address ${profileToRecover.nip05} with your own keys, import it again.`)
+                    await delay(5000)
+                }
             }
 
             userSettingsStore.setIsOnboarded(true)
