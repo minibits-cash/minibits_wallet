@@ -121,7 +121,7 @@ export type WalletStackParamList = {
     Receive: {encodedToken? : string}
     SendOptions: undefined
     Send: {contact?: Contact, relays?: string[], paymentOption?: SendOption}
-    Scan: {expectedType?: IncomingDataType}
+    Scan: undefined
     TranDetail: {id: number}
     TranHistory: undefined
     PaymentRequests: undefined 

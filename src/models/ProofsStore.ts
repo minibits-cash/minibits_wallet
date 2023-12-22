@@ -87,7 +87,9 @@ export const ProofsStoreModel = types
 
             // Handle counter increment
             const mintsStore = getRootStore(self).mintsStore
-            mintsStore.increaseProofsCounter(newProofs[0].mintUrl as string, addedProofs.length)
+            const mintInstance = mintsStore.findByUrl(newProofs[0].mintUrl as string)
+            
+            mintInstance?.increaseProofsCounter(addedProofs.length)                      
 
             log.debug('[addProofs]', `Added new ${addedProofs.length}${isPending ? ' pending' : ''} proofs to the ProofsStore`,)
 

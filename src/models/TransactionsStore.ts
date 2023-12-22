@@ -98,7 +98,7 @@ export const TransactionsStoreModel = types
             log.debug('[addTransactionsToModel]', `${inStoreTransactions.length} new transactions added to TransactionsStore`,
             )
         },
-        updateStatus: flow(function* updateStatus(
+        updateStatus: flow(function* updateStatus( // TODO append, not replace status to align behavior with updateStatuses
             id: number,
             status: TransactionStatus,
             data: string,
@@ -110,7 +110,7 @@ export const TransactionsStoreModel = types
             // Update in the model
             if (transactionInstance) {
                 transactionInstance.status = status
-                transactionInstance.data = data
+                transactionInstance.data = data 
                 log.debug('[updateStatus]', 'Transaction status and data updated in TransactionsStore', {id, status})
             }
 

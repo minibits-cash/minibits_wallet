@@ -1,6 +1,7 @@
 import {Mint} from '../../models/Mint'
 import {  
-  getDecodedToken,  
+    AmountPreference,
+    getDecodedToken,  
 } from '@cashu/cashu-ts'
 import cloneDeep from 'lodash.clonedeep'
 import AppError, {Err} from '../../utils/AppError'
@@ -128,6 +129,11 @@ const getProofsAmount = function (proofs: Array<Proof>): number {
   }
 
   return totalAmount
+}
+
+
+const getAmountPreferencesCount = function (amountPreferences: AmountPreference[]): number {
+    return amountPreferences.reduce((total, preference) => total + preference.count, 0);
 }
 
 
@@ -266,6 +272,7 @@ export const CashuUtils = {
     getTokenAmounts,
     getTokenEntryAmount,
     getProofsAmount,
+    getAmountPreferencesCount,
     getMintsFromToken,
     updateMintProofs,
     getProofsFromTokenEntries,

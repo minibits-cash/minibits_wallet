@@ -46,11 +46,11 @@ export const RelaysStoreModel = types
                     relayInstance?.setError(error)
                 }
 
-                log.trace('[addOrUpdateRelay]', 'Relay updated in the RelaysStore', {relay})
+                // log.trace('[addOrUpdateRelay]', 'Relay updated in the RelaysStore', {relay})
             } else {                
                 const normalized = NostrClient.getNormalizedRelayUrl(relay.url)
 
-                log.trace('[addOrUpdateRelay]', 'Normalized URL', normalized)
+                // log.trace('[addOrUpdateRelay]', 'Normalized URL', normalized)
                 relay.url = normalized
 
                 const relayInstance = RelayModel.create(relay)

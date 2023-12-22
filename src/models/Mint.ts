@@ -19,6 +19,9 @@ export enum MintStatus {
 export type MintProofsCounter = {
     keyset: string
     counter: number
+    inFlightFrom?: number // starting counter index for pending split request sent to mint (for recovery from failure to receive proofs)
+    inFlightTo?: number // last counter index for pending split request sent to mint 
+    inFlightTid?: number // related tx id
 }
 
 /**
@@ -35,17 +38,35 @@ export const MintModel = types
             types.model('MintProofsCounter', {
               keyset: types.string,
               counter: types.number,
+              inFlightFrom: types.maybe(types.number),
+              inFlightTo: types.maybe(types.number),
+              inFlightTid: types.maybe(types.number)
             })
         ),
         color: types.optional(types.string, colors.palette.iconBlue200),
         status: types.optional(types.frozen<MintStatus>(), MintStatus.ONLINE),
         createdAt: types.optional(types.Date, new Date()),
     })
-    .actions(withSetPropAction)
-    .views(self => ({
-        get currentProofsCounter() {
+    .actions(withSetPropAction) // TODO start to use across app to avoid pure setter methods, e.g. mint.setProp('color', '#ccc')
+    .actions(self => ({
+        getOrCreateProofsCounter() {
             const currentKeyset = deriveKeysetId(self.keys)
-            return self.proofsCounters.find(c => c.keyset === currentKeyset)
+            const currentCounter = self.proofsCounters.find(c => c.keyset === currentKeyset)
+
+            if(!currentCounter) {            
+                const newCounter = {
+                    keyset: currentKeyset,
+                    counter: 0,
+                }
+
+                self.proofsCounters.push(newCounter)
+                const instance = self.proofsCounters.find(c => c.keyset === currentKeyset) as MintProofsCounter
+
+                log.trace('[getOrCreateProofsCounter] new', {newCounter: instance})
+                return instance
+            }
+            
+            return currentCounter
         },
     }))
     .actions(self => ({
@@ -85,28 +106,48 @@ export const MintModel = types
             self.keys = keys
             self.keysets = cast(self.keysets)            
         },
+        setProofsInFLightFrom(inFlightFrom: number) {
+            const currentCounter = self.getOrCreateProofsCounter()
+            currentCounter.inFlightFrom = inFlightFrom
+
+            self.proofsCounters = cast(self.proofsCounters)
+        },
+        setProofsInFlightTo(inFlightTo: number) {
+            const currentCounter = self.getOrCreateProofsCounter()
+            currentCounter.inFlightTo = inFlightTo
+
+            self.proofsCounters = cast(self.proofsCounters)
+        },
+        setInFlightTid(inFlightTid: number) {
+            const currentCounter = self.getOrCreateProofsCounter()
+            currentCounter.inFlightTid = inFlightTid
+
+            self.proofsCounters = cast(self.proofsCounters)
+        },
+        resetInFlight() {
+            const currentCounter = self.getOrCreateProofsCounter()
+            currentCounter.inFlightFrom = undefined
+            currentCounter.inFlightTo = undefined
+            currentCounter.inFlightTid = undefined
+
+            log.trace('[resetInFlight]', 'Reset proofsCounter')
+            self.proofsCounters = cast(self.proofsCounters)
+        },
         increaseProofsCounter(numberOfProofs: number) {
-            const currentCounter = self.currentProofsCounter
+            const currentCounter = self.getOrCreateProofsCounter()             
+            currentCounter.counter += numberOfProofs
+            log.trace('[increaseProofsCounter]', 'Increased proofsCounter', {numberOfProofs, currentCounter})
 
-            if (currentCounter) {        
-                log.trace('[increaseProofsCounter]', 'Before update', {currentCounter})        
-                currentCounter.counter += numberOfProofs
-                log.trace('[increaseProofsCounter]', 'Updated proofsCounter', {numberOfProofs, currentCounter})
-            } else {
-                // If the counter doesn't exist, create a new one
-                const currentKeyset = deriveKeysetId(self.keys)
-
-                const newCounter = {
-                    keyset: currentKeyset,
-                    counter: numberOfProofs,
-                }
-
-                self.proofsCounters.push(newCounter)
-
-                log.trace('[increaseProofsCounter]', 'Adding new proofsCounter', {newCounter})
-            }
             // Make sure to cast the frozen array back to a mutable array
             self.proofsCounters = cast(self.proofsCounters)
+        },
+        decreaseProofsCounter(numberOfProofs: number) {
+            const currentCounter = self.getOrCreateProofsCounter()
+            currentCounter.counter -= numberOfProofs
+            Math.max(0, currentCounter.counter)
+            log.trace('[decreaseProofsCounter]', 'Decreased proofsCounter', {numberOfProofs, currentCounter})
+
+            self.proofsCounters = cast(self.proofsCounters)                        
         },
     }))
     

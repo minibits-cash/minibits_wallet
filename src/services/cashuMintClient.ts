@@ -1,8 +1,9 @@
 import {
-  CashuMint,
-  CashuWallet,
-  deriveKeysetId,
-  PayLnInvoiceResponse,
+    AmountPreference,
+    CashuMint,
+    CashuWallet,
+    deriveKeysetId,
+    PayLnInvoiceResponse,
   type Proof as CashuProof,
 } from '@cashu/cashu-ts'
 import {rootStoreInstance} from '../models'
@@ -187,6 +188,7 @@ const getMintKeys = async function (mintUrl: string) {
 const receiveFromMint = async function (
     mintUrl: string, 
     encodedToken: string,
+    amountPreferences: AmountPreference[],
     counter: number
 ) {
   try {
@@ -197,7 +199,7 @@ const receiveFromMint = async function (
     // this method returns quite a mess, we normalize naming of returned parameters
     const {token, tokensWithErrors, newKeys, errors} = await cashuWallet.receive(
       encodedToken,
-      undefined,
+      amountPreferences,
       counter
     )
 
@@ -223,21 +225,25 @@ const sendFromMint = async function (
   mintUrl: string,
   amountToSend: number,
   proofsToSendFrom: Proof[],
+  amountPreferences: AmountPreference[],
   counter: number
 ) {
   try {
     const cashuWallet = await getWallet(mintUrl, true) // with seed
 
+    log.debug('[MintClient.sendFromMint] counter', counter)
+
     const {returnChange, send, newKeys} = await cashuWallet.send(
       amountToSend,
       proofsToSendFrom,
-      undefined,
+      amountPreferences,
       counter
     )
 
     log.debug('[MintClient.sendFromMint] returnedProofs', returnChange)
     log.debug('[MintClient.sendFromMint] sentProofs', send)
     log.debug('[MintClient.sendFromMint] newKeys', newKeys)
+    
 
     // do some basic validations that proof amounts from mints match
     const totalAmountToSendFrom = CashuUtils.getProofsAmount(proofsToSendFrom)

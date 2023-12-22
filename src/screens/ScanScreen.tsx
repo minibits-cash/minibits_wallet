@@ -25,7 +25,7 @@ const hasAndroidCameraPermission = async () => {
 
 
 export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScreen(_props) {
-    const {navigation, route} = _props
+    const {navigation} = _props
     useHeader({
         title: 'Scan QR code',
         titleStyle: {fontFamily: typography.primary?.medium},
@@ -33,8 +33,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
         onLeftPress: () => navigation.goBack(),
     })
 
-    const [shouldLoad, setShouldLoad] = useState<boolean>(false)
-    const [expected, setExpected] = useState<IncomingDataType>()
+    const [shouldLoad, setShouldLoad] = useState<boolean>(false)    
     const [isScanned, setIsScanned] = useState<boolean>(false)
     const [error, setError] = useState<AppError | undefined>()
 
@@ -43,21 +42,6 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
           setShouldLoad(Platform.OS !== 'android' || (await hasAndroidCameraPermission()))
         })()
     }, [])
-
-
-    useEffect(() => {
-        const setExpectedType = async () => {   
-          const {expectedType} = route.params
-
-          if(expectedType) {
-            log.trace('Got expectedType', expectedType)
-            setExpected(expectedType)
-          }
-        }
-
-        setExpectedType()
-    }, [route.params?.expectedType])
-
 
     const onReadCode = async function(event: any) {
         setIsScanned(true)

@@ -76,19 +76,7 @@ export const MintsStoreModel = types
         unblockMint(blockedMint: Mint) {
             self.blockedMintUrls.remove(blockedMint.mintUrl)
             log.debug('[unblockMint]', 'Mint unblocked in MintsStore')
-        },
-        increaseProofsCounter(mintUrl: string, numberOfProofs: number) {
-            const mintInstance = self.findByUrl(mintUrl)
-
-            if(mintInstance) {
-                mintInstance.increaseProofsCounter(numberOfProofs)
-                return mintInstance.currentProofsCounter
-            }
-
-            log.warn('[increaseProofsCounter]', 'Could not find mint', {mintUrl})
-            return 0
-            
-        },
+        }
     }))
     .views(self => ({
         get mintCount() {
@@ -134,16 +122,6 @@ export const MintsStoreModel = types
                 }
             }
             return missingMints
-        },
-        currentProofsCounterValue(mintUrl: string) {
-            const mintInstance = self.findByUrl(mintUrl)
-
-            if (mintInstance) {
-                return mintInstance.currentProofsCounter?.counter || 0
-            }
-
-            log.warn('[currentProofsCounter]', 'Could not find mint', {mintUrl})
-            return 0
         },
   }))
 

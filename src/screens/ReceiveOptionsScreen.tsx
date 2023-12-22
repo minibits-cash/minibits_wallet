@@ -55,7 +55,7 @@ export const ReceiveOptionsScreen: FC<WalletStackScreenProps<'ReceiveOptions'>> 
 
 
     const onScan = async function () {
-        navigation.navigate('Scan', {})
+        navigation.navigate('Scan')
     }
 
 

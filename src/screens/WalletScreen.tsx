@@ -213,7 +213,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 }
 
                 Wallet.checkPendingSpent().catch(e => false) 
-                Wallet.checkPendingTopups().catch(e => false)  
+                Wallet.checkPendingTopups().catch(e => false) 
+                Wallet.checkInFlight().catch(e => false)  
       
             }, 100)
         }, [])
@@ -245,7 +246,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                     }
                                     
                     Wallet.checkPendingSpent().catch(e => false) 
-                    Wallet.checkPendingTopups().catch(e => false)   
+                    Wallet.checkPendingTopups().catch(e => false)
+                    Wallet.checkInFlight().catch(e => false)   
                 }, 100)            
             }
     
@@ -352,7 +354,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     }
 
     const gotoScan = function () {
-        navigation.navigate('Scan', {})
+        navigation.navigate('Scan')
     }
 
     const gotoTranHistory = function () {
