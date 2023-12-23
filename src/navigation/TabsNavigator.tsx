@@ -20,7 +20,8 @@ import {
   ProfileScreen,
   WalletNameScreen, 
   SettingsScreen, 
-  MintsScreen, 
+  MintsScreen,
+  MintInfoScreen, 
   DeveloperScreen,
   SecurityScreen,
   PrivacyScreen,
@@ -204,6 +205,7 @@ export type ContactsStackScreenProps<T extends keyof ContactsStackParamList> = S
 export type SettingsStackParamList = {  
   Settings: undefined
   Mints: {scannedMintUrl? : string}
+  MintInfo: {mintUrl : string}
   Security: undefined
   Privacy: undefined
   Update: {
@@ -238,6 +240,7 @@ const SettingsNavigator = function SettingsNavigator() {
     >        
       <SettingsStack.Screen name="Settings" component={SettingsScreen} />
       <SettingsStack.Screen name="Mints" component={MintsScreen} />
+      <SettingsStack.Screen name="MintInfo" component={MintInfoScreen} />
       <SettingsStack.Screen name="Security" component={SecurityScreen} />
       <SettingsStack.Screen name="Privacy" component={PrivacyScreen} />
       <SettingsStack.Screen name="Update" component={UpdateScreen} />

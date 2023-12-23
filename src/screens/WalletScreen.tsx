@@ -357,6 +357,10 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         navigation.navigate('Scan')
     }
 
+    const gotoMintInfo = function (mintUrl: string) {
+        navigation.navigate('SettingsNavigator', {screen: 'MintInfo', params: {mintUrl}})
+    }
+
     const gotoTranHistory = function () {
         navigation.navigate('TranHistory')
     }
@@ -468,7 +472,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                 <View key={mints.hostname} style={{marginHorizontal: spacing.extraSmall, flexGrow: 1}}>
                                     <MintsByHostnameListItem                                    
                                         mintsByHostname={mints}
-                                        mintBalances={balances.mintBalances.filter(balance => balance.mint.includes(mints.hostname))}                                        
+                                        mintBalances={balances.mintBalances.filter(balance => balance.mint.includes(mints.hostname))}
+                                        gotoMintInfo={gotoMintInfo}                                     
                                     />
                                     {transactionsStore.recentByHostname(mints.hostname).length > 0 && (
                                         <Card                                    
@@ -635,7 +640,8 @@ const PromoBlock = function (props: {addMint: any}) {
 
 const MintsByHostnameListItem = observer(function (props: {
     mintsByHostname: MintsByHostname
-    mintBalances: MintBalance[]    
+    mintBalances: MintBalance[]
+    gotoMintInfo: any
 }) {
     const color = useThemeColor('textDim')
     const balanceColor = useThemeColor('amount')       
@@ -647,7 +653,7 @@ const MintsByHostnameListItem = observer(function (props: {
             <ListItem
                 text={props.mintsByHostname.hostname}
                 textStyle={$cardHeading}
-                style={{marginHorizontal: spacing.micro}}
+                style={{marginHorizontal: spacing.micro}}                
             />
             }
             ContentComponent={
@@ -670,6 +676,7 @@ const MintsByHostnameListItem = observer(function (props: {
                     }
                     topSeparator={true}
                     style={$item}
+                    onPress={() => props.gotoMintInfo(mint.mintUrl)}
                 />
                 ))}
             </>

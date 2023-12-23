@@ -31,7 +31,7 @@ export const MintListItem = observer(function(props: {
               rightIconColor={props.isBlocked ? iconBlockedColor : iconColor as string}          
               onPress={props.onMintSelect ? () => props.onMintSelect(props.mint, props.mintBalance) : undefined}                    
               RightComponent={props.mintBalance && <Text text={`${props.mintBalance?.balance}`} style={{alignSelf: 'center', marginRight: spacing.medium}}/>}            
-              style={{paddingHorizontal: spacing.small}}
+              style={{paddingHorizontal: spacing.tiny}}
               containerStyle={{alignSelf: 'stretch'}}
               bottomSeparator={props.separator === 'bottom' || props.separator === 'both'}
               topSeparator={props.separator === 'top' || props.separator === 'both'}

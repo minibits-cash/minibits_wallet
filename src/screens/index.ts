@@ -24,6 +24,7 @@ export * from './OwnKeysScreen'
 // SettingsNavigator
 export * from './SettingsScreen'
 export * from './MintsScreen'
+export * from './MintInfoScreen'
 export * from './SecurityScreen'
 export * from './PrivacyScreen'
 export * from './UpdateScreen'

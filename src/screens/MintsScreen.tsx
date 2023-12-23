@@ -73,6 +73,13 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
         navigation.navigate('WalletNavigator', {screen: 'Scan'})
     }
 
+
+    const gotoInfo = function () {        
+        if(!selectedMint) {return}
+        navigation.navigate('MintInfo', {mintUrl: selectedMint?.mintUrl})
+        onMintUnselect()
+    }
+
     
     const addMint = async function () {
       setIsAddMintVisible(false)
@@ -288,7 +295,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
             <View style={{}}>
               <ListItem
                 leftIcon="faInfoCircle"
-                onPress={() => Alert.alert('Not yet implemented')}
+                onPress={gotoInfo}
                 tx={'mintsScreen.mintInfo'}
                 bottomSeparator={true}
                 style={{paddingHorizontal: spacing.medium}}

@@ -483,6 +483,29 @@ const restore = async function (
     }
 }
 
+
+const getMintInfo = async function (
+    mintUrl: string,    
+) {
+    try {
+      const cashuMint = getMint(mintUrl)
+      const info = await cashuMint.getInfo()
+      log.trace('[getMintInfo]', {info})
+      return info
+    } catch (e: any) {
+      throw new AppError(
+          Err.MINT_ERROR, 
+          'The mint could not return mint information.', 
+          {
+              caller: 'getMintInfo', 
+              mintUrl, 
+              message: e.message
+          }
+      )
+    }
+}
+
+
 export const MintClient = {
     getOrCreateMnemonic,
     getMnemonic,
@@ -497,4 +520,5 @@ export const MintClient = {
     requestLightningInvoice,
     requestProofs,
     restore,
+    getMintInfo,
 }
