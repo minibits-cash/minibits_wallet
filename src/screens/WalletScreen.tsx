@@ -325,19 +325,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
         try {
             setIsLoading(true)
-
-            const mintKeys: {
-                keys: MintKeys
-                keyset: string
-            } = await MintClient.getMintKeys(newMintUrl)
-
-            const newMint: Mint = {
-                mintUrl: newMintUrl,
-                keys: mintKeys.keys,
-                keysets: [mintKeys.keyset],
-            }
-
-            mintsStore.addMint(newMint)
+            await mintsStore.addMint(newMintUrl)
         } catch (e: any) {
             handleError(e)
         } finally {

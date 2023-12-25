@@ -193,6 +193,21 @@ async function _runMigrations(rootStore: RootStore) {
         }
     }
 
+    if(currentVersion < 9) {
+        log.trace(`Starting rootStore migrations from version v${currentVersion} -> v9`)
+        
+        for (const mint of mintsStore.allMints) {
+            try {
+                await mint.setShortname()
+            } catch (e: any) {
+                continue
+            }
+        }
+
+        log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+        rootStore.setVersion(rootStoreModelVersion)
+    }
+
   } catch (e: any) {
     throw new AppError(
       Err.STORAGE_ERROR,

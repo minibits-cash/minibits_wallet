@@ -4,10 +4,15 @@ import {
   types,
   destroy,
   isStateTreeNode,
+  detach,
+  flow,
 } from 'mobx-state-tree'
 import {withSetPropAction} from './helpers/withSetPropAction'
 import {MintModel, Mint} from './Mint'
 import {log} from '../services/logService'
+import { MINIBITS_MINT_URL } from '@env'
+import { MintClient } from '../services'
+import { GetInfoResponse, MintKeys } from '@cashu/cashu-ts'
 
 export type MintsByHostname = {
     hostname: string
@@ -27,25 +32,32 @@ export const MintsStoreModel = types
     }))
     .actions(withSetPropAction)
     .actions(self => ({
-        addMint(newMint: Mint) {
-            const mintInstance = MintModel.create(newMint)
-            // set derived properties
-            mintInstance.setHostname()
-            const lastSlashIndex = newMint.mintUrl.lastIndexOf('/')
-            let shortname = newMint.mintUrl.substring(lastSlashIndex + 1)
-
-            // temporary UX fix for minibits mint
-            if(shortname === 'Bitcoin') {
-                shortname = 'Bitcoin (sats)'
+        getMintKeys: flow(function* getMintName(mintUrl: string) {
+            const mintKeys: {
+                keys: MintKeys
+                keyset: string
+            } = yield MintClient.getMintKeys(mintUrl)
+            return mintKeys
+        }),
+    }))
+    .actions(self => ({
+        addMint: flow(function* addMint(mintUrl: string) {
+            const {keys, keyset} = yield self.getMintKeys(mintUrl)            
+            
+            const newMint: Mint = {
+                mintUrl,
+                keys,
+                keysets: [keyset],
             }
 
-            mintInstance.setShortname(shortname)
-            mintInstance.setRandomColor()
+            const mintInstance = MintModel.create(newMint)
+
+            mintInstance.setHostname()
+            mintInstance.setRandomColor()       
+            yield mintInstance.setShortname()            
 
             self.mints.push(mintInstance)
-
-            log.info('[addMint]', 'New mint added to the MintsStore', newMint.mintUrl)
-        },
+        }),
         removeMint(mintToBeRemoved: Mint) {
             if (self.blockedMintUrls.some(m => m === mintToBeRemoved.mintUrl)) {
                 self.blockedMintUrls.remove(mintToBeRemoved.mintUrl)
@@ -61,6 +73,7 @@ export const MintsStoreModel = types
             }
 
             if (mintInstance) {
+                detach(mintInstance)
                 destroy(mintInstance)
                 log.info('[removeMint]', 'Mint removed from MintsStore')
             }

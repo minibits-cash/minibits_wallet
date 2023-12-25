@@ -54,8 +54,11 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
 
     const onIncomingData = async function(incoming: any) {
         const routes = navigation.getState()?.routes
-        const prevRouteName = routes[routes.length - 2].name
-        log.trace('prevRouteName', prevRouteName)
+        let prevRouteName: string = ''
+        if(prevRouteName.length >= 2) {
+            prevRouteName = routes[routes.length - 2].name
+            log.trace('prevRouteName', prevRouteName)
+        }        
 
         switch (prevRouteName) {
             case 'ReceiveOptions':  

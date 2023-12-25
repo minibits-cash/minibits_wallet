@@ -809,18 +809,7 @@ const receive = async function (
         const alreadyExists = mintsStore.alreadyExists(mintToReceive)
 
         if (!alreadyExists) {
-            const mintKeys: {
-                keys: MintKeys
-                keyset: string
-            } = await MintClient.getMintKeys(mintToReceive)
-
-            const newMint: Mint = {
-                mintUrl: mintToReceive,
-                keys: mintKeys.keys,
-                keysets: [mintKeys.keyset]
-            }
-
-            mintsStore.addMint(newMint)
+            await mintsStore.addMint(mintToReceive)
         }
 
         const mintInstance = mintsStore.findByUrl(mintToReceive)
@@ -1134,18 +1123,7 @@ const receiveOfflineComplete = async function (
         const alreadyExists = mintsStore.alreadyExists(mintToReceive)
 
         if (!alreadyExists) {
-            const mintKeys: {
-                keys: MintKeys
-                keyset: string
-            } = await MintClient.getMintKeys(mintToReceive)
-
-            const newMint: Mint = {
-                mintUrl: mintToReceive,
-                keys: mintKeys.keys,
-                keysets: [mintKeys.keyset]
-            }
-
-            mintsStore.addMint(newMint)
+            await mintsStore.addMint(mintToReceive)
         }
 
         const mintInstance = mintsStore.findByUrl(mintToReceive)

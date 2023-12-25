@@ -1,9 +1,10 @@
-import {cast, Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
+import {cast, flow, Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
 import {withSetPropAction} from './helpers/withSetPropAction'
-import type {MintKeys} from '@cashu/cashu-ts/dist/lib/es5/model/types'
+import type {GetInfoResponse, MintKeys} from '@cashu/cashu-ts'
 import {colors, getRandomIconColor} from '../theme'
-import { log } from '../services'
+import { log, MintClient } from '../services'
 import { deriveKeysetId } from '@cashu/cashu-ts'
+import { MINIBITS_MINT_URL } from '@env'
 
 // used as a helper type across app
 export type MintBalance = {
@@ -85,13 +86,41 @@ export const MintModel = types
                 return false
             }
         },
-        setShortname(shortname: string) {
+        setShortname: flow(function* setShortname() {
+            // get name from URL as a fallback
+            const lastSlashIndex = self.mintUrl.lastIndexOf('/')
+            let shortname = self.mintUrl.substring(lastSlashIndex + 1).slice(0, 25)
+
             try {
-                self.shortname = shortname.slice(0, 25)
+                const info: GetInfoResponse = yield MintClient.getMintInfo(self.mintUrl)
+
+                if(info.name.length > 0) {
+                    let identifier: string = ''
+
+                    if(shortname.length > 6) {
+                        identifier = `${shortname.slice(0, 3)}...${shortname.slice(-3)}`
+                    } else {
+                        identifier = shortname
+                    }
+
+                    if(identifier.length > 0) {
+                        shortname = `${info.name} (${identifier})`
+                    } else {
+                        shortname = info.name
+                    }
+                }
+
+                // temporary UX fix for minibits mint
+                if(self.mintUrl === MINIBITS_MINT_URL) {
+                    shortname = 'Bitcoin (sats)'
+                }
+
+                self.shortname = shortname
+                
             } catch (e) {
-                return false
+                self.shortname = shortname
             }
-        },
+        }),
         setRandomColor() {
             self.color = getRandomIconColor()
         },

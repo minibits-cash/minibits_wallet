@@ -237,7 +237,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
             <>
               {memo && (
                 <Card
-                  style={[$card, {minHeight: 0}]}
+                  style={[$card, {minHeight: 0, paddingBottom: 0}]}
                   ContentComponent={
                     <ListItem
                       text={memo}

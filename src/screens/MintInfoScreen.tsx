@@ -1,19 +1,8 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
-import {Alert, FlatList, TextStyle, View, ViewStyle} from 'react-native'
+import {LayoutAnimation, Platform, TextStyle, UIManager, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {SettingsStackScreenProps} from '../navigation'
-import {
-    APP_ENV,    
-    NATIVE_VERSION_ANDROID,
-    JS_BUNDLE_VERSION,
-    COMMIT,
-    MINIBITS_MINT_URL,
-    MINIBITS_RELAY_URL,
-    MINIBITS_NIP05_DOMAIN,
-    MINIBITS_SERVER_API_HOST 
-} from '@env'
-import packageJson from '../../package.json'
 import {
   Icon,
   ListItem,
@@ -30,30 +19,54 @@ import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import {translate} from '../i18n'
 import AppError, { Err } from '../utils/AppError'
-import {Database, KeyChain, log, MintClient, NostrClient} from '../services'
-import {MMKVStorage} from '../services'
-import {maxTransactionsInModel} from '../models/TransactionsStore'
-import { LogLevel } from '../services/log/logTypes'
+import {log, MintClient} from '../services'
 import { GetInfoResponse } from '@cashu/cashu-ts'
 import { delay } from '../utils/utils'
 import JSONTree from 'react-native-json-tree'
 import { getSnapshot } from 'mobx-state-tree'
 import { Mint } from '../models/Mint'
 import useColorScheme from '../theme/useThemeColor'
+import { CommonActions } from '@react-navigation/native'
 
-// refresh
+if (Platform.OS === 'android' &&
+    UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true)
+}
 
 export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer(function MintInfoScreen(_props) {
     const {navigation, route} = _props
     useHeader({
-      leftIcon: 'faArrowLeft',
-      onLeftPress: () =>  navigation.navigate('Settings'),
+        leftIcon: 'faArrowLeft',
+        onLeftPress: () =>  {
+            const routes = navigation.getState()?.routes
+            let prevRouteName: string = ''
+
+            if(routes.length >= 2) {
+                prevRouteName = routes[routes.length - 2].name
+            }            
+
+            log.trace('prevRouteName', {prevRouteName, routes})
+
+            if(prevRouteName === 'Mints') {
+                navigation.navigate('Mints', {})
+            } else {
+                navigation.dispatch(
+                    CommonActions.reset({
+                      index: 1,
+                      routes: [
+                        { name: 'WalletNavigator' },                    
+                      ],
+                    })
+                );
+            }          
+        },
     })
 
     const {mintsStore} = useStores()
 
     const [isLoading, setIsLoading] = useState(false)
     const [mintInfo, setMintInfo] = useState<GetInfoResponse | undefined>()
+    const [isLocalInfoVisible, setIsLocalInfoVisible] = useState<boolean>(false)
     
     const [error, setError] = useState<AppError | undefined>()
     const [info, setInfo] = useState('')
@@ -68,7 +81,7 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
                 log.trace('useEffect', {mintUrl: route.params.mintUrl})
 
                 setIsLoading(true)                    
-                const info = await MintClient.getMintInfo(route.params.mintUrl)                
+                const info = await MintClient.getMintInfo(route.params.mintUrl)    
                 await delay(1000)
                 setMintInfo(info)
                 setIsLoading(false)
@@ -79,7 +92,10 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
         getInfo()
     }, [])
 
-    
+    const toggleLocalInfo = () => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+        setIsLocalInfoVisible(!isLocalInfoVisible)        
+    }
 
     const handleError = function (e: AppError): void {
       setIsLoading(false)
@@ -87,9 +103,6 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
     }
     
     const headerBg = useThemeColor('header')
-    const iconSelectedColor = useThemeColor('button')
-    const iconColor = useThemeColor('textDim')
-    const labelColor = useThemeColor('textDim')
     const colorScheme = useColorScheme()
 
     return (
@@ -123,19 +136,28 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
                         style={[$card, {marginTop: spacing.small}]}
                         ContentComponent={
                         <>
-                            <Text
-                            style={{color: labelColor, fontSize: 14}}
-                            text="Internal information"
+                            <ListItem
+                                text={'On device information'}
+                                RightComponent={<View style={$rightContainer}>
+                                        <Button
+                                            onPress={toggleLocalInfo}
+                                            text={isLocalInfoVisible ? 'Hide' : 'Show'}
+                                            preset='secondary'                                           
+                                        /> 
+                                    </View> 
+                                }
                             />
-                            <JSONTree
-                                hideRoot                        
-                                data={getSnapshot(mintsStore.findByUrl(route.params?.mintUrl) as Mint)}
-                                theme={{
-                                    scheme: 'default',
-                                    base00: '#eee',
-                                }}
-                                invertTheme={colorScheme === 'light' ? false : true}
-                            />
+                            {isLocalInfoVisible && (
+                                <JSONTree
+                                    hideRoot                        
+                                    data={getSnapshot(mintsStore.findByUrl(route.params?.mintUrl) as Mint)}
+                                    theme={{
+                                        scheme: 'default',
+                                        base00: '#eee',
+                                    }}
+                                    invertTheme={colorScheme === 'light' ? false : true}
+                                />
+                            )}                            
                         </>
                         }                  
                     />

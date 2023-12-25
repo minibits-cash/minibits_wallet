@@ -82,49 +82,33 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
 
     
     const addMint = async function () {
-      setIsAddMintVisible(false)
+        setIsAddMintVisible(false)
 
-      if(mintUrl.includes('.onion')) {
-        if(!userSettingsStore.isTorDaemonOn) {
-            setInfo('Please enable Tor daemon in Privacy settings before connecting to the mint using .onion address.')
+        if(mintUrl.includes('.onion')) {
+            if(!userSettingsStore.isTorDaemonOn) {
+                setInfo('Please enable Tor daemon in Privacy settings before connecting to the mint using .onion address.')
+                return
+            }
+        }
+
+        if (mintsStore.alreadyExists(mintUrl)) {
+            const msg = translate('mintsScreen.mintExists')
+            log.trace(msg)
+            setInfo(msg)
             return
         }
-      }
 
-      if (mintsStore.alreadyExists(mintUrl)) {
-        const msg = translate('mintsScreen.mintExists')
-        log.trace(msg)
-        setInfo(msg)
-        return
-      }
-
-      try {
-        setIsLoading(true)
-        // log.trace('Snapshot before add mint', getSnapshot(mintsStore))
-
-        const mintKeys: {
-          keys: MintKeys
-          keyset: string
-        } = await MintClient.getMintKeys(mintUrl)
-
-        const newMint: Mint = {
-          mintUrl,
-          keys: mintKeys.keys,
-          keysets: [mintKeys.keyset],
+        try {
+            setIsLoading(true)
+            await mintsStore.addMint(mintUrl)
+            setInfo(translate('mintsScreen.mintAdded'))
+        } catch (e: any) {
+            setMintUrl('')
+            handleError(e)
+        } finally {
+            setMintUrl('')
+            setIsLoading(false)
         }
-
-        mintsStore.addMint(newMint)
-
-        // log.trace('Snapshot after add mint', getSnapshot(mintsStore))
-
-        setInfo(translate('mintsScreen.mintAdded'))
-      } catch (e: any) {
-        setMintUrl('')
-        handleError(e)
-      } finally {
-        setMintUrl('')
-        setIsLoading(false)
-      }
     }
 
 
@@ -318,13 +302,6 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                 />
               )}
               <ListItem
-                leftIcon="faPencil"
-                onPress={() => Alert.alert('Not yet implemented')}
-                tx={'mintsScreen.rename'}
-                bottomSeparator={true}
-                style={{paddingHorizontal: spacing.medium}}
-              />
-              <ListItem
                 leftIcon="faPaintbrush"
                 onPress={() => Alert.alert('Not yet implemented')}
                 tx={'mintsScreen.setColor'}
@@ -345,7 +322,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                 bottomSeparator={true}
                 style={{paddingHorizontal: spacing.medium}}
               />
-              <Text text={`Current recovery index: ${selectedMint?.currentProofsCounter?.counter}`} size='xxs' style={{alignSelf: 'center', marginTop: spacing.small}} />
+              <Text text={`Current recovery index: ${selectedMint && selectedMint.getOrCreateProofsCounter?.().counter}`} size='xxs' style={{alignSelf: 'center', marginTop: spacing.small}} />
             </View>
           }
           onBackButtonPress={onMintUnselect}
