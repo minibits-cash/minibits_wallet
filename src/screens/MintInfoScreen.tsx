@@ -24,7 +24,7 @@ import { GetInfoResponse } from '@cashu/cashu-ts'
 import { delay } from '../utils/utils'
 import JSONTree from 'react-native-json-tree'
 import { getSnapshot } from 'mobx-state-tree'
-import { Mint } from '../models/Mint'
+import { Mint, MintStatus } from '../models/Mint'
 import useColorScheme from '../theme/useThemeColor'
 import { CommonActions } from '@react-navigation/native'
 
@@ -86,6 +86,12 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
                 setMintInfo(info)
                 setIsLoading(false)
             } catch (e: any) {
+                if (route.params.mintUrl) {
+                    const mint = mintsStore.findByUrl(route.params.mintUrl)
+                    if(mint) {
+                        mint.setStatus(MintStatus.OFFLINE)
+                    }
+                }                
                 handleError(e)
             }
         }

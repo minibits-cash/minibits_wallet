@@ -14,6 +14,8 @@ import { getImageSource } from '../utils/utils'
 import { ReceiveOption } from './ReceiveOptionsScreen'
 import { SendOption } from './SendOptionsScreen'
 import { WalletProfile } from '../models/WalletProfileStore'
+import { Err } from '../utils/AppError'
+import { getRandomUsername } from '../utils/usernames'
 
 interface ContactsScreenProps extends ContactsStackScreenProps<'Contacts'> {}
 
@@ -40,7 +42,14 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
                 }
 
             } catch(e: any) {
-                log.error(e.name, e.message)                
+                log.error(e.name, e.message)
+                
+                // in case we somehow hit the existing name we silently retry
+                if(e.name && e.name === Err.ALREADY_EXISTS_ERROR) {
+                    const randomName = getRandomUsername()
+                    await walletProfileStore.create(randomName as string) 
+                }
+
                 return false // silent
             }
         }
