@@ -359,7 +359,7 @@ const loadMmkvEncryptionKey = async function (): Promise<string | undefined> {
         log.trace('[loadMmkvEncryptionKey]', 'Did not find existing encryptionKey in the KeyChain.')
         return undefined
     } catch (e: any) {
-        throw new AppError(Err.KEYCHAIN_ERROR, e.message)
+        throw new AppError(Err.KEYCHAIN_ERROR, e.message, {caller: 'loadMmkvEncryptionKey', message: e.message})
     }
 }
 

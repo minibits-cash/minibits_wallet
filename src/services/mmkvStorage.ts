@@ -8,8 +8,12 @@ let _encryptionKey: string | undefined
 
 const initEncryption = async function (): Promise<void> {
   if (!_encryptionKey) {
-    _encryptionKey = await getOrCreateEncryptionKey()
-    getInstance() // Instantiate the MMKV instance with the encryption key
+    try {
+        _encryptionKey = await getOrCreateEncryptionKey()
+        getInstance() // Instantiate the MMKV instance with the encryption key
+    } catch(e: any) {
+        throw e
+    }    
   }
 }
 
@@ -38,7 +42,11 @@ const getOrCreateEncryptionKey = async function (): Promise<string> {
 
     let key: string | null = null
 
-    key = (await KeyChain.loadMmkvEncryptionKey()) as string
+    try {
+        key = (await KeyChain.loadMmkvEncryptionKey()) as string
+    } catch (e: any) {
+        throw e
+    }
 
     if (!key) {
       key = KeyChain.generateMmkvEncryptionKey() as string

@@ -54,20 +54,21 @@ export async function setupRootStore(rootStore: RootStore) {
             try {
                 await MMKVStorage.initEncryption()
             } catch (e: any) {
+                log.error('[setupRootStore]', 'Encryption init failed', {error: e})
+
                 if (e && typeof e === 'object') {
-                    const errString = JSON.stringify(e)
+                    const errString = JSON.stringify(e)                   
             
-                    const isCancellPressed = errString.includes('code: 10')
-                    const isBackPressed = errString.includes('code: 13')
-                    const isIOSCancel = 'code' in e && String(e.code) === '-128'
+                    const isBackPressed = errString.includes('code: 10')
+                    const isCancellPressed = errString.includes('code: 13')
+                    const isIOSCancel = 'code' in e && String(e.code) === '-128'                   
             
                     // In case user cancels / fails the fingerprint auth, empty app state is loaded.
                     // If a user updates the empty app state, it is stored unencrypted and returned after restart as primary one,
                     // making encrypted data inaccessible or later overwritten.
                     // Therefore this ugly app exit on unsuccessful auth.
             
-                    if(isCancellPressed || isBackPressed || isIOSCancel) {
-                        log.error('[setupRootStore]', 'Exiting app on failed auth', {error: e})
+                    if(isCancellPressed || isBackPressed || isIOSCancel) {                        
                         RNExitApp.exitApp()
                     }
                 }  
