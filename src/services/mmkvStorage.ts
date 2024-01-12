@@ -44,22 +44,18 @@ const getOrCreateEncryptionKey = async function (): Promise<string> {
 
     try {
         key = (await KeyChain.loadMmkvEncryptionKey()) as string
+
+        if (!key) {
+            key = KeyChain.generateMmkvEncryptionKey() as string
+            await KeyChain.saveMmkvEncryptionKey(key)
+
+            log.info('[getOrCreateEncryptionKey]', 'Created and saved new encryption key')
+        }
+
+        return key
     } catch (e: any) {
         throw e
     }
-
-    if (!key) {
-      key = KeyChain.generateMmkvEncryptionKey() as string
-      await KeyChain.saveMmkvEncryptionKey(key)
-
-      log.info(
-        'Created and saved new encryption key',
-        [],
-        'getOrCreateEncryptionKey',
-      )
-    }
-
-    return key
 }
 
 const recryptStorage = async function (): Promise<boolean> {
@@ -70,7 +66,7 @@ const recryptStorage = async function (): Promise<boolean> {
             storage.recrypt(undefined)
             _encryptionKey = undefined
 
-            log.info('Storage encryption has been removed', [], 'recryptStorage')
+            log.info('[recryptStorage]', 'Storage encryption has been removed')
             return false
         }
 
@@ -79,7 +75,7 @@ const recryptStorage = async function (): Promise<boolean> {
         storage.recrypt(key)
         _encryptionKey = key
 
-        log.info('Storage has been encrypted', [], 'recryptStorage')
+        log.info('[recryptStorage]', 'Storage has been encrypted')
         return true
 
 }
@@ -172,8 +168,7 @@ const load = function (key: string): any | undefined {
  * @param key The key to fetch.
  * @param value The value to store.
  */
-const save = function (key: string, value: any): boolean {
-  log.trace('MMKV save start')
+const save = function (key: string, value: any): boolean {  
   try {
     const storage = getInstance()
     storage.set(key, JSON.stringify(value))

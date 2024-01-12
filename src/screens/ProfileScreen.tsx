@@ -30,7 +30,7 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
     useEffect(() => {
         const load = async () => {            
             try {                
-                await createProfile()
+                await createProfileIfNotExists()
             } catch(e: any) {   
                 log.error(e.name, e.message || '')             
                 return false // silent
@@ -40,7 +40,7 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
         return () => {}        
     }, [])
 
-    const createProfile = async () => {
+    const createProfileIfNotExists = async () => {
         log.trace(walletProfileStore)
 
         if(!walletProfileStore.pubkey || !walletProfileStore.picture) { // pic needed
@@ -181,7 +181,7 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                                     preset='secondary'                                
                                     text={'Create'}                                    
                                     LeftAccessory={() => <Icon icon='faCircleUser'/>}
-                                    onPress={createProfile}
+                                    onPress={createProfileIfNotExists}
                                 />                                                            
                             </View>
                             </>

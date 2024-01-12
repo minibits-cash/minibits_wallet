@@ -287,6 +287,7 @@ const fetchApi = async (url: string, options: any, timeout = 15000) => { //ms
 
     if(responseJson && responseJson.error) {            
         const {error} = responseJson
+        log.trace(responseJson)
         throw new AppError(error.name || Err.NETWORK_ERROR, error.message || '', {caller: 'fetchApi', message: error.params?.message || ''})
     }
 

@@ -12,7 +12,7 @@ import {spacing, typography} from '../theme'
 import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
-import AppError from '../utils/AppError'
+import AppError, { Err } from '../utils/AppError'
 import { Button, ErrorModal } from '../components'
 import { LnurlUtils } from '../services/lnurl/lnurlUtils'
 import { infoMessage } from '../utils/utils'
@@ -95,7 +95,6 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                     return IncomingParser.navigateWithIncomingData(invoiceResult, navigation)
                     
                 } catch (e: any) {
-                    log.trace('CATCH')
                     const maybeLnurl = LnurlUtils.findEncodedLnurl(incoming)
                     
                     if(maybeLnurl) {
@@ -138,7 +137,8 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                     const incomingData = IncomingParser.findAndExtract(incoming)                    
                     return IncomingParser.navigateWithIncomingData(incomingData, navigation)   
                 } catch (e: any) {
-                    e.params = incoming
+                    e.name = Err.VALIDATION_ERROR
+                    e.params = {caller: 'onIncomingData', clipboard: incoming.slice(0, 100)}
                     handleError(e)
                 }
         }
@@ -147,8 +147,9 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
     
     const onPaste = async function() {        
         const clipboard = await Clipboard.getString()
-        if (!clipboard) {
-            infoMessage('Please copy the invoice first.')
+        if (clipboard.length === 0) {
+            infoMessage('First copy ecash token, invoice, LNURL link or lightning address. Then paste.')
+            return
         }
 
         return onIncomingData(clipboard)

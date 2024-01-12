@@ -13,6 +13,8 @@ import {log} from '../services/logService'
 import { MINIBITS_MINT_URL } from '@env'
 import { MintClient } from '../services'
 import { GetInfoResponse, MintKeys } from '@cashu/cashu-ts'
+import AppError, { Err } from '../utils/AppError'
+import { stopPolling } from '../utils/poller'
 
 export type MintsByHostname = {
     hostname: string
@@ -42,6 +44,10 @@ export const MintsStoreModel = types
     }))
     .actions(self => ({
         addMint: flow(function* addMint(mintUrl: string) {
+            if(!mintUrl.includes('.onion') && !mintUrl.startsWith('https')) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Mint URL needs to start with https')
+            }
+
             const {keys, keyset} = yield self.getMintKeys(mintUrl)            
             
             const newMint: Mint = {
@@ -76,6 +82,9 @@ export const MintsStoreModel = types
                 detach(mintInstance)
                 destroy(mintInstance)
                 log.info('[removeMint]', 'Mint removed from MintsStore')
+
+                stopPolling('checkPendingTopupsPoller')
+                stopPolling('checkSpentByMintPoller')
             }
         },
         blockMint(mintToBeBlocked: Mint) {

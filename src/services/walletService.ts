@@ -30,7 +30,7 @@ import { PaymentRequest, PaymentRequestStatus, PaymentRequestType } from '../mod
 import { IncomingDataType, IncomingParser } from './incomingParser'
 import { Contact, ContactType } from '../models/Contact'
 import { MinibitsClient } from './minibitsService'
-import { getDefaultAmountPreference } from '@cashu/cashu-ts/src/utils'
+import { getDefaultAmountPreference, isObj } from '@cashu/cashu-ts/src/utils'
 import { KeyChain } from './keyChain'
 import { delay } from '../utils/utils'
 
@@ -877,7 +877,7 @@ const receive = async function (
             throw new AppError(
                 Err.VALIDATION_ERROR,
                 'Ecash could not be redeemed.',
-                {caller: 'receive', message: errors?.length ? errors[0]?.message : undefined}
+                {caller: 'receive', message: errors?.length ? errors[0]?.message : undefined, errorToken}
             )
         }
 
@@ -943,6 +943,7 @@ const receive = async function (
             transactionData.push({
                 status: TransactionStatus.ERROR,
                 error: _formatError(e),
+                errorToken: e.params.errorToken || undefined
             })
 
             errorTransaction = await transactionsStore.updateStatus(

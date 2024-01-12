@@ -38,7 +38,7 @@ const limit = maxTransactionsInModel
 
 export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function TranHistoryScreen(_props) {
     const {navigation} = _props
-    const {transactionsStore, proofsStore} = useStores()
+    const {transactionsStore, proofsStore, mintsStore} = useStores()
     useHeader({
       leftIcon: 'faArrowLeft',
       onLeftPress: () => navigation.goBack(),
@@ -57,10 +57,12 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
         }
         // Run on component unmount (cleanup)
         return () => {
-            /* When leaving screen we remove all transactions over numTransactionsInModel
+            /* When leaving screen we remove all transactions over maxTransactionsByMint
             * from the transactionsStore that might have been sourced from sqlite db while browsing older records
             */
-            transactionsStore.removeOldTransactions()
+            for (const mint of mintsStore.allMints) {
+                transactionsStore.removeOldByMint(mint.mintUrl)
+            }            
         }
     }, [])
 

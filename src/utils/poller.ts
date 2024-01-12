@@ -32,5 +32,7 @@ export const poller = async (
 }
 
 export const stopPolling = (name: string) => {
-  pollers.delete(name) // Remove poller from the Map
+    if(pollers.has(name)) {
+        pollers.delete(name) // Remove poller from the Map
+    }
 }

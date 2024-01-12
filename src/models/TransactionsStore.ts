@@ -5,6 +5,7 @@ import {
   flow,
   destroy,
   isStateTreeNode,
+  detach,
 } from 'mobx-state-tree'
 import {withSetPropAction} from './helpers/withSetPropAction'
 import {
@@ -13,44 +14,60 @@ import {
   TransactionStatus,
   TransactionRecord,
 } from './Transaction'
-import {Database} from '../services'
+import {Database, MintClient} from '../services'
 import {log} from '../services/logService'
 
 export const maxTransactionsInModel = 10
+export const maxTransactionsByMint = 10
+export const maxTransactionsByHostname = 4
 
 export const TransactionsStoreModel = types
     .model('TransactionsStore', {
         transactions: types.array(TransactionModel),
     })
     .actions(withSetPropAction)
-    .actions(self => ({
-        findById: (id: number) => {
-            const tx = self.transactions.find(tx => tx.id === id)
-            return tx ? tx : undefined
-        }
-    }))
-    .actions(self => ({        
-        removeTransaction: (removedTransaction: Transaction) => {
-            let transactionInstance: Transaction | undefined
-
-            if (isStateTreeNode(removedTransaction)) {
-                transactionInstance = removedTransaction
-            } else {
-                transactionInstance = self.findById((removedTransaction as Transaction).id as number)
-            }
-
-            if (transactionInstance) {
-                destroy(transactionInstance)
-                log.info('[removeTransaction]', 'Transaction removed from TransactionsStore')
-            }
+    .views(self => ({
+        get all() {
+            return self.transactions
+                .slice()
+                .sort((a, b) => {
+                    // Sort by createdAt timestamp
+                    if (a.createdAt && b.createdAt) {
+                        return b.createdAt.getTime() - a.createdAt.getTime()
+                    }
+            })
         },
-        removeOldTransactions: () => {
-            const numTransactions = self.transactions.length
+        get count() {
+            return self.transactions.length
+        },
+        get recent() {
+            return this.all.slice(0, 3) // Return the first 3 transactions
+        },
+        get pending() {
+            return this.all.filter(t => t.status === TransactionStatus.PENDING)
+        },
+        findById(id: number) {
+            const tx = self.transactions.find(tx => tx.id === id)
+            return tx || undefined
+        },
+        recentByHostname(mintHostname: string) {
+            return this.all.filter(t => t.mint?.includes(mintHostname)).slice(0, maxTransactionsByHostname)
+        },
+        getByMint(mintUrl: string) {
+            return this.all.filter(t => t.mint === mintUrl)
+        },
+        countByMint(mintUrl: string) {
+            return this.getByMint(mintUrl).length
+        }   
+    }))
+    .actions(self => ({
+        removeOldTransactions: () => { // not used
+            const numTransactions = self.count
 
             // If there are more than 10 transactions, delete the older ones
             if (numTransactions > maxTransactionsInModel) {
                 self.transactions
-                .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()) // Sort transactions by createdAt in descending order
+                .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
                 .splice(maxTransactionsInModel) // Remove transactions beyond the desired number to keep
 
                 log.debug('[removeOldTransactions]', `${
@@ -59,6 +76,20 @@ export const TransactionsStoreModel = types
                 )
             }
         },
+        removeOldByMint: (mintUrl: string) => {
+            const numByMint = self.countByMint(mintUrl)
+            
+            if (numByMint > maxTransactionsByMint) {
+                self.getByMint(mintUrl)
+                .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+                .splice(maxTransactionsByMint)
+
+                log.debug('[removeOldByMint]', `${
+                    numByMint - maxTransactionsByMint
+                    } transaction(s) removed from TransactionsStore`,
+                )
+            }
+        }        
     }))
     .actions(self => ({
         addTransaction: flow(function* addTransaction(newTransaction: Transaction) {
@@ -74,10 +105,8 @@ export const TransactionsStoreModel = types
 
             log.debug('[addTransaction]', 'New transaction added to the TransactionsStore')
 
-            // Purge the oldest transaction from the model if the maximum number of transactions is reached
-            if (self.transactions.length > maxTransactionsInModel) {
-                self.removeOldTransactions()
-            }
+            // Purge the oldest transaction from cache, but keep some for each mint
+            self.removeOldByMint(newTransaction.mint)
 
             return transactionInstance
         }),
@@ -95,8 +124,7 @@ export const TransactionsStoreModel = types
 
             self.transactions.push(...inStoreTransactions)
 
-            log.debug('[addTransactionsToModel]', `${inStoreTransactions.length} new transactions added to TransactionsStore`,
-            )
+            log.debug('[addTransactionsToModel]', `${inStoreTransactions.length} new transactions added to TransactionsStore`)
         },
         updateStatus: flow(function* updateStatus( // TODO append, not replace status to align behavior with updateStatuses
             id: number,
@@ -224,30 +252,6 @@ export const TransactionsStoreModel = types
             self.transactions.clear()
             log.debug('[removeAllTransactions]', 'Removed all transactions from TransactionsStore')
         },
-    }))
-    .views(self => ({
-        get count() {
-            return self.transactions.length
-        },
-        get recent() {
-            return this.all.slice(0, 3) // Return the first 3 transactions
-        },
-        get all() {
-            return self.transactions
-                .slice()
-                .sort((a, b) => {
-                // Sort by createdAt timestamp
-                if (a.createdAt && b.createdAt) {
-                return b.createdAt.getTime() - a.createdAt.getTime()
-                }
-            })
-        },
-        get pending() {
-            return this.all.filter(t => t.status === TransactionStatus.PENDING)
-        }, 
-        recentByHostname(mintHostname: string){
-            return this.all.filter(t => t.mint?.includes(mintHostname)).slice(0, 4)
-        }             
     }))
 
 // refresh
