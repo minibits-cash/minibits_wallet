@@ -4,7 +4,7 @@
 
 ⚠️ If you are using this app, please take the following into consideration:
 - This wallet should be used for research purposes only.
-- The wallet is an alpha version with incomplete functionality and both known and unknown bugs.
+- The wallet is a beta version with incomplete functionality and both known and unknown bugs.
 - Do not use it with large amounts of ecash.
 - The ecash stored in the wallet is issued by the mint. You trust the mint to back it with bitcoin until you transfer your holdings to another bitcoin Lightning wallet.
 - The Cashu protocol that the wallet implements has not yet received extensive review or testing so far.
@@ -48,16 +48,16 @@ Send ecash
 Top up wallet
 - [x] Show QR code with bitcoin lightning invoice to pay
 - [x] Share encoded bitcoin lightning invoice to pay
-- [x] Share payment request with contact [✨ New!]
-- [x] Top up balance by LNURL Withdraw [✨ New!]
+- [x] Share payment request with contact
+- [x] Top up balance by LNURL Withdraw
 
 Transfer / Cash out from wallet
 - [x] Paste and settle bitcoin lightning invoice with your ecash
 - [x] Scan and settle bitcoin lightning invoice with your ecash
-- [x] Pay payment request received from another contact [✨ New!]
-- [x] Pay by LNURL Pay [✨ New!]
-- [x] One click zaps - tips on NOSTR social network [✨ New!]
-- [x] Pay to Lightning address [✨ New!]
+- [x] Pay payment request received from another contact
+- [x] Pay to LNURL Pay static links / codes
+- [x] One click zaps - tips on NOSTR social network
+- [x] Pay to Lightning address
 - [ ] Transfer (swap) ecash to another mint
 
 Transaction history
@@ -74,7 +74,7 @@ Contacts
 - [x] Load public contacts from custom NOSTR relay
 - [x] Wallet names as random public NOSTR addresses (random123@minibits.cash)
 - [x] Custom wallet names (myname@minibits.cash)
-- [ ] Wallet names usable as LNURL addresses
+- [x] Wallet names usable as Lightning addresses to receive payments from many Lightning wallets [✨ New!]
 - [x] Private contacts with other than minibits.cash NOSTR adresses and relays
 
 Backup and recovery
@@ -87,7 +87,7 @@ Backup and recovery
 Security and Privacy
 - [x] Optional AES encryption of wallet storage using a key stored in the device secure key storage
 - [x] Use device biometry to login (if storage encryption is on)
-- [x] Tor daemon to connect to mints with .onion addresses [✨ New!]
+- [x] Tor daemon to connect to mints with .onion addresses
 
 Self-funding
 - [X] Donation for custom wallet name
