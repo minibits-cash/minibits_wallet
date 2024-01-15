@@ -111,7 +111,9 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                 throw new AppError(Err.VALIDATION_ERROR, 'Missing mnemonic phrase.')
             }
 
-            setMnemonic(maybeMnemonic)
+            const cleanedMnemonic = maybeMnemonic.replace(/\s+/g, ' ').trim()
+
+            setMnemonic(cleanedMnemonic)
         } catch (e: any) {
             handleError(e)
         }
