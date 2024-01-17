@@ -72,7 +72,7 @@ function App(props: AppProps) {
     }  
 
     return (
-        <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+        <SafeAreaProvider>
         <ErrorBoundary catchErrors={Config.catchErrors}>
             <AppNavigator />
             <FlashMessage position='bottom' />

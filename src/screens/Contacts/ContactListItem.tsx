@@ -24,7 +24,7 @@ export const ContactListItem = observer(function (props: ContactListProps) {
         key={contact.pubkey}                      
         text={contact.name as string}        
         textStyle={$mintText}
-        subText={contact.nip05}        
+        subText={contact.noteToSelf || contact.nip05}        
         LeftComponent={<Image style={[
             $iconContainer, {
                 width: 40, 
