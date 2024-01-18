@@ -77,9 +77,8 @@ function extractLnurlAddress(maybeAddress: string) {
 
 
 function isLnurlAddress(address: string) {
-    // Regular expression for a basic email validation
-    const regex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/
-    
+    // Regular expression for a basic email validation    
+    const regex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
     return regex.test(address)
 }
 
