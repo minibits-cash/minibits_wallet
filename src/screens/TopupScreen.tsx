@@ -1034,7 +1034,7 @@ const SendAsNostrDMBlock = observer(function (props: {
             icon="faCheckCircle"
             iconColor={colors.palette.success200}
             title="Success!"
-            message="Payment reuest has been succesfully sent."
+            message="Payment request has been successfully sent."
         />
         <View style={$buttonContainer}>
             <Button
