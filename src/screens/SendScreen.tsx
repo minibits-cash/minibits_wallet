@@ -196,7 +196,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
     useEffect(() => {
         const handleSendCompleted = async (transactionIds: number[]) => {
-            log.trace('handleSendCompleted event handler trigerred')
+            log.trace('handleSendCompleted event handler triggered')
 
             if (!transactionId) return
             // Filter and handle events for a specific transactionId
