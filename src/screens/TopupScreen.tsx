@@ -195,7 +195,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
     useEffect(() => {
       const handleCompleted = (paymentRequest: PaymentRequest) => {
-        log.trace('handleCompleted event handler trigerred')
+        log.trace('handleCompleted event handler triggered')
 
         if (!transactionId) {
           return
