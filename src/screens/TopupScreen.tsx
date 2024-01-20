@@ -195,7 +195,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
     useEffect(() => {
       const handleCompleted = (paymentRequest: PaymentRequest) => {
-        log.trace('handleCompleted event handler trigerred')
+        log.trace('handleCompleted event handler triggered')
 
         if (!transactionId) {
           return
@@ -1034,7 +1034,7 @@ const SendAsNostrDMBlock = observer(function (props: {
             icon="faCheckCircle"
             iconColor={colors.palette.success200}
             title="Success!"
-            message="Payment reuest has been succesfully sent."
+            message="Payment request has been successfully sent."
         />
         <View style={$buttonContainer}>
             <Button

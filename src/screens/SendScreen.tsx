@@ -196,7 +196,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
     useEffect(() => {
         const handleSendCompleted = async (transactionIds: number[]) => {
-            log.trace('handleSendCompleted event handler trigerred')
+            log.trace('handleSendCompleted event handler triggered')
 
             if (!transactionId) return
             // Filter and handle events for a specific transactionId
@@ -1164,7 +1164,7 @@ const SendAsNostrDMBlock = observer(function (props: {
             icon="faCheckCircle"
             iconColor={colors.palette.success200}
             title="Success!"
-            message="Ecash has been succesfully sent."
+            message="Ecash has been successfully sent."
         />
         <View style={$buttonContainer}>
             <Button
