@@ -307,7 +307,7 @@ const getSpentOrPendingProofsFromMint = async function (
   } catch (e: any) {    
     throw new AppError(
         Err.MINT_ERROR, 
-        'The mint could not reply if the proofs are spent or pending.', 
+        'Could not get response from the mint.', 
         {
             caller: 'getSpentOrPendingProofsFromMint', 
             mintUrl, 
@@ -465,9 +465,9 @@ const restore = async function (
         const count = Math.abs(indexTo - indexFrom)      
         
         /* eslint-disable @typescript-eslint/no-unused-vars */
-        const {proofs, newKeys} = await seedWallet.restore(
-            count,
+        const {proofs, newKeys} = await seedWallet.restore(            
             indexFrom,
+            count
         )
         /* eslint-enable */
     
