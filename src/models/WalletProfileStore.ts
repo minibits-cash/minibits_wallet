@@ -1,5 +1,6 @@
 import {Instance, SnapshotOut, types, flow} from 'mobx-state-tree'
-import {KeyChain, MinibitsClient, NostrClient, NostrUnsignedEvent, Wallet} from '../services'
+import {KeyChain, MinibitsClient, NostrClient, Wallet} from '../services'
+import { UnsignedEvent as NostrUnsignedEvent } from 'nostr-tools/core'
 import {log} from '../services/logService'
 import { Err } from '../utils/AppError'
 import { getRandomUsername } from '../utils/usernames'
@@ -52,7 +53,8 @@ export const WalletProfileStoreModel = types
                         name,                            
                         picture,
                         nip05,                       
-                    }),                                      
+                    }),
+                    created_at: Math.floor(Date.now() / 1000)                                  
                 }
 
                 const rootStore = getRootStore(self)

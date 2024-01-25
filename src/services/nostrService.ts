@@ -1,3 +1,4 @@
+import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import {
     nip19,    
     getEventHash,
@@ -8,7 +9,7 @@ import {
     validateEvent,
     UnsignedEvent as NostrUnsignedEvent,
     utils
-} from 'nostr-tools'
+} from 'nostr-tools/core'
 import QuickCrypto from 'react-native-quick-crypto'
 import {secp256k1} from '@noble/curves/secp256k1'
 import {
@@ -19,13 +20,6 @@ import {log} from './logService'
 import AppError, { Err } from '../utils/AppError'
 import { MinibitsClient } from './minibitsService'
 import { rootStoreInstance } from '../models'
-
-export {     
-    Event as NostrEvent, 
-    Filter as NostrFilter, 
-    Kind as NostrKind,  
-    UnsignedEvent as NostrUnsignedEvent,   
-} from 'nostr-tools'
 
 // refresh
 export type NostrProfile = {
@@ -50,8 +44,7 @@ export type Nip05VerificationRecord = {
 const _defaultPublicRelays: string[] = ['wss://relay.damus.io', 'wss://nostr.mom']
 const _minibitsRelays: string[] = [MINIBITS_RELAY_URL]
 let _pool: any = undefined
-const {relaysStore
-} = rootStoreInstance
+const {relaysStore} = rootStoreInstance
 
 const getRelayPool = function () {
     if(!_pool) {
@@ -174,25 +167,24 @@ const publish = async function (
     relays: string[],    
 ): Promise<Event | undefined> {
 
-    const  keys: KeyPair = await getOrCreateKeyPair()    
+    const  keys: KeyPair = await getOrCreateKeyPair()
     
-    event.created_at = Math.floor(Date.now() / 1000) 
-    event.id = getEventHash(event)    
-    event.sig = getSignature(event, keys.privateKey)    
+    let signedEvent = finalizeEvent(event, Uint8Array.from(Buffer.from(keys.privateKey, 'hex')))
 
-    if(!validateEvent(event)) {
+    if(!validateEvent(signedEvent)) {
         throw new AppError(Err.VALIDATION_ERROR, 'Event is invalid and could not be published', event)
     }
     
-    log.trace('Event to be published', event, 'publish')
+    log.trace('Event to be published', signedEvent, 'publish')
 
     const pool = getRelayPool()
-    let pubs = pool.publish(relays, event)
+    let pubs = pool.publish(relays, signedEvent)
+    
     await delay(1000)
     // await Promise.all(pubs)
 
     const published: NostrEvent = await pool.get(relays, {
-        ids: [event.id]
+        ids: [signedEvent.id]
     })
 
     
