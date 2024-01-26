@@ -112,11 +112,25 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
         const lowercase = filtered.toLowerCase()    
         setOwnName(lowercase)
     }
+
+
+    const isValidName = function (name: string) {
+        // Define a regular expression pattern
+        const pattern = /^[^.-].*[^.-]$/;
+      
+        // Test the input string against the pattern
+        return pattern.test(name)
+    }
   
     
     const onOwnNameCheck = async function () {
-        if(!ownName) {
-            setInfo('Write your wallet profile name to the text box.')
+        if(!ownName || ownName.length < 2) {
+            setInfo('Write your wallet profile name to the text box, use min 2 characters.')
+            return
+        }
+
+        if(!isValidName(ownName)) {
+            setInfo('Do not use . or - characters at the beginning or the end of name.')
             return
         }
 
