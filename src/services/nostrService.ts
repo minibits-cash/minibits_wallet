@@ -50,8 +50,7 @@ export type Nip05VerificationRecord = {
 const _defaultPublicRelays: string[] = ['wss://relay.damus.io', 'wss://nostr.mom']
 const _minibitsRelays: string[] = [MINIBITS_RELAY_URL]
 let _pool: any = undefined
-const {relaysStore
-} = rootStoreInstance
+const {relaysStore} = rootStoreInstance
 
 const getRelayPool = function () {
     if(!_pool) {

@@ -1,8 +1,8 @@
 import {deriveKeysetId, getEncodedToken} from '@cashu/cashu-ts'
-import {addSeconds, isBefore} from 'date-fns'
+import {isBefore} from 'date-fns'
 import {getSnapshot, isStateTreeNode} from 'mobx-state-tree'
 import {log} from './logService'
-import {MintClient, MintKeys, MintKeySets} from './cashuMintClient'
+import {MintClient, MintKeys} from './cashuMintClient'
 import {Proof} from '../models/Proof'
 import {
   Transaction,
@@ -28,11 +28,9 @@ import { NostrClient, NostrEvent, NostrFilter } from './nostrService'
 import { MINIBITS_NIP05_DOMAIN, MINIBITS_SERVER_API_HOST } from '@env'
 import { PaymentRequest, PaymentRequestStatus, PaymentRequestType } from '../models/PaymentRequest'
 import { IncomingDataType, IncomingParser } from './incomingParser'
-import { Contact, ContactType } from '../models/Contact'
-import { MinibitsClient } from './minibitsService'
+import { Contact } from '../models/Contact'
 import { getDefaultAmountPreference, isObj } from '@cashu/cashu-ts/src/utils'
-import { KeyChain } from './keyChain'
-import { delay } from '../utils/utils'
+
 
 type WalletService = {
     checkPendingSpent: () => Promise<void>
@@ -122,22 +120,20 @@ const checkPendingSpent = async function () {
     for (const mint of mintsStore.allMints) {
         
         const result = await _checkSpentByMint(mint.mintUrl, true) // pending true
-        let status: MintStatus = MintStatus.ONLINE
-
+        
         if(!result) {
-            // assume online if check exits because there are no pending proofs or none were spent
-            mint.setStatus(status)
+            // go to next mint if there were no proofs to call mint with, do not assume any mint status
             continue
         }        
 
         if(result && result.error) {
             // if error looks like mint is offline
             if(result.error.name === Err.MINT_ERROR) {
-                status = MintStatus.OFFLINE
+                mint.setStatus(MintStatus.OFFLINE)
             }
         }
         
-        mint.setStatus(status)
+        mint.setStatus(MintStatus.ONLINE)
     }
 }
 
@@ -212,7 +208,9 @@ const checkPendingReceived = async function () {
                 if(contactsStore.eventAlreadyReceived(event.id)) {
                     log.error(Err.ALREADY_EXISTS_ERROR, 'Event has been processed in the past, skipping...', {id: event.id})
                     return
-                }                    
+                }
+                
+                contactsStore.addReceivedEventId(event.id)
                 
                 // decrypt message content
                 const decrypted = await NostrClient.decryptNip04(event.pubkey, event.content)
@@ -255,19 +253,35 @@ const checkPendingReceived = async function () {
                 log.trace('Incoming data', {incoming})
     
                 if(incoming.type === IncomingDataType.CASHU) {
-                    const {
-                        error, 
-                        receivedAmount,
+
+                    const decoded: Token = CashuUtils.decodeToken(incoming.encoded)
+                    const amountToReceive = CashuUtils.getTokenAmounts(decoded).totalAmount
+                    const memo = decoded.memo || 'Received over Nostr'
+
+                    const {transaction, receivedAmount} = await receive(
+                        decoded as Token,
+                        amountToReceive,
                         memo,
-                    } = await receiveFromNostrEvent(incoming.encoded, event)
-
-                    let picture: string | undefined = undefined
-
-                    if(sentFrom && sentFrom.includes(MINIBITS_NIP05_DOMAIN)) {
-                        picture = MINIBITS_SERVER_API_HOST + '/profile/avatar/' + sentFromPubkey
+                        incoming.encoded as string,
+                    )                    
+          
+                    if(transaction) {
+                        await transactionsStore.updateSentFrom(
+                            transaction.id as number,
+                            sentFrom as string
+                        ) 
                     }
-        
+
+                    //
+                    // Send notification event
+                    //
                     if(receivedAmount > 0) {
+                        let picture: string | undefined = undefined
+
+                        if(sentFrom && sentFrom.includes(MINIBITS_NIP05_DOMAIN)) {
+                            picture = MINIBITS_SERVER_API_HOST + '/profile/avatar/' + sentFromPubkey
+                        }
+
                         result = {
                             status: TransactionStatus.COMPLETED,                        
                             title: `⚡${receivedAmount} sats received!`,
@@ -278,10 +292,6 @@ const checkPendingReceived = async function () {
                         }
             
                         EventEmitter.emit('receiveTokenCompleted', result)
-                    }
-        
-                    if(error) {
-                        throw new AppError(Err.MINT_ERROR, `Error while receiving transaction: ${error.message}`)                    
                     }
 
                     return
@@ -394,55 +404,6 @@ const findMemo = function (message: string): string | undefined {
     return undefined    
 }
 
-
-const receiveFromNostrEvent = async function (encoded: string, event: NostrEvent) {    
-    try {
-        const decoded: Token = CashuUtils.decodeToken(encoded)
-        const sentFrom = getTagValue(event.tags, 'from')
-        const sentFromPubkey = event.pubkey       
-        const tokenAmounts = CashuUtils.getTokenAmounts(decoded)
-        const amountToReceive = tokenAmounts.totalAmount
-        const memo = decoded.memo || ''                    
-        
-        const {transaction, message, error, receivedAmount} =
-            await receive(
-                decoded as Token,
-                amountToReceive,
-                memo,
-                encoded as string,
-            )
-        
-        if(transaction && transaction.status === TransactionStatus.COMPLETED) {
-            
-            const updated = JSON.parse(transaction.data)
-            updated[2].receivedEvent = event
-
-            await transactionsStore.updateStatus(
-                transaction.id as number,
-                TransactionStatus.COMPLETED,
-                JSON.stringify(updated),
-            )
-
-            await transactionsStore.updateSentFrom(
-                transaction.id as number,
-                sentFrom as string
-            )                        
-        }
-        
-        contactsStore.addReceivedEventId(event.id)
-
-        return {
-            error: null,
-            receivedAmount: receivedAmount,
-            memo,
-            sentFrom: sentFrom || '',
-            sentFromPubkey,
-        }
-
-    } catch (e: any) {
-        return {error: e, receivedAmount: 0}
-    }
-}
 
 
 /*
@@ -735,7 +696,7 @@ const _checkInFlightByMint = async function (mint: Mint, seed: Uint8Array) {
         log.error('[_checkInFlightByMint]', e.name, {message: e.message, mintUrl})
         return {
             mintUrl,                
-            error: e,
+            error: {name: e.name, message: e.message}
         }
     }
 }
@@ -857,6 +818,8 @@ const receive = async function (
         transactionData.push({
             status: TransactionStatus.PREPARED,
             errorToken,
+            updatedToken,            
+            errors,
             createdAt: new Date(),
         })
 
@@ -877,11 +840,12 @@ const receive = async function (
             throw new AppError(
                 Err.VALIDATION_ERROR,
                 'Ecash could not be redeemed.',
-                {caller: 'receive', message: errors?.length ? errors[0]?.message : undefined, errorToken}
+                {caller: 'receive', errors}
             )
         }
 
         let receivedAmount = 0
+        let addedProofsCount = 0
 
         for (const entry of updatedToken.token) {
             // create ProofModel instances and store them into the proofsStore
@@ -891,11 +855,21 @@ const receive = async function (
                 transactionId as number                
             )
 
-            receivedAmount += addedAmount            
+            receivedAmount += addedAmount 
+            addedProofsCount += addedProofs.length         
         }
 
-        // const receivedAmount = CashuUtils.getTokenAmounts(updatedToken as Token).totalAmount
-        log.debug('[receive]', `Received amount: ${receivedAmount}`)
+        // temporary dirty fix of zero value tx until I figure out how it happens
+        const receivedAmountCheck = CashuUtils.getTokenAmounts(updatedToken as Token).totalAmount
+
+        if (receivedAmount !== receivedAmountCheck) {
+            log.error('[receive]', `Received per proofStore: ${receivedAmount} Received check using tokenAmounts: ${receivedAmountCheck}`, updatedToken)
+            
+            if(receivedAmount === 0 && addedProofsCount > 0) {
+                receivedAmount = receivedAmountCheck
+            }
+        } 
+        // temp fix end       
 
         // Update tx amount if full amount was not received
         if (receivedAmount !== amountToReceive) {      
@@ -2181,7 +2155,7 @@ const _updateMintKeys = function (mintUrl: string, newKeys: MintKeys) {
 const _formatError = function (e: AppError) {
     return {
         name: e.name,
-        message: e.message.slice(0, 300),
+        message: e.message.slice(0, 800),
         params: e.params || {},
     } as AppError 
 }

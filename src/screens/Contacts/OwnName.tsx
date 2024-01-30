@@ -20,7 +20,7 @@ const DEFAULT_DONATION_AMOUNT = 100
 export const OwnName = observer(function (props: {navigation: any, pubkey: string}) { 
     // const navigation = useNavigation() 
     const ownNameInputRef = useRef<TextInput>(null)
-    const {userSettingsStore, proofsStore, walletProfileStore} = useStores()
+    const {proofsStore, walletProfileStore} = useStores()
     const {pubkey, navigation} = props 
     
     const [ownName, setOwnName] = useState<string>('')
@@ -138,7 +138,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
             const profileExists = await MinibitsClient.getWalletProfileByNip05(ownName + MINIBITS_NIP05_DOMAIN)
 
             if(profileExists) {
-                setInfo('This wallet profile name is already in use, choose another one.')
+                setInfo('This wallet name is already in use, choose another one.')
                 return
             }
             setIsChecked(true)
@@ -295,7 +295,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                     {donationInvoice ? (
                     <>
                     <Text 
-                        text={`Pay the following lightning invoice and get your ${ownName+MINIBITS_NIP05_DOMAIN} wallet profile.`}
+                        text={`Pay the following lightning invoice and get your ${ownName+MINIBITS_NIP05_DOMAIN} wallet name.`}
                         style={[$supportText, {color: hint}]} 
                     />
                     {isQRcodeVisible ? (
@@ -381,7 +381,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                                 text='Minibits'
                                 style={{fontFamily: 'Gluten-Regular', fontSize: 18}}
                             />{' '}
-                            kindly asks you for a small donation for your {ownName+MINIBITS_NIP05_DOMAIN} wallet name.
+                            kindly asks you for a small donation for your {ownName+MINIBITS_NIP05_DOMAIN} wallet address.
                         </RNText>
                         <View style={{flexDirection: 'row', justifyContent: 'center'}}>
                             <Text

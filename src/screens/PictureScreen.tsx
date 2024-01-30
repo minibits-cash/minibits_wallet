@@ -89,6 +89,14 @@ export const PictureScreen: FC<PictureScreenProps> = observer(function PictureSc
                         </Pressable>
                     )
                 })}
+                {pictures.length === 0 && (
+                    <Card
+                        ContentComponent={<ListItem
+                            leftIcon='faXmark'
+                            text='Could not retrieve pictures from the server, try again later.'
+                        />}
+                    />
+                )}
             </View>
             {selectedPicture && (
                 <View style={$buttonContainer}>

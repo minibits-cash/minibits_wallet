@@ -93,8 +93,7 @@ export const ProofsStoreModel = types
 
             log.debug('[addProofs]', `Added new ${addedProofs.length}${isPending ? ' pending' : ''} proofs to the ProofsStore`,)
 
-            const rootStore = getRootStore(self)
-            const {userSettingsStore} = rootStore
+            const userSettingsStore = getRootStore(self).userSettingsStore           
 
             if (userSettingsStore.isLocalBackupOn === true && addedProofs.length > 0) {
                 Database.addOrUpdateProofs(addedProofs, isPending) // isSpent = false
