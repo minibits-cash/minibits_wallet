@@ -50,8 +50,8 @@ export const TransactionsStoreModel = types
             const tx = self.transactions.find(tx => tx.id === id)
             return tx || undefined
         },
-        recentByHostname(mintHostname: string) {
-            return this.all.filter(t => t.mint?.includes(mintHostname)).slice(0, maxTransactionsByHostname)
+        recentByHostname(mintHostname: string) {            
+            return this.all.filter(t => getHostname(t.mint as string) === mintHostname).slice(0, maxTransactionsByHostname)
         },
         getByMint(mintUrl: string) {
             return this.all.filter(t => t.mint === mintUrl)
@@ -253,6 +253,14 @@ export const TransactionsStoreModel = types
             log.debug('[removeAllTransactions]', 'Removed all transactions from TransactionsStore')
         },
     }))
+
+    const getHostname = function (mintUrl: string) {
+        try {
+            return new URL(mintUrl).hostname
+        } catch (e) {
+            return false
+        }
+    }
 
 // refresh
 export interface TransactionsStore

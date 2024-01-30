@@ -1,4 +1,3 @@
-import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import {
     nip19,    
     getEventHash,
@@ -9,7 +8,7 @@ import {
     validateEvent,
     UnsignedEvent as NostrUnsignedEvent,
     utils
-} from 'nostr-tools/core'
+} from 'nostr-tools'
 import QuickCrypto from 'react-native-quick-crypto'
 import {secp256k1} from '@noble/curves/secp256k1'
 import {
@@ -20,6 +19,13 @@ import {log} from './logService'
 import AppError, { Err } from '../utils/AppError'
 import { MinibitsClient } from './minibitsService'
 import { rootStoreInstance } from '../models'
+
+export {     
+    Event as NostrEvent, 
+    Filter as NostrFilter, 
+    Kind as NostrKind,  
+    UnsignedEvent as NostrUnsignedEvent,   
+} from 'nostr-tools'
 
 // refresh
 export type NostrProfile = {
@@ -167,24 +173,25 @@ const publish = async function (
     relays: string[],    
 ): Promise<Event | undefined> {
 
-    const  keys: KeyPair = await getOrCreateKeyPair()
+    const  keys: KeyPair = await getOrCreateKeyPair()    
     
-    let signedEvent = finalizeEvent(event, Uint8Array.from(Buffer.from(keys.privateKey, 'hex')))
+    event.created_at = Math.floor(Date.now() / 1000) 
+    event.id = getEventHash(event)    
+    event.sig = getSignature(event, keys.privateKey)    
 
-    if(!validateEvent(signedEvent)) {
+    if(!validateEvent(event)) {
         throw new AppError(Err.VALIDATION_ERROR, 'Event is invalid and could not be published', event)
     }
     
-    log.trace('Event to be published', signedEvent, 'publish')
+    log.trace('Event to be published', event, 'publish')
 
     const pool = getRelayPool()
-    let pubs = pool.publish(relays, signedEvent)
-    
+    let pubs = pool.publish(relays, event)
     await delay(1000)
     // await Promise.all(pubs)
 
     const published: NostrEvent = await pool.get(relays, {
-        ids: [signedEvent.id]
+        ids: [event.id]
     })
 
     

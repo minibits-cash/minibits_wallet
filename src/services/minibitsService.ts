@@ -271,6 +271,7 @@ const checkDonationPaid = async function (paymentHash: string, pubkey: string) {
 
 
 const fetchApi = async (url: string, options: any, timeout = 15000) => { //ms
+    log.trace('fetchApi', {url})
     
     const controller = new AbortController()
 
