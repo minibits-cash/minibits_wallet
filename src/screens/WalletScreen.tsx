@@ -127,7 +127,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
     
     const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {
-        log.info('[handleBinaryVersionMismatchCallback] trigerred', NATIVE_VERSION_ANDROID, update)
+        log.info('[handleBinaryVersionMismatchCallback] triggered', NATIVE_VERSION_ANDROID, update)
         // setIsNativeUpdateAvailable(true)
         // toggleUpdateModal()
     }
@@ -261,7 +261,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
     
     const onReceiveTokenCompleted = async (result: ReceivedEventResult) => {
-        log.trace('onReceiveTokenCompleted event handler trigerred', result)
+        log.trace('onReceiveTokenCompleted event handler triggered', result)
 
         if (result.status !== TransactionStatus.COMPLETED) {
           return
@@ -276,7 +276,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
 
     const onReceiveTopupCompleted = async (paymentRequest: PaymentRequest) => { // TODO make it ReceivedEventResult
-        log.trace('onReceiveTopupCompleted event handler trigerred', paymentRequest)
+        log.trace('onReceiveTopupCompleted event handler triggered', paymentRequest)
 
         await NotificationService.createLocalNotification(
             `⚡ ${paymentRequest.amount} sats received!`,
@@ -286,7 +286,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     
     
     const onReceivePaymentRequest = async (result: ReceivedEventResult) => {
-        log.trace('onReceivePaymentRequest event handler trigerred', result)
+        log.trace('onReceivePaymentRequest event handler triggered', result)
 
         await NotificationService.createLocalNotification(
             result.title,
