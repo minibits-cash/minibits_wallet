@@ -27,7 +27,7 @@ export {
     UnsignedEvent as NostrUnsignedEvent,   
 } from 'nostr-tools'
 
-// refresh
+
 export type NostrProfile = {
     pubkey: string
     npub: string

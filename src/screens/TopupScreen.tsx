@@ -34,8 +34,7 @@ import {
 import {TransactionStatus, Transaction} from '../models/Transaction'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
-import {NostrClient, NostrProfile, Wallet} from '../services'
-import { UnsignedEvent as NostrUnsignedEvent } from 'nostr-tools/core'
+import {NostrClient, NostrProfile, NostrUnsignedEvent, Wallet} from '../services'
 import {log} from '../services/logService'
 import AppError, { Err } from '../utils/AppError'
 
@@ -388,8 +387,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                 kind: 4,
                 pubkey: senderPubkey,
                 tags: [['p', receiverPubkey as string], ['from', walletProfileStore.nip05]],
-                content: encryptedContent,
-                created_at: Math.floor(Date.now() / 1000)                                     
+                content: encryptedContent,                                                    
             }
 
             const sentEvent: Event | undefined = await NostrClient.publish(

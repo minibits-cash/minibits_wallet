@@ -2,9 +2,8 @@ import * as _Keychain from 'react-native-keychain'
 import AppError, {Err} from '../utils/AppError'
 import QuickCrypto from 'react-native-quick-crypto'
 import { generateNewMnemonic } from '@cashu/cashu-ts'
-import { generateSecretKey, getPublicKey } from 'nostr-tools/pure'
-import { bytesToHex } from '@noble/hashes/utils'
-import {btoa, atob, fromByteArray} from 'react-native-quick-base64'
+import { generatePrivateKey, getPublicKey } from 'nostr-tools'
+import {btoa, fromByteArray} from 'react-native-quick-base64'
 import {log} from './logService'
 
 
@@ -213,9 +212,8 @@ const removeSeed = async function (): Promise<boolean> {
 
 const generateNostrKeyPair = function () {
     try {
-        const privateKeyUint = generateSecretKey() // uintarr
-        const publicKey = getPublicKey(privateKeyUint) // hex
-        const privateKey = bytesToHex(privateKeyUint) // hex
+        const privateKey = generatePrivateKey() // hex string
+        const publicKey = getPublicKey(privateKey)
 
         log.trace('New HEX Nostr keypair created:', publicKey, privateKey)
 
