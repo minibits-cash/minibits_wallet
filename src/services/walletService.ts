@@ -199,23 +199,25 @@ const checkPendingReceived = async function () {
             try {
                 // ignore all kinds of duplicate events
                 if(events.some(ev => ev.id === event.id)) {
-                    log.error(Err.ALREADY_EXISTS_ERROR, 'Duplicate event received by this subscription, skipping...', event.id)
+                    log.error(Err.ALREADY_EXISTS_ERROR, 'Duplicate event received by this subscription, skipping...', {id: event.id, created_at: event.created_at})
                     return
                 }
 
                 events.push(event)
 
                 if(contactsStore.eventAlreadyReceived(event.id)) {
-                    log.error(Err.ALREADY_EXISTS_ERROR, 'Event has been processed in the past, skipping...', {id: event.id})
+                    log.error(Err.ALREADY_EXISTS_ERROR, 'Event has been processed in the past, skipping...', {id: event.id, created_at: event.created_at})
                     return
                 }
                 
                 contactsStore.addReceivedEventId(event.id)
+                // move window to receive events to the last event created_at to avoid recive it again
+                contactsStore.setLastPendingReceivedCheck(event.created_at)
                 
                 // decrypt message content
                 const decrypted = await NostrClient.decryptNip04(event.pubkey, event.content)
 
-                log.trace('Received event', {decrypted})
+                log.trace('[checkPendingReceived]', 'Received event', {id: event.id, created_at: event.created_at})
                 
                 // get sender profile and save it as a contact
                 const sentFromPubkey = event.pubkey
@@ -250,7 +252,7 @@ const checkPendingReceived = async function () {
                 // parse incoming message
                 const incoming = IncomingParser.findAndExtract(decrypted)
 
-                log.trace('Incoming data', {incoming})
+                log.trace('[checkPendingReceived]', 'Incoming data', {incoming})
     
                 if(incoming.type === IncomingDataType.CASHU) {
 

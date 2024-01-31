@@ -100,10 +100,15 @@ import {
                 self.publicPubkey = publicPubkey
                 log.debug('[setPublicPubkey]', publicPubkey)
             },           
-            setLastPendingReceivedCheck() {    
-                const ts: number = Math.floor(Date.now() / 1000)
-                log.trace('[setLastPendingReceivedCheck]', {ts})
-                self.lastPendingReceivedCheck = ts
+            setLastPendingReceivedCheck(ts?: number) {    
+                if(ts) {
+                    self.lastPendingReceivedCheck = ts
+                    log.trace('[setLastPendingReceivedCheck]', {ts})
+                    return
+                }
+                
+                const ts2: number = Math.floor(Date.now() / 1000)
+                log.trace('[setLastPendingReceivedCheck]', {ts2})                
             },
             addReceivedEventId(id: string) {            
                 self.receivedEventIds.push(id)

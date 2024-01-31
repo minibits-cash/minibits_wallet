@@ -174,7 +174,7 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                             <>
                             <ListItem 
                                 text='Create wallet address'
-                                subText='Your wallet address allows you to receive encrypted ecash over Nostr. At the same time it serves as your Lightning address, so that you can receive payments from any Lightning wallet.'
+                                subText='Your wallet address allows you to receive encrypted ecash over Nostr. At the same time it serves as your Lightning address, so that you can receive payments from any Lightning wallet or zaps on Nostr social network.'
                             />
                             <View style={$buttonContainer}> 
                                 <Button
@@ -189,7 +189,7 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                             <>
                                 <ListItem
                                     text='Your Minibits wallet address'
-                                    subText={`Share your wallet address to receive encrypted ecash over Nostr. At the same time it serves as your Lightning address, so that you can receive payments from any Lightning wallet.`}
+                                    subText={`Share your wallet address to receive encrypted ecash over Nostr. At the same time it serves as your Lightning address, so that you can receive payments from any Lightning wallet or zaps on Nostr social network.`}
                                     leftIcon='faCircleUser'
                                     bottomSeparator={true}
                                     style={{paddingRight: spacing.small}}

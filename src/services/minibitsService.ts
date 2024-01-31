@@ -6,7 +6,7 @@ import {
 } from '@env'
 import { WalletProfile, WalletProfileRecord } from "../models/WalletProfileStore"
 
-// refresh
+// refresh // refresh
 
 const getRandomPictures = async function () {
     const url = MINIBITS_SERVER_API_HOST + '/profile'  

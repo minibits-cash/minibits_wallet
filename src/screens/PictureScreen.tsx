@@ -89,7 +89,7 @@ export const PictureScreen: FC<PictureScreenProps> = observer(function PictureSc
                         </Pressable>
                     )
                 })}
-                {pictures.length === 0 && (
+                {pictures.length === 0 && !isLoading && (
                     <Card
                         ContentComponent={<ListItem
                             leftIcon='faXmark'

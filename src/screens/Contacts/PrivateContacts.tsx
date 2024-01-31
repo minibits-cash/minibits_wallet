@@ -265,7 +265,7 @@ export const PrivateContacts = observer(function (props: {
                             leftIconInverse={true}
                             leftIconColor={colors.palette.iconGreen200}
                             text='Private contacts'
-                            subText={"Add other Minibits users as your private contacts. Every user gets sharable wallet name in an email-like format. You can pay privately to your contacts anytime without cumbersome token copying / pasting."}
+                            subText={"Add other Minibits users as your private contacts. Every user gets sharable @minibits.cash wallet address. You can pay privately to your contacts anytime even if they are offline."}
                             onPress={gotoNew}
                         />
                         <ListItem
