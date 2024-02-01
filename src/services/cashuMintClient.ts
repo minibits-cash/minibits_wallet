@@ -14,6 +14,7 @@ import {log} from './logService'
 import {Token} from '../models/Token'
 import {Proof} from '../models/Proof'
 import { deriveSeedFromMnemonic } from '@cashu/cashu-ts'
+import { isObj } from '@cashu/cashu-ts/src/utils'
 
 export type MintKeys = {[k: number]: string}
 export type MintKeySets = {keysets: Array<string>}
@@ -382,7 +383,7 @@ const payLightningInvoice = async function (
         {
             caller: 'payLightningInvoice', 
             mintUrl, 
-            message: e.message
+            message: isObj(e.message) ? JSON.stringify(e.message) : e.message
         }
     )
   }

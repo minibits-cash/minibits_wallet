@@ -227,8 +227,7 @@ const checkPendingReceived = async function () {
                 let sentFromPicture: string | undefined = undefined          
 
                 if(sentFrom) {
-                    const sentFromName = NostrClient.getNameFromNip05(sentFrom as string)
-                                  
+                    const sentFromName = NostrClient.getNameFromNip05(sentFrom as string)                                  
                     
                     if(sentFrom.includes(MINIBITS_NIP05_DOMAIN)) {
                         sentFromPicture = MINIBITS_SERVER_API_HOST + '/profile/avatar/' + sentFromPubkey
@@ -835,14 +834,14 @@ const receive = async function (
 
         if (errorToken && errorToken.token.length > 0) {
             amountWithErrors += CashuUtils.getTokenAmounts(errorToken as Token).totalAmount
-            log.warn('[receive]', 'receiveToken amountWithErrors', amountWithErrors, errors)
+            log.warn('[receive]', 'amountWithErrors', amountWithErrors, errors)
         }
 
         if (amountWithErrors === amountToReceive) {
             throw new AppError(
-                Err.VALIDATION_ERROR,
-                'Ecash could not be redeemed.',
-                {caller: 'receive', errors}
+                Err.MINT_ERROR,
+                'Mint returned error on request to swap the received ecash.',
+                {caller: 'receive', message: errors ? errors[0].message : undefined}
             )
         }
 
@@ -866,10 +865,6 @@ const receive = async function (
 
         if (receivedAmount !== receivedAmountCheck) {
             log.error('[receive]', `Received per proofStore: ${receivedAmount} Received check using tokenAmounts: ${receivedAmountCheck}`, updatedToken)
-            
-            if(receivedAmount === 0 && addedProofsCount > 0) {
-                receivedAmount = receivedAmountCheck
-            }
         } 
         // temp fix end       
 
