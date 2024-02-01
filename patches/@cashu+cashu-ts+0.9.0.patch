@@ -274,7 +274,7 @@ index f6bc3b1..3b1ca62 100644
  }
  
 diff --git a/node_modules/@cashu/cashu-ts/src/CashuWallet.ts b/node_modules/@cashu/cashu-ts/src/CashuWallet.ts
-index 8953ab8..a3a6438 100644
+index 8953ab8..5a3c975 100644
 --- a/node_modules/@cashu/cashu-ts/src/CashuWallet.ts
 +++ b/node_modules/@cashu/cashu-ts/src/CashuWallet.ts
 @@ -1,7 +1,7 @@
@@ -343,7 +343,7 @@ index 8953ab8..a3a6438 100644
 +                    error,
  					newKeys: newKeysFromReceive
  				} = await this.receiveTokenEntry(tokenEntry, preference, counter);
-+
++                
 +                if(error) {errors.push(error)}
 +
  				if (proofsWithError?.length) {
@@ -356,14 +356,14 @@ index 8953ab8..a3a6438 100644
 -			} catch (error) {
 -				console.error(error);
 -				tokenEntriesWithError.push(tokenEntry);
-+			} catch (error: any) {
++			} catch (error: any) {                
 +				errors.push(error)				
  			}
  		}
  		return {
  			token: { token: tokenEntries },
  			tokensWithErrors: tokenEntriesWithError.length ? { token: tokenEntriesWithError } : undefined,
-+            errors: errors || undefined,
++            errors,
  			newKeys
  		};
  	}
@@ -375,23 +375,25 @@ index 8953ab8..a3a6438 100644
  		let newKeys: MintKeys | undefined;
  		try {
  			const amount = tokenEntry.proofs.reduce((total, curr) => total + curr.amount, 0);
-@@ -241,6 +250,7 @@ class CashuWallet {
+@@ -241,6 +250,9 @@ class CashuWallet {
  				counter
  			);
  			const { promises, error } = await CashuMint.split(tokenEntry.mint, payload);
-+            if(error) {err = {name: 'Error', message: error}}
++            if(error) {
++                err = {name: 'MintError', message: String(error)}              
++            }
  			const newProofs = dhke.constructProofs(
  				promises,
  				blindedMessages.rs,
-@@ -252,13 +262,14 @@ class CashuWallet {
+@@ -252,13 +264,14 @@ class CashuWallet {
  				tokenEntry.mint === this.mint.mintUrl
  					? await this.changedKeys([...(promises || [])])
  					: undefined;
 -		} catch (error) {
 -			console.error(error);
 -			proofsWithError.push(...tokenEntry.proofs);
-+		} catch (error: any) {
-+			err = error
++		} catch (error: any) {            
++			err = {name: 'MintError', message: String(error)};
 + 			proofsWithError.push(...tokenEntry.proofs);
  		}
  		return {
@@ -401,7 +403,7 @@ index 8953ab8..a3a6438 100644
  			newKeys
  		};
  	}
-@@ -538,8 +549,8 @@ class CashuWallet {
+@@ -538,8 +551,8 @@ class CashuWallet {
  		const secrets: Array<Uint8Array> = [];
  		const rs: Array<bigint> = [];
  		for (let i = 0; i < amounts.length; i++) {
