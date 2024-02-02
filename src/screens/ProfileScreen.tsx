@@ -79,6 +79,12 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
     }
 
 
+    const gotoPrivacy = function() {
+        toggleUpdateModal()
+        navigation.navigate('SettingsNavigator', {screen: 'Privacy'})
+    }
+
+
     const gotoOwnKeys = function() {
         toggleUpdateModal()
         navigation.navigate('OwnKeys')
@@ -123,8 +129,9 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
     }
 
     
-    const resetProfile = async function() {
+    /* const resetProfile = async function() {
         setIsLoading(true)
+        toggleUpdateModal()
 
         try {
             // overwrite with new keys
@@ -150,7 +157,7 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
         } catch (e: any) {
             handleError(e)
         }
-    }
+    }*/
 
     const handleError = function (e: AppError): void {
         setIsLoading(false)      
@@ -174,7 +181,7 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                             <>
                             <ListItem 
                                 text='Create wallet address'
-                                subText='Your wallet address allows you to receive encrypted ecash over Nostr. At the same time it serves as your Lightning address, so that you can receive payments from any Lightning wallet or zaps on Nostr social network.'
+                                subText='Your minibits.cash wallet address allows you to receive encrypted ecash over Nostr. At the same time it serves as your Lightning address, so that you can receive payments from any Lightning wallet or zaps on Nostr social network.'
                             />
                             <View style={$buttonContainer}> 
                                 <Button
@@ -187,13 +194,23 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                             </>
                         ) : (
                             <>
-                                <ListItem
-                                    text='Your Minibits wallet address'
-                                    subText={`Share your wallet address to receive encrypted ecash over Nostr. At the same time it serves as your Lightning address, so that you can receive payments from any Lightning wallet or zaps on Nostr social network.`}
-                                    leftIcon='faCircleUser'
-                                    bottomSeparator={true}
-                                    style={{paddingRight: spacing.small}}
-                                />
+                                {walletProfileStore.isOwnProfile ? (
+                                    <ListItem
+                                        text='Your own wallet address'
+                                        subText={`You are using your own Nostr address to send and receive ecash. Please note, that such setup does not allow to receive Nostr zaps nor Lightning payments to this address.`}
+                                        leftIcon='faCircleUser'
+                                        bottomSeparator={true}
+                                        style={{paddingRight: spacing.small}}
+                                    />
+                                ) : (
+                                    <ListItem
+                                        text='Your Minibits wallet address'
+                                        subText={`Share your wallet address to receive encrypted ecash over Nostr. At the same time it serves as your Lightning address, so that you can receive payments from any Lightning wallet or zaps on Nostr social network.`}
+                                        leftIcon='faCircleUser'
+                                        bottomSeparator={true}
+                                        style={{paddingRight: spacing.small}}
+                                    />   
+                                )}
                                 <View style={$buttonContainer}>                            
                                     <Button
                                         preset='secondary'                                
@@ -226,7 +243,7 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                                 gotoWalletName={gotoWalletName}
                             />
                         )}
-                        {walletProfileStore.isOwnProfile ? (
+                        {walletProfileStore.isOwnProfile && (
                             <>
                             <ListItem
                                 text='Sync own profile'
@@ -237,18 +254,11 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                             />
                             <ListItem
                                 text='Reset own profile'
-                                subText='Stop using your own NOSTR address and re-create Minibits wallet profile with random NOSTR address.'
+                                subText='Stop using your own NOSTR address and re-create Minibits wallet profile.'
                                 leftIcon='faXmark'
-                                onPress={resetProfile}
+                                onPress={gotoPrivacy}
                             />
                             </>
-                        ) : (
-                            <ListItem
-                                text='Use own Nostr profile'
-                                subText='Use existing NOSTR address as your wallet address. You can then use Minibits to send and receive ecash using your public identity on NOSTR social network.'
-                                leftIcon='faKey'          
-                                onPress={gotoOwnKeys}
-                            />
                         )} 
                     </>
                 }
@@ -304,7 +314,7 @@ return (
             subTx='profileScreen.changeWalletaddressSubtext'
             leftIcon='faPencil'
             onPress={props.gotoWalletName}
-            bottomSeparator={true}            
+            // bottomSeparator={true}            
         />
     </>
 )

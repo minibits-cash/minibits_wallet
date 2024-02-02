@@ -215,7 +215,7 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
                 ContentComponent={
                     <>
                     {!ownProfile ? (
-                        <View style={$nip05Container}>                      
+                        <View style={$nip05Container}>                    
                             <ListItem
                                 LeftComponent={<View style={[$numIcon, {backgroundColor: iconNip05}]}><Text text='1'/></View>}
                                 text='Enter your NOSTR address'
@@ -335,13 +335,20 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
                 <Card
                     style={[$card, {marginTop: spacing.medium}]}
                     ContentComponent={
-                    <ListItem
-                        leftIcon='faCheckCircle'
-                        leftIconColor={colors.palette.success200}
-                        text='Profile change is ready'
-                        subText='Wallet needs to restart to apply this change.'                      
-                        style={{}}
-                    />
+                    <>
+                        <ListItem
+                            leftIcon='faTriangleExclamation'
+                            text='Consider before change'
+                            subText={'Using your own Nostr address will disable Lightning address features unique to minibits.cash address.'}                        
+                        />
+                        <ListItem
+                            leftIcon='faCheckCircle'
+                            leftIconColor={colors.palette.success200}
+                            text='Profile change is ready'
+                            subText='Wallet needs to restart to apply this change.'                      
+                            style={{}}
+                        />
+                    </>
                     }
                     />
                     <View style={$buttonContainer}>

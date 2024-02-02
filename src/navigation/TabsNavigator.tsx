@@ -173,7 +173,8 @@ export type ContactsStackParamList = {
     OwnName: {navigation: any}
     ContactDetail: {contact: Contact, relays: string[]}
     OwnKeys: undefined
-    WalletNavigator: {screen: string, params: any}    
+    WalletNavigator: {screen: string, params: any}
+    SettingsNavigator: {screen: string}    
 }  
   
 export type ContactsStackScreenProps<T extends keyof ContactsStackParamList> = StackScreenProps<
@@ -219,7 +220,8 @@ export type SettingsStackParamList = {
   LocalRecovery: undefined
   Developer: undefined
   Relays: undefined
-  WalletNavigator: {screen: string}  
+  WalletNavigator: {screen: string} 
+  ContactsNavigator: {screen: string}  
 }
 
 export type SettingsStackScreenProps<T extends keyof SettingsStackParamList> = StackScreenProps<

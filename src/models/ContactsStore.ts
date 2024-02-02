@@ -108,6 +108,7 @@ import {
                 }
                 
                 const ts2: number = Math.floor(Date.now() / 1000)
+                self.lastPendingReceivedCheck = ts2
                 log.trace('[setLastPendingReceivedCheck]', {ts2})                
             },
             addReceivedEventId(id: string) {            

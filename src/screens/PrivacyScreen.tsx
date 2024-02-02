@@ -19,8 +19,10 @@ import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import AppError from '../utils/AppError'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
-import { TorDaemon } from '../services'
+import { KeyChain, MinibitsClient, TorDaemon } from '../services'
 import { log } from '../services/logService'
+import { OwnKeysScreen } from './OwnKeysScreen'
+import { MINIBITS_NIP05_DOMAIN } from '@env'
 
 enum TorStatus {
     NOTINIT = 'NOTINIT',
@@ -35,7 +37,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
         onLeftPress: () => navigation.goBack(),
     })
 
-    const {userSettingsStore} = useStores()
+    const {userSettingsStore, walletProfileStore} = useStores()
     const [info, setInfo] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const [isTorDaemonOn, setIsTorDaemonOn] = useState<boolean>(
@@ -159,6 +161,41 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
         }
     }
 
+    const gotoOwnKeys = function() {        
+        navigation.navigate('ContactsNavigator', {screen: 'OwnKeys'})
+    }
+
+    const resetProfile = async function() {
+        setIsLoading(true)        
+
+        try {
+            // overwrite with new keys
+            const keyPair = KeyChain.generateNostrKeyPair()
+            await KeyChain.saveNostrKeyPair(keyPair)
+
+            // set name to defualt walletId
+            const name = userSettingsStore.walletId as string
+
+            // get random image
+            const pictures = await MinibitsClient.getRandomPictures() // TODO PERF
+
+            // update wallet profile
+            await walletProfileStore.updateNip05(
+                keyPair.publicKey,
+                name + MINIBITS_NIP05_DOMAIN,
+                name,
+                pictures[0],
+                false // isOwnProfile
+            )
+
+
+            navigation.navigate('ContactsNavigator', {screen: 'Profile'})
+            setIsLoading(false)
+        } catch (e: any) {
+            handleError(e)
+        }
+    }
+
     const handleError = function (e: AppError): void {
         setIsLoading(false)
         setError(e)
@@ -168,7 +205,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
     const iconColor = useThemeColor('textDim')
 
     return (
-      <Screen style={$screen}>
+      <Screen style={$screen} preset='auto'>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text preset="heading" text="Privacy" style={{color: 'white'}} />
         </View>
@@ -242,6 +279,44 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
                             }
                         /> 
                     )}                        
+                </>
+                }
+            />
+            <Card
+                style={[$card, {marginTop: spacing.medium}]}
+                ContentComponent={
+                <>                    
+                    <ListItem
+                        text="Use own Nostr profile"
+                        subText={walletProfileStore.isOwnProfile ? walletProfileStore.nip05 : "Import your own NOSTR address and keys. Your wallet stops communicate with minibits.cash Nostr and Lnurl address servers. However this will disable Lightning address features to receive zaps and payments. Only for hard core ecash-ers!"}
+                        leftIcon={'faShareNodes'}
+                        leftIconColor={
+                            walletProfileStore.isOwnProfile
+                            ? colors.palette.iconViolet200
+                            : iconColor as string
+                        }
+                        leftIconInverse={true}
+                        RightComponent={                                   
+                            <>
+                            {walletProfileStore.isOwnProfile ? (
+                                <Button
+                                    style={{maxHeight: 10, marginTop: spacing.medium}}
+                                    preset="secondary"
+                                    text="Reset"
+                                    onPress={resetProfile}
+                                />
+                            ) : (
+                                <Button
+                                    style={{maxHeight: 10, marginTop: spacing.medium}}
+                                    preset="secondary"
+                                    text="Import"
+                                    onPress={gotoOwnKeys}
+                                />
+                            )}
+                            </>                        
+                        }
+                        style={$item}
+                    />
                 </>
                 }
             />
