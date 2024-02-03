@@ -36,7 +36,7 @@ export const TransactionListItem = observer(function (props: {tx: Transaction, i
         case TransactionType.TRANSFER:
           return tx.sentTo ? `Paid to ${tx.sentTo}` : 'You paid'
         default:
-          return 'Uknown transaction'
+          return 'Unknown transaction'
       }
     }
   
