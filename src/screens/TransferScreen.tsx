@@ -246,7 +246,7 @@ useEffect(() => {
             
             if (parseInt(amountToTransfer) + fee > mintBalanceToTransferFrom.balance) {
                 setInfo(
-                    'There is not enough funds to cover expected lightning network fee. Try to select another mint with higher balance.',
+                    'There are not enough funds to cover expected lightning network fee. Try to select another mint with higher balance.',
                 )
             }
 
@@ -354,7 +354,7 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
         let availableBalances = proofsStore.getMintBalancesWithEnoughBalance(amount)
 
         if (availableBalances.length === 0) {
-            infoMessage('There is not enough funds to send this amount')
+            infoMessage('There are not enough funds to send this amount')
             return
         }
 
