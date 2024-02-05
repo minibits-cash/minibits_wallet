@@ -552,7 +552,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                         />
                     </View>
                 }
-                text='Important update is available'
+                text='Please install critical update'
                 subText='This updates fixes critical bug when processing high number of parallel transactions.'
                 onPress={gotoUpdate}
             />
