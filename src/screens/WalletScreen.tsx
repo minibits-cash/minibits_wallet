@@ -552,7 +552,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                         />
                     </View>
                 }
-                text='Please install important update!'
+                text='Important update!'
                 subText='This update fixes critical bug when processing high number of parallel transactions.'
                 onPress={gotoUpdate}
             />
@@ -783,4 +783,4 @@ const $bottomModal: ViewStyle = {
     alignItems: 'center',  
     paddingVertical: spacing.large,
     paddingHorizontal: spacing.small,  
-  }
+}

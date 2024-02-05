@@ -716,7 +716,7 @@ const lockAndSetInFlight = async function (
     
     if(currentCounter && currentCounter.inFlightTid && currentCounter.inFlightTid !== transactionId) {
         
-        log.debug('[lockAndSetInFlight] Waiting for a lock to release', {
+        log.warn('[lockAndSetInFlight] Waiting for a lock to release', {
             lockedBy: currentCounter.inFlightTid, 
             waiting: transactionId
         })
