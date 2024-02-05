@@ -552,8 +552,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                         />
                     </View>
                 }
-                text='Important update!'
-                subText='This update fixes critical bug when processing high number of parallel transactions.'
+                text='New Minibits version is available'
+                subText='Updates provide new functionalities and important bug fixes. View details in the Update manager.'
                 onPress={gotoUpdate}
             />
           }
