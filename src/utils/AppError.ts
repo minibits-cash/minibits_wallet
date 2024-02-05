@@ -17,6 +17,7 @@ export enum Err {
   KEYCHAIN_ERROR = 'KEYCHAIN_ERROR',
   POLLING_ERROR = 'POLLING_ERROR',
   SERVER_ERROR = 'SERVER_ERROR',
+  LOCKED_ERROR = 'LOCKED_ERROR',
 }
 
 export interface IAppError {

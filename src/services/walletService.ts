@@ -15,7 +15,7 @@ import {rootStoreInstance} from '../models'
 import {CashuUtils} from './cashu/cashuUtils'
 import {LightningUtils} from './lightning/lightningUtils'
 import AppError, {Err} from '../utils/AppError'
-import {MintBalance, MintStatus} from '../models/Mint'
+import {MintBalance, MintProofsCounter, MintStatus} from '../models/Mint'
 import {Token} from '../models/Token'
 import {
   type TokenEntry as CashuTokenEntry,
@@ -30,6 +30,7 @@ import { PaymentRequest, PaymentRequestStatus, PaymentRequestType } from '../mod
 import { IncomingDataType, IncomingParser } from './incomingParser'
 import { Contact } from '../models/Contact'
 import { getDefaultAmountPreference, isObj } from '@cashu/cashu-ts/src/utils'
+import { delay } from '../utils/utils'
 
 
 type WalletService = {
@@ -686,7 +687,7 @@ const _checkInFlightByMint = async function (mint: Mint, seed: Uint8Array) {
             JSON.stringify(transactionDataUpdate),
         )        
 
-        mint.resetInFlight?.()
+        mint.resetInFlight?.(proofsCounter.inFlightTid as number)
 
         log.debug('[_checkInFlightByMint]', `Completed`, {txRecoveryResult})
 
@@ -695,11 +696,55 @@ const _checkInFlightByMint = async function (mint: Mint, seed: Uint8Array) {
     } catch (e: any) {
         // silent
         log.error('[_checkInFlightByMint]', e.name, {message: e.message, mintUrl})
+        // make sure we release the lock
+        mint.resetInFlight?.(proofsCounter.inFlightTid as number)
         return {
             mintUrl,                
             error: {name: e.name, message: e.message}
         }
     }
+}
+
+
+const lockAndSetInFlight = async function (
+    mint: Mint, 
+    countOfInFlightProofs: number, 
+    transactionId: number,
+    retryCount: number = 0
+): Promise<void> {
+    const currentCounter = mint.getOrCreateProofsCounter?.()    
+    
+    if(currentCounter && currentCounter.inFlightTid && currentCounter.inFlightTid !== transactionId) {
+        
+        log.debug('[lockAndSetInFlight] Waiting for a lock to release', {
+            lockedBy: currentCounter.inFlightTid, 
+            waiting: transactionId
+        })
+
+        await delay(500)
+
+        if (retryCount < 20) {
+            // retry to acquire lock, increment the count of retries up to 10 seconds
+            return lockAndSetInFlight(
+                mint,
+                countOfInFlightProofs,
+                transactionId,
+                retryCount + 1
+            )
+        } else {            
+            log.error('[lockAndSetInFlight] Hard reset the lock after max retries to release were reached', {
+                lockedBy: currentCounter.inFlightTid, 
+                waiting: transactionId
+            })         
+            mint.resetInFlight?.(transactionId as number)
+        }
+    }
+
+    mint.setInFlight?.(
+        currentCounter?.counter as number, 
+        currentCounter?.counter as number + countOfInFlightProofs,
+        transactionId
+    )
 }
 
 
@@ -780,40 +825,34 @@ const receive = async function (
             throw new AppError(Err.VALIDATION_ERROR, 'Missing mint', {mintToReceive})
         }
 
-        const proofsCounter = mintInstance.getOrCreateProofsCounter()
-        log.trace('[receive]', 'initial proofsCounter', proofsCounter)
-        
-        mintInstance.setInFlightTid(transactionId as number)
-        mintInstance.setProofsInFLightFrom(proofsCounter.counter)
-
         // Increase the proofs counter before the mint call so that in case the response
         // is not received our recovery index counts for sigs the mint has already issued (prevents duplicate b_b bug)
         const amountPreferences = getDefaultAmountPreference(amountToReceive)        
         const countOfInFlightProofs = CashuUtils.getAmountPreferencesCount(amountPreferences)
-
-        log.trace('[receive]', 'amountPreferences', amountPreferences)
-        log.trace('[receive]', 'countOfInFlightProofs', countOfInFlightProofs)        
         
-        mintInstance.setProofsInFlightTo(proofsCounter.counter + countOfInFlightProofs)        
-        mintInstance.increaseProofsCounter(countOfInFlightProofs)
+        log.trace('[receive]', 'amountPreferences', {amountPreferences, transactionId})
+        log.trace('[receive]', 'countOfInFlightProofs', {countOfInFlightProofs, transactionId})  
         
-        log.trace('[receive]', 'inFlight proofsCounter', proofsCounter)
-
-        // Now we ask all mints to get fresh outputs for their tokenEntries, and create from them new proofs
-        // 0.8.0-rc3 implements multimints receive however CashuMint constructor still expects single mintUrl
+        // acquire lock and set inflight value + temp increase the counter
+        await lockAndSetInFlight(mintInstance, countOfInFlightProofs, transactionId)
+        
+        // get locked counter values
+        const lockedProofsCounter = mintInstance.getOrCreateProofsCounter?.()
+        
+        // Now we ask all mints to get fresh outputs for their tokenEntries, and create from them new proofs        
         const {updatedToken, errorToken, newKeys, errors} = await MintClient.receiveFromMint(
             mintToReceive,
             encodedToken as string,
             amountPreferences,
-            proofsCounter.inFlightFrom as number // MUST be counter value before increase
-        )
+            lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
+        )        
 
-        if(newKeys) {_updateMintKeys(mintToReceive, newKeys)}
-
-        // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs
-        // As well null inFlight indexes
-        mintInstance.decreaseProofsCounter(countOfInFlightProofs)
-        mintInstance.resetInFlight()
+        // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs        
+        mintInstance.decreaseProofsCounter(countOfInFlightProofs)        
+        
+        if(newKeys) {
+            _updateMintKeys(mintToReceive, newKeys)            
+        }
 
         // Update transaction status
         transactionData.push({
@@ -838,6 +877,7 @@ const receive = async function (
         }
 
         if (amountWithErrors === amountToReceive) {
+            mintInstance.resetInFlight(transactionId)
             throw new AppError(
                 Err.MINT_ERROR,
                 'Mint returned error on request to swap the received ecash.',
@@ -860,13 +900,15 @@ const receive = async function (
             addedProofsCount += addedProofs.length         
         }
 
-        // temporary dirty fix of zero value tx until I figure out how it happens
+        // release lock
+        mintInstance.resetInFlight(transactionId)
+
+        // temporary check of zero value tx until I figure out how it happens
         const receivedAmountCheck = CashuUtils.getTokenAmounts(updatedToken as Token).totalAmount
 
         if (receivedAmount !== receivedAmountCheck) {
             log.error('[receive]', `Received per proofStore: ${receivedAmount} Received check using tokenAmounts: ${receivedAmountCheck}`, updatedToken)
-        } 
-        // temp fix end       
+        }        
 
         // Update tx amount if full amount was not received
         if (receivedAmount !== amountToReceive) {      
@@ -1104,49 +1146,43 @@ const receiveOfflineComplete = async function (
             throw new AppError(Err.VALIDATION_ERROR, 'Missing mint', {mintToReceive})
         }
 
-        const proofsCounter = mintInstance.getOrCreateProofsCounter()
-
-        log.trace('[receiveOfflineComplete]', 'initial proofsCounter', proofsCounter)
-        
-        mintInstance.setInFlightTid(transaction.id as number)
-        mintInstance.setProofsInFLightFrom(proofsCounter.counter)
-
         // Increase the proofs counter before the mint call so that in case the response
         // is not received our recovery index counts for sigs the mint has already issued (prevents duplicate b_b bug)
         const amountPreferences = getDefaultAmountPreference(transaction.amount)        
         const countOfInFlightProofs = CashuUtils.getAmountPreferencesCount(amountPreferences)
-
-        log.trace('[receiveOfflineComplete]', 'amountPreferences', amountPreferences)
-        log.trace('[receiveOfflineComplete]', 'countOfInFlightProofs', countOfInFlightProofs)        
         
-        mintInstance.setProofsInFlightTo(proofsCounter.counter + countOfInFlightProofs)        
-        mintInstance.increaseProofsCounter(countOfInFlightProofs)
+        log.trace('[receive]', 'amountPreferences', amountPreferences)
+        log.trace('[receive]', 'countOfInFlightProofs', countOfInFlightProofs)  
         
-        log.trace('[receiveOfflineComplete]', 'inFlight proofsCounter', proofsCounter)
-
+        // acquire lock and set inflight value + temp increase the counter
+        await lockAndSetInFlight(mintInstance, countOfInFlightProofs, transaction.id as number)
+        
+        // get locked counter values
+        const lockedProofsCounter = mintInstance.getOrCreateProofsCounter?.()
+        
         // Now we ask all mints to get fresh outputs for their tokenEntries, and create from them new proofs
         // 0.8.0-rc3 implements multimints receive however CashuMint constructor still expects single mintUrl
         const {updatedToken, errorToken, newKeys, errors} = await MintClient.receiveFromMint(
             tokenMints[0],
             encodedToken as string,
             amountPreferences,
-            proofsCounter.inFlightFrom as number // MUST be counter value before increase
+            lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
         )
 
         if (newKeys) {_updateMintKeys(mintInstance.mintUrl, newKeys)}
-        // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs
-        // As well null inFlight indexes
-        mintInstance.decreaseProofsCounter(countOfInFlightProofs)
-        mintInstance.resetInFlight()
 
+        // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs        
+        mintInstance.decreaseProofsCounter(countOfInFlightProofs)
+        
         let amountWithErrors = 0
 
-        if (errorToken && errorToken.token.length > 0) {
+        if (errorToken && errorToken.token.length > 0) {            
             amountWithErrors += CashuUtils.getTokenAmounts(errorToken as Token).totalAmount
             log.warn('[receiveOfflineComplete]', 'receiveToken amountWithErrors', amountWithErrors)
         }
 
         if (amountWithErrors === transaction.amount) {
+            mintInstance.resetInFlight(transaction.id as number)
             throw new AppError(
                 Err.VALIDATION_ERROR,
                 'Ecash could not be redeemed.',
@@ -1166,7 +1202,10 @@ const receiveOfflineComplete = async function (
             
             receivedAmount += addedAmount            
         }
-                
+        
+        // release lock
+        mintInstance.resetInFlight(transaction.id as number)
+
         // const receivedAmount = CashuUtils.getTokenAmounts(updatedToken as Token).totalAmount
         log.debug('[receiveOfflineComplete]', 'Received amount', receivedAmount)
 
@@ -1313,29 +1352,26 @@ const _sendFromMint = async function (
         )
 
         const proofsToSendFromAmount = CashuUtils.getProofsAmount(proofsToSendFrom)
-        const proofsCounter = mintInstance.getOrCreateProofsCounter()        
-        
-        mintInstance.setInFlightTid(transactionId)
-        mintInstance.setProofsInFLightFrom(proofsCounter.counter)
 
-        log.debug('[_sendFromMint]', 'proofsToSendFrom count', {proofsToSendFromCount: proofsToSendFrom.length})
+
 
         // Increase the proofs counter before the mint call so that in case the response
         // is not received our recovery index counts for sigs the mint has already issued (prevents duplicate b_b bug)
-        const amountPreferences = getDefaultAmountPreference(amountToSend)
+        const amountPreferences = getDefaultAmountPreference(amountToSend)    
         const returnedAmountPreferences = getDefaultAmountPreference(proofsToSendFromAmount - amountToSend)   
 
         const countOfProofsToSend = CashuUtils.getAmountPreferencesCount(amountPreferences)
         const countOfReturnedProofs = CashuUtils.getAmountPreferencesCount(returnedAmountPreferences)
-        const countOfInFlightProofs = countOfProofsToSend + countOfReturnedProofs
-
+        const countOfInFlightProofs = countOfProofsToSend + countOfReturnedProofs        
+        
         log.trace('[_sendFromMint]', 'amountPreferences', {amountPreferences, returnedAmountPreferences})
-        log.trace('[_sendFromMint]', 'countOfInFlightProofs', countOfInFlightProofs)        
+        log.trace('[_sendFromMint]', 'countOfInFlightProofs', countOfInFlightProofs)    
         
-        mintInstance.setProofsInFlightTo(proofsCounter.counter + countOfInFlightProofs)        
-        mintInstance.increaseProofsCounter(countOfInFlightProofs)
+        // acquire lock and set inflight value + temp increase the counter
+        await lockAndSetInFlight(mintInstance, countOfInFlightProofs, transactionId)
         
-        log.trace('[_sendFromMint]', 'inFlight proofsCounter', proofsCounter)
+        // get locked counter values
+        const lockedProofsCounter = mintInstance.getOrCreateProofsCounter?.()        
         
         // if split to required denominations was necessary, this gets it done with the mint and we get the return
         const {returnedProofs, proofsToSend, newKeys} = await MintClient.sendFromMint(
@@ -1343,18 +1379,14 @@ const _sendFromMint = async function (
             amountToSend,
             proofsToSendFrom,
             amountPreferences,
-            proofsCounter.inFlightFrom as number // MUST be counter value before increase
-        )
+            lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
+        )        
         
-        // log.debug('[_sendFromMint]', 'returnedProofs', returnedProofs)
-        // log.debug('[_sendFromMint]', 'proofsToSend', proofsToSend)
-
         if (newKeys) {_updateMintKeys(mintUrl, newKeys)}
 
         // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs
-        // As well null inFlight indexes
-        mintInstance.decreaseProofsCounter(countOfInFlightProofs)
-        mintInstance.resetInFlight()
+        // and then null inFlight indexes to release the lock
+        mintInstance.decreaseProofsCounter(countOfInFlightProofs)       
 
         // add proofs returned by the mint after the split
         if (returnedProofs.length > 0) {
@@ -1374,7 +1406,10 @@ const _sendFromMint = async function (
             mintUrl,
             transactionId,
             true       
-        ) 
+        )
+
+        // release lock
+        mintInstance.resetInFlight(transactionId)
 
         // Clean private properties to not to send them out. This returns plain js array, not model objects.
         const cleanedProofsToSend = proofsToSend.map(proof => {

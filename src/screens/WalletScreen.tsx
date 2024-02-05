@@ -152,21 +152,26 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             log.trace('[getInitialData]', 'walletProfile', walletProfileStore)
         }
          
+        // auto-recover inflight proofs - do only on startup and before checkPendingReceived to prevent conflicts
+        // TODO add manual option to recovery settings
+        if(isInternetReachable) {
+            Wallet.checkInFlight().catch(e => false)
+        }        
 
         setTimeout(async () => {
             if(!isInternetReachable) {
                 return
             }
             // subscribe once to receive tokens or payment requests by NOSTR DMs
-            Wallet.checkPendingReceived().catch(e => false) 
-          
-        }, 200)
+            Wallet.checkPendingReceived().catch(e => false)            
+        }, 500)
 
         EventEmitter.on('receiveTokenCompleted', onReceiveTokenCompleted)
         EventEmitter.on('receivePaymentRequest', onReceivePaymentRequest)
         EventEmitter.on('topupCompleted', onReceiveTopupCompleted)
         Linking.addEventListener('url', handleDeeplink)       
         
+
         getInitialData()
 
         return () => {            
@@ -213,9 +218,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 }
 
                 Wallet.checkPendingSpent().catch(e => false) 
-                Wallet.checkPendingTopups().catch(e => false) 
-                Wallet.checkInFlight().catch(e => false)  
-      
+                Wallet.checkPendingTopups().catch(e => false)
             }, 100)
         }, [])
     )
@@ -246,8 +249,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                     }
                                     
                     Wallet.checkPendingSpent().catch(e => false) 
-                    Wallet.checkPendingTopups().catch(e => false)
-                    Wallet.checkInFlight().catch(e => false)   
+                    Wallet.checkPendingTopups().catch(e => false)                    
                 }, 100)            
             }
     
@@ -550,8 +552,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                         />
                     </View>
                 }
-                text='New Minibits version is available'
-                subText='Updates provide new functionalities and important bug fixes. View details in the Update manager.'
+                text='Important update is available'
+                subText='This updates fixes critical bug when processing high number of parallel transactions.'
                 onPress={gotoUpdate}
             />
           }
