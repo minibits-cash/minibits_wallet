@@ -103,8 +103,6 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         const checkForUpdate = async () => {            
             try {
                 const update = await codePush.checkForUpdate(deploymentKey, handleBinaryVersionMismatchCallback)
-                setIsNativeUpdateAvailable(true)
-                toggleUpdateModal()
                 
                 if (update && update.failedInstall !== true) {  // do not announce update that failed to install before
                     setUpdateDescription(update.description)
