@@ -777,7 +777,7 @@ const MintBalanceSelector = observer(function (props: {
   }
 
   return (
-    <>
+    <View style={{flex: 1}}>
       <Card
         style={$card}
         heading={'Select mint to top-up'}
@@ -805,19 +805,21 @@ const MintBalanceSelector = observer(function (props: {
           </>
         }
       />
-      <View style={[$buttonContainer, {marginTop: spacing.large}]}>
-        <Button
-          text="Create invoice"
-          onPress={props.onMintBalanceConfirm}
-          style={{marginRight: spacing.medium}}          
-        />
-        <Button
-          preset="secondary"
-          tx={'common.cancel'}
-          onPress={props.onCancel}
-        />
+      <View style={$bottomContainer}>
+        <View style={[$buttonContainer, {marginTop: spacing.large}]}>
+            <Button
+            text="Create invoice"
+            onPress={props.onMintBalanceConfirm}
+            style={{marginRight: spacing.medium}}          
+            />
+            <Button
+            preset="secondary"
+            tx={'common.cancel'}
+            onPress={props.onCancel}
+            />
+        </View>
       </View>
-    </>
+    </View>
   )
 })
 
@@ -1291,7 +1293,7 @@ const $profileIcon: ImageStyle = {
 }
 
 const $bottomContainer: ViewStyle = {
-    position: 'absolute',
+    // position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,

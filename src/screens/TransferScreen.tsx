@@ -686,12 +686,12 @@ const MintBalanceSelector = observer(function (props: {
 }) {
 
     const onMintSelect = function(balance: MintBalance) {
-    log.trace('onMintBalanceSelect', balance.mint)
-    return props.onMintBalanceSelect(balance)
-  }
+        log.trace('onMintBalanceSelect', balance.mint)
+        return props.onMintBalanceSelect(balance)
+    }
 
   return (
-    <>
+    <View style={{flex: 1}}>
       <Card
         style={$card}
         heading={'Pay from'}
@@ -719,19 +719,21 @@ const MintBalanceSelector = observer(function (props: {
           </>
         }
       />
-      <View style={[$buttonContainer, {marginTop: spacing.large}]}>
-        <Button
-          text={'Pay now'}
-          onPress={props.onMintBalanceConfirm}
-          style={{marginRight: spacing.medium}}          
-        />
-        <Button
-          preset="secondary"
-          tx={'common.cancel'}
-          onPress={props.onCancel}
-        />
+      <View style={$bottomContainer}>
+        <View style={[$buttonContainer, {marginTop: spacing.large}]}>
+            <Button
+            text={'Pay now'}
+            onPress={props.onMintBalanceConfirm}
+            style={{marginRight: spacing.medium}}          
+            />
+            <Button
+            preset="secondary"
+            tx={'common.cancel'}
+            onPress={props.onCancel}
+            />
+        </View>
       </View>
-    </>
+    </View>
   )
 })
 
