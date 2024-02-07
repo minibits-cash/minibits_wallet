@@ -100,9 +100,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const [isNativeUpdateAvailable, setIsNativeUpdateAvailable] = useState<boolean>(false)
 
     useEffect(() => {
-        const checkForUpdate = async () => {
-            setIsNativeUpdateAvailable(true)
-            toggleUpdateModal()             
+        const checkForUpdate = async () => {            
             try {
                 const update = await codePush.checkForUpdate(deploymentKey, handleBinaryVersionMismatchCallback)
                 if (update && update.failedInstall !== true) {  // do not announce update that failed to install before
