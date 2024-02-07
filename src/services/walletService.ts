@@ -1940,9 +1940,9 @@ const topup = async function (
     // create draft transaction
     const transactionData: TransactionData[] = [
         {
-        status: TransactionStatus.DRAFT,
-        amountToTopup,
-        createdAt: new Date(),
+            status: TransactionStatus.DRAFT,
+            amountToTopup,
+            createdAt: new Date(),
         },
     ]
 
@@ -1961,7 +1961,7 @@ const topup = async function (
         }
         // store tx in db and in the model
         const storedTransaction: TransactionRecord = await transactionsStore.addTransaction(newTransaction)
-        transactionId = storedTransaction.id as number
+        transactionId = storedTransaction.id as number        
 
         const {encodedInvoice, paymentHash} = await MintClient.requestLightningInvoice(mintUrl, amountToTopup)
 
@@ -2107,7 +2107,7 @@ const checkPendingTopups = async function () {
                         const transactionDataUpdate = {
                             status: TransactionStatus.EXPIRED,
                             createdAt: new Date(),
-                        }
+                        }                        
     
                         transactionsStore.updateStatuses(
                             [transactionId as number],
@@ -2142,11 +2142,11 @@ const checkPendingTopups = async function () {
                 createdAt: new Date(),
             }
 
-            transactionsStore.updateStatus(
-                pr.transactionId as number,
+            transactionsStore.updateStatuses(
+                [pr.transactionId as number],
                 TransactionStatus.COMPLETED,
                 JSON.stringify(transactionDataUpdate),
-            )
+            ) 
 
             // Fire event that the TopupScreen can listen to
             EventEmitter.emit('topupCompleted', {...pr})

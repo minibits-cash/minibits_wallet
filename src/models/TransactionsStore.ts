@@ -16,6 +16,7 @@ import {
 } from './Transaction'
 import {Database, MintClient} from '../services'
 import {log} from '../services/logService'
+import { min } from 'date-fns'
 
 export const maxTransactionsInModel = 10
 export const maxTransactionsByMint = 10
@@ -77,17 +78,23 @@ export const TransactionsStoreModel = types
             }
         },
         removeOldByMint: (mintUrl: string) => {
-            const numByMint = self.countByMint(mintUrl)
+            const numByMint = self.countByMint(mintUrl)            
             
             if (numByMint > maxTransactionsByMint) {
-                self.getByMint(mintUrl)
+                const transactionsToRemove = self.getByMint(mintUrl)
                 .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-                .splice(maxTransactionsByMint)
+                .slice(maxTransactionsByMint)
+                
+                transactionsToRemove.map((t) => {                    
+                    detach(t)                                       
+                }) 
 
-                log.debug('[removeOldByMint]', `${
-                    numByMint - maxTransactionsByMint
-                    } transaction(s) removed from TransactionsStore`,
-                )
+                self.transactions.replace(self.transactions.filter(t => !transactionsToRemove.some(removed => removed.id === t.id)))
+
+                const txByMintAfterDelete = self.countByMint(mintUrl)
+                const txTotalAfterDelete = self.count
+
+                log.trace('[removeOldByMint]', {txByMintAfterDelete, txTotalAfterDelete})
             }
         }        
     }))

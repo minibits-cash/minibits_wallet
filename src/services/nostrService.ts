@@ -3,11 +3,14 @@ import {
     getEventHash,
     getSignature,
     SimplePool,
-    Filter as NostrFilter,    
-    Event as NostrEvent,
-    validateEvent,
-    UnsignedEvent as NostrUnsignedEvent,
+    validateEvent,    
     utils
+} from 'nostr-tools'
+import type {
+    Event as NostrEvent, 
+    Filter as NostrFilter, 
+    Kind as NostrKind,
+    UnsignedEvent as NostrUnsignedEvent,
 } from 'nostr-tools'
 import QuickCrypto from 'react-native-quick-crypto'
 import {secp256k1} from '@noble/curves/secp256k1'
@@ -21,11 +24,11 @@ import { MinibitsClient } from './minibitsService'
 import { rootStoreInstance } from '../models'
 
 export {     
-    Event as NostrEvent, 
-    Filter as NostrFilter, 
-    Kind as NostrKind,  
-    UnsignedEvent as NostrUnsignedEvent,   
-} from 'nostr-tools'
+    NostrEvent, 
+    NostrFilter, 
+    NostrKind,  
+    NostrUnsignedEvent,   
+}
 
 
 export type NostrProfile = {

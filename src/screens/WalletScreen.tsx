@@ -147,11 +147,11 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 return // deeplinks have priority over clipboard
             }
 
-            const clipboard = await Clipboard.getString()
+            /* const clipboard = await Clipboard.getString()
 
             if(clipboard) {
                 handleClipboard(clipboard)
-            }
+            } */ // not used outside dev
 
             log.trace('[getInitialData]', 'walletProfile', walletProfileStore)
         }

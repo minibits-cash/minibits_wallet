@@ -439,7 +439,7 @@ const requestProofs = async function (
         newKeys
     }
   } catch (e: any) {
-    if(e.message.includes('Invoice not paid') === false) {
+    if(e.message.includes('quote not paid') === false) {
         log.warn('[requestProofs]', `${e.message}`)
     }
     

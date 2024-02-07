@@ -371,6 +371,21 @@ const updateUserSettings = function (settings: UserSettings): UserSettings {
 /*
  * Transactions
  */
+
+const getTransactionsCount = function () {
+    try {
+      const query = `
+        SELECT COUNT(*) FROM transactions
+      `  
+      const db = getInstance()
+      const {rows} = db.execute(query)
+        
+      return rows?.item(0)['COUNT(*)'] as number
+    } catch (e: any) {
+      throw new AppError(Err.DATABASE_ERROR, 'Transaction count error', e.message)
+    }
+}
+
 const getTransactionById = function (id: number) {
   try {
     const query = `
@@ -932,6 +947,7 @@ export const Database = {
   cleanAll,
   getUserSettings,
   updateUserSettings,
+  getTransactionsCount,
   getTransactionById,
   addTransactionAsync,
   updateStatusAsync,
