@@ -122,6 +122,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
         if (!selectedMint) {return}
 
         const proofsByMint = proofsStore.getByMint(selectedMint.mintUrl)
+        const pendingProofsByMint = proofsStore.getByMint(selectedMint.mintUrl, true)
         let message: string = ''
 
         if (proofsByMint && proofsByMint.length > 0) {
@@ -149,6 +150,9 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                     mintsStore.removeMint(selectedMint as Mint)
                     if (proofsByMint && proofsByMint.length > 0) {
                         proofsStore.removeProofs(proofsByMint)           
+                    }
+                    if (pendingProofsByMint && pendingProofsByMint.length > 0) {
+                        proofsStore.removeProofs(pendingProofsByMint, true)           
                     }
                     setInfo(translate('mintsScreen.mintRemoved'))
                 } catch (e: any) {
