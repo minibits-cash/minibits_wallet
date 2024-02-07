@@ -122,6 +122,10 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
         Linking.openURL(url)
     }
 
+    const gotoGithub = () => {       
+        Linking.openURL('https://github.com/minibits-cash/minibits_wallet/releases')
+    }
+
 
     const handleError = function (e: AppError): void {
         setIsLoading(false)
@@ -198,11 +202,19 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
                 />
                 )}
                 {isNativeUpdateAvailable && (
+                    <View style={$buttonContainer}>
                     <Button
                         onPress={gotoPlayStore}
                         tx='updateScreen.gotoPlayStore'
-                        style={{alignSelf: 'center', marginTop: spacing.medium}}
+                        style={{marginTop: spacing.medium, marginRight: spacing.small}}
                     />
+                    <Button
+                        onPress={gotoGithub}
+                        text='APK on Github'
+                        preset='secondary'
+                        style={{marginTop: spacing.medium}}
+                    />
+                    </View>
                 )}
              </>   
             }
@@ -221,6 +233,12 @@ const $headerContainer: TextStyle = {
   alignItems: 'center',
   padding: spacing.medium,
   height: spacing.screenHeight * 0.18,
+}
+
+const $buttonContainer: ViewStyle = {
+    flexDirection: 'row',
+    alignSelf: 'center',
+    marginTop: spacing.medium,
 }
 
 const $contentContainer: TextStyle = {  

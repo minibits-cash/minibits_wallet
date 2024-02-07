@@ -100,19 +100,22 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const [isNativeUpdateAvailable, setIsNativeUpdateAvailable] = useState<boolean>(false)
 
     useEffect(() => {
-        const checkForUpdate = async () => {            
+        const checkForUpdate = async () => {
+            setIsNativeUpdateAvailable(true)
+            toggleUpdateModal()             
             try {
                 const update = await codePush.checkForUpdate(deploymentKey, handleBinaryVersionMismatchCallback)
                 if (update && update.failedInstall !== true) {  // do not announce update that failed to install before
                     setUpdateDescription(update.description)
                     setUpdateSize(`${round(update.packageSize *  0.000001, 2)}MB`)                  
-                    setIsUpdateAvailable(true)
+                    setIsNativeUpdateAvailable(true)
                     toggleUpdateModal()
                     log.info('OTA Update available', update, 'checkForUpdate')
-                }                
+                }             
             } catch (e: any) {                
                 return false // silent
-            }            
+            }           
+
         } 
         
         setTimeout(() => {
