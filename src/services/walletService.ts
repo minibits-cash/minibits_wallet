@@ -288,7 +288,7 @@ const checkPendingReceived = async function () {
                         result = {
                             status: TransactionStatus.COMPLETED,                        
                             title: `⚡${receivedAmount} sats received!`,
-                            message: `Ecash from <b>${sentFrom || 'uknown payer'}</b> is now in your wallet.`,
+                            message: `Ecash from <b>${sentFrom || 'unknown payer'}</b> is now in your wallet.`,
                             memo,
                             picture,
                             token: CashuUtils.decodeToken(incoming.encoded)
