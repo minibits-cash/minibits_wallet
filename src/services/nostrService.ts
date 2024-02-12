@@ -73,21 +73,18 @@ const getMinibitsRelays = function () {
     return _minibitsRelays    
 }
 
-const reconnectToRelays = async function () {
-    // let relaysToConnect = relaysStore.allUrls
-
+const reconnectToRelays = async function () {    
     const pool = getRelayPool()    
     const relaysConnections = pool._conn
-    
-    log.trace('[reconnectToRelays]', {relaysConnections})
 
     if (relaysConnections) {
         for (const url in relaysConnections) {
             if (relaysConnections.hasOwnProperty(url)) {
-                const relay = relaysConnections[url]                
+                const relay = relaysConnections[url]
     
-                log.trace('[reconnectToRelays]', 'Reconnecting', {url})
-                await relay.connect()
+                if(relaysStore.findByUrl(url)?.status === WebSocket.CLOSED) {                    
+                    await relay.connect()                    
+                }          
             }            
         }
     }

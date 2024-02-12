@@ -39,7 +39,7 @@ import EventEmitter from '../utils/eventEmitter'
 import {WalletStackScreenProps} from '../navigation'
 import {Mint, MintBalance, MintStatus} from '../models/Mint'
 import {MintsByHostname} from '../models/MintsStore'
-import {log} from '../services'
+import {log, NostrClient} from '../services'
 import {Env} from '../utils/envtypes'
 import {Transaction, TransactionStatus} from '../models/Transaction'
 import {TransactionListItem} from './Transactions/TransactionListItem'
@@ -163,7 +163,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             if(!isInternetReachable) {
                 return
             }
-            // subscribe once to receive tokens or payment requests by NOSTR DMs
+            // Create websocket subscriptions to receive tokens or payment requests by NOSTR DMs
             Wallet.checkPendingReceived().catch(e => false)            
         }, 500)
 
@@ -220,6 +220,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
                 Wallet.checkPendingSpent().catch(e => false) 
                 Wallet.checkPendingTopups().catch(e => false)
+                NostrClient.reconnectToRelays().catch(e => false)
             }, 100)
         }, [])
     )
@@ -250,7 +251,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                     }
                                     
                     Wallet.checkPendingSpent().catch(e => false) 
-                    Wallet.checkPendingTopups().catch(e => false)                    
+                    Wallet.checkPendingTopups().catch(e => false)
+                    NostrClient.reconnectToRelays().catch(e => false)                   
                 }, 100)            
             }
     
