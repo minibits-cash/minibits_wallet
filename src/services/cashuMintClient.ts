@@ -11,10 +11,14 @@ import { KeyChain, TorDaemon } from '../services'
 import {CashuUtils} from './cashu/cashuUtils'
 import AppError, {Err} from '../utils/AppError'
 import {log} from './logService'
+import {
+    type Token as CashuToken,
+} from '@cashu/cashu-ts'
 import {Token} from '../models/Token'
 import {Proof} from '../models/Proof'
 import { deriveSeedFromMnemonic } from '@cashu/cashu-ts'
 import { isObj } from '@cashu/cashu-ts/src/utils'
+import { UserCredentials } from 'react-native-keychain'
 
 export type MintKeys = {[k: number]: string}
 export type MintKeySets = {keysets: Array<string>}
@@ -210,8 +214,8 @@ const receiveFromMint = async function (
     log.trace('[receiveFromMint] errors', errors)
 
     return {
-      updatedToken: token as Token,
-      errorToken: tokensWithErrors as Token,
+      updatedToken: token as CashuToken | undefined,
+      errorToken: tokensWithErrors as CashuToken | undefined,
       newKeys,
       errors
     }
@@ -276,9 +280,9 @@ const sendFromMint = async function (
   } catch (e: any) {
     throw new AppError(
         Err.MINT_ERROR, 
-        `The mint could not return signatures necessary for this transaction: ${e.message}`, 
+        `The mint could not return signatures necessary for this transaction`, 
         {
-            caller: 'sendFromMint', 
+            caller: 'MintClient.sendFromMint', 
             mintUrl,
             proofsToSendFrom, 
             message: e.message

@@ -18,8 +18,9 @@ import AppError, {Err} from '../utils/AppError'
 import {MintBalance, MintProofsCounter, MintStatus} from '../models/Mint'
 import {Token} from '../models/Token'
 import {
-  type TokenEntry as CashuTokenEntry,
-  type Proof as CashuProof,
+    type Token as CashuToken,
+    type TokenEntry as CashuTokenEntry,
+    type Proof as CashuProof,
 } from '@cashu/cashu-ts'
 import {Mint} from '../models/Mint'
 import {poller, stopPolling} from '../utils/poller'
@@ -639,6 +640,7 @@ const _checkInFlightByMint = async function (mint: Mint, seed: Uint8Array) {
 
     try {
         log.info('[_checkInFlightByMint]', `Restoring from ${mint.hostname}...`)
+        log.debug('[_checkInFlightByMint]', proofsCounter)        
                 
         const { proofs, newKeys } = await MintClient.restore(
             mint.mintUrl, 
@@ -647,31 +649,60 @@ const _checkInFlightByMint = async function (mint: Mint, seed: Uint8Array) {
             seed as Uint8Array
         )
 
-        const proofsAmount = CashuUtils.getProofsAmount(proofs as Proof[])
-        log.debug('[_checkInFlightByMint]', `Restored proofs`, {count: proofs.length, proofsAmount})
+        if(newKeys) {_updateMintKeys(mint.mintUrl as string, newKeys)}
 
         if (proofs.length === 0) {
+            mint.resetInFlight?.(proofsCounter.inFlightTid as number)
+            return
+        }        
+
+        const {spent, pending} = await MintClient.getSpentOrPendingProofsFromMint(
+            mint.mintUrl,
+            proofs as Proof[]
+        )
+
+        const spentCount = spent.length        
+        const pendingCount = pending.length
+        
+        const spentAmount = CashuUtils.getProofsAmount(spent as Proof[])
+        const pendingAmount = CashuUtils.getProofsAmount(pending as Proof[])
+
+        const unspent = proofs.filter(proof => !spent.includes(proof))
+        const unspentCount = unspent.length
+        const unspentAmount = CashuUtils.getProofsAmount(unspent as Proof[])
+
+        log.debug('[_checkInFlightByMint]', `Restored proofs`, {
+            spentCount, 
+            spentAmount, 
+            pendingCount, 
+            pendingAmount,
+            unspentCount,
+            unspentAmount
+        })
+
+        if(unspent.length === 0) {
+            log.debug('[_checkInFlightByMint]', `No unspent proofs recovered.`)
+            mint.resetInFlight?.(proofsCounter.inFlightTid as number)
             return
         }
-
-        if(newKeys) {_updateMintKeys(mint.mintUrl as string, newKeys)}
          
         const { addedAmount, addedProofs } = _addCashuProofs(
-            proofs,
+            unspent,
             mint.mintUrl,
             proofsCounter.inFlightTid as number                
         )
-       
-        
-        // Clean any spent proofs from spendable wallet
-        const spentResult = await _checkSpentByMint(mintUrl, false) // recovery mode, pending false   
+
+        // release the lock
+        mint.resetInFlight?.(proofsCounter.inFlightTid as number)
 
         const txRecoveryResult  = {
             mintUrl,
+            inFlightFrom: proofsCounter.inFlightFrom,
+            inFlightTo: proofsCounter.inFlightTo,
             recoveredCount: addedProofs.length,
             recoveredAmount: addedAmount,
-            spentCount: spentResult?.spentCount || 0,
-            spentAmount: spentResult?.spentAmount || 0
+            spentCount,
+            spentAmount
         }
         
         const transactionDataUpdate = {
@@ -685,9 +716,7 @@ const _checkInFlightByMint = async function (mint: Mint, seed: Uint8Array) {
             [proofsCounter.inFlightTid as number],
             TransactionStatus.ERROR, // has been most likely DRAFT
             JSON.stringify(transactionDataUpdate),
-        )        
-
-        mint.resetInFlight?.(proofsCounter.inFlightTid as number)
+        )
 
         log.debug('[_checkInFlightByMint]', `Completed`, {txRecoveryResult})
 
@@ -756,6 +785,7 @@ const receive = async function (
 ) {
   const transactionData: TransactionData[] = []
   let transactionId: number = 0
+  let mintToReceive: string | undefined = undefined
 
   try {
         const tokenMints: string[] = CashuUtils.getMintsFromToken(token as Token)
@@ -775,7 +805,7 @@ const receive = async function (
             )
         }
 
-        const mintToReceive = tokenMints[0]        
+        mintToReceive = tokenMints[0]        
 
         // Let's create new draft receive transaction in database
         transactionData.push({
@@ -833,19 +863,48 @@ const receive = async function (
         log.trace('[receive]', 'amountPreferences', {amountPreferences, transactionId})
         log.trace('[receive]', 'countOfInFlightProofs', {countOfInFlightProofs, transactionId})  
         
-        // acquire lock and set inflight value + temp increase the counter
+        // temp increase the counter + acquire lock and set inflight value
+        mintInstance.increaseProofsCounter(countOfInFlightProofs) 
         await lockAndSetInFlight(mintInstance, countOfInFlightProofs, transactionId)
         
         // get locked counter values
         const lockedProofsCounter = mintInstance.getOrCreateProofsCounter?.()
         
-        // Now we ask all mints to get fresh outputs for their tokenEntries, and create from them new proofs        
-        const {updatedToken, errorToken, newKeys, errors} = await MintClient.receiveFromMint(
+        // Now we ask all mints to get fresh outputs for their tokenEntries, and create from them new proofs
+        // As this method supports multiple token entries potentially from multiple mints processed in cycle it does not throw but returns collected errors
+        let receiveResult: {
+            updatedToken: CashuToken | undefined, 
+            errorToken: CashuToken | undefined, 
+            newKeys: MintKeys | undefined, 
+            errors: string[] | undefined
+        }
+
+        receiveResult = await MintClient.receiveFromMint(
             mintToReceive,
             encodedToken as string,
             amountPreferences,
             lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
         )        
+
+        // auto recovery against annoying errors because of recovery counters not updated for yet unknown reasons        
+        if(receiveResult.errors && 
+            receiveResult.errors.length > 0 &&
+            receiveResult.errors[0].includes('outputs have already been signed before')) {
+
+            log.error('[receive] Emergency increase of proofsCounter and retrying the receive')
+            
+            mintInstance.increaseProofsCounter(20) 
+            receiveResult = await MintClient.receiveFromMint(
+                mintToReceive,
+                encodedToken as string,
+                amountPreferences,
+                lockedProofsCounter.inFlightFrom as number + 20
+            )
+
+            log.error('[receive] Emergency increase of proofsCounter, receive retry result', {receiveResult})
+        }
+        
+        const {updatedToken, errorToken, newKeys, errors} = receiveResult
 
         // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs        
         mintInstance.decreaseProofsCounter(countOfInFlightProofs)        
@@ -873,31 +932,32 @@ const receive = async function (
 
         if (errorToken && errorToken.token.length > 0) {
             amountWithErrors += CashuUtils.getTokenAmounts(errorToken as Token).totalAmount
-            log.warn('[receive]', 'amountWithErrors', amountWithErrors, errors)
+            log.warn('[receive]', 'amountWithErrors', {amountWithErrors, errors})
         }
 
-        if (amountWithErrors === amountToReceive) {
-            mintInstance.resetInFlight(transactionId)
+        if (amountWithErrors === amountToReceive) {            
             throw new AppError(
                 Err.MINT_ERROR,
                 'Mint returned error on request to swap the received ecash.',
-                {caller: 'receive', message: errors ? errors[0].message : undefined}
+                {caller: 'receive', message: errors && errors.length > 0 ? errors[0] : undefined, errorToken}
             )
         }
 
         let receivedAmount = 0
         let addedProofsCount = 0
 
-        for (const entry of updatedToken.token) {
-            // create ProofModel instances and store them into the proofsStore
-            const { addedProofs, addedAmount } = _addCashuProofs(
-                entry.proofs,
-                entry.mint,
-                transactionId as number                
-            )
-
-            receivedAmount += addedAmount 
-            addedProofsCount += addedProofs.length         
+        if(updatedToken && updatedToken.token.length > 0) {
+            for (const entry of updatedToken.token) {
+                // create ProofModel instances and store them into the proofsStore
+                const { addedProofs, addedAmount } = _addCashuProofs(
+                    entry.proofs,
+                    entry.mint,
+                    transactionId as number                
+                )
+    
+                receivedAmount += addedAmount 
+                addedProofsCount += addedProofs.length         
+            }
         }
 
         // release lock
@@ -907,7 +967,9 @@ const receive = async function (
         const receivedAmountCheck = CashuUtils.getTokenAmounts(updatedToken as Token).totalAmount
 
         if (receivedAmount !== receivedAmountCheck) {
-            log.error('[receive]', `Received per proofStore: ${receivedAmount} Received check using tokenAmounts: ${receivedAmountCheck}`, updatedToken)
+            log.error('[receive]', 
+            `Received per proofStore: ${receivedAmount} Received check using tokenAmounts: ${receivedAmountCheck}`, 
+            {updatedToken})
         }        
 
         // Update tx amount if full amount was not received
@@ -950,13 +1012,20 @@ const receive = async function (
         } as TransactionResult
         
     } catch (e: any) {
+
         let errorTransaction: TransactionRecord | undefined = undefined
 
-        if (transactionId > 0) {
+        if (transactionId > 0) {            
+            if(mintToReceive) {
+                // release lock
+                const mintInstance = mintsStore.findByUrl(mintToReceive)
+                mintInstance?.resetInFlight(transactionId)
+            }
+
             transactionData.push({
                 status: TransactionStatus.ERROR,
                 error: _formatError(e),
-                errorToken: e.params.errorToken || undefined
+                errorToken: e.params?.errorToken || undefined
             })
 
             errorTransaction = await transactionsStore.updateStatus(
@@ -1103,7 +1172,8 @@ const receiveOfflinePrepare = async function (
 const receiveOfflineComplete = async function (        
     transaction: Transaction
 ) {
-  try {        
+    
+    try {        
         const transactionData = JSON.parse(transaction.data)
         const {encodedToken} = transactionData.find(
             (record: any) => record.status === TransactionStatus.PREPARED_OFFLINE,
@@ -1151,23 +1221,51 @@ const receiveOfflineComplete = async function (
         const amountPreferences = getDefaultAmountPreference(transaction.amount)        
         const countOfInFlightProofs = CashuUtils.getAmountPreferencesCount(amountPreferences)
         
-        log.trace('[receive]', 'amountPreferences', amountPreferences)
-        log.trace('[receive]', 'countOfInFlightProofs', countOfInFlightProofs)  
+        log.trace('[receiveOfflineComplete]', 'amountPreferences', amountPreferences)
+        log.trace('[receiveOfflineComplete]', 'countOfInFlightProofs', countOfInFlightProofs)  
         
         // acquire lock and set inflight value + temp increase the counter
+        mintInstance.increaseProofsCounter(countOfInFlightProofs) 
         await lockAndSetInFlight(mintInstance, countOfInFlightProofs, transaction.id as number)
         
         // get locked counter values
         const lockedProofsCounter = mintInstance.getOrCreateProofsCounter?.()
         
         // Now we ask all mints to get fresh outputs for their tokenEntries, and create from them new proofs
-        // 0.8.0-rc3 implements multimints receive however CashuMint constructor still expects single mintUrl
-        const {updatedToken, errorToken, newKeys, errors} = await MintClient.receiveFromMint(
+        // As this method supports multiple token entries potentially from multiple mints processed in cycle it does not throw but returns collected errors
+        let receiveResult: {
+            updatedToken: CashuToken | undefined, 
+            errorToken: CashuToken | undefined, 
+            newKeys: MintKeys | undefined, 
+            errors: string[] | undefined
+        } 
+        
+        receiveResult = await MintClient.receiveFromMint(
             tokenMints[0],
             encodedToken as string,
             amountPreferences,
             lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
         )
+
+        // auto recovery against annoying errors because of recovery counters not updated for yet unknown reasons
+                   
+        if(receiveResult.errors && 
+            receiveResult.errors.length > 0 &&
+            receiveResult.errors[0].includes('outputs have already been signed before')) {
+            log.error('[receiveOfflineComplete] Emergency increase of proofsCounter and retrying the receive')
+            
+            mintInstance.increaseProofsCounter(50) 
+            receiveResult = await MintClient.receiveFromMint(
+                mintToReceive,
+                encodedToken as string,
+                amountPreferences,
+                lockedProofsCounter.inFlightFrom as number + 50
+            )
+
+            log.error('[receiveOfflineComplete] Emergency increase of proofsCounter, receive retry result', {receiveResult})
+        }        
+
+        const {updatedToken, errorToken, errors, newKeys} = receiveResult
 
         if (newKeys) {_updateMintKeys(mintInstance.mintUrl, newKeys)}
 
@@ -1181,26 +1279,27 @@ const receiveOfflineComplete = async function (
             log.warn('[receiveOfflineComplete]', 'receiveToken amountWithErrors', amountWithErrors)
         }
 
-        if (amountWithErrors === transaction.amount) {
-            mintInstance.resetInFlight(transaction.id as number)
+        if (amountWithErrors === transaction.amount) {            
             throw new AppError(
                 Err.VALIDATION_ERROR,
                 'Ecash could not be redeemed.',
-                {caller: 'receiveOfflineComplete', message: errors?.length ? errors[0]?.message : undefined}
+                {caller: 'receiveOfflineComplete', message: errors?.length ? errors[0] : undefined}
             )
         }        
         
         let receivedAmount = 0
 
-        for (const entry of updatedToken.token) {
-            // create ProofModel instances and store them into the proofsStore
-            const { addedProofs, addedAmount } = _addCashuProofs(
-                entry.proofs,
-                entry.mint,
-                transaction.id as number                
-            )
-            
-            receivedAmount += addedAmount            
+        if(updatedToken && updatedToken.token.length > 0) {
+            for (const entry of updatedToken.token) {
+                // create ProofModel instances and store them into the proofsStore
+                const { addedProofs, addedAmount } = _addCashuProofs(
+                    entry.proofs,
+                    entry.mint,
+                    transaction.id as number                
+                )
+                
+                receivedAmount += addedAmount            
+            }
         }
         
         // release lock
@@ -1248,6 +1347,10 @@ const receiveOfflineComplete = async function (
             receivedAmount,
         } as TransactionResult
     } catch (e: any) {
+        // release lock
+        const mintInstance = mintsStore.findByUrl(transaction.mint)
+        mintInstance?.resetInFlight(transaction.id as number)
+
         let errorTransaction: TransactionRecord | undefined = undefined
             
         const transactionData = JSON.parse(transaction.data)
@@ -1353,8 +1456,6 @@ const _sendFromMint = async function (
 
         const proofsToSendFromAmount = CashuUtils.getProofsAmount(proofsToSendFrom)
 
-
-
         // Increase the proofs counter before the mint call so that in case the response
         // is not received our recovery index counts for sigs the mint has already issued (prevents duplicate b_b bug)
         const amountPreferences = getDefaultAmountPreference(amountToSend)    
@@ -1368,19 +1469,48 @@ const _sendFromMint = async function (
         log.trace('[_sendFromMint]', 'countOfInFlightProofs', countOfInFlightProofs)    
         
         // acquire lock and set inflight value + temp increase the counter
+        mintInstance.increaseProofsCounter(countOfInFlightProofs) 
         await lockAndSetInFlight(mintInstance, countOfInFlightProofs, transactionId)
         
         // get locked counter values
         const lockedProofsCounter = mintInstance.getOrCreateProofsCounter?.()        
         
         // if split to required denominations was necessary, this gets it done with the mint and we get the return
-        const {returnedProofs, proofsToSend, newKeys} = await MintClient.sendFromMint(
-            mintUrl,
-            amountToSend,
-            proofsToSendFrom,
-            amountPreferences,
-            lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
-        )        
+        let sendResult: {returnedProofs: Proof[], proofsToSend: Proof[], newKeys: MintKeys | undefined} = {
+            returnedProofs: [],
+            proofsToSend: [],
+            newKeys: undefined
+        }
+
+        try {
+            sendResult = await MintClient.sendFromMint(
+                mintUrl,
+                amountToSend,
+                proofsToSendFrom,
+                amountPreferences,
+                lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
+            )    
+        } catch (e: any) {
+            if (e instanceof AppError && 
+                e.params && 
+                e.params.message?.includes('outputs have already been signed before')) {
+
+                    log.error('[_sendFromMint] Emergency increase of proofsCounter and retrying the send')
+
+                    mintInstance.increaseProofsCounter(20)
+                    sendResult = await MintClient.sendFromMint(
+                        mintUrl,
+                        amountToSend,
+                        proofsToSendFrom,
+                        amountPreferences,
+                        lockedProofsCounter.inFlightFrom as number + 20
+                    )
+                    
+                    log.error('[_sendFromMint] Emergency increase of proofsCounter, send retry result', {sendResult})
+            }
+        }
+        
+        const {returnedProofs, proofsToSend, newKeys} = sendResult
         
         if (newKeys) {_updateMintKeys(mintUrl, newKeys)}
 
@@ -1425,6 +1555,9 @@ const _sendFromMint = async function (
         // We return cleaned proofs to be encoded as a sendable token
         return cleanedProofsToSend
   } catch (e: any) {
+        // release lock        
+        mintInstance?.resetInFlight(transactionId)       
+
         if (e instanceof AppError) {
             throw e
         } else {
@@ -1559,6 +1692,7 @@ const send = async function (
             transactionData.push({
                 status: TransactionStatus.ERROR,
                 error: _formatError(e),
+                createdAt: new Date()
             })
 
             errorTransaction = await transactionsStore.updateStatus(
@@ -1661,9 +1795,15 @@ const transfer = async function (
             transactionId,
             TransactionStatus.PREPARED,
             JSON.stringify(transactionData),
-        )
+        )        
 
-        const proofsCounter = mintInstance.getOrCreateProofsCounter()
+        // we do not know how much we will get so use big enough constant to increase and lock
+        const countOfInFlightProofs = 10
+        mintInstance.increaseProofsCounter(countOfInFlightProofs) 
+        await lockAndSetInFlight(mintInstance, countOfInFlightProofs, transactionId)
+
+        // get locked counter values
+        const lockedProofsCounter = mintInstance.getOrCreateProofsCounter?.() 
 
         // Use prepared proofs to settle with the mint the payment of the invoice on wallet behalf
         const {feeSavedProofs, isPaid, preimage, newKeys} =
@@ -1672,9 +1812,11 @@ const transfer = async function (
                 encodedInvoice,
                 proofsToPay,
                 estimatedFee,
-                proofsCounter.counter
+                lockedProofsCounter.inFlightFrom as number
             )
         
+        mintInstance.decreaseProofsCounter(countOfInFlightProofs)       
+
         if (newKeys) {_updateMintKeys(mintUrl, newKeys)}
 
         // We've sent the proofsToPay to the mint, so we remove those pending proofs from model storage.
@@ -1684,6 +1826,8 @@ const transfer = async function (
         // I have no idea yet if this can happen, return sent Proofs to the store an track tx as Reverted
         if (!isPaid) {
             const { amountPendingByMint } = await _moveProofsFromPending(proofsToPay, mintUrl, transactionId)
+            // release lock
+            mintInstance.resetInFlight(transactionId)
 
             if(amountPendingByMint > 0) {
                 transactionData.push({
@@ -1736,6 +1880,10 @@ const transfer = async function (
             
             finalFee = estimatedFee - feeSaved            
         }
+
+        // release lock
+        mintInstance.resetInFlight(transactionId)
+
         // Save final fee in db
         await transactionsStore.updateFee(transactionId, finalFee)
 
@@ -1765,7 +1913,12 @@ const transfer = async function (
         // Update transaction status if we have any
         let errorTransaction: TransactionRecord | undefined = undefined
 
-        if (transactionId > 0) {
+        if (transactionId > 0) {            
+            // release lock  
+            if(mintInstance) {
+                mintInstance.resetInFlight(transactionId as number)
+            }
+
             // Return tokens intended for payment to the wallet if payment failed with an error
             if (proofsToPay.length > 0) {
                 log.warn('[transfer]', 'Returning proofsToPay to the wallet likely after failed lightning payment.', proofsToPay.length)
@@ -1782,6 +1935,7 @@ const transfer = async function (
                         error: _formatError(e),
                         amountToMove,
                         amountPendingByMint,
+                        createdAt: new Date()
                     })
     
                     const pendingTransaction = await transactionsStore.updateStatus(
@@ -1805,6 +1959,7 @@ const transfer = async function (
             transactionData.push({
                 status: TransactionStatus.ERROR,
                 error: _formatError(e),
+                createdAt: new Date()
             })
 
             errorTransaction = await transactionsStore.updateStatus(
@@ -1851,7 +2006,7 @@ const _addCashuProofs = function (
     // Creates proper model instances and adds them to the wallet    
     const { addedAmount, addedProofs} = proofsStore.addProofs(proofsToAdd as Proof[], isPending)
    
-    log.trace('[_addCashuProofs]', 'Added proofs to the wallet with amount', { amountToAdd, addedAmount })
+    log.trace('[_addCashuProofs]', 'Added proofs to the wallet with amount', { amountToAdd, addedAmount, isPending })
 
     return {        
         amountToAdd,
@@ -2045,6 +2200,7 @@ const topup = async function (
             transactionData.push({
                 status: TransactionStatus.ERROR,
                 error: _formatError(e),
+                createdAt: new Date()
             })
 
             errorTransaction = await transactionsStore.updateStatus(
