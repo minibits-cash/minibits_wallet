@@ -55,9 +55,10 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
         setSelectedRelay(undefined)        
     }
 
-    const onConnect = function () {
+    const onConnect = async function () {
         log.trace('onConnect')
-        Wallet.checkPendingReceived().catch(handleError)
+        await NostrClient.reconnectToRelays()
+        // Wallet.checkPendingReceived().catch(handleError)
         setSelectedRelay(undefined)        
     }
 

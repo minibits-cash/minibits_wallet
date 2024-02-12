@@ -82,7 +82,7 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
 
                 setIsLoading(true)                    
                 const info = await MintClient.getMintInfo(route.params.mintUrl)    
-                await delay(1000)
+                await delay(500)
                 setMintInfo(info)
                 setIsLoading(false)
             } catch (e: any) {

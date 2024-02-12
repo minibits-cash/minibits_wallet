@@ -73,6 +73,26 @@ const getMinibitsRelays = function () {
     return _minibitsRelays    
 }
 
+const reconnectToRelays = async function () {
+    // let relaysToConnect = relaysStore.allUrls
+
+    const pool = getRelayPool()    
+    const relaysConnections = pool._conn
+    
+    log.trace('[reconnectToRelays]', {relaysConnections})
+
+    if (relaysConnections) {
+        for (const url in relaysConnections) {
+            if (relaysConnections.hasOwnProperty(url)) {
+                const relay = relaysConnections[url]                
+    
+                log.trace('[reconnectToRelays]', 'Reconnecting', {url})
+                await relay.connect()
+            }            
+        }
+    }
+}
+
 /* const getRandom = function(list: string[]) {
     return list[Math.floor((Math.random()*list.length))]
 } */
@@ -443,6 +463,7 @@ export const NostrClient = { // TODO split helper functions to separate module
     getRelayPool,    
     getDefaultRelays,
     getMinibitsRelays,
+    reconnectToRelays,
     getOrCreateKeyPair,
     getNpubkey,
     getHexkey,

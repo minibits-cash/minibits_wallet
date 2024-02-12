@@ -106,8 +106,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 
                 if (update && update.failedInstall !== true) {  // do not announce update that failed to install before
                     setUpdateDescription(update.description)
-                    setUpdateSize(`${round(update.packageSize *  0.000001, 2)}MB`)                  
-                    setIsNativeUpdateAvailable(true)
+                    setUpdateSize(`${round(update.packageSize *  0.000001, 2)}MB`)
                     toggleUpdateModal()
                     log.info('OTA Update available', update, 'checkForUpdate')
                 }             
