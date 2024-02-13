@@ -475,7 +475,7 @@ const _checkSpentByMint = async function (mintUrl: string, isPending: boolean = 
                 }
             }
 
-            // Clean pendingByMint secrets if in-flight payment completed and they came back as spent            
+            // Clean pendingByMint secrets if in-flight lightning payment completed and they came back as spent            
             if(proofsStore.pendingByMintSecrets.length > 0) {
 
                 log.trace('[_checkSpentByMint]', 'Starting sweep of spent pendingByMint proofs')
@@ -515,14 +515,14 @@ const _checkSpentByMint = async function (mintUrl: string, isPending: boolean = 
         }        
        
         // Check if remaining pendingByMint secrets are still pending with the mint. 
-        // If not, move related wallet's pending proofs back to spendable as the payment failed and they were not spent. 
+        // If not, move related wallet's pending proofs back to spendable as the payment failed and they were not spent (those are handled above). 
         const remainingSecrets = getSnapshot(proofsStore.pendingByMintSecrets) 
         
         log.trace('[_checkSpentByMint]', 'pendingByMintSecrets', remainingSecrets)
 
         if(remainingSecrets.length > 0 && isPending) {
 
-            log.trace('[_checkSpentByMint]', 'Starting sweep of pendingByMintSecrets')
+            log.trace('[_checkSpentByMint]', 'Starting sweep of pendingByMintSecrets back to spendable wallet')
            
             const movedProofs: Proof[] = []
 
@@ -574,7 +574,7 @@ const _checkSpentByMint = async function (mintUrl: string, isPending: boolean = 
                     )
                 }
             } else {
-                log.trace('[_checkSpentByMint]', `No moved proofs from pending`, mintUrl)                    
+                log.trace('[_checkSpentByMint]', `No proofs to be moved from pending back to spendable`, mintUrl)                    
             } 
             
         }        
@@ -741,7 +741,8 @@ const lockAndSetInFlight = async function (
     transactionId: number,
     retryCount: number = 0
 ): Promise<void> {
-    const currentCounter = mint.getOrCreateProofsCounter?.()    
+    const currentCounter = mint.getOrCreateProofsCounter?.()
+    log.trace('[lockAndSetInFlight] proofsCounter', {currentCounter})   
     
     if(currentCounter && currentCounter.inFlightTid && currentCounter.inFlightTid !== transactionId) {
         
@@ -769,6 +770,8 @@ const lockAndSetInFlight = async function (
         }
     }
 
+    // This sets inFlightFrom -> inFlightTo recovery interval in case the mint response won't come
+    // It sets as well the counter to inFlightTo until response comes
     mint.setInFlight?.(
         currentCounter?.counter as number, 
         currentCounter?.counter as number + countOfInFlightProofs,
@@ -860,11 +863,11 @@ const receive = async function (
         const amountPreferences = getDefaultAmountPreference(amountToReceive)        
         const countOfInFlightProofs = CashuUtils.getAmountPreferencesCount(amountPreferences)
         
+        log.trace('[receive]', 'proofsCounter initial state', {proofsCounter: mintInstance.getOrCreateProofsCounter?.()})
         log.trace('[receive]', 'amountPreferences', {amountPreferences, transactionId})
         log.trace('[receive]', 'countOfInFlightProofs', {countOfInFlightProofs, transactionId})  
         
-        // temp increase the counter + acquire lock and set inflight value
-        mintInstance.increaseProofsCounter(countOfInFlightProofs) 
+        // temp increase the counter + acquire lock and set inFlight values        
         await lockAndSetInFlight(mintInstance, countOfInFlightProofs, transactionId)
         
         // get locked counter values
@@ -1224,8 +1227,7 @@ const receiveOfflineComplete = async function (
         log.trace('[receiveOfflineComplete]', 'amountPreferences', amountPreferences)
         log.trace('[receiveOfflineComplete]', 'countOfInFlightProofs', countOfInFlightProofs)  
         
-        // acquire lock and set inflight value + temp increase the counter
-        mintInstance.increaseProofsCounter(countOfInFlightProofs) 
+        // temp increase the counter + acquire lock and set inFlight values        
         await lockAndSetInFlight(mintInstance, countOfInFlightProofs, transaction.id as number)
         
         // get locked counter values
@@ -1468,8 +1470,7 @@ const _sendFromMint = async function (
         log.trace('[_sendFromMint]', 'amountPreferences', {amountPreferences, returnedAmountPreferences})
         log.trace('[_sendFromMint]', 'countOfInFlightProofs', countOfInFlightProofs)    
         
-        // acquire lock and set inflight value + temp increase the counter
-        mintInstance.increaseProofsCounter(countOfInFlightProofs) 
+        // temp increase the counter + acquire lock and set inFlight values                
         await lockAndSetInFlight(mintInstance, countOfInFlightProofs, transactionId)
         
         // get locked counter values
@@ -1799,7 +1800,7 @@ const transfer = async function (
 
         // we do not know how much we will get so use big enough constant to increase and lock
         const countOfInFlightProofs = 10
-        mintInstance.increaseProofsCounter(countOfInFlightProofs) 
+        // temp increase the counter + acquire lock and set inFlight values                        
         await lockAndSetInFlight(mintInstance, countOfInFlightProofs, transactionId)
 
         // get locked counter values

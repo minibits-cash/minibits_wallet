@@ -22,6 +22,7 @@ import {log} from './logService'
 import AppError, { Err } from '../utils/AppError'
 import { MinibitsClient } from './minibitsService'
 import { rootStoreInstance } from '../models'
+import { Wallet } from './walletService'
 
 export {     
     NostrEvent, 
@@ -73,20 +74,10 @@ const getMinibitsRelays = function () {
     return _minibitsRelays    
 }
 
-const reconnectToRelays = async function () {    
-    const pool = getRelayPool()    
-    const relaysConnections = pool._conn
-
-    if (relaysConnections) {
-        for (const url in relaysConnections) {
-            if (relaysConnections.hasOwnProperty(url)) {
-                const relay = relaysConnections[url]
-    
-                if(relaysStore.findByUrl(url)?.status === WebSocket.CLOSED) {                    
-                    await relay.connect()                    
-                }          
-            }            
-        }
+const reconnectToRelays = async function () {
+    if(relaysStore.connectedCount === 0) {
+        log.trace('[reconnectToRelays] Reconnecting and recreating checkPendingReceived subscription')
+        Wallet.checkPendingReceived().catch(e => false)
     }
 }
 

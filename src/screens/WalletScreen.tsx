@@ -221,7 +221,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
                 Wallet.checkPendingSpent().catch(e => false) 
                 Wallet.checkPendingTopups().catch(e => false)
-                NostrClient.reconnectToRelays().catch(e => false)
+                // NostrClient.reconnectToRelays().catch(e => false)
             }, 100)
         }, [])
     )
