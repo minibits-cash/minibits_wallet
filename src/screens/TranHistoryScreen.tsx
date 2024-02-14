@@ -254,8 +254,7 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
                                     />
                                 )}
                             </View>
-                        }
-                        extraData={transactionsStore.all}
+                        }                        
                         onScrollBeginDrag={collapseHeader}
                         onStartReached={expandHeader}
                         keyExtractor={(item, index) => String(item.id) as string} 
@@ -298,8 +297,7 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
                                     />
                                 )}
                             </View>
-                        }
-                        extraData={transactionsStore.pending}
+                        }                        
                         onScrollBeginDrag={collapseHeader}
                         onStartReached={expandHeader}
                         keyExtractor={(item, index) => String(item.id) as string} 
