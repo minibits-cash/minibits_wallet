@@ -753,8 +753,8 @@ const lockAndSetInFlight = async function (
 
         await delay(500)
 
-        if (retryCount < 20) {
-            // retry to acquire lock, increment the count of retries up to 10 seconds
+        if (retryCount < 50) {
+            // retry to acquire lock, increment the count of retries up to 25 seconds
             return lockAndSetInFlight(
                 mint,
                 countOfInFlightProofs,
@@ -766,7 +766,7 @@ const lockAndSetInFlight = async function (
                 lockedBy: currentCounter.inFlightTid, 
                 waiting: transactionId
             })         
-            mint.resetInFlight?.(transactionId as number)
+            mint.resetInFlight?.(currentCounter.inFlightTid as number)
         }
     }
 
@@ -1636,7 +1636,7 @@ const send = async function (
         }
 
         if (!memo || memo === '') {
-            memo = 'Sent from Minibits wallet'
+            memo = 'Sent from Minibits'
         }
 
         const encodedTokenToSend = getEncodedToken({

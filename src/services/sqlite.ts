@@ -372,15 +372,25 @@ const updateUserSettings = function (settings: UserSettings): UserSettings {
  * Transactions
  */
 
-const getTransactionsCount = function () {
+const getTransactionsCount = function (isPending: boolean = false) {
+    let query: string = ''
     try {
-      const query = `
-        SELECT COUNT(*) FROM transactions
-      `  
-      const db = getInstance()
-      const {rows} = db.execute(query)
-        
-      return rows?.item(0)['COUNT(*)'] as number
+        query = `
+            SELECT COUNT(*) FROM transactions
+        `
+
+        if(isPending) {
+            query = `
+                SELECT COUNT(*) 
+                FROM transactions
+                WHERE status = 'PENDING'
+            `
+        }
+
+        const db = getInstance()
+        const {rows} = db.execute(query)
+            
+        return rows?.item(0)['COUNT(*)'] as number
     } catch (e: any) {
       throw new AppError(Err.DATABASE_ERROR, 'Transaction count error', e.message)
     }
@@ -697,27 +707,39 @@ const updateSentToAsync = async function (id: number, sentTo: string) {
   }
 } */
 
-const getTransactionsAsync = async function (limit: number, offset: number) {
-  try {
-    const query = `
-      SELECT *
-      FROM transactions 
-      ORDER BY id DESC
-      LIMIT ? OFFSET ?
-    `
-    const params = [limit, offset]
+const getTransactionsAsync = async function (limit: number, offset: number, isPending: boolean = false) {
+    let query: string = ''
+    try {
+        query = `
+        SELECT *
+        FROM transactions 
+        ORDER BY id DESC
+        LIMIT ? OFFSET ?
+        `
 
-    const db = getInstance()
-    const {rows} = await db.executeAsync(query, params)
+        if(isPending) {
+            query = `
+            SELECT *
+            FROM transactions
+            WHERE status = 'PENDING'
+            ORDER BY id DESC
+            LIMIT ? OFFSET ?
+            `
+        }
 
-    return rows
-  } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Transactions could not be retrieved from the database',
-      e.message,
-    )
-  }
+        const params = [limit, offset]
+
+        const db = getInstance()
+        const {rows} = await db.executeAsync(query, params)
+
+        return rows
+    } catch (e: any) {
+        throw new AppError(
+        Err.DATABASE_ERROR,
+        'Transactions could not be retrieved from the database',
+        e.message,
+        )
+    }
 }
 
 const getPendingAmount = function () {

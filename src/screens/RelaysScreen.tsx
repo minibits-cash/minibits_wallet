@@ -195,21 +195,22 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
           isVisible={selectedRelay ? true : false}
           style={{alignItems: 'stretch'}}          
           ContentComponent={
-            <View style={{}}> 
-              <ListItem
-                leftIcon="faCloudArrowUp"
-                onPress={onConnect}
-                text={'Reconnect'}
-                bottomSeparator={true}
-                style={{paddingHorizontal: spacing.medium}}
-              />             
-              <ListItem
+            <View style={{}}>
+                {selectedRelay?.status === WebSocket.CLOSED && (
+                    <ListItem
+                        leftIcon="faCloudArrowUp"
+                        onPress={onConnect}
+                        text={'Reconnect'}
+                        bottomSeparator={true}
+                        style={{paddingHorizontal: spacing.medium}}
+                    />    
+                )}         
+                <ListItem
                 leftIcon="faXmark"
-                onPress={removeRelay}
-                text={'Remove relay'}
-                bottomSeparator={true}
-                style={{paddingHorizontal: spacing.medium}}
-              />
+                    onPress={removeRelay}
+                    text={'Remove relay'}                    
+                    style={{paddingHorizontal: spacing.medium}}
+                />
             </View>
           }
           onBackButtonPress={onRelayUnselect}

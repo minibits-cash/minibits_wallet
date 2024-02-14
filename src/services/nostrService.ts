@@ -86,6 +86,7 @@ const reconnectToRelays = async function () {
     const relaysConnections = pool._conn
 
     // if just some are disconnected, reconnect them
+    // unclear if it does something else then green ticks in relay screen
     if (relaysConnections) {
         for (const url in relaysConnections) {
             if (relaysConnections.hasOwnProperty(url)) {

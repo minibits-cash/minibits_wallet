@@ -1152,8 +1152,7 @@ const TranItem = function (props: {
 
 
 const getAuditTrail = function (transaction: Transaction) {
-    try {
-        log.trace('[getAuditTrail]', {data: transaction.data})
+    try {        
         const data = JSON.parse(transaction.data)
 
         if (data && isArray(data)) {

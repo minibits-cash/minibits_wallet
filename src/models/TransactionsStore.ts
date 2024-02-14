@@ -125,6 +125,11 @@ export const TransactionsStoreModel = types
                 const createdAt = new Date(dbTransaction.createdAt)
                 const inStoreTransaction = {...dbTransaction, createdAt}
 
+                if(self.findById(inStoreTransaction.id as number)) {
+                    log.trace('[addTransactionsToModel] Transaction already exists in the model, skipping...')
+                    continue
+                }   
+                
                 const transactionInstance = TransactionModel.create(inStoreTransaction)
                 inStoreTransactions.push(transactionInstance as Transaction)
             }
