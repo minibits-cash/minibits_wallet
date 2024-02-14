@@ -90,7 +90,7 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
             */
             for (const mint of mintsStore.allMints) {
                 transactionsStore.removeOldByMint(mint.mintUrl)
-                //transactionsStore.removeOldTransactions()
+                transactionsStore.removeAllWithoutCurrentMint() // avoid that tx from deleted mints remain in model forever
             }            
         }
     }, [])
@@ -208,18 +208,18 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
                   onPress={toggleShowPendingOnly}
                 />
                 <ListItem
-                  text="Filter by tags"
+                  text={showPendingOnly ? `Showing ${transactionsStore.pending.length} of ${pendingDbCount} pending` : `Showing ${transactionsStore.count} of ${dbCount} total`}
                   LeftComponent={
                     <Icon
                       containerStyle={$iconContainer}
-                      icon="faTags"
+                      icon="faListUl"
                       size={spacing.medium}
                       color={iconColor}
                     />
                   }
                   style={$item}
                   bottomSeparator={false}
-                  onPress={() => Alert.alert('Not implemented yet')}
+                  onPress={() => false}
                 />
               </>
             }

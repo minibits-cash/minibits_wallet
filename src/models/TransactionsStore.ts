@@ -17,6 +17,7 @@ import {
 import {Database, MintClient} from '../services'
 import {log} from '../services/logService'
 import { min } from 'date-fns'
+import { getRootStore } from './helpers/getRootStore'
 
 export const maxTransactionsInModel = 10
 export const maxTransactionsByMint = 10
@@ -96,7 +97,23 @@ export const TransactionsStoreModel = types
 
                 log.trace('[removeOldByMint]', {txByMintAfterDelete, txTotalAfterDelete})
             }
-        }        
+        },
+        removeAllWithoutCurrentMint: () => {
+            const rootStore = getRootStore(self)                
+            const {mintsStore} = rootStore
+
+            const transactionsToRemove = self.transactions.filter(transaction => {
+                // Check if the mint property of the transaction does not exist in the mints array
+                return !mintsStore.allMints.some(mint => mint.mintUrl === transaction.mint);
+            });
+
+            self.transactions.replace(self.transactions.filter(t => !transactionsToRemove.some(removed => removed.id === t.id)))
+            
+            const txTotalAfterDelete = self.count
+
+            log.trace('[removeAllWithoutCurrentMint]', {deleted: transactionsToRemove.length, txTotalAfterDelete})
+            
+        }         
     }))
     .actions(self => ({
         addTransaction: flow(function* addTransaction(newTransaction: Transaction) {
