@@ -293,7 +293,7 @@ const checkPendingReceived = async function () {
                             }
                         } catch (e: any) {
                             // silent, continue
-                            log.error('[checkPendingReceived]', 'Could not get sender from zapRequest', {maybeZapRequestString})
+                            log.error('[checkPendingReceived]', 'Could not get sender from zapRequest', {message: e.message, maybeZapRequestString})
                             zapRequest = undefined
                         }
                     }
