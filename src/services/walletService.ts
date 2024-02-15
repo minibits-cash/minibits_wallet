@@ -222,9 +222,11 @@ const checkPendingReceived = async function () {
                 log.trace('[checkPendingReceived]', 'Received event', {id: event.id, created_at: event.created_at})
                 
                 // get sender profile and save it as a contact
-                const sentFromPubkey = event.pubkey
-                const sentFrom = getTagValue(event.tags, 'from') // this is not available when receiving from LNURL
-                const sentFromNpub = NostrClient.getNpubkey(sentFromPubkey)
+                // this is not valid for events sent from LNURL bridge, that are sent and signed by a single server key
+                // and do not contain sentFrom
+                let sentFromPubkey = event.pubkey
+                let sentFrom = getFirstTagValue(event.tags, 'from')
+                let sentFromNpub = NostrClient.getNpubkey(sentFromPubkey)
                 let contactFrom: Contact | undefined = undefined 
                 let sentFromPicture: string | undefined = undefined          
 
@@ -266,7 +268,35 @@ const checkPendingReceived = async function () {
                         amountToReceive,
                         memo,
                         incoming.encoded as string,
-                    )                    
+                    )
+
+                    // If the decrypted DM contains zap request, payment is a zap coming from LNURL server. 
+                    // We retrieve the sender, we do not save zap sender to contacts, just into tx details
+                    // We do it defensively, only after cash is received
+                    const maybeZapRequestString = findZapRequest(decrypted)
+                    let zapRequest: NostrEvent | undefined = undefined
+
+                    if(maybeZapRequestString) {
+                        try {
+                            zapRequest = JSON.parse(maybeZapRequestString)
+                            sentFromPubkey = zapRequest.pubkey // zap sender pubkey
+
+                            const relays = getTagsByName(zapRequest.tags, 'relays')
+
+                            if(relays && relays.length > 0) {
+                                const senderProfile = await NostrClient.getProfileFromRelays(sentFromPubkey, relays)
+
+                                if(senderProfile) {
+                                    sentFrom = senderProfile.nip05 || senderProfile.name
+                                    sentFromPicture = senderProfile.picture
+                                }
+                            }
+                        } catch (e: any) {
+                            // silent, continue
+                            log.error('[checkPendingReceived]', 'Could not get sender from zapRequest', {maybeZapRequestString})
+                            zapRequest = undefined
+                        }
+                    }
           
                     if(transaction) {
                         await transactionsStore.updateSentFrom(
@@ -279,18 +309,13 @@ const checkPendingReceived = async function () {
                     // Send notification event
                     //
                     if(receivedAmount > 0) {
-                        let picture: string | undefined = undefined
-
-                        if(sentFrom && sentFrom.includes(MINIBITS_NIP05_DOMAIN)) {
-                            picture = MINIBITS_SERVER_API_HOST + '/profile/avatar/' + sentFromPubkey
-                        }
 
                         result = {
                             status: TransactionStatus.COMPLETED,                        
                             title: `⚡${receivedAmount} sats received!`,
                             message: `Ecash from <b>${sentFrom || 'unknown payer'}</b> is now in your wallet.`,
                             memo,
-                            picture,
+                            picture: sentFromPicture,
                             token: CashuUtils.decodeToken(incoming.encoded)
                         }
             
@@ -388,8 +413,19 @@ const checkPendingReceived = async function () {
     }
 }
 
+// returns array of values after the first element (tag name)
+function getTagsByName(tagsArray: [string, string][], tagName: string) {
+    let tagValues = tagsArray.find(t => t && t.length && t.length >= 2 && t[0] === tagName)
+    if(tagValues && tagValues.length > 1) {
+        tagValues.shift() // remove tag name
+        return tagValues
+    }
 
-const getTagValue = function (tagsArray: [string, string][], tagName: string): string | undefined {
+    return undefined
+}
+
+// returns first element after tag name
+const getFirstTagValue = function (tagsArray: [string, string][], tagName: string): string | undefined {
     const tag = tagsArray.find(([name]) => name === tagName)
     return tag ? tag[1] : undefined
 }
@@ -401,7 +437,20 @@ const findMemo = function (message: string): string | undefined {
     
     if (lastIndex !== -1) {        
         const memoAfterLast = message.substring(lastIndex + 6) // skip "memo: " itself
-        return memoAfterLast;
+        return memoAfterLast
+    } 
+        
+    return undefined    
+}
+
+
+const findZapRequest = function (message: string): string | undefined {
+    // Find the last occurrence of "memo: "
+    const lastIndex = message.lastIndexOf("zapRequest:")
+    
+    if (lastIndex !== -1) {        
+        const zapRequestString = message.substring(lastIndex + 11) // skip "zapRequest:" itself
+        return zapRequestString
     } 
         
     return undefined    
@@ -751,7 +800,7 @@ const lockAndSetInFlight = async function (
             waiting: transactionId
         })
 
-        await delay(500)
+        await delay(1000)
 
         if (retryCount < 50) {
             // retry to acquire lock, increment the count of retries up to 25 seconds
