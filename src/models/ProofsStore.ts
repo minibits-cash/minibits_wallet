@@ -101,7 +101,7 @@ export const ProofsStoreModel = types
 
             return { addedAmount, addedProofs }
         } catch (e: any) {
-            throw new AppError(Err.STORAGE_ERROR, e.message)
+            throw new AppError(Err.STORAGE_ERROR, e.message, {caller: 'addProofs'})
         }
         },
         removeProofs(proofsToRemove: Proof[], isPending: boolean = false, isRecoveredFromPending: boolean = false) {

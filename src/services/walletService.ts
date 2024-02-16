@@ -313,7 +313,7 @@ const checkPendingReceived = async function () {
                         result = {
                             status: TransactionStatus.COMPLETED,                        
                             title: `⚡${receivedAmount} sats received!`,
-                            message: `Ecash from <b>${sentFrom || 'unknown payer'}</b> is now in your wallet.`,
+                            message: `${zapRequest ? 'Zap' : 'Ecash'} from <b>${sentFrom || 'unknown payer'}</b> is now in your wallet.`,
                             memo,
                             picture: sentFromPicture,
                             token: CashuUtils.decodeToken(incoming.encoded)
@@ -381,7 +381,7 @@ const checkPendingReceived = async function () {
                 }
                     
                 if (incoming.type === IncomingDataType.LNURL) {
-                    throw new AppError(Err.NOTFOUND_ERROR, 'LNURL support is not yet implemented.')
+                    throw new AppError(Err.NOTFOUND_ERROR, 'LNURL support is not yet implemented.', {caller: 'checkPendingReceived'})
                 }                      
                    
                 throw new AppError(Err.NOTFOUND_ERROR, 'Received unknown message', incoming)
@@ -1557,6 +1557,8 @@ const _sendFromMint = async function (
                     )
                     
                     log.error('[_sendFromMint] Emergency increase of proofsCounter, send retry result', {sendResult})
+            } else {
+                throw e
             }
         }
         
