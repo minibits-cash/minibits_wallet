@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {useEffect, useRef, useState} from 'react'
-import {FlatList, Image, InteractionManager, TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import {FlatList, Image, InteractionManager, LayoutAnimation, Platform, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
 import Clipboard from '@react-native-clipboard/clipboard'
 import {colors, spacing, typography, useThemeColor} from '../../theme'
@@ -15,11 +15,17 @@ import { ContactsStackParamList } from '../../navigation'
 import { SendOption } from '../SendOptionsScreen'
 import { ReceiveOption } from '../ReceiveOptionsScreen'
 import { useSafeAreaInsetsStyle } from '../../utils/useSafeAreaInsetsStyle'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 
 // const defaultPublicNpub = 'npub14n7frsyufzqsxlvkx8vje22cjah3pcwnnyqncxkuj2243jvt9kmqsdgs52'
 const defaultPublicNpub = 'npub1emy455yz6uuqxlk0vwq4aws98rz3ev792cdjgcpakqewkjeryvtqvy7yyq'
 const maxContactsToLoad = 20
+
+if (Platform.OS === 'android' &&
+    UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true)
+}
 
 export const PublicContacts = observer(function (props: {    
     navigation: StackNavigationProp<ContactsStackParamList, "Contacts", undefined>,    
@@ -37,7 +43,8 @@ export const PublicContacts = observer(function (props: {
     
     const [ownProfile, setOwnProfile] = useState<NostrProfile | undefined>(undefined)    
     const [followingPubkeys, setFollowingPubkeys] = useState<string[]>([])
-    const [followingProfiles, setFollowingProfiles] = useState<NostrProfile[]>([]) 
+    const [followingProfiles, setFollowingProfiles] = useState<NostrProfile[]>([])
+    const [isOwnProfileVisible, setIsOwnProfileVisible] = useState<boolean>(true)
     
     const [isLoading, setIsLoading] = useState(false)        
     const [isNpubModalVisible, setIsNpubModalVisible] = useState(false)
@@ -374,12 +381,24 @@ export const PublicContacts = observer(function (props: {
         })
     }
 
+
+    const collapseProfile = function () {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)        
+        setIsOwnProfileVisible(false)
+        
+    }
+
+    const expandProfile = function () {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+        setIsOwnProfileVisible(true)
+    }
+
     const handleError = function (e: AppError): void {
         setIsLoading(false)
         setError(e)
     }
     
-
+    const insets = useSafeAreaInsets()
     const inputBg = useThemeColor('background')
     
     return (
@@ -417,7 +436,7 @@ export const PublicContacts = observer(function (props: {
                             </View>
                         }
                         text={ownProfile.name}
-                        subText={relaysStore.allPublicUrls.toString()}
+                        subText={isOwnProfileVisible ? relaysStore.allPublicUrls.toString() : undefined}
                         onPress={toggleNpubActionsModal}
                         rightIcon={'faEllipsisVertical'}                                                        
                     />
@@ -453,11 +472,14 @@ export const PublicContacts = observer(function (props: {
                                     onPress={() => gotoContactDetail(item as Contact)}                                  
                                 />
                             ) 
-                        }}                        
+                        }}
+                        onScrollBeginDrag={collapseProfile}                                                
+                        onStartReached={expandProfile}                        
                         keyExtractor={(item) => item.pubkey}
-                        style={{ flexGrow: 0}}                                            
+                        contentInset={insets}
+                        style={{ maxHeight: spacing.screenHeight * 0.62 }}
+                        // contentContainerStyle={{paddingBottom: 200}}
                     />
-
                 </>
                 }
                 style={$card}                
@@ -582,6 +604,7 @@ export const PublicContacts = observer(function (props: {
 
 const $screen: ViewStyle = {
     flex: 1,
+    // paddingBottom: 200,
 }
 
 const $headerContainer: TextStyle = {
@@ -600,7 +623,7 @@ const $pasteButton: ViewStyle = {
 }
 
 const $saveButton: ViewStyle = {
-    borderRadius: spacing.small,
+    borderRadius: spacing.extraSmall,
     marginLeft: spacing.small,
 }
 

@@ -90,11 +90,15 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
             const {nip05Pubkey, nip05Relays} = await NostrClient.getNip05PubkeyAndRelays(ownNip05)
 
             if(nip05Relays.length > 0) {
+                let counter: number = 0
                 for (const relay of nip05Relays) {
-                    relaysStore.addOrUpdateRelay({
-                        url: relay,
-                        status: WebSocket.CLOSED
-                    })
+                    if(counter < 5) {
+                        relaysStore.addOrUpdateRelay({
+                            url: relay,
+                            status: WebSocket.CLOSED
+                        })
+                        counter++
+                    }
                 }
             }
 

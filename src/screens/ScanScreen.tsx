@@ -59,6 +59,13 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
     }, [])
 
     const toggleLnurlAddressModal = () => {
+        if (isLnurlAddressModalVisible === false) {       
+            setTimeout(() => {
+                addressInputRef && addressInputRef.current
+                ? addressInputRef.current.focus()
+                : false
+            }, 500)
+        }
         setIsLnurlddressModalVisible(previousState => !previousState)
     }
 
