@@ -380,21 +380,25 @@ const getNormalizedNostrProfile = async function (nip05: string, relays: string[
     const {nip05Pubkey, nip05Relays} = await getNip05PubkeyAndRelays(nip05)
     
     if(nip05Relays.length > 0) {
+        let counter: number = 0
+        const maxRelays: number = 5 // do not add dozens of relays on some profiles
+
         for (const relay of nip05Pubkey) {
-            if(!relays.includes(relay)) {
+            if(!relays.includes(relay) && counter <= maxRelays) {
                 relaysToConnect.push(relay)
                 relaysStore.addOrUpdateRelay({
                     url: relay,
                     status: WebSocket.CLOSED
                 })
-            }
+                counter++
+            }            
         }        
     }
 
     const profile: NostrProfile = await NostrClient.getProfileFromRelays(nip05Pubkey, relaysToConnect)
 
     if(!profile) {
-        throw new AppError(Err.NOTFOUND_ERROR, `Profile could not be found on Nostr relays.`, {nip05})
+        throw new AppError(Err.NOTFOUND_ERROR, `Profile could not be found on Nostr relays, visit Settings and add relay that hosts the profile.`, {nip05, relays})
     }
 
     if(profile.nip05 !== nip05) {        

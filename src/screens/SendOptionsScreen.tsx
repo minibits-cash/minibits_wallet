@@ -20,6 +20,7 @@ import {log} from '../services/logService'
 import AppError from '../utils/AppError'
 import { IncomingDataType } from '../services/incomingParser'
 import { SvgXml } from 'react-native-svg'
+import { NutIcon } from '../components/NutIcon'
 
 export enum SendOption {
     SEND_TOKEN = 'SEND_TOKEN',
@@ -95,7 +96,24 @@ export const SendOptionsScreen: FC<WalletStackScreenProps<'SendOptions'>> = obse
                         subTx="sendScreen.showOrShareTokenDescription"
                         leftIcon='faQrcode'
                         leftIconColor={colors.palette.iconViolet300}
-                        leftIconInverse={true}
+                        LeftComponent={
+                            <View
+                                style={{
+                                    marginEnd: spacing.small,
+                                    flex: 0,
+                                    borderRadius: spacing.small,
+                                    padding: spacing.extraSmall,
+                                    backgroundColor: colors.palette.iconViolet300
+                                }}
+                            >
+                                <SvgXml 
+                                    width={spacing.medium} 
+                                    height={spacing.medium} 
+                                    xml={NutIcon}
+                                    fill='white'
+                                />
+                            </View>
+                        }
                         style={$item}
                         onPress={gotoSend}
                     />

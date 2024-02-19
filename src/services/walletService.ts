@@ -208,7 +208,7 @@ const checkPendingReceived = async function () {
                 events.push(event)
 
                 if(contactsStore.eventAlreadyReceived(event.id)) {
-                    log.error(Err.ALREADY_EXISTS_ERROR, 'Event has been processed in the past, skipping...', {id: event.id, created_at: event.created_at})
+                    log.warn(Err.ALREADY_EXISTS_ERROR, 'Event has been processed in the past, skipping...', {id: event.id, created_at: event.created_at})
                     return
                 }
                 

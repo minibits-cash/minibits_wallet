@@ -151,31 +151,47 @@ const navigateWithIncomingData = async function (
             })
 
         case (IncomingDataType.LNURL):
-            const paramsResult = await LnurlClient.getLnurlParams(incoming.encoded)
-            const {lnurlParams} = paramsResult
+            try {
+                const paramsResult = await LnurlClient.getLnurlParams(incoming.encoded)
+                const {lnurlParams} = paramsResult
 
-            if(lnurlParams.tag === 'withdrawRequest') {                
-                return navigation.navigate('Topup', {
-                    lnurlParams,
-                    paymentOption: ReceiveOption.LNURL_WITHDRAW
+                if(lnurlParams.tag === 'withdrawRequest') {                
+                    return navigation.navigate('Topup', {
+                        lnurlParams,
+                        paymentOption: ReceiveOption.LNURL_WITHDRAW
+                    })
+                }
+
+                if(lnurlParams.tag === 'payRequest') {
+                    return navigation.navigate('Transfer', {
+                        lnurlParams,                    
+                        paymentOption: SendOption.LNURL_PAY
+                    })
+                }
+
+            } catch (e: any) {
+                throw new AppError(Err.SERVER_ERROR, 'Could not get Lightning address details from the server.', {
+                    caller: 'navigateWithIncomingData', 
+                    message: e.message,                    
                 })
             }
 
-            if(lnurlParams.tag === 'payRequest') {
+            
+        case (IncomingDataType.LNURL_ADDRESS):
+            try {
+                const addressParamsResult = await LnurlClient.getLnurlAddressParams(incoming.encoded) // throws
+
                 return navigation.navigate('Transfer', {
-                    lnurlParams,                    
+                    lnurlParams: addressParamsResult.lnurlParams,                
                     paymentOption: SendOption.LNURL_PAY
                 })
+            } catch (e: any) {
+                throw new AppError(Err.SERVER_ERROR, 'Could not get Lightning address details from the server.', {
+                    caller: 'navigateWithIncomingData', 
+                    message: e.message,
+                    providedAddress: incoming.encoded
+                })
             }
-
-            break
-        case (IncomingDataType.LNURL_ADDRESS):
-            const addressParamsResult = await LnurlClient.getLnurlAddressParams(incoming.encoded)
-
-            return navigation.navigate('Transfer', {
-                lnurlParams: addressParamsResult.lnurlParams,                
-                paymentOption: SendOption.LNURL_PAY
-            })
             
         case IncomingDataType.MINT_URL:
             return navigation.navigate('Wallet', {

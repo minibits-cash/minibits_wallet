@@ -384,10 +384,6 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
                 />
                 <Button
                   text="Save"
-                  style={{
-                    borderRadius: spacing.small,
-                    marginRight: spacing.small,
-                  }}
                   onPress={saveNote}
                 />
               </View>
@@ -1234,7 +1230,7 @@ const $noteContainer: TextStyle = {
 const $noteInput: TextStyle = {
     flex: 1,
     margin: spacing.small,
-    borderRadius: spacing.small,
+    borderRadius: spacing.extraSmall,
     fontSize: 16,
     padding: spacing.small,
     alignSelf: 'stretch',
