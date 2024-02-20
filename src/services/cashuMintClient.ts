@@ -420,6 +420,7 @@ const requestProofs = async function (
   mintUrl: string,
   amount: number,
   paymentHash: string,
+  amountPreferences: AmountPreference[],
   counter: number
 ) {
   try {
@@ -428,7 +429,7 @@ const requestProofs = async function (
     const {proofs, newKeys} = await cashuWallet.requestTokens(
       amount,
       paymentHash,
-      undefined,
+      amountPreferences,
       counter
     )
     /* eslint-enable */

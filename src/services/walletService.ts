@@ -1305,12 +1305,12 @@ const receiveOfflineComplete = async function (
             receiveResult.errors[0].includes('outputs have already been signed before')) {
             log.error('[receiveOfflineComplete] Emergency increase of proofsCounter and retrying the receive')
             
-            mintInstance.increaseProofsCounter(50) 
+            mintInstance.increaseProofsCounter(20) 
             receiveResult = await MintClient.receiveFromMint(
                 mintToReceive,
                 encodedToken as string,
                 amountPreferences,
-                lockedProofsCounter.inFlightFrom as number + 50
+                lockedProofsCounter.inFlightFrom as number + 20
             )
 
             log.error('[receiveOfflineComplete] Emergency increase of proofsCounter, receive retry result', {receiveResult})
@@ -2289,15 +2289,60 @@ const checkPendingTopups = async function () {
             if(!mintInstance) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Missing mint', {mintUrl: pr.mint})
             }
-    
-            const proofsCounter = mintInstance.getOrCreateProofsCounter()
 
-            const {proofs, newKeys} = (await MintClient.requestProofs(
-                pr.mint as string,
-                pr.amount,
-                pr.paymentHash,
-                proofsCounter.counter
-            )) as {proofs: Proof[], newKeys: MintKeys}
+            const amountPreferences = getDefaultAmountPreference(pr.amount)        
+            const countOfInFlightProofs = CashuUtils.getAmountPreferencesCount(amountPreferences)
+            
+            log.trace('[checkPendingTopups]', 'amountPreferences', amountPreferences)
+            log.trace('[checkPendingTopups]', 'countOfInFlightProofs', countOfInFlightProofs)  
+            
+            // temp increase the counter + acquire lock and set inFlight values        
+            await lockAndSetInFlight(mintInstance, countOfInFlightProofs, pr.transactionId as number)
+            
+            // get locked counter values
+            const lockedProofsCounter = mintInstance.getOrCreateProofsCounter?.()
+    
+            let requestResult: {proofs: CashuProof[], newKeys?: MintKeys | undefined} = {
+                proofs: [],                
+                newKeys: undefined
+            }
+
+            try {
+                requestResult = (await MintClient.requestProofs(
+                    pr.mint as string,
+                    pr.amount,
+                    pr.paymentHash,
+                    amountPreferences,
+                    lockedProofsCounter.inFlightFrom as number
+                )) as {proofs: Proof[], newKeys: MintKeys}
+
+            } catch (e: any) {
+                if (e instanceof AppError && 
+                    e.params && 
+                    e.params.message?.includes('outputs have already been signed before')) {
+
+                        log.error('[checkPendingTopups] Emergency increase of proofsCounter and retrying the send')
+
+                        mintInstance.increaseProofsCounter(20)
+                        requestResult = await MintClient.requestProofs(
+                            pr.mint as string,
+                            pr.amount,
+                            pr.paymentHash,
+                            amountPreferences,
+                            lockedProofsCounter.inFlightFrom as number + 20
+                        )
+                        
+                        log.error('[checkPendingTopups] Emergency increase of proofsCounter, retry result', {requestResult})
+                } else {
+                    // release lock
+                    mintInstance.resetInFlight(pr.transactionId as number )
+                    throw e
+                }
+            }
+
+            mintInstance.decreaseProofsCounter(countOfInFlightProofs)
+            
+            const {proofs, newKeys} = requestResult
 
             if (!proofs || proofs.length === 0) {
                 log.trace('[checkPendingTopups]', 'No proofs returned from mint')
@@ -2335,7 +2380,10 @@ const checkPendingTopups = async function () {
                 proofs,
                 pr.mint as string,
                 pr.transactionId as number                
-            )            
+            )    
+            
+            // release lock
+            mintInstance.resetInFlight(pr.transactionId as number )
 
             if (receivedAmount !== pr.amount) {
                 throw new AppError(
