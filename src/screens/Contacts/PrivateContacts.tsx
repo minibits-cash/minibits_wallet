@@ -100,15 +100,16 @@ export const PrivateContacts = observer(function (props: {
 
                 log.trace('[saveNewContact]', 'Server profile', profile)
 
-                const {pubkey, npub, nip05, name, picture} = profile
+                const {pubkey, npub, name, picture, nip05, lud16} = profile
 
                 newContact = {
                     type: ContactType.PRIVATE,
                     pubkey,
                     npub,
-                    nip05,
                     name,
                     picture,
+                    nip05,
+                    lud16,
                     isExternalDomain,
                 } as Contact
 
@@ -130,6 +131,7 @@ export const PrivateContacts = observer(function (props: {
                     pubkey,
                     npub,
                     nip05,
+                    lud16: nip05, // minibits addresses are both nostr and lightning addresses
                     name,
                     picture,
                     isExternalDomain

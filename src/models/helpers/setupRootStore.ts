@@ -215,6 +215,19 @@ async function _runMigrations(rootStore: RootStore) {
             rootStore.setVersion(rootStoreModelVersion)
         }
 
+        if(currentVersion < 10) {
+            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v10`)
+            
+            for (const contact of contactsStore.all) {
+                if(contact.isExternalDomain === false) {
+                    contact.setLud16(contact.nip05)
+                }
+            }
+
+            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+            rootStore.setVersion(rootStoreModelVersion)
+        }
+
     } catch (e: any) {
         throw new AppError(
         Err.STORAGE_ERROR,

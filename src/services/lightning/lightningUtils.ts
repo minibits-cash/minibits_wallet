@@ -14,6 +14,15 @@ export type DecodedLightningInvoice = {
   readonly route_hints: any[]
 }
 
+export type LightningInvoiceData = {
+    amount: number; 
+    payment_hash: string, 
+    timestamp: number,
+    expiry: number, 
+    description?: string; 
+    description_hash?: string,     
+}
+
 
 const findEncodedLightningInvoice = function (content: string) {
     const words = content.split(/\s+|\n+/)
@@ -80,7 +89,12 @@ const getInvoiceExpiresAt = function (timestamp: number, expiry: number): Date {
 
 
 const getInvoiceData = function (decoded: DecodedLightningInvoice) {
-    let result: {amount?: number; description?: string; expiry?: number, payment_hash?: string, description_hash?: string, timestamp?: number} = {}
+    const result: LightningInvoiceData = {
+        amount: 0,
+        payment_hash: '',
+        expiry: 0,
+        timestamp: 0
+    }
 
     // log.trace('decoded invoice', decoded)
 
@@ -93,7 +107,7 @@ const getInvoiceData = function (decoded: DecodedLightningInvoice) {
                 result.description = (item.value as string) || ''
                 break
             case 'payment_hash':
-                result.payment_hash = (Buffer.from(item.value).toString('hex') as string) || ''
+                result.payment_hash = (Buffer.from(item.value).toString('hex') as string)
                 break
             case 'description_hash':
                 result.description_hash = (Buffer.from(item.value).toString('hex') as string) || ''
@@ -104,7 +118,7 @@ const getInvoiceData = function (decoded: DecodedLightningInvoice) {
         }
     }
 
-    result.expiry = decoded.expiry || 600
+    result.expiry = decoded.expiry
 
     log.trace('[getInvoiceData]', result)
     

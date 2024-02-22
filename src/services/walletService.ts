@@ -223,7 +223,7 @@ const checkPendingReceived = async function () {
                 
                 // get sender profile and save it as a contact
                 // this is not valid for events sent from LNURL bridge, that are sent and signed by a single server key
-                // and do not contain sentFrom
+                // and *** do not contain sentFrom ***
                 let sentFromPubkey = event.pubkey
                 let sentFrom = getFirstTagValue(event.tags, 'from')
                 let sentFromNpub = NostrClient.getNpubkey(sentFromPubkey)
@@ -238,12 +238,13 @@ const checkPendingReceived = async function () {
                     }
 
                     // we skip retrieval of external nostr profiles to minimize failures
-                    // external contacts will thus miss image...
+                    // external contacts will thus miss image and lud16 address...
                                         
                     contactFrom = {                        
                         pubkey: sentFromPubkey,
                         npub: sentFromNpub,
                         nip05: sentFrom,
+                        lud16: sentFrom.includes(MINIBITS_NIP05_DOMAIN) ? sentFrom : undefined,
                         name: sentFromName || undefined,
                         picture: sentFromPicture || undefined,
                         isExternalDomain: sentFrom.includes(MINIBITS_NIP05_DOMAIN) ? false : true                        
@@ -289,6 +290,12 @@ const checkPendingReceived = async function () {
                                 if(senderProfile) {
                                     sentFrom = senderProfile.nip05 || senderProfile.name
                                     sentFromPicture = senderProfile.picture
+                                    
+                                    // if we have such contact, set or update its lightning address by the one from profile
+                                    const contactInstance = contactsStore.findByPubkey(sentFromPubkey)
+                                    if(contactInstance && senderProfile.lud16) {                                        
+                                        contactInstance.setLud16(senderProfile.lud16)
+                                    }
                                 }
                             }
                         } catch (e: any) {
@@ -309,7 +316,6 @@ const checkPendingReceived = async function () {
                     // Send notification event
                     //
                     if(receivedAmount > 0) {
-
                         result = {
                             status: TransactionStatus.COMPLETED,                        
                             title: `⚡${receivedAmount} sats received!`,
@@ -360,10 +366,10 @@ const checkPendingReceived = async function () {
                         encodedInvoice: incoming.encoded,
                         amount: amount || 0,
                         description: maybeMemo ? maybeMemo : description,                            
-                        paymentHash: paymentHash || '',
+                        paymentHash,
                         contactFrom: contactFrom || {pubkey: sentFromPubkey, npub: sentFromNpub},
                         contactTo,                        
-                        expiry: expiry || 600,
+                        expiry,
                         createdAt: timestamp ? new Date(timestamp * 1000) : new Date()
                     })
                     
@@ -433,7 +439,7 @@ const getFirstTagValue = function (tagsArray: [string, string][], tagName: strin
 
 const findMemo = function (message: string): string | undefined {
     // Find the last occurrence of "memo: "
-    const lastIndex = message.lastIndexOf("memo: ")
+    const lastIndex = message.lastIndexOf("Memo: ")
     
     if (lastIndex !== -1) {        
         const memoAfterLast = message.substring(lastIndex + 6) // skip "memo: " itself
@@ -2345,12 +2351,16 @@ const checkPendingTopups = async function () {
             const {proofs, newKeys} = requestResult
 
             if (!proofs || proofs.length === 0) {
-                log.trace('[checkPendingTopups]', 'No proofs returned from mint')
+                log.trace('[checkPendingTopups]', 'No proofs returned from mint')                
+                
+                // create copy of transactionId to avoid mobx error aftr pr is deleted
+                const transactionId = {...pr}.transactionId
+
                 // remove already expired invoices only after check that they have not been paid                
                 if (isBefore(pr.expiresAt as Date, new Date())) {
                     log.debug('[checkPendingTopups]', `Invoice expired, removing: ${pr.paymentHash}`)
                     
-                    const transactionId = pr.transactionId
+                    
                     paymentRequestsStore.removePaymentRequest(pr)
                     
                     // expire related tx - but only if it has not been completed before this check
@@ -2369,7 +2379,8 @@ const checkPendingTopups = async function () {
                         ) 
                     }                   
                 }
-
+                // release lock and move on
+                mintInstance.resetInFlight(transactionId as number )
                 continue
             }            
 
@@ -2402,7 +2413,12 @@ const checkPendingTopups = async function () {
                 [pr.transactionId as number],
                 TransactionStatus.COMPLETED,
                 JSON.stringify(transactionDataUpdate),
-            ) 
+            )
+
+            transactionsStore.updateSentFrom(
+                pr.transactionId as number,
+                pr.contactTo?.nip05 as string // payemnt has been sent from payment request receiver
+            )
 
             // Fire event that the TopupScreen can listen to
             EventEmitter.emit('topupCompleted', {...pr})

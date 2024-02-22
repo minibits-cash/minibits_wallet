@@ -39,6 +39,7 @@ export type NostrProfile = {
     about?: string
     picture?: string
     nip05?: string
+    lud16?: string
 }
 
 export type Nip05VerificationRecord = {

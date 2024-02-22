@@ -908,6 +908,12 @@ const TopupInfoBlock = function (props: {
                         label="tranDetailScreen.memoToReceiver"
                         value={transaction.memo as string}
                     />
+                    {transaction.sentFrom && (
+                        <TranItem
+                            label="tranDetailScreen.sentFrom"
+                            value={transaction.sentFrom as string}
+                        />
+                    )}                    
                     <TranItem
                         label="tranDetailScreen.type"
                         value={transaction.type as string}
