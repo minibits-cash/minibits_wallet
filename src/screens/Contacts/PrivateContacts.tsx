@@ -81,7 +81,7 @@ export const PrivateContacts = observer(function (props: {
         log.trace('Start', newContactName, 'saveNewContact')
         
         if(!newContactName) {
-            setInfo(`Please enter a wallet profile name in name@domain.com format`)
+            setInfo(`Please enter a wallet address in name@domain.xyz format`)
             return
         }
 
@@ -307,7 +307,7 @@ export const PrivateContacts = observer(function (props: {
             ContentComponent={
                 <View style={$newContainer}>
                     <Text tx='contactsScreen.newTitle' preset="subheading" />
-                    <Text size='xxs' style={{color: domainText}} text='Private contacts are unique identifiers of other Minibits wallets. You can use them to send or request ecash and you can safely share your own with others. Like account numbers, just better.' />
+                    <Text size='xxs' style={{color: domainText}} text='Private contacts are unique identifiers of other Minibits wallets. You can use them to send or request ecash and you can safely share your own with others.' />
                     <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
                         <TextInput
                             ref={contactNameInputRef}
@@ -335,7 +335,7 @@ export const PrivateContacts = observer(function (props: {
                     </View>                    
                     <Button
                         preset='tertiary'
-                        text={isExternalDomain ? 'Use minibits.cash domain' : 'Use another NIP05 domain'}
+                        text={isExternalDomain ? 'Use minibits.cash domain' : 'Use another domain'}
                         onPress={toggleExternalDomain}
                         style={{alignSelf: 'flex-start', minHeight: verticalScale(30)}}
                         textStyle={{lineHeight: verticalScale(16), fontSize: 12}}   

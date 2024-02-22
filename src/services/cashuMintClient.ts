@@ -446,9 +446,10 @@ const requestProofs = async function (
   } catch (e: any) {
     if(e.message.includes('quote not paid') === false) {
         log.warn('[requestProofs]', `${e.message}`)
+        return {proofs: []}
     }
     
-    return {proofs: []}
+    throw e
   }
 }
 

@@ -12,9 +12,11 @@ import { ContactType } from '../models/Contact'
 import { WalletProfileRecord } from '../models/WalletProfileStore'
 import { MinibitsClient, NostrClient } from '../services'
 import { getImageSource } from '../utils/utils'
-import { verticalScale } from '@gocodingnow/rn-size-matters'
+import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
 import { ReceiveOption } from './ReceiveOptionsScreen'
 import { SendOption } from './SendOptionsScreen'
+import { IncomingDataType, IncomingParser } from '../services/incomingParser'
+import { MINIBITS_NIP05_DOMAIN } from '@env'
 
 
 interface ContactDetailScreenProps extends ContactsStackScreenProps<'ContactDetail'> {}
@@ -28,6 +30,8 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
     useHeader({        
         leftIcon: 'faArrowLeft',
         onLeftPress: () => navigation.goBack(),
+        rightIcon:  'faEllipsisVertical',
+        onRightPress: () => toggleContactModal()
     })    
     
        
@@ -68,6 +72,20 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                 relays
             },
         })
+    }
+
+
+    const gotoTransfer = async () => {
+        try {                         
+            await IncomingParser.navigateWithIncomingData({
+                type: IncomingDataType.LNURL_ADDRESS,
+                encoded: contact.lud16
+            }, navigation)    
+            
+            return          
+        } catch (e: any) {
+            handleError(e)            
+        }
     }
 
 
@@ -142,12 +160,12 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
     }
 
     const iconNpub = useThemeColor('textDim')
-    const balanceColor = useThemeColor('textDim')
-    const headerBg = useThemeColor('header')
-    const inputBg = useThemeColor('background')
+    const addressColor = useThemeColor('textDim')
+    const headerBg = useThemeColor('header')    
     const screenBg = useThemeColor('background')
+    const cardBg = useThemeColor('card')
 
-    const {type, name, npub, nip05, picture, about} = contact
+    const {type, name, display_name, npub, nip05, picture, about, lud16} = contact
     
     return (
       <Screen contentContainerStyle={$screen} preset='auto'>        
@@ -170,19 +188,51 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                 <Card
                     style={$card}
                     ContentComponent={
-                        <ListItem
-                            text="About"
-                            subText={about || 'Not shared'}
-                            leftIcon='faCircleUser'                            
-                            onPress={onCopyNpub}                            
-                        />
+                        <>
+                            <ListItem
+                                text={display_name || name}
+                                subText={about?.slice(0, 150) || 'Not shared'}
+                                leftIcon='faCircleUser'    
+                            />
+                            {lud16 && (
+                                <ListItem                                    
+                                    text={lud16}
+                                    textStyle={{fontSize: moderateVerticalScale(14), color: addressColor}}
+                                    leftIcon='faBolt'
+                                    topSeparator={true}
+                                />
+                            )}
+                            <ListItem                                                                
+                                LeftComponent={
+                                    <Button
+                                        text={`Request payment`}
+                                        style={{marginLeft: spacing.small, marginTop: spacing.small, alignSelf: 'center', minHeight: verticalScale(30)}}
+                                        textStyle={{fontSize: spacing.small, lineHeight: verticalScale(16)}}
+                                        onPress={gotoTopup}
+                                        preset='tertiary'
+                                    />
+                                }
+                                RightComponent={lud16 ? (
+                                    <Button
+                                        text={`Pay to Lightning address`}
+                                        style={{marginLeft: spacing.small, marginTop: spacing.small, alignSelf: 'center', minHeight: verticalScale(30)}}
+                                        textStyle={{fontSize: spacing.small, lineHeight: verticalScale(16)}}
+                                        onPress={gotoTransfer}
+                                        preset='tertiary'
+                                    />
+                                ) : undefined}
+                                topSeparator={lud16 ? true : false} 
+                                onPress={gotoTransfer}                   
+                            />
+                        </>
                     }
                 />
             ) : (
+            <>
                 <Card
                     style={$noteCard}
                     ContentComponent={
-                    <View style={$noteContainer}>
+                        <View style={$noteContainer}>
                         <TextInput
                             ref={noteInputRef}
                             onChangeText={note => setNote(note)}                                    
@@ -219,55 +269,59 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                     </View>
                     }
                 />
+                <Card
+                    ContentComponent={
+                    <>                        
+                        {lud16 && (
+                            <ListItem                                    
+                                text={lud16}
+                                textStyle={{fontSize: moderateVerticalScale(14), color: addressColor}}
+                                leftIcon='faBolt'
+                                bottomSeparator={true}
+                            />
+                        )}
+                        <ListItem                                                                
+                            LeftComponent={
+                                <Button
+                                    text={`Request payment`}
+                                    style={{marginLeft: spacing.small, marginTop: spacing.small, alignSelf: 'center', minHeight: verticalScale(30)}}
+                                    textStyle={{fontSize: spacing.small, lineHeight: verticalScale(16)}}
+                                    onPress={gotoTopup}
+                                    preset='tertiary'
+                                />
+                            }
+                            RightComponent={contact.isExternalDomain && lud16 ? (
+                                <Button
+                                    text={`Pay to Lightning address`}
+                                    style={{marginLeft: spacing.small, marginTop: spacing.small, alignSelf: 'center', minHeight: verticalScale(30)}}
+                                    textStyle={{fontSize: spacing.small, lineHeight: verticalScale(16)}}
+                                    onPress={gotoTransfer}
+                                    preset='tertiary'
+                                />
+                            ) : undefined}
+                            topSeparator={contact.isExternalDomain && lud16 ? true : false} 
+                            onPress={gotoTransfer}                   
+                        />
+                    </>
+                    }
+                />
+            </>
             )}
-            <View style={$buttonContainer}>
-                <Button
-                    text={`Share`}
-                    preset='secondary'
-                    LeftAccessory={() => (
-                        <Icon icon='faShareNodes'/>
-                    )}
-                    onPress={toggleShareModal}                    
-                />
-                {type === ContactType.PRIVATE && (
-                <Button
-                    text={`Edit`}
-                    preset='secondary'
-                    LeftAccessory={() => (
-                        <Icon icon='faRotate'/>
-                    )}
-                    style={{marginLeft: spacing.small}}
-                    onPress={toggleContactModal}                    
-                />
-                )}
-            </View>
         </View>
         <View style={[$bottomContainer]}>
             <View style={$buttonContainer}>
-            <Button
-              text={`Request ecash`}
-              LeftAccessory={() => (
-                <Icon
-                  icon='faArrowDown'
-                  color='white'
-                  size={spacing.medium}                  
+                <Button
+                    text={`Send ecash`}
+                    LeftAccessory={() => (
+                        <Icon
+                        icon='faArrowUp'
+                        color='white'
+                        size={spacing.medium}                  
+                        />
+                    )}
+                    onPress={gotoSend} 
+                    style={$buttonSend}                        
                 />
-              )}
-              onPress={gotoTopup}
-              style={[$buttonReceive, {borderRightColor: screenBg}]}
-            />
-            <Button
-              text={`Send ecash`}
-              RightAccessory={() => (
-                <Icon
-                  icon='faArrowUp'
-                  color='white'
-                  size={spacing.medium}                  
-                />
-              )}
-              onPress={gotoSend}
-              style={$buttonSend}            
-            />
             </View>
         </View>
         <BottomModal
@@ -275,6 +329,19 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
           style={{alignItems: 'stretch'}}          
           ContentComponent={
             <>
+            <ListItem
+                text='Share contact address'
+                subText={nip05}
+                leftIcon='faShareNodes'
+                onPress={onShareContact}
+                bottomSeparator={true}
+            /> 
+            <ListItem
+                text="Copy contact's public key"
+                subText={npub}
+                leftIcon='faCopy'                            
+                onPress={onCopyNpub}                                      
+            />
             {type === ContactType.PRIVATE && (
                 <>
                     <ListItem
@@ -282,6 +349,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                         subText='Checks that contact name is still linked to the same pubkey and updates picture if it was changed.'
                         leftIcon='faRotate'                            
                         onPress={onSyncPrivateContact}
+                        topSeparator={true}
                         bottomSeparator={true}                            
                     />
                     <ListItem
@@ -291,35 +359,12 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                         onPress={onDeleteContact}                                                  
                     />
                 </>
-            )}     
+            )}
             </>
           }
           onBackButtonPress={toggleContactModal}
           onBackdropPress={toggleContactModal}
-        /> 
-        <BottomModal
-          isVisible={isShareModalVisible}
-          style={{alignItems: 'stretch'}}          
-          ContentComponent={
-            <>
-                <ListItem
-                    text='Share contact address'
-                    subText={nip05}
-                    leftIcon='faShareNodes'
-                    onPress={onShareContact}
-                    bottomSeparator={true}
-                /> 
-                <ListItem
-                    text="Copy contact's public key"
-                    subText={npub}
-                    leftIcon='faCopy'                            
-                    onPress={onCopyNpub}                                      
-                />   
-            </>
-          }
-          onBackButtonPress={toggleShareModal}
-          onBackdropPress={toggleShareModal}
-        />       
+        />    
         {info && <InfoModal message={info} />}
         {error && <ErrorModal error={error} />}
     </Screen>
@@ -432,10 +477,10 @@ const $buttonScan: ViewStyle = {
 }
 
 const $buttonSend: ViewStyle = {
-  borderTopLeftRadius: 0,
-  borderBottomLeftRadius: 0,
-  borderTopRightRadius: 30,
-  borderBottomRightRadius: 30,
-  minWidth: verticalScale(130),  
+  // borderTopLeftRadius: 0,
+  // borderBottomLeftRadius: 0,
+  borderRadius: 30,
+  // borderBottomRightRadius: 30,
+  minWidth: verticalScale(160),  
 }
 

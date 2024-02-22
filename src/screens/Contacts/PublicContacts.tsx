@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 
 // const defaultPublicNpub = 'npub14n7frsyufzqsxlvkx8vje22cjah3pcwnnyqncxkuj2243jvt9kmqsdgs52'
-const defaultPublicNpub = 'npub1emy455yz6uuqxlk0vwq4aws98rz3ev792cdjgcpakqewkjeryvtqvy7yyq'
+const defaultPublicNpub = 'npub1kvaln6tm0re4d99q9e4ma788wpvnw0jzkz595cljtfgwhldd75xsj9tkzv'
 const maxContactsToLoad = 20
 
 if (Platform.OS === 'android' &&
@@ -375,6 +375,8 @@ export const PublicContacts = observer(function (props: {
             return
         }
 
+        log.trace('[gotoContactDetail]', contact)
+
         navigation.navigate('ContactDetail', {
             contact, 
             relays // TODO remove, switch to relaysStore
@@ -403,7 +405,7 @@ export const PublicContacts = observer(function (props: {
     
     return (
     <Screen contentContainerStyle={$screen}>
-        <View style={$contentContainer}>
+        <View style={[$contentContainer, !isOwnProfileVisible && {marginTop: -100}]}>
         {!contactsStore.publicPubkey && (
             <Card
                 ContentComponent={
@@ -424,7 +426,7 @@ export const PublicContacts = observer(function (props: {
                 ContentComponent={
                     <ListItem                        
                         LeftComponent={
-                            <View style={{marginRight: spacing.medium, borderRadius: 20, overflow: 'hidden'}}>
+                            <View style={{marginRight: spacing.medium, borderRadius: 20, overflow: 'hidden' }}>
                                 {ownProfile.picture ? (
                                     <Image 
                                         source={{uri: ownProfile.picture}}
@@ -438,7 +440,7 @@ export const PublicContacts = observer(function (props: {
                         text={ownProfile.name}
                         subText={isOwnProfileVisible ? relaysStore.allPublicUrls.toString() : undefined}
                         onPress={toggleNpubActionsModal}
-                        rightIcon={'faEllipsisVertical'}                                                        
+                        rightIcon={'faEllipsisVertical'}                                                                            
                     />
                 }
                 style={$card}           
@@ -477,7 +479,7 @@ export const PublicContacts = observer(function (props: {
                         onStartReached={expandProfile}                        
                         keyExtractor={(item) => item.pubkey}
                         contentInset={insets}
-                        style={{ maxHeight: spacing.screenHeight * 0.62 }}
+                        style={{ maxHeight: spacing.screenHeight * 0.72 }}
                         // contentContainerStyle={{paddingBottom: 200}}
                     />
                 </>

@@ -114,6 +114,7 @@ const {
  * Checks with all mints whether their pending proofs have been spent.
  */
 const checkPendingSpent = async function () {
+    log.trace('[checkPendingSpent] start')
     if (mintsStore.mintCount === 0) {
         return
     }
@@ -144,6 +145,7 @@ const checkPendingSpent = async function () {
  * Checks with NOSTR relays whether there is ecash to be received or an invoice to be paid.
  */
 const checkPendingReceived = async function () {
+    log.trace('[checkPendingReceived] start')
     if(!walletProfileStore.pubkey) { // New profile not yet created in ContactsScreen
         return       
     }
@@ -159,10 +161,7 @@ const checkPendingReceived = async function () {
             since: lastPendingReceivedCheck || 0
         }]
 
-        contactsStore.setLastPendingReceivedCheck() 
-
-        log.trace('[checkPendingReceived]', 'Creating Nostr subscription...', filter)
-
+        contactsStore.setLastPendingReceivedCheck()         
         const pool = NostrClient.getRelayPool()
 
         // make sure we have at least default relays
@@ -655,6 +654,7 @@ const _checkSpentByMint = async function (mintUrl: string, isPending: boolean = 
  * Recover proofs that were issued by mint, but wallet failed to receive them if split did not complete.
  */
 const checkInFlight = async function () {
+    log.trace('[checkInFlight] start')
     if (mintsStore.mintCount === 0) {
         return
     }
@@ -679,6 +679,7 @@ const checkInFlight = async function () {
         }        
     }
 
+    log.trace('[checkInFlight] completed')
     return {recoveredCount, recoveredAmount}
 }
 
@@ -2242,7 +2243,7 @@ const topup = async function (
         poller('checkPendingTopupsPoller', checkPendingTopups, 6 * 1000, 20, 5)
             .then(() => log.trace('Polling completed', [], 'checkPendingTopups'))
             .catch(error =>
-                log.warn(error.message, [], 'checkPendingTopups'),
+                log.warn('[checkPendingTopups]', error.message),
         )
 
         return {
@@ -2279,7 +2280,7 @@ const topup = async function (
 }
 
 const checkPendingTopups = async function () {
-
+    log.trace('[checkPendingTopups] start')
     const paymentRequests: PaymentRequest[] = paymentRequestsStore.allOutgoing
 
     if (paymentRequests.length === 0) {
@@ -2308,7 +2309,7 @@ const checkPendingTopups = async function () {
             // get locked counter values
             const lockedProofsCounter = mintInstance.getOrCreateProofsCounter?.()
     
-            let requestResult: {proofs: CashuProof[], newKeys?: MintKeys | undefined} = {
+            let requestResult: {proofs: CashuProof[], newKeys?: MintKeys} = {
                 proofs: [],                
                 newKeys: undefined
             }

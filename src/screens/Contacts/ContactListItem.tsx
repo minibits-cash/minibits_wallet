@@ -26,7 +26,7 @@ export const ContactListItem = observer(function (props: ContactListProps) {
         textStyle={$mintText}
         subText={contact.noteToSelf || contact.nip05}        
         LeftComponent={
-            <View style={{alignItems: 'center'}}>
+            <View style={{}}>
                 <Image 
                     style={[$iconContainer, {
                         width: 40, 
@@ -35,9 +35,9 @@ export const ContactListItem = observer(function (props: ContactListProps) {
                     }]}
                     source={{uri: getImageSource(contact.picture as string)}} 
                 />
-                {contact.lud16 && (
-                    <Text text='⚡' size='xxs' style={{marginTop: -spacing.small}}/>
-                )}                
+                {/*contact.lud16 && (
+                    <Text text='⚡' size='xs' style={{marginTop: -spacing.small}}/>
+                )*/}                
             </View>
         }  
         RightComponent={

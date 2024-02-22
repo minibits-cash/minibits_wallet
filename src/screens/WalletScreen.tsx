@@ -145,28 +145,20 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 return // deeplinks have priority over clipboard
             }
 
-            /* const clipboard = await Clipboard.getString()
-
-            if(clipboard) {
-                handleClipboard(clipboard)
-            } */ // not used outside dev
+            // auto-recover inflight proofs - do only on startup and before checkPendingReceived to prevent conflicts
+            // TODO add manual option to recovery settings
+            if(isInternetReachable) {                
+                Wallet.checkInFlight().catch(e => false)
+                setTimeout(() => {
+                    // Create websocket subscriptions to receive tokens or payment requests by NOSTR DMs                    
+                    Wallet.checkPendingReceived().catch(e => false)                            
+                }, 500)
+            } 
 
             log.trace('[getInitialData]', 'walletProfile', walletProfileStore)
         }
          
-        // auto-recover inflight proofs - do only on startup and before checkPendingReceived to prevent conflicts
-        // TODO add manual option to recovery settings
-        if(isInternetReachable) {
-            Wallet.checkInFlight().catch(e => false)
-        }        
 
-        setTimeout(async () => {
-            if(!isInternetReachable) {
-                return
-            }
-            // Create websocket subscriptions to receive tokens or payment requests by NOSTR DMs
-            Wallet.checkPendingReceived().catch(e => false)            
-        }, 500)
 
         EventEmitter.on('receiveTokenCompleted', onReceiveTokenCompleted)
         EventEmitter.on('receivePaymentRequest', onReceivePaymentRequest)
@@ -214,14 +206,12 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
     useFocusEffect(        
         useCallback(() => {
-            setTimeout(() => {
+            setTimeout(async () => {
                 if(!isInternetReachable) {
                     return
-                }
-
-                Wallet.checkPendingSpent().catch(e => false) 
-                Wallet.checkPendingTopups().catch(e => false)
-                // NostrClient.reconnectToRelays().catch(e => false)
+                }                
+                await Wallet.checkPendingSpent().catch(e => false)                
+                Wallet.checkPendingTopups().catch(e => false)                
             }, 100)
         }, [])
     )
@@ -246,13 +236,12 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 appState.current.match(/inactive|background/) &&
                 nextAppState === 'active') {
                 
-                setTimeout(() => {
+                setTimeout(async () => {
                     if(!isInternetReachable) {
                         return
-                    }
-                                    
-                    Wallet.checkPendingSpent().catch(e => false) 
-                    Wallet.checkPendingTopups().catch(e => false)
+                    }                    
+                    await Wallet.checkPendingSpent().catch(e => false) 
+                    Wallet.checkPendingTopups().catch(e => false)                    
                     NostrClient.reconnectToRelays().catch(e => false)
                 }, 100)            
             }
@@ -413,7 +402,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const screenBg = useThemeColor('background')
     const iconInfo = useThemeColor('textDim')
 
-    return (
+    return (        
       <Screen preset='fixed' contentContainerStyle={$screen}>
             <Header 
                 leftIcon='faListUl'
