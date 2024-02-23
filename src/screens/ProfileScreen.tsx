@@ -111,14 +111,17 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
             const profile: NostrProfile = await NostrClient.getNormalizedNostrProfile(walletProfileStore.nip05, relaysStore.allUrls)
             
             if(profile.pubkey !== walletProfileStore.pubkey) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Profile from relays public key differs from your pubkey. Remove profile and import again with new keys.', {caller: 'onSyncOwnProfile', profile, pubkey: walletProfileStore.pubkey})
+                throw new AppError(Err.VALIDATION_ERROR, 'Profile from relays public key differs from yor wallet pubkey. Reset this profile in Privacy settings and import again with new keys.', {caller: 'onSyncOwnProfile', profile, pubkey: walletProfileStore.pubkey})
             }
 
             log.trace('[onSyncOwnProfile]', {profile})
 
-            // update name and pic based on data from relays
-            await MinibitsClient.updateWalletProfileAvatar(profile.pubkey, {avatar: profile.picture || ''})
-            await MinibitsClient.updateWalletProfileName(profile.pubkey, {name: profile.name || ''})
+            // update own profile based on data from relays
+            await MinibitsClient.updateWalletProfile(profile.pubkey, {
+                avatar: profile.picture || '', // this is https:// link
+                lud16: profile.lud16 || '',
+                name: profile.name
+            })            
                  
             setIsLoading(false)
             setInfo('Sync completed')

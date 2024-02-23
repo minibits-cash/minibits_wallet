@@ -177,10 +177,11 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
             // update wallet profile
             const updatedProfile = await walletProfileStore.updateNip05(
                 ownProfile.pubkey,
-                ownProfile.nip05 as string,
                 ownProfile.name as string,
+                ownProfile.nip05 as string,                
+                ownProfile.lud16 || '',
                 ownProfile.picture as string,
-                true // isOwnProfile
+                true // isOwnProfile                
             )
 
             // update keys

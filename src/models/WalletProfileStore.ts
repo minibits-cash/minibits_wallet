@@ -12,6 +12,7 @@ export type WalletProfile = {
     name: string
     nip05: string
     picture: string
+    lud16?: string | null    
     device?: string | null
     isOwnProfile: boolean
 }
@@ -21,7 +22,8 @@ export type WalletProfileRecord = {
     pubkey: string    
     walletId: string
     name: string
-    nip05: string    
+    nip05: string
+    lud16?: string | null  
     device?: string | null
     avatar: string
     createdAt: string    
@@ -32,8 +34,9 @@ export const WalletProfileStoreModel = types
         pubkey: types.optional(types.string, ''),
         walletId: types.optional(types.string, ''),
         name: types.optional(types.string, ''),
-        nip05: types.optional(types.string, ''),
+        nip05: types.optional(types.string, ''),        
         picture: types.optional(types.string, ''),
+        lud16: types.maybe(types.maybeNull(types.string)),
         device: types.maybe(types.maybeNull(types.string)),
         seedHash: types.maybe(types.maybeNull(types.string)),
         isOwnProfile: types.optional(types.boolean, false),       
@@ -41,7 +44,7 @@ export const WalletProfileStoreModel = types
     .actions(self => ({  
         publishToRelays: flow(function* publishToRelays() {
             try {
-                const {pubkey, name, picture, nip05} = self
+                const {pubkey, name, picture, nip05, lud16} = self
 
                 // announce to minibits relay + default public relays with replaceable event           
                 const profileEvent: NostrUnsignedEvent = {
@@ -51,7 +54,8 @@ export const WalletProfileStoreModel = types
                     content: JSON.stringify({
                         name,                            
                         picture,
-                        nip05,                       
+                        nip05,
+                        lud16,                       
                     }),                              
                 }
 
@@ -83,13 +87,14 @@ export const WalletProfileStoreModel = types
     }))
     .actions(self => ({        
         hydrate: flow(function* hydrate(profileRecord: WalletProfileRecord) {
-            const {nip05, name, avatar, pubkey, walletId} = profileRecord
+            const {name, nip05, lud16, avatar, pubkey, walletId} = profileRecord
             
             self.pubkey = pubkey                
             self.walletId = walletId
             self.name = name // default name is set on server side, equals walletId
             self.nip05 = nip05 // default is name@minibits.cash set on server side
-            self.picture = avatar // default picture is set on server side
+            self.lud16 = lud16 // equals for all @minibits.cash addresses
+            self.picture = avatar // default picture is set on server side            
             
             const publishedEvent = yield self.publishToRelays()
         })
@@ -108,7 +113,8 @@ export const WalletProfileStoreModel = types
             try {
                 profileRecord = yield MinibitsClient.createWalletProfile(publicKey, walletId, seedHash)        
             } catch (e: any) {
-                // Unlikely we might hit the same walletId or loose walletProfile state while keeping keys in the Keychain. In such cases we do full reset.
+                // Unlikely we might hit the same walletId or loose walletProfile state while keeping keys in the Keychain. 
+                // In such cases we do full reset.
                 if(e.name === Err.ALREADY_EXISTS_ERROR) {
                     
                     // clean and recreate Nostr keys
@@ -119,7 +125,8 @@ export const WalletProfileStoreModel = types
                     const userSettingsStore = getRootStore(self).userSettingsStore
                     userSettingsStore.setWalletId(name)
                     // attempt to create new unique profile again
-                    profileRecord = yield MinibitsClient.createWalletProfile(publicKey, name, seedHash) // this removes abandoned profile with the same seedHash if any
+                    // this removes abandoned profile with the same seedHash if any
+                    profileRecord = yield MinibitsClient.createWalletProfile(publicKey, name, seedHash) 
                     
                     log.error('[create]', 'Profile reset executed to resolve duplicate profile on the server.', {caller: 'create', newWalletId: name})
                     self.hydrate(profileRecord)
@@ -137,15 +144,18 @@ export const WalletProfileStoreModel = types
         }),     
         updateName: flow(function* updateName(name: string) {
 
-            let profileRecord: WalletProfileRecord = yield MinibitsClient.updateWalletProfileName(
+            let profileRecord: WalletProfileRecord = yield MinibitsClient.updateWalletProfile(
                 self.pubkey, 
                 {                    
-                    name                   
+                    name,      
+                    avatar: '', // Do NOT pass self.picture value that is URL and causes forever cycle on server // TODO fix                                  
+                    lud16: ''   // Set by server for minibits addreses
                 }
             )           
                            
             self.name = profileRecord.name
             self.nip05 = profileRecord.nip05
+            self.lud16 = profileRecord.lud16
             const publishedEvent = yield self.publishToRelays()
             
             log.debug('[updateName]', 'Wallet name updated in the WalletProfileStore', {self, publishedEvent})
@@ -153,10 +163,12 @@ export const WalletProfileStoreModel = types
         }),
         updatePicture: flow(function* updatePicture(picture: string) {
 
-            let profileRecord: WalletProfileRecord = yield MinibitsClient.updateWalletProfileAvatar(
-                self.pubkey, 
+            let profileRecord: WalletProfileRecord = yield MinibitsClient.updateWalletProfile(
+                self.pubkey,
                 {   
-                    avatar: picture
+                    avatar: picture, // this is png in base64
+                    name: self.name,                    
+                    lud16: self.lud16 || ''
                 }
             )   
 
@@ -167,7 +179,7 @@ export const WalletProfileStoreModel = types
             log.debug('[updatePicture]', 'Wallet picture updated in the WalletProfileStore', {self, publishedEvent})
             return self         
         }),
-        updateNip05: flow(function* updateNip05(newPubkey: string, nip05: string, name: string, picture: string, isOwnProfile: boolean) {
+        updateNip05: flow(function* updateNip05(newPubkey: string, name: string, nip05: string, lud16: string, picture: string, isOwnProfile: boolean) {
 
             log.trace('[updateNip05]', {currentPubkey: self.pubkey, newPubkey})
 
@@ -176,6 +188,7 @@ export const WalletProfileStoreModel = types
                 { 
                     newPubkey,
                     nip05,
+                    lud16,
                     name,
                     avatar: picture
                 }
@@ -186,6 +199,7 @@ export const WalletProfileStoreModel = types
             self.pubkey = newPubkey
             self.walletId = profileRecord.walletId
             self.nip05 = profileRecord.nip05
+            self.lud16 = profileRecord.lud16
             self.name = profileRecord.name
             self.picture = profileRecord.avatar
             self.isOwnProfile = isOwnProfile
@@ -208,6 +222,7 @@ export const WalletProfileStoreModel = types
             self.seedHash = seedHash
             self.walletId = profileRecord.walletId
             self.nip05 = profileRecord.nip05
+            self.lud16 = profileRecord.lud16
             self.name = profileRecord.name
             self.picture = profileRecord.avatar                        
             

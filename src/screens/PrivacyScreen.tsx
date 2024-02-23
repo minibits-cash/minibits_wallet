@@ -23,6 +23,7 @@ import { KeyChain, MinibitsClient, TorDaemon } from '../services'
 import { log } from '../services/logService'
 import { OwnKeysScreen } from './OwnKeysScreen'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
+import { CommonActions } from '@react-navigation/native'
 
 enum TorStatus {
     NOTINIT = 'NOTINIT',
@@ -34,7 +35,27 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
     const {navigation} = _props
     useHeader({
         leftIcon: 'faArrowLeft',
-        onLeftPress: () => navigation.goBack(),
+        onLeftPress: () => {
+            const routes = navigation.getState()?.routes
+            let prevRouteName: string = ''
+
+            if(routes.length >= 2) {
+                prevRouteName = routes[routes.length - 2].name
+            }
+
+            if(prevRouteName === 'Settings') {
+                navigation.navigate('Settings')
+            } else {
+                navigation.dispatch(
+                    CommonActions.reset({
+                      index: 1,
+                      routes: [
+                        { name: 'WalletNavigator' },                    
+                      ],
+                    })
+                );
+            }  
+        }
     })
 
     const {userSettingsStore, walletProfileStore} = useStores()
@@ -173,7 +194,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
             const keyPair = KeyChain.generateNostrKeyPair()
             await KeyChain.saveNostrKeyPair(keyPair)
 
-            // set name to defualt walletId
+            // set name to default walletId
             const name = userSettingsStore.walletId as string
 
             // get random image
@@ -181,9 +202,10 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
 
             // update wallet profile
             await walletProfileStore.updateNip05(
-                keyPair.publicKey,
-                name + MINIBITS_NIP05_DOMAIN,
+                keyPair.publicKey,                
                 name,
+                name + MINIBITS_NIP05_DOMAIN, // nip05
+                name + MINIBITS_NIP05_DOMAIN, // lud16
                 pictures[0],
                 false // isOwnProfile
             )

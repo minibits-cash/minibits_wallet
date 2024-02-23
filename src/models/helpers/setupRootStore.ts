@@ -220,7 +220,7 @@ async function _runMigrations(rootStore: RootStore) {
             
             for (const contact of contactsStore.all) {
                 if(contact.isExternalDomain === false) {
-                    contact.setLud16(contact.nip05)
+                    contact.setLud16(contact.nip05 as string)
                 }
             }
 

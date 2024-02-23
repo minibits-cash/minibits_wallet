@@ -35,11 +35,11 @@ export {
 export type NostrProfile = {
     pubkey: string
     npub: string
-    name?: string
+    name: string
+    nip05: string
+    lud16?: string
     about?: string
     picture?: string
-    nip05?: string
-    lud16?: string
 }
 
 export type Nip05VerificationRecord = {
@@ -296,8 +296,8 @@ const getNip05Record = async function (nip05: string) {
         
     } catch(e: any) {
         log.trace('Error', e)
-        if(e.name === Err.NOTFOUND_ERROR) {
-            e.message = `${nip05Name} could not be found on the ${nip05Domain} address server. Your contact might have changed the profile name, please get in touch.`
+        if(e.name === Err.NOTFOUND_ERROR || e.params?.status === 404) {
+            e.message = `${nip05Name} could not be found on the ${nip05Domain} address server. Make sure you enter up to date and correct address.`
             throw e
         } else {
             throw e // Propagate other errors upstream

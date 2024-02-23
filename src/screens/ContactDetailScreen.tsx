@@ -207,7 +207,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                                     <Button
                                         text={`Request payment`}
                                         style={{marginLeft: spacing.small, marginTop: spacing.small, alignSelf: 'center', minHeight: verticalScale(30)}}
-                                        textStyle={{fontSize: spacing.small, lineHeight: verticalScale(16)}}
+                                        textStyle={{fontSize: moderateVerticalScale(14), lineHeight: verticalScale(16)}}
                                         onPress={gotoTopup}
                                         preset='tertiary'
                                     />
@@ -216,7 +216,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                                     <Button
                                         text={`Pay to Lightning address`}
                                         style={{marginLeft: spacing.small, marginTop: spacing.small, alignSelf: 'center', minHeight: verticalScale(30)}}
-                                        textStyle={{fontSize: spacing.small, lineHeight: verticalScale(16)}}
+                                        textStyle={{fontSize: moderateVerticalScale(14), lineHeight: verticalScale(16)}}
                                         onPress={gotoTransfer}
                                         preset='tertiary'
                                     />
