@@ -148,7 +148,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             // auto-recover inflight proofs - do only on startup and before checkPendingReceived to prevent conflicts
             // TODO add manual option to recovery settings
             if(isInternetReachable) {                
-                Wallet.checkInFlight().catch(e => false)
+                await Wallet.checkInFlight().catch(e => false)
                 setTimeout(() => {
                     // Create websocket subscriptions to receive tokens or payment requests by NOSTR DMs                    
                     Wallet.checkPendingReceived().catch(e => false)                            
@@ -241,7 +241,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                         return
                     }                    
                     await Wallet.checkPendingSpent().catch(e => false) 
-                    Wallet.checkPendingTopups().catch(e => false)                    
+                    await Wallet.checkPendingTopups().catch(e => false)
+                    // calls checkPendingReceived if re-connects
                     NostrClient.reconnectToRelays().catch(e => false)
                 }, 100)            
             }

@@ -15,7 +15,7 @@ import {rootStoreInstance} from '../models'
 import {CashuUtils} from './cashu/cashuUtils'
 import {LightningUtils} from './lightning/lightningUtils'
 import AppError, {Err} from '../utils/AppError'
-import {MintBalance, MintProofsCounter, MintStatus} from '../models/Mint'
+import {MintBalance, MintStatus} from '../models/Mint'
 import {Token} from '../models/Token'
 import {
     type Token as CashuToken,
@@ -171,6 +171,7 @@ const checkPendingReceived = async function () {
         const sub = pool.sub(relaysToConnect , filter)
         const relaysConnections = pool._conn        
 
+        // update relays statuses
         for (const url in relaysConnections) {
             if (relaysConnections.hasOwnProperty(url)) {
                 const relay = relaysConnections[url]                
@@ -192,29 +193,62 @@ const checkPendingReceived = async function () {
             }            
         }
 
-        let events: NostrEvent[] = []
+        // eventsQueue makes sure that events are processed in sequence
+        let eventsQueue: NostrEvent[] = []
+        let eventsBatch: NostrEvent[] = []
+        let eventIsProcessing: boolean = false
         let result: ReceivedEventResult | undefined = undefined
         
 
         sub.on('event', async (event: NostrEvent) => {
-            try {
-                // ignore all kinds of duplicate events
-                if(events.some(ev => ev.id === event.id)) {
-                    log.error(Err.ALREADY_EXISTS_ERROR, 'Duplicate event received by this subscription, skipping...', {id: event.id, created_at: event.created_at})
-                    return
+            
+            // ignore all kinds of duplicate events
+            if(eventsBatch.some(ev => ev.id === event.id)) {
+                log.warn(Err.ALREADY_EXISTS_ERROR, 'Duplicate event received by this subscription, skipping...', {id: event.id, created_at: event.created_at})
+                return
+            }                
+
+            if(contactsStore.eventAlreadyReceived(event.id)) {
+                log.warn(Err.ALREADY_EXISTS_ERROR, 'Event has been processed in the past, skipping...', {id: event.id, created_at: event.created_at})
+                return
+            }
+
+            eventsQueue.push(event)
+            eventsBatch.push(event)
+
+            contactsStore.addReceivedEventId(event.id)
+            // move window to receive events to the last event created_at to avoid recive it again
+            contactsStore.setLastPendingReceivedCheck(event.created_at)
+
+            // do strictly sequential queue processing
+            if(!eventIsProcessing) {
+                eventIsProcessing = true
+
+                while (eventsQueue.length > 0) {
+                    const ev: NostrEvent = eventsQueue.shift()
+
+                    try {
+                        log.trace('[eventsQueue] processing start ev...', ev.id)
+                        await processReceiveEvent(ev)
+                        log.trace('[eventsQueue] processing completed ev...', ev.id)
+                    } catch (e: any) {
+                        const result = {
+                            status: TransactionStatus.ERROR,
+                            message: e.message
+                        }
+                
+                        EventEmitter.emit('receiveTokenOrInvoiceError', result) // so far not used
+                        log.error(e.name, e.message)
+                    }
                 }
 
-                events.push(event)
+                eventIsProcessing = false
 
-                if(contactsStore.eventAlreadyReceived(event.id)) {
-                    log.warn(Err.ALREADY_EXISTS_ERROR, 'Event has been processed in the past, skipping...', {id: event.id, created_at: event.created_at})
-                    return
-                }
-                
-                contactsStore.addReceivedEventId(event.id)
-                // move window to receive events to the last event created_at to avoid recive it again
-                contactsStore.setLastPendingReceivedCheck(event.created_at)
-                
+            } // if eventIsProcessing
+        })
+
+
+        const processReceiveEvent = async function (event: NostrEvent) {
                 // decrypt message content
                 const decrypted = await NostrClient.decryptNip04(event.pubkey, event.content)
 
@@ -257,6 +291,9 @@ const checkPendingReceived = async function () {
 
                 log.trace('[checkPendingReceived]', 'Incoming data', {incoming})
     
+                //
+                // Receive token start
+                //
                 if(incoming.type === IncomingDataType.CASHU) {
 
                     const decoded: Token = CashuUtils.decodeToken(incoming.encoded)
@@ -272,67 +309,17 @@ const checkPendingReceived = async function () {
 
                     // If the decrypted DM contains zap request, payment is a zap coming from LNURL server. 
                     // We retrieve the sender, we do not save zap sender to contacts, just into tx details
-                    // We do it defensively, only after cash is received
-                    const maybeZapRequestString = findZapRequest(decrypted)
-                    let zapRequest: NostrEvent | undefined = undefined
 
-                    if(maybeZapRequestString) {
-                        try {
-                            zapRequest = JSON.parse(maybeZapRequestString)
-                            sentFromPubkey = zapRequest.pubkey // zap sender pubkey
-
-                            const relays = getTagsByName(zapRequest.tags, 'relays')
-
-                            if(relays && relays.length > 0) {
-                                const senderProfile = await NostrClient.getProfileFromRelays(sentFromPubkey, relays)
-
-                                if(senderProfile) {
-                                    sentFrom = senderProfile.nip05 || senderProfile.name
-                                    sentFromPicture = senderProfile.picture
-                                    
-                                    // if we have such contact, set or update its lightning address by the one from profile
-                                    const contactInstance = contactsStore.findByPubkey(sentFromPubkey)
-                                    if(contactInstance && senderProfile.lud16) {                                        
-                                        contactInstance.setLud16(senderProfile.lud16)
-                                    }
-                                }
-                            }
-                        } catch (e: any) {
-                            // silent, continue
-                            log.error('[checkPendingReceived]', 'Could not get sender from zapRequest', {message: e.message, maybeZapRequestString})
-                            zapRequest = undefined
-                        }
-                    }
-          
-                    if(transaction) {
-                        await transactionsStore.updateSentFrom(
-                            transaction.id as number,
-                            sentFrom as string
-                        ) 
-                    }
-
-                    //
-                    // Send notification event
-                    //
-                    if(receivedAmount > 0) {
-                        result = {
-                            status: TransactionStatus.COMPLETED,                        
-                            title: `⚡${receivedAmount} sats received!`,
-                            message: `${zapRequest ? 'Zap' : 'Ecash'} from <b>${sentFrom || 'unknown payer'}</b> is now in your wallet.`,
-                            memo,
-                            picture: sentFromPicture,
-                            token: CashuUtils.decodeToken(incoming.encoded)
-                        }
-            
-                        EventEmitter.emit('receiveTokenCompleted', result)
-                    }
-
-                    return
+                    // We do it defensively only after cash is received
+                    // and asynchronously so we speed up queue, as for zaps relay comm takes long
+                    processReceiveNotification(event, decrypted, transaction as Transaction, receivedAmount)
+                    return                   
                 }
 
-
+                //
+                // Receive invoice start
+                //
                 if (incoming.type === IncomingDataType.INVOICE) {
-                    
                     // receiver is current wallet profile
                     const {
                         pubkey,
@@ -390,20 +377,75 @@ const checkPendingReceived = async function () {
                 }                      
                    
                 throw new AppError(Err.NOTFOUND_ERROR, 'Received unknown message', incoming)
-               
-            } catch(e: any) {
-                const result = {
-                    status: TransactionStatus.ERROR,
-                    message: e.message
-                }
+        }
+
+
+
+        const processReceiveNotification = async function (
+            event: NostrEvent, 
+            decrypted: NostrEvent, 
+            transaction: Transaction,
+            receivedAmount: number
+        ) {
+            let sentFromPubkey = event.pubkey
+            let sentFrom = getFirstTagValue(event.tags, 'from')
+            let sentFromPicture: string | undefined = undefined  
+
+            const maybeZapRequestString = findZapRequest(decrypted)
+            let zapRequest: NostrEvent | undefined = undefined
+
+            if(maybeZapRequestString) {
+                try {
+                    zapRequest = JSON.parse(maybeZapRequestString)
+                    sentFromPubkey = zapRequest.pubkey // zap sender pubkey
+
+                    const relays = getTagsByName(zapRequest.tags, 'relays')
         
-                EventEmitter.emit('receiveTokenOrInvoiceError', result) // so far not used
-                log.error(e.name, e.message)
+                    if(relays && relays.length > 0) {
+                        const senderProfile = await NostrClient.getProfileFromRelays(sentFromPubkey, relays)
+        
+                        if(senderProfile) {
+                            sentFrom = senderProfile.nip05 || senderProfile.name
+                            sentFromPicture = senderProfile.picture
+                            
+                            // if we have such contact, set or update its lightning address by the one from profile
+                            const contactInstance = contactsStore.findByPubkey(sentFromPubkey)
+                            if(contactInstance && senderProfile.lud16) {                                        
+                                contactInstance.setLud16(senderProfile.lud16)
+                            }
+                        }
+                    }
+                } catch (e: any) {
+                    log.warn('[checkPendingReceived]', 'Could not get sender from zapRequest', {message: e.message, maybeZapRequestString})
+                }
             }
-        })
+    
+            if(transaction) {
+                await transactionsStore.updateSentFrom(
+                    transaction.id as number,
+                    sentFrom as string
+                ) 
+            }
+
+            //
+            // Send notification event
+            //
+            if(receivedAmount && receivedAmount > 0) {
+                result = {
+                    status: TransactionStatus.COMPLETED,                        
+                    title: `⚡${receivedAmount} sats received!`,
+                    message: `${zapRequest ? 'Zap' : 'Ecash'} from <b>${sentFrom || 'unknown payer'}</b> is now in your wallet.`,                    
+                    picture: sentFromPicture                    
+                }
+    
+                EventEmitter.emit('receiveTokenCompleted', result)
+            }
+
+            return
+        }
 
         sub.on('eose', async () => {
-            log.trace('[checkPendingReceived]', `Eose: Got ${events.length} receive events`)
+            log.trace('[checkPendingReceived]', `Eose: Got ${eventsBatch.length} receive events`)
         })
 
         
@@ -416,7 +458,7 @@ const checkPendingReceived = async function () {
         EventEmitter.emit('receiveTokenOrInvoiceError', result) // so far not used
         log.error(e.name, e.message)
     }
-}
+}   
 
 // returns array of values after the first element (tag name)
 function getTagsByName(tagsArray: [string, string][], tagName: string) {
@@ -641,7 +683,7 @@ const _checkSpentByMint = async function (mintUrl: string, isPending: boolean = 
 
     } catch (e: any) {        
         // silent
-        log.warn('[_checkSpentByMint]', e.name, {message: e.message, mintUrl})
+        log.error('[_checkSpentByMint]', e.name, {message: e.message, mintUrl})
         return {
             mintUrl,                
             error: e,
@@ -810,7 +852,7 @@ const lockAndSetInFlight = async function (
         await delay(1000)
 
         if (retryCount < 50) {
-            // retry to acquire lock, increment the count of retries up to 25 seconds
+            // retry to acquire lock, increment the count of retries up to 50 seconds
             return lockAndSetInFlight(
                 mint,
                 countOfInFlightProofs,

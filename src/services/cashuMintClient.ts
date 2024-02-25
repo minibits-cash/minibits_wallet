@@ -282,10 +282,11 @@ const sendFromMint = async function (
         Err.MINT_ERROR, 
         `The mint could not return signatures necessary for this transaction`, 
         {
-            caller: 'MintClient.sendFromMint', 
+            message: e.message,            
             mintUrl,
+            caller: 'MintClient.sendFromMint', 
             proofsToSendFrom, 
-            message: e.message
+            
         }
     )
   }
@@ -314,9 +315,9 @@ const getSpentOrPendingProofsFromMint = async function (
         Err.MINT_ERROR, 
         'Could not get response from the mint.', 
         {
+            message: e.message,
             caller: 'getSpentOrPendingProofsFromMint', 
-            mintUrl, 
-            message: e.message
+            mintUrl            
         }
     )
   }
@@ -338,9 +339,9 @@ const getLightningFee = async function (
         Err.MINT_ERROR, 
         'The mint could not return the lightning fee.', 
         {
+            message: e.message,
             caller: 'getLightningFee', 
-            mintUrl, 
-            message: e.message
+            mintUrl,            
         }
     )
   }
@@ -385,9 +386,9 @@ const payLightningInvoice = async function (
         Err.MINT_ERROR, 
         'Lightning payment failed.', 
         {
+            message: isObj(e.message) ? JSON.stringify(e.message) : e.message,
             caller: 'payLightningInvoice', 
-            mintUrl, 
-            message: isObj(e.message) ? JSON.stringify(e.message) : e.message
+            mintUrl            
         }
     )
   }
@@ -495,20 +496,21 @@ const getMintInfo = async function (
     mintUrl: string,    
 ) {
     try {
-      const cashuMint = getMint(mintUrl)
-      const info = await cashuMint.getInfo()
-      log.trace('[getMintInfo]', {info})
-      return info
+        const cashuMint = getMint(mintUrl)
+        const info = await cashuMint.getInfo()
+        log.trace('[getMintInfo]', {info})
+        return info
     } catch (e: any) {
-      throw new AppError(
-          Err.MINT_ERROR, 
-          'The mint could not return mint information.', 
-          {
-              caller: 'getMintInfo', 
-              mintUrl, 
-              message: e.message
-          }
-      )
+        throw new AppError(
+            Err.MINT_ERROR, 
+            'The mint could not return mint information.', 
+            {
+                    message: e.message,
+                    caller: 'getMintInfo', 
+                    mintUrl, 
+                
+            }
+        )
     }
 }
 

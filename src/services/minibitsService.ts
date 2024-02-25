@@ -48,8 +48,8 @@ const createWalletProfile = async function (pubkey: string, walletId: string, se
     return walletProfile
 }
 
-
-const updateWalletProfile = async function (pubkey: string, update: {name: string, lud16: string, avatar: string}) {    
+// what is passed in {update} gets updated
+const updateWalletProfile = async function (pubkey: string, update: {name?: string, lud16?: string, avatar?: string}) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'PUT'        
     const headers = getHeaders()

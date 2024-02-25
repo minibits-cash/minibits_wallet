@@ -148,8 +148,6 @@ export const WalletProfileStoreModel = types
                 self.pubkey, 
                 {                    
                     name,      
-                    avatar: '', // Do NOT pass self.picture value that is URL and causes forever cycle on server // TODO fix                                  
-                    lud16: ''   // Set by server for minibits addreses
                 }
             )           
                            
@@ -167,8 +165,6 @@ export const WalletProfileStoreModel = types
                 self.pubkey,
                 {   
                     avatar: picture, // this is png in base64
-                    name: self.name,                    
-                    lud16: self.lud16 || ''
                 }
             )   
 
