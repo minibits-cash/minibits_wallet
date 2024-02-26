@@ -154,7 +154,7 @@ async function _runMigrations(rootStore: RootStore) {
         if(currentVersion < 5) {
             log.trace(`Starting rootStore migrations from version v${currentVersion} -> v5`)
             if(contactsStore.publicRelay) {
-                relaysStore.addOrUpdateRelay({
+                relaysStore.addRelay({
                     url: contactsStore.publicRelay,
                     status: WebSocket.CLOSED
                 })

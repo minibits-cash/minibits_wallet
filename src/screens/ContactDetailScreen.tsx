@@ -1,7 +1,7 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useRef, useState} from 'react'
 import {ColorValue, Image, Share, TextInput, TextStyle, View, ViewStyle} from 'react-native'
-import { spacing, useThemeColor} from '../theme'
+import { colors, spacing, useThemeColor} from '../theme'
 import {ContactsStackScreenProps} from '../navigation'
 import {Icon, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, ListItem} from '../components'
 import {useHeader} from '../utils/useHeader'
@@ -140,12 +140,20 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
             contactsStore.refreshPicture(contact.pubkey)
 
             toggleContactModal()            
-            setInfo('Sync completed')
+            setInfo('Sync completed.')
             return
         } catch (e: any) {
             toggleContactModal()      
             handleError(e)
         }        
+    }
+
+    const saveToPrivateContacts = async function () {
+        if(contact.type === ContactType.PUBLIC) {            
+            contactsStore.addContact({...contact})
+            toggleContactModal()            
+            setInfo('Contact saved.')
+        }
     }
 
 
@@ -164,6 +172,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
     const headerBg = useThemeColor('header')    
     const screenBg = useThemeColor('background')
     const cardBg = useThemeColor('card')
+  
 
     const {type, name, display_name, npub, nip05, picture, about, lud16} = contact
     
@@ -188,140 +197,116 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                 <Card
                     style={$card}
                     ContentComponent={
-                        <>
-                            <ListItem
-                                text={display_name || name}
-                                subText={about?.slice(0, 150) || 'Not shared'}
-                                leftIcon='faCircleUser'    
-                            />
-                            {lud16 && (
-                                <ListItem                                    
-                                    text={lud16}
-                                    textStyle={{fontSize: moderateVerticalScale(14), color: addressColor}}
-                                    leftIcon='faBolt'
-                                    topSeparator={true}
-                                />
-                            )}
-                            <ListItem                                                                
-                                LeftComponent={
-                                    <Button
-                                        text={`Request payment`}
-                                        style={{marginLeft: spacing.small, marginTop: spacing.small, alignSelf: 'center', minHeight: verticalScale(30)}}
-                                        textStyle={{fontSize: moderateVerticalScale(14), lineHeight: verticalScale(16)}}
-                                        onPress={gotoTopup}
-                                        preset='tertiary'
-                                    />
-                                }
-                                RightComponent={lud16 ? (
-                                    <Button
-                                        text={`Pay to Lightning address`}
-                                        style={{marginLeft: spacing.small, marginTop: spacing.small, alignSelf: 'center', minHeight: verticalScale(30)}}
-                                        textStyle={{fontSize: moderateVerticalScale(14), lineHeight: verticalScale(16)}}
-                                        onPress={gotoTransfer}
-                                        preset='tertiary'
-                                    />
-                                ) : undefined}
-                                topSeparator={lud16 ? true : false} 
-                                onPress={gotoTransfer}                   
-                            />
-                        </>
+                        <ListItem
+                            text={display_name || name}
+                            subText={about?.slice(0, 120) || ''}
+                            leftIcon='faCircleUser'    
+                        />
                     }
                 />
             ) : (
-            <>
                 <Card
-                    style={$noteCard}
+                    style={$card}
                     ContentComponent={
-                        <View style={$noteContainer}>
-                        <TextInput
-                            ref={noteInputRef}
-                            onChangeText={note => setNote(note)}                                    
-                            value={`${note}`}
-                            style={$noteInput}
-                            onEndEditing={onNoteSave}
-                            maxLength={200}
-                            keyboardType="default"
-                            selectTextOnFocus={true}
-                            placeholder="Your note"
-                            editable={
-                                isNoteEditing
-                                ? true
-                                : false
-                            }
-                        />
-                        {isNoteEditing ? (
-                            <Button
-                                preset="secondary"
-                                style={$noteButton}
-                                text="Save"
-                                onPress={onNoteSave}
-                                
+                        <View style={$noteContainer}>    
+                            <TextInput
+                                ref={noteInputRef}
+                                onChangeText={note => setNote(note)}                                    
+                                value={`${note}`}
+                                style={$noteInput}
+                                onEndEditing={onNoteSave}
+                                maxLength={200}
+                                keyboardType="default"
+                                selectTextOnFocus={true}
+                                placeholder="Your private note"
+                                editable={
+                                    isNoteEditing
+                                    ? true
+                                    : false
+                                }
                             />
-                        ) : (
-                            <Button
-                                preset="secondary"
-                                style={$noteButton}
-                                text="Edit"
-                                onPress={onNoteEdit}
-                                
-                            />
-                        )}
-                    </View>
+                            {isNoteEditing ? (
+                                <Button
+                                    preset="secondary"
+                                    style={$noteButton}
+                                    text="Save"
+                                    onPress={onNoteSave}
+                                    
+                                />
+                            ) : (
+                                <Button
+                                    preset="secondary"
+                                    style={$noteButton}
+                                    text="Edit"
+                                    onPress={onNoteEdit}
+                                    
+                                />
+                            )}
+                        
+                        </View>
                     }
                 />
-                <Card
-                    ContentComponent={
-                    <>                        
-                        {lud16 && (
-                            <ListItem                                    
-                                text={lud16}
-                                textStyle={{fontSize: moderateVerticalScale(14), color: addressColor}}
-                                leftIcon='faBolt'
-                                bottomSeparator={true}
-                            />
+            )}
+            <Card
+                style={[$card, {marginTop: spacing.small}]}                
+                ContentComponent={
+                    <>
+                    {lud16 && (
+                        <ListItem                                    
+                            text='Lightning address'
+                            subText={lud16}                            
+                            leftIcon='faBolt'
+                            leftIconColor={colors.palette.orange200}                          
+                        />
                         )}
                         <ListItem                                                                
                             LeftComponent={
                                 <Button
                                     text={`Request payment`}
-                                    style={{marginLeft: spacing.small, marginTop: spacing.small, alignSelf: 'center', minHeight: verticalScale(30)}}
-                                    textStyle={{fontSize: spacing.small, lineHeight: verticalScale(16)}}
+                                    style={{marginLeft: spacing.small, alignSelf: 'center', minHeight: verticalScale(20)}}
+                                    textStyle={{fontSize: moderateVerticalScale(14), lineHeight: verticalScale(14)}}
                                     onPress={gotoTopup}
                                     preset='tertiary'
                                 />
                             }
-                            RightComponent={contact.isExternalDomain && lud16 ? (
+                            RightComponent={lud16 ? (
                                 <Button
-                                    text={`Pay to Lightning address`}
-                                    style={{marginLeft: spacing.small, marginTop: spacing.small, alignSelf: 'center', minHeight: verticalScale(30)}}
-                                    textStyle={{fontSize: spacing.small, lineHeight: verticalScale(16)}}
+                                    text={`Pay to address`}
+                                    style={{marginLeft: spacing.small, alignSelf: 'center', minHeight: verticalScale(20)}}
+                                    textStyle={{fontSize: moderateVerticalScale(14), lineHeight: verticalScale(14)}}
                                     onPress={gotoTransfer}
                                     preset='tertiary'
                                 />
                             ) : undefined}
-                            topSeparator={contact.isExternalDomain && lud16 ? true : false} 
+                            topSeparator={lud16 ? true : false} 
                             onPress={gotoTransfer}                   
-                        />
+                        />                        
                     </>
-                    }
-                />
-            </>
-            )}
+                }
+            />            
         </View>
         <View style={[$bottomContainer]}>
             <View style={$buttonContainer}>
-                <Button
-                    text={`Send ecash`}
-                    LeftAccessory={() => (
-                        <Icon
-                        icon='faArrowUp'
-                        color='white'
-                        size={spacing.medium}                  
-                        />
-                    )}
-                    onPress={gotoSend} 
-                    style={$buttonSend}                        
-                />
+                {contact.nip05 ? (
+                    <Button
+                        text={`Send ecash`}
+                        LeftAccessory={() => (
+                            <Icon
+                            icon='faArrowUp'
+                            color='white'
+                            size={spacing.medium}                  
+                            />
+                        )}
+                        onPress={gotoSend} 
+                        style={$buttonSend}                        
+                    />
+                ) : (
+                    <Text 
+                        size='xs' 
+                        style={{color: addressColor, marginHorizontal: spacing.large, textAlign: 'center'}} 
+                        text='This profile does not have nostr address to send ecash to.'
+                    />
+                )}                
             </View>
         </View>
         <BottomModal
@@ -360,6 +345,15 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                     />
                 </>
             )}
+            {type === ContactType.PUBLIC && (                
+                <ListItem
+                    text='Save as private contact'
+                    subText={`Save ${contact.nip05} to your Private contacts so you can pay faster`}
+                    leftIcon='faClipboard'                            
+                    onPress={saveToPrivateContacts}
+                    topSeparator={true}                    
+                />
+            )}
             </>
           }
           onBackButtonPress={toggleContactModal}
@@ -389,31 +383,27 @@ const $contentContainer: TextStyle = {
     padding: spacing.extraSmall,
     // alignItems: 'center',
 }
-
-const $noteCard: ViewStyle = {
-    marginBottom: spacing.small,
-  }
   
-  const $noteContainer: ViewStyle = {
+const $noteContainer: ViewStyle = {
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-  }
-  
-  const $noteInput: TextStyle = {
+}
+
+const $noteInput: TextStyle = {
     flex: 1,
     borderRadius: spacing.small,
     fontSize: 16,
     textAlignVertical: 'center',
     marginRight: spacing.small,
-  }
-  
- 
-  const $noteButton: ViewStyle = {
+}
+
+
+const $noteButton: ViewStyle = {
     maxHeight: 50,
     minWidth: 70,
-  }
+}
 
 
 const $bottomContainer: ViewStyle = {

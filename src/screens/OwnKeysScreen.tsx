@@ -93,11 +93,13 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
                 let counter: number = 0
                 for (const relay of nip05Relays) {
                     if(counter < 5) {
-                        relaysStore.addOrUpdateRelay({
+                        relaysStore.addRelay({
                             url: relay,
                             status: WebSocket.CLOSED
                         })
                         counter++
+                    } else {
+                        break
                     }
                 }
             }

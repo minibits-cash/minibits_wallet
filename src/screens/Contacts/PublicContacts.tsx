@@ -86,7 +86,9 @@ export const PublicContacts = observer(function (props: {
 
         setOwnProfile({
             pubkey: contactsStore.publicPubkey,
-            npub: NostrClient.getNpubkey(contactsStore.publicPubkey)
+            npub: NostrClient.getNpubkey(contactsStore.publicPubkey),
+            name: '',
+            nip05: ''
         }) // set backup profile w/o name
 
         if(relaysStore.allPublicRelays.length === 0) {
@@ -231,7 +233,9 @@ export const PublicContacts = observer(function (props: {
                 resetContactsState()
                 setOwnProfile({
                     pubkey: hexKey,
-                    npub: newPublicPubkey
+                    npub: newPublicPubkey,
+                    name: '',
+                    nip05: ''
                 })
                 toggleNpubModal()
 
@@ -267,28 +271,28 @@ export const PublicContacts = observer(function (props: {
 
     const onSavePublicRelay = function () {        
         try {
-            if(newPublicRelay && newPublicRelay.startsWith('wss://')) {                
+            if(newPublicRelay) {                
                 if(relaysStore.alreadyExists(newPublicRelay)) {
                     setInfo('Relay already exists.')
                     return
                 }
 
-                relaysStore.addOrUpdateRelay({
+                relaysStore.addRelay({
                     url: newPublicRelay,
                     status: WebSocket.CLOSED
                 })
 
                 setOwnProfile({
                     pubkey: contactsStore.publicPubkey as string,
-                    npub: NostrClient.getNpubkey(contactsStore.publicPubkey as string)
+                    npub: NostrClient.getNpubkey(contactsStore.publicPubkey as string),
+                    name: '',
+                    nip05: ''
                 })
                 resetContactsState()
                 toggleRelayModal()
                 
                 setTimeout(() => setShouldReload(true), 1000)
                 return
-            } else {
-                throw new AppError(Err.VALIDATION_ERROR, 'Invalid relay URL.', newPublicRelay)
             }
         } catch(e: any) {
             handleError(e)
@@ -301,7 +305,9 @@ export const PublicContacts = observer(function (props: {
 
         setOwnProfile({
             pubkey: contactsStore.publicPubkey as string,
-            npub: NostrClient.getNpubkey(contactsStore.publicPubkey as string)
+            npub: NostrClient.getNpubkey(contactsStore.publicPubkey as string),
+            name: '',
+            nip05: ''
         }) 
 
         resetContactsState()     
@@ -469,7 +475,7 @@ export const PublicContacts = observer(function (props: {
                                             )}
                                         </View>}
                                     text={item.name}
-                                    subText={(item.about) ? item.about?.replace(/\r?\n|\r/g, ' ').slice(0, 80)+'...' : (item.nip05) ? item.nip05 : '...'}
+                                    subText={(item.nip05) ? item.nip05 : undefined}
                                     topSeparator={isFirst ? false : true}
                                     onPress={() => gotoContactDetail(item as Contact)}                                  
                                 />

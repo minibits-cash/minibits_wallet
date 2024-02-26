@@ -34,31 +34,22 @@ export const RelaysStoreModel = types
     }))
     .actions(withSetPropAction)
     .actions(self => ({
-        addOrUpdateRelay(relay: Relay) {
+        addRelay(relay: Relay) {
+
+            const normalized = NostrClient.getNormalizedRelayUrl(relay.url)
+            relay.url = normalized
+
             if(self.alreadyExists(relay.url)) {
-
-                const {url, status, error} = relay
-
-                const relayInstance = self.findByUrl(url)
-                relayInstance?.setStatus(status)
-
-                if(error) {
-                    relayInstance?.setError(error)
-                }
-
-                // log.trace('[addOrUpdateRelay]', 'Relay updated in the RelaysStore', {relay})
-            } else {                
-                const normalized = NostrClient.getNormalizedRelayUrl(relay.url)
-
-                // log.trace('[addOrUpdateRelay]', 'Normalized URL', normalized)
-                relay.url = normalized
-
-                const relayInstance = RelayModel.create(relay)
-                relayInstance.setHostname()                            
-                self.relays.push(relayInstance)
-
-                log.info('[addOrUpdateRelay]', 'New relay added to the RelaysStore', {relay})
+                log.warn('[addRelay] Relay already exists', {relay})
+                return
             }
+
+            const relayInstance = RelayModel.create(relay)
+            relayInstance.setHostname()                            
+            self.relays.push(relayInstance)
+
+            log.info('[addRelay]', 'New relay added to the RelaysStore', {relay})
+            
         },
         removeRelay(relayUrl: string) {
             
@@ -74,13 +65,13 @@ export const RelaysStoreModel = types
     .actions(self => ({
         addDefaultRelays() {
             for (const relayUrl of NostrClient.getDefaultRelays()) {
-                self.addOrUpdateRelay({
+                self.addRelay({
                     url: relayUrl,
                     status: WebSocket.CLOSED
                 })
             }
 
-            self.addOrUpdateRelay({
+            self.addRelay({
                 url: MINIBITS_RELAY_URL,
                 status: WebSocket.CLOSED
             })

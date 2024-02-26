@@ -384,14 +384,12 @@ const getNormalizedNostrProfile = async function (nip05: string, relays: string[
         let counter: number = 0
         const maxRelays: number = 5 // do not add dozens of relays on some profiles
 
-        for (const relay of nip05Pubkey) {
-            if(!relays.includes(relay) && counter <= maxRelays) {
-                relaysToConnect.push(relay)
-                relaysStore.addOrUpdateRelay({
-                    url: relay,
-                    status: WebSocket.CLOSED
-                })
+        for (const relay of nip05Relays) {
+            if(counter <= maxRelays) {
+                relaysToConnect.push(relay)                
                 counter++
+            } else {
+                break
             }            
         }        
     }
@@ -464,6 +462,9 @@ const deleteKeyPair = async function (): Promise<void> {
 
 const getNormalizedRelayUrl = function (url: string): string {
     try {
+        if(!url.startsWith('wss://')) {
+            throw new Error('Relay needs to communicate over wss://')
+        }
         return utils.normalizeURL(url)
     } catch (e: any) {
         throw new AppError(Err.VALIDATION_ERROR, `Invalid relay URL: ${e.message}`)

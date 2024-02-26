@@ -68,7 +68,7 @@ function App(props: AppProps) {
 
         // Set initial websocket to close as it might have remained open on last app close
         for (const relay of relaysStore.allRelays) {
-            relaysStore.addOrUpdateRelay({url: relay.url, status: WebSocket.CLOSED})
+            relay.setStatus(WebSocket.CLOSED)
         }
     })
 

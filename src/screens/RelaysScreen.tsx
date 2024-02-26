@@ -85,7 +85,7 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
                     return
                 }
 
-                relaysStore.addOrUpdateRelay({
+                relaysStore.addRelay({
                     url: newPublicRelay,
                     status: WebSocket.CLOSED
                 })

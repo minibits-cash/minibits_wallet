@@ -165,7 +165,10 @@ const checkPendingReceived = async function () {
         const pool = NostrClient.getRelayPool()
 
         // make sure we have at least default relays
-        relaysStore.addDefaultRelays()
+        if(relaysStore.allRelays.length < 3) {
+            relaysStore.addDefaultRelays()
+        }
+        
         let relaysToConnect = relaysStore.allUrls
 
         const sub = pool.sub(relaysToConnect , filter)
@@ -177,18 +180,19 @@ const checkPendingReceived = async function () {
                 const relay = relaysConnections[url]                
 
                 relay.on('error', (error: string) => {
-                    const {url, status} = relay                    
-                    relaysStore.addOrUpdateRelay({url, status, error})
+                    const relayInstance = relaysStore.findByUrl(relay.url)
+                    relayInstance?.setStatus(relay.status)
+                    relayInstance?.setError(relay.error)
                 })
 
                 relay.on('connect', () => {  
-                    const {url, status} = relay                       
-                    relaysStore.addOrUpdateRelay({url, status})
+                    const relayInstance = relaysStore.findByUrl(relay.url)
+                    relayInstance?.setStatus(relay.status)                    
                 })
 
                 relay.on('disconnect', () => {                    
-                    const {url, status} = relay                       
-                    relaysStore.addOrUpdateRelay({url, status})
+                    const relayInstance = relaysStore.findByUrl(relay.url)
+                    relayInstance?.setStatus(relay.status)  
                 })
             }            
         }
