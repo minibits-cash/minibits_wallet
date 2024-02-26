@@ -303,7 +303,7 @@ const getSpentOrPendingProofsFromMint = async function (
 
     const spentPendingProofs = await cashuWallet.checkProofsSpent(proofs)
 
-    log.trace('[getSpentOrPendingProofsFromMint]', spentPendingProofs)
+    log.trace('[CashuMintClient.getSpentOrPendingProofsFromMint]', spentPendingProofs)
 
     return spentPendingProofs as {
         spent: CashuProof[]
@@ -424,7 +424,7 @@ const requestProofs = async function (
   amountPreferences: AmountPreference[],
   counter: number
 ) {
-  try {
+
     const cashuWallet = await getWallet(mintUrl, true) // with seed
     /* eslint-disable @typescript-eslint/no-unused-vars */
     const {proofs, newKeys} = await cashuWallet.requestTokens(
@@ -444,14 +444,6 @@ const requestProofs = async function (
         proofs, 
         newKeys
     }
-  } catch (e: any) {
-    if(e.message.includes('quote not paid') === false) {
-        log.warn('[requestProofs]', `${e.message}`)
-        return {proofs: []}
-    }
-    
-    throw e
-  }
 }
 
 const restore = async function (

@@ -2334,8 +2334,8 @@ const checkPendingTopups = async function () {
         return
     }
 
-    try {
-        for (const pr of paymentRequests) {
+    for (const pr of paymentRequests) {
+        try {
             // claim tokens if invoice is paid
             const mintInstance = mintsStore.findByUrl(pr.mint as string)
 
@@ -2387,8 +2387,33 @@ const checkPendingTopups = async function () {
                         
                         log.error('[checkPendingTopups] Emergency increase of proofsCounter, retry result', {requestResult})
                 } else {
+                    // decrease so that unpaid invoices does not cause counter gaps from polling
+                    mintInstance.decreaseProofsCounter(countOfInFlightProofs)
                     // release lock
-                    mintInstance.resetInFlight(pr.transactionId as number )
+                    mintInstance.resetInFlight(pr.transactionId as number)
+
+                    // remove already expired invoices 
+                    if (isBefore(pr.expiresAt as Date, new Date())) {
+                        log.debug('[checkPendingTopups]', `Invoice expired, removing: ${pr.paymentHash}`)                        
+                        
+                        paymentRequestsStore.removePaymentRequest(pr)                        
+                        // expire related tx - but only if it has not been completed before this check
+                        const transaction = transactionsStore.findById(pr.transactionId as number)
+    
+                        if(transaction && transaction.status !== TransactionStatus.COMPLETED) {
+                            const transactionDataUpdate = {
+                                status: TransactionStatus.EXPIRED,
+                                createdAt: new Date(),
+                            }                        
+        
+                            transactionsStore.updateStatuses(
+                                [pr.transactionId as number],
+                                TransactionStatus.EXPIRED,
+                                JSON.stringify(transactionDataUpdate),
+                            ) 
+                        }                   
+                    }
+
                     throw e
                 }
             }
@@ -2396,7 +2421,7 @@ const checkPendingTopups = async function () {
             mintInstance.decreaseProofsCounter(countOfInFlightProofs)
             
             const {proofs, newKeys} = requestResult
-
+            
             if (!proofs || proofs.length === 0) {
                 log.trace('[checkPendingTopups]', 'No proofs returned from mint')                
                 
@@ -2482,11 +2507,15 @@ const checkPendingTopups = async function () {
 
             // delete paid pr if we've got our cash
             paymentRequestsStore.removePaymentRequest(pr)
-        }
+        } catch (e: any) {   
+            if(e.message.includes('quote not paid')) {
+                log.warn('[checkPendingTopups]', `${e.message}`)
+                continue
+            }
 
-    } catch (e: any) {
-        // silent
-        log.warn(e.name, e.message, 'checkPendingTopups')        
+            log.error('[checkPendingTopups]', e.name, e.message)
+            continue        
+        }
     }
 }
 
