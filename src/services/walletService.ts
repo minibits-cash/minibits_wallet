@@ -23,7 +23,7 @@ import {
     type Proof as CashuProof,
 } from '@cashu/cashu-ts'
 import {Mint} from '../models/Mint'
-import {poller, stopPolling} from '../utils/poller'
+import {poller, pollerExists, stopPolling} from '../utils/poller'
 import EventEmitter from '../utils/eventEmitter'
 import { NostrClient, NostrEvent, NostrFilter } from './nostrService'
 import { MINIBITS_NIP05_DOMAIN, MINIBITS_SERVER_API_HOST } from '@env'
@@ -121,8 +121,13 @@ const checkPendingSpent = async function () {
 
     // group proofs by mint so that we do max one call per mint
     for (const mint of mintsStore.allMints) {
+
+        if(pollerExists(`checkSpentByMintPoller-${mint.mintUrl}`)) {
+            log.trace('[checkPendingSpent] Skipping _checkSpentByMint, poller exists', {mintUrl: mint.mintUrl})
+            continue
+        }
         
-        const result = await _checkSpentByMint(mint.mintUrl, true) // pending true
+        const result = await _checkSpentByMint({mintUrl: mint.mintUrl, isPending: true}) // pending true
         
         if(!result) {
             // go to next mint if there were no proofs to call mint with, do not assume any mint status
@@ -521,7 +526,7 @@ const checkSpent = async function () {
     let spentAmount = 0
     // group proofs by mint so that we do max one call per mint
     for (const mint of mintsStore.allMints) {
-        const result = await _checkSpentByMint(mint.mintUrl, false) // pending false
+        const result = await _checkSpentByMint({mintUrl: mint.mintUrl, isPending: false}) // pending false
         spentCount += result?.spentCount || 0
         spentAmount += result?.spentAmount || 0
     }
@@ -537,8 +542,9 @@ const checkSpent = async function () {
  *  This situation occurs as a result of error during SEND or TRANSFER and causes failure of
  *  subsequent transactions because mint returns "Tokens already spent" if any spent proof is used as an input.
  */
-const _checkSpentByMint = async function (mintUrl: string, isPending: boolean = false) {
+const _checkSpentByMint = async function (params: {mintUrl: string, isPending: boolean}) {
     try {
+        const {mintUrl, isPending} = params
         const proofsFromMint = proofsStore.getByMint(mintUrl, isPending) as Proof[]
 
         if (proofsFromMint.length < 1) {
@@ -608,7 +614,7 @@ const _checkSpentByMint = async function (mintUrl: string, isPending: boolean = 
                 )
 
                 EventEmitter.emit('sendCompleted', relatedTransactionIds)
-                stopPolling('checkSpentByMintPoller')
+                stopPolling(`checkSpentByMintPoller-${mintUrl}`)
             }
         } else {
             log.trace('[_checkSpentByMint]', `No spent ${isPending ? 'pending' : ''} proofs returned from the mint`, mintUrl)                    
@@ -687,9 +693,9 @@ const _checkSpentByMint = async function (mintUrl: string, isPending: boolean = 
 
     } catch (e: any) {        
         // silent
-        log.error('[_checkSpentByMint]', e.name, {message: e.message, mintUrl})
+        log.error('[_checkSpentByMint]', e.name, {message: e.message, mintUrl: params.mintUrl})
         return {
-            mintUrl,                
+            mintUrl: params.mintUrl,           
             error: e,
         }        
     }
@@ -1767,15 +1773,18 @@ const send = async function (
 
         log.trace('[send] totalBalance after', balanceAfter)
 
-        // Start polling for accepted payment, what an ugly piece of code
+        // Start polling for accepted payment
         poller(
-            'checkSpentByMintPoller',
-            () => _checkSpentByMint(mintUrl, true),
-            6 * 1000,
-            20,
-            5,
+            `checkSpentByMintPoller-${mintUrl}`,
+            _checkSpentByMint,
+            {
+                interval: 6 * 1000,
+                maxPolls: 20,
+                maxErrors: 2
+            },
+            {mintUrl, isPending: true}
         )
-        .then(() => log.trace('[checkSpentByMintPoller]', 'polling completed'))
+        .then(() => log.trace('[checkSpentByMintPoller]', 'polling completed', {mintUrl}))
         .catch(error =>
             log.error(
                 Err.POLLING_ERROR,
@@ -1909,26 +1918,55 @@ const transfer = async function (
 
         // get locked counter values
         const lockedProofsCounter = mintInstance.getOrCreateProofsCounter?.() 
+        
+        let paymentResult: {feeSavedProofs: CashuProof[], isPaid: boolean, preimage: string | null, newKeys?: MintKeys} = {
+            feeSavedProofs: [],
+            isPaid: false,
+            preimage: null,
+            newKeys: undefined
+        }
 
-        // Use prepared proofs to settle with the mint the payment of the invoice on wallet behalf
-        const {feeSavedProofs, isPaid, preimage, newKeys} =
-            await MintClient.payLightningInvoice(
+        try {
+            paymentResult = await MintClient.payLightningInvoice(
                 mintUrl,
                 encodedInvoice,
                 proofsToPay,
                 estimatedFee,
                 lockedProofsCounter.inFlightFrom as number
-            )
+            )    
+        } catch (e: any) {
+            if (e instanceof AppError && 
+                e.params && 
+                e.params.message?.includes('outputs have already been signed before')) {
+
+                    log.error('[transfer] Emergency increase of proofsCounter and retrying the send')
+
+                    mintInstance.increaseProofsCounter(20)
+                    paymentResult = await MintClient.payLightningInvoice(
+                        mintUrl,
+                        encodedInvoice,
+                        proofsToPay,
+                        estimatedFee,
+                        lockedProofsCounter.inFlightFrom as number + 20 
+                    )
+                    
+                    log.error('[transfer] Emergency increase of proofsCounter, payLightningInvoice retry result', {paymentResult})
+            } else {
+                throw e
+            }
+        }
+
+        mintInstance.decreaseProofsCounter(countOfInFlightProofs) 
         
-        mintInstance.decreaseProofsCounter(countOfInFlightProofs)       
+        const {newKeys, isPaid, feeSavedProofs} = paymentResult
 
         if (newKeys) {_updateMintKeys(mintUrl, newKeys)}
 
         // We've sent the proofsToPay to the mint, so we remove those pending proofs from model storage.
         // Hopefully mint gets important shit done synchronously.        
-        await _checkSpentByMint(mintUrl, true)
+        await _checkSpentByMint({mintUrl, isPending: true})
 
-        // I have no idea yet if this can happen, return sent Proofs to the store an track tx as Reverted
+        // I have no idea yet if this can happen, unpaid call throws, return sent Proofs to the store an track tx as Reverted
         if (!isPaid) {
             const { amountPendingByMint } = await _moveProofsFromPending(proofsToPay, mintUrl, transactionId)
             // release lock
@@ -2011,7 +2049,7 @@ const transfer = async function (
 
         return {
             transaction: completedTransaction,
-            message: `Lightning invoice has been successfully paid and settled with your minibits coins. Final network fee has been ${finalFee} sats.`,
+            message: `Lightning invoice has been successfully paid and settled with your Minibits ecash. Final network fee has been ${finalFee} sats.`,
             finalFee,
         } as TransactionResult
     } catch (e: any) {        
@@ -2286,10 +2324,17 @@ const topup = async function (
             JSON.stringify(transactionData),
         )
 
-        poller('checkPendingTopupsPoller', checkPendingTopups, 6 * 1000, 20, 5)
-            .then(() => log.trace('Polling completed', [], 'checkPendingTopups'))
-            .catch(error =>
-                log.warn('[checkPendingTopups]', error.message),
+        poller(`checkPendingTopupPoller-${paymentRequest.paymentHash}`, 
+        _checkPendingTopup,
+        {
+            interval: 6 * 1000,
+            maxPolls: 20,
+            maxErrors: 5
+        },        
+        {paymentRequest})   
+        .then(() => log.trace('Polling completed', [], 'checkPendingTopups'))
+        .catch(error =>
+            log.warn('[checkPendingTopups]', error.message),
         )
 
         return {
@@ -2335,108 +2380,84 @@ const checkPendingTopups = async function () {
     }
 
     for (const pr of paymentRequests) {
-        try {
-            // claim tokens if invoice is paid
-            const mintInstance = mintsStore.findByUrl(pr.mint as string)
+        // skip pr if active poller exists
+        if(pollerExists(`checkPendingTopupPoller-${pr.paymentHash}`)) {
+            log.trace('[checkPendingTopups] Skipping check of paymentRequest, poller exists', {paymentHash: pr.paymentHash})
+            continue
+        }
 
-            if(!mintInstance) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Missing mint', {mintUrl: pr.mint})
-            }
+        await _checkPendingTopup({paymentRequest: pr})        
+    }
+}
 
-            const amountPreferences = getDefaultAmountPreference(pr.amount)        
-            const countOfInFlightProofs = CashuUtils.getAmountPreferencesCount(amountPreferences)
-            
-            log.trace('[checkPendingTopups]', 'amountPreferences', amountPreferences)
-            log.trace('[checkPendingTopups]', 'countOfInFlightProofs', countOfInFlightProofs)  
-            
-            // temp increase the counter + acquire lock and set inFlight values        
-            await lockAndSetInFlight(mintInstance, countOfInFlightProofs, pr.transactionId as number)
-            
-            // get locked counter values
-            const lockedProofsCounter = mintInstance.getOrCreateProofsCounter?.()
-    
-            let requestResult: {proofs: CashuProof[], newKeys?: MintKeys} = {
-                proofs: [],                
-                newKeys: undefined
-            }
 
-            try {
-                requestResult = (await MintClient.requestProofs(
-                    pr.mint as string,
-                    pr.amount,
-                    pr.paymentHash,
-                    amountPreferences,
-                    lockedProofsCounter.inFlightFrom as number
-                )) as {proofs: Proof[], newKeys: MintKeys}
+const _checkPendingTopup = async function (params: {paymentRequest: PaymentRequest}) {
+    const {paymentRequest: pr} = params
 
-            } catch (e: any) {
-                if (e instanceof AppError && 
-                    e.params && 
-                    e.params.message?.includes('outputs have already been signed before')) {
+    try {
+        // claim tokens if invoice is paid
+        const mintInstance = mintsStore.findByUrl(pr.mint as string)
 
-                        log.error('[checkPendingTopups] Emergency increase of proofsCounter and retrying the send')
+        if(!mintInstance) {
+            throw new AppError(Err.VALIDATION_ERROR, 'Missing mint', {mintUrl: pr.mint})
+        }
 
-                        mintInstance.increaseProofsCounter(20)
-                        requestResult = await MintClient.requestProofs(
-                            pr.mint as string,
-                            pr.amount,
-                            pr.paymentHash,
-                            amountPreferences,
-                            lockedProofsCounter.inFlightFrom as number + 20
-                        )
-                        
-                        log.error('[checkPendingTopups] Emergency increase of proofsCounter, retry result', {requestResult})
-                } else {
-                    // decrease so that unpaid invoices does not cause counter gaps from polling
-                    mintInstance.decreaseProofsCounter(countOfInFlightProofs)
-                    // release lock
-                    mintInstance.resetInFlight(pr.transactionId as number)
-
-                    // remove already expired invoices 
-                    if (isBefore(pr.expiresAt as Date, new Date())) {
-                        log.debug('[checkPendingTopups]', `Invoice expired, removing: ${pr.paymentHash}`)                        
-                        
-                        paymentRequestsStore.removePaymentRequest(pr)                        
-                        // expire related tx - but only if it has not been completed before this check
-                        const transaction = transactionsStore.findById(pr.transactionId as number)
-    
-                        if(transaction && transaction.status !== TransactionStatus.COMPLETED) {
-                            const transactionDataUpdate = {
-                                status: TransactionStatus.EXPIRED,
-                                createdAt: new Date(),
-                            }                        
+        const amountPreferences = getDefaultAmountPreference(pr.amount)        
+        const countOfInFlightProofs = CashuUtils.getAmountPreferencesCount(amountPreferences)
         
-                            transactionsStore.updateStatuses(
-                                [pr.transactionId as number],
-                                TransactionStatus.EXPIRED,
-                                JSON.stringify(transactionDataUpdate),
-                            ) 
-                        }                   
-                    }
+        log.trace('[_checkPendingTopup]', 'amountPreferences', amountPreferences)
+        log.trace('[_checkPendingTopup]', 'countOfInFlightProofs', countOfInFlightProofs)  
+        
+        // temp increase the counter + acquire lock and set inFlight values        
+        await lockAndSetInFlight(mintInstance, countOfInFlightProofs, pr.transactionId as number)
+        
+        // get locked counter values
+        const lockedProofsCounter = mintInstance.getOrCreateProofsCounter?.()
 
-                    throw e
-                }
-            }
+        let requestResult: {proofs: CashuProof[], newKeys?: MintKeys} = {
+            proofs: [],                
+            newKeys: undefined
+        }
 
-            mintInstance.decreaseProofsCounter(countOfInFlightProofs)
-            
-            const {proofs, newKeys} = requestResult
-            
-            if (!proofs || proofs.length === 0) {
-                log.trace('[checkPendingTopups]', 'No proofs returned from mint')                
-                
-                // create copy of transactionId to avoid mobx error aftr pr is deleted
-                const transactionId = {...pr}.transactionId
+        try {
+            requestResult = (await MintClient.requestProofs(
+                pr.mint as string,
+                pr.amount,
+                pr.paymentHash,
+                amountPreferences,
+                lockedProofsCounter.inFlightFrom as number
+            )) as {proofs: Proof[], newKeys: MintKeys}
 
-                // remove already expired invoices only after check that they have not been paid                
+        } catch (e: any) {
+            if (e instanceof AppError && 
+                e.params && 
+                e.params.message?.includes('outputs have already been signed before')) {
+
+                    log.error('[_checkPendingTopup] Emergency increase of proofsCounter and retrying the send')
+
+                    mintInstance.increaseProofsCounter(20)
+                    requestResult = await MintClient.requestProofs(
+                        pr.mint as string,
+                        pr.amount,
+                        pr.paymentHash,
+                        amountPreferences,
+                        lockedProofsCounter.inFlightFrom as number + 20
+                    )
+                    
+                    log.error('[_checkPendingTopup] Emergency increase of proofsCounter, retry result', {requestResult})
+            } else {
+                // decrease so that unpaid invoices does not cause counter gaps from polling
+                mintInstance.decreaseProofsCounter(countOfInFlightProofs)
+                // release lock
+                mintInstance.resetInFlight(pr.transactionId as number)                
+
+                // remove already expired invoices 
                 if (isBefore(pr.expiresAt as Date, new Date())) {
-                    log.debug('[checkPendingTopups]', `Invoice expired, removing: ${pr.paymentHash}`)
+                    log.debug('[_checkPendingTopup]', `Invoice expired, removing: ${pr.paymentHash}`)                        
                     
-                    
-                    paymentRequestsStore.removePaymentRequest(pr)
-                    
+                    paymentRequestsStore.removePaymentRequest(pr)                        
                     // expire related tx - but only if it has not been completed before this check
-                    const transaction = transactionsStore.findById(transactionId as number)
+                    const transaction = transactionsStore.findById(pr.transactionId as number)
 
                     if(transaction && transaction.status !== TransactionStatus.COMPLETED) {
                         const transactionDataUpdate = {
@@ -2445,78 +2466,118 @@ const checkPendingTopups = async function () {
                         }                        
     
                         transactionsStore.updateStatuses(
-                            [transactionId as number],
+                            [pr.transactionId as number],
                             TransactionStatus.EXPIRED,
                             JSON.stringify(transactionDataUpdate),
                         ) 
-                    }                   
+                    }
+                    
+                    stopPolling(`checkPendingTopupPoller-${pr.paymentHash}`)
                 }
-                // release lock and move on
-                mintInstance.resetInFlight(transactionId as number )
-                continue
-            }            
 
-            if(newKeys) {_updateMintKeys(pr.mint as string, newKeys)}
-
-            // accept to the wallet whatever we've got
-            const {addedAmount: receivedAmount} = _addCashuProofs(
-                proofs,
-                pr.mint as string,
-                pr.transactionId as number                
-            )    
-            
-            // release lock
-            mintInstance.resetInFlight(pr.transactionId as number )
-
-            if (receivedAmount !== pr.amount) {
-                throw new AppError(
-                Err.VALIDATION_ERROR,
-                `Received amount ${receivedAmount} sats is not equal to the requested amount ${pr.amount} sats.`,
-                )
+                // throw but keep polling
+                throw e
             }
-
-            // update related tx
-            const transactionDataUpdate = {
-                status: TransactionStatus.COMPLETED,
-                createdAt: new Date(),
-            }
-
-            transactionsStore.updateStatuses(
-                [pr.transactionId as number],
-                TransactionStatus.COMPLETED,
-                JSON.stringify(transactionDataUpdate),
-            )
-
-            transactionsStore.updateSentFrom(
-                pr.transactionId as number,
-                pr.contactTo?.nip05 as string // payemnt has been sent from payment request receiver
-            )
-
-            // Fire event that the TopupScreen can listen to
-            EventEmitter.emit('topupCompleted', {...pr})
-
-            stopPolling('checkPendingTopupsPoller')
-            
-            // Update tx with current balance
-            const balanceAfter = proofsStore.getBalances().totalBalance
-
-            await transactionsStore.updateBalanceAfter(
-                pr.transactionId as number,
-                balanceAfter,
-            )            
-
-            // delete paid pr if we've got our cash
-            paymentRequestsStore.removePaymentRequest(pr)
-        } catch (e: any) {   
-            if(e.message.includes('quote not paid')) {
-                log.warn('[checkPendingTopups]', `${e.message}`)
-                continue
-            }
-
-            log.error('[checkPendingTopups]', e.name, e.message)
-            continue        
         }
+
+        mintInstance.decreaseProofsCounter(countOfInFlightProofs)
+        
+        const {proofs, newKeys} = requestResult
+        
+        if (!proofs || proofs.length === 0) {
+            log.trace('[_checkPendingTopup]', 'No proofs returned from mint')                
+            
+            // create copy of transactionId to avoid mobx error aftr pr is deleted
+            const transactionId = {...pr}.transactionId
+
+            // remove already expired invoices only after check that they have not been paid                
+            if (isBefore(pr.expiresAt as Date, new Date())) {
+                log.debug('[_checkPendingTopup]', `Invoice expired, removing: ${pr.paymentHash}`)
+                
+                
+                paymentRequestsStore.removePaymentRequest(pr)
+                
+                // expire related tx - but only if it has not been completed before this check
+                const transaction = transactionsStore.findById(transactionId as number)
+
+                if(transaction && transaction.status !== TransactionStatus.COMPLETED) {
+                    const transactionDataUpdate = {
+                        status: TransactionStatus.EXPIRED,
+                        createdAt: new Date(),
+                    }                        
+
+                    transactionsStore.updateStatuses(
+                        [transactionId as number],
+                        TransactionStatus.EXPIRED,
+                        JSON.stringify(transactionDataUpdate),
+                    ) 
+                }                   
+            }
+            // release lock and move on
+            mintInstance.resetInFlight(transactionId as number )
+            stopPolling(`checkPendingTopupPoller-${pr.paymentHash}`)
+            return
+        }            
+
+        if(newKeys) {_updateMintKeys(pr.mint as string, newKeys)}
+
+        // accept to the wallet whatever we've got
+        const {addedAmount: receivedAmount} = _addCashuProofs(
+            proofs,
+            pr.mint as string,
+            pr.transactionId as number                
+        )    
+        
+        // release lock and cleanup
+        mintInstance.resetInFlight(pr.transactionId as number )
+        stopPolling(`checkPendingTopupPoller-${pr.paymentHash}`)                
+
+        if (receivedAmount !== pr.amount) {
+            throw new AppError(
+            Err.VALIDATION_ERROR,
+            `Received amount ${receivedAmount} sats is not equal to the requested amount ${pr.amount} sats.`,
+            )
+        }
+
+        // update related tx
+        const transactionDataUpdate = {
+            status: TransactionStatus.COMPLETED,
+            createdAt: new Date(),
+        }
+
+        transactionsStore.updateStatuses(
+            [pr.transactionId as number],
+            TransactionStatus.COMPLETED,
+            JSON.stringify(transactionDataUpdate),
+        )
+
+        transactionsStore.updateSentFrom(
+            pr.transactionId as number,
+            pr.contactTo?.nip05 as string // payemnt has been sent from payment request receiver
+        )
+
+        // Fire event that the TopupScreen can listen to
+        EventEmitter.emit('topupCompleted', {...pr})        
+        
+        // Update tx with current balance
+        const balanceAfter = proofsStore.getBalances().totalBalance
+
+        await transactionsStore.updateBalanceAfter(
+            pr.transactionId as number,
+            balanceAfter,
+        )
+
+        paymentRequestsStore.removePaymentRequest(pr)
+        
+    } catch (e: any) {   
+        if(e.message.includes('quote not paid')) {
+            log.warn('[checkPendingTopups]', `${e.message}`)
+            return
+        }
+
+        log.error('[checkPendingTopups]', e.name, e.message)                
     }
+
 }
 
 const _updateMintKeys = function (mintUrl: string, newKeys: MintKeys) {

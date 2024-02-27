@@ -70,16 +70,25 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                 return
             }
 
-            poller('checkDonationPaidPoller', checkDonationPaid, 2 * 1000, 120, 10) // every 2s to make it responsive. Total 4 min
-            .then(() => log.trace('Polling completed', {}, 'checkDonationPaid'))
+            poller(`checkDonationPaidPoller-${donationInvoice.payment_hash}`, 
+            checkDonationPaid,
+            {
+                interval: 2 * 1000, // every 2s to make it responsive. Total 4 min
+                maxPolls: 120,
+                maxErrors: 10
+            },
+            {unpaidInvoice: donationInvoice}) 
+            .then(() => log.trace('[checkDonationPaid]', 'Polling completed'))
             .catch(error =>
-                log.trace(error.message, {}, 'checkPendingTopups'),
+                log.trace('[checkDonationPaid]', error.message),
             )
            
         }
         initPoller()
         return () => {
-            stopPolling('checkDonationPaidPoller')
+            if(donationInvoice) {
+                stopPolling(`checkDonationPaidPoller-${donationInvoice.payment_hash}`)
+            }            
         }        
     }, [donationInvoice])
 
@@ -102,8 +111,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
         setDonationAmount(DEFAULT_DONATION_AMOUNT)
         setIsResultModalVisible(false)
         setIsQRCodeVisible(false)
-        setIsPaidFromWallet(false)
-        // stopPolling('checkDonationPaidPoller') // ??
+        setIsPaidFromWallet(false)        
     }
 
 
@@ -188,15 +196,17 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
         }  
     }
 
-
-    const checkDonationPaid = async function () {   
+    // poll handler
+    const checkDonationPaid = async function (params: {unpaidInvoice: {payment_hash: string, payment_request: string}}): Promise<void> {   
         try {
-            if(!donationInvoice) {
+            const {unpaidInvoice} = params
+
+            if(!unpaidInvoice) {
                 return
             }
             
             const { paid } = await MinibitsClient.checkDonationPaid(
-                donationInvoice?.payment_hash as string,
+                unpaidInvoice.payment_hash as string,
                 pubkey as string
             )
 
@@ -212,11 +222,11 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                 })
                 toggleResultModal()
                 togglePaymentModal()
-                stopPolling('checkDonationPaidPoller')
+                stopPolling(`checkDonationPaidPoller-${unpaidInvoice.payment_hash}`)
                 return
             }
         } catch (e: any) {
-            return false // silent
+            return // silent
         }  
     }
 
