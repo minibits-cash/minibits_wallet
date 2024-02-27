@@ -48,14 +48,6 @@ export const IncomingRequests = observer(function (props: {
         paymentRequestsStore.removeExpired()
     }
 
-
-    const onPressPaymentRequest = function(paymentRequest: PaymentRequest) {
-        navigation.navigate('Transfer', {
-            paymentRequest, 
-            paymentOption: SendOption.PAY_PAYMENT_REQUEST
-        })
-    }
-
     const handleError = function (e: AppError): void {
         setIsLoading(false)
         setError(e)
@@ -77,8 +69,8 @@ export const IncomingRequests = observer(function (props: {
                     return(
                         <PaymentRequestListItem                                        
                             pr={item}
-                            isFirst={index === 0}
-                            onPressPaymentRequest={() => onPressPaymentRequest(item)}                                                
+                            isFirst={index === 0}                            
+                            navigation={navigation}                                               
                         />
                     )
                 }}

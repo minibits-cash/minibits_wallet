@@ -85,20 +85,14 @@ export const OutgoingRequests = observer(function (props: {
       }
   
   
-      const onCopy = function () {
+    const onCopy = function () {
         try {
-          Clipboard.setString(selectedRequest?.encodedInvoice as string)
+            Clipboard.setString(selectedRequest?.encodedInvoice as string)
         } catch (e: any) {
-          setInfo(`Could not copy: ${e.message}`)
+            setInfo(`Could not copy: ${e.message}`)
         }
-      }
-
-     
-
-    const onPressPaymentRequest = function(paymentRequest: PaymentRequest) {
-        setSelectedRequest(paymentRequest)        
-        toggleQRModal()
     }
+
 
     const handleError = function (e: AppError): void {
         setIsLoading(false)
@@ -122,7 +116,7 @@ export const OutgoingRequests = observer(function (props: {
                         <PaymentRequestListItem                                        
                             pr={item}
                             isFirst={index === 0}
-                            onPressPaymentRequest={() => onPressPaymentRequest(item)}                                                
+                            navigation={navigation}                                                       
                         />
                     )
                 }}
