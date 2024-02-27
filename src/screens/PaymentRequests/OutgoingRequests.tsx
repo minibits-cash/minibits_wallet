@@ -65,6 +65,12 @@ export const OutgoingRequests = observer(function (props: {
     }
 
 
+    const onShowQRModal = function(paymentRequest: PaymentRequest) {
+        setSelectedRequest(paymentRequest)        
+        toggleQRModal()
+    }
+
+
     const onShareToApp = async () => {
         try {
           const result = await Share.share({
@@ -116,7 +122,8 @@ export const OutgoingRequests = observer(function (props: {
                         <PaymentRequestListItem                                        
                             pr={item}
                             isFirst={index === 0}
-                            navigation={navigation}                                                       
+                            navigation={navigation}
+                            onShowQRModal={onShowQRModal}                                                       
                         />
                     )
                 }}

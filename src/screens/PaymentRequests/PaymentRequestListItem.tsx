@@ -19,11 +19,12 @@ export interface PaymentRequestListProps {
   pr: PaymentRequest
   isFirst: boolean  
   navigation: any
+  onShowQRModal?: any
 }
 
 export const PaymentRequestListItem = observer(function (props: PaymentRequestListProps) {
   
-    const { pr, isFirst, navigation } = props
+    const { pr, isFirst, navigation, onShowQRModal } = props
     const hintColor = useThemeColor('textDim')
     const secToExpiry = differenceInSeconds(pr.expiresAt as Date, new Date())
     const expiryBg = ( secToExpiry < 0 ? colors.palette.angry500 : secToExpiry < 60 ? colors.palette.orange400 : colors.palette.success300)
@@ -37,11 +38,18 @@ export const PaymentRequestListItem = observer(function (props: PaymentRequestLi
         })
     }
 
-    const onPressPaymentRequest = function() {        
-        navigation.navigate('Transfer', {
-            paymentRequest: pr, 
-            paymentOption: SendOption.PAY_PAYMENT_REQUEST
-        })
+    const onPressPaymentRequest = function() {
+        if (pr.type === PaymentRequestType.INCOMING) {
+            navigation.navigate('Transfer', {
+                paymentRequest: pr, 
+                paymentOption: SendOption.PAY_PAYMENT_REQUEST
+            })
+        } else {
+            if(onShowQRModal) {
+                onShowQRModal(pr)
+            }
+        }
+        
     }
 
     const dim = useThemeColor('textDim')
