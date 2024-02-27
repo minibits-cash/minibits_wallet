@@ -2449,13 +2449,15 @@ const _checkPendingTopup = async function (params: {paymentRequest: PaymentReque
                 // decrease so that unpaid invoices does not cause counter gaps from polling
                 mintInstance.decreaseProofsCounter(countOfInFlightProofs)
                 // release lock
-                mintInstance.resetInFlight(pr.transactionId as number)                
+                mintInstance.resetInFlight(pr.transactionId as number)                       
 
                 // remove already expired invoices 
                 if (isBefore(pr.expiresAt as Date, new Date())) {
-                    log.debug('[_checkPendingTopup]', `Invoice expired, removing: ${pr.paymentHash}`)                        
+                    log.debug('[_checkPendingTopup]', `Invoice expired, removing: ${pr.paymentHash}`)                                            
                     
-                    paymentRequestsStore.removePaymentRequest(pr)                        
+                    stopPolling(`checkPendingTopupPoller-${pr.paymentHash}`)         
+                    paymentRequestsStore.removePaymentRequest(pr)
+
                     // expire related tx - but only if it has not been completed before this check
                     const transaction = transactionsStore.findById(pr.transactionId as number)
 
@@ -2471,8 +2473,6 @@ const _checkPendingTopup = async function (params: {paymentRequest: PaymentReque
                             JSON.stringify(transactionDataUpdate),
                         ) 
                     }
-                    
-                    stopPolling(`checkPendingTopupPoller-${pr.paymentHash}`)
                 }
 
                 // throw but keep polling
@@ -2494,7 +2494,7 @@ const _checkPendingTopup = async function (params: {paymentRequest: PaymentReque
             if (isBefore(pr.expiresAt as Date, new Date())) {
                 log.debug('[_checkPendingTopup]', `Invoice expired, removing: ${pr.paymentHash}`)
                 
-                
+                stopPolling(`checkPendingTopupPoller-${pr.paymentHash}`)
                 paymentRequestsStore.removePaymentRequest(pr)
                 
                 // expire related tx - but only if it has not been completed before this check
@@ -2513,9 +2513,8 @@ const _checkPendingTopup = async function (params: {paymentRequest: PaymentReque
                     ) 
                 }                   
             }
-            // release lock and move on
-            mintInstance.resetInFlight(transactionId as number )
-            stopPolling(`checkPendingTopupPoller-${pr.paymentHash}`)
+            // release lock and move on (keep polling)
+            mintInstance.resetInFlight(transactionId as number )            
             return
         }            
 
