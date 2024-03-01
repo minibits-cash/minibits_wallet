@@ -349,7 +349,7 @@ const getNip05PubkeyAndRelays = async function (nip05: string) {
 
 
 
-const getProfileFromRelays = async function (pubkey: string, relays: string[]) {
+const getProfileFromRelays = async function (pubkey: string, relays: string[]): Promise<NostrProfile | undefined> {
 
     // get profile from the relays for pubkey linked to nip05
     const filters: NostrFilter[] = [{
@@ -361,7 +361,9 @@ const getProfileFromRelays = async function (pubkey: string, relays: string[]) {
 
     
     if(!events || events.length === 0) {
-        throw new AppError(Err.SERVER_ERROR, 'Could not get profile event from the relays.', {relays})
+        // do not log as error to save capacity
+        log.warn('Could not get profile event from the relays.', {relays})
+        return undefined
     }
 
     const profile: NostrProfile = JSON.parse(events[events.length - 1].content)
@@ -462,9 +464,6 @@ const deleteKeyPair = async function (): Promise<void> {
 
 const getNormalizedRelayUrl = function (url: string): string {
     try {
-        if(!url.startsWith('wss://')) {
-            throw new Error('Relay needs to communicate over wss://')
-        }
         return utils.normalizeURL(url)
     } catch (e: any) {
         throw new AppError(Err.VALIDATION_ERROR, `Invalid relay URL: ${e.message}`)

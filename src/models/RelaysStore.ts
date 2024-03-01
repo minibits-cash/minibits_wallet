@@ -11,6 +11,7 @@ import {RelayModel, Relay} from './Relay'
 import {log} from '../services/logService'
 import { MINIBITS_RELAY_URL } from '@env'
 import { NostrClient } from '../services'
+import AppError, { Err } from '../utils/AppError'
 
   
 export const RelaysStoreModel = types
@@ -37,6 +38,11 @@ export const RelaysStoreModel = types
         addRelay(relay: Relay) {
 
             const normalized = NostrClient.getNormalizedRelayUrl(relay.url)
+
+            if(!normalized.startsWith('wss://')) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Relay needs to communicate over secure websocket wss://', {caller: 'addRelay'})
+            }
+
             relay.url = normalized
 
             if(self.alreadyExists(relay.url)) {

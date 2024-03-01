@@ -107,8 +107,12 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
             const relaysToConnect = relaysStore.allPublicUrls
             setOwnProfileRelays(relaysToConnect)
 
-            const profile: NostrProfile = await NostrClient.getProfileFromRelays(nip05Pubkey, relaysToConnect)
-
+            const profile: NostrProfile | undefined = await NostrClient.getProfileFromRelays(nip05Pubkey, relaysToConnect)
+            
+            if(!profile) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Could not retrieve profile from relays', {nip05Pubkey, relaysToConnect})
+            }
+            
             // check that the profile's nip05 matches the one given by user and living on nip05 .well-known server
             if(!profile.nip05) {
                 if(profile.name && profile.name.toLowerCase() === nip05Name) {

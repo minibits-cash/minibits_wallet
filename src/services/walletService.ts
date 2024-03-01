@@ -412,7 +412,7 @@ const checkPendingReceived = async function () {
                     const relays = getTagsByName(zapRequest.tags, 'relays')
         
                     if(relays && relays.length > 0) {
-                        const senderProfile = await NostrClient.getProfileFromRelays(sentFromPubkey, relays)
+                        const senderProfile = await NostrClient.getProfileFromRelays(sentFromPubkey, relays) // returns undefined if not found
         
                         if(senderProfile) {
                             sentFrom = senderProfile.nip05 || senderProfile.name

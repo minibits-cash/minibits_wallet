@@ -33,7 +33,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
     const [isQRcodeVisible, setIsQRCodeVisible] = useState(false)
     const [isChecked, setIsChecked] = useState(false)
     // const [isNameInputEnabled, setIsNameInputEnabled] = useState(true)
-    const [isPaidFromWallet, setIsPaidFromWallet] = useState(false)
+    const [isInvoicePaid, setIsInvoicePaid] = useState<boolean>(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
     const [resultModalInfo, setResultModalInfo] = useState<
       {status: TransactionStatus, message: string} | undefined
@@ -76,8 +76,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                 interval: 2 * 1000, // every 2s to make it responsive. Total 4 min
                 maxPolls: 120,
                 maxErrors: 10
-            },
-            {unpaidInvoice: donationInvoice}) 
+            })            
             .then(() => log.trace('[checkDonationPaid]', 'Polling completed'))
             .catch(error =>
                 log.trace('[checkDonationPaid]', error.message),
@@ -93,6 +92,26 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
     }, [donationInvoice])
 
 
+    useEffect(() => {        
+        const handleIsInvoicePaid = async () => { 
+            if(!isInvoicePaid || !donationInvoice) {
+                return
+            }
+
+            stopPolling(`checkDonationPaidPoller-${donationInvoice.payment_hash}`)            
+            setResultModalInfo({
+                status: TransactionStatus.COMPLETED, 
+                message: `Thank you! Donation for ${ownName+MINIBITS_NIP05_DOMAIN} has been successfully paid.`
+            })            
+            toggleResultModal()
+            resetState()     
+        }
+        handleIsInvoicePaid()
+        return () => {        
+        }        
+    }, [isInvoicePaid])
+
+
 
     const togglePaymentModal = () =>
         setIsPaymentModalVisible(previousState => !previousState)
@@ -100,18 +119,16 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
         setIsResultModalVisible(previousState => !previousState)
 
 
-    const resetState = function () {  
-        // setIsNameInputEnabled(true)      
+    const resetState = function () {          
         setIsChecked(false)
         setOwnName('')        
         setInfo('')
         setIsLoading(false)        
         setIsPaymentModalVisible(false)
         setDonationInvoice(undefined)
-        setDonationAmount(DEFAULT_DONATION_AMOUNT)
-        setIsResultModalVisible(false)
+        setDonationAmount(DEFAULT_DONATION_AMOUNT)        
         setIsQRCodeVisible(false)
-        setIsPaidFromWallet(false)        
+        setIsInvoicePaid(false)         
     }
 
 
@@ -182,7 +199,6 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
 
     const onPayDonation = async function () {
         try {            
-            setIsPaidFromWallet(true)            
             return navigation.navigate('WalletNavigator', { 
                 screen: 'Transfer',
                 params: { 
@@ -197,32 +213,22 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
     }
 
     // poll handler
-    const checkDonationPaid = async function (params: {unpaidInvoice: {payment_hash: string, payment_request: string}}): Promise<void> {   
+    const checkDonationPaid = async function (): Promise<void> {   
         try {
-            const {unpaidInvoice} = params
-
-            if(!unpaidInvoice) {
+            if(!donationInvoice) {
                 return
             }
             
             const { paid } = await MinibitsClient.checkDonationPaid(
-                unpaidInvoice.payment_hash as string,
+                donationInvoice.payment_hash as string,
                 pubkey as string
             )
 
             if(paid) {                
-                setIsLoading(true)
-                    
+                setIsLoading(true)                    
                 await walletProfileStore.updateName(ownName)                
-
                 setIsLoading(false)
-                setResultModalInfo({
-                    status: TransactionStatus.COMPLETED, 
-                    message: `Thank you! Donation for ${ownName+MINIBITS_NIP05_DOMAIN} has been successfully paid.`
-                })
-                toggleResultModal()
-                togglePaymentModal()
-                stopPolling(`checkDonationPaidPoller-${unpaidInvoice.payment_hash}`)
+                setIsInvoicePaid(true)
                 return
             }
         } catch (e: any) {
