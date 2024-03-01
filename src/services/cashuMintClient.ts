@@ -411,7 +411,15 @@ const requestLightningInvoice = async function (
       paymentHash: hash,
     }
   } catch (e: any) {
-    throw new AppError(Err.MINT_ERROR, e.message)
+    throw new AppError(
+        Err.MINT_ERROR, 
+        'The mint could not return an invoice.', 
+        {
+            message: e.message,
+            caller: 'requestLightningInvoice', 
+            mintUrl,            
+        }
+    )
   }
 }
 
@@ -424,25 +432,36 @@ const requestProofs = async function (
   amountPreferences: AmountPreference[],
   counter: number
 ) {
+    try {
+        const cashuWallet = await getWallet(mintUrl, true) // with seed
+        /* eslint-disable @typescript-eslint/no-unused-vars */
+        const {proofs, newKeys} = await cashuWallet.requestTokens(
+            amount,
+            paymentHash,
+            amountPreferences,
+            counter
+        )
+        /* eslint-enable */
 
-    const cashuWallet = await getWallet(mintUrl, true) // with seed
-    /* eslint-disable @typescript-eslint/no-unused-vars */
-    const {proofs, newKeys} = await cashuWallet.requestTokens(
-      amount,
-      paymentHash,
-      amountPreferences,
-      counter
-    )
-    /* eslint-enable */
+        // if (newKeys) { _setKeys(mintUrl, newKeys) }
+        if(proofs) {
+            log.trace('[requestProofs]', proofs)
+        }
 
-    // if (newKeys) { _setKeys(mintUrl, newKeys) }
-    if(proofs) {
-        log.trace('[requestProofs]', proofs)
-    }
-
-    return {
-        proofs, 
-        newKeys
+        return {
+            proofs, 
+            newKeys
+        }
+    } catch (e: any) {
+        throw new AppError(
+            Err.MINT_ERROR, 
+            'The mint returned error on request to mint new ecash.', 
+            {
+                message: e.message,
+                caller: 'requestProofs', 
+                mintUrl,            
+            }
+        )
     }
 }
 

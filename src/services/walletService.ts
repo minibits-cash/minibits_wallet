@@ -127,7 +127,7 @@ const checkPendingSpent = async function () {
             continue
         }
         
-        const result = await _checkSpentByMint({mintUrl: mint.mintUrl, isPending: true}) // pending true
+        const result = await _checkSpentByMint({mintUrl: mint.mintUrl, isPending: true}) // pending true        
         
         if(!result) {
             // go to next mint if there were no proofs to call mint with, do not assume any mint status
@@ -136,8 +136,9 @@ const checkPendingSpent = async function () {
 
         if(result && result.error) {
             // if error looks like mint is offline
-            if(result.error.name === Err.MINT_ERROR) {
-                mint.setStatus(MintStatus.OFFLINE)
+            if(result.error.name === Err.MINT_ERROR) {                
+                mint.setStatus(MintStatus.OFFLINE)                
+                return
             }
         }
         
@@ -921,7 +922,7 @@ const receive = async function (
         // Let's create new draft receive transaction in database
         transactionData.push({
             status: TransactionStatus.DRAFT,
-            amountToReceive,
+            amountToReceive,            
             createdAt: new Date(),
         })
 
@@ -2595,7 +2596,7 @@ const _updateMintKeys = function (mintUrl: string, newKeys: MintKeys) {
 const _formatError = function (e: AppError) {
     return {
         name: e.name,
-        message: e.message.slice(0, 800),
+        message: e.message.slice(0, 500),
         params: e.params || {},
     } as AppError 
 }
