@@ -419,8 +419,8 @@ const ReceiveInfoBlock = function (props: {
     } = props
 
     const isInternetReachable = useIsInternetReachable()
-    const tokenToRetry = getTokenToRetryToReceive(transaction)  
-    const {transactionsStore} = useStores()
+    const retryResult = getTokenToRetryToReceive(transaction)  
+    const {transactionsStore, mintsStore} = useStores()
 
     const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
     const [resultModalInfo, setResultModalInfo] = useState<
@@ -432,16 +432,24 @@ const ReceiveInfoBlock = function (props: {
     setIsResultModalVisible(previousState => !previousState)
 
     const onRetryToReceive = async function () {                
-        if(!tokenToRetry || !isInternetReachable) {
+        if(!retryResult || !isInternetReachable) {
             return
         }
-
+        
         setIsLoading(true)     
 
-        try {                   
+        try {    
+            const {tokenToRetry, increaseProofsCounter} = retryResult               
             const amountToReceive = CashuUtils.getTokenAmounts(tokenToRetry).totalAmount
             const memo = tokenToRetry.memo || ''
             const encoded = getEncodedToken(tokenToRetry)
+
+            if(increaseProofsCounter) {
+                const mintInstance = mintsStore.findByUrl(transaction.mint)
+                if(mintInstance) {
+                    mintInstance.increaseProofsCounter(20)
+                }
+            }
 
             const result: TransactionResult = await Wallet.receive(
                 tokenToRetry as Token,
@@ -517,7 +525,7 @@ const ReceiveInfoBlock = function (props: {
                         label="tranDetailScreen.type"
                         value={transaction.type as string}
                     />
-                    {tokenToRetry && isInternetReachable ? (
+                    {retryResult && isInternetReachable ? (
                         <View
                         style={{flexDirection: 'row', justifyContent: 'space-between'}}>
                         <TranItem
@@ -1353,7 +1361,7 @@ const getEncodedTokenToSend = (
 
 const getTokenToRetryToReceive = (
     transaction: Transaction,
-  ): Token | undefined => {
+  ): {tokenToRetry: Token, increaseProofsCounter: boolean} | undefined => {
     try {
         if(transaction.type !== (TransactionType.RECEIVE || TransactionType.RECEIVE_OFFLINE)) {
             return undefined
@@ -1386,15 +1394,12 @@ const getTokenToRetryToReceive = (
             if(params) {
                 const {errorToken, message} = params
 
-                log.trace('[getTokenToRetryToReceive] message', message)
-
                 if(message.includes('Network request failed') || message.includes('Bad Gateway')) {                    
-                    return errorToken as Token | undefined
+                    return {tokenToRetry: errorToken, increaseProofsCounter: false}
                 }
 
-                if(message.includes('outputs have already been signed before')) {
-                    mintInstance.increaseProofsCounter(20)                   
-                    return errorToken
+                if(message.includes('outputs have already been signed before')) {                             
+                    return {tokenToRetry: errorToken, increaseProofsCounter: true}
                 }
 
                 return undefined
