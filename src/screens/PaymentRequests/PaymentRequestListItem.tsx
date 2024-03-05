@@ -7,26 +7,52 @@ import { Image, ImageStyle, ScrollView, StyleSheet, TextStyle, View, ViewStyle }
 import { Button, Card, Icon, ListItem, Screen, Text } from "../../components"
 import { Contact, ContactType } from "../../models/Contact"
 import { PaymentRequest, PaymentRequestStatus, PaymentRequestType } from "../../models/PaymentRequest"
-import { NostrClient } from "../../services"
+import { log, NostrClient } from "../../services"
 import { colors, spacing, typography, useThemeColor } from "../../theme"
 import { getImageSource } from '../../utils/utils'
 import { ContactListItem } from "../Contacts/ContactListItem"
+import { SendOption } from "../SendOptionsScreen"
 import { CurrencyCode, CurrencySign } from "../Wallet/CurrencySign"
 
 
 export interface PaymentRequestListProps {
   pr: PaymentRequest
-  isFirst: boolean
-  onPressPaymentRequest: any
+  isFirst: boolean  
+  navigation: any
+  onShowQRModal?: any
 }
 
 export const PaymentRequestListItem = observer(function (props: PaymentRequestListProps) {
   
-    const { pr, isFirst, onPressPaymentRequest } = props
+    const { pr, isFirst, navigation, onShowQRModal } = props
     const hintColor = useThemeColor('textDim')
     const secToExpiry = differenceInSeconds(pr.expiresAt as Date, new Date())
     const expiryBg = ( secToExpiry < 0 ? colors.palette.angry500 : secToExpiry < 60 ? colors.palette.orange400 : colors.palette.success300)
     const separatorColor = useThemeColor('separator')
+
+    const onGotoContactDetail = function() {  
+        log.trace(pr)                
+        navigation.navigate('ContactsNavigator', {
+            screen: 'ContactDetail',
+            params: {contact: pr.type === PaymentRequestType.INCOMING ?  pr.contactFrom : pr.contactTo}
+        })
+    }
+
+    const onPressPaymentRequest = function() {
+        if (pr.type === PaymentRequestType.INCOMING) {
+            navigation.navigate('Transfer', {
+                paymentRequest: pr, 
+                paymentOption: SendOption.PAY_PAYMENT_REQUEST
+            })
+        } else {
+            if(onShowQRModal) {
+                onShowQRModal(pr)
+            }
+        }
+        
+    }
+
+    const dim = useThemeColor('textDim')
     
     return (
         <Card
@@ -47,46 +73,65 @@ export const PaymentRequestListItem = observer(function (props: PaymentRequestLi
             }
             ContentComponent={
                 <>
-                    {pr.type === PaymentRequestType.INCOMING ? (
-                        <>
-                            <View style={{borderBottomColor: separatorColor, borderBottomWidth: 1}}>                                
-                                <ContactListItem 
-                                    contact={pr.contactFrom} 
-                                    isFirst={true} 
-                                    gotoContactDetail={undefined}                        
-                                />                                
-                            </View>
-                            {pr.description && (
-                                <View style={{borderBottomColor: separatorColor, borderBottomWidth: 1, paddingLeft: 8}}>
-                                    <ListItem
-                                        leftIcon="faInfoCircle"                                        
-                                        text={pr.description}
-                                        textStyle={{fontSize: 14, marginLeft: 8}}                                            
-                                    />                                    
-                                </View>
-                            )}
-                        </>
-                    ) : (
-                        <>
-                            {pr.contactTo && (
-                                <View style={{borderBottomColor: separatorColor, borderBottomWidth: 1}}>
-                                    <ContactListItem 
-                                        contact={pr.contactTo} 
-                                        isFirst={true} 
-                                        gotoContactDetail={undefined}                        
+                    {pr.contactFrom && pr.contactTo && (
+                        <View style={{flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', marginVertical: spacing.medium}}>
+                            <View style={{flexDirection: 'column', alignItems: 'center', width: 100}}>
+                                    <Image style={[
+                                        $profileIcon, {
+                                            width: 40,
+                                            height: pr.contactTo?.isExternalDomain ? 40 : 43,
+                                            borderRadius: pr.contactTo?.isExternalDomain ? 20 : 0,
+                                        }]} 
+                                        source={{
+                                            uri: getImageSource(pr.contactTo?.picture as string)
+                                        }} 
                                     />
-                                </View>
-                            )}
-                            {pr.description && (
-                                <View style={{borderBottomColor: separatorColor, borderBottomWidth: 1, paddingLeft: 8}}>
-                                    <ListItem
-                                        leftIcon="faInfoCircle"                                        
-                                        text={pr.description}
-                                        textStyle={{fontSize: 14, marginLeft: 8}}                                            
-                                    />                                    
-                                </View>
-                            )}
-                        </>
+                                    <Text size='xxs' style={{color: dim}} text={pr.contactTo?.name}/>
+                            </View>
+                            <Text size='xxs' style={{color: dim, textAlign: 'center', marginLeft: 30,  marginBottom: 20}} text='...........' />
+                            <View style={{flexDirection: 'column', alignItems: 'center'}}>                
+                                <Icon
+                                        icon='faPaperPlane'                                
+                                        size={spacing.medium}                    
+                                        color={dim}                
+                                />
+                                <Text size='xxs' style={{color: dim, marginBottom: -10}} text={`pay ${pr.amount} sats to`} />
+                            </View>
+                            <Text size='xxs' style={{color: dim, textAlign: 'center', marginRight: 30, marginBottom: 20}} text='...........' />
+                            <View style={{flexDirection: 'column', alignItems: 'center', width: 100}}>
+                                {pr.contactFrom.picture ? (
+                                    <View style={{borderRadius: 20, overflow: 'hidden'}}>
+                                        <Image style={[
+                                            $profileIcon, {
+                                                width: 40, 
+                                                height: pr.contactFrom.isExternalDomain ? 40 :  43,
+                                                borderRadius: pr.contactFrom.isExternalDomain ? 20 :  0,
+                                            }]} 
+                                            source={{
+                                                uri: getImageSource(pr.contactFrom.picture as string) 
+                                            }} 
+                                        />
+                                    </View>
+                                ) : (
+                                    <Icon
+                                        icon='faCircleUser'                                
+                                        size={38}                    
+                                        color={dim}                
+                                    />
+                                )}
+                                <Text size='xxs' style={{color: dim}} text={pr.contactFrom.name}/>
+                            </View>
+                        </View>
+                    )}
+                    {pr.description && (
+                        <View style={{borderBottomColor: separatorColor, borderBottomWidth: 1, paddingLeft: 8}}>
+                            <ListItem
+                                leftIcon="faInfoCircle"                                        
+                                text={pr.description}
+                                textStyle={{fontSize: 14, marginLeft: 8}}
+                                topSeparator={true}
+                            />                                    
+                        </View>
                     )}
                     {pr.status === PaymentRequestStatus.ACTIVE ? (
                         <Text 
@@ -119,6 +164,9 @@ export const PaymentRequestListItem = observer(function (props: PaymentRequestLi
     )
 })
 
+const $profileIcon: ImageStyle = {
+    padding: spacing.medium,
+}
 
 const $headerContainer: TextStyle = {
     // justifyContent: 'space-between',

@@ -11,8 +11,10 @@ import {
   import {
     ContactModel,
     Contact,
+    ContactType,
   } from './Contact'
   import {log} from '../services/logService'
+import { MINIBITS_NIP05_DOMAIN } from '@env'
   
   // export const maxContactsInModel = 10
   
@@ -52,7 +54,12 @@ import {
                     return
                 }
 
-                newContact.createdAt = Math.floor(Date.now() / 1000)                      
+                if(newContact.nip05 && !newContact.nip05.includes(MINIBITS_NIP05_DOMAIN)) {
+                    newContact.isExternalDomain = true
+                }
+                
+                newContact.type = ContactType.PRIVATE // reset in case we save from public contacts
+                newContact.createdAt = Math.floor(Date.now() / 1000)
     
                 const contactInstance = ContactModel.create(newContact)
                 self.contacts.push(contactInstance)
@@ -100,10 +107,16 @@ import {
                 self.publicPubkey = publicPubkey
                 log.debug('[setPublicPubkey]', publicPubkey)
             },           
-            setLastPendingReceivedCheck() {    
-                const ts: number = Math.floor(Date.now() / 1000)
-                log.trace('[setLastPendingReceivedCheck]', {ts})
-                self.lastPendingReceivedCheck = ts
+            setLastPendingReceivedCheck(ts?: number) {    
+                if(ts) {
+                    self.lastPendingReceivedCheck = ts
+                    log.trace('[setLastPendingReceivedCheck]', {ts})
+                    return
+                }
+                
+                const ts2: number = Math.floor(Date.now() / 1000)
+                self.lastPendingReceivedCheck = ts2
+                log.trace('[setLastPendingReceivedCheck]', {ts2})                
             },
             addReceivedEventId(id: string) {            
                 self.receivedEventIds.push(id)

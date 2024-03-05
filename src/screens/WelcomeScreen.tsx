@@ -6,6 +6,7 @@ import {
   ViewStyle,
   FlatList,
   Animated,
+  ScrollView
 } from 'react-native'
 import PagerView, { PagerViewOnPageScrollEventData } from 'react-native-pager-view'
 import {
@@ -29,8 +30,7 @@ import {
 import {TxKeyPath} from '../i18n'
 import AppError from '../utils/AppError'
 import { MintClient } from '../services'
-
-
+7
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView)
 
 const PAGES = [
@@ -177,7 +177,8 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
                 onPageScroll={onPageScroll}
             >
                 {PAGES.map((page) => (
-                    <View key={page.key} style={{alignItems: 'center'}}>
+                    <View key={page.key}>
+                    <View style={{alignItems: 'center'}}>
                         <Text
                             tx={page.heading as TxKeyPath}                            
                             preset="subheading"
@@ -202,23 +203,24 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
                             preset="default"
                             style={$welcomeFinal}
                         />
-                        {(page.key === PAGES.length) && (
-                            <View style={$buttonContainer}>
-                                <Button 
-                                    onPress={gotoWallet}
-                                    preset='secondary'
-                                    text='Got it, take me to the wallet'
-                                />
-                                <Button 
-                                    onPress={gotoRecovery}
-                                    preset='tertiary'
-                                    text='Recover lost wallet'
-                                    LeftAccessory={() => {return<Icon icon='faRotate'/>}}
-                                    style={{marginTop: spacing.medium}}
-                                />
-                            </View>
-                        )}               
-                    </View>                
+                    </View>
+                    {(page.key === PAGES.length) && (
+                        <ScrollView style={$buttonContainer}>
+                            <Button 
+                                onPress={gotoWallet}
+                                preset='secondary'
+                                text='Got it, take me to the wallet'
+                            />
+                            <Button 
+                                onPress={gotoRecovery}
+                                preset='tertiary'
+                                text='Recover lost wallet'
+                                LeftAccessory={() => {return<Icon icon='faRotate'/>}}
+                                style={{marginTop: spacing.medium}}
+                            />
+                        </ScrollView>
+                    )} 
+                    </View>               
                 ))}
             </AnimatedPagerView>
             <View style={$dotsContainer}>               
@@ -255,11 +257,11 @@ const $dotContainer: ViewStyle ={
 const $container: ViewStyle = {
   // alignItems: 'center',
   flex: 1,
-  padding: spacing.medium,  
+  paddingHorizontal: spacing.medium,  
 }
 
 const $listContainer: ViewStyle = {
-    maxHeight: spacing.screenHeight * 0.4,    
+    maxHeight: spacing.screenHeight * 0.38,    
 }
 
 const $listItem: ViewStyle = {
@@ -276,12 +278,13 @@ const $itemIcon: ViewStyle = {
 const $buttonContainer: ViewStyle = {    
     alignSelf: 'center',
     marginTop: spacing.large,
+    paddingHorizontal: spacing.large,
   }
 
 
 const $welcomeHeading: TextStyle = {
   marginBottom: spacing.medium,
-  color: 'white',
+  color: 'white',  
 }
 
 const $welcomeIntro: TextStyle = {

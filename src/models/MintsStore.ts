@@ -14,7 +14,6 @@ import { MINIBITS_MINT_URL } from '@env'
 import { MintClient } from '../services'
 import { GetInfoResponse, MintKeys } from '@cashu/cashu-ts'
 import AppError, { Err } from '../utils/AppError'
-import { stopPolling } from '../utils/poller'
 
 export type MintsByHostname = {
     hostname: string
@@ -82,9 +81,6 @@ export const MintsStoreModel = types
                 detach(mintInstance)
                 destroy(mintInstance)
                 log.info('[removeMint]', 'Mint removed from MintsStore')
-
-                stopPolling('checkPendingTopupsPoller')
-                stopPolling('checkSpentByMintPoller')
             }
         },
         blockMint(mintToBeBlocked: Mint) {

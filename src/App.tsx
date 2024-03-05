@@ -52,7 +52,7 @@ interface AppProps {
 }
 
 function App(props: AppProps) {
-    const {userSettingsStore} = useStores()
+    const {userSettingsStore, relaysStore} = useStores()
     const {rehydrated} = useInitialRootStore(() => {
         // This runs after the root store has been initialized and rehydrated from storage.
         
@@ -63,8 +63,13 @@ function App(props: AppProps) {
         Database.getDatabaseVersion()
         
         // Syncs userSettings store with the database where they are persisted
-        userSettingsStore.loadUserSettings()
+        userSettingsStore.loadUserSettings()        
         log.trace('[useInitialRootStore]', 'Root store rehydrated')
+
+        // Set initial websocket to close as it might have remained open on last app close
+        for (const relay of relaysStore.allRelays) {
+            relay.setStatus(WebSocket.CLOSED)
+        }
     })
 
     if (!rehydrated) {    

@@ -104,6 +104,7 @@ export const RandomName = observer(function (props: {navigation: any, pubkey: st
         </View>
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
+        {isLoading && <Loading/>}
       </Screen>
     )
   })

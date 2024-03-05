@@ -1,19 +1,21 @@
-import React, {FC, useState, useEffect} from 'react'
+import React, {FC, useState, useEffect, useRef} from 'react'
 import {
     Platform,
     PermissionsAndroid,
     Alert,
     ViewStyle,
     View,
+    TextStyle,
+    TextInput,
 } from 'react-native'
 import {WalletStackScreenProps} from '../navigation'
 import {CameraScreen, CameraType} from 'react-native-camera-kit'
-import {spacing, typography} from '../theme'
+import {spacing, typography, useThemeColor} from '../theme'
 import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 import AppError, { Err } from '../utils/AppError'
-import { Button, ErrorModal } from '../components'
+import { BottomModal, Button, ErrorModal, Icon, Text } from '../components'
 import { LnurlUtils } from '../services/lnurl/lnurlUtils'
 import { infoMessage } from '../utils/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
@@ -33,15 +35,39 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
         onLeftPress: () => navigation.goBack(),
     })
 
+    const addressInputRef = useRef<TextInput>(null)
+
     const [shouldLoad, setShouldLoad] = useState<boolean>(false)    
     const [isScanned, setIsScanned] = useState<boolean>(false)
+    const [prevRouteName, setPrevRouteName] = useState<string>('')
+    const [lnurlAddress, setLnurlAddress] = useState<string | undefined>(undefined)
+    const [isLnurlAddressModalVisible, setIsLnurlddressModalVisible] = useState<boolean>(false)
     const [error, setError] = useState<AppError | undefined>()
 
     useEffect(() => {
         (async () => {
           setShouldLoad(Platform.OS !== 'android' || (await hasAndroidCameraPermission()))
+          
+          const routes = navigation.getState()?.routes
+          let prevRoute: string = ''
+          if(routes.length >= 2) {
+            prevRoute = routes[routes.length - 2].name
+              log.trace('prevRouteName', prevRoute)
+              setPrevRouteName(prevRoute)
+          }
         })()
     }, [])
+
+    const toggleLnurlAddressModal = () => {
+        if (isLnurlAddressModalVisible === false) {       
+            setTimeout(() => {
+                addressInputRef && addressInputRef.current
+                ? addressInputRef.current.focus()
+                : false
+            }, 500)
+        }
+        setIsLnurlddressModalVisible(previousState => !previousState)
+    }
 
     const onReadCode = async function(event: any) {
         setIsScanned(true)
@@ -52,13 +78,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
     }
 
 
-    const onIncomingData = async function(incoming: any) {
-        const routes = navigation.getState()?.routes
-        let prevRouteName: string = ''
-        if(prevRouteName.length >= 2) {
-            prevRouteName = routes[routes.length - 2].name
-            log.trace('prevRouteName', prevRouteName)
-        }        
+    const onIncomingData = async function(incoming: any) {       
 
         switch (prevRouteName) {
             case 'ReceiveOptions':  
@@ -71,17 +91,21 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                     const maybeLnurl = LnurlUtils.findEncodedLnurl(incoming)
 
                     if(maybeLnurl) {
-                        log.trace('Found LNURL link instead of a token', maybeLnurl, 'onIncomingData')
-                        const encodedLnurl = LnurlUtils.extractEncodedLnurl(maybeLnurl)
-        
-                        if(encodedLnurl) {
-                            infoMessage('Found LNURL link in the clipboard.')   
-                            return setTimeout(async() => IncomingParser.navigateWithIncomingData({
-                                type: IncomingDataType.LNURL,
-                                encoded: encodedLnurl
-                            }, navigation), 500)                               
+                        try {
+                            log.trace('Found LNURL link instead of a token', maybeLnurl, 'onIncomingData')
+                            const encodedLnurl = LnurlUtils.extractEncodedLnurl(maybeLnurl)
+            
+                            if(encodedLnurl) {                            
+                                await IncomingParser.navigateWithIncomingData({
+                                    type: IncomingDataType.LNURL,
+                                    encoded: encodedLnurl
+                                }, navigation)
+                            }
+                            return
+                        } catch (e2: any) {
+                            handleError(e2)
+                            break
                         }
-                        return
                     }
 
                     e.params = incoming
@@ -98,33 +122,41 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                     const maybeLnurl = LnurlUtils.findEncodedLnurl(incoming)
                     
                     if(maybeLnurl) {
-                        log.trace('Found LNURL link instead of an invoice', maybeLnurl, 'onIncomingData')
-                        const encodedLnurl = LnurlUtils.extractEncodedLnurl(maybeLnurl)
-        
-                        if(encodedLnurl) {
-                            infoMessage('Found LNURL link in the clipboard.')   
-                            return setTimeout(async() => IncomingParser.navigateWithIncomingData({
-                                type: IncomingDataType.LNURL,
-                                encoded: encodedLnurl
-                            }, navigation), 500)                               
+                        try {
+                            log.trace('Found LNURL link instead of an invoice', maybeLnurl, 'onIncomingData')
+                            const encodedLnurl = LnurlUtils.extractEncodedLnurl(maybeLnurl)
+            
+                            if(encodedLnurl) {                            
+                                await IncomingParser.navigateWithIncomingData({
+                                    type: IncomingDataType.LNURL,
+                                    encoded: encodedLnurl
+                                }, navigation)
+                            }
+                            return
+                        } catch (e2: any) {
+                            handleError(e2)
+                            break
                         }
-                        return
                     }
         
                     const maybeLnurlAddress = LnurlUtils.findEncodedLnurlAddress(incoming)
         
                     if(maybeLnurlAddress) {
-                        log.trace('Found Lightning address instead of an invoice', maybeLnurlAddress, 'onIncomingData')        
-                        const lnurlAddress = LnurlUtils.extractLnurlAddress(maybeLnurlAddress)
-                
-                        if(lnurlAddress) {
-                            infoMessage('Found Lightning address in the clipboard.') 
-                            return setTimeout(async() => IncomingParser.navigateWithIncomingData({
-                                type: IncomingDataType.LNURL_ADDRESS,
-                                encoded: lnurlAddress
-                            }, navigation), 500)      
+                        try {
+                            log.trace('Found Lightning address instead of an invoice', maybeLnurlAddress, 'onIncomingData')        
+                            const validAddress = LnurlUtils.extractLnurlAddress(maybeLnurlAddress)
+                    
+                            if(validAddress) {                            
+                                await IncomingParser.navigateWithIncomingData({
+                                    type: IncomingDataType.LNURL_ADDRESS,
+                                    encoded: validAddress
+                                }, navigation)    
+                            }
+                            return          
+                        } catch (e3: any) {
+                            handleError(e3)
+                            break
                         }
-                        return          
                     }           
                     
                     e.params = incoming
@@ -155,6 +187,31 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
         return onIncomingData(clipboard)
     }
 
+    // manually entered address
+    const onLnurlAddress = async function() {        
+        try {
+            if(!lnurlAddress) {
+                toggleLnurlAddressModal()
+                throw new AppError(Err.VALIDATION_ERROR, 'Please enter Lightning address.', {caller: 'onLnurlAddress'})
+            }
+
+            const validAddress = LnurlUtils.extractLnurlAddress(lnurlAddress as string) // throws
+                
+            if(validAddress) {
+                toggleLnurlAddressModal()               
+                await IncomingParser.navigateWithIncomingData({
+                    type: IncomingDataType.LNURL_ADDRESS,
+                    encoded: validAddress
+                }, navigation)
+                return             
+            }
+             
+        } catch (e: any) {
+            handleError(e)
+        }
+          
+    } 
+
 
     /* const handleError = (scanned: string, message: string) => {
       Alert.alert(message, scanned, [
@@ -169,6 +226,8 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
         setError(e)
     }
 
+    const hintText = useThemeColor('textDim')
+    const inputBg = useThemeColor('background')
 
     return (shouldLoad ? (
         <>
@@ -178,16 +237,70 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                 onReadCode={event => (isScanned ? undefined : onReadCode(event))}
                 hideControls            
             />
-            <View style={$bottomContainer}>
-                <View style={$buttonContainer}>
-                    <Button                        
-                        onPress={() => onPaste()}
-                        text={'Paste from clipboard'}
-                        preset='secondary'
-                        style={{marginTop: spacing.medium, minWidth: 120}}                        
-                    />               
-                </View>
+            <View style={$bottomContainer}>                
+                {prevRouteName === 'SendOptions' ? (
+                    <View style={$buttonContainer}>
+                        <Button                        
+                            onPress={() => onPaste()}
+                            LeftAccessory={() => (
+                                <Icon icon='faPaste'/>
+                            )}
+                            text={'Paste'}
+                            preset='secondary'
+                            style={{marginTop: spacing.medium, minWidth: 120, borderBottomRightRadius: 0, borderTopRightRadius: 0, marginRight: 1}}                        
+                        />
+                        <Button                        
+                            onPress={() => toggleLnurlAddressModal()}
+                            LeftAccessory={() => (
+                                <Icon icon='faKeyboard'/>
+                            )}
+                            text={'Type in'}
+                            preset='secondary'
+                            style={{marginTop: spacing.medium, minWidth: 120, borderBottomLeftRadius: 0, borderTopLeftRadius: 0}}                        
+                        />
+                    </View>
+                ) : (
+                    <View style={$buttonContainer}>
+                        <Button                        
+                            onPress={() => onPaste()}
+                            LeftAccessory={() => (
+                                <Icon icon='faPaste'/>
+                            )}
+                            text={'Paste'}
+                            preset='secondary'
+                            style={{marginTop: spacing.medium, minWidth: 120}}                        
+                        />
+                    </View>
+                )}                
             </View>
+            <BottomModal
+                isVisible={isLnurlAddressModalVisible ? true : false}            
+                ContentComponent={
+                    <View style={$modalContainer}>
+                        <Text text={'Lightning address'} preset="subheading" />
+                        <Text size='xxs' style={{color: hintText}} text='Manually type in Lightning address you want to pay to' />
+                        <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
+                            <TextInput
+                                ref={addressInputRef}
+                                onChangeText={address => setLnurlAddress(address)}
+                                value={lnurlAddress}
+                                autoCapitalize='none'
+                                keyboardType='default'
+                                maxLength={60}                            
+                                selectTextOnFocus={true}
+                                style={[$addressInput, {backgroundColor: inputBg}]}
+                                placeholder='name@domain'                    
+                            />
+                            <Button
+                                tx={'common.confirm'}                                
+                                onPress={onLnurlAddress}
+                            />
+                        </View>
+                    </View>
+                }
+                onBackButtonPress={toggleLnurlAddressModal}
+                onBackdropPress={toggleLnurlAddressModal}
+            /> 
             {error && <ErrorModal error={error} />}
         </>
         ) : null
@@ -197,6 +310,20 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
 const $buttonContainer: ViewStyle = {
     flexDirection: 'row',
     alignSelf: 'center',
+}
+
+const $modalContainer: TextStyle = {    
+    alignItems: 'center',
+}
+
+const $addressInput: TextStyle = {
+    flex: 1,    
+    borderRadius: spacing.small,    
+    fontSize: 16,
+    padding: spacing.small,
+    marginRight: spacing.small,
+    alignSelf: 'stretch',
+    textAlignVertical: 'top',
 }
 
 const $bottomContainer: ViewStyle = {
@@ -209,5 +336,5 @@ const $bottomContainer: ViewStyle = {
     marginBottom: spacing.medium,
     alignSelf: 'stretch',
     // opacity: 0,
-  }
+}
 

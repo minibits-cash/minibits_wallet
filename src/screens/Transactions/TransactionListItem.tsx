@@ -1,6 +1,5 @@
 import formatDistance from "date-fns/formatDistance"
 import { observer } from "mobx-react-lite"
-import { refStructEnhancer } from "mobx/dist/internal"
 import React from "react"
 import { ScrollView, TextStyle, View, ViewStyle } from "react-native"
 import { Button, Icon, ListItem, Screen, Text } from "../../components"
@@ -24,19 +23,25 @@ export const TransactionListItem = observer(function (props: {tx: Transaction, i
   
     const getText = function(tx: Transaction) {
       if(tx.noteToSelf) return tx.noteToSelf
-      if(tx.memo) return tx.memo
+      // if(tx.memo) return tx.memo
   
       switch(tx.type) {
         case TransactionType.RECEIVE || TransactionType.RECEIVE_OFFLINE:
-          return tx.sentFrom ? `Received from ${tx.sentFrom}` : 'You received'      
+            if(tx.sentFrom) {
+                if(!tx.memo || tx.memo.includes('Sent from Minibits')) {
+                    return `From ${tx.sentFrom}`
+                }
+            } else {
+                return tx.memo ? tx.memo : 'You received'
+            }          
         case TransactionType.SEND:
-          return tx.sentTo ? `Sent to ${tx.sentTo}` : 'You sent'
+          return tx.memo ? tx.memo : tx.sentTo ? `Sent to ${tx.sentTo}` : 'You sent'
         case TransactionType.TOPUP:
-          return tx.sentFrom ? `Received from ${tx.sentFrom}` : 'You received'
+          return tx.memo ? tx.memo : tx.sentFrom ? `Received from ${tx.sentFrom}` : 'You received'
         case TransactionType.TRANSFER:
-          return tx.sentTo ? `Paid to ${tx.sentTo}` : 'You paid'
+          return tx.memo ? tx.memo : tx.sentTo ? `Paid to ${tx.sentTo}` : 'You paid'
         default:
-          return 'Uknown transaction'
+          return 'Unknown transaction'
       }
     }
   

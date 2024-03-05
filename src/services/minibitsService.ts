@@ -6,7 +6,7 @@ import {
 } from '@env'
 import { WalletProfile, WalletProfileRecord } from "../models/WalletProfileStore"
 
-// refresh
+// refresh // refresh
 
 const getRandomPictures = async function () {
     const url = MINIBITS_SERVER_API_HOST + '/profile'  
@@ -48,60 +48,41 @@ const createWalletProfile = async function (pubkey: string, walletId: string, se
     return walletProfile
 }
 
-
-const updateWalletProfileName = async function (pubkey: string, update: {name: string}) {    
+// what is passed in {update} gets updated
+const updateWalletProfile = async function (pubkey: string, update: {name?: string, lud16?: string, avatar?: string}) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'PUT'        
     const headers = getHeaders()
-    const { name } = update
+    const { name, lud16, avatar } = update
     
     const requestBody = {       
-        name        
+        name,
+        lud16,
+        avatar,        
     }        
 
-    const walletProfile: WalletProfile = await fetchApi(url + `/name/${pubkey}`, {
+    const walletProfile: WalletProfile = await fetchApi(url + `/${pubkey}`, {
         method,
         headers,
         body: JSON.stringify(requestBody)
     })
 
-    log.trace('[updateWalletProfileName]', `Updated wallet profile name`, {name})
+    log.trace('[updateWalletProfile]', `Updated wallet profile`, {update})
 
     return walletProfile
 }
 
 
-const updateWalletProfileAvatar = async function (pubkey: string, update: {avatar: string}) {    
+const updateWalletProfileNip05 = async function (pubkey: string, update: {newPubkey: string, name: string, nip05: string, lud16: string, avatar: string}) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'PUT'        
     const headers = getHeaders()
-    const { avatar } = update
-    
-    const requestBody = {       
-        avatar        
-    }        
-
-    const walletProfile: WalletProfile = await fetchApi(url + `/avatar/${pubkey}`, {
-        method,
-        headers,
-        body: JSON.stringify(requestBody)
-    })
-
-    log.trace('[updateWalletProfileAvatar]', `Updated wallet profile name`, {avatar})
-
-    return walletProfile
-}
-
-
-const updateWalletProfileNip05 = async function (pubkey: string, update: {newPubkey: string, nip05: string, name: string, avatar: string}) {    
-    const url = MINIBITS_SERVER_API_HOST + '/profile'
-    const method = 'PUT'        
-    const headers = getHeaders()
-    const { newPubkey, nip05, name, avatar } = update
+    const { newPubkey, name, nip05, lud16, avatar } = update
     
     const requestBody = {            
         newPubkey,
-        nip05,        
+        nip05,
+        lud16,        
         name,
         avatar
     }        
@@ -271,6 +252,7 @@ const checkDonationPaid = async function (paymentHash: string, pubkey: string) {
 
 
 const fetchApi = async (url: string, options: any, timeout = 15000) => { //ms
+    log.trace('fetchApi', {url})
     
     const controller = new AbortController()
 
@@ -287,8 +269,14 @@ const fetchApi = async (url: string, options: any, timeout = 15000) => { //ms
 
     if(responseJson && responseJson.error) {            
         const {error} = responseJson
-        log.trace(responseJson)
-        throw new AppError(error.name || Err.NETWORK_ERROR, error.message || '', {caller: 'fetchApi', message: error.params?.message || ''})
+        log.trace('[fetchApi] error responseJson', responseJson)
+
+        if(error === Object(error)) {            
+            throw new AppError(error.name || Err.NETWORK_ERROR, error.message || '', {caller: 'fetchApi', message: error.params?.message || '', status: response.status})
+        } else {
+            throw new AppError(Err.NETWORK_ERROR, String(error), {caller: 'fetchApi', status: response.status})
+        }
+        
     }
 
     return responseJson    
@@ -316,8 +304,7 @@ const getPublicHeaders = () => {
 export const MinibitsClient = {
     getWalletProfile,
     createWalletProfile,
-    updateWalletProfileName,
-    updateWalletProfileAvatar,
+    updateWalletProfile,
     updateWalletProfileNip05,
     recoverProfile,
     migrateSeedHash,

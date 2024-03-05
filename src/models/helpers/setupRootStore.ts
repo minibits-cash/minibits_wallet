@@ -154,7 +154,7 @@ async function _runMigrations(rootStore: RootStore) {
         if(currentVersion < 5) {
             log.trace(`Starting rootStore migrations from version v${currentVersion} -> v5`)
             if(contactsStore.publicRelay) {
-                relaysStore.addOrUpdateRelay({
+                relaysStore.addRelay({
                     url: contactsStore.publicRelay,
                     status: WebSocket.CLOSED
                 })
@@ -208,6 +208,19 @@ async function _runMigrations(rootStore: RootStore) {
                     await mint.setShortname()
                 } catch (e: any) {
                     continue
+                }
+            }
+
+            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+            rootStore.setVersion(rootStoreModelVersion)
+        }
+
+        if(currentVersion < 10) {
+            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v10`)
+            
+            for (const contact of contactsStore.all) {
+                if(contact.isExternalDomain === false) {
+                    contact.setLud16(contact.nip05 as string)
                 }
             }
 

@@ -93,8 +93,7 @@ export const ProofsStoreModel = types
 
             log.debug('[addProofs]', `Added new ${addedProofs.length}${isPending ? ' pending' : ''} proofs to the ProofsStore`,)
 
-            const rootStore = getRootStore(self)
-            const {userSettingsStore} = rootStore
+            const userSettingsStore = getRootStore(self).userSettingsStore           
 
             if (userSettingsStore.isLocalBackupOn === true && addedProofs.length > 0) {
                 Database.addOrUpdateProofs(addedProofs, isPending) // isSpent = false
@@ -102,7 +101,7 @@ export const ProofsStoreModel = types
 
             return { addedAmount, addedProofs }
         } catch (e: any) {
-            throw new AppError(Err.STORAGE_ERROR, e.message)
+            throw new AppError(Err.STORAGE_ERROR, e.message, {caller: 'addProofs'})
         }
         },
         removeProofs(proofsToRemove: Proof[], isPending: boolean = false, isRecoveredFromPending: boolean = false) {

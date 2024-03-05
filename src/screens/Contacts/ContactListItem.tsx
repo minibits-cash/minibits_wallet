@@ -25,12 +25,21 @@ export const ContactListItem = observer(function (props: ContactListProps) {
         text={contact.name as string}        
         textStyle={$mintText}
         subText={contact.noteToSelf || contact.nip05}        
-        LeftComponent={<Image style={[
-            $iconContainer, {
-                width: 40, 
-                height: contact.isExternalDomain ? 40 :  43,
-                borderRadius: 20,
-            }]} source={{uri: getImageSource(contact.picture as string)}} />}  
+        LeftComponent={
+            <View style={{}}>
+                <Image 
+                    style={[$iconContainer, {
+                        width: 40, 
+                        height: contact.isExternalDomain ? 40 :  43,
+                        borderRadius: 20,
+                    }]}
+                    source={{uri: getImageSource(contact.picture as string)}} 
+                />
+                {/*contact.lud16 && (
+                    <Text text='⚡' size='xs' style={{marginTop: -spacing.small}}/>
+                )*/}                
+            </View>
+        }  
         RightComponent={
           <></>
         }          

@@ -2,6 +2,9 @@
   "extends": "@tsconfig/react-native/tsconfig.json",
   "compilerOptions": {
     "jsx": "react",
-    "typeRoots": ["./src/utils/envtypes"]
+    "typeRoots": ["./src/utils/envtypes"],
+    "paths": {
+        "nostr-tools/*": ["./node_modules/nostr-tools/lib/types/*"]
+    }
   }
 }

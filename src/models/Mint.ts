@@ -5,6 +5,8 @@ import {colors, getRandomIconColor} from '../theme'
 import { log, MintClient } from '../services'
 import { deriveKeysetId } from '@cashu/cashu-ts'
 import { MINIBITS_MINT_URL } from '@env'
+import { delay } from '../utils/utils'
+import AppError, { Err } from '../utils/AppError'
 
 // used as a helper type across app
 export type MintBalance = {
@@ -67,7 +69,7 @@ export const MintModel = types
                 return instance
             }
             
-            return currentCounter
+            return currentCounter as MintProofsCounter
         },
     }))
     .actions(self => ({
@@ -135,31 +137,38 @@ export const MintModel = types
             self.keys = keys
             self.keysets = cast(self.keysets)            
         },
-        setProofsInFLightFrom(inFlightFrom: number) {
+
+        setInFlight(inFlightFrom: number, inFlightTo: number, inFlightTid: number) {
             const currentCounter = self.getOrCreateProofsCounter()
+
             currentCounter.inFlightFrom = inFlightFrom
-
-            self.proofsCounters = cast(self.proofsCounters)
-        },
-        setProofsInFlightTo(inFlightTo: number) {
-            const currentCounter = self.getOrCreateProofsCounter()
             currentCounter.inFlightTo = inFlightTo
-
-            self.proofsCounters = cast(self.proofsCounters)
-        },
-        setInFlightTid(inFlightTid: number) {
-            const currentCounter = self.getOrCreateProofsCounter()
+            currentCounter.counter = inFlightTo // temp increase of main counter value
             currentCounter.inFlightTid = inFlightTid
 
+            log.trace('[setInFlight]', 'Lock and inflight indexes were set', currentCounter)
+
             self.proofsCounters = cast(self.proofsCounters)
         },
-        resetInFlight() {
+        resetInFlight(inFlightTid: number) {
             const currentCounter = self.getOrCreateProofsCounter()
+
+            if(currentCounter.inFlightTid && currentCounter.inFlightTid !== inFlightTid) {
+                // should not happen, log
+                log.error(
+                    Err.LOCKED_ERROR, 
+                    'Trying to reset counter locked by another transaction, aborting reset', 
+                    {currentCounter, inFlightTid, caller: 'resetInFlight'}
+                )
+                return
+            }
+
             currentCounter.inFlightFrom = undefined
             currentCounter.inFlightTo = undefined
             currentCounter.inFlightTid = undefined
+            
+            log.trace('[resetInFlight]', 'Lock and inflight indexes were reset')
 
-            log.trace('[resetInFlight]', 'Reset proofsCounter')
             self.proofsCounters = cast(self.proofsCounters)
         },
         increaseProofsCounter(numberOfProofs: number) {
@@ -179,6 +188,7 @@ export const MintModel = types
             self.proofsCounters = cast(self.proofsCounters)                        
         },
     }))
+    
     
 
 export type Mint = {

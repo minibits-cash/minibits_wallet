@@ -16,6 +16,8 @@ import {
 } from './Transaction'
 import {Database, MintClient} from '../services'
 import {log} from '../services/logService'
+import { min } from 'date-fns'
+import { getRootStore } from './helpers/getRootStore'
 
 export const maxTransactionsInModel = 10
 export const maxTransactionsByMint = 10
@@ -50,8 +52,8 @@ export const TransactionsStoreModel = types
             const tx = self.transactions.find(tx => tx.id === id)
             return tx || undefined
         },
-        recentByHostname(mintHostname: string) {
-            return this.all.filter(t => t.mint?.includes(mintHostname)).slice(0, maxTransactionsByHostname)
+        recentByHostname(mintHostname: string) {            
+            return this.all.filter(t => getHostname(t.mint as string) === mintHostname).slice(0, maxTransactionsByHostname)
         },
         getByMint(mintUrl: string) {
             return this.all.filter(t => t.mint === mintUrl)
@@ -77,19 +79,41 @@ export const TransactionsStoreModel = types
             }
         },
         removeOldByMint: (mintUrl: string) => {
-            const numByMint = self.countByMint(mintUrl)
+            const numByMint = self.countByMint(mintUrl)            
             
             if (numByMint > maxTransactionsByMint) {
-                self.getByMint(mintUrl)
+                const transactionsToRemove = self.getByMint(mintUrl)
                 .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-                .splice(maxTransactionsByMint)
+                .slice(maxTransactionsByMint)
+                
+                transactionsToRemove.map((t) => {                    
+                    detach(t)                                       
+                }) 
 
-                log.debug('[removeOldByMint]', `${
-                    numByMint - maxTransactionsByMint
-                    } transaction(s) removed from TransactionsStore`,
-                )
+                self.transactions.replace(self.transactions.filter(t => !transactionsToRemove.some(removed => removed.id === t.id)))
+
+                const txByMintAfterDelete = self.countByMint(mintUrl)
+                const txTotalAfterDelete = self.count
+
+                log.trace('[removeOldByMint]', {txByMintAfterDelete, txTotalAfterDelete})
             }
-        }        
+        },
+        removeAllWithoutCurrentMint: () => {
+            const rootStore = getRootStore(self)                
+            const {mintsStore} = rootStore
+
+            const transactionsToRemove = self.transactions.filter(transaction => {
+                // Check if the mint property of the transaction does not exist in the mints array
+                return !mintsStore.allMints.some(mint => mint.mintUrl === transaction.mint);
+            });
+
+            self.transactions.replace(self.transactions.filter(t => !transactionsToRemove.some(removed => removed.id === t.id)))
+            
+            const txTotalAfterDelete = self.count
+
+            log.trace('[removeAllWithoutCurrentMint]', {deleted: transactionsToRemove.length, txTotalAfterDelete})
+            
+        }         
     }))
     .actions(self => ({
         addTransaction: flow(function* addTransaction(newTransaction: Transaction) {
@@ -118,6 +142,11 @@ export const TransactionsStoreModel = types
                 const createdAt = new Date(dbTransaction.createdAt)
                 const inStoreTransaction = {...dbTransaction, createdAt}
 
+                if(self.findById(inStoreTransaction.id as number)) {
+                    log.trace('[addTransactionsToModel] Transaction already exists in the model, skipping...')
+                    continue
+                }   
+                
                 const transactionInstance = TransactionModel.create(inStoreTransaction)
                 inStoreTransactions.push(transactionInstance as Transaction)
             }
@@ -253,6 +282,14 @@ export const TransactionsStoreModel = types
             log.debug('[removeAllTransactions]', 'Removed all transactions from TransactionsStore')
         },
     }))
+
+    const getHostname = function (mintUrl: string) {
+        try {
+            return new URL(mintUrl).hostname
+        } catch (e) {
+            return false
+        }
+    }
 
 // refresh
 export interface TransactionsStore

@@ -19,7 +19,7 @@ export const WalletNameScreen: FC<WalletNameScreenProps> = observer(function Wal
     })
 
     const {walletProfileStore} = useStores()
-    const {pubkey, name, nip05} = walletProfileStore
+    const {pubkey, nip05} = walletProfileStore
 
     const renderScene = ({route}: {route: Route}) => {
         switch (route.key) {

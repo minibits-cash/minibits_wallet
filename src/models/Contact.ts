@@ -18,9 +18,10 @@ export const ContactModel = types
         pubkey: types.string,
         name: types.maybe(types.string),
         about: types.maybe(types.string),
-        displayName: types.maybe(types.string),     
+        display_name: types.maybe(types.string),     
         picture: types.maybe(types.string),
         nip05: types.maybe(types.string),
+        lud16: types.maybe(types.string),
         noteToSelf: types.maybe(types.string),
         data: types.maybe(types.string),
         isExternalDomain: types.optional(types.boolean, false),        
@@ -33,6 +34,9 @@ export const ContactModel = types
         },
         setNoteToSelf(note: string) {
             self.noteToSelf = note        
+        },
+        setLud16(lud16: string) {
+            self.lud16 = lud16        
         },
     }))
     .views(self => ({        
@@ -49,8 +53,9 @@ export type Contact = {
     npub: string
     pubkey: string    
     name?: string
-    nip05?: string
     picture?: string
+    nip05?: string
+    lud16?: string
     data?: string   
     noteToSelf?: string
 } & Partial<Instance<typeof ContactModel>>

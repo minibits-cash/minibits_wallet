@@ -90,19 +90,29 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
             const {nip05Pubkey, nip05Relays} = await NostrClient.getNip05PubkeyAndRelays(ownNip05)
 
             if(nip05Relays.length > 0) {
+                let counter: number = 0
                 for (const relay of nip05Relays) {
-                    relaysStore.addOrUpdateRelay({
-                        url: relay,
-                        status: WebSocket.CLOSED
-                    })
+                    if(counter < 5) {
+                        relaysStore.addRelay({
+                            url: relay,
+                            status: WebSocket.CLOSED
+                        })
+                        counter++
+                    } else {
+                        break
+                    }
                 }
             }
 
             const relaysToConnect = relaysStore.allPublicUrls
             setOwnProfileRelays(relaysToConnect)
 
-            const profile: NostrProfile = await NostrClient.getProfileFromRelays(nip05Pubkey, relaysToConnect)
-
+            const profile: NostrProfile | undefined = await NostrClient.getProfileFromRelays(nip05Pubkey, relaysToConnect)
+            
+            if(!profile) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Could not retrieve profile from relays', {nip05Pubkey, relaysToConnect})
+            }
+            
             // check that the profile's nip05 matches the one given by user and living on nip05 .well-known server
             if(!profile.nip05) {
                 if(profile.name && profile.name.toLowerCase() === nip05Name) {
@@ -173,10 +183,11 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
             // update wallet profile
             const updatedProfile = await walletProfileStore.updateNip05(
                 ownProfile.pubkey,
-                ownProfile.nip05 as string,
                 ownProfile.name as string,
+                ownProfile.nip05 as string,                
+                ownProfile.lud16 || '',
                 ownProfile.picture as string,
-                true // isOwnProfile
+                true // isOwnProfile                
             )
 
             // update keys
@@ -215,7 +226,7 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
                 ContentComponent={
                     <>
                     {!ownProfile ? (
-                        <View style={$nip05Container}>                      
+                        <View style={$nip05Container}>                    
                             <ListItem
                                 LeftComponent={<View style={[$numIcon, {backgroundColor: iconNip05}]}><Text text='1'/></View>}
                                 text='Enter your NOSTR address'
@@ -335,13 +346,20 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
                 <Card
                     style={[$card, {marginTop: spacing.medium}]}
                     ContentComponent={
-                    <ListItem
-                        leftIcon='faCheckCircle'
-                        leftIconColor={colors.palette.success200}
-                        text='Profile change is ready'
-                        subText='Wallet needs to restart to apply this change.'                      
-                        style={{}}
-                    />
+                    <>
+                        <ListItem
+                            leftIcon='faTriangleExclamation'
+                            text='Consider before change'
+                            subText={'Using your own Nostr address will disable Lightning address features unique to minibits.cash address.'}                        
+                        />
+                        <ListItem
+                            leftIcon='faCheckCircle'
+                            leftIconColor={colors.palette.success200}
+                            text='Profile change is ready'
+                            subText='Wallet needs to restart to apply this change.'                      
+                            style={{}}
+                        />
+                    </>
                     }
                     />
                     <View style={$buttonContainer}>

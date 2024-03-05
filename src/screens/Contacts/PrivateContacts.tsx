@@ -81,7 +81,7 @@ export const PrivateContacts = observer(function (props: {
         log.trace('Start', newContactName, 'saveNewContact')
         
         if(!newContactName) {
-            setInfo(`Please enter a wallet profile name in name@domain.com format`)
+            setInfo(`Please enter a wallet address in name@domain.xyz format`)
             return
         }
 
@@ -100,15 +100,16 @@ export const PrivateContacts = observer(function (props: {
 
                 log.trace('[saveNewContact]', 'Server profile', profile)
 
-                const {pubkey, npub, nip05, name, picture} = profile
+                const {pubkey, npub, name, picture, nip05, lud16} = profile
 
                 newContact = {
                     type: ContactType.PRIVATE,
                     pubkey,
                     npub,
-                    nip05,
                     name,
                     picture,
+                    nip05,
+                    lud16,
                     isExternalDomain,
                 } as Contact
 
@@ -130,6 +131,7 @@ export const PrivateContacts = observer(function (props: {
                     pubkey,
                     npub,
                     nip05,
+                    lud16: nip05, // minibits addresses are both nostr and lightning addresses
                     name,
                     picture,
                     isExternalDomain
@@ -265,7 +267,7 @@ export const PrivateContacts = observer(function (props: {
                             leftIconInverse={true}
                             leftIconColor={colors.palette.iconGreen200}
                             text='Private contacts'
-                            subText={"Add other Minibits users as your private contacts. Every user gets sharable wallet name in an email-like format. You can pay privately to your contacts anytime without cumbersome token copying / pasting."}
+                            subText={"Add other Minibits users as your private contacts. Every user gets sharable @minibits.cash wallet address. You can pay privately to your contacts anytime even if they are offline."}
                             onPress={gotoNew}
                         />
                         <ListItem
@@ -305,7 +307,7 @@ export const PrivateContacts = observer(function (props: {
             ContentComponent={
                 <View style={$newContainer}>
                     <Text tx='contactsScreen.newTitle' preset="subheading" />
-                    <Text size='xxs' style={{color: domainText}} text='Private contacts are unique identifiers of other Minibits wallets. You can use them to send or request ecash and you can safely share your own with others. Like account numbers, just better.' />
+                    <Text size='xxs' style={{color: domainText}} text='Private contacts are unique identifiers of other Minibits wallets. You can use them to send or request ecash and you can safely share your own with others.' />
                     <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
                         <TextInput
                             ref={contactNameInputRef}
@@ -333,7 +335,7 @@ export const PrivateContacts = observer(function (props: {
                     </View>                    
                     <Button
                         preset='tertiary'
-                        text={isExternalDomain ? 'Use minibits.cash domain' : 'Use another NIP05 domain'}
+                        text={isExternalDomain ? 'Use minibits.cash domain' : 'Use another domain'}
                         onPress={toggleExternalDomain}
                         style={{alignSelf: 'flex-start', minHeight: verticalScale(30)}}
                         textStyle={{lineHeight: verticalScale(16), fontSize: 12}}   

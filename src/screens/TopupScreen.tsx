@@ -367,14 +367,14 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
             const senderPubkey = walletProfileStore.pubkey            
             const receiverPubkey = contactToSendTo?.pubkey
 
-            // log.trace('', {senderPrivkey, senderPubkey, receiverPubkey}, 'sendAsNostrDM')
+            // redable message
             let message = `nostr:${walletProfileStore.npub} sent you Lightning invoice for ${amountToTopup} sats from Minibits wallet!`
-            
+            // invoice
+            let content = message + ' \n' + invoiceToPay + ' \n'
+            // parsable memo that overrides static default mint invoice description
             if (memo) {
-                message += ` Memo: ${memo}`
-            }
-            
-            const content = message + ' \n' + invoiceToPay           
+                content = content + `Memo: ${memo}`
+            }             
 
             const encryptedContent = await NostrClient.encryptNip04(                
                 receiverPubkey as string, 
@@ -386,8 +386,8 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
             const dmEvent: NostrUnsignedEvent = {
                 kind: 4,
                 pubkey: senderPubkey,
-                tags: [['p', receiverPubkey], ['from', walletProfileStore.nip05]],
-                content: encryptedContent,                                      
+                tags: [['p', receiverPubkey as string], ['from', walletProfileStore.nip05]],
+                content: encryptedContent,                                                    
             }
 
             const sentEvent: Event | undefined = await NostrClient.publish(
@@ -418,13 +418,6 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                         JSON.stringify(updated)
                     )
                 }
-
-                const txupdate = await transactionsStore.updateSentTo( // set contact to send to to the tx, could be elsewhere //
-                    transactionId as number,                    
-                    contactToSendTo?.nip05handle as string
-                )
-
-                log.trace('sentTo tx', txupdate, 'sendAsNostrDM')
             } else {
                 setInfo('Relay could not confirm that the message has been published.')
             }
@@ -777,7 +770,7 @@ const MintBalanceSelector = observer(function (props: {
   }
 
   return (
-    <>
+    <View style={{flex: 1}}>
       <Card
         style={$card}
         heading={'Select mint to top-up'}
@@ -805,19 +798,21 @@ const MintBalanceSelector = observer(function (props: {
           </>
         }
       />
-      <View style={[$buttonContainer, {marginTop: spacing.large}]}>
-        <Button
-          text="Create invoice"
-          onPress={props.onMintBalanceConfirm}
-          style={{marginRight: spacing.medium}}          
-        />
-        <Button
-          preset="secondary"
-          tx={'common.cancel'}
-          onPress={props.onCancel}
-        />
+      <View style={$bottomContainer}>
+        <View style={[$buttonContainer, {marginTop: spacing.large}]}>
+            <Button
+            text="Create invoice"
+            onPress={props.onMintBalanceConfirm}
+            style={{marginRight: spacing.medium}}          
+            />
+            <Button
+            preset="secondary"
+            tx={'common.cancel'}
+            onPress={props.onCancel}
+            />
+        </View>
       </View>
-    </>
+    </View>
   )
 })
 
@@ -1291,7 +1286,7 @@ const $profileIcon: ImageStyle = {
 }
 
 const $bottomContainer: ViewStyle = {
-    position: 'absolute',
+    // position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,

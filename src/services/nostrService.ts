@@ -3,11 +3,14 @@ import {
     getEventHash,
     getSignature,
     SimplePool,
-    Filter as NostrFilter,    
-    Event as NostrEvent,
-    validateEvent,
-    UnsignedEvent as NostrUnsignedEvent,
+    validateEvent,    
     utils
+} from 'nostr-tools'
+import type {
+    Event as NostrEvent, 
+    Filter as NostrFilter, 
+    Kind as NostrKind,
+    UnsignedEvent as NostrUnsignedEvent,
 } from 'nostr-tools'
 import QuickCrypto from 'react-native-quick-crypto'
 import {secp256k1} from '@noble/curves/secp256k1'
@@ -19,22 +22,24 @@ import {log} from './logService'
 import AppError, { Err } from '../utils/AppError'
 import { MinibitsClient } from './minibitsService'
 import { rootStoreInstance } from '../models'
+import { Wallet } from './walletService'
 
 export {     
-    Event as NostrEvent, 
-    Filter as NostrFilter, 
-    Kind as NostrKind,  
-    UnsignedEvent as NostrUnsignedEvent,   
-} from 'nostr-tools'
+    NostrEvent, 
+    NostrFilter, 
+    NostrKind,  
+    NostrUnsignedEvent,   
+}
 
-// refresh
+
 export type NostrProfile = {
     pubkey: string
     npub: string
-    name?: string
+    name: string
+    nip05: string
+    lud16?: string
     about?: string
     picture?: string
-    nip05?: string
 }
 
 export type Nip05VerificationRecord = {
@@ -50,8 +55,7 @@ export type Nip05VerificationRecord = {
 const _defaultPublicRelays: string[] = ['wss://relay.damus.io', 'wss://nostr.mom']
 const _minibitsRelays: string[] = [MINIBITS_RELAY_URL]
 let _pool: any = undefined
-const {relaysStore
-} = rootStoreInstance
+const {relaysStore} = rootStoreInstance
 
 const getRelayPool = function () {
     if(!_pool) {
@@ -69,6 +73,32 @@ const getDefaultRelays = function () {
 
 const getMinibitsRelays = function () {
     return _minibitsRelays    
+}
+
+
+const reconnectToRelays = async function () {    
+
+    // recreate subscriptions if all relays down
+    if(relaysStore.connectedCount === 0) {
+        Wallet.checkPendingReceived().catch(e => false)   
+    }
+
+    const pool = getRelayPool()    
+    const relaysConnections = pool._conn
+
+    // if just some are disconnected, reconnect them
+    // unclear if it does something else then green ticks in relay screen
+    if (relaysConnections) {
+        for (const url in relaysConnections) {
+            if (relaysConnections.hasOwnProperty(url)) {
+                const relay = relaysConnections[url]
+    
+                if(relaysStore.findByUrl(url)?.status === WebSocket.CLOSED) {                    
+                    await relay.connect()                    
+                }          
+            }            
+        }
+    }
 }
 
 /* const getRandom = function(list: string[]) {
@@ -266,8 +296,8 @@ const getNip05Record = async function (nip05: string) {
         
     } catch(e: any) {
         log.trace('Error', e)
-        if(e.name === Err.NOTFOUND_ERROR) {
-            e.message = `${nip05Name} could not be found on the ${nip05Domain} address server. Your contact might have changed the profile name, please get in touch.`
+        if(e.name === Err.NOTFOUND_ERROR || e.params?.status === 404) {
+            e.message = `${nip05Name} could not be found on the ${nip05Domain} address server. Make sure you enter up to date and correct address.`
             throw e
         } else {
             throw e // Propagate other errors upstream
@@ -319,7 +349,7 @@ const getNip05PubkeyAndRelays = async function (nip05: string) {
 
 
 
-const getProfileFromRelays = async function (pubkey: string, relays: string[]) {
+const getProfileFromRelays = async function (pubkey: string, relays: string[]): Promise<NostrProfile | undefined> {
 
     // get profile from the relays for pubkey linked to nip05
     const filters: NostrFilter[] = [{
@@ -331,7 +361,9 @@ const getProfileFromRelays = async function (pubkey: string, relays: string[]) {
 
     
     if(!events || events.length === 0) {
-        throw new AppError(Err.SERVER_ERROR, 'Could not get profile event from the relays.', {relays})
+        // do not log as error to save capacity
+        log.warn('Could not get profile event from the relays.', {relays})
+        return undefined
     }
 
     const profile: NostrProfile = JSON.parse(events[events.length - 1].content)
@@ -351,21 +383,23 @@ const getNormalizedNostrProfile = async function (nip05: string, relays: string[
     const {nip05Pubkey, nip05Relays} = await getNip05PubkeyAndRelays(nip05)
     
     if(nip05Relays.length > 0) {
-        for (const relay of nip05Pubkey) {
-            if(!relays.includes(relay)) {
-                relaysToConnect.push(relay)
-                relaysStore.addOrUpdateRelay({
-                    url: relay,
-                    status: WebSocket.CLOSED
-                })
-            }
+        let counter: number = 0
+        const maxRelays: number = 5 // do not add dozens of relays on some profiles
+
+        for (const relay of nip05Relays) {
+            if(counter <= maxRelays) {
+                relaysToConnect.push(relay)                
+                counter++
+            } else {
+                break
+            }            
         }        
     }
 
     const profile: NostrProfile = await NostrClient.getProfileFromRelays(nip05Pubkey, relaysToConnect)
 
     if(!profile) {
-        throw new AppError(Err.NOTFOUND_ERROR, `Profile could not be found on Nostr relays.`, {nip05})
+        throw new AppError(Err.NOTFOUND_ERROR, `Profile could not be found on Nostr relays, visit Settings and add relay that hosts the profile.`, {nip05, relays})
     }
 
     if(profile.nip05 !== nip05) {        
@@ -441,6 +475,7 @@ export const NostrClient = { // TODO split helper functions to separate module
     getRelayPool,    
     getDefaultRelays,
     getMinibitsRelays,
+    reconnectToRelays,
     getOrCreateKeyPair,
     getNpubkey,
     getHexkey,

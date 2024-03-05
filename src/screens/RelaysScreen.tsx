@@ -55,9 +55,11 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
         setSelectedRelay(undefined)        
     }
 
-    const onConnect = function () {
-        log.trace('onConnect')
-        Wallet.checkPendingReceived().catch(handleError)
+    const onConnect = async function () {
+        log.trace('onConnect')    
+        
+        // Full force re-subscription, not just reconnect
+        Wallet.checkPendingReceived().catch(e => false)          
         setSelectedRelay(undefined)        
     }
 
@@ -83,7 +85,7 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
                     return
                 }
 
-                relaysStore.addOrUpdateRelay({
+                relaysStore.addRelay({
                     url: newPublicRelay,
                     status: WebSocket.CLOSED
                 })
@@ -193,21 +195,22 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
           isVisible={selectedRelay ? true : false}
           style={{alignItems: 'stretch'}}          
           ContentComponent={
-            <View style={{}}> 
-              <ListItem
-                leftIcon="faCloudArrowUp"
-                onPress={onConnect}
-                text={'Reconnect'}
-                bottomSeparator={true}
-                style={{paddingHorizontal: spacing.medium}}
-              />             
-              <ListItem
+            <View style={{}}>
+                {selectedRelay?.status === WebSocket.CLOSED && (
+                    <ListItem
+                        leftIcon="faCloudArrowUp"
+                        onPress={onConnect}
+                        text={'Reconnect'}
+                        bottomSeparator={true}
+                        style={{paddingHorizontal: spacing.medium}}
+                    />    
+                )}         
+                <ListItem
                 leftIcon="faXmark"
-                onPress={removeRelay}
-                text={'Remove relay'}
-                bottomSeparator={true}
-                style={{paddingHorizontal: spacing.medium}}
-              />
+                    onPress={removeRelay}
+                    text={'Remove relay'}                    
+                    style={{paddingHorizontal: spacing.medium}}
+                />
             </View>
           }
           onBackButtonPress={onRelayUnselect}

@@ -11,9 +11,14 @@ import { KeyChain, TorDaemon } from '../services'
 import {CashuUtils} from './cashu/cashuUtils'
 import AppError, {Err} from '../utils/AppError'
 import {log} from './logService'
+import {
+    type Token as CashuToken,
+} from '@cashu/cashu-ts'
 import {Token} from '../models/Token'
 import {Proof} from '../models/Proof'
 import { deriveSeedFromMnemonic } from '@cashu/cashu-ts'
+import { isObj } from '@cashu/cashu-ts/src/utils'
+import { UserCredentials } from 'react-native-keychain'
 
 export type MintKeys = {[k: number]: string}
 export type MintKeySets = {keysets: Array<string>}
@@ -209,8 +214,8 @@ const receiveFromMint = async function (
     log.trace('[receiveFromMint] errors', errors)
 
     return {
-      updatedToken: token as Token,
-      errorToken: tokensWithErrors as Token,
+      updatedToken: token as CashuToken | undefined,
+      errorToken: tokensWithErrors as CashuToken | undefined,
       newKeys,
       errors
     }
@@ -275,12 +280,13 @@ const sendFromMint = async function (
   } catch (e: any) {
     throw new AppError(
         Err.MINT_ERROR, 
-        `The mint could not return signatures necessary for this transaction: ${e.message}`, 
+        `The mint could not return signatures necessary for this transaction`, 
         {
-            caller: 'sendFromMint', 
+            message: e.message,            
             mintUrl,
+            caller: 'MintClient.sendFromMint', 
             proofsToSendFrom, 
-            message: e.message
+            
         }
     )
   }
@@ -297,7 +303,7 @@ const getSpentOrPendingProofsFromMint = async function (
 
     const spentPendingProofs = await cashuWallet.checkProofsSpent(proofs)
 
-    log.trace('[getSpentOrPendingProofsFromMint]', spentPendingProofs)
+    log.trace('[CashuMintClient.getSpentOrPendingProofsFromMint]', spentPendingProofs)
 
     return spentPendingProofs as {
         spent: CashuProof[]
@@ -307,11 +313,11 @@ const getSpentOrPendingProofsFromMint = async function (
   } catch (e: any) {    
     throw new AppError(
         Err.MINT_ERROR, 
-        'The mint could not reply if the proofs are spent or pending.', 
+        'Could not get response from the mint.', 
         {
+            message: e.message,
             caller: 'getSpentOrPendingProofsFromMint', 
-            mintUrl, 
-            message: e.message
+            mintUrl            
         }
     )
   }
@@ -333,9 +339,9 @@ const getLightningFee = async function (
         Err.MINT_ERROR, 
         'The mint could not return the lightning fee.', 
         {
+            message: e.message,
             caller: 'getLightningFee', 
-            mintUrl, 
-            message: e.message
+            mintUrl,            
         }
     )
   }
@@ -380,9 +386,9 @@ const payLightningInvoice = async function (
         Err.MINT_ERROR, 
         'Lightning payment failed.', 
         {
+            message: isObj(e.message) ? JSON.stringify(e.message) : e.message,
             caller: 'payLightningInvoice', 
-            mintUrl, 
-            message: e.message
+            mintUrl            
         }
     )
   }
@@ -405,7 +411,15 @@ const requestLightningInvoice = async function (
       paymentHash: hash,
     }
   } catch (e: any) {
-    throw new AppError(Err.MINT_ERROR, e.message)
+    throw new AppError(
+        Err.MINT_ERROR, 
+        'The mint could not return an invoice.', 
+        {
+            message: e.message,
+            caller: 'requestLightningInvoice', 
+            mintUrl,            
+        }
+    )
   }
 }
 
@@ -415,35 +429,40 @@ const requestProofs = async function (
   mintUrl: string,
   amount: number,
   paymentHash: string,
+  amountPreferences: AmountPreference[],
   counter: number
 ) {
-  try {
-    const cashuWallet = await getWallet(mintUrl, true) // with seed
-    /* eslint-disable @typescript-eslint/no-unused-vars */
-    const {proofs, newKeys} = await cashuWallet.requestTokens(
-      amount,
-      paymentHash,
-      undefined,
-      counter
-    )
-    /* eslint-enable */
+    try {
+        const cashuWallet = await getWallet(mintUrl, true) // with seed
+        /* eslint-disable @typescript-eslint/no-unused-vars */
+        const {proofs, newKeys} = await cashuWallet.requestTokens(
+            amount,
+            paymentHash,
+            amountPreferences,
+            counter
+        )
+        /* eslint-enable */
 
-    // if (newKeys) { _setKeys(mintUrl, newKeys) }
-    if(proofs) {
-        log.trace('[requestProofs]', proofs)
-    }
+        // if (newKeys) { _setKeys(mintUrl, newKeys) }
+        if(proofs) {
+            log.trace('[requestProofs]', proofs)
+        }
 
-    return {
-        proofs, 
-        newKeys
+        return {
+            proofs, 
+            newKeys
+        }
+    } catch (e: any) {
+        throw new AppError(
+            Err.MINT_ERROR, 
+            'The mint returned error on request to mint new ecash.', 
+            {
+                message: e.message,
+                caller: 'requestProofs', 
+                mintUrl,            
+            }
+        )
     }
-  } catch (e: any) {
-    if(e.message.includes('Invoice not paid') === false) {
-        log.warn('[requestProofs]', `${e.message}`)
-    }
-    
-    return {proofs: []}
-  }
 }
 
 const restore = async function (
@@ -465,9 +484,9 @@ const restore = async function (
         const count = Math.abs(indexTo - indexFrom)      
         
         /* eslint-disable @typescript-eslint/no-unused-vars */
-        const {proofs, newKeys} = await seedWallet.restore(
-            count,
+        const {proofs, newKeys} = await seedWallet.restore(            
             indexFrom,
+            count
         )
         /* eslint-enable */
     
@@ -488,20 +507,21 @@ const getMintInfo = async function (
     mintUrl: string,    
 ) {
     try {
-      const cashuMint = getMint(mintUrl)
-      const info = await cashuMint.getInfo()
-      log.trace('[getMintInfo]', {info})
-      return info
+        const cashuMint = getMint(mintUrl)
+        const info = await cashuMint.getInfo()
+        log.trace('[getMintInfo]', {info})
+        return info
     } catch (e: any) {
-      throw new AppError(
-          Err.MINT_ERROR, 
-          'The mint could not return mint information.', 
-          {
-              caller: 'getMintInfo', 
-              mintUrl, 
-              message: e.message
-          }
-      )
+        throw new AppError(
+            Err.MINT_ERROR, 
+            'The mint could not return mint information.', 
+            {
+                    message: e.message,
+                    caller: 'getMintInfo', 
+                    mintUrl, 
+                
+            }
+        )
     }
 }
 

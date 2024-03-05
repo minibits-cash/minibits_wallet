@@ -34,12 +34,16 @@ import {
 import AppError, {Err} from '../utils/AppError'
 import {log} from '../services/logService'
 import {isArray} from 'lodash'
-import {Database, Wallet} from '../services'
+import {Database, TransactionResult, Wallet} from '../services'
 import {BackupProof, Proof} from '../models/Proof'
 import useColorScheme from '../theme/useThemeColor'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import QRCode from 'react-native-qrcode-svg'
+import { getEncodedToken } from '@cashu/cashu-ts'
+import { Token } from '../models/Token'
+import { CashuUtils } from '../services/cashu/cashuUtils'
+import { MintStatus } from '../models/Mint'
 
 type ProofsByStatus = {
   isSpent: Proof[]
@@ -64,7 +68,7 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
     >(undefined)
     const [error, setError] = useState<AppError | undefined>()
     const [isNoteModalVisible, setIsNoteModalVisible] = useState<boolean>(false)
-    const [isDataParsable, setIsDataParsable] = useState<boolean>(true)
+    const [isDataParsable, setIsDataParsable] = useState<boolean>(true)    
     const [info, setInfo] = useState('')
     const [note, setNote] = useState<string>('')
     const [savedNote, setSavedNote] = useState<string>('')
@@ -82,7 +86,7 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
         }
 
         try {
-          JSON.parse(tx.data)
+            JSON.parse(tx.data)
         } catch (e: any) {
           setIsDataParsable(false)
         }
@@ -194,8 +198,7 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
             setInfo(`Could not copy: ${e.message}`)
         }
     }
-
-    
+ 
 
     const handleError = function (e: AppError): void {
       setIsNoteModalVisible(false)
@@ -295,6 +298,7 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
                   isDataParsable={isDataParsable}
                   copyAuditTrail={copyAuditTrail}
                   colorScheme={colorScheme}
+                  navigation={navigation}
                 />
               )}
               {transaction.type === TransactionType.RECEIVE_OFFLINE && (
@@ -303,6 +307,7 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
                   isDataParsable={isDataParsable}
                   copyAuditTrail={copyAuditTrail}
                   colorScheme={colorScheme}
+                  navigation={navigation}
                 />
               )}
               {transaction.type === TransactionType.SEND && (
@@ -384,10 +389,6 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
                 />
                 <Button
                   text="Save"
-                  style={{
-                    borderRadius: spacing.small,
-                    marginRight: spacing.small,
-                  }}
                   onPress={saveNote}
                 />
               </View>
@@ -405,11 +406,99 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
 const ReceiveInfoBlock = function (props: {
     transaction: Transaction
     isDataParsable: boolean
-    copyAuditTrail: any
+    copyAuditTrail: any    
     colorScheme: 'light' | 'dark'
+    navigation: any
 }) {
-    const {transaction, isDataParsable, copyAuditTrail, colorScheme} = props
-    const labelColor = useThemeColor('textDim')
+    const {
+        transaction, 
+        isDataParsable, 
+        copyAuditTrail,
+        colorScheme,
+        navigation
+    } = props
+
+    const isInternetReachable = useIsInternetReachable()
+    const retryResult = getTokenToRetryToReceive(transaction)  
+    const {transactionsStore, mintsStore} = useStores()
+
+    const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
+    const [resultModalInfo, setResultModalInfo] = useState<
+      {status: TransactionStatus; message: string} | undefined
+    >()
+    const [isLoading, setIsLoading] = useState(false)
+
+    const toggleResultModal = () =>
+    setIsResultModalVisible(previousState => !previousState)
+
+    const onRetryToReceive = async function () {                
+        if(!retryResult || !isInternetReachable) {
+            return
+        }
+        
+        setIsLoading(true)     
+
+        try {    
+            const {tokenToRetry, increaseProofsCounter} = retryResult               
+            const amountToReceive = CashuUtils.getTokenAmounts(tokenToRetry).totalAmount
+            const memo = tokenToRetry.memo || ''
+            const encoded = getEncodedToken(tokenToRetry)
+
+            if(increaseProofsCounter) {
+                const mintInstance = mintsStore.findByUrl(transaction.mint)
+                if(mintInstance) {
+                    mintInstance.increaseProofsCounter(20)
+                }
+            }
+
+            const result: TransactionResult = await Wallet.receive(
+                tokenToRetry as Token,
+                amountToReceive,
+                memo,
+                encoded
+            )
+
+            if (result.error) {
+                setResultModalInfo({
+                    status: result.transaction?.status as TransactionStatus,
+                    message: result.error.params?.message || result.error.message,
+                })
+            } else {
+
+                const transactionDataUpdate = {
+                    status: TransactionStatus.EXPIRED,                    
+                    message: 'Ecash has been successfully received after retry within new transaction',
+                    createdAt: new Date(),
+                }
+        
+                transactionsStore.updateStatuses(
+                    [transaction.id as number],
+                    TransactionStatus.EXPIRED,
+                    JSON.stringify(transactionDataUpdate),
+                )
+
+                setResultModalInfo({
+                    status: result.transaction?.status as TransactionStatus,
+                    message: result.message,
+                })
+            }
+
+        } catch (e: any) {
+            setResultModalInfo({
+                status: TransactionStatus.ERROR,
+                message: e.message,
+            })
+        } finally {
+            setIsLoading(false)
+            toggleResultModal()
+        }
+    }
+
+    const onGoBack = () => {
+        navigation.goBack()
+    }
+
+    const labelColor = useThemeColor('textDim')    
 
     return (
     <>
@@ -436,10 +525,26 @@ const ReceiveInfoBlock = function (props: {
                         label="tranDetailScreen.type"
                         value={transaction.type as string}
                     />
-                    <TranItem
-                        label="tranDetailScreen.status"
-                        value={transaction.status as string}
-                    />
+                    {retryResult && isInternetReachable ? (
+                        <View
+                        style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                        <TranItem
+                            label="tranDetailScreen.status"
+                            value={transaction.status as string}
+                        />
+                        <Button
+                            style={{maxHeight: 10, marginTop: spacing.medium}}
+                            // preset="secondary"
+                            text="Retry to receive"
+                            onPress={onRetryToReceive}
+                        />
+                        </View>
+                    ) : (
+                        <TranItem
+                            label="tranDetailScreen.status"
+                            value={transaction.status as string}
+                        />
+                    )}
                     {transaction.status === TransactionStatus.COMPLETED && (
                     <TranItem
                         label="tranDetailScreen.balanceAfter"
@@ -501,6 +606,51 @@ const ReceiveInfoBlock = function (props: {
                 />
             </>
         )}
+        <BottomModal
+          isVisible={isResultModalVisible ? true : false}          
+          ContentComponent={
+            <>
+              {resultModalInfo?.status === TransactionStatus.COMPLETED && (
+                <>
+                  <ResultModalInfo
+                    icon="faCheckCircle"
+                    iconColor={colors.palette.success200}
+                    title="Success!"
+                    message={resultModalInfo?.message}
+                  />
+                  <View style={$buttonContainer}>
+                    <Button
+                      preset="secondary"
+                      tx={'common.close'}
+                      onPress={onGoBack}
+                    />
+                  </View>
+                </>
+              )}
+              {(resultModalInfo?.status === TransactionStatus.ERROR ||
+                resultModalInfo?.status === TransactionStatus.BLOCKED) && (
+                <>
+                  <ResultModalInfo
+                    icon="faTriangleExclamation"
+                    iconColor={colors.palette.angry500}
+                    title="Receive failed"
+                    message={resultModalInfo?.message as string}
+                  />
+                  <View style={$buttonContainer}>
+                    <Button
+                      preset="secondary"
+                      tx={'common.close'}
+                      onPress={onGoBack}
+                    />
+                  </View>
+                </>
+              )}
+            </>
+          }
+          onBackButtonPress={toggleResultModal}
+          onBackdropPress={toggleResultModal}
+        />
+        {isLoading && <Loading />}
     </>
     )
 }
@@ -511,8 +661,16 @@ const ReceiveOfflineInfoBlock = function (props: {
     isDataParsable: boolean
     copyAuditTrail: any
     colorScheme: 'light' | 'dark'
+    navigation: any
 }) {
-    const {transaction, isDataParsable, copyAuditTrail, colorScheme} = props
+    const {
+        transaction, 
+        isDataParsable, 
+        copyAuditTrail, 
+        colorScheme, 
+        navigation
+    } = props
+
     const labelColor = useThemeColor('textDim')
     const isInternetReachable = useIsInternetReachable()
 
@@ -544,6 +702,10 @@ const ReceiveOfflineInfoBlock = function (props: {
         }
         setIsLoading(false)
         toggleResultModal()
+    }
+
+    const onGoBack = () => {
+        navigation.goBack()
     }
 
     return (
@@ -676,7 +838,7 @@ const ReceiveOfflineInfoBlock = function (props: {
                     <Button
                       preset="secondary"
                       tx={'common.close'}
-                      onPress={toggleResultModal}
+                      onPress={onGoBack}
                     />
                   </View>
                 </>
@@ -694,7 +856,7 @@ const ReceiveOfflineInfoBlock = function (props: {
                     <Button
                       preset="secondary"
                       tx={'common.close'}
-                      onPress={toggleResultModal}
+                      onPress={onGoBack}
                     />
                   </View>
                 </>
@@ -912,6 +1074,12 @@ const TopupInfoBlock = function (props: {
                         label="tranDetailScreen.memoToReceiver"
                         value={transaction.memo as string}
                     />
+                    {transaction.sentFrom && (
+                        <TranItem
+                            label="tranDetailScreen.sentFrom"
+                            value={transaction.sentFrom as string}
+                        />
+                    )}                    
                     <TranItem
                         label="tranDetailScreen.type"
                         value={transaction.type as string}
@@ -1152,7 +1320,7 @@ const TranItem = function (props: {
 
 
 const getAuditTrail = function (transaction: Transaction) {
-    try {
+    try {        
         const data = JSON.parse(transaction.data)
 
         if (data && isArray(data)) {
@@ -1184,6 +1352,59 @@ const getEncodedTokenToSend = (
         }
 
         return undefined // No pending record found
+    } catch (e) {
+        // silent
+        return undefined
+    }
+}
+
+
+const getTokenToRetryToReceive = (
+    transaction: Transaction,
+  ): {tokenToRetry: Token, increaseProofsCounter: boolean} | undefined => {
+    try {
+        if(transaction.type !== (TransactionType.RECEIVE || TransactionType.RECEIVE_OFFLINE)) {
+            return undefined
+        }
+
+        if(transaction.status !== TransactionStatus.ERROR) {
+            return undefined
+        }
+
+        const {mintsStore} = useStores()
+
+        // skip if mint is still offline
+        const {mint} = transaction
+        const mintInstance = mintsStore.findByUrl(mint)
+        if(!mintInstance || mintInstance.status === MintStatus.OFFLINE) {
+            return undefined
+        }
+
+        const data = JSON.parse(transaction.data)
+        const errorRecord = data.find(
+            (record: any) => record.status === 'ERROR',
+        )
+
+        const {error} = errorRecord
+        
+        if(error) {
+            
+            const {params} = error
+
+            if(params) {
+                const {errorToken, message} = params
+
+                if(message.includes('Network request failed') || message.includes('Bad Gateway')) {                    
+                    return {tokenToRetry: errorToken, increaseProofsCounter: false}
+                }
+
+                if(message.includes('outputs have already been signed before')) {                             
+                    return {tokenToRetry: errorToken, increaseProofsCounter: true}
+                }
+
+                return undefined
+            }
+        }            
     } catch (e) {
         // silent
         return undefined
@@ -1234,7 +1455,7 @@ const $noteContainer: TextStyle = {
 const $noteInput: TextStyle = {
     flex: 1,
     margin: spacing.small,
-    borderRadius: spacing.small,
+    borderRadius: spacing.extraSmall,
     fontSize: 16,
     padding: spacing.small,
     alignSelf: 'stretch',

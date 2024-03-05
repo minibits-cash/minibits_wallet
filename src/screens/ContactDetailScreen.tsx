@@ -1,7 +1,7 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useRef, useState} from 'react'
 import {ColorValue, Image, Share, TextInput, TextStyle, View, ViewStyle} from 'react-native'
-import { spacing, useThemeColor} from '../theme'
+import { colors, spacing, useThemeColor} from '../theme'
 import {ContactsStackScreenProps} from '../navigation'
 import {Icon, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, ListItem} from '../components'
 import {useHeader} from '../utils/useHeader'
@@ -12,9 +12,11 @@ import { ContactType } from '../models/Contact'
 import { WalletProfileRecord } from '../models/WalletProfileStore'
 import { MinibitsClient, NostrClient } from '../services'
 import { getImageSource } from '../utils/utils'
-import { verticalScale } from '@gocodingnow/rn-size-matters'
+import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
 import { ReceiveOption } from './ReceiveOptionsScreen'
 import { SendOption } from './SendOptionsScreen'
+import { IncomingDataType, IncomingParser } from '../services/incomingParser'
+import { MINIBITS_NIP05_DOMAIN } from '@env'
 
 
 interface ContactDetailScreenProps extends ContactsStackScreenProps<'ContactDetail'> {}
@@ -28,6 +30,8 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
     useHeader({        
         leftIcon: 'faArrowLeft',
         onLeftPress: () => navigation.goBack(),
+        rightIcon:  'faEllipsisVertical',
+        onRightPress: () => toggleContactModal()
     })    
     
        
@@ -68,6 +72,20 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                 relays
             },
         })
+    }
+
+
+    const gotoTransfer = async () => {
+        try {                         
+            await IncomingParser.navigateWithIncomingData({
+                type: IncomingDataType.LNURL_ADDRESS,
+                encoded: contact.lud16
+            }, navigation)    
+            
+            return          
+        } catch (e: any) {
+            handleError(e)            
+        }
     }
 
 
@@ -122,12 +140,20 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
             contactsStore.refreshPicture(contact.pubkey)
 
             toggleContactModal()            
-            setInfo('Sync completed')
+            setInfo('Sync completed.')
             return
         } catch (e: any) {
             toggleContactModal()      
             handleError(e)
         }        
+    }
+
+    const saveToPrivateContacts = async function () {
+        if(contact.type === ContactType.PUBLIC) {            
+            contactsStore.addContact({...contact})
+            toggleContactModal()            
+            setInfo('Contact saved.')
+        }
     }
 
 
@@ -142,12 +168,13 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
     }
 
     const iconNpub = useThemeColor('textDim')
-    const balanceColor = useThemeColor('textDim')
-    const headerBg = useThemeColor('header')
-    const inputBg = useThemeColor('background')
+    const addressColor = useThemeColor('textDim')
+    const headerBg = useThemeColor('header')    
     const screenBg = useThemeColor('background')
+    const cardBg = useThemeColor('card')
+  
 
-    const {type, name, npub, nip05, picture, about} = contact
+    const {type, name, display_name, npub, nip05, picture, about, lud16} = contact
     
     return (
       <Screen contentContainerStyle={$screen} preset='auto'>        
@@ -171,103 +198,115 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                     style={$card}
                     ContentComponent={
                         <ListItem
-                            text="About"
-                            subText={about || 'Not shared'}
-                            leftIcon='faCircleUser'                            
-                            onPress={onCopyNpub}                            
+                            text={display_name || name}
+                            subText={about?.slice(0, 120) || ''}
+                            leftIcon='faCircleUser'    
                         />
                     }
                 />
             ) : (
                 <Card
-                    style={$noteCard}
+                    style={$card}
                     ContentComponent={
-                    <View style={$noteContainer}>
-                        <TextInput
-                            ref={noteInputRef}
-                            onChangeText={note => setNote(note)}                                    
-                            value={`${note}`}
-                            style={$noteInput}
-                            onEndEditing={onNoteSave}
-                            maxLength={200}
-                            keyboardType="default"
-                            selectTextOnFocus={true}
-                            placeholder="Your note"
-                            editable={
-                                isNoteEditing
-                                ? true
-                                : false
-                            }
-                        />
-                        {isNoteEditing ? (
-                            <Button
-                                preset="secondary"
-                                style={$noteButton}
-                                text="Save"
-                                onPress={onNoteSave}
-                                
+                        <View style={$noteContainer}>    
+                            <TextInput
+                                ref={noteInputRef}
+                                onChangeText={note => setNote(note)}                                    
+                                value={`${note}`}
+                                style={$noteInput}
+                                onEndEditing={onNoteSave}
+                                maxLength={200}
+                                keyboardType="default"
+                                selectTextOnFocus={true}
+                                placeholder="Your private note"
+                                editable={
+                                    isNoteEditing
+                                    ? true
+                                    : false
+                                }
                             />
-                        ) : (
-                            <Button
-                                preset="secondary"
-                                style={$noteButton}
-                                text="Edit"
-                                onPress={onNoteEdit}
-                                
-                            />
-                        )}
-                    </View>
+                            {isNoteEditing ? (
+                                <Button
+                                    preset="secondary"
+                                    style={$noteButton}
+                                    text="Save"
+                                    onPress={onNoteSave}
+                                    
+                                />
+                            ) : (
+                                <Button
+                                    preset="secondary"
+                                    style={$noteButton}
+                                    text="Edit"
+                                    onPress={onNoteEdit}
+                                    
+                                />
+                            )}
+                        
+                        </View>
                     }
                 />
             )}
-            <View style={$buttonContainer}>
-                <Button
-                    text={`Share`}
-                    preset='secondary'
-                    LeftAccessory={() => (
-                        <Icon icon='faShareNodes'/>
-                    )}
-                    onPress={toggleShareModal}                    
-                />
-                {type === ContactType.PRIVATE && (
-                <Button
-                    text={`Edit`}
-                    preset='secondary'
-                    LeftAccessory={() => (
-                        <Icon icon='faRotate'/>
-                    )}
-                    style={{marginLeft: spacing.small}}
-                    onPress={toggleContactModal}                    
-                />
-                )}
-            </View>
+            <Card
+                style={[$card, {marginTop: spacing.small}]}                
+                ContentComponent={
+                    <>
+                    {lud16 && (
+                        <ListItem                                    
+                            text='Lightning address'
+                            subText={lud16}                            
+                            leftIcon='faBolt'
+                            leftIconColor={colors.palette.orange200}                          
+                        />
+                        )}
+                        <ListItem                                                                
+                            LeftComponent={
+                                <Button
+                                    text={`Request payment`}
+                                    style={{marginLeft: spacing.small, alignSelf: 'center', minHeight: verticalScale(20)}}
+                                    textStyle={{fontSize: moderateVerticalScale(14), lineHeight: verticalScale(14)}}
+                                    onPress={gotoTopup}
+                                    preset='tertiary'
+                                />
+                            }
+                            RightComponent={lud16 ? (
+                                <Button
+                                    text={`Pay to address`}
+                                    style={{marginLeft: spacing.small, alignSelf: 'center', minHeight: verticalScale(20)}}
+                                    textStyle={{fontSize: moderateVerticalScale(14), lineHeight: verticalScale(14)}}
+                                    onPress={gotoTransfer}
+                                    preset='tertiary'
+                                />
+                            ) : undefined}
+                            topSeparator={lud16 ? true : false} 
+                            onPress={gotoTransfer}                   
+                        />                        
+                    </>
+                }
+            />            
         </View>
         <View style={[$bottomContainer]}>
             <View style={$buttonContainer}>
-            <Button
-              text={`Request ecash`}
-              LeftAccessory={() => (
-                <Icon
-                  icon='faArrowDown'
-                  color='white'
-                  size={spacing.medium}                  
-                />
-              )}
-              onPress={gotoTopup}
-              style={[$buttonReceive, {borderRightColor: screenBg}]}
-            />
-            <Button
-              text={`Send ecash`}
-              RightAccessory={() => (
-                <Icon
-                  icon='faArrowUp'
-                  color='white'
-                  size={spacing.medium}                  
-                />
-              )}
-              onPress={gotoSend}
-              style={$buttonSend}            
-            />
+                {contact.nip05 ? (
+                    <Button
+                        text={`Send ecash`}
+                        LeftAccessory={() => (
+                            <Icon
+                            icon='faArrowUp'
+                            color='white'
+                            size={spacing.medium}                  
+                            />
+                        )}
+                        onPress={gotoSend} 
+                        style={$buttonSend}                        
+                    />
+                ) : (
+                    <Text 
+                        size='xs' 
+                        style={{color: addressColor, marginHorizontal: spacing.large, textAlign: 'center'}} 
+                        text='This profile does not have nostr address to send ecash to.'
+                    />
+                )}                
             </View>
         </View>
         <BottomModal
@@ -275,6 +314,19 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
           style={{alignItems: 'stretch'}}          
           ContentComponent={
             <>
+            <ListItem
+                text='Share contact address'
+                subText={nip05}
+                leftIcon='faShareNodes'
+                onPress={onShareContact}
+                bottomSeparator={true}
+            /> 
+            <ListItem
+                text="Copy contact's public key"
+                subText={npub}
+                leftIcon='faCopy'                            
+                onPress={onCopyNpub}                                      
+            />
             {type === ContactType.PRIVATE && (
                 <>
                     <ListItem
@@ -282,6 +334,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                         subText='Checks that contact name is still linked to the same pubkey and updates picture if it was changed.'
                         leftIcon='faRotate'                            
                         onPress={onSyncPrivateContact}
+                        topSeparator={true}
                         bottomSeparator={true}                            
                     />
                     <ListItem
@@ -291,35 +344,21 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                         onPress={onDeleteContact}                                                  
                     />
                 </>
-            )}     
+            )}
+            {type === ContactType.PUBLIC && (                
+                <ListItem
+                    text='Save as private contact'
+                    subText={`Save ${contact.nip05} to your Private contacts so you can pay faster`}
+                    leftIcon='faClipboard'                            
+                    onPress={saveToPrivateContacts}
+                    topSeparator={true}                    
+                />
+            )}
             </>
           }
           onBackButtonPress={toggleContactModal}
           onBackdropPress={toggleContactModal}
-        /> 
-        <BottomModal
-          isVisible={isShareModalVisible}
-          style={{alignItems: 'stretch'}}          
-          ContentComponent={
-            <>
-                <ListItem
-                    text='Share contact address'
-                    subText={nip05}
-                    leftIcon='faShareNodes'
-                    onPress={onShareContact}
-                    bottomSeparator={true}
-                /> 
-                <ListItem
-                    text="Copy contact's public key"
-                    subText={npub}
-                    leftIcon='faCopy'                            
-                    onPress={onCopyNpub}                                      
-                />   
-            </>
-          }
-          onBackButtonPress={toggleShareModal}
-          onBackdropPress={toggleShareModal}
-        />       
+        />    
         {info && <InfoModal message={info} />}
         {error && <ErrorModal error={error} />}
     </Screen>
@@ -344,31 +383,27 @@ const $contentContainer: TextStyle = {
     padding: spacing.extraSmall,
     // alignItems: 'center',
 }
-
-const $noteCard: ViewStyle = {
-    marginBottom: spacing.small,
-  }
   
-  const $noteContainer: ViewStyle = {
+const $noteContainer: ViewStyle = {
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-  }
-  
-  const $noteInput: TextStyle = {
+}
+
+const $noteInput: TextStyle = {
     flex: 1,
     borderRadius: spacing.small,
     fontSize: 16,
     textAlignVertical: 'center',
     marginRight: spacing.small,
-  }
-  
- 
-  const $noteButton: ViewStyle = {
+}
+
+
+const $noteButton: ViewStyle = {
     maxHeight: 50,
     minWidth: 70,
-  }
+}
 
 
 const $bottomContainer: ViewStyle = {
@@ -432,10 +467,10 @@ const $buttonScan: ViewStyle = {
 }
 
 const $buttonSend: ViewStyle = {
-  borderTopLeftRadius: 0,
-  borderBottomLeftRadius: 0,
-  borderTopRightRadius: 30,
-  borderBottomRightRadius: 30,
-  minWidth: verticalScale(130),  
+  // borderTopLeftRadius: 0,
+  // borderBottomLeftRadius: 0,
+  borderRadius: 30,
+  // borderBottomRightRadius: 30,
+  minWidth: verticalScale(160),  
 }
 

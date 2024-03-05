@@ -122,13 +122,14 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
         if (!selectedMint) {return}
 
         const proofsByMint = proofsStore.getByMint(selectedMint.mintUrl)
+        const pendingProofsByMint = proofsStore.getByMint(selectedMint.mintUrl, true)
         let message: string = ''
 
         if (proofsByMint && proofsByMint.length > 0) {
-            message = 'Your wallet has a positive balance with this mint. If removed, your ecash will be lost. '            
+            message = `Your wallet has ${proofsStore.getMintBalance(selectedMint.mintUrl)?.balance} sats balance with this mint. If removed, your ecash will be lost!\n\n`            
         }
 
-        message += 'Do you really want to remove this mint from the wallet?'
+        message += `Do you really want to remove ${selectedMint.hostname} - ${selectedMint.shortname} from the wallet?`
 
         Alert.alert(
         'Warning',
@@ -149,6 +150,9 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                     mintsStore.removeMint(selectedMint as Mint)
                     if (proofsByMint && proofsByMint.length > 0) {
                         proofsStore.removeProofs(proofsByMint)           
+                    }
+                    if (pendingProofsByMint && pendingProofsByMint.length > 0) {
+                        proofsStore.removeProofs(pendingProofsByMint, true)           
                     }
                     setInfo(translate('mintsScreen.mintRemoved'))
                 } catch (e: any) {

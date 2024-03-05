@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {useEffect, useRef, useState} from 'react'
-import {FlatList, Image, InteractionManager, TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import {FlatList, Image, InteractionManager, LayoutAnimation, Platform, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
 import Clipboard from '@react-native-clipboard/clipboard'
 import {colors, spacing, typography, useThemeColor} from '../../theme'
@@ -15,11 +15,17 @@ import { ContactsStackParamList } from '../../navigation'
 import { SendOption } from '../SendOptionsScreen'
 import { ReceiveOption } from '../ReceiveOptionsScreen'
 import { useSafeAreaInsetsStyle } from '../../utils/useSafeAreaInsetsStyle'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 
 // const defaultPublicNpub = 'npub14n7frsyufzqsxlvkx8vje22cjah3pcwnnyqncxkuj2243jvt9kmqsdgs52'
-const defaultPublicNpub = 'npub1emy455yz6uuqxlk0vwq4aws98rz3ev792cdjgcpakqewkjeryvtqvy7yyq'
+const defaultPublicNpub = 'npub1kvaln6tm0re4d99q9e4ma788wpvnw0jzkz595cljtfgwhldd75xsj9tkzv'
 const maxContactsToLoad = 20
+
+if (Platform.OS === 'android' &&
+    UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true)
+}
 
 export const PublicContacts = observer(function (props: {    
     navigation: StackNavigationProp<ContactsStackParamList, "Contacts", undefined>,    
@@ -37,7 +43,8 @@ export const PublicContacts = observer(function (props: {
     
     const [ownProfile, setOwnProfile] = useState<NostrProfile | undefined>(undefined)    
     const [followingPubkeys, setFollowingPubkeys] = useState<string[]>([])
-    const [followingProfiles, setFollowingProfiles] = useState<NostrProfile[]>([]) 
+    const [followingProfiles, setFollowingProfiles] = useState<NostrProfile[]>([])
+    const [isOwnProfileVisible, setIsOwnProfileVisible] = useState<boolean>(true)
     
     const [isLoading, setIsLoading] = useState(false)        
     const [isNpubModalVisible, setIsNpubModalVisible] = useState(false)
@@ -79,7 +86,9 @@ export const PublicContacts = observer(function (props: {
 
         setOwnProfile({
             pubkey: contactsStore.publicPubkey,
-            npub: NostrClient.getNpubkey(contactsStore.publicPubkey)
+            npub: NostrClient.getNpubkey(contactsStore.publicPubkey),
+            name: '',
+            nip05: ''
         }) // set backup profile w/o name
 
         if(relaysStore.allPublicRelays.length === 0) {
@@ -224,7 +233,9 @@ export const PublicContacts = observer(function (props: {
                 resetContactsState()
                 setOwnProfile({
                     pubkey: hexKey,
-                    npub: newPublicPubkey
+                    npub: newPublicPubkey,
+                    name: '',
+                    nip05: ''
                 })
                 toggleNpubModal()
 
@@ -260,28 +271,28 @@ export const PublicContacts = observer(function (props: {
 
     const onSavePublicRelay = function () {        
         try {
-            if(newPublicRelay && newPublicRelay.startsWith('wss://')) {                
+            if(newPublicRelay) {                
                 if(relaysStore.alreadyExists(newPublicRelay)) {
                     setInfo('Relay already exists.')
                     return
                 }
 
-                relaysStore.addOrUpdateRelay({
+                relaysStore.addRelay({
                     url: newPublicRelay,
                     status: WebSocket.CLOSED
                 })
 
                 setOwnProfile({
                     pubkey: contactsStore.publicPubkey as string,
-                    npub: NostrClient.getNpubkey(contactsStore.publicPubkey as string)
+                    npub: NostrClient.getNpubkey(contactsStore.publicPubkey as string),
+                    name: '',
+                    nip05: ''
                 })
                 resetContactsState()
                 toggleRelayModal()
                 
                 setTimeout(() => setShouldReload(true), 1000)
                 return
-            } else {
-                throw new AppError(Err.VALIDATION_ERROR, 'Invalid relay URL.', newPublicRelay)
             }
         } catch(e: any) {
             handleError(e)
@@ -294,7 +305,9 @@ export const PublicContacts = observer(function (props: {
 
         setOwnProfile({
             pubkey: contactsStore.publicPubkey as string,
-            npub: NostrClient.getNpubkey(contactsStore.publicPubkey as string)
+            npub: NostrClient.getNpubkey(contactsStore.publicPubkey as string),
+            name: '',
+            nip05: ''
         }) 
 
         resetContactsState()     
@@ -368,10 +381,24 @@ export const PublicContacts = observer(function (props: {
             return
         }
 
+        log.trace('[gotoContactDetail]', contact)
+
         navigation.navigate('ContactDetail', {
             contact, 
             relays // TODO remove, switch to relaysStore
         })
+    }
+
+
+    const collapseProfile = function () {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)        
+        setIsOwnProfileVisible(false)
+        
+    }
+
+    const expandProfile = function () {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+        setIsOwnProfileVisible(true)
     }
 
     const handleError = function (e: AppError): void {
@@ -379,12 +406,12 @@ export const PublicContacts = observer(function (props: {
         setError(e)
     }
     
-
+    const insets = useSafeAreaInsets()
     const inputBg = useThemeColor('background')
     
     return (
     <Screen contentContainerStyle={$screen}>
-        <View style={$contentContainer}>
+        <View style={[$contentContainer, !isOwnProfileVisible && {marginTop: -100}]}>
         {!contactsStore.publicPubkey && (
             <Card
                 ContentComponent={
@@ -405,7 +432,7 @@ export const PublicContacts = observer(function (props: {
                 ContentComponent={
                     <ListItem                        
                         LeftComponent={
-                            <View style={{marginRight: spacing.medium, borderRadius: 20, overflow: 'hidden'}}>
+                            <View style={{marginRight: spacing.medium, borderRadius: 20, overflow: 'hidden' }}>
                                 {ownProfile.picture ? (
                                     <Image 
                                         source={{uri: ownProfile.picture}}
@@ -417,9 +444,9 @@ export const PublicContacts = observer(function (props: {
                             </View>
                         }
                         text={ownProfile.name}
-                        subText={relaysStore.allPublicUrls.toString()}
+                        subText={isOwnProfileVisible ? relaysStore.allPublicUrls.toString() : undefined}
                         onPress={toggleNpubActionsModal}
-                        rightIcon={'faEllipsisVertical'}                                                        
+                        rightIcon={'faEllipsisVertical'}                                                                            
                     />
                 }
                 style={$card}           
@@ -448,16 +475,19 @@ export const PublicContacts = observer(function (props: {
                                             )}
                                         </View>}
                                     text={item.name}
-                                    subText={(item.about) ? item.about?.replace(/\r?\n|\r/g, ' ').slice(0, 80)+'...' : (item.nip05) ? item.nip05 : '...'}
+                                    subText={(item.nip05) ? item.nip05 : undefined}
                                     topSeparator={isFirst ? false : true}
                                     onPress={() => gotoContactDetail(item as Contact)}                                  
                                 />
                             ) 
-                        }}                        
+                        }}
+                        onScrollBeginDrag={collapseProfile}                                                
+                        onStartReached={expandProfile}                        
                         keyExtractor={(item) => item.pubkey}
-                        style={{ flexGrow: 0}}                                            
+                        contentInset={insets}
+                        style={{ maxHeight: spacing.screenHeight * 0.72 }}
+                        // contentContainerStyle={{paddingBottom: 200}}
                     />
-
                 </>
                 }
                 style={$card}                
@@ -582,6 +612,7 @@ export const PublicContacts = observer(function (props: {
 
 const $screen: ViewStyle = {
     flex: 1,
+    // paddingBottom: 200,
 }
 
 const $headerContainer: TextStyle = {
@@ -600,7 +631,7 @@ const $pasteButton: ViewStyle = {
 }
 
 const $saveButton: ViewStyle = {
-    borderRadius: spacing.small,
+    borderRadius: spacing.extraSmall,
     marginLeft: spacing.small,
 }
 

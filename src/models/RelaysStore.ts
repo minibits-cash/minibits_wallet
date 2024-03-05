@@ -11,6 +11,7 @@ import {RelayModel, Relay} from './Relay'
 import {log} from '../services/logService'
 import { MINIBITS_RELAY_URL } from '@env'
 import { NostrClient } from '../services'
+import AppError, { Err } from '../utils/AppError'
 
   
 export const RelaysStoreModel = types
@@ -34,31 +35,27 @@ export const RelaysStoreModel = types
     }))
     .actions(withSetPropAction)
     .actions(self => ({
-        addOrUpdateRelay(relay: Relay) {
-            if(self.alreadyExists(relay.url)) {
+        addRelay(relay: Relay) {
 
-                const {url, status, error} = relay
+            const normalized = NostrClient.getNormalizedRelayUrl(relay.url)
 
-                const relayInstance = self.findByUrl(url)
-                relayInstance?.setStatus(status)
-
-                if(error) {
-                    relayInstance?.setError(error)
-                }
-
-                // log.trace('[addOrUpdateRelay]', 'Relay updated in the RelaysStore', {relay})
-            } else {                
-                const normalized = NostrClient.getNormalizedRelayUrl(relay.url)
-
-                // log.trace('[addOrUpdateRelay]', 'Normalized URL', normalized)
-                relay.url = normalized
-
-                const relayInstance = RelayModel.create(relay)
-                relayInstance.setHostname()                            
-                self.relays.push(relayInstance)
-
-                log.info('[addOrUpdateRelay]', 'New relay added to the RelaysStore', {relay})
+            if(!normalized.startsWith('wss://')) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Relay needs to communicate over secure websocket wss://', {caller: 'addRelay'})
             }
+
+            relay.url = normalized
+
+            if(self.alreadyExists(relay.url)) {
+                log.warn('[addRelay] Relay already exists', {relay})
+                return
+            }
+
+            const relayInstance = RelayModel.create(relay)
+            relayInstance.setHostname()                            
+            self.relays.push(relayInstance)
+
+            log.info('[addRelay]', 'New relay added to the RelaysStore', {relay})
+            
         },
         removeRelay(relayUrl: string) {
             
@@ -74,13 +71,13 @@ export const RelaysStoreModel = types
     .actions(self => ({
         addDefaultRelays() {
             for (const relayUrl of NostrClient.getDefaultRelays()) {
-                self.addOrUpdateRelay({
+                self.addRelay({
                     url: relayUrl,
                     status: WebSocket.CLOSED
                 })
             }
 
-            self.addOrUpdateRelay({
+            self.addRelay({
                 url: MINIBITS_RELAY_URL,
                 status: WebSocket.CLOSED
             })

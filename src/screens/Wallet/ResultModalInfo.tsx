@@ -17,7 +17,7 @@ export const ResultModalInfo = function(props: {
     return (
       <View style={$bottomModal}>                
         <Icon icon={props.icon} size={80} color={props.iconColor} />
-        <Text style={{marginTop: spacing.small}} text={props.title} />
+        <Text style={{marginTop: spacing.small, textAlign: 'center'}} text={props.title} />
         <Text 
             style={{color: textColor, textAlign: 'center', marginTop: spacing.small}} 
             text={props.message} 

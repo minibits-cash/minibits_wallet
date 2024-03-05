@@ -20,7 +20,7 @@ const DEFAULT_DONATION_AMOUNT = 100
 export const OwnName = observer(function (props: {navigation: any, pubkey: string}) { 
     // const navigation = useNavigation() 
     const ownNameInputRef = useRef<TextInput>(null)
-    const {userSettingsStore, proofsStore, walletProfileStore} = useStores()
+    const {proofsStore, walletProfileStore} = useStores()
     const {pubkey, navigation} = props 
     
     const [ownName, setOwnName] = useState<string>('')
@@ -33,7 +33,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
     const [isQRcodeVisible, setIsQRCodeVisible] = useState(false)
     const [isChecked, setIsChecked] = useState(false)
     // const [isNameInputEnabled, setIsNameInputEnabled] = useState(true)
-    const [isPaidFromWallet, setIsPaidFromWallet] = useState(false)
+    const [isInvoicePaid, setIsInvoicePaid] = useState<boolean>(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
     const [resultModalInfo, setResultModalInfo] = useState<
       {status: TransactionStatus, message: string} | undefined
@@ -70,18 +70,46 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                 return
             }
 
-            poller('checkDonationPaidPoller', checkDonationPaid, 2 * 1000, 120, 10) // every 2s to make it responsive. Total 4 min
-            .then(() => log.trace('Polling completed', {}, 'checkDonationPaid'))
+            poller(`checkDonationPaidPoller-${donationInvoice.payment_hash}`, 
+            checkDonationPaid,
+            {
+                interval: 2 * 1000, // every 2s to make it responsive. Total 4 min
+                maxPolls: 120,
+                maxErrors: 10
+            })            
+            .then(() => log.trace('[checkDonationPaid]', 'Polling completed'))
             .catch(error =>
-                log.trace(error.message, {}, 'checkPendingTopups'),
+                log.trace('[checkDonationPaid]', error.message),
             )
            
         }
         initPoller()
         return () => {
-            stopPolling('checkDonationPaidPoller')
+            if(donationInvoice) {
+                stopPolling(`checkDonationPaidPoller-${donationInvoice.payment_hash}`)
+            }            
         }        
     }, [donationInvoice])
+
+
+    useEffect(() => {        
+        const handleIsInvoicePaid = async () => { 
+            if(!isInvoicePaid || !donationInvoice) {
+                return
+            }
+
+            stopPolling(`checkDonationPaidPoller-${donationInvoice.payment_hash}`)            
+            setResultModalInfo({
+                status: TransactionStatus.COMPLETED, 
+                message: `Thank you! Donation for ${ownName+MINIBITS_NIP05_DOMAIN} has been successfully paid.`
+            })            
+            toggleResultModal()
+            resetState()     
+        }
+        handleIsInvoicePaid()
+        return () => {        
+        }        
+    }, [isInvoicePaid])
 
 
 
@@ -91,19 +119,16 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
         setIsResultModalVisible(previousState => !previousState)
 
 
-    const resetState = function () {  
-        // setIsNameInputEnabled(true)      
+    const resetState = function () {          
         setIsChecked(false)
         setOwnName('')        
         setInfo('')
         setIsLoading(false)        
         setIsPaymentModalVisible(false)
         setDonationInvoice(undefined)
-        setDonationAmount(DEFAULT_DONATION_AMOUNT)
-        setIsResultModalVisible(false)
+        setDonationAmount(DEFAULT_DONATION_AMOUNT)        
         setIsQRCodeVisible(false)
-        setIsPaidFromWallet(false)
-        // stopPolling('checkDonationPaidPoller') // ??
+        setIsInvoicePaid(false)         
     }
 
 
@@ -112,11 +137,25 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
         const lowercase = filtered.toLowerCase()    
         setOwnName(lowercase)
     }
+
+
+    const isValidName = function (name: string) {
+        // Define a regular expression pattern
+        const pattern = /^[^.-].*[^.-]$/;
+      
+        // Test the input string against the pattern
+        return pattern.test(name)
+    }
   
     
     const onOwnNameCheck = async function () {
-        if(!ownName) {
-            setInfo('Write your wallet profile name to the text box.')
+        if(!ownName || ownName.length < 2) {
+            setInfo('Write your wallet profile name to the text box, use min 2 characters.')
+            return
+        }
+
+        if(!isValidName(ownName)) {
+            setInfo('Do not use . or - characters at the beginning or the end of name.')
             return
         }
 
@@ -124,7 +163,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
             const profileExists = await MinibitsClient.getWalletProfileByNip05(ownName + MINIBITS_NIP05_DOMAIN)
 
             if(profileExists) {
-                setInfo('This wallet profile name is already in use, choose another one.')
+                setInfo('This wallet name is already in use, choose another one.')
                 return
             }
             setIsChecked(true)
@@ -160,7 +199,6 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
 
     const onPayDonation = async function () {
         try {            
-            setIsPaidFromWallet(true)            
             return navigation.navigate('WalletNavigator', { 
                 screen: 'Transfer',
                 params: { 
@@ -174,35 +212,27 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
         }  
     }
 
-
-    const checkDonationPaid = async function () {   
+    // poll handler
+    const checkDonationPaid = async function (): Promise<void> {   
         try {
             if(!donationInvoice) {
                 return
             }
             
             const { paid } = await MinibitsClient.checkDonationPaid(
-                donationInvoice?.payment_hash as string,
+                donationInvoice.payment_hash as string,
                 pubkey as string
             )
 
             if(paid) {                
-                setIsLoading(true)
-                    
+                setIsLoading(true)                    
                 await walletProfileStore.updateName(ownName)                
-
                 setIsLoading(false)
-                setResultModalInfo({
-                    status: TransactionStatus.COMPLETED, 
-                    message: `Thank you! Donation for ${ownName+MINIBITS_NIP05_DOMAIN} has been successfully paid.`
-                })
-                toggleResultModal()
-                togglePaymentModal()
-                stopPolling('checkDonationPaidPoller')
+                setIsInvoicePaid(true)
                 return
             }
         } catch (e: any) {
-            return false // silent
+            return // silent
         }  
     }
 
@@ -281,7 +311,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                     {donationInvoice ? (
                     <>
                     <Text 
-                        text={`Pay the following lightning invoice and get your ${ownName+MINIBITS_NIP05_DOMAIN} wallet profile.`}
+                        text={`Pay the following lightning invoice and get your ${ownName+MINIBITS_NIP05_DOMAIN} wallet name.`}
                         style={[$supportText, {color: hint}]} 
                     />
                     {isQRcodeVisible ? (
@@ -367,7 +397,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                                 text='Minibits'
                                 style={{fontFamily: 'Gluten-Regular', fontSize: 18}}
                             />{' '}
-                            kindly asks you for a small donation for your {ownName+MINIBITS_NIP05_DOMAIN} wallet name.
+                            kindly asks you for a small donation for your {ownName+MINIBITS_NIP05_DOMAIN} wallet address.
                         </RNText>
                         <View style={{flexDirection: 'row', justifyContent: 'center'}}>
                             <Text

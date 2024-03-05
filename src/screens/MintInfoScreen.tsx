@@ -80,16 +80,23 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
 
                 log.trace('useEffect', {mintUrl: route.params.mintUrl})
 
-                setIsLoading(true)                    
-                const info = await MintClient.getMintInfo(route.params.mintUrl)    
-                await delay(1000)
-                setMintInfo(info)
+                setIsLoading(true)
+                const mint = mintsStore.findByUrl(route.params.mintUrl)            
+                
+                if(mint) {                    
+                    const info = await MintClient.getMintInfo(mint.mintUrl) 
+                    mint.setStatus(MintStatus.ONLINE)                    
+                    setMintInfo(info)
+                } else {
+                    throw new AppError(Err.VALIDATION_ERROR, 'Could not find mint', {mintUrl: route.params.mintUrl})
+                }
+
                 setIsLoading(false)
             } catch (e: any) {
                 if (route.params.mintUrl) {
                     const mint = mintsStore.findByUrl(route.params.mintUrl)
                     if(mint) {
-                        mint.setStatus(MintStatus.OFFLINE)
+                        mint.setStatus(MintStatus.OFFLINE)                        
                     }
                 }                
                 handleError(e)

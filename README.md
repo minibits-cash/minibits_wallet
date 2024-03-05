@@ -29,14 +29,15 @@ Mints
 - [x] Block receiving from mint
 - [x] Show mint balances grouped by hostname
 - [x] Handle mint keys rotation (not tested)
-- [ ] Mint status and information screen
+- [x] Mint status and information screen
 - [ ] Change mint's short name and color
 
 Receive ecash
 - [x] Scan QR code of a ecash token
 - [x] Paste ecash token from the clipboard
 - [x] Notification on received payment (app needs to be in foreground)
-- [x] Receive ecash while being offline, redeem later (MVP version)
+- [x] Receive Nostr zaps or payments to minibits.cash Lightning address
+- [x] Receive ecash in person while being offline, redeem later (MVP version)
 
 Send ecash
 - [x] Share ecash token to send through another app
@@ -72,22 +73,25 @@ Contacts
 - [x] Private contacts address book for payments
 - [x] Public contacts (followed users on NOSTR social network) for tipping and donations
 - [x] Load public contacts from custom NOSTR relay
-- [x] Wallet names as random public NOSTR addresses (random123@minibits.cash)
+- [x] Wallet addresses as random public NOSTR addresses (random123@minibits.cash)
 - [x] Custom wallet names (myname@minibits.cash)
-- [x] Wallet names usable as Lightning addresses to receive payments from many Lightning wallets [✨ New!]
+- [x] Wallet addresses usable as Lightning addresses to receive payments from many Lightning wallets
 - [x] Private contacts with other than minibits.cash NOSTR adresses and relays
 
 Backup and recovery
 - [x] Local append-only backup of all ecash in a database separate from wallet storage
 - [x] Recovery tool to recover ecash from local backup
 - [x] Recover wallet in case spent ecash remain in the wallet due to an exception during a transaction
-- [x] Off-device backup and recovery using 12 words based seed [✨ New!]
+- [x] Off-device backup and recovery using 12 words based seed 
+- [x] Retry after receive transaction failed due to mint being offline [✨ New!]
+- [x] Auto-recover funds if wallet failed to receive ecash issued by mint due to network or device failure [✨ New!]
 - [ ] Smooth migration to another device
 
 Security and Privacy
 - [x] Optional AES encryption of wallet storage using a key stored in the device secure key storage
 - [x] Use device biometry to login (if storage encryption is on)
 - [x] Tor daemon to connect to mints with .onion addresses
+
 
 Self-funding
 - [X] Donation for custom wallet name

@@ -7,6 +7,10 @@ import {
   View,
   ScrollView,
   Alert,
+  FlatList,
+  Platform,
+  UIManager,
+  LayoutAnimation,
 } from 'react-native'
 import {formatDistance, toDate} from 'date-fns'
 import {useThemeColor, spacing, colors, typography} from '../theme'
@@ -25,14 +29,19 @@ import {WalletStackScreenProps} from '../navigation'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import {maxTransactionsInModel} from '../models/TransactionsStore'
-import {Database} from '../services'
+import {Database, log} from '../services'
 import AppError from '../utils/AppError'
 import {TransactionListItem} from './Transactions/TransactionListItem'
-import { Transaction } from '../models/Transaction'
+import type { Transaction } from '../models/Transaction'
+
 
 interface TranHistoryScreenProps
   extends WalletStackScreenProps<'TranHistory'> {}
 
+if (Platform.OS === 'android' &&
+    UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true)
+}
 // Number of transactions held in TransactionsStore model
 const limit = maxTransactionsInModel
 
@@ -48,12 +57,31 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState(false)
+    const [isHeaderVisible, setIsHeaderVisible] = useState(true)
     const [offset, setOffset] = useState<number>(transactionsStore.count) // load from db those that are not already displayed
+    const [pendingOffset, setPendingOffset] = useState<number>(transactionsStore.pending.length) // load from db those that are not already displayed
+    const [dbCount, setDbCount] = useState<number>(0)
+    const [pendingDbCount, setPendingDbCount] = useState<number>(0)
     const [isAll, setIsAll] = useState<boolean>(false)
+    const [pendingIsAll, setPendingIsAll] = useState<boolean>(false)
 
     useEffect(() => {
-        if (transactionsStore.count < limit) {
+        const count = Database.getTransactionsCount() // all
+        const pendingCount = Database.getTransactionsCount(true) // pending only
+        
+        log.trace('transaction counts', {count, pendingCount})
+
+        setDbCount(count)
+        setPendingDbCount(pendingCount)
+
+        if (count <= limit) {  
+            log.trace('setAll true')          
             setIsAll(true)
+        }
+
+        if (pendingCount <= limit) {  
+            log.trace('setPendingAll true')          
+            setPendingIsAll(true)
         }
         // Run on component unmount (cleanup)
         return () => {
@@ -62,6 +90,7 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
             */
             for (const mint of mintsStore.allMints) {
                 transactionsStore.removeOldByMint(mint.mintUrl)
+                transactionsStore.removeAllWithoutCurrentMint() // avoid that tx from deleted mints remain in model forever
             }            
         }
     }, [])
@@ -77,8 +106,10 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
 
                 setOffset(offset + result.length)
 
-                if (result?.length < limit) {
-                setIsAll(true)
+                log.trace({storeCount: transactionsStore.count, dbCount})
+                if (transactionsStore.count >= dbCount) {
+                    log.trace('[getTransactionsList] setAll true')
+                    setIsAll(true)
                 }
             }
 
@@ -88,12 +119,49 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
         }
     }
 
-    const toggleShowPendingOnly = function () {
-        if (showPendingOnly) {
+
+
+    const getPendingTransactionsList = async function () {
+        setIsLoading(true)
+        try {
+            const result = await Database.getTransactionsAsync(limit, pendingOffset, true) // pending
+
+            if (result && result.length > 0) {
+                // Add new transaction to the transactions store so mobx refreshes UI
+                transactionsStore.addTransactionsToModel(result._array)
+
+                setOffset(pendingOffset + result.length)
+
+                if (transactionsStore.pending.length === pendingDbCount) {
+                    log.trace('[getTransactionsList] setAll true')
+                    setPendingIsAll(true)
+                }
+            }
+
+            setIsLoading(false)
+        } catch (e: any) {
+            handleError(e)
+        }
+    }
+
+    const toggleShowPendingOnly = async function () {
+        if (showPendingOnly) {            
             setShowPendingOnly(false)
         } else {
+            await getPendingTransactionsList()
             setShowPendingOnly(true)
         }
+    }
+
+    const collapseHeader = function () {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)        
+        setIsHeaderVisible(false)
+        
+    }
+
+    const expandHeader = function () {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+        setIsHeaderVisible(true)
     }
 
     const gotoTranDetail = function (id: number) {
@@ -111,10 +179,12 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
     const pendingBalance = proofsStore.getBalances().totalPendingBalance
 
     return (
-      <Screen style={$screen} preset="auto">
-        <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text preset="heading" text="History" style={{color: 'white'}} />
-        </View>
+      <Screen contentContainerStyle={$screen}>
+        
+            <View style={[isHeaderVisible ? $headerContainer : $headerCollapsed, {backgroundColor: headerBg}]}>
+                <Text preset="heading" text="History" style={{color: 'white'}} />
+            </View>
+                
         <View style={$contentContainer}>
           <Card
             style={$actionCard}
@@ -138,55 +208,116 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
                   onPress={toggleShowPendingOnly}
                 />
                 <ListItem
-                  text="Filter by tags"
+                  text={showPendingOnly ? `Showing ${transactionsStore.pending.length} of ${pendingDbCount} pending` : `Showing ${transactionsStore.count} of ${dbCount} total`}
                   LeftComponent={
                     <Icon
                       containerStyle={$iconContainer}
-                      icon="faTags"
+                      icon="faListUl"
                       size={spacing.medium}
                       color={iconColor}
                     />
                   }
                   style={$item}
                   bottomSeparator={false}
-                  onPress={() => Alert.alert('Not implemented yet')}
+                  onPress={() => false}
                 />
               </>
             }
           />
-          {transactionsStore.count > 0 && (
+          {!showPendingOnly && transactionsStore.count > 0  && (
             <Card
               ContentComponent={
                 <>
-                  {(showPendingOnly
-                    ? transactionsStore.pending
-                    : transactionsStore.all
-                  ).map((tx, index: number) => (
-                    <TransactionListItem
-                      key={tx.id}
-                      tx={tx as Transaction}
-                      gotoTranDetail={gotoTranDetail}
-                      isFirst={index === 0}
+                    <FlatList<Transaction>
+                        data={transactionsStore.all as Transaction[]}
+                        renderItem={({ item, index }) => {                                
+                            return(
+                                <TransactionListItem
+                                    key={item.id}
+                                    tx={item as Transaction}
+                                    gotoTranDetail={gotoTranDetail}
+                                    isFirst={index === 0}
+                                />
+                            )
+                        }}                        
+                        ListFooterComponent={
+                            <View style={{alignItems: 'center', marginTop: spacing.small}}>
+                                {isAll ? (
+                                    <Text text="List is complete" size="xs" />
+                                ) : (
+                                    <Button
+                                        preset="tertiary"
+                                        onPress={getTransactionsList}
+                                        text="View more"
+                                        style={{minHeight: 25, paddingVertical: spacing.tiny}}
+                                        textStyle={{fontSize: 14}}
+                                    />
+                                )}
+                            </View>
+                        }                        
+                        onScrollBeginDrag={collapseHeader}
+                        onStartReached={expandHeader}
+                        keyExtractor={(item, index) => String(item.id) as string} 
+                        style={{ maxHeight: spacing.screenHeight * 0.65 }}
                     />
-                  ))}
+                                      
                 </>
               }
-              FooterComponent={
-                <View style={{alignItems: 'center'}}>
-                  {isAll ? (
-                    <Text text="List is complete" size="xs" />
-                  ) : (
-                    <Button
-                      preset="tertiary"
-                      onPress={getTransactionsList}
-                      text="View more"
-                      style={{minHeight: 25, paddingVertical: spacing.tiny}}
-                      textStyle={{fontSize: 14}}
+              style={$card}
+            />
+          )}
+
+          {showPendingOnly && transactionsStore.count > 0  && (
+            <Card
+              ContentComponent={
+                <>
+                    <FlatList<Transaction>
+                        data={transactionsStore.pending as Transaction[]}
+                        renderItem={({ item, index }) => {                                
+                            return(
+                                <TransactionListItem
+                                    key={item.id}
+                                    tx={item as Transaction}
+                                    gotoTranDetail={gotoTranDetail}
+                                    isFirst={index === 0}
+                                />
+                            )
+                        }}                        
+                        ListFooterComponent={
+                            <View style={{alignItems: 'center', marginTop: spacing.small}}>
+                                {pendingIsAll ? (
+                                    <Text text="List is complete" size="xs" />
+                                ) : (
+                                    <Button
+                                        preset="tertiary"
+                                        onPress={getPendingTransactionsList}
+                                        text="View more"
+                                        style={{minHeight: 25, paddingVertical: spacing.tiny}}
+                                        textStyle={{fontSize: 14}}
+                                    />
+                                )}
+                            </View>
+                        }                        
+                        onScrollBeginDrag={collapseHeader}
+                        onStartReached={expandHeader}
+                        keyExtractor={(item, index) => String(item.id) as string} 
+                        style={{ maxHeight: spacing.screenHeight * 0.65 }}
                     />
-                  )}
-                </View>
+                                      
+                </>
               }
               style={$card}
+            />
+          )}  
+          
+          {transactionsStore.count === 0 && (
+            <Card
+                ContentComponent={
+                    <ListItem
+                        subText={"No transactions to show."}
+                    />
+                }
+                style={$card}                
             />
           )}
           {isLoading && <Loading />}
@@ -199,14 +330,21 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
 )
 
 const $screen: ViewStyle = {
+    flex: 1,
   // borderWidth: 1,
   // borderColor: 'red'
 }
 
 const $headerContainer: TextStyle = {
-  alignItems: 'center',
-  paddingBottom: spacing.medium,
-  height: spacing.screenHeight * 0.18,
+    alignItems: 'center',
+    paddingBottom: spacing.medium,
+    height: spacing.screenHeight * 0.18,
+}
+
+const $headerCollapsed: TextStyle = {
+    alignItems: 'center',
+    paddingBottom: spacing.medium,
+    height: spacing.screenHeight * 0.07,
 }
 
 const $contentContainer: TextStyle = {
