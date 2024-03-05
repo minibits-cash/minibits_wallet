@@ -382,7 +382,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
             if(errors.length > 0) {
                 setResultModalInfo({
                     status: TransactionStatus.ERROR, 
-                    message: `Recovery ended up with errors.`
+                    message: `Recovery ended with errors.`
                 })            
                 setRecoveryErrors(errors)
             } else {
