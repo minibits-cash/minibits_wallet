@@ -131,7 +131,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
             setIsLoading(true)
 
             if (!validateMnemonic(mnemonic, wordlist)) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Invalid mnemonic phrase. Provide 12 words sequence separated by blank spaces.')
+                throw new AppError(Err.VALIDATION_ERROR, 'Invalid mnemonic phrase. Provide 12 word sequence separated by blank spaces.')
             }          
 
             setTimeout(() => {                                
@@ -645,7 +645,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                     ContentComponent={
                         <ListItem
                             text='Insert backup mnemonic phrase'
-                            subText='Paste or rewrite 12 words phrase to recover your ecash balance on this device. Separate words by blank spaces.'
+                            subText='Paste or rewrite 12 word phrase to recover your ecash balance on this device. Separate words by blank spaces.'
                             LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='1'/></View>}                  
                             style={$item}                            
                         /> 
