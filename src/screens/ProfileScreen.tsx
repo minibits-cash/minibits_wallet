@@ -184,7 +184,7 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                             <>
                             <ListItem 
                                 text='Create wallet address'
-                                subText='Your minibits.cash wallet address allows you to receive encrypted ecash over Nostr. At the same time it serves as your Lightning address, so that you can receive payments from any Lightning wallet or zaps on Nostr social network.'
+                                subText='Your minibits.cash wallet address allows you to receive encrypted ecash over Nostr. Simultaneously, it serves as your Lightning address, enabling you to receive payments from any Lightning wallet or zaps on the Nostr social network.'
                             />
                             <View style={$buttonContainer}> 
                                 <Button
@@ -200,7 +200,7 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                                 {walletProfileStore.isOwnProfile ? (
                                     <ListItem
                                         text='Your own wallet address'
-                                        subText={`You are using your own Nostr address to send and receive ecash. Please note, that such setup does not allow to receive Nostr zaps nor Lightning payments to this address.`}
+                                        subText={`You are using your own Nostr address to send and receive ecash. Please note that this setup does not allow you to receive Nostr zaps or Lightning payments to this address.`}
                                         leftIcon='faCircleUser'
                                         bottomSeparator={true}
                                         style={{paddingRight: spacing.small}}
@@ -208,7 +208,7 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                                 ) : (
                                     <ListItem
                                         text='Your Minibits wallet address'
-                                        subText={`Share your wallet address to receive encrypted ecash over Nostr. At the same time it serves as your Lightning address, so that you can receive payments from any Lightning wallet or zaps on Nostr social network.`}
+                                        subText={`Share your wallet address to receive encrypted ecash over Nostr. This also serves as your Lightning address, enabling you to receive payments from any Lightning wallet or zaps on the Nostr social network.`}
                                         leftIcon='faCircleUser'
                                         bottomSeparator={true}
                                         style={{paddingRight: spacing.small}}
