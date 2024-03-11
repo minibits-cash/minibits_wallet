@@ -79,7 +79,7 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
                 Clipboard.setString(mnemonic)
 
                 if(isNewMnemonic) {
-                    setInfo('To apply backup to your existing funds, send your whole balance to yourself. Otherwise only funds from now on can be restored.')
+                    setInfo('To apply backup to your existing funds, send your entire balance to yourself. Otherwise, only funds from this point onward can be restored.')
                 }
 
                 return
@@ -108,7 +108,7 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
             ContentComponent={
                 <ListItem
                     text='Your mnemonic phrase'
-                    subText='These 12 words sequence allows you to recover your ecash balance in case of device loss. Keep them in safe place.'
+                    subText='This 12 word sequence allows you to recover your ecash balance in case of device loss. Keep them in safe place.'
                     leftIcon='faInfoCircle'
                     leftIconColor={colors.palette.iconYellow300}
                     leftIconInverse={true}                  
