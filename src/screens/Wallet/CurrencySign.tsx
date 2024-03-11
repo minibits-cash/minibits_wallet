@@ -1,6 +1,7 @@
 import React from "react"
 import { TextStyle, View, ViewStyle } from "react-native"
-import { Text } from "../../components"
+import { SvgXml } from "react-native-svg"
+import { BtcIcon, Text } from "../../components"
 import { colors, spacing, typography, useThemeColor } from "../../theme"
 
 export enum CurrencyCode {
@@ -14,27 +15,34 @@ export const CurrencySign = function(props: {
   }
 ) {
   
-    const textColor = useThemeColor('header')
+    const textColor = useThemeColor('amount')
     const bgColor = colors.palette.primary200
   
     return (
         <View
             style={[{
-                alignSelf: 'center',
-                marginTop: spacing.tiny,
-                paddingHorizontal: spacing.tiny, 
-                borderRadius: spacing.tiny,
-                backgroundColor: bgColor,                   
+                alignSelf:'center',                
+                paddingHorizontal: spacing.tiny,
+                // borderRadius: spacing.tiny,
+                // borderColor: bgColor,
+                // borderWidth: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
             }, props.containerStyle || {}]}
         >
+        <SvgXml        
+            width={spacing.medium}
+            height={spacing.medium}
+            style={{marginRight: spacing.tiny}}
+            xml={BtcIcon}            
+        />
         <Text 
-            text='₿ sats'            
+            text={CurrencyCode.SATS}            
             style={[{
                 color: textColor,
                 fontSize: 10,
                 fontFamily: typography.primary?.light,
-                padding: 0,
-                lineHeight: 16,                             
+                lineHeight: spacing.large
             }, props.textStyle || {}]}
         />
         </View>

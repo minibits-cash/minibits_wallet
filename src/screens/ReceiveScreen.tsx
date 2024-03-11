@@ -208,14 +208,14 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
             />
             {receivedAmount > 0 ? (
             <View style={$amountContainer}>
-                <CurrencySign 
-                    currencyCode={CurrencyCode.SATS}                        
-                />
                 <TextInput                                        
                     value={receivedAmount.toLocaleString()}
                     style={$amountToReceive}
                     maxLength={9}                    
                     editable={false}
+                />
+                <CurrencySign 
+                    currencyCode={CurrencyCode.SATS}                        
                 />
             </View>
             ) : (

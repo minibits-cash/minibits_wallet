@@ -95,7 +95,7 @@ export const PaymentRequestListItem = observer(function (props: PaymentRequestLi
                                         size={spacing.medium}                    
                                         color={dim}                
                                 />
-                                <Text size='xxs' style={{color: dim, marginBottom: -10}} text={`pay ${pr.amount} sats to`} />
+                                <Text size='xxs' style={{color: dim, marginBottom: -10}} text={`pay ${pr.amount} SATS to`} />
                             </View>
                             <Text size='xxs' style={{color: dim, textAlign: 'center', marginRight: 30, marginBottom: 20}} text='...........' />
                             <View style={{flexDirection: 'column', alignItems: 'center', width: 100}}>

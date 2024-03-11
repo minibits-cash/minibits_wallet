@@ -275,8 +275,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         log.trace('onReceiveTopupCompleted event handler triggered', paymentRequest)
 
         await NotificationService.createLocalNotification(
-            `⚡ ${paymentRequest.amount} sats received!`,
-            `Your invoice has been paid and your wallet balance credited with ${paymentRequest.amount} sats.`,            
+            `⚡ ${paymentRequest.amount} SATS received!`,
+            `Your invoice has been paid and your wallet balance credited with ${paymentRequest.amount} SATS.`,            
         )     
     }
     
@@ -573,8 +573,7 @@ const TotalBalanceBlock = observer(function (props: {
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
             <CurrencySign 
                 currencyCode={CurrencyCode.SATS}
-                containerStyle={{marginTop: -5, backgroundColor: 'transparent'}}
-                textStyle={{color: currencyColor}}
+                containerStyle={{marginTop: -10}}                
             />
             <Text
                 testID='total-balance'

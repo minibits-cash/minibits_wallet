@@ -371,7 +371,7 @@ const checkPendingReceived = async function () {
                     
                     result = {
                         status: PaymentRequestStatus.ACTIVE,
-                        title: `⚡ Please pay ${paymentRequest.amount} sats!`,                    
+                        title: `⚡ Please pay ${paymentRequest.amount} SATS!`,                    
                         message: `${sentFrom} has sent you a request to pay an invoice.`,
                         memo: (maybeMemo) ? maybeMemo : paymentRequest.description,
                         picture: sentFromPicture,
@@ -443,7 +443,7 @@ const checkPendingReceived = async function () {
             if(receivedAmount && receivedAmount > 0) {
                 result = {
                     status: TransactionStatus.COMPLETED,                        
-                    title: `⚡${receivedAmount} sats received!`,
+                    title: `⚡${receivedAmount} SATS received!`,
                     message: `${zapRequest ? 'Zap' : 'Ecash'} from <b>${sentFrom || 'unknown payer'}</b> is now in your wallet.`,                    
                     picture: sentFromPicture                    
                 }
@@ -1112,14 +1112,14 @@ const receive = async function (
         if (amountWithErrors > 0) {
             return {
                 transaction: completedTransaction,
-                message: `You've received ${receivedAmount} sats to your minibits wallet. ${amountWithErrors} could not be redeemed from the mint`,
+                message: `You've received ${receivedAmount} SATS to your Minibits wallet. ${amountWithErrors} could not be redeemed from the mint`,
                 receivedAmount,
             } as TransactionResult
         }
 
         return {
             transaction: completedTransaction,
-            message: `You've received ${receivedAmount} sats to your minibits wallet.`,
+            message: `You've received ${receivedAmount} SATS to your Minibits wallet.`,
             receivedAmount,
         } as TransactionResult
         
@@ -1251,7 +1251,7 @@ const receiveOfflinePrepare = async function (
 
         return {
             transaction: preparedTransaction,
-            message: `You received ${amountToReceive} sats while offline. You need to redeem them to your wallet when you will be online again.`,            
+            message: `You received ${amountToReceive} SATS while offline. You need to redeem them to your wallet when you will be online again.`,            
         } as TransactionResult
 
     } catch (e: any) {
@@ -1447,14 +1447,14 @@ const receiveOfflineComplete = async function (
         if (amountWithErrors > 0) {
             return {
                 transaction: completedTransaction,
-                message: `You received ${receivedAmount} sats to your minibits wallet. ${amountWithErrors} could not be redeemed from the mint`,
+                message: `You received ${receivedAmount} SATS to your minibits wallet. ${amountWithErrors} could not be redeemed from the mint`,
                 receivedAmount,
             } as TransactionResult
         }
 
         return {
             transaction: completedTransaction,
-            message: `You received ${receivedAmount} sats to your minibits wallet.`,
+            message: `You received ${receivedAmount} SATS to your minibits wallet.`,
             receivedAmount,
         } as TransactionResult
     } catch (e: any) {
@@ -2050,7 +2050,7 @@ const transfer = async function (
 
         return {
             transaction: completedTransaction,
-            message: `Lightning invoice has been successfully paid and settled with your Minibits ecash. Final network fee has been ${finalFee} sats.`,
+            message: `Lightning invoice has been successfully paid and settled with your Minibits ecash. Final network fee has been ${finalFee} SATS.`,
             finalFee,
         } as TransactionResult
     } catch (e: any) {        
@@ -2535,7 +2535,7 @@ const _checkPendingTopup = async function (params: {paymentRequest: PaymentReque
         if (receivedAmount !== pr.amount) {
             throw new AppError(
             Err.VALIDATION_ERROR,
-            `Received amount ${receivedAmount} sats is not equal to the requested amount ${pr.amount} sats.`,
+            `Received amount ${receivedAmount} SATS is not equal to the requested amount ${pr.amount} SATS.`,
             )
         }
 

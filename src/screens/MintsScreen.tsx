@@ -126,7 +126,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
         let message: string = ''
 
         if (proofsByMint && proofsByMint.length > 0) {
-            message = `Your wallet has ${proofsStore.getMintBalance(selectedMint.mintUrl)?.balance} sats balance with this mint. If removed, your ecash will be lost!\n\n`            
+            message = `Your wallet has ${proofsStore.getMintBalance(selectedMint.mintUrl)?.balance} SATS balance with this mint. If removed, your ecash will be lost!\n\n`            
         }
 
         message += `Do you really want to remove ${selectedMint.hostname} - ${selectedMint.shortname} from the wallet?`

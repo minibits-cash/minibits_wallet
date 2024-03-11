@@ -30,7 +30,7 @@ export const FeeBadge = function(props: {
             }, props.containerStyle || {}]}
         >
         <Text 
-            text={props.finalFee ? `+ final fee ${props.finalFee} sats` : `+ fee up to ${props.estimatedFee} sats`}
+            text={props.finalFee ? `+ final fee ${props.finalFee} SATS` : `+ fee up to ${props.estimatedFee} SATS`}
             style={[{
                 color: textColor,
                 fontSize: 10,

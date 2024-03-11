@@ -206,7 +206,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
           setResultModalInfo({
             status: TransactionStatus.COMPLETED,
-            message: `Your invoice has been paid and your wallet balance credited with ${paymentRequest.amount} sats.`,
+            message: `Your invoice has been paid and your wallet balance credited with ${paymentRequest.amount} SATS.`,
           })
 
           setTransactionStatus(TransactionStatus.COMPLETED)
@@ -241,7 +241,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
             }
 
             if (lnurlWithdrawParams && amount < lnurlWithdrawParams?.minWithdrawable / 1000 ) {
-                infoMessage(`Minimal withdraw amount is ${lnurlWithdrawParams?.minWithdrawable / 1000} sats.`)          
+                infoMessage(`Minimal withdraw amount is ${lnurlWithdrawParams?.minWithdrawable / 1000} SATS.`)          
                 return
             }
 
@@ -368,7 +368,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
             const receiverPubkey = contactToSendTo?.pubkey
 
             // redable message
-            let message = `nostr:${walletProfileStore.npub} sent you Lightning invoice for ${amountToTopup} sats from Minibits wallet!`
+            let message = `nostr:${walletProfileStore.npub} sent you Lightning invoice for ${amountToTopup} SATS from Minibits wallet!`
             // invoice
             let content = message + ' \n' + invoiceToPay + ' \n'
             // parsable memo that overrides static default mint invoice description
@@ -1076,7 +1076,7 @@ const NostrDMInfoBlock = observer(function (props: {
                         size={spacing.medium}                    
                         color={tokenTextColor}                
                 />
-                <Text size='xxs' style={{color: tokenTextColor, marginBottom: -10}} text={`${props.amountToTopup} sats`} />
+                <Text size='xxs' style={{color: tokenTextColor, marginBottom: -10}} text={`${props.amountToTopup} SATS`} />
             </View>
             <Text size='xxs' style={{color: tokenTextColor, textAlign: 'center', marginRight: 30, marginBottom: 20}} text='...........' />
             <View style={{flexDirection: 'column', alignItems: 'center', width: 100}}>
@@ -1123,13 +1123,13 @@ const LnurlWithdrawBlock = observer(function (props: {
             leftIcon='faCheckCircle'
             leftIconColor={colors.palette.success200}
             text={`Withdrawal is available`}
-            subText={`Up to ${props.lnurlWithdrawParams.maxWithdrawable / 1000} sats are available to withdraw`}
+            subText={`Up to ${props.lnurlWithdrawParams.maxWithdrawable / 1000} SATS are available to withdraw`}
             topSeparator={true}
         />
         <ListItem 
             leftIcon='faCheckCircle'
             leftIconColor={colors.palette.success200}
-            text={`Invoice for ${props.amountToTopup} sats created`}
+            text={`Invoice for ${props.amountToTopup} SATS created`}
             subText={`Your selected mint balance to top up is ${props.mintBalanceToTopup.mint}`}
             bottomSeparator={true}
         />

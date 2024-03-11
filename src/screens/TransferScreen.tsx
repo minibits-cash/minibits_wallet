@@ -301,12 +301,12 @@ const onAmountEndEditing = async function () {
         }
 
         if (lnurlPayParams.minSendable && amount < lnurlPayParams.minSendable / 1000 ) {
-            infoMessage(`Minimal amount to pay is ${lnurlPayParams.minSendable / 1000} sats.`)          
+            infoMessage(`Minimal amount to pay is ${lnurlPayParams.minSendable / 1000} SATS.`)          
             return
         }
 
         if (lnurlPayParams.maxSendable && amount > lnurlPayParams.maxSendable / 1000 ) {
-            infoMessage(`Maximal amount to pay is ${lnurlPayParams.maxSendable / 1000} sats.`)          
+            infoMessage(`Maximal amount to pay is ${lnurlPayParams.maxSendable / 1000} SATS.`)          
             return
         }
 

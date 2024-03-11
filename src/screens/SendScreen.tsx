@@ -215,7 +215,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 try {
                     await NotificationService.createLocalNotification(
                         '🚀 That was fast!',
-                        `<b>${amountToSend} sats</b> were received by <b>${receiver}</b>.`,
+                        `<b>${amountToSend} SATS</b> were received by <b>${receiver}</b>.`,
                          contactToSendTo?.picture             
                     )
 
@@ -380,7 +380,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             const receiverPubkey = contactToSendTo?.pubkey
 
             // log.trace('', {senderPrivkey, senderPubkey, receiverPubkey}, 'sendAsNostrDM')
-            const message = `nostr:${walletProfileStore.npub} sent you ${amountToSend} sats from Minibits wallet!`
+            const message = `nostr:${walletProfileStore.npub} sent you ${amountToSend} SATS from Minibits wallet!`
             const content = message + ' \n' + encodedTokenToSend
 
             const encryptedContent = await NostrClient.encryptNip04(                
@@ -1205,7 +1205,7 @@ const NostDMInfoBlock = observer(function (props: {
                         size={spacing.medium}                    
                         color={tokenTextColor}                
                 />
-                <Text size='xxs' style={{color: tokenTextColor, marginBottom: -10}} text={`${props.amountToSend} sats`} />
+                <Text size='xxs' style={{color: tokenTextColor, marginBottom: -10}} text={`${props.amountToSend} SATS`} />
             </View>
             <Text size='xxs' style={{color: tokenTextColor, textAlign: 'center', marginRight: 30, marginBottom: 20}} text='...........' />
             <View style={{flexDirection: 'column', alignItems: 'center', width: 100}}>
