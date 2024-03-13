@@ -561,7 +561,8 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                     }
                 />
                 <CurrencySign 
-                    currencyCode={CurrencyCode.SATS}                    
+                    currencyCode={CurrencyCode.SATS}
+                    textStyle={{color: 'white'}}                    
                 />
           </View>
         </View>

@@ -569,6 +569,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 />
                 <CurrencySign 
                     currencyCode={CurrencyCode.SATS}
+                    textStyle={{color: 'white'}}
                 />
             </View>          
         </View>

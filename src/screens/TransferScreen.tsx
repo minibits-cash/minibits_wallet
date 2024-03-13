@@ -504,7 +504,8 @@ const satsColor = colors.palette.primary200
                         />    
                     ) : (
                         <CurrencySign 
-                            currencyCode={CurrencyCode.SATS}                        
+                            currencyCode={CurrencyCode.SATS}
+                            textStyle={{color: 'white'}}                        
                         />
                     )}                    
                 </View>

@@ -24,6 +24,7 @@ import {
   ErrorModal,
   InfoModal,
   Loading,
+  BottomModal,
 } from '../components'
 import {WalletStackScreenProps} from '../navigation'
 import {useHeader} from '../utils/useHeader'
@@ -32,7 +33,7 @@ import {maxTransactionsInModel} from '../models/TransactionsStore'
 import {Database, log} from '../services'
 import AppError from '../utils/AppError'
 import {TransactionListItem} from './Transactions/TransactionListItem'
-import type { Transaction } from '../models/Transaction'
+import { Transaction, TransactionStatus } from '../models/Transaction'
 
 
 interface TranHistoryScreenProps
@@ -51,6 +52,8 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
     useHeader({
       leftIcon: 'faArrowLeft',
       onLeftPress: () => navigation.goBack(),
+      rightIcon: 'faEllipsisVertical',
+      onRightPress: () => toggleDeleteModal()
     })
 
     const [showPendingOnly, setShowPendingOnly] = useState<boolean>(false)
@@ -58,21 +61,31 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState(false)
     const [isHeaderVisible, setIsHeaderVisible] = useState(true)
+    const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false)
     const [offset, setOffset] = useState<number>(transactionsStore.count) // load from db those that are not already displayed
     const [pendingOffset, setPendingOffset] = useState<number>(transactionsStore.pending.length) // load from db those that are not already displayed
     const [dbCount, setDbCount] = useState<number>(0)
     const [pendingDbCount, setPendingDbCount] = useState<number>(0)
+    const [expiredDbCount, setExpiredDbCount] = useState<number>(0)
+    const [erroredDbCount, setErroredDbCount] = useState<number>(0)
     const [isAll, setIsAll] = useState<boolean>(false)
     const [pendingIsAll, setPendingIsAll] = useState<boolean>(false)
 
     useEffect(() => {
+        setIsLoading(true)
         const count = Database.getTransactionsCount() // all
-        const pendingCount = Database.getTransactionsCount(true) // pending only
+        const pendingCount = Database.getTransactionsCount(TransactionStatus.PENDING)
+        const expiredCount = Database.getTransactionsCount(TransactionStatus.EXPIRED)
+        const erroredCount = Database.getTransactionsCount(TransactionStatus.ERROR)
         
         log.trace('transaction counts', {count, pendingCount})
 
         setDbCount(count)
         setPendingDbCount(pendingCount)
+        setExpiredDbCount(expiredCount)
+        setErroredDbCount(erroredCount)
+
+        setIsLoading(false)
 
         if (count <= limit) {  
             log.trace('setAll true')          
@@ -94,6 +107,10 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
             }            
         }
     }, [])
+
+    const toggleDeleteModal = () => {
+        setIsDeleteModalVisible(previousState => !previousState)
+    }
 
     const getTransactionsList = async function () {
         setIsLoading(true)
@@ -153,6 +170,7 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
         }
     }
 
+    
     const collapseHeader = function () {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)        
         setIsHeaderVisible(false)
@@ -166,6 +184,42 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
 
     const gotoTranDetail = function (id: number) {
         navigation.navigate('TranDetail', {id})
+    }
+
+
+    const onDeleteExpired = function () {
+        try {
+            toggleDeleteModal()
+            setIsLoading(true)
+            transactionsStore.deleteByStatus(TransactionStatus.EXPIRED)
+            
+            const count = Database.getTransactionsCount() // all            
+            const expiredCount = Database.getTransactionsCount(TransactionStatus.EXPIRED)
+    
+            setDbCount(count)            
+            setExpiredDbCount(expiredCount)            
+            setIsLoading(false)
+        } catch (e: any) {
+            handleError(e)
+        }        
+    }
+
+
+    const onDeleteErrored = function () {
+        try {
+            toggleDeleteModal()
+            setIsLoading(true)
+            transactionsStore.deleteByStatus(TransactionStatus.ERROR)
+            
+            const count = Database.getTransactionsCount() // all
+            const erroredCount = Database.getTransactionsCount(TransactionStatus.ERROR)
+    
+            setDbCount(count)
+            setErroredDbCount(erroredCount)
+            setIsLoading(false)
+        } catch (e: any) {
+            handleError(e)
+        }
     }
 
     const handleError = function (e: AppError): void {
@@ -204,7 +258,7 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
                     <Text style={$txAmount} text={`${pendingBalance}`} />
                   }
                   style={$item}
-                  bottomSeparator={true}
+                  // bottomSeparator={true}
                   onPress={toggleShowPendingOnly}
                 />
                 <ListItem
@@ -322,6 +376,29 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
           )}
           {isLoading && <Loading />}
         </View>
+        <BottomModal
+          isVisible={isDeleteModalVisible ? true : false}
+          style={{alignItems: 'stretch'}}            
+          ContentComponent={
+            <>
+                <ListItem
+                    text='Delete expired'
+                    subText={`This will delete ${expiredDbCount} expired transactions`}
+                    leftIcon='faRotate'
+                    onPress={onDeleteExpired}
+                    bottomSeparator={true}
+                /> 
+                <ListItem
+                    text="Delete with errors"
+                    subText={`This will delete ${erroredDbCount} transactions with errors`}
+                    leftIcon='faBug'                            
+                    onPress={onDeleteErrored}                                      
+                />
+            </> 
+          }
+          onBackButtonPress={toggleDeleteModal}
+          onBackdropPress={toggleDeleteModal}
+        />
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
       </Screen>

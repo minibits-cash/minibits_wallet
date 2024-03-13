@@ -165,7 +165,7 @@ const en = {
   },
   securityScreen: {
     encryptStorage: "Encrypt storage",
-    encryptStorageDescription: "Encrypt the storage that stores your ecash with the secret key generated on your device and stored in secure keys storage. On some Android devices, this may cause a slightly longer startup of the application.",
+    encryptStorageDescription: "Encrypt the storage that stores your ecash with the secret key generated on your device and stored in secure keys storage. Experimental, not recommended for every day use.",
     biometry: "Biometric authentication",
     biometryAvailable: "Your device supports biometric authentication. If you activate encrypted storage, it will be required for Minibits to start.",
     biometryNone: "You have not setup biometric authentication or your device does not support it.",

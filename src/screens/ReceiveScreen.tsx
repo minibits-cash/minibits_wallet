@@ -215,7 +215,8 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                     editable={false}
                 />
                 <CurrencySign 
-                    currencyCode={CurrencyCode.SATS}                        
+                    currencyCode={CurrencyCode.SATS}
+                    textStyle={{color: 'white'}}                       
                 />
             </View>
             ) : (
@@ -227,7 +228,8 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                     editable={false}
                 />
                 <CurrencySign 
-                    currencyCode={CurrencyCode.SATS}                        
+                    currencyCode={CurrencyCode.SATS}
+                    textStyle={{color: 'white'}}                        
                 />
             </View>
            )}

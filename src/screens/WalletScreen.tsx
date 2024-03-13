@@ -573,7 +573,8 @@ const TotalBalanceBlock = observer(function (props: {
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
             <CurrencySign 
                 currencyCode={CurrencyCode.SATS}
-                containerStyle={{marginTop: -10}}                
+                containerStyle={{marginTop: -10}}
+                textStyle={{color: 'white'}}               
             />
             <Text
                 testID='total-balance'
@@ -657,7 +658,7 @@ const MintsByHostnameListItem = observer(function (props: {
                         </Text>
                     </View>
                     }
-                    topSeparator={true}
+                    // topSeparator={true}
                     style={$item}
                     onPress={() => props.gotoMintInfo(mint.mintUrl)}
                 />
@@ -706,7 +707,7 @@ const $card: ViewStyle = {
 }
 
 const $cardHeading: TextStyle = {
-  fontFamily: typography.primary?.normal,
+  fontFamily: typography.primary?.medium,
   fontSize: verticalScale(18),
 }
 

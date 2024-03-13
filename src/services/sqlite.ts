@@ -372,23 +372,25 @@ const updateUserSettings = function (settings: UserSettings): UserSettings {
  * Transactions
  */
 
-const getTransactionsCount = function (isPending: boolean = false) {
+const getTransactionsCount = function (status?: TransactionStatus) {
     let query: string = ''
+    let params
     try {
         query = `
             SELECT COUNT(*) FROM transactions
         `
 
-        if(isPending) {
+        if(status) {
             query = `
                 SELECT COUNT(*) 
                 FROM transactions
-                WHERE status = 'PENDING'
+                WHERE status = ?
             `
+            params = [status]
         }
 
         const db = getInstance()
-        const {rows} = db.execute(query)
+        const {rows} = db.execute(query, params)
             
         return rows?.item(0)['COUNT(*)'] as number
     } catch (e: any) {
@@ -764,6 +766,31 @@ const getPendingAmount = function () {
   }
 }
 
+
+const deleteTransactionsByStatus = async function (status: TransactionStatus) {
+    try {
+      const query = `
+        DELETE FROM transactions
+        WHERE status = ?  
+      `
+      const params = [status]
+  
+      const db = getInstance()
+      const {rows} = db.execute(query, params)
+
+      log.debug('[deleteTransactionsByStatus]', 'Transactions were deleted', {status})
+
+      return rows
+
+    } catch (e: any) {
+      throw new AppError(
+        Err.DATABASE_ERROR,
+        'Could not delete transactions',
+        e.message,
+      )
+    }
+}
+
 /*
  * Proofs - backup of store model
  */
@@ -984,6 +1011,7 @@ export const Database = {
   updateSentFromAsync,
   updateSentToAsync,
   getTransactionsAsync,
+  deleteTransactionsByStatus,
   getPendingAmount,
   addOrUpdateProof,
   addOrUpdateProofs,

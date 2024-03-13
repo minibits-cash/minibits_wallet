@@ -1,6 +1,6 @@
 {
   "name": "minibits_wallet",
-  "version": "0.1.6-beta.32",
+  "version": "0.1.6-beta.33",
   "private": true,
   "scripts": {
     "android:clean": "cd android && ./gradlew clean",
@@ -16,9 +16,9 @@
   },
   "dependencies": {
     "@cashu/cashu-ts": "^0.9.0",
-    "@fortawesome/fontawesome-svg-core": "^6.4.0",
-    "@fortawesome/free-regular-svg-icons": "^6.4.0",
-    "@fortawesome/free-solid-svg-icons": "^6.4.0",
+    "@fortawesome/fontawesome-svg-core": "^6.5.1",
+    "@fortawesome/free-regular-svg-icons": "^6.5.1",
+    "@fortawesome/free-solid-svg-icons": "^6.5.1",
     "@fortawesome/react-native-fontawesome": "^0.3.0",
     "@gocodingnow/rn-size-matters": "^0.0.2",
     "@notifee/react-native": "^7.8.0",

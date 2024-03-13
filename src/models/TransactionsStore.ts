@@ -277,6 +277,16 @@ export const TransactionsStoreModel = types
                 log.debug('[updateSentTo]', 'Transaction sentTo updated in TransactionsStore', {id, sentTo})
             }
         }),
+        deleteByStatus: (status: TransactionStatus) => {            
+            for (const transaction of self.transactions) {
+                if(transaction.status === status) {
+                    detach(transaction)
+                    destroy(transaction)
+                }
+            }           
+
+            return Database.deleteTransactionsByStatus(status)
+        },
         removeAllTransactions() {
             self.transactions.clear()
             log.debug('[removeAllTransactions]', 'Removed all transactions from TransactionsStore')

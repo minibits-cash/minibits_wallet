@@ -132,7 +132,7 @@ export const iconRegistry = {
   faShareNodes: faShareNodes,
   faPaste: faPaste,
   faKeyboard: faKeyboard,
-}
+  }
 
 
 interface IconProps extends TouchableOpacityProps {
