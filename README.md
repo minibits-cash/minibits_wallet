@@ -67,7 +67,7 @@ Transaction history
 - [x] Filter pending transactions
 - [ ] Revert pending transaction in 1 click (get back tokens not claimed by receiver)
 - [ ] Tags and related filtering of transactions
-- [ ] Delete incomplete and failed transactions from history
+- [x] Delete incomplete and failed transactions from history [✨ New!]
 
 Contacts
 - [x] Private contacts address book for payments
