@@ -461,15 +461,15 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                     />
                                     {transactionsStore.recentByHostname(mints.hostname).length > 0 && (
                                         <Card                                    
-                                            ContentComponent={
-                                            <>
+                                            ContentComponent={                                            
                                                 <FlatList
                                                     data={transactionsStore.recentByHostname(mints.hostname) as Transaction[]}
                                                     renderItem={({item, index}) => {
                                                         return (<TransactionListItem
                                                             key={item.id}
-                                                            tx={item}
+                                                            transaction={item}
                                                             isFirst={index === 0}
+                                                            isTimeAgoVisible={true}
                                                             gotoTranDetail={gotoTranDetail}
                                                         />)
                                                         }
@@ -477,8 +477,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                                     // keyExtractor={(item, index) => item.id}
                                                     // contentContainerStyle={{paddingRight: spacing.small}}
                                                     style={{ maxHeight: 300 - (mints.mints.length > 1 ? mints.mints.length * 38 : 0)}}
-                                                />
-                                            </>
+                                                />                                            
                                             }
                                             style={[$card, {paddingTop: spacing.extraSmall}]}
                                         />

@@ -9,7 +9,7 @@ export interface TransactionRecord {
     data: string
     sentFrom?: string | null
     memo?: string | null  
-    mint?: string | null
+    mint: string
     balanceAfter?: number | null
     noteToSelf?: string | null
     tags?: Array<string> | null
@@ -53,7 +53,7 @@ export const TransactionModel = types
         sentFrom: types.maybe(types.maybeNull(types.string)),
         sentTo: types.maybe(types.maybeNull(types.string)),
         memo: types.maybe(types.maybeNull(types.string)),
-        mint: types.maybe(types.maybeNull(types.string)),
+        mint: types.string,
         balanceAfter: types.maybe(types.maybeNull(types.integer)),
         noteToSelf: types.maybe(types.maybeNull(types.string)),
         tags: types.maybe(types.maybeNull(types.array(types.string))),

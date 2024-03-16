@@ -8,12 +8,15 @@ import { colors, spacing, typography, useThemeColor } from "../../theme"
 import useIsInternetReachable from "../../utils/useIsInternetReachable"
 
 export interface TransactionListProps {
-  transaction: Transaction  
+  transaction: Transaction,
+  isFirst: boolean,
+  isTimeAgoVisible: boolean,
+  gotoTranDetail: any,
 }
 
-export const TransactionListItem = observer(function (props: {tx: Transaction, isFirst: boolean, gotoTranDetail: any}) {
+export const TransactionListItem = observer(function (props: TransactionListProps) {
   
-    const { tx } = props
+    const { transaction: tx, isTimeAgoVisible } = props
   
     const txReceiveColor = colors.palette.success300
     const txSendColor = useThemeColor('amount')
@@ -48,33 +51,35 @@ export const TransactionListItem = observer(function (props: {tx: Transaction, i
   
     const getSubText = function(tx: Transaction) {
   
-      const distance = formatDistance(tx.createdAt as Date, new Date(), {addSuffix: true})      
+      let distance = formatDistance(tx.createdAt as Date, new Date(), {addSuffix: true})
+      let timeAgo = ''
+      if (isTimeAgoVisible) timeAgo = `${distance} · `
   
       switch(tx.status) {
         case TransactionStatus.COMPLETED:
-          return distance + ` · Completed ${(tx.fee && tx.fee > 0) ? ' · Fee ' + tx.fee : ''}`
+          return timeAgo + `Completed ${(tx.fee && tx.fee > 0) ? ' · Fee ' + tx.fee : ''}`
         case TransactionStatus.DRAFT:
-          return distance + ` · Draft`
+          return timeAgo + `Draft`
         case TransactionStatus.ERROR:
-          return distance + ` · Error`
+          return timeAgo + `Error`
         case TransactionStatus.PENDING:
-          return distance + ` · Pending`
+          return timeAgo + `Pending`
         case TransactionStatus.PREPARED:
-          return distance + ` · Prepared`   
+          return timeAgo + `Prepared`   
         case TransactionStatus.PREPARED_OFFLINE:
             if(isInternetReachable) {
-                return distance + ` · Tap to redeem`  
+                return timeAgo + `Tap to redeem`  
             } else {
-                return distance + ` · Redeem online`  
+                return timeAgo + `Redeem online`  
             }            
         case TransactionStatus.REVERTED:
-            return distance + ` · Reverted` 
+            return timeAgo + `Reverted` 
         case TransactionStatus.BLOCKED:
-            return distance + ` · Blocked` 
+            return timeAgo + `Blocked` 
         case TransactionStatus.EXPIRED:
-            return distance + ` · Expired`       
+            return timeAgo + `Expired`       
         default:
-          return distance
+          return timeAgo
       }
     }
 
