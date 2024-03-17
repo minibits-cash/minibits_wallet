@@ -433,8 +433,9 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             <TotalBalanceBlock
                 totalBalance={balances.totalBalance}
                 pendingBalance={balances.totalPendingBalance}
+                isMoreThenOneMint={groupedMints.length > 1 ? true : false}
             />
-            <View style={$contentContainer}>
+            <View style={[$contentContainer, (groupedMints.length > 1) ? {marginTop: -spacing.extraLarge * 2.6} : {marginTop: -spacing.extraLarge * 2.2}]}>
                 {mintsStore.mintCount === 0 ? (
                     <PromoBlock addMint={addMint} />
                 ) : (
@@ -570,6 +571,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 const TotalBalanceBlock = observer(function (props: {
     totalBalance: number
     pendingBalance: number
+    isMoreThenOneMint: boolean
 }) {
     const headerBg = useThemeColor('header')
     const balanceColor = 'white'
@@ -580,7 +582,7 @@ const TotalBalanceBlock = observer(function (props: {
             <Text
                 testID='total-balance'
                 preset='heading'              
-                style={[$totalBalance, {color: balanceColor}]}            
+                style={[$totalBalance, props.isMoreThenOneMint ? {color: balanceColor} : {color: balanceColor, paddingTop: spacing.tiny}]}            
                 text={props.totalBalance.toLocaleString()}
             />
         </View>
@@ -692,8 +694,7 @@ const $buttonContainer: ViewStyle = {
 }
 
 const $contentContainer: TextStyle = {
-    padding: spacing.extraSmall,
-    marginTop: -spacing.extraLarge * 2.6,
+    padding: spacing.extraSmall,    
     flex: 0.85,
     // paddingTop: spacing.extraSmall - 3,
     // borderWidth: 1,
