@@ -15,7 +15,7 @@ import {
   Linking
 } from 'react-native'
 import codePush, { RemotePackage } from 'react-native-code-push'
-import {verticalScale} from '@gocodingnow/rn-size-matters'
+import {moderateVerticalScale, verticalScale} from '@gocodingnow/rn-size-matters'
 import { SvgXml } from 'react-native-svg'
 import PagerView, { PagerViewOnPageScrollEventData } from 'react-native-pager-view'
 import { ScalingDot } from 'react-native-animated-pagination-dots'
@@ -712,8 +712,8 @@ const $cardHeading: TextStyle = {
 }
 
 const $totalBalance: TextStyle = {
-    fontSize: 48,
-    fontWeight: '400',
+    fontSize: moderateVerticalScale(48),
+    lineHeight: moderateVerticalScale(48)
 }
 
 const $promoIconContainer: ViewStyle = {

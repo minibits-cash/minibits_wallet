@@ -42,7 +42,7 @@ import { DecodedLightningInvoice, LightningUtils } from '../services/lightning/l
 import { SendOption } from './SendOptionsScreen'
 import { roundDown, roundUp } from '../utils/number'
 import { LnurlClient, LNURLPayParams } from '../services/lnurlService'
-import { moderateScale, scale, verticalScale } from '@gocodingnow/rn-size-matters'
+import { moderateScale, moderateVerticalScale, scale, verticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
 import { FeeBadge } from './Wallet/FeeBadge'
 import { isObj } from '@cashu/cashu-ts/src/utils'
@@ -756,8 +756,8 @@ const $headerContainer: TextStyle = {
       borderRadius: spacing.small,
       margin: 0,
       padding: 0,
-      fontSize: 48,
-      fontWeight: '400',    
+      fontSize: moderateVerticalScale(48),
+      fontFamily: typography.primary?.medium,
       textAlign: 'center',
       color: 'white',    
   }

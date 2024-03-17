@@ -31,7 +31,7 @@ import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {MintListItem} from './Mints/MintListItem'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { resolveTxt } from 'dns'
-import { verticalScale } from '@gocodingnow/rn-size-matters'
+import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
 
 export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
@@ -431,8 +431,8 @@ const $amountToReceive: TextStyle = {
     borderRadius: spacing.small,
     margin: 0,
     padding: 0,
-    fontSize: 48,
-    fontWeight: '400',    
+    fontSize: moderateVerticalScale(48),
+    fontFamily: typography.primary?.medium,
     textAlign: 'center',
     color: 'white',    
 }

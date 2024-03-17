@@ -58,7 +58,7 @@ import { Contact } from '../models/Contact'
 import { getImageSource, infoMessage } from '../utils/utils'
 import { NotificationService } from '../services/notificationService'
 import { SendOption } from './SendOptionsScreen'
-import { verticalScale } from '@gocodingnow/rn-size-matters'
+import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
 
 
@@ -1257,8 +1257,8 @@ const $amountInput: TextStyle = {
     borderRadius: spacing.small,
     margin: 0,
     padding: 0,
-    fontSize: 48,
-    fontWeight: '400',    
+    fontSize: moderateVerticalScale(48),
+    fontFamily: typography.primary?.medium,
     textAlign: 'center',
     color: 'white',    
 }
