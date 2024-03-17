@@ -201,38 +201,39 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
     return (
       <Screen preset="auto" contentContainerStyle={$screen}>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-            <Text
-                preset="subheading"
-                tx={receivedAmount > 0 ? "receiveScreen.received" : "receiveScreen.toReceive"}
-                style={{color: 'white'}}
-            />
+
             {receivedAmount > 0 ? (
             <View style={$amountContainer}>
+                <CurrencySign 
+                    currencyCode={CurrencyCode.SATS}
+                    textStyle={{color: 'white'}}                       
+                />
                 <TextInput                                        
                     value={receivedAmount.toLocaleString()}
                     style={$amountToReceive}
                     maxLength={9}                    
                     editable={false}
                 />
-                <CurrencySign 
-                    currencyCode={CurrencyCode.SATS}
-                    textStyle={{color: 'white'}}                       
-                />
             </View>
             ) : (
             <View style={$amountContainer}>
+                <CurrencySign 
+                    currencyCode={CurrencyCode.SATS}
+                    textStyle={{color: 'white'}}                        
+                />
                 <TextInput                                        
                     value={amountToReceive.toLocaleString()}
                     style={$amountToReceive}
                     maxLength={9}                    
                     editable={false}
                 />
-                <CurrencySign 
-                    currencyCode={CurrencyCode.SATS}
-                    textStyle={{color: 'white'}}                        
-                />
             </View>
            )}
+            <Text
+                size='sm'
+                tx={receivedAmount > 0 ? "receiveScreen.received" : "receiveScreen.toReceive"}
+                style={{color: 'white', textAlign: 'center'}}
+            />
         </View>
         <View style={$contentContainer}>          
           {token && amountToReceive > 0 && (
@@ -430,7 +431,7 @@ const $amountToReceive: TextStyle = {
     borderRadius: spacing.small,
     margin: 0,
     padding: 0,
-    fontSize: 52,
+    fontSize: 48,
     fontWeight: '400',    
     textAlign: 'center',
     color: 'white',    

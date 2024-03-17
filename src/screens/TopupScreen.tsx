@@ -74,7 +74,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     // const tokenInputRef = useRef<TextInput>(null)
 
     const [paymentOption, setPaymentOption] = useState<ReceiveOption>(ReceiveOption.SHOW_INVOICE)
-    const [amountToTopup, setAmountToTopup] = useState<string>('')
+    const [amountToTopup, setAmountToTopup] = useState<string>('0')
     const [contactToSendFrom, setContactToSendFrom] = useState<Contact| undefined>()    
     const [contactToSendTo, setContactToSendTo] = useState<Contact| undefined>()        
     const [relaysToShareTo, setRelaysToShareTo] = useState<string[]>([])
@@ -540,13 +540,12 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
     return (
       <Screen preset="fixed" contentContainerStyle={$screen}>
-        <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-            <Text
-                preset="subheading"
-                text={getAmountTitle()}
-                style={{color: 'white'}}
-            />
+        <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
             <View style={$amountContainer}>
+                <CurrencySign 
+                    currencyCode={CurrencyCode.SATS}
+                    textStyle={{color: 'white'}}                    
+                />
                 <TextInput
                     ref={amountInputRef}
                     onChangeText={amount => setAmountToTopup(amount)}                    
@@ -560,9 +559,10 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                         transactionStatus === TransactionStatus.PENDING ? false : true
                     }
                 />
-                <CurrencySign 
-                    currencyCode={CurrencyCode.SATS}
-                    textStyle={{color: 'white'}}                    
+                <Text
+                    size='sm'
+                    text={getAmountTitle()}
+                    style={{color: 'white', textAlign: 'center'}}
                 />
           </View>
         </View>
@@ -964,9 +964,9 @@ const SendAsNostrDMBlock = observer(function (props: {
     return (
       <View style={$bottomModal}>
         <NostrDMInfoBlock
-            contactToSendFrom={props.contactToSendFrom}
+            contactToSendFrom={props.contactToSendFrom as NostrProfile}
             amountToTopup={props.amountToTopup}
-            contactToSendTo={props.contactToSendTo}
+            contactToSendTo={props.contactToSendTo as NostrProfile}
         />
         <ScrollView
           style={[
@@ -1211,7 +1211,7 @@ const $headerContainer: TextStyle = {
       borderRadius: spacing.small,
       margin: 0,
       padding: 0,
-      fontSize: 52,
+      fontSize: 48,
       fontWeight: '400',    
       textAlign: 'center',
       color: 'white',    

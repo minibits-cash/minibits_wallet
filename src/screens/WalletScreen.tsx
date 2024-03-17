@@ -404,11 +404,18 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const iconInfo = useThemeColor('textDim')
 
     return (        
-      <Screen preset='fixed' contentContainerStyle={$screen}>
+      <Screen contentContainerStyle={$screen}>
             <Header 
                 leftIcon='faListUl'
                 leftIconColor={colors.palette.primary100}
                 onLeftPress={gotoTranHistory}
+                TitleActionComponent={
+                    <CurrencySign 
+                        currencyCode={CurrencyCode.SATS}
+                        // containerStyle={{}}
+                        textStyle={{color: 'white'}}              
+                    />
+                }
                 RightActionComponent={
                 <>
                     {paymentRequestsStore.countNotExpired > 0 && (
@@ -427,7 +434,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 totalBalance={balances.totalBalance}
                 pendingBalance={balances.totalPendingBalance}
             />
-            <View style={[$contentContainer, groupedMints.length > 1 && ({marginTop: -spacing.extraLarge * 2.5})]}>
+            <View style={$contentContainer}>
                 {mintsStore.mintCount === 0 ? (
                     <PromoBlock addMint={addMint} />
                 ) : (
@@ -449,11 +456,11 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                             testID="pager-view"
                             initialPage={0}
                             ref={pagerRef}
-                            style={{ flexGrow: 1}}                                             
+                            style={{flexGrow: 1}}                                             
                             onPageScroll={onPageScroll}
                         >
                             {groupedMints.map((mints) => (
-                                <View key={mints.hostname} style={{marginHorizontal: spacing.extraSmall, flexGrow: 1}}>
+                                <View key={mints.hostname}>
                                     <MintsByHostnameListItem                                    
                                         mintsByHostname={mints}
                                         mintBalances={balances.mintBalances.filter(balance => balance.mint.includes(mints.hostname))}
@@ -570,15 +577,10 @@ const TotalBalanceBlock = observer(function (props: {
 
     return (
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-            <CurrencySign 
-                currencyCode={CurrencyCode.SATS}
-                containerStyle={{marginTop: -10}}
-                textStyle={{color: 'white'}}               
-            />
             <Text
                 testID='total-balance'
                 preset='heading'              
-                style={{color: balanceColor}}            
+                style={[$totalBalance, {color: balanceColor}]}            
                 text={props.totalBalance.toLocaleString()}
             />
         </View>
@@ -605,7 +607,7 @@ const PromoBlock = function (props: {addMint: any}) {
                 </RNText>
             </View>
             }
-            style={[$card, {marginHorizontal: spacing.extraSmall}]}
+            style={[$card, {marginTop: spacing.small}]}
             FooterComponent={
             <View style={{alignItems: 'center'}}>
                 <Button
@@ -636,7 +638,8 @@ const MintsByHostnameListItem = observer(function (props: {
             <ListItem
                 text={props.mintsByHostname.hostname}
                 textStyle={$cardHeading}
-                style={{marginHorizontal: spacing.micro}}                
+                style={{marginHorizontal: spacing.micro}}
+                //bottomSeparator={true}                
             />
             }
             ContentComponent={
@@ -677,37 +680,40 @@ const $screen: ViewStyle = {
 }
 
 const $headerContainer: TextStyle = {
-  alignItems: 'center',
-  paddingBottom: spacing.medium,
-  paddingTop: 0,
-  marginTop: 0,
-  height: spacing.screenHeight * 0.18,
-  // borderWidth: 1,
-  // borderColor: 'red',
+    alignItems: 'center',
+    padding: spacing.tiny,  
+    height: spacing.screenHeight * 0.18,
 }
 
 const $buttonContainer: ViewStyle = {
-  flexDirection: 'row',
-  alignSelf: 'center',
-  marginTop: spacing.medium,
+    flexDirection: 'row',
+    alignSelf: 'center',
+    marginTop: spacing.medium,
 }
 
 const $contentContainer: TextStyle = {
-  marginTop: -spacing.extraLarge * 2,
-  flex: 0.9,
-  paddingTop: spacing.extraSmall - 3,
-  // borderWidth: 1,
-  // borderColor: 'green',
+    padding: spacing.extraSmall,
+    marginTop: -spacing.extraLarge * 2.6,
+    flex: 0.85,
+    // paddingTop: spacing.extraSmall - 3,
+    // borderWidth: 1,
+    // borderColor: 'green',
 }
 
 const $card: ViewStyle = {
   marginBottom: spacing.small,
   paddingTop: 0,
+  // alignSelf: 'stretch'
 }
 
 const $cardHeading: TextStyle = {
   fontFamily: typography.primary?.medium,
   fontSize: verticalScale(18),
+}
+
+const $totalBalance: TextStyle = {
+    fontSize: 48,
+    fontWeight: '400',
 }
 
 const $promoIconContainer: ViewStyle = {

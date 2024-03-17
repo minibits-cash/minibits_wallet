@@ -67,7 +67,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
 
     const [encodedInvoice, setEncodedInvoice] = useState<string>('')
     const [invoice, setInvoice] = useState<DecodedLightningInvoice | undefined>()
-    const [amountToTransfer, setAmountToTransfer] = useState<string>('')
+    const [amountToTransfer, setAmountToTransfer] = useState<string>('0')
     const [invoiceExpiry, setInvoiceExpiry] = useState<Date | undefined>()
     const [paymentHash, setPaymentHash] = useState<string | undefined>()
     const [lnurlPayParams, setLnurlPayParams] = useState<LNURLPayParams & {address?: string} | undefined>()
@@ -475,14 +475,12 @@ const satsColor = colors.palette.primary200
 
     return (
         <Screen preset="fixed" contentContainerStyle={$screen}>
-            <View style={[$headerContainer, {backgroundColor: headerBg}]}>                
-                
-                <Text
-                    preset="subheading"
-                    text="Amount to pay"
-                    style={{color: 'white'}}
-                />
-                <View style={$amountContainer}>                    
+            <View style={[$headerContainer, {backgroundColor: headerBg}]}>
+                <View style={$amountContainer}>
+                    <CurrencySign 
+                        currencyCode={CurrencyCode.SATS}
+                        textStyle={{color: 'white'}}                        
+                    />
                     <TextInput
                         ref={amountInputRef}
                         onChangeText={amount => setAmountToTransfer(amount)}                                
@@ -496,6 +494,7 @@ const satsColor = colors.palette.primary200
                             encodedInvoice ? false : true
                         }
                     />
+
                     {encodedInvoice && (estimatedFee || finalFee) ? (
                         <FeeBadge
                             currencyCode={CurrencyCode.SATS}
@@ -503,11 +502,12 @@ const satsColor = colors.palette.primary200
                             finalFee={finalFee}              
                         />    
                     ) : (
-                        <CurrencySign 
-                            currencyCode={CurrencyCode.SATS}
-                            textStyle={{color: 'white'}}                        
+                        <Text
+                            size='sm'
+                            text={'Amount to pay'}
+                            style={{color: 'white', textAlign: 'center'}}
                         />
-                    )}                    
+                    )}
                 </View>
             </View>
             <View style={$contentContainer}>
@@ -756,7 +756,7 @@ const $headerContainer: TextStyle = {
       borderRadius: spacing.small,
       margin: 0,
       padding: 0,
-      fontSize: 52,
+      fontSize: 48,
       fontWeight: '400',    
       textAlign: 'center',
       color: 'white',    

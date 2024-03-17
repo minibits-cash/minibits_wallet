@@ -83,7 +83,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     
     const [paymentOption, setPaymentOption] = useState<SendOption>(SendOption.SHOW_TOKEN)
     const [encodedTokenToSend, setEncodedTokenToSend] = useState<string | undefined>()
-    const [amountToSend, setAmountToSend] = useState<string>('')
+    const [amountToSend, setAmountToSend] = useState<string>('0')
     const [contactToSendFrom, setContactToSendFrom] = useState<Contact| undefined>()    
     const [contactToSendTo, setContactToSendTo] = useState<Contact| undefined>()        
     const [relaysToShareTo, setRelaysToShareTo] = useState<string[]>([])
@@ -545,13 +545,12 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
     return (
       <Screen preset="fixed" contentContainerStyle={$screen}>
-        <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-            <Text
-                preset="subheading"
-                text="Amount to send"
-                style={{color: 'white'}}
-            />          
+        <View style={[$headerContainer, {backgroundColor: headerBg}]}>        
             <View style={$amountContainer}>
+                <CurrencySign 
+                    currencyCode={CurrencyCode.SATS}
+                    textStyle={{color: 'white'}}
+                />
                 <TextInput
                     ref={amountInputRef}
                     onChangeText={amount => setAmountToSend(amount)}                
@@ -567,10 +566,11 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                             : true
                     }
                 />
-                <CurrencySign 
-                    currencyCode={CurrencyCode.SATS}
-                    textStyle={{color: 'white'}}
-                />
+                <Text
+                    size='sm'
+                    text="Amount to send"
+                    style={{color: 'white', textAlign: 'center'}}
+                />  
             </View>          
         </View>
         <View style={$contentContainer}>
@@ -1257,7 +1257,7 @@ const $amountInput: TextStyle = {
     borderRadius: spacing.small,
     margin: 0,
     padding: 0,
-    fontSize: 52,
+    fontSize: 48,
     fontWeight: '400',    
     textAlign: 'center',
     color: 'white',    
