@@ -8,19 +8,12 @@ import {
   Icon,
   Card,
   Screen,
-  InfoModal,
-  ErrorModal,
   ListItem,
-  BottomModal,
   Text,
-  ScanIcon,
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
 import AppError from '../utils/AppError'
-import { IncomingDataType } from '../services/incomingParser'
-import { SvgXml } from 'react-native-svg'
-import { NutIcon } from '../components/NutIcon'
 
 export enum SendOption {
     SEND_TOKEN = 'SEND_TOKEN',
@@ -28,6 +21,7 @@ export enum SendOption {
     SHOW_TOKEN = 'SHOW_TOKEN',
     PAY_PAYMENT_REQUEST = 'PAY_PAYMENT_REQUEST',
     LNURL_PAY = 'LNURL_PAY',
+    LNURL_ADDRESS = 'LNURL_ADDRESS',
     DONATION = 'DONATION',
 }
 

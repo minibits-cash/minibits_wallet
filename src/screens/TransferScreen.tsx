@@ -251,7 +251,14 @@ useEffect(() => {
             }
 
             setEstimatedFee(fee)
-        } catch (e: any) {            
+        } catch (e: any) { 
+            // hack to detect and resolve zap deeplinks replayed for yet unknown reason
+            if(e.message?.includes('quote already paid')) {
+                resetState()
+                navigation.popToTop()
+                return
+            }
+                       
             handleError(e)
         }
     }
@@ -381,79 +388,84 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
 
 const transfer = async function () {
     setIsLoading(true)
+       
+    const {transaction, message, error, finalFee} = await Wallet.transfer(
+        mintBalanceToTransferFrom as MintBalance,
+        parseInt(amountToTransfer),
+        estimatedFee,
+        invoiceExpiry as Date,
+        memo,
+        encodedInvoice,
+    )
 
-    try {   
-        const {transaction, message, error, finalFee} = await Wallet.transfer(
-            mintBalanceToTransferFrom as MintBalance,
-            parseInt(amountToTransfer),
-            estimatedFee,
-            invoiceExpiry as Date,
-            memo,
-            encodedInvoice,
-        )
+    log.trace('[transfer]', 'Transfer result', {transaction, message, error, finalFee})
 
-        log.trace('[transfer]', 'Transfer result', {transaction, message, error, finalFee})
+    // handle errors before transaction is created
+    if (!transaction && error) {
 
-        const {status} = transaction as Transaction
-        setTransactionStatus(status)
-
-        if(transaction && lnurlPayParams && lnurlPayParams.address) {
-            await transactionsStore.updateSentTo( // set ln address to send to to the tx, could be elsewhere //
-                transaction.id as number,                    
-                lnurlPayParams.address as string
-            )
-        }
-
-        if (error) { // This handles timed out pending payments           
-
-            if(status === TransactionStatus.PENDING) {
-                setResultModalInfo({
-                    status,                    
-                    message,
-                })
-            } else {
-                setResultModalInfo({
-                    status,
-                    title: error.params?.message ? error.message : 'Payment failed',
-                    message: error.params?.message || error.message,
-                })
-            }
-            
-
-        } else {
-            if(!isInvoiceDonation) {  // Donation polling triggers own ResultModal on paid invoice
-                setResultModalInfo({
-                    status,
-                    message,
-                })
-            }
-            
-            // update related paymentRequest status if exists
-            if(paymentHash) {
-                const pr = paymentRequestsStore.findByPaymentHash(paymentHash)
-
-                if(pr) {
-                    pr.setStatus(PaymentRequestStatus.PAID)
-                }
-            }
-        }
-
-        if (finalFee) {
-            setFinalFee(finalFee)
-        }
+        setTransactionStatus(TransactionStatus.ERROR)
+        setResultModalInfo({
+            status: TransactionStatus.ERROR,                    
+            message: error.message,
+        })
 
         setIsLoading(false)
-        
-        if(!isInvoiceDonation || error) {
-            toggleResultModal()
-        }
-    }catch (e: any) {
-        // Handle errors before transaction is created
-        resetState()
-        handleError(e)
+        toggleResultModal()
+        return
+    }
+    
+    const { status } = transaction as Transaction
+    setTransactionStatus(status)
+
+    if(transaction && lnurlPayParams && lnurlPayParams.address) {
+        await transactionsStore.updateSentTo( // set ln address to send to to the tx, could be elsewhere //
+            transaction.id as number,                    
+            lnurlPayParams.address as string
+        )
     }
 
+    if (error) { // This handles timed out pending payments           
 
+        if(status === TransactionStatus.PENDING) {
+            setResultModalInfo({
+                status,                    
+                message,
+            })
+        } else {
+            setResultModalInfo({
+                status,
+                title: error.params?.message ? error.message : 'Payment failed',
+                message: error.params?.message || error.message,
+            })
+        }        
+
+    } else {
+        if(!isInvoiceDonation) {  // Donation polling triggers own ResultModal on paid invoice
+            setResultModalInfo({
+                status,
+                message,
+            })
+        }
+        
+        // update related paymentRequest status if exists
+        if(paymentHash) {
+            const pr = paymentRequestsStore.findByPaymentHash(paymentHash)
+
+            if(pr) {
+                pr.setStatus(PaymentRequestStatus.PAID)
+            }
+        }
+    }
+
+    if (finalFee) {
+        setFinalFee(finalFee)
+    }
+
+    setIsLoading(false)
+    
+    if(!isInvoiceDonation || error) {
+        toggleResultModal()
+    }
 }
     
 
@@ -608,7 +620,8 @@ const satsColor = colors.palette.primary200
                                 </View>
                             </>
                         )}
-                        {resultModalInfo && transactionStatus === TransactionStatus.REVERTED && (
+                        {resultModalInfo && 
+                            transactionStatus === TransactionStatus.REVERTED && (
                             <>
                                 <ResultModalInfo
                                     icon="faRotate"

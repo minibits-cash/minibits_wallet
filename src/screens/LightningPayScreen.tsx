@@ -20,6 +20,7 @@ import { LnurlUtils } from '../services/lnurl/lnurlUtils'
 import { infoMessage } from '../utils/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { SvgXml } from 'react-native-svg'
+import { SendOption } from './SendOptionsScreen'
 
 
 export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = function LightningPayScreen(_props) {
@@ -62,9 +63,16 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
     }
 
 
-    const onScan = async function () {
+    const gotoScan = async function () {
         lightningInputRef.current?.blur()
         navigation.navigate('Scan')
+    }
+
+
+    const gotoContacts = function () {
+        navigation.navigate('ContactsNavigator', {
+            screen: 'Contacts', 
+            params: {paymentOption: SendOption.LNURL_ADDRESS}})
     }
 
 
@@ -144,6 +152,15 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                             leftIconColor={colors.palette.orange400}
                             text='Pay with Lightning'
                             bottomSeparator={true}
+                            RightComponent={
+                                <Button
+                                    preset='tertiary'                                    
+                                    LeftAccessory={() => <Icon containerStyle={{paddingVertical: 0}} icon='faAddressBook' />}
+                                    onPress={gotoContacts}
+                                    text='Contacts'
+                                    textStyle={{fontSize: 12, color: hintText}}
+                                />
+                            }
                         />
                     }
                     ContentComponent={
@@ -180,14 +197,14 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                                 preset='default'
                                 tx={'common.confirm'}
                                 onPress={onConfirm}
-                                style={{marginLeft: spacing.small, minWidth: 120}}
+                                style={{marginLeft: spacing.small}}
                                 LeftAccessory={() => <Icon icon='faCheckCircle'/>}
                             />
                             <Button
                                 preset='secondary'
                                 tx={'common.scan'}
-                                onPress={onScan}
-                                style={{marginLeft: spacing.small, minWidth: 120}}
+                                onPress={gotoScan}
+                                style={{marginLeft: spacing.small}}
                                 LeftAccessory={() => {
                                     return(
                                         <SvgXml 
@@ -195,7 +212,7 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                                             height={spacing.medium} 
                                             xml={ScanIcon}
                                             fill='white'
-                                            style={{marginRight: spacing.extraSmall}}
+                                            style={{marginHorizontal: spacing.extraSmall}}
                                         />
                                     )
                                 }}

@@ -16,6 +16,7 @@ import { StackNavigationProp } from '@react-navigation/stack'
 import { ReceiveOption } from '../ReceiveOptionsScreen'
 import { SendOption } from '../SendOptionsScreen'
 import { infoMessage, warningMessage } from '../../utils/utils'
+import { IncomingDataType, IncomingParser } from '../../services/incomingParser'
 
 
 
@@ -35,13 +36,7 @@ export const PrivateContacts = observer(function (props: {
     const [error, setError] = useState<AppError | undefined>()
    
     useEffect(() => {        
-        const { paymentOption } = props
-
-        if (paymentOption) {
-            if(relaysStore.allPublicRelays.length === 0) {
-                relaysStore.addDefaultRelays()
-            }
-        }
+        const { paymentOption } = props        
 
         if (paymentOption && paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) {
             infoMessage('Select contact to send your payment request to.')
@@ -49,6 +44,10 @@ export const PrivateContacts = observer(function (props: {
 
         if (paymentOption && paymentOption === SendOption.SEND_TOKEN) {
             infoMessage('Select contact to send your ecash to.')
+        }
+
+        if (paymentOption && paymentOption === SendOption.LNURL_ADDRESS) {
+            infoMessage('Select contact to send Lightning payment to.')
         }
     }, [])
     
@@ -185,8 +184,8 @@ export const PrivateContacts = observer(function (props: {
                 })
                 setIsLoading(false)
                 return
-
             }
+
 
             if(paymentOption && paymentOption === SendOption.SEND_TOKEN) { // Send tx contact selection
                 setIsLoading(true)
@@ -212,11 +211,36 @@ export const PrivateContacts = observer(function (props: {
                 return
             }
 
+
+            if(paymentOption && paymentOption === SendOption.LNURL_ADDRESS) {
+                if(!contact.lud16) {
+                    setInfo('This contact does not have a Lightning address, send ecash instead.')
+                    return
+                }
+
+                await IncomingParser.navigateWithIncomingData({
+                    type: IncomingDataType.LNURL_ADDRESS,
+                    encoded: contact.lud16
+                }, navigation)
+
+                //reset
+                navigation.setParams({
+                    paymentOption: undefined,
+                })
+
+                return
+            }
+
             navigation.navigate('ContactDetail', {                   
                 contact, 
                 relays    // TODO remove, switch to relaysStore 
             })
         } catch (e: any) {
+            // reset so that invalid contact can be deleted
+            navigation.setParams({
+                paymentOption: undefined,
+            })
+
             handleError(e)
         }
     }

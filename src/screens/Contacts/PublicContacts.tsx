@@ -16,6 +16,7 @@ import { SendOption } from '../SendOptionsScreen'
 import { ReceiveOption } from '../ReceiveOptionsScreen'
 import { useSafeAreaInsetsStyle } from '../../utils/useSafeAreaInsetsStyle'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { IncomingDataType, IncomingParser } from '../../services/incomingParser'
 
 
 // const defaultPublicNpub = 'npub14n7frsyufzqsxlvkx8vje22cjah3pcwnnyqncxkuj2243jvt9kmqsdgs52'
@@ -338,7 +339,7 @@ export const PublicContacts = observer(function (props: {
     }
 
 
-    const gotoContactDetail = function (contact: Contact) {
+    const gotoContactDetail = async function (contact: Contact) {
         const {paymentOption} = props
         contact.type = ContactType.PUBLIC      // ???
 
@@ -378,6 +379,31 @@ export const PublicContacts = observer(function (props: {
                 paymentOption: undefined,
             })
 
+            return
+        }
+
+
+        if(paymentOption && paymentOption === SendOption.LNURL_ADDRESS) {
+            if(!contact.lud16) {
+                setInfo('This contact does not have a Lightning address, send ecash instead.')
+                //reset
+                navigation.setParams({
+                    paymentOption: undefined,
+                })
+                return
+            }
+            setIsLoading(true)
+            await IncomingParser.navigateWithIncomingData({
+                type: IncomingDataType.LNURL_ADDRESS,
+                encoded: contact.lud16
+            }, navigation)
+            setIsLoading(false)
+
+            //reset
+            navigation.setParams({
+                paymentOption: undefined,
+            })
+            
             return
         }
 
