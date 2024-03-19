@@ -63,7 +63,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
     const [mnemonicExists, setMnemonicExists] = useState(false)
     const [isValidMnemonic, setIsValidMnemonic] = useState(false)
     const [seed, setSeed] = useState<Uint8Array>()
-    const [selectedMint, setSelectedMint] = useState<Mint | undefined>()
+    const [selectedMintUrl, setselectedMintUrl] = useState<string | undefined>()
     const [startIndexString, setStartIndexString] = useState<string>('0')
     const [startIndex, setStartIndex] = useState<number>(0) // start of interval of indexes of proofs to recover
     const [endIndex, setEndIndex] = useState<number>(RESTORE_INDEX_INTERVAL) // end of interval
@@ -163,7 +163,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
 
 
     const onMintSelect = function (mint: Mint) {
-        setSelectedMint(mint)
+        setselectedMintUrl(mint.mintUrl)
         setStartIndex(0)
         setEndIndex(RESTORE_INDEX_INTERVAL)
     }
@@ -180,7 +180,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
     }
   
     const startRecovery = async function () {
-        if(!selectedMint) {
+        if(!selectedMintUrl) {
             setInfo('Select mint to recover from.')
             return
         }
@@ -199,17 +199,18 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
 
         const pendingTransactionData: TransactionData[] = []
         let pendingTransactionId: number = 0
+        let recoveredMint = mintsStore.findByUrl(selectedMintUrl as string)
 
         try {
-            if(!selectedMint) {                
+            if(!recoveredMint) {                
                 return
             }
             // TODO allow input or get previous keysets from mint and try to restore from them
-            setStatusMessage(`Restoring from ${selectedMint.hostname}...`)
-            log.info('[restore]', `Restoring from ${selectedMint.hostname}...`)
+            setStatusMessage(`Restoring from ${recoveredMint.hostname}...`)
+            log.info('[restore]', `Restoring from ${recoveredMint.hostname}...`)
             
             const { proofs, newKeys } = await MintClient.restore(
-                selectedMint.mintUrl, 
+                recoveredMint.mintUrl, 
                 startIndex, 
                 endIndex,
                 seed as Uint8Array
@@ -220,12 +221,12 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
             
             if (proofs.length > 0) {
                 // need to move counter by whole interval to avoid duplicate _B!!!
-                selectedMint.increaseProofsCounter(Math.abs(endIndex - startIndex))
+                recoveredMint.increaseProofsCounter(Math.abs(endIndex - startIndex))
         
-                if(newKeys) {updateMintKeys(selectedMint.mintUrl as string, newKeys)}
+                if(newKeys) {updateMintKeys(recoveredMint.mintUrl as string, newKeys)}
                 
                 const {spent, pending} = await MintClient.getSpentOrPendingProofsFromMint(
-                    selectedMint.mintUrl,
+                    recoveredMint.mintUrl,
                     proofs as Proof[]
                 )
 
@@ -257,7 +258,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                         amount,
                         data: JSON.stringify(transactionData),
                         memo: 'Wallet recovery',
-                        mint: selectedMint.mintUrl,
+                        mint: recoveredMint.mintUrl,
                         status: TransactionStatus.PREPARED,
                     }
 
@@ -266,7 +267,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
 
                     const { amountToAdd, addedAmount } = addCashuProofs(
                         unspent,
-                        selectedMint.mintUrl,
+                        recoveredMint.mintUrl,
                         transactionId as number                
                     )                    
 
@@ -299,7 +300,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                 if(pending && pending.length > 0) {
 
                     setStatusMessage(`Found ${pending.length} pending proofs...`)
-                    log.debug(`Found pending ecash with ${selectedMint.hostname}...`)
+                    log.debug(`Found pending ecash with ${recoveredMint.hostname}...`)
 
                     const amount = CashuUtils.getProofsAmount(pending as Proof[])
                     
@@ -315,7 +316,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                         amount,
                         data: JSON.stringify(transactionData),
                         memo: 'Wallet recovery - pending',
-                        mint: selectedMint.mintUrl,
+                        mint: recoveredMint.mintUrl,
                         status: TransactionStatus.PREPARED,
                     }
 
@@ -324,7 +325,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
 
                     const { amountToAdd, addedAmount } = addCashuProofs(
                         pending,
-                        selectedMint.mintUrl,
+                        recoveredMint.mintUrl,
                         pendingTransactionId as number,
                         true  // isPending = true              
                     )
@@ -352,11 +353,11 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
 
         } catch(e: any) {
             
-            if (selectedMint) {
-                e.params = {mintUrl: selectedMint.mintUrl}
+            if (selectedMintUrl) {
+                e.params = {mintUrl: selectedMintUrl}
             }
 
-            log.error(e, {mintUrl: selectedMint?.mintUrl})
+            log.error(e)
             errors.push(e)
 
             if (transactionId > 0) {
@@ -627,7 +628,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                                   mintBalance={proofsStore.getMintBalance(mint.mintUrl)}
                                   onMintSelect={() => onMintSelect(mint)}
                                   isSelectable={true}
-                                  isSelected={selectedMint?.mintUrl === mint.mintUrl}                                  
+                                  isSelected={selectedMintUrl === mint.mintUrl}                                  
                                   separator={index === 0 ? 'both' : 'bottom'}
                                 />
                               ))}
@@ -635,7 +636,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                         }
                         FooterComponent={
                             <>
-                                {mintsStore.mintCount > 0 && selectedMint && (
+                                {mintsStore.mintCount > 0 && selectedMintUrl && (
                                 <>
                                     <View style={$buttonContainer}> 
                                         {(startIndex > 0 || totalRecoveredAmount) > 0 && (
@@ -649,7 +650,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                                             onPress={startRecovery}
                                             text={startIndex === 0 ? 'Start recovery' : 'Next interval'}
                                             preset={(startIndex === 0 ||  totalRecoveredAmount > 0) ? 'default' : 'secondary'}
-                                            disabled={selectedMint ? false : true}    
+                                            disabled={selectedMintUrl ? false : true}    
                                         />                        
                                     </View>
 
@@ -669,7 +670,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                                     </View>
                                 </>  
                                 )}
-                                {mintsStore.mintCount > 0 && !selectedMint && (
+                                {mintsStore.mintCount > 0 && !selectedMintUrl && (
                                     <Text 
                                         text={`Select mint to recover from`} 
                                         size='xxs' 

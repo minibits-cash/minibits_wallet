@@ -54,8 +54,8 @@ export const SendOptionsScreen: FC<WalletStackScreenProps<'SendOptions'>> = obse
     }
 
 
-    const onScan = async function () {
-        navigation.navigate('Scan')
+    const gotoLightningPay = async function () {
+        navigation.navigate('LightningPay')
     }
 
 
@@ -65,7 +65,7 @@ export const SendOptionsScreen: FC<WalletStackScreenProps<'SendOptions'>> = obse
     }
 
     const headerBg = useThemeColor('header')
-    const iconColor = useThemeColor('textDim')
+    const subtitleColor = useThemeColor('textDim')
 
     return (
       <Screen preset="auto" contentContainerStyle={$screen}>
@@ -76,9 +76,9 @@ export const SendOptionsScreen: FC<WalletStackScreenProps<'SendOptions'>> = obse
               style={{color: 'white'}}
             />
         </View>
-        <View style={$contentContainer}>          
+        <View style={$contentContainer}>                  
             <Card
-                style={$optionsCard}
+                style={$ecashCard}
                 ContentComponent={
                     <>
                     <ListItem
@@ -94,57 +94,28 @@ export const SendOptionsScreen: FC<WalletStackScreenProps<'SendOptions'>> = obse
                     <ListItem
                         tx="sendScreen.showOrShareToken"
                         subTx="sendScreen.showOrShareTokenDescription"
-                        leftIcon='faQrcode'
+                        leftIcon='faMoneyBill1'
                         leftIconColor={colors.palette.iconViolet300}
-                        LeftComponent={
-                            <View
-                                style={{
-                                    marginEnd: spacing.small,
-                                    flex: 0,
-                                    borderRadius: spacing.small,
-                                    padding: spacing.extraSmall,
-                                    backgroundColor: colors.palette.iconViolet300
-                                }}
-                            >
-                                <SvgXml 
-                                    width={spacing.medium} 
-                                    height={spacing.medium} 
-                                    xml={NutIcon}
-                                    fill='white'
-                                />
-                            </View>
-                        }
+                        leftIconInverse={true}                        
                         style={$item}
                         onPress={gotoSend}
-                    />
-                    <ListItem
-                        tx="sendScreen.scanToSend"
-                        subTx="sendScreen.scanToSendDescription"
-                        LeftComponent={
-                            <View
-                                style={{
-                                    marginEnd: spacing.small,
-                                    flex: 0,
-                                    borderRadius: spacing.small,
-                                    padding: spacing.extraSmall,
-                                    backgroundColor: colors.palette.success200
-                                }}
-                            >
-                                <SvgXml 
-                                    width={spacing.medium} 
-                                    height={spacing.medium} 
-                                    xml={ScanIcon}
-                                    fill='white'
-                                />
-                            </View>
-                        } 
-                        // leftIcon='faBolt'
-                        // leftIconColor={colors.palette.success200}
-                        // leftIconInverse={true}
-                        topSeparator={true}
-                        style={$item}                    
-                        onPress={onScan}
                     />   
+                    </>
+              }
+            />            
+            <Card
+                style={$lightningCard}
+                ContentComponent={
+                    <>                    
+                    <ListItem
+                        text="Pay with Lightning"
+                        subText="Enter, scan or paste Lightning address, invoice or pay code."
+                        leftIcon='faBolt'
+                        leftIconColor={colors.palette.orange400}
+                        leftIconInverse={true}                        
+                        style={$item}
+                        onPress={gotoLightningPay}
+                    />                      
                     </>
               }
 
@@ -171,11 +142,16 @@ const $contentContainer: TextStyle = {
   // alignItems: 'center',
 }
 
-const $optionsCard: ViewStyle = {
+const $ecashCard: ViewStyle = {
   marginTop: -spacing.extraLarge * 2,
   marginBottom: spacing.small,
   // paddingTop: 0,
 }
+
+const $lightningCard: ViewStyle = {
+    marginVertical: spacing.small,    
+    // paddingTop: 0,
+  }
 
 const $item: ViewStyle = {
   paddingHorizontal: spacing.small,

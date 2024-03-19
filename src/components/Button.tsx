@@ -7,7 +7,7 @@ import {
   TextStyle,
   ViewStyle,
 } from "react-native"
-import {moderateScale, scale, verticalScale} from '@gocodingnow/rn-size-matters'
+import {moderateScale, moderateVerticalScale, scale, verticalScale} from '@gocodingnow/rn-size-matters'
 import { colors, spacing, typography, useThemeColor } from "../theme"
 import { Text, TextProps } from "./Text"
 
@@ -136,19 +136,19 @@ export function Button(props: ButtonProps) {
 
 
 const $baseViewStyle: ViewStyle = {
-  minHeight: verticalScale(50),
-  borderRadius: 8,
+  minHeight: moderateVerticalScale(50),
+  borderRadius: spacing.extraSmall,
   justifyContent: "center",
   alignItems: "center",
   flexDirection: "row",
-  paddingVertical: verticalScale(spacing.small),
-  paddingHorizontal: spacing.small,
+  paddingVertical: moderateVerticalScale(spacing.small),
+  paddingHorizontal: spacing.small,  
   overflow: "hidden",
 }
 
 const $baseTextStyle: TextStyle = {
-  fontSize: 16,
-  lineHeight: verticalScale(20),
+  fontSize: moderateVerticalScale(16),
+  lineHeight: moderateVerticalScale(20),
   fontFamily: typography.primary?.light,
   textAlign: "center",
   flexShrink: 1,
@@ -156,8 +156,8 @@ const $baseTextStyle: TextStyle = {
   zIndex: 2,
 }
 
-const $rightAccessoryStyle: ViewStyle = { marginStart: spacing.extraSmall, zIndex: 1 }
-const $leftAccessoryStyle: ViewStyle = { marginEnd: spacing.extraSmall, zIndex: 1 }
+const $rightAccessoryStyle: ViewStyle = { zIndex: 1 }
+const $leftAccessoryStyle: ViewStyle = { zIndex: 1 }
 
 const $viewPresets = {
   default: [

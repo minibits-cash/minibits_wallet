@@ -108,15 +108,11 @@ const getWallet = async function (
     mintUrl: string,
     withSeed: boolean = false
 ) {
-    log.trace('[getWallet] start')
-
-    if (withSeed && _seedWallets[mintUrl]) {
-        log.trace('[getWallet]', 'Returning existing cashuWallet instance with seed')
+    if (withSeed && _seedWallets[mintUrl]) {        
         return _seedWallets[mintUrl]
     }
 
-    if (!withSeed && _wallets[mintUrl]) {
-        log.trace('[getWallet]', 'Returning existing cashuWallet instance')
+    if (!withSeed && _wallets[mintUrl]) {        
         return _wallets[mintUrl]
     }
 
@@ -445,7 +441,7 @@ const requestProofs = async function (
 
         // if (newKeys) { _setKeys(mintUrl, newKeys) }
         if(proofs) {
-            log.trace('[requestProofs]', proofs)
+            log.trace('[MintClient.requestProofs]', proofs)
         }
 
         return {
@@ -458,7 +454,7 @@ const requestProofs = async function (
             'The mint returned error on request to mint new ecash.', 
             {
                 message: e.message,
-                caller: 'requestProofs', 
+                caller: 'MintClient.requestProofs', 
                 mintUrl,            
             }
         )

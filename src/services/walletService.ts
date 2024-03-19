@@ -2038,6 +2038,7 @@ const transfer = async function (
             createdAt: new Date(),
         })
 
+        // this overwrites transactionData and COMPLETED status already set by _checkSpentByMint
         const completedTransaction = await transactionsStore.updateStatus(
             transactionId,
             TransactionStatus.COMPLETED,
@@ -2394,11 +2395,9 @@ const checkPendingTopups = async function () {
 
 const _checkPendingTopup = async function (params: {paymentRequest: PaymentRequest}) {
     const {paymentRequest: pr} = params
+    const mintInstance = mintsStore.findByUrl(pr.mint as string)
 
     try {
-        // claim tokens if invoice is paid
-        const mintInstance = mintsStore.findByUrl(pr.mint as string)
-
         if(!mintInstance) {
             throw new AppError(Err.VALIDATION_ERROR, 'Missing mint', {mintUrl: pr.mint})
         }
@@ -2406,6 +2405,7 @@ const _checkPendingTopup = async function (params: {paymentRequest: PaymentReque
         const amountPreferences = getDefaultAmountPreference(pr.amount)        
         const countOfInFlightProofs = CashuUtils.getAmountPreferencesCount(amountPreferences)
         
+        log.trace('[_checkPendingTopup]', 'paymentRequest', pr)
         log.trace('[_checkPendingTopup]', 'amountPreferences', amountPreferences)
         log.trace('[_checkPendingTopup]', 'countOfInFlightProofs', countOfInFlightProofs)  
         
@@ -2434,7 +2434,7 @@ const _checkPendingTopup = async function (params: {paymentRequest: PaymentReque
                 e.params && 
                 e.params.message?.includes('outputs have already been signed before')) {
 
-                    log.error('[_checkPendingTopup] Emergency increase of proofsCounter and retrying the send')
+                    log.error('[_checkPendingTopup] Emergency increase of proofsCounter and retrying to request proofs')
 
                     mintInstance.increaseProofsCounter(20)
                     requestResult = await MintClient.requestProofs(
@@ -2449,18 +2449,19 @@ const _checkPendingTopup = async function (params: {paymentRequest: PaymentReque
             } else {
                 // decrease so that unpaid invoices does not cause counter gaps from polling
                 mintInstance.decreaseProofsCounter(countOfInFlightProofs)
-                // release lock
-                mintInstance.resetInFlight(pr.transactionId as number)                       
+                mintInstance.resetInFlight(pr.transactionId as number )
+                // create copy of transactionId to avoid mobx error after pr is deleted
+                const transactionId = {...pr}.transactionId                              
 
                 // remove already expired invoices 
                 if (isBefore(pr.expiresAt as Date, new Date())) {
-                    log.debug('[_checkPendingTopup]', `Invoice expired, removing: ${pr.paymentHash}`)                                            
-                    
+                    log.debug('[_checkPendingTopup]', `Invoice expired, removing: ${pr.paymentHash}`)
+                                        
                     stopPolling(`checkPendingTopupPoller-${pr.paymentHash}`)         
                     paymentRequestsStore.removePaymentRequest(pr)
 
                     // expire related tx - but only if it has not been completed before this check
-                    const transaction = transactionsStore.findById(pr.transactionId as number)
+                    const transaction = transactionsStore.findById(transactionId as number)
 
                     if(transaction && transaction.status !== TransactionStatus.COMPLETED) {
                         const transactionDataUpdate = {
@@ -2469,7 +2470,7 @@ const _checkPendingTopup = async function (params: {paymentRequest: PaymentReque
                         }                        
     
                         transactionsStore.updateStatuses(
-                            [pr.transactionId as number],
+                            [transactionId as number],
                             TransactionStatus.EXPIRED,
                             JSON.stringify(transactionDataUpdate),
                         ) 
@@ -2485,10 +2486,11 @@ const _checkPendingTopup = async function (params: {paymentRequest: PaymentReque
         
         const {proofs, newKeys} = requestResult
         
+        // not sure this code ever runs, mint throws if not pais
         if (!proofs || proofs.length === 0) {
             log.trace('[_checkPendingTopup]', 'No proofs returned from mint')                
             
-            // create copy of transactionId to avoid mobx error aftr pr is deleted
+            // create copy of transactionId to avoid mobx error after pr is deleted
             const transactionId = {...pr}.transactionId
 
             // remove already expired invoices only after check that they have not been paid                
@@ -2569,13 +2571,18 @@ const _checkPendingTopup = async function (params: {paymentRequest: PaymentReque
 
         paymentRequestsStore.removePaymentRequest(pr)
         
-    } catch (e: any) {   
-        if(e.message.includes('quote not paid')) {
-            log.warn('[checkPendingTopups]', `${e.message}`)
+    } catch (e: any) {
+        // release lock  
+        if(mintInstance) {
+            mintInstance.resetInFlight(pr.transactionId as number)
+        }
+
+        if(e.message.includes('quote not paid') || e.params && e.params.message.includes('quote not paid')) {
+            log.warn('[_checkPendingTopup]', `${e.message}`)
             return
         }
 
-        log.error('[checkPendingTopups]', e.name, e.message)                
+        log.error('[_checkPendingTopup]', {error: e})                
     }
 
 }

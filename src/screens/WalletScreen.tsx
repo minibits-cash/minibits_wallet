@@ -652,7 +652,7 @@ const MintsByHostnameListItem = observer(function (props: {
                     text={mint.shortname}
                     textStyle={[$mintText, {color}]}
                     leftIcon={mint.status === MintStatus.OFFLINE ? 'faTriangleExclamation' : 'faCoins'}
-                    leftIconColor={mint.color}
+                    leftIconColor={mint.color}                    
                     leftIconInverse={true}
                     RightComponent={
                     <View style={$balanceContainer}>
@@ -694,7 +694,7 @@ const $buttonContainer: ViewStyle = {
 }
 
 const $contentContainer: TextStyle = {
-    padding: spacing.extraSmall,    
+    // padding: spacing.extraSmall,    
     flex: 0.85,
     // paddingTop: spacing.extraSmall - 3,
     // borderWidth: 1,
@@ -704,12 +704,13 @@ const $contentContainer: TextStyle = {
 const $card: ViewStyle = {
   marginBottom: spacing.small,
   paddingTop: 0,
+  marginHorizontal: spacing.extraSmall,
   // alignSelf: 'stretch'
 }
 
 const $cardHeading: TextStyle = {
   fontFamily: typography.primary?.medium,
-  fontSize: verticalScale(18),
+  fontSize: moderateVerticalScale(18),
 }
 
 const $totalBalance: TextStyle = {

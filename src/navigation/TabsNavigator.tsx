@@ -13,7 +13,8 @@ import {
   ReceiveScreen,
   SendOptionsScreen, 
   SendScreen, 
-  ScanScreen, 
+  ScanScreen,
+  LightningPayScreen,
   ContactsScreen,
   PictureScreen,
   ContactDetailScreen, 
@@ -123,6 +124,7 @@ export type WalletStackParamList = {
     SendOptions: undefined
     Send: {contact?: Contact, relays?: string[], paymentOption?: SendOption}
     Scan: undefined
+    LightningPay: undefined
     TranDetail: {id: number}
     TranHistory: undefined
     PaymentRequests: undefined 
@@ -154,6 +156,7 @@ const WalletNavigator = function WalletNavigator() {
         <WalletStack.Screen name="SendOptions" component={SendOptionsScreen} />
         <WalletStack.Screen name="Send" component={SendScreen} />
         <WalletStack.Screen name="Scan" component={ScanScreen} />
+        <WalletStack.Screen name="LightningPay" component={LightningPayScreen} />
         <WalletStack.Screen name="TranDetail" component={TranDetailScreen} />
         <WalletStack.Screen name="TranHistory" component={TranHistoryScreen} />
         <WalletStack.Screen name="PaymentRequests" component={PaymentRequestsScreen} />
