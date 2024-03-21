@@ -435,7 +435,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 pendingBalance={balances.totalPendingBalance}
                 isMoreThenOneMint={groupedMints.length > 1 ? true : false}
             />
-            <View style={[$contentContainer, (groupedMints.length > 1) ? {marginTop: -spacing.extraLarge * 2.6} : {marginTop: -spacing.extraLarge * 2.2}]}>
+            <View style={[$contentContainer, (groupedMints.length > 1) ? {marginTop: -spacing.extraLarge * 2.4} : {marginTop: -spacing.extraLarge * 1.8}]}>
                 {mintsStore.mintCount === 0 ? (
                     <PromoBlock addMint={addMint} />
                 ) : (
@@ -447,7 +447,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                 inActiveDotColor={colors.palette.primary300}
                                 activeDotColor={colors.palette.primary100}
                                 activeDotScale={1.2}
-                                containerStyle={{bottom: undefined, position: undefined, marginTop: -spacing.tiny, paddingBottom: spacing.small}}
+                                containerStyle={{bottom: undefined, position: undefined, marginTop: -spacing.tiny, paddingBottom: spacing.medium}}
                                 //@ts-ignore
                                 scrollX={scrollX}
                                 dotSize={30}
@@ -662,7 +662,7 @@ const MintsByHostnameListItem = observer(function (props: {
                         </Text>
                     </View>
                     }
-                    // topSeparator={true}
+                    //topSeparator={true}
                     style={$item}
                     onPress={() => props.gotoMintInfo(mint.mintUrl)}
                 />

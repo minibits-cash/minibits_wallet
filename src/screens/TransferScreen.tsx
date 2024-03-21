@@ -253,7 +253,7 @@ useEffect(() => {
             setEstimatedFee(fee)
         } catch (e: any) { 
             // hack to detect and resolve zap deeplinks replayed for yet unknown reason
-            if(e.message?.includes('quote already paid')) {
+            if(e.params && e.params.message?.includes('quote already paid')) {
                 resetState()
                 navigation.popToTop()
                 return

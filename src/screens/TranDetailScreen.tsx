@@ -44,6 +44,8 @@ import { getEncodedToken } from '@cashu/cashu-ts'
 import { Token } from '../models/Token'
 import { CashuUtils } from '../services/cashu/cashuUtils'
 import { MintStatus } from '../models/Mint'
+import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
+import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
 
 type ProofsByStatus = {
   isSpent: Proof[]
@@ -58,6 +60,12 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
     useHeader({
       leftIcon: 'faArrowLeft',
       onLeftPress: () => navigation.goBack(),
+      TitleActionComponent:                     
+        <CurrencySign 
+            currencyCode={CurrencyCode.SATS}
+            // containerStyle={{}}
+            textStyle={{color: 'white'}}              
+        />
     })
     
     const noteInputRef = useRef<TextInput>(null)
@@ -237,15 +245,15 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
     const colorScheme = useColorScheme()
 
   return (
-      <Screen style={$screen} preset="auto">
+      <Screen contentContainerStyle={$screen} preset="auto">
         {transaction && (
           <>
             <View style={[$headerContainer, {backgroundColor: headerBg}]}>
               {transaction && (
                 <Text
-                  preset="heading"
-                  text={getFormattedAmount(transaction.amount)}
-                  style={{color: 'white'}}
+                    preset="heading"
+                    text={getFormattedAmount(transaction.amount)}
+                    style={$tranAmount}
                 />
               )}
             </View>
@@ -271,7 +279,7 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
                         />
                       }
                       style={$item}
-                      bottomSeparator={true}
+                      // bottomSeparator={true}
                       onPress={toggleNoteModal}
                     />
                     <ListItem
@@ -1415,12 +1423,19 @@ const $screen: ViewStyle = {}
 
 const $headerContainer: TextStyle = {
     alignItems: 'center',
-    padding: spacing.medium,
+    paddingBottom: spacing.medium,
     height: spacing.screenHeight * 0.18,
 }
 
 const $contentContainer: TextStyle = {
     padding: spacing.extraSmall,
+}
+
+const $tranAmount: TextStyle = {
+    fontSize: moderateVerticalScale(48),
+    lineHeight: moderateVerticalScale(48),
+    marginTop: spacing.extraSmall,
+    marginLeft: -30,
 }
 
 const $actionCard: ViewStyle = {

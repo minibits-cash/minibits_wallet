@@ -145,9 +145,10 @@ const getWallet = async function (
 }
 
 
-const resetCachedWallets = function () {
+const resetCachedWallets = function () {    
     _seedWallets = {}
     _wallets = {}
+    log.trace('[resetCachedWallets] Wallets cashe was cleared.')
 }
 
 const getMintKeys = async function (mintUrl: string) {
@@ -362,8 +363,7 @@ const payLightningInvoice = async function (
         estimatedFee,
         counter
       )
-
-    // if (newKeys) { _setKeys(mintUrl, newKeys) }
+    
     log.trace('payLnInvoice result', {
       isPaid,
       change,
@@ -438,10 +438,9 @@ const requestProofs = async function (
             counter
         )
         /* eslint-enable */
-
-        // if (newKeys) { _setKeys(mintUrl, newKeys) }
+        
         if(proofs) {
-            log.trace('[MintClient.requestProofs]', proofs)
+            log.trace('[MintClient.requestProofs]', proofs, newKeys)
         }
 
         return {
