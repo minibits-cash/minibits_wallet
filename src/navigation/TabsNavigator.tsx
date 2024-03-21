@@ -118,7 +118,7 @@ export function TabsNavigator() {
 
 
 export type WalletStackParamList = {  
-    Wallet: {scannedMintUrl? : string}
+    Wallet: {scannedMintUrl? : string, returnWithNavigationReset?: boolean}
     ReceiveOptions: undefined
     Receive: {encodedToken? : string}
     SendOptions: undefined

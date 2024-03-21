@@ -141,10 +141,19 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
 
     const hintText = useThemeColor('textDim')
     const inputBg = useThemeColor('background')
+    const headerBg = useThemeColor('header')
 
     return (
         <Screen preset="fixed" contentContainerStyle={$screen}>
-            <View style={$contentContainer}>              
+            <View style={[$headerContainer, {backgroundColor: headerBg}]}>                
+                <Text
+                    preset="heading"
+                    text={'Pay'}
+                    style={{color: 'white'}}
+                    // style={$tranAmount}
+                />                
+            </View> 
+            <View style={$contentContainer}>            
                 <Card                    
                     HeadingComponent={
                         <ListItem
@@ -234,8 +243,15 @@ const $screen: ViewStyle = {
 
 const $contentContainer: ViewStyle = {
     // flex: 1,
+    marginTop: -spacing.extraLarge * 2,
     padding: spacing.extraSmall,
     // alignItems: 'center',
+}
+
+const $headerContainer: TextStyle = {
+    alignItems: 'center',
+    padding: spacing.medium,
+    height: spacing.screenHeight * 0.18,
 }
 
 const $buttonContainer: ViewStyle = {

@@ -27,6 +27,8 @@ import { getSnapshot } from 'mobx-state-tree'
 import { Mint, MintStatus } from '../models/Mint'
 import useColorScheme from '../theme/useThemeColor'
 import { CommonActions } from '@react-navigation/native'
+import { StackActions } from '@react-navigation/native';
+import { isObj } from '@cashu/cashu-ts/src/utils'
 
 if (Platform.OS === 'android' &&
     UIManager.setLayoutAnimationEnabledExperimental) {
@@ -49,15 +51,11 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
 
             if(prevRouteName === 'Mints') {
                 navigation.navigate('Mints', {})
-            } else {
+            } else {                
                 navigation.dispatch(
-                    CommonActions.reset({
-                      index: 1,
-                      routes: [
-                        { name: 'WalletNavigator' },                    
-                      ],
-                    })
-                );
+                    StackActions.replace('Settings')                    
+                )
+                navigation.navigate('WalletNavigator', {screen: 'Wallet'})
             }          
         },
     })
@@ -131,18 +129,26 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
 
                 <>
                     <Card
-                        ContentComponent={mintInfo ? (
+                        ContentComponent={
+                            <>
+                            {mintInfo && (
                                 Object.entries(mintInfo).map(([key, value], index) => (
                                     <ListItem
-                                        text={key}
-                                        RightComponent={<Text text={value.toString().slice(0,20)}/>}
+                                        subText={key}
+                                        RightComponent={
+                                            <View style={{width: spacing.screenWidth * 0.6}}>
+                                                <Text size='xs' text={isObj(value) ?  JSON.stringify(value) : value.toString()}/>
+                                            </View>
+                                        }                                        
                                         topSeparator={index === 0 ? false : true}
                                         key={key}
                                     />
-                                ))
-                            ) : (
-                                isLoading && <Loading style={{backgroundColor: 'transparent'}} statusMessage='Loading public info' />
-                            )}                            
+                                ))                  
+                            )}
+
+                            {isLoading && <Loading style={{backgroundColor: 'transparent'}} statusMessage='Loading public info' />}                            
+                            </>
+                        }                            
                         style={$card}
                     />
                     <Card

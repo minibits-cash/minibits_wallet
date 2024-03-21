@@ -87,6 +87,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     
     const appState = useRef(AppState.currentState)
     const isInternetReachable = useIsInternetReachable()
+    const returnWithNavigationReset = route.params?.returnWithNavigationReset
    
     const [info, setInfo] = useState<string>('')
     const [defaultMintUrl, setDefaultMintUrl] = useState<string>(MINIBITS_MINT_URL)
@@ -140,7 +141,9 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         const getInitialData  = async () => {
             const url = await Linking.getInitialURL()
             
-            if (url) {
+            log.trace('returnWithNavigationReset', returnWithNavigationReset)
+                      
+            if (url && !returnWithNavigationReset) {                            
                 handleDeeplink({url})                
                 return // deeplinks have priority over clipboard
             }
@@ -177,9 +180,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
 
     const handleDeeplink = async function ({url}: {url: string}) {
-        log.trace('deepLink', url, 'handleDeeplink')
+        try {
 
-        try {            
             const incomingData = IncomingParser.findAndExtract(url)
             await IncomingParser.navigateWithIncomingData(incomingData, navigation)
 

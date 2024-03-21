@@ -23,7 +23,7 @@ import { KeyChain, MinibitsClient, TorDaemon } from '../services'
 import { log } from '../services/logService'
 import { OwnKeysScreen } from './OwnKeysScreen'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
-import { CommonActions } from '@react-navigation/native'
+import { CommonActions, StackActions } from '@react-navigation/native'
 
 enum TorStatus {
     NOTINIT = 'NOTINIT',
@@ -47,13 +47,9 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
                 navigation.navigate('Settings')
             } else {
                 navigation.dispatch(
-                    CommonActions.reset({
-                      index: 1,
-                      routes: [
-                        { name: 'WalletNavigator' },                    
-                      ],
-                    })
-                );
+                    StackActions.replace('Settings')                    
+                )
+                navigation.navigate('WalletNavigator', {screen: 'Wallet'})
             }  
         }
     })
