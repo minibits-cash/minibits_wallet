@@ -177,7 +177,7 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                                 value={lightningData}
                                 autoCapitalize='none'
                                 keyboardType='default'
-                                maxLength={200}                            
+                                maxLength={500}                            
                                 selectTextOnFocus={true}
                                 style={[$addressInput, {backgroundColor: inputBg}]}                        
                             />
