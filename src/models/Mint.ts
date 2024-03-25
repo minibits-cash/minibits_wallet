@@ -133,7 +133,9 @@ export const MintModel = types
             self.status = status
         },
         updateKeys(keyset: string, keys: MintKeys) {                  
-            self.keysets.push(keyset) 
+            if(!self.keysets.includes(keyset)){
+                self.keysets.push(keyset) 
+            }
             self.keys = keys
         },
 

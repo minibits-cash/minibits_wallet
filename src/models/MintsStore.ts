@@ -35,8 +35,9 @@ export const MintsStoreModel = types
     .actions(self => ({
         getMintKeys: flow(function* getMintName(mintUrl: string) {
             const mintKeys: {
-                keys: MintKeys
-                keyset: string
+                keys: MintKeys,
+                keyset: string,
+                keysets: string[]
             } = yield MintClient.getMintKeys(mintUrl)
             return mintKeys
         }),
@@ -47,12 +48,12 @@ export const MintsStoreModel = types
                 throw new AppError(Err.VALIDATION_ERROR, 'Mint URL needs to start with https')
             }
 
-            const {keys, keyset} = yield self.getMintKeys(mintUrl)            
+            const {keys, keyset, keysets} = yield self.getMintKeys(mintUrl)            
             
             const newMint: Mint = {
                 mintUrl,
                 keys,
-                keysets: [keyset],
+                keysets,
             }
 
             const mintInstance = MintModel.create(newMint)

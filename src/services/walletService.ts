@@ -2584,8 +2584,6 @@ const _updateMintKeys = function (mintUrl: string, newKeys: MintKeys) {
     }
 
     const keyset = deriveKeysetId(newKeys)
-    log.trace('[_updateMintKeys]', {keyset})
-
     const mint = mintsStore.findByUrl(mintUrl)
     mint?.updateKeys(keyset, newKeys)
     // needed to get rid of cached old keyset

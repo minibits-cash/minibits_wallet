@@ -155,9 +155,11 @@ const getMintKeys = async function (mintUrl: string) {
   const mint = getMint(mintUrl)
   let keys: MintKeys
   let keyset: string
+  let allKeysets: string[]
   
   try {
-    // keysets = await mint.getKeySets()
+    const {keysets} = await mint.getKeySets() // all keysets
+    allKeysets = keysets
     keys = await mint.getKeys()
   } catch (e: any) {
     throw new AppError(
@@ -177,9 +179,10 @@ const getMintKeys = async function (mintUrl: string) {
 
   keyset = deriveKeysetId(keys)
 
-  const newMintKeys: {keys: MintKeys; keyset: string} = {
+  const newMintKeys: {keys: MintKeys; keyset: string, keysets: string[]} = {
     keys,
     keyset,
+    keysets: allKeysets
   }
 
   return newMintKeys
@@ -464,10 +467,11 @@ const restore = async function (
     mintUrl: string,
     indexFrom: number,
     indexTo: number,
-    seed: Uint8Array   
+    seed: Uint8Array,
+    keysetId?: string  // support recovery from older but still active keysets
   ) {
     try {
-        // need special wallet instance to pass seed directly
+        // need special wallet instance to pass seed and keysetId directly
         const cashuMint = getMint(mintUrl)
         const mint = mintsStore.findByUrl(mintUrl)
 
@@ -481,7 +485,8 @@ const restore = async function (
         /* eslint-disable @typescript-eslint/no-unused-vars */
         const {proofs, newKeys} = await seedWallet.restore(            
             indexFrom,
-            count
+            count,
+            keysetId
         )
         /* eslint-enable */
     

@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useRef, useState} from 'react'
-import {LayoutAnimation, Platform, Pressable, Switch, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
+import {FlatList, LayoutAnimation, Platform, Pressable, Switch, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
 import {validateMnemonic} from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import {colors, spacing, useThemeColor} from '../theme'
@@ -37,6 +37,7 @@ import { deriveSeedFromMnemonic } from '@cashu/cashu-ts'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 import { delay } from '../utils/utils'
 import { isStateTreeNode } from 'mobx-state-tree'
+import { scale } from '@gocodingnow/rn-size-matters'
 
 if (Platform.OS === 'android' &&
     UIManager.setLayoutAnimationEnabledExperimental) {
@@ -63,7 +64,9 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
     const [mnemonicExists, setMnemonicExists] = useState(false)
     const [isValidMnemonic, setIsValidMnemonic] = useState(false)
     const [seed, setSeed] = useState<Uint8Array>()
-    const [selectedMintUrl, setselectedMintUrl] = useState<string | undefined>()
+    const [selectedMintUrl, setSelectedMintUrl] = useState<string | undefined>()
+    const [selectedKeysetId, setSelectedKeysetId] = useState<string | undefined>()
+    const [selectedMintKeysets, setSelectedMintKeysets] = useState<string[]>([])
     const [startIndexString, setStartIndexString] = useState<string>('0')
     const [startIndex, setStartIndex] = useState<number>(0) // start of interval of indexes of proofs to recover
     const [endIndex, setEndIndex] = useState<number>(RESTORE_INDEX_INTERVAL) // end of interval
@@ -71,6 +74,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
     const [error, setError] = useState<AppError | undefined>()
     const [isErrorsModalVisible, setIsErrorsModalVisible] = useState(false)
     const [isIndexModalVisible, setIsIndexModalVisible] = useState(false)
+    const [isKeysetModalVisible, setIsKeysetModalVisible] = useState(false)
     const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus, message: string} | undefined>()
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)
     const [lastRecoveredAmount, setLastRecoveredAmount] = useState<number>(0)
@@ -163,13 +167,27 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
 
 
     const onMintSelect = function (mint: Mint) {
-        setselectedMintUrl(mint.mintUrl)
+        try {
+        setSelectedMintUrl(mint.mintUrl)
+
+        const currentKeysetId = deriveKeysetId(mint.keys)
+        
+        setSelectedKeysetId(currentKeysetId)
+        setSelectedMintKeysets(mint.keysets)
         setStartIndex(0)
         setEndIndex(RESTORE_INDEX_INTERVAL)
+        } catch (e: any) {
+            handleError(e)
+        }
     }
 
     const toggleIndexModal = () => {
         setIsIndexModalVisible(previousState => !previousState)
+    }
+
+
+    const toggleKeysetModal = () => {
+        setIsKeysetModalVisible(previousState => !previousState)
     }
 
 
@@ -178,7 +196,8 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
         setEndIndex(parseInt(startIndexString) + RESTORE_INDEX_INTERVAL)
         toggleIndexModal()
     }
-  
+
+    
     const startRecovery = async function () {
         if(!selectedMintUrl) {
             setInfo('Select mint to recover from.')
@@ -186,7 +205,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
         }
         setStatusMessage('Starting recovery...')
         setIsLoading(true)        
-        setTimeout(() => doRecovery(), 200)        
+        setTimeout(() => doRecovery(), 100)        
     }
 
     const doRecovery = async function () {        
@@ -205,7 +224,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
             if(!recoveredMint) {                
                 return
             }
-            // TODO allow input or get previous keysets from mint and try to restore from them
+            
             setStatusMessage(`Restoring from ${recoveredMint.hostname}...`)
             log.info('[restore]', `Restoring from ${recoveredMint.hostname}...`)
             
@@ -213,7 +232,8 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                 recoveredMint.mintUrl, 
                 startIndex, 
                 endIndex,
-                seed as Uint8Array
+                seed as Uint8Array,
+                selectedKeysetId
             )
 
             log.debug('[restore]', `Restored proofs`, proofs.length)                
@@ -358,7 +378,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
             }
 
             log.error(e)
-            errors.push(e)
+            errors.push(e) // TODO this could now be single error as we do not loop anymore
 
             if (transactionId > 0) {
                 transactionData.push({
@@ -442,7 +462,9 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
         const keyset = deriveKeysetId(newKeys)
         const mint = mintsStore.findByUrl(mintUrl)
     
-        return mint?.updateKeys(keyset, newKeys) // TODO make only newKeys as param
+        mint?.updateKeys(keyset, newKeys) // TODO make only newKeys as param
+        // needed to get rid of cached old keyset
+        MintClient.resetCachedWallets()
     }
 
 
@@ -668,6 +690,22 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                                         />  
                                     </Pressable>                                    
                                     </View>
+                                    <View style={[$buttonContainer,{marginTop: 0}]}>
+                                    <Text 
+                                        text={`Keyset ID ${selectedKeysetId}`} 
+                                        size='xxs' 
+                                        style={{color: textHint, alignSelf: 'center', marginTop: spacing.extraSmall}}
+                                    />
+                                    {selectedMintKeysets.length > 1 && (
+                                        <Pressable onPress={toggleKeysetModal}>
+                                            <Text 
+                                                text={` · Select another`} 
+                                                size='xxs' 
+                                                style={{color: textHint, alignSelf: 'center', marginTop: spacing.extraSmall}}
+                                            />  
+                                        </Pressable> 
+                                    )}                                                                       
+                                    </View>
                                 </>  
                                 )}
                                 {mintsStore.mintCount > 0 && !selectedMintUrl && (
@@ -758,6 +796,44 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
           }
           onBackButtonPress={toggleIndexModal}
           onBackdropPress={toggleIndexModal}
+        />
+        <BottomModal
+          isVisible={isKeysetModalVisible}
+          // style={{alignItems: 'stretch'}} 
+          HeadingComponent={<Text text="Select keyset to be used for recovery" style={{textAlign: 'center', margin: spacing.small}}/>}
+          ContentComponent={
+            <FlatList
+                data={selectedMintKeysets}
+                numColumns={2}
+                renderItem={({ item, index }) => {                                
+                    return(
+                        <Button
+                            key={index}
+                            preset={selectedKeysetId === item ? 'default' : 'secondary'}
+                            onPress={() => {
+                                setSelectedKeysetId(item)
+                                setStartIndex(0)
+                                setEndIndex(RESTORE_INDEX_INTERVAL)
+                            }}
+                            text={`${item}`}
+                            style={{minWidth: scale(80), margin: spacing.extraSmall}}
+                            textStyle={$sizeStyles.xxs}
+                        />
+                    )
+                }}
+                keyExtractor={(item) => item} 
+                style={{ flexGrow: 0  }}
+            />
+          }
+          FooterComponent={
+            <Button                
+                preset={'secondary'}
+                onPress={toggleKeysetModal}
+                text={`Close`}
+                style={{marginTop: spacing.small}}
+            />}
+          onBackButtonPress={toggleKeysetModal}
+          onBackdropPress={toggleKeysetModal}
         />
         <BottomModal
           isVisible={isErrorsModalVisible}
