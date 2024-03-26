@@ -71,6 +71,7 @@ import { faUpRightFromSquare } from '@fortawesome/free-solid-svg-icons/faUpRight
 import { faShareNodes } from '@fortawesome/free-solid-svg-icons/faShareNodes'
 import { faPaste } from '@fortawesome/free-solid-svg-icons/faPaste'
 import { faKeyboard } from '@fortawesome/free-solid-svg-icons/faKeyboard'
+import { faMoneyBill1 } from '@fortawesome/free-solid-svg-icons/faMoneyBill1'
 
 
 export type IconTypes = keyof typeof iconRegistry
@@ -132,7 +133,8 @@ export const iconRegistry = {
   faShareNodes: faShareNodes,
   faPaste: faPaste,
   faKeyboard: faKeyboard,
-}
+  faMoneyBill1: faMoneyBill1,
+  }
 
 
 interface IconProps extends TouchableOpacityProps {

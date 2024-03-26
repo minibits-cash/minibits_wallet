@@ -126,7 +126,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
         let message: string = ''
 
         if (proofsByMint && proofsByMint.length > 0) {
-            message = `Your wallet has ${proofsStore.getMintBalance(selectedMint.mintUrl)?.balance} sats balance with this mint. If removed, your ecash will be lost!\n\n`            
+            message = `Your wallet has ${proofsStore.getMintBalance(selectedMint.mintUrl)?.balance} SATS balance with this mint. If removed, your ecash will be lost!\n\n`            
         }
 
         message += `Do you really want to remove ${selectedMint.hostname} - ${selectedMint.shortname} from the wallet?`
@@ -456,12 +456,12 @@ const $bottomModal: ViewStyle = {
 
 const $mintInput: TextStyle = {
     flex: 1,    
-    borderTopLeftRadius: spacing.small,
-    borderBottomLeftRadius: spacing.small,
-    fontSize: 16,
-    padding: spacing.small,
+    borderTopLeftRadius: spacing.extraSmall,
+    borderBottomLeftRadius: spacing.extraSmall,
+    // fontSize: 16,
+    padding: spacing.extraSmall,
     alignSelf: 'stretch',
-    textAlignVertical: 'top',
+    // textAlignVertical: 'top',
 }
 
 const $textField: ViewStyle = {

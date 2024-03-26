@@ -25,7 +25,7 @@ import {useHeader} from '../utils/useHeader'
 import AppError from '../utils/AppError'
 import { log } from '../services'
 import {Env} from '../utils/envtypes'
-import { CommonActions } from '@react-navigation/native'
+import { CommonActions, StackActions } from '@react-navigation/native'
 
 
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
@@ -60,13 +60,9 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
                 navigation.navigate('Settings')
             } else {
                 navigation.dispatch(
-                    CommonActions.reset({
-                      index: 1,
-                      routes: [
-                        { name: 'WalletNavigator' },                    
-                      ],
-                    })
-                );
+                    StackActions.replace('Settings')                    
+                )
+                navigation.navigate('WalletNavigator', {screen: 'Wallet'})
             }   
         },
     })

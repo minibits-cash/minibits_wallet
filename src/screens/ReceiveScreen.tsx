@@ -31,7 +31,7 @@ import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {MintListItem} from './Mints/MintListItem'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { resolveTxt } from 'dns'
-import { verticalScale } from '@gocodingnow/rn-size-matters'
+import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
 
 export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
@@ -201,15 +201,12 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
     return (
       <Screen preset="auto" contentContainerStyle={$screen}>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-            <Text
-                preset="subheading"
-                tx={receivedAmount > 0 ? "receiveScreen.received" : "receiveScreen.toReceive"}
-                style={{color: 'white'}}
-            />
+
             {receivedAmount > 0 ? (
             <View style={$amountContainer}>
                 <CurrencySign 
-                    currencyCode={CurrencyCode.SATS}                        
+                    currencyCode={CurrencyCode.SATS}
+                    textStyle={{color: 'white'}}                       
                 />
                 <TextInput                                        
                     value={receivedAmount.toLocaleString()}
@@ -220,17 +217,23 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
             </View>
             ) : (
             <View style={$amountContainer}>
+                <CurrencySign 
+                    currencyCode={CurrencyCode.SATS}
+                    textStyle={{color: 'white'}}                        
+                />
                 <TextInput                                        
                     value={amountToReceive.toLocaleString()}
                     style={$amountToReceive}
                     maxLength={9}                    
                     editable={false}
                 />
-                <CurrencySign 
-                    currencyCode={CurrencyCode.SATS}                        
-                />
             </View>
            )}
+            <Text
+                size='sm'
+                tx={receivedAmount > 0 ? "receiveScreen.received" : "receiveScreen.toReceive"}
+                style={{color: 'white', textAlign: 'center'}}
+            />
         </View>
         <View style={$contentContainer}>          
           {token && amountToReceive > 0 && (
@@ -428,8 +431,8 @@ const $amountToReceive: TextStyle = {
     borderRadius: spacing.small,
     margin: 0,
     padding: 0,
-    fontSize: 52,
-    fontWeight: '400',    
+    fontSize: moderateVerticalScale(48),
+    fontFamily: typography.primary?.medium,
     textAlign: 'center',
     color: 'white',    
 }

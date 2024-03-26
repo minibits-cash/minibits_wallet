@@ -108,15 +108,11 @@ const getWallet = async function (
     mintUrl: string,
     withSeed: boolean = false
 ) {
-    log.trace('[getWallet] start')
-
-    if (withSeed && _seedWallets[mintUrl]) {
-        log.trace('[getWallet]', 'Returning existing cashuWallet instance with seed')
+    if (withSeed && _seedWallets[mintUrl]) {        
         return _seedWallets[mintUrl]
     }
 
-    if (!withSeed && _wallets[mintUrl]) {
-        log.trace('[getWallet]', 'Returning existing cashuWallet instance')
+    if (!withSeed && _wallets[mintUrl]) {        
         return _wallets[mintUrl]
     }
 
@@ -149,18 +145,21 @@ const getWallet = async function (
 }
 
 
-const resetCachedWallets = function () {
+const resetCachedWallets = function () {    
     _seedWallets = {}
     _wallets = {}
+    log.trace('[resetCachedWallets] Wallets cashe was cleared.')
 }
 
 const getMintKeys = async function (mintUrl: string) {
   const mint = getMint(mintUrl)
   let keys: MintKeys
   let keyset: string
+  let allKeysets: string[]
   
   try {
-    // keysets = await mint.getKeySets()
+    const {keysets} = await mint.getKeySets() // all keysets
+    allKeysets = keysets
     keys = await mint.getKeys()
   } catch (e: any) {
     throw new AppError(
@@ -180,9 +179,10 @@ const getMintKeys = async function (mintUrl: string) {
 
   keyset = deriveKeysetId(keys)
 
-  const newMintKeys: {keys: MintKeys; keyset: string} = {
+  const newMintKeys: {keys: MintKeys; keyset: string, keysets: string[]} = {
     keys,
     keyset,
+    keysets: allKeysets
   }
 
   return newMintKeys
@@ -366,8 +366,7 @@ const payLightningInvoice = async function (
         estimatedFee,
         counter
       )
-
-    // if (newKeys) { _setKeys(mintUrl, newKeys) }
+    
     log.trace('payLnInvoice result', {
       isPaid,
       change,
@@ -442,10 +441,9 @@ const requestProofs = async function (
             counter
         )
         /* eslint-enable */
-
-        // if (newKeys) { _setKeys(mintUrl, newKeys) }
+        
         if(proofs) {
-            log.trace('[requestProofs]', proofs)
+            log.trace('[MintClient.requestProofs]', proofs, newKeys)
         }
 
         return {
@@ -458,7 +456,7 @@ const requestProofs = async function (
             'The mint returned error on request to mint new ecash.', 
             {
                 message: e.message,
-                caller: 'requestProofs', 
+                caller: 'MintClient.requestProofs', 
                 mintUrl,            
             }
         )
@@ -469,10 +467,11 @@ const restore = async function (
     mintUrl: string,
     indexFrom: number,
     indexTo: number,
-    seed: Uint8Array   
+    seed: Uint8Array,
+    keysetId?: string  // support recovery from older but still active keysets
   ) {
     try {
-        // need special wallet instance to pass seed directly
+        // need special wallet instance to pass seed and keysetId directly
         const cashuMint = getMint(mintUrl)
         const mint = mintsStore.findByUrl(mintUrl)
 
@@ -486,7 +485,8 @@ const restore = async function (
         /* eslint-disable @typescript-eslint/no-unused-vars */
         const {proofs, newKeys} = await seedWallet.restore(            
             indexFrom,
-            count
+            count,
+            keysetId
         )
         /* eslint-enable */
     

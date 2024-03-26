@@ -1,13 +1,11 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useState, useEffect, useRef, useMemo} from 'react'
-import {
-  ImageStyle,
+import {  
   TextStyle,
   ViewStyle,
   View,
-  ScrollView,
-  Alert,
   FlatList,
+  SectionList,
   Platform,
   UIManager,
   LayoutAnimation,
@@ -24,15 +22,17 @@ import {
   ErrorModal,
   InfoModal,
   Loading,
+  BottomModal,
 } from '../components'
 import {WalletStackScreenProps} from '../navigation'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
-import {maxTransactionsInModel} from '../models/TransactionsStore'
+import {GroupedByTimeAgo, maxTransactionsInModel} from '../models/TransactionsStore'
 import {Database, log} from '../services'
 import AppError from '../utils/AppError'
 import {TransactionListItem} from './Transactions/TransactionListItem'
-import type { Transaction } from '../models/Transaction'
+import { Transaction, TransactionStatus } from '../models/Transaction'
+import { height } from '@fortawesome/free-solid-svg-icons/faWallet'
 
 
 interface TranHistoryScreenProps
@@ -51,6 +51,8 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
     useHeader({
       leftIcon: 'faArrowLeft',
       onLeftPress: () => navigation.goBack(),
+      rightIcon: 'faEllipsisVertical',
+      onRightPress: () => toggleDeleteModal()
     })
 
     const [showPendingOnly, setShowPendingOnly] = useState<boolean>(false)
@@ -58,21 +60,31 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState(false)
     const [isHeaderVisible, setIsHeaderVisible] = useState(true)
+    const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false)
     const [offset, setOffset] = useState<number>(transactionsStore.count) // load from db those that are not already displayed
     const [pendingOffset, setPendingOffset] = useState<number>(transactionsStore.pending.length) // load from db those that are not already displayed
     const [dbCount, setDbCount] = useState<number>(0)
     const [pendingDbCount, setPendingDbCount] = useState<number>(0)
+    const [expiredDbCount, setExpiredDbCount] = useState<number>(0)
+    const [erroredDbCount, setErroredDbCount] = useState<number>(0)
     const [isAll, setIsAll] = useState<boolean>(false)
     const [pendingIsAll, setPendingIsAll] = useState<boolean>(false)
 
     useEffect(() => {
+        setIsLoading(true)
         const count = Database.getTransactionsCount() // all
-        const pendingCount = Database.getTransactionsCount(true) // pending only
+        const pendingCount = Database.getTransactionsCount(TransactionStatus.PENDING)
+        const expiredCount = Database.getTransactionsCount(TransactionStatus.EXPIRED)
+        const erroredCount = Database.getTransactionsCount(TransactionStatus.ERROR)
         
         log.trace('transaction counts', {count, pendingCount})
 
         setDbCount(count)
         setPendingDbCount(pendingCount)
+        setExpiredDbCount(expiredCount)
+        setErroredDbCount(erroredCount)
+
+        setIsLoading(false)
 
         if (count <= limit) {  
             log.trace('setAll true')          
@@ -94,6 +106,10 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
             }            
         }
     }, [])
+
+    const toggleDeleteModal = () => {
+        setIsDeleteModalVisible(previousState => !previousState)
+    }
 
     const getTransactionsList = async function () {
         setIsLoading(true)
@@ -153,6 +169,7 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
         }
     }
 
+    
     const collapseHeader = function () {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)        
         setIsHeaderVisible(false)
@@ -168,160 +185,190 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
         navigation.navigate('TranDetail', {id})
     }
 
+
+    const onDeleteExpired = function () {
+        try {
+            toggleDeleteModal()
+            setIsLoading(true)
+            transactionsStore.deleteByStatus(TransactionStatus.EXPIRED)
+            
+            const count = Database.getTransactionsCount() // all            
+            const expiredCount = Database.getTransactionsCount(TransactionStatus.EXPIRED)
+    
+            setDbCount(count)            
+            setExpiredDbCount(expiredCount)            
+            setIsLoading(false)
+        } catch (e: any) {
+            handleError(e)
+        }        
+    }
+
+
+    const onDeleteErrored = function () {
+        try {
+            toggleDeleteModal()
+            setIsLoading(true)
+            transactionsStore.deleteByStatus(TransactionStatus.ERROR)
+            
+            const count = Database.getTransactionsCount() // all
+            const erroredCount = Database.getTransactionsCount(TransactionStatus.ERROR)
+    
+            setDbCount(count)
+            setErroredDbCount(erroredCount)
+            setIsLoading(false)
+        } catch (e: any) {
+            handleError(e)
+        }
+    }
+
     const handleError = function (e: AppError): void {
         setIsLoading(false)
         setError(e)
     }
 
     const headerBg = useThemeColor('header')
-    const iconColor = useThemeColor('textDim')
+    const iconColor = useThemeColor('textDim')    
     const activeIconColor = useThemeColor('button')
     const pendingBalance = proofsStore.getBalances().totalPendingBalance
 
-    return (
-      <Screen contentContainerStyle={$screen}>
-        
-            <View style={[isHeaderVisible ? $headerContainer : $headerCollapsed, {backgroundColor: headerBg}]}>
-                <Text preset="heading" text="History" style={{color: 'white'}} />
-            </View>
-                
-        <View style={$contentContainer}>
-          <Card
-            style={$actionCard}
-            ContentComponent={
-              <>
-                <ListItem
-                  text={'Pending'}
-                  LeftComponent={
-                    <Icon
-                      containerStyle={$iconContainer}
-                      icon="faPaperPlane"
-                      size={spacing.medium}
-                      color={showPendingOnly ? activeIconColor : iconColor}
-                    />
-                  }
-                  RightComponent={
-                    <Text style={$txAmount} text={`${pendingBalance}`} />
-                  }
-                  style={$item}
-                  bottomSeparator={true}
-                  onPress={toggleShowPendingOnly}
-                />
-                <ListItem
-                  text={showPendingOnly ? `Showing ${transactionsStore.pending.length} of ${pendingDbCount} pending` : `Showing ${transactionsStore.count} of ${dbCount} total`}
-                  LeftComponent={
-                    <Icon
-                      containerStyle={$iconContainer}
-                      icon="faListUl"
-                      size={spacing.medium}
-                      color={iconColor}
-                    />
-                  }
-                  style={$item}
-                  bottomSeparator={false}
-                  onPress={() => false}
-                />
-              </>
-            }
-          />
-          {!showPendingOnly && transactionsStore.count > 0  && (
-            <Card
-              ContentComponent={
-                <>
-                    <FlatList<Transaction>
-                        data={transactionsStore.all as Transaction[]}
-                        renderItem={({ item, index }) => {                                
-                            return(
-                                <TransactionListItem
-                                    key={item.id}
-                                    tx={item as Transaction}
-                                    gotoTranDetail={gotoTranDetail}
-                                    isFirst={index === 0}
-                                />
-                            )
-                        }}                        
-                        ListFooterComponent={
-                            <View style={{alignItems: 'center', marginTop: spacing.small}}>
-                                {isAll ? (
-                                    <Text text="List is complete" size="xs" />
-                                ) : (
-                                    <Button
-                                        preset="tertiary"
-                                        onPress={getTransactionsList}
-                                        text="View more"
-                                        style={{minHeight: 25, paddingVertical: spacing.tiny}}
-                                        textStyle={{fontSize: 14}}
-                                    />
-                                )}
-                            </View>
-                        }                        
-                        onScrollBeginDrag={collapseHeader}
-                        onStartReached={expandHeader}
-                        keyExtractor={(item, index) => String(item.id) as string} 
-                        style={{ maxHeight: spacing.screenHeight * 0.65 }}
-                    />
-                                      
-                </>
-              }
-              style={$card}
-            />
-          )}
+    const sections = showPendingOnly ? Object.keys(transactionsStore.groupedPendingByTimeAgo).map((timeAgo) => ({
+        title: timeAgo,
+        data: transactionsStore.groupedPendingByTimeAgo[timeAgo],
+    })) : Object.keys(transactionsStore.groupedByTimeAgo).map((timeAgo) => ({
+        title: timeAgo,
+        data: transactionsStore.groupedByTimeAgo[timeAgo],
+    }))
 
-          {showPendingOnly && transactionsStore.count > 0  && (
+    return (
+      <Screen contentContainerStyle={$screen}>        
+        <View style={[isHeaderVisible ? $headerContainer : $headerCollapsed, {backgroundColor: headerBg}]}>
+            <Text preset="heading" text="History" style={{color: 'white'}} />
+        </View>
+            
+        <View style={$contentContainer}>
             <Card
-              ContentComponent={
-                <>
-                    <FlatList<Transaction>
-                        data={transactionsStore.pending as Transaction[]}
-                        renderItem={({ item, index }) => {                                
-                            return(
-                                <TransactionListItem
-                                    key={item.id}
-                                    tx={item as Transaction}
-                                    gotoTranDetail={gotoTranDetail}
-                                    isFirst={index === 0}
-                                />
-                            )
-                        }}                        
-                        ListFooterComponent={
-                            <View style={{alignItems: 'center', marginTop: spacing.small}}>
-                                {pendingIsAll ? (
-                                    <Text text="List is complete" size="xs" />
-                                ) : (
-                                    <Button
-                                        preset="tertiary"
-                                        onPress={getPendingTransactionsList}
-                                        text="View more"
-                                        style={{minHeight: 25, paddingVertical: spacing.tiny}}
-                                        textStyle={{fontSize: 14}}
-                                    />
-                                )}
-                            </View>
-                        }                        
-                        onScrollBeginDrag={collapseHeader}
-                        onStartReached={expandHeader}
-                        keyExtractor={(item, index) => String(item.id) as string} 
-                        style={{ maxHeight: spacing.screenHeight * 0.65 }}
-                    />
-                                      
-                </>
-              }
-              style={$card}
-            />
-          )}  
-          
-          {transactionsStore.count === 0 && (
-            <Card
+                style={$actionCard}
                 ContentComponent={
-                    <ListItem
-                        subText={"No transactions to show."}
+                    <>
+                        <ListItem
+                        text={'Pending balance'}
+                        LeftComponent={
+                            <Icon
+                            containerStyle={$iconContainer}
+                            icon="faPaperPlane"
+                            size={spacing.medium}
+                            color={showPendingOnly ? activeIconColor : iconColor}
+                            />
+                        }
+                        RightComponent={
+                            <Text style={$txAmount} text={`${pendingBalance}`} />
+                        }
+                        style={$item}
+                        // bottomSeparator={true}
+                        onPress={toggleShowPendingOnly}
+                        />
+                        <ListItem
+                        text={showPendingOnly ? `Showing ${transactionsStore.pending.length} of ${pendingDbCount} pending` : `Showing ${transactionsStore.count} of ${dbCount} total`}
+                        LeftComponent={
+                            <Icon
+                            containerStyle={$iconContainer}
+                            icon="faListUl"
+                            size={spacing.medium}
+                            color={iconColor}
+                            />
+                        }
+                        style={$item}
+                        bottomSeparator={false}
+                        onPress={() => false}
+                        />
+                    </>
+                }
+            />            
+            <SectionList
+                sections={sections}
+                renderSectionHeader={({ section: { title, data } }) => (
+                    <>
+                        <Text size='xs' preset='formHelper' style={{ textAlign: 'center', color: iconColor}}>{title}</Text>
+                        <Card
+                            ContentComponent={
+                                <>
+                                {data.map((item, index) => (
+                                    <TransactionListItem
+                                        key={item.id}
+                                        transaction={item as Transaction}
+                                        isFirst={index === 0}
+                                        isTimeAgoVisible={false}
+                                        gotoTranDetail={gotoTranDetail}
+                                        
+                                    />
+                                ))}
+                                </>
+                            }
+                            style={$card}
+                        />
+                    </>
+                )}
+                renderItem={() => {return null}}
+                ListFooterComponent={
+                    <>
+                    {sections.length > 0 && (
+                        <View style={{alignItems: 'center', marginTop: spacing.small}}>
+                            {!showPendingOnly && isAll || showPendingOnly && pendingIsAll ? (
+                                <Text text="List is complete" size="xs" />
+                            ) : (
+                                <Button
+                                    preset="secondary"
+                                    onPress={getTransactionsList}
+                                    text="View more"
+                                    style={{minHeight: 25, paddingVertical: spacing.tiny}}
+                                    textStyle={{fontSize: 14}}
+                                />
+                            )}
+                        </View>
+                    )}                    
+                    </>
+                }                        
+                onScrollBeginDrag={collapseHeader}
+                onStartReached={expandHeader}
+                keyExtractor={(item, index) => String(item.id) as string}
+                ListEmptyComponent={            
+                    <Card
+                        ContentComponent={
+                            <ListItem
+                                leftIcon='faBan'
+                                text={"No transactions to show."}
+                            />
+                        }
+                        style={$card}                
                     />
                 }
-                style={$card}                
-            />
-          )}
-          {isLoading && <Loading />}
+                style={{maxHeight: spacing.screenHeight * 0.66}}                                
+            />                                        
+            {isLoading && <Loading />}
         </View>
+        <BottomModal
+          isVisible={isDeleteModalVisible ? true : false}
+          style={{alignItems: 'stretch'}}            
+          ContentComponent={
+            <>
+                <ListItem
+                    text='Delete expired'
+                    subText={`This will delete ${expiredDbCount} expired transactions`}
+                    leftIcon='faRotate'
+                    onPress={onDeleteExpired}
+                    bottomSeparator={true}
+                /> 
+                <ListItem
+                    text="Delete with errors"
+                    subText={`This will delete ${erroredDbCount} transactions with errors`}
+                    leftIcon='faBug'                            
+                    onPress={onDeleteErrored}                                      
+                />
+            </> 
+          }
+          onBackButtonPress={toggleDeleteModal}
+          onBackdropPress={toggleDeleteModal}
+        />
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
       </Screen>
@@ -331,8 +378,6 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
 
 const $screen: ViewStyle = {
     flex: 1,
-  // borderWidth: 1,
-  // borderColor: 'red'
 }
 
 const $headerContainer: TextStyle = {
@@ -348,19 +393,19 @@ const $headerCollapsed: TextStyle = {
 }
 
 const $contentContainer: TextStyle = {
-  minHeight: spacing.screenHeight * 0.5,
-  padding: spacing.extraSmall,
+  //minHeight: spacing.screenHeight * 0.5,
+  //padding: spacing.extraSmall,
 }
 
 const $actionCard: ViewStyle = {
-  marginBottom: spacing.extraSmall,
-  marginTop: -spacing.extraLarge * 2,
+  margin: spacing.extraSmall,
+  marginTop: -spacing.extraLarge * 2,  
   paddingTop: 0,
 }
 
 const $card: ViewStyle = {
-  marginBottom: spacing.small,
-  paddingTop: 0,
+  marginHorizontal: spacing.extraSmall,
+  marginVertical: spacing.small,  
 }
 
 

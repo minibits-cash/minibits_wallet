@@ -18,10 +18,15 @@ import {Database, MintClient} from '../services'
 import {log} from '../services/logService'
 import { min } from 'date-fns'
 import { getRootStore } from './helpers/getRootStore'
+import formatDistance from 'date-fns/formatDistance'
 
 export const maxTransactionsInModel = 10
 export const maxTransactionsByMint = 10
-export const maxTransactionsByHostname = 4
+export const maxTransactionsByHostname = 3
+
+export type GroupedByTimeAgo = {
+    [timeAgo: string]: Transaction[];
+}
 
 export const TransactionsStoreModel = types
     .model('TransactionsStore', {
@@ -48,6 +53,26 @@ export const TransactionsStoreModel = types
         get pending() {
             return this.all.filter(t => t.status === TransactionStatus.PENDING)
         },
+        get groupedByTimeAgo() {
+            return this.all.reduce((groups: GroupedByTimeAgo, transaction: Transaction) => {                               
+                const timeAgo = formatDistance(transaction.createdAt as Date, new Date(), {addSuffix: true})  
+                if (!groups[timeAgo]) {
+                    groups[timeAgo] = []
+                }
+                groups[timeAgo].push(transaction)
+                return groups
+            }, {})
+        },
+        get groupedPendingByTimeAgo() {
+            return this.pending.reduce((groups: GroupedByTimeAgo, transaction: Transaction) => {                               
+                const timeAgo = formatDistance(transaction.createdAt as Date, new Date(), {addSuffix: true})  
+                if (!groups[timeAgo]) {
+                    groups[timeAgo] = []
+                }
+                groups[timeAgo].push(transaction)
+                return groups
+            }, {})
+        },   
         findById(id: number) {
             const tx = self.transactions.find(tx => tx.id === id)
             return tx || undefined
@@ -55,12 +80,24 @@ export const TransactionsStoreModel = types
         recentByHostname(mintHostname: string) {            
             return this.all.filter(t => getHostname(t.mint as string) === mintHostname).slice(0, maxTransactionsByHostname)
         },
+        recentByHostnameGroupedByTimeAgo(mintHostname: string) {
+            const recentByHostname = this.recentByHostname(mintHostname)
+
+            return recentByHostname.reduce((groups: GroupedByTimeAgo, transaction: Transaction) => {                               
+                const timeAgo = formatDistance(transaction.createdAt as Date, new Date(), {addSuffix: true})  
+                if (!groups[timeAgo]) {
+                    groups[timeAgo] = []
+                }
+                groups[timeAgo].push(transaction)
+                return groups
+            }, {})
+        },
         getByMint(mintUrl: string) {
             return this.all.filter(t => t.mint === mintUrl)
         },
         countByMint(mintUrl: string) {
             return this.getByMint(mintUrl).length
-        }   
+        }  
     }))
     .actions(self => ({
         removeOldTransactions: () => { // not used
@@ -277,6 +314,17 @@ export const TransactionsStoreModel = types
                 log.debug('[updateSentTo]', 'Transaction sentTo updated in TransactionsStore', {id, sentTo})
             }
         }),
+        deleteByStatus: (status: TransactionStatus) => {            
+            for (const transaction of self.transactions) {
+                if(transaction.status === status) {
+                    detach(transaction)                    
+                }
+            }
+            
+            self.transactions.replace(self.transactions.filter(t => t.status !== status))
+
+            return Database.deleteTransactionsByStatus(status)
+        },
         removeAllTransactions() {
             self.transactions.clear()
             log.debug('[removeAllTransactions]', 'Removed all transactions from TransactionsStore')

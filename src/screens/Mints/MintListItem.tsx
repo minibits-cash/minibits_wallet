@@ -1,7 +1,6 @@
-import React, { useState } from "react"
-import { ColorValue, ScrollView, TextStyle, View, ViewStyle } from "react-native"
+import React from "react"
 import { observer } from "mobx-react-lite"
-import { Button, Icon, ListItem, Screen, Text } from "../../components"
+import { ListItem, Text } from "../../components"
 import { Mint, MintStatus } from "../../models/Mint"
 import { MintBalance } from "../../models/Mint"
 import { colors, spacing, typography, useThemeColor } from "../../theme"
@@ -30,7 +29,7 @@ export const MintListItem = observer(function(props: {
               rightIcon={props.isBlocked ? 'faShieldHalved' : props.mint.status === MintStatus.OFFLINE ? 'faTriangleExclamation' : undefined}
               rightIconColor={props.isBlocked ? iconBlockedColor : iconColor as string}          
               onPress={props.onMintSelect ? () => props.onMintSelect(props.mint, props.mintBalance) : undefined}                    
-              RightComponent={props.mintBalance && <Text text={`${props.mintBalance?.balance}`} style={{alignSelf: 'center', marginRight: spacing.medium}}/>}            
+              RightComponent={props.mintBalance && <Text text={`${props.mintBalance?.balance.toLocaleString()}`} style={{alignSelf: 'center', marginRight: spacing.medium}}/>}            
               style={{paddingHorizontal: spacing.tiny}}
               containerStyle={{alignSelf: 'stretch'}}
               bottomSeparator={props.separator === 'bottom' || props.separator === 'both'}

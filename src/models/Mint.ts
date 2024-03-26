@@ -36,7 +36,7 @@ export const MintModel = types
         hostname: types.maybe(types.string),
         shortname: types.maybe(types.string),
         keys: types.frozen<MintKeys>(),
-        keysets: types.frozen<string[]>(),
+        keysets: types.array(types.string),
         proofsCounters: types.array(
             types.model('MintProofsCounter', {
               keyset: types.string,
@@ -132,10 +132,11 @@ export const MintModel = types
         setStatus(status: MintStatus) {
             self.status = status
         },
-        updateKeys(keyset: string, keys: MintKeys) {            
-            self.keysets.push(keyset) 
+        updateKeys(keyset: string, keys: MintKeys) {                  
+            if(!self.keysets.includes(keyset)){
+                self.keysets.push(keyset) 
+            }
             self.keys = keys
-            self.keysets = cast(self.keysets)            
         },
 
         setInFlight(inFlightFrom: number, inFlightTo: number, inFlightTid: number) {

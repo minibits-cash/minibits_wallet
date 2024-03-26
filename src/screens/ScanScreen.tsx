@@ -113,12 +113,32 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                     handleError(e)
                     break
                 }   
-            case 'SendOptions':     
+            case 'LightningPay':     
                 try {               
                     const invoiceResult = IncomingParser.findAndExtract(incoming, IncomingDataType.INVOICE)
                     return IncomingParser.navigateWithIncomingData(invoiceResult, navigation)
                     
                 } catch (e: any) {
+                    const maybeLnurlAddress = LnurlUtils.findEncodedLnurlAddress(incoming)
+        
+                    if(maybeLnurlAddress) {
+                        try {
+                            log.trace('Found Lightning address instead of an invoice', maybeLnurlAddress, 'onIncomingData')        
+                            const validAddress = LnurlUtils.extractLnurlAddress(maybeLnurlAddress)
+                    
+                            if(validAddress) {                            
+                                await IncomingParser.navigateWithIncomingData({
+                                    type: IncomingDataType.LNURL_ADDRESS,
+                                    encoded: validAddress
+                                }, navigation)    
+                            }
+                            return          
+                        } catch (e3: any) {
+                            handleError(e3)
+                            break
+                        }
+                    }
+                    
                     const maybeLnurl = LnurlUtils.findEncodedLnurl(incoming)
                     
                     if(maybeLnurl) {
@@ -138,26 +158,6 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                             break
                         }
                     }
-        
-                    const maybeLnurlAddress = LnurlUtils.findEncodedLnurlAddress(incoming)
-        
-                    if(maybeLnurlAddress) {
-                        try {
-                            log.trace('Found Lightning address instead of an invoice', maybeLnurlAddress, 'onIncomingData')        
-                            const validAddress = LnurlUtils.extractLnurlAddress(maybeLnurlAddress)
-                    
-                            if(validAddress) {                            
-                                await IncomingParser.navigateWithIncomingData({
-                                    type: IncomingDataType.LNURL_ADDRESS,
-                                    encoded: validAddress
-                                }, navigation)    
-                            }
-                            return          
-                        } catch (e3: any) {
-                            handleError(e3)
-                            break
-                        }
-                    }           
                     
                     e.params = incoming
                     handleError(e)  
@@ -187,40 +187,6 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
         return onIncomingData(clipboard)
     }
 
-    // manually entered address
-    const onLnurlAddress = async function() {        
-        try {
-            if(!lnurlAddress) {
-                toggleLnurlAddressModal()
-                throw new AppError(Err.VALIDATION_ERROR, 'Please enter Lightning address.', {caller: 'onLnurlAddress'})
-            }
-
-            const validAddress = LnurlUtils.extractLnurlAddress(lnurlAddress as string) // throws
-                
-            if(validAddress) {
-                toggleLnurlAddressModal()               
-                await IncomingParser.navigateWithIncomingData({
-                    type: IncomingDataType.LNURL_ADDRESS,
-                    encoded: validAddress
-                }, navigation)
-                return             
-            }
-             
-        } catch (e: any) {
-            handleError(e)
-        }
-          
-    } 
-
-
-    /* const handleError = (scanned: string, message: string) => {
-      Alert.alert(message, scanned, [
-        {
-          text: 'OK',
-          onPress: () => setIsScanned(false),
-        },
-      ])
-    } */
 
     const handleError = function(e: AppError): void {        
         setError(e)
@@ -238,28 +204,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                 hideControls            
             />
             <View style={$bottomContainer}>                
-                {prevRouteName === 'SendOptions' ? (
-                    <View style={$buttonContainer}>
-                        <Button                        
-                            onPress={() => onPaste()}
-                            LeftAccessory={() => (
-                                <Icon icon='faPaste'/>
-                            )}
-                            text={'Paste'}
-                            preset='secondary'
-                            style={{marginTop: spacing.medium, minWidth: 120, borderBottomRightRadius: 0, borderTopRightRadius: 0, marginRight: 1}}                        
-                        />
-                        <Button                        
-                            onPress={() => toggleLnurlAddressModal()}
-                            LeftAccessory={() => (
-                                <Icon icon='faKeyboard'/>
-                            )}
-                            text={'Type in'}
-                            preset='secondary'
-                            style={{marginTop: spacing.medium, minWidth: 120, borderBottomLeftRadius: 0, borderTopLeftRadius: 0}}                        
-                        />
-                    </View>
-                ) : (
+                {prevRouteName !== 'SendOptions' && (
                     <View style={$buttonContainer}>
                         <Button                        
                             onPress={() => onPaste()}
@@ -272,35 +217,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                         />
                     </View>
                 )}                
-            </View>
-            <BottomModal
-                isVisible={isLnurlAddressModalVisible ? true : false}            
-                ContentComponent={
-                    <View style={$modalContainer}>
-                        <Text text={'Lightning address'} preset="subheading" />
-                        <Text size='xxs' style={{color: hintText}} text='Manually type in Lightning address you want to pay to' />
-                        <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
-                            <TextInput
-                                ref={addressInputRef}
-                                onChangeText={address => setLnurlAddress(address)}
-                                value={lnurlAddress}
-                                autoCapitalize='none'
-                                keyboardType='default'
-                                maxLength={60}                            
-                                selectTextOnFocus={true}
-                                style={[$addressInput, {backgroundColor: inputBg}]}
-                                placeholder='name@domain'                    
-                            />
-                            <Button
-                                tx={'common.confirm'}                                
-                                onPress={onLnurlAddress}
-                            />
-                        </View>
-                    </View>
-                }
-                onBackButtonPress={toggleLnurlAddressModal}
-                onBackdropPress={toggleLnurlAddressModal}
-            /> 
+            </View>            
             {error && <ErrorModal error={error} />}
         </>
         ) : null

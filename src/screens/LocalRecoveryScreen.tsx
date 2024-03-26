@@ -218,7 +218,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
                   }
                   style={$item}
                   onPress={toggleShowUnspentOnly}
-                  bottomSeparator={true}
+                  // bottomSeparator={true}
                 />
                 <ListItem
                   text={'Pending'}
@@ -232,7 +232,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
                   }
                   style={$item}
                   onPress={toggleShowPendingOnly}
-                  bottomSeparator={true}
+                  // bottomSeparator={true}
                 />
                 <ListItem
                   text={'Spent'}

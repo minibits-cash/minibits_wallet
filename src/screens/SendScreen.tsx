@@ -58,7 +58,7 @@ import { Contact } from '../models/Contact'
 import { getImageSource, infoMessage } from '../utils/utils'
 import { NotificationService } from '../services/notificationService'
 import { SendOption } from './SendOptionsScreen'
-import { verticalScale } from '@gocodingnow/rn-size-matters'
+import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
 
 
@@ -83,7 +83,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     
     const [paymentOption, setPaymentOption] = useState<SendOption>(SendOption.SHOW_TOKEN)
     const [encodedTokenToSend, setEncodedTokenToSend] = useState<string | undefined>()
-    const [amountToSend, setAmountToSend] = useState<string>('')
+    const [amountToSend, setAmountToSend] = useState<string>('0')
     const [contactToSendFrom, setContactToSendFrom] = useState<Contact| undefined>()    
     const [contactToSendTo, setContactToSendTo] = useState<Contact| undefined>()        
     const [relaysToShareTo, setRelaysToShareTo] = useState<string[]>([])
@@ -215,7 +215,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 try {
                     await NotificationService.createLocalNotification(
                         '🚀 That was fast!',
-                        `<b>${amountToSend} sats</b> were received by <b>${receiver}</b>.`,
+                        `<b>${amountToSend} SATS</b> were received by <b>${receiver}</b>.`,
                          contactToSendTo?.picture             
                     )
 
@@ -380,7 +380,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             const receiverPubkey = contactToSendTo?.pubkey
 
             // log.trace('', {senderPrivkey, senderPubkey, receiverPubkey}, 'sendAsNostrDM')
-            const message = `nostr:${walletProfileStore.npub} sent you ${amountToSend} sats from Minibits wallet!`
+            const message = `nostr:${walletProfileStore.npub} sent you ${amountToSend} SATS from Minibits wallet!`
             const content = message + ' \n' + encodedTokenToSend
 
             const encryptedContent = await NostrClient.encryptNip04(                
@@ -545,13 +545,12 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
     return (
       <Screen preset="fixed" contentContainerStyle={$screen}>
-        <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-            <Text
-                preset="subheading"
-                text="Amount to send"
-                style={{color: 'white'}}
-            />          
+        <View style={[$headerContainer, {backgroundColor: headerBg}]}>        
             <View style={$amountContainer}>
+                <CurrencySign 
+                    currencyCode={CurrencyCode.SATS}
+                    textStyle={{color: 'white'}}
+                />
                 <TextInput
                     ref={amountInputRef}
                     onChangeText={amount => setAmountToSend(amount)}                
@@ -567,9 +566,11 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                             : true
                     }
                 />
-                <CurrencySign 
-                    currencyCode={CurrencyCode.SATS}
-                />
+                <Text
+                    size='sm'
+                    text="Amount to send"
+                    style={{color: 'white', textAlign: 'center'}}
+                />  
             </View>          
         </View>
         <View style={$contentContainer}>
@@ -1205,7 +1206,7 @@ const NostDMInfoBlock = observer(function (props: {
                         size={spacing.medium}                    
                         color={tokenTextColor}                
                 />
-                <Text size='xxs' style={{color: tokenTextColor, marginBottom: -10}} text={`${props.amountToSend} sats`} />
+                <Text size='xxs' style={{color: tokenTextColor, marginBottom: -10}} text={`${props.amountToSend} SATS`} />
             </View>
             <Text size='xxs' style={{color: tokenTextColor, textAlign: 'center', marginRight: 30, marginBottom: 20}} text='...........' />
             <View style={{flexDirection: 'column', alignItems: 'center', width: 100}}>
@@ -1256,8 +1257,8 @@ const $amountInput: TextStyle = {
     borderRadius: spacing.small,
     margin: 0,
     padding: 0,
-    fontSize: 52,
-    fontWeight: '400',    
+    fontSize: moderateVerticalScale(48),
+    fontFamily: typography.primary?.medium,
     textAlign: 'center',
     color: 'white',    
 }

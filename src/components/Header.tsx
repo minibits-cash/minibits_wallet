@@ -47,6 +47,11 @@ export interface HeaderProps {
    */
   backgroundColor?: ColorValue
   /**
+   * Title action custom ReactElement.
+   * Overrides `title`, `titleTx`.
+   */
+  TitleActionComponent?: ReactElement
+  /**
    * Title text to display if not using `tx` or nested components.
    */
   title?: TextProps["text"]
@@ -180,6 +185,7 @@ export function Header(props: HeaderProps) {
     rightTx,
     rightTxOptions,
     safeAreaEdges = ["top"],
+    TitleActionComponent,
     title= appName,
     titleMode = "center",
     titleTx,
@@ -192,7 +198,7 @@ export function Header(props: HeaderProps) {
   } = props
 
   const $containerInsets = useSafeAreaInsetsStyle(safeAreaEdges)
-  const titleContent = titleTx ? translate(titleTx, titleTxOptions) : title
+  const titleContent = !!TitleActionComponent ? undefined : titleTx ? translate(titleTx, titleTxOptions) : title
 
   return (
     <View style={[$container, $containerInsets, { backgroundColor }, $containerStyleOverride]}>
@@ -213,6 +219,18 @@ export function Header(props: HeaderProps) {
           backgroundColor={backgroundColor}
           ActionComponent={LeftActionComponent}
         />
+        {!!TitleActionComponent && ( 
+            <View
+                style={[
+                    titleMode === "center" && $titleWrapperCenter,
+                    titleMode === "flex" && $titleWrapperFlex,
+                    $titleContainerStyleOverride,
+                ]}
+                pointerEvents="none"
+            >           
+            {TitleActionComponent}
+            </View>       
+        )}
         {!!titleContent && (            
             <View
                 style={[

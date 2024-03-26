@@ -90,7 +90,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
 
       if (result && result.spentAmount > 0) {
         setInfo(
-          `${result.spentCount} ecash proofs, ${result.spentAmount} sats in total were removed from the wallet.`,
+          `${result.spentCount} ecash proofs, ${result.spentAmount} SATS in total were removed from the wallet.`,
         )
         return
       }

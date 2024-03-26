@@ -80,7 +80,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
       //StatusBarProps: {barStyle: 'dark-content'},
     })
 
-    const {userSettingsStore} = useStores()
+    const {userSettingsStore, relaysStore} = useStores()
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState<boolean>(false)    
 
@@ -91,6 +91,8 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
             setIsLoading(true)
             const mnemonic = await MintClient.getOrCreateMnemonic()
             userSettingsStore.setIsOnboarded(true)
+            // add default relays - issue #54
+            relaysStore.addDefaultRelays()
             navigation.navigate('Tabs')
             setIsLoading(false)
         } catch (e: any) {

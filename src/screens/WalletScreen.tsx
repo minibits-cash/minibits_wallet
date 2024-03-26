@@ -15,7 +15,7 @@ import {
   Linking
 } from 'react-native'
 import codePush, { RemotePackage } from 'react-native-code-push'
-import {verticalScale} from '@gocodingnow/rn-size-matters'
+import {moderateVerticalScale, verticalScale} from '@gocodingnow/rn-size-matters'
 import { SvgXml } from 'react-native-svg'
 import PagerView, { PagerViewOnPageScrollEventData } from 'react-native-pager-view'
 import { ScalingDot } from 'react-native-animated-pagination-dots'
@@ -87,6 +87,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     
     const appState = useRef(AppState.currentState)
     const isInternetReachable = useIsInternetReachable()
+    const returnWithNavigationReset = route.params?.returnWithNavigationReset
    
     const [info, setInfo] = useState<string>('')
     const [defaultMintUrl, setDefaultMintUrl] = useState<string>(MINIBITS_MINT_URL)
@@ -140,7 +141,9 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         const getInitialData  = async () => {
             const url = await Linking.getInitialURL()
             
-            if (url) {
+            log.trace('returnWithNavigationReset', returnWithNavigationReset)
+                      
+            if (url && !returnWithNavigationReset) {                            
                 handleDeeplink({url})                
                 return // deeplinks have priority over clipboard
             }
@@ -177,9 +180,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
 
     const handleDeeplink = async function ({url}: {url: string}) {
-        log.trace('deepLink', url, 'handleDeeplink')
+        try {
 
-        try {            
             const incomingData = IncomingParser.findAndExtract(url)
             await IncomingParser.navigateWithIncomingData(incomingData, navigation)
 
@@ -275,8 +277,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         log.trace('onReceiveTopupCompleted event handler triggered', paymentRequest)
 
         await NotificationService.createLocalNotification(
-            `⚡ ${paymentRequest.amount} sats received!`,
-            `Your invoice has been paid and your wallet balance credited with ${paymentRequest.amount} sats.`,            
+            `⚡ ${paymentRequest.amount} SATS received!`,
+            `Your invoice has been paid and your wallet balance credited with ${paymentRequest.amount} SATS.`,            
         )     
     }
     
@@ -404,11 +406,18 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const iconInfo = useThemeColor('textDim')
 
     return (        
-      <Screen preset='fixed' contentContainerStyle={$screen}>
+      <Screen contentContainerStyle={$screen}>
             <Header 
                 leftIcon='faListUl'
                 leftIconColor={colors.palette.primary100}
                 onLeftPress={gotoTranHistory}
+                TitleActionComponent={
+                    <CurrencySign 
+                        currencyCode={CurrencyCode.SATS}
+                        // containerStyle={{}}
+                        textStyle={{color: 'white'}}              
+                    />
+                }
                 RightActionComponent={
                 <>
                     {paymentRequestsStore.countNotExpired > 0 && (
@@ -426,8 +435,9 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             <TotalBalanceBlock
                 totalBalance={balances.totalBalance}
                 pendingBalance={balances.totalPendingBalance}
+                isMoreThenOneMint={groupedMints.length > 1 ? true : false}
             />
-            <View style={[$contentContainer, groupedMints.length > 1 && ({marginTop: -spacing.extraLarge * 2.5})]}>
+            <View style={[$contentContainer, (groupedMints.length > 1) ? {marginTop: -spacing.extraLarge * 2.4} : {marginTop: -spacing.extraLarge * 1.8}]}>
                 {mintsStore.mintCount === 0 ? (
                     <PromoBlock addMint={addMint} />
                 ) : (
@@ -439,7 +449,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                 inActiveDotColor={colors.palette.primary300}
                                 activeDotColor={colors.palette.primary100}
                                 activeDotScale={1.2}
-                                containerStyle={{bottom: undefined, position: undefined, marginTop: -spacing.tiny, paddingBottom: spacing.small}}
+                                containerStyle={{bottom: undefined, position: undefined, marginTop: -spacing.tiny, paddingBottom: spacing.medium}}
                                 //@ts-ignore
                                 scrollX={scrollX}
                                 dotSize={30}
@@ -449,11 +459,11 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                             testID="pager-view"
                             initialPage={0}
                             ref={pagerRef}
-                            style={{ flexGrow: 1}}                                             
+                            style={{flexGrow: 1}}                                             
                             onPageScroll={onPageScroll}
                         >
                             {groupedMints.map((mints) => (
-                                <View key={mints.hostname} style={{marginHorizontal: spacing.extraSmall, flexGrow: 1}}>
+                                <View key={mints.hostname}>
                                     <MintsByHostnameListItem                                    
                                         mintsByHostname={mints}
                                         mintBalances={balances.mintBalances.filter(balance => balance.mint.includes(mints.hostname))}
@@ -461,15 +471,15 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                     />
                                     {transactionsStore.recentByHostname(mints.hostname).length > 0 && (
                                         <Card                                    
-                                            ContentComponent={
-                                            <>
+                                            ContentComponent={                                            
                                                 <FlatList
                                                     data={transactionsStore.recentByHostname(mints.hostname) as Transaction[]}
                                                     renderItem={({item, index}) => {
                                                         return (<TransactionListItem
                                                             key={item.id}
-                                                            tx={item}
+                                                            transaction={item}
                                                             isFirst={index === 0}
+                                                            isTimeAgoVisible={true}
                                                             gotoTranDetail={gotoTranDetail}
                                                         />)
                                                         }
@@ -477,8 +487,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                                     // keyExtractor={(item, index) => item.id}
                                                     // contentContainerStyle={{paddingRight: spacing.small}}
                                                     style={{ maxHeight: 300 - (mints.mints.length > 1 ? mints.mints.length * 38 : 0)}}
-                                                />
-                                            </>
+                                                />                                            
                                             }
                                             style={[$card, {paddingTop: spacing.extraSmall}]}
                                         />
@@ -564,6 +573,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 const TotalBalanceBlock = observer(function (props: {
     totalBalance: number
     pendingBalance: number
+    isMoreThenOneMint: boolean
 }) {
     const headerBg = useThemeColor('header')
     const balanceColor = 'white'
@@ -571,15 +581,10 @@ const TotalBalanceBlock = observer(function (props: {
 
     return (
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-            <CurrencySign 
-                currencyCode={CurrencyCode.SATS}
-                containerStyle={{marginTop: -5, backgroundColor: 'transparent'}}
-                textStyle={{color: currencyColor}}
-            />
             <Text
                 testID='total-balance'
                 preset='heading'              
-                style={{color: balanceColor}}            
+                style={[$totalBalance, props.isMoreThenOneMint ? {color: balanceColor} : {color: balanceColor, paddingTop: spacing.tiny}]}            
                 text={props.totalBalance.toLocaleString()}
             />
         </View>
@@ -606,7 +611,7 @@ const PromoBlock = function (props: {addMint: any}) {
                 </RNText>
             </View>
             }
-            style={[$card, {marginHorizontal: spacing.extraSmall}]}
+            style={[$card, {marginTop: spacing.small}]}
             FooterComponent={
             <View style={{alignItems: 'center'}}>
                 <Button
@@ -637,7 +642,8 @@ const MintsByHostnameListItem = observer(function (props: {
             <ListItem
                 text={props.mintsByHostname.hostname}
                 textStyle={$cardHeading}
-                style={{marginHorizontal: spacing.micro}}                
+                style={{marginHorizontal: spacing.micro}}
+                //bottomSeparator={true}                
             />
             }
             ContentComponent={
@@ -648,7 +654,7 @@ const MintsByHostnameListItem = observer(function (props: {
                     text={mint.shortname}
                     textStyle={[$mintText, {color}]}
                     leftIcon={mint.status === MintStatus.OFFLINE ? 'faTriangleExclamation' : 'faCoins'}
-                    leftIconColor={mint.color}
+                    leftIconColor={mint.color}                    
                     leftIconInverse={true}
                     RightComponent={
                     <View style={$balanceContainer}>
@@ -658,7 +664,7 @@ const MintsByHostnameListItem = observer(function (props: {
                         </Text>
                     </View>
                     }
-                    topSeparator={true}
+                    //topSeparator={true}
                     style={$item}
                     onPress={() => props.gotoMintInfo(mint.mintUrl)}
                 />
@@ -678,37 +684,40 @@ const $screen: ViewStyle = {
 }
 
 const $headerContainer: TextStyle = {
-  alignItems: 'center',
-  paddingBottom: spacing.medium,
-  paddingTop: 0,
-  marginTop: 0,
-  height: spacing.screenHeight * 0.18,
-  // borderWidth: 1,
-  // borderColor: 'red',
+    alignItems: 'center',
+    padding: spacing.tiny,  
+    height: spacing.screenHeight * 0.18,
 }
 
 const $buttonContainer: ViewStyle = {
-  flexDirection: 'row',
-  alignSelf: 'center',
-  marginTop: spacing.medium,
+    flexDirection: 'row',
+    alignSelf: 'center',
+    marginTop: spacing.medium,
 }
 
 const $contentContainer: TextStyle = {
-  marginTop: -spacing.extraLarge * 2,
-  flex: 0.9,
-  paddingTop: spacing.extraSmall - 3,
-  // borderWidth: 1,
-  // borderColor: 'green',
+    // padding: spacing.extraSmall,    
+    flex: 0.85,
+    // paddingTop: spacing.extraSmall - 3,
+    // borderWidth: 1,
+    // borderColor: 'green',
 }
 
 const $card: ViewStyle = {
   marginBottom: spacing.small,
   paddingTop: 0,
+  marginHorizontal: spacing.extraSmall,
+  // alignSelf: 'stretch'
 }
 
 const $cardHeading: TextStyle = {
-  fontFamily: typography.primary?.normal,
-  fontSize: verticalScale(18),
+  fontFamily: typography.primary?.medium,
+  fontSize: moderateVerticalScale(18),
+}
+
+const $totalBalance: TextStyle = {
+    fontSize: moderateVerticalScale(48),
+    lineHeight: moderateVerticalScale(48)
 }
 
 const $promoIconContainer: ViewStyle = {

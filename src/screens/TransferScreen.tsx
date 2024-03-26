@@ -42,7 +42,7 @@ import { DecodedLightningInvoice, LightningUtils } from '../services/lightning/l
 import { SendOption } from './SendOptionsScreen'
 import { roundDown, roundUp } from '../utils/number'
 import { LnurlClient, LNURLPayParams } from '../services/lnurlService'
-import { moderateScale, scale, verticalScale } from '@gocodingnow/rn-size-matters'
+import { moderateScale, moderateVerticalScale, scale, verticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
 import { FeeBadge } from './Wallet/FeeBadge'
 import { isObj } from '@cashu/cashu-ts/src/utils'
@@ -67,7 +67,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
 
     const [encodedInvoice, setEncodedInvoice] = useState<string>('')
     const [invoice, setInvoice] = useState<DecodedLightningInvoice | undefined>()
-    const [amountToTransfer, setAmountToTransfer] = useState<string>('')
+    const [amountToTransfer, setAmountToTransfer] = useState<string>('0')
     const [invoiceExpiry, setInvoiceExpiry] = useState<Date | undefined>()
     const [paymentHash, setPaymentHash] = useState<string | undefined>()
     const [lnurlPayParams, setLnurlPayParams] = useState<LNURLPayParams & {address?: string} | undefined>()
@@ -251,7 +251,7 @@ useEffect(() => {
             }
 
             setEstimatedFee(fee)
-        } catch (e: any) {            
+        } catch (e: any) { 
             handleError(e)
         }
     }
@@ -301,12 +301,12 @@ const onAmountEndEditing = async function () {
         }
 
         if (lnurlPayParams.minSendable && amount < lnurlPayParams.minSendable / 1000 ) {
-            infoMessage(`Minimal amount to pay is ${lnurlPayParams.minSendable / 1000} sats.`)          
+            infoMessage(`Minimal amount to pay is ${lnurlPayParams.minSendable / 1000} SATS.`)          
             return
         }
 
         if (lnurlPayParams.maxSendable && amount > lnurlPayParams.maxSendable / 1000 ) {
-            infoMessage(`Maximal amount to pay is ${lnurlPayParams.maxSendable / 1000} sats.`)          
+            infoMessage(`Maximal amount to pay is ${lnurlPayParams.maxSendable / 1000} SATS.`)          
             return
         }
 
@@ -381,79 +381,84 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
 
 const transfer = async function () {
     setIsLoading(true)
+       
+    const {transaction, message, error, finalFee} = await Wallet.transfer(
+        mintBalanceToTransferFrom as MintBalance,
+        parseInt(amountToTransfer),
+        estimatedFee,
+        invoiceExpiry as Date,
+        memo,
+        encodedInvoice,
+    )
 
-    try {   
-        const {transaction, message, error, finalFee} = await Wallet.transfer(
-            mintBalanceToTransferFrom as MintBalance,
-            parseInt(amountToTransfer),
-            estimatedFee,
-            invoiceExpiry as Date,
-            memo,
-            encodedInvoice,
-        )
+    log.trace('[transfer]', 'Transfer result', {transaction, message, error, finalFee})
 
-        log.trace('[transfer]', 'Transfer result', {transaction, message, error, finalFee})
+    // handle errors before transaction is created
+    if (!transaction && error) {
 
-        const {status} = transaction as Transaction
-        setTransactionStatus(status)
-
-        if(transaction && lnurlPayParams && lnurlPayParams.address) {
-            await transactionsStore.updateSentTo( // set ln address to send to to the tx, could be elsewhere //
-                transaction.id as number,                    
-                lnurlPayParams.address as string
-            )
-        }
-
-        if (error) { // This handles timed out pending payments           
-
-            if(status === TransactionStatus.PENDING) {
-                setResultModalInfo({
-                    status,                    
-                    message,
-                })
-            } else {
-                setResultModalInfo({
-                    status,
-                    title: error.params?.message ? error.message : 'Payment failed',
-                    message: error.params?.message || error.message,
-                })
-            }
-            
-
-        } else {
-            if(!isInvoiceDonation) {  // Donation polling triggers own ResultModal on paid invoice
-                setResultModalInfo({
-                    status,
-                    message,
-                })
-            }
-            
-            // update related paymentRequest status if exists
-            if(paymentHash) {
-                const pr = paymentRequestsStore.findByPaymentHash(paymentHash)
-
-                if(pr) {
-                    pr.setStatus(PaymentRequestStatus.PAID)
-                }
-            }
-        }
-
-        if (finalFee) {
-            setFinalFee(finalFee)
-        }
+        setTransactionStatus(TransactionStatus.ERROR)
+        setResultModalInfo({
+            status: TransactionStatus.ERROR,                    
+            message: error.message,
+        })
 
         setIsLoading(false)
-        
-        if(!isInvoiceDonation || error) {
-            toggleResultModal()
-        }
-    }catch (e: any) {
-        // Handle errors before transaction is created
-        resetState()
-        handleError(e)
+        toggleResultModal()
+        return
+    }
+    
+    const { status } = transaction as Transaction
+    setTransactionStatus(status)
+
+    if(transaction && lnurlPayParams && lnurlPayParams.address) {
+        await transactionsStore.updateSentTo( // set ln address to send to to the tx, could be elsewhere //
+            transaction.id as number,                    
+            lnurlPayParams.address as string
+        )
     }
 
+    if (error) { // This handles timed out pending payments           
 
+        if(status === TransactionStatus.PENDING) {
+            setResultModalInfo({
+                status,                    
+                message,
+            })
+        } else {
+            setResultModalInfo({
+                status,
+                title: error.params?.message ? error.message : 'Payment failed',
+                message: error.params?.message || error.message,
+            })
+        }        
+
+    } else {
+        if(!isInvoiceDonation) {  // Donation polling triggers own ResultModal on paid invoice
+            setResultModalInfo({
+                status,
+                message,
+            })
+        }
+        
+        // update related paymentRequest status if exists
+        if(paymentHash) {
+            const pr = paymentRequestsStore.findByPaymentHash(paymentHash)
+
+            if(pr) {
+                pr.setStatus(PaymentRequestStatus.PAID)
+            }
+        }
+    }
+
+    if (finalFee) {
+        setFinalFee(finalFee)
+    }
+
+    setIsLoading(false)
+    
+    if(!isInvoiceDonation || error) {
+        toggleResultModal()
+    }
 }
     
 
@@ -475,14 +480,12 @@ const satsColor = colors.palette.primary200
 
     return (
         <Screen preset="fixed" contentContainerStyle={$screen}>
-            <View style={[$headerContainer, {backgroundColor: headerBg}]}>                
-                
-                <Text
-                    preset="subheading"
-                    text="Amount to pay"
-                    style={{color: 'white'}}
-                />
-                <View style={$amountContainer}>                    
+            <View style={[$headerContainer, {backgroundColor: headerBg}]}>
+                <View style={$amountContainer}>
+                    <CurrencySign 
+                        currencyCode={CurrencyCode.SATS}
+                        textStyle={{color: 'white'}}                        
+                    />
                     <TextInput
                         ref={amountInputRef}
                         onChangeText={amount => setAmountToTransfer(amount)}                                
@@ -496,6 +499,7 @@ const satsColor = colors.palette.primary200
                             encodedInvoice ? false : true
                         }
                     />
+
                     {encodedInvoice && (estimatedFee || finalFee) ? (
                         <FeeBadge
                             currencyCode={CurrencyCode.SATS}
@@ -503,10 +507,12 @@ const satsColor = colors.palette.primary200
                             finalFee={finalFee}              
                         />    
                     ) : (
-                        <CurrencySign 
-                            currencyCode={CurrencyCode.SATS}                        
+                        <Text
+                            size='sm'
+                            text={'Amount to pay'}
+                            style={{color: 'white', textAlign: 'center'}}
                         />
-                    )}                    
+                    )}
                 </View>
             </View>
             <View style={$contentContainer}>
@@ -607,7 +613,8 @@ const satsColor = colors.palette.primary200
                                 </View>
                             </>
                         )}
-                        {resultModalInfo && transactionStatus === TransactionStatus.REVERTED && (
+                        {resultModalInfo && 
+                            transactionStatus === TransactionStatus.REVERTED && (
                             <>
                                 <ResultModalInfo
                                     icon="faRotate"
@@ -755,8 +762,8 @@ const $headerContainer: TextStyle = {
       borderRadius: spacing.small,
       margin: 0,
       padding: 0,
-      fontSize: 52,
-      fontWeight: '400',    
+      fontSize: moderateVerticalScale(48),
+      fontFamily: typography.primary?.medium,
       textAlign: 'center',
       color: 'white',    
   }
