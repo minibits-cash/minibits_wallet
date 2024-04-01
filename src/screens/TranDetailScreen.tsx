@@ -11,6 +11,7 @@ import Clipboard from '@react-native-clipboard/clipboard'
 import JSONTree from 'react-native-json-tree'
 import {colors, spacing, useThemeColor} from '../theme'
 import {WalletStackScreenProps} from '../navigation'
+import EventEmitter from '../utils/eventEmitter'
 import {
   Button,
   Icon,
@@ -34,7 +35,7 @@ import {
 import AppError, {Err} from '../utils/AppError'
 import {log} from '../services/logService'
 import {isArray} from 'lodash'
-import {Database, TransactionResult, Wallet} from '../services'
+import {Database, TransactionTaskResult, WalletTask} from '../services'
 import {BackupProof, Proof} from '../models/Proof'
 import useColorScheme from '../theme/useThemeColor'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
@@ -429,12 +430,55 @@ const ReceiveInfoBlock = function (props: {
     const isInternetReachable = useIsInternetReachable()
     const retryResult = getTokenToRetryToReceive(transaction)  
     const {transactionsStore, mintsStore} = useStores()
-
+    const [isReceiveTaskSentToQueue, setIsReceiveTaskSentToQueue] = useState<boolean>(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
     const [resultModalInfo, setResultModalInfo] = useState<
       {status: TransactionStatus; message: string} | undefined
     >()
     const [isLoading, setIsLoading] = useState(false)
+
+
+    useEffect(() => {
+        const handleReceiveTaskResult = async (result: TransactionTaskResult) => {
+            log.trace('handleReceiveTaskResult event handler triggered')
+            
+            setIsLoading(false)
+
+            if (result.error) {
+                setResultModalInfo({
+                    status: result.transaction?.status as TransactionStatus,
+                    message: result.error.params?.message || result.error.message,
+                })
+            } else {
+
+                const transactionDataUpdate = {
+                    status: TransactionStatus.EXPIRED,                    
+                    message: 'Ecash has been successfully received after retry. New transaction has been created.',
+                    createdAt: new Date(),
+                }
+        
+                transactionsStore.updateStatuses(
+                    [transaction.id as number],
+                    TransactionStatus.EXPIRED,
+                    JSON.stringify(transactionDataUpdate),
+                )
+
+                setResultModalInfo({
+                    status: result.transaction?.status as TransactionStatus,
+                    message: result.message,
+                })
+            }
+        }
+
+        // Subscribe to the 'sendCompleted' event
+        EventEmitter.on('ev_receiveTask', handleReceiveTaskResult)
+
+        // Unsubscribe from the 'sendCompleted' event on component unmount
+        return () => {
+            EventEmitter.off('ev_receiveOfflineCompleteTask', handleReceiveTaskResult)
+        }
+    }, [isReceiveTaskSentToQueue])
+
 
     const toggleResultModal = () =>
     setIsResultModalVisible(previousState => !previousState)
@@ -459,37 +503,14 @@ const ReceiveInfoBlock = function (props: {
                 }
             }
 
-            const result: TransactionResult = await Wallet.receive(
+            setIsReceiveTaskSentToQueue(true)
+            WalletTask.receive(
                 tokenToRetry as Token,
                 amountToReceive,
                 memo,
                 encoded
             )
-
-            if (result.error) {
-                setResultModalInfo({
-                    status: result.transaction?.status as TransactionStatus,
-                    message: result.error.params?.message || result.error.message,
-                })
-            } else {
-
-                const transactionDataUpdate = {
-                    status: TransactionStatus.EXPIRED,                    
-                    message: 'Ecash has been successfully received after retry within new transaction',
-                    createdAt: new Date(),
-                }
-        
-                transactionsStore.updateStatuses(
-                    [transaction.id as number],
-                    TransactionStatus.EXPIRED,
-                    JSON.stringify(transactionDataUpdate),
-                )
-
-                setResultModalInfo({
-                    status: result.transaction?.status as TransactionStatus,
-                    message: result.message,
-                })
-            }
+ 
 
         } catch (e: any) {
             setResultModalInfo({
@@ -681,12 +702,43 @@ const ReceiveOfflineInfoBlock = function (props: {
 
     const labelColor = useThemeColor('textDim')
     const isInternetReachable = useIsInternetReachable()
-
+    const [isReceiveOfflineCompleteTaskSentToQueue, setIsReceiveOfflineCompleteTaskSentToQueue] = useState<boolean>(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
     const [resultModalInfo, setResultModalInfo] = useState<
       {status: TransactionStatus; message: string} | undefined
     >()
     const [isLoading, setIsLoading] = useState(false)
+
+
+    useEffect(() => {
+        const handleReceiveOfflineCompleteTaskResult = async (result: TransactionTaskResult) => {
+            log.trace('handleReceiveOfflineCompleteTaskResult event handler triggered')
+            
+            setIsLoading(false)
+
+            if (result.error) {
+                setResultModalInfo({
+                    status: result.transaction?.status as TransactionStatus,
+                    message: result.error.message,
+                })
+            } else {
+                setResultModalInfo({
+                    status: result.transaction?.status as TransactionStatus,
+                    message: result.message,
+                })
+            }
+            setIsLoading(false)
+            toggleResultModal() 
+        }
+
+        // Subscribe to the 'sendCompleted' event
+        EventEmitter.on('ev_receiveOfflineCompleteTask', handleReceiveOfflineCompleteTaskResult)
+
+        // Unsubscribe from the 'sendCompleted' event on component unmount
+        return () => {
+            EventEmitter.off('ev_receiveOfflineCompleteTask', handleReceiveOfflineCompleteTaskResult)
+        }
+    }, [isReceiveOfflineCompleteTaskSentToQueue])
 
     // MVP implementaition
     const toggleResultModal = () =>
@@ -694,22 +746,8 @@ const ReceiveOfflineInfoBlock = function (props: {
 
     const receiveOfflineComplete = async function () {
         setIsLoading(true)
-        
-        const result = await Wallet.receiveOfflineComplete(transaction)            
-
-        if (result.error) {
-            setResultModalInfo({
-                status: result.transaction?.status as TransactionStatus,
-                message: result.error.message,
-            })
-        } else {
-            setResultModalInfo({
-                status: result.transaction?.status as TransactionStatus,
-                message: result.message,
-            })
-        }
-        setIsLoading(false)
-        toggleResultModal()
+        setIsReceiveOfflineCompleteTaskSentToQueue(true)   
+        WalletTask.receiveOfflineComplete(transaction)             
     }
 
     const onGoBack = () => {

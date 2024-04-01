@@ -451,6 +451,10 @@ const requestProofs = async function (
             newKeys
         }
     } catch (e: any) {
+        if(e.message.includes('quote not paid')) {
+            return
+        }
+        
         throw new AppError(
             Err.MINT_ERROR, 
             'The mint returned error on request to mint new ecash.', 

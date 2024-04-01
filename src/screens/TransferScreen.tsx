@@ -29,7 +29,8 @@ import {Mint} from '../models/Mint'
 import {Transaction, TransactionStatus} from '../models/Transaction'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
-import {MintClient, Wallet} from '../services'
+import {MintClient, TransactionTaskResult, WalletTask} from '../services'
+import EventEmitter from '../utils/eventEmitter'
 import {log} from '../services/logService'
 import AppError, {Err} from '../utils/AppError'
 import {MintBalance} from '../models/Mint'
@@ -84,9 +85,9 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState(false)
-    const [isPasteInvoiceModalVisible, setIsPasteInvoiceModalVisible] =
-      useState(false)
-    const [isInvoiceDonation, setIsInvoiceDonation] = useState(false)
+    const [isPasteInvoiceModalVisible, setIsPasteInvoiceModalVisible] = useState(false)
+    const [isInvoiceDonation, setIsInvoiceDonation] = useState(false)    
+    const [isTransferTaskSentToQueue, setIsTransferTaskSentToQueue] = useState(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)
     const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus; title?: string, message: string} | undefined>()
 
@@ -259,6 +260,89 @@ useEffect(() => {
 }, [mintBalanceToTransferFrom])
 
 
+useEffect(() => {
+    const handleTransferTaskResult = async (result: TransactionTaskResult) => {
+        log.trace('handleTransferTaskResult event handler triggered')
+        
+        setIsLoading(false)
+        const {transaction, message, error, finalFee} = result
+
+        log.trace('[transfer]', 'Transfer result', {transaction, message, error, finalFee})
+
+        // handle errors before transaction is created
+        if (!transaction && error) {    
+            setTransactionStatus(TransactionStatus.ERROR)
+            setResultModalInfo({
+                status: TransactionStatus.ERROR,                    
+                message: error.message,
+            })
+    
+            setIsLoading(false)
+            toggleResultModal()
+            return
+        }
+        
+        const { status } = transaction as Transaction
+        setTransactionStatus(status)
+    
+        if(transaction && lnurlPayParams && lnurlPayParams.address) {
+            await transactionsStore.updateSentTo( // set ln address to send to to the tx, could be elsewhere //
+                transaction.id as number,                    
+                lnurlPayParams.address as string
+            )
+        }
+    
+        if (error) { // This handles timed out pending payments
+            if(status === TransactionStatus.PENDING) {
+                setResultModalInfo({
+                    status,                    
+                    message,
+                })
+            } else {
+                setResultModalInfo({
+                    status,
+                    title: error.params?.message ? error.message : 'Payment failed',
+                    message: error.params?.message || error.message,
+                })
+            }        
+    
+        } else {
+            if(!isInvoiceDonation) {  // Donation polling triggers own ResultModal on paid invoice
+                setResultModalInfo({
+                    status,
+                    message,
+                })
+            }
+            
+            // update related paymentRequest status if exists
+            if(paymentHash) {
+                const pr = paymentRequestsStore.findByPaymentHash(paymentHash)
+    
+                if(pr) {
+                    pr.setStatus(PaymentRequestStatus.PAID)
+                }
+            }
+        }
+    
+        if (finalFee) {
+            setFinalFee(finalFee)
+        }
+        
+        if(!isInvoiceDonation || error) {
+            toggleResultModal()
+        }
+    }
+
+    // Subscribe to the 'sendCompleted' event
+    EventEmitter.on('ev_transferTask_result', handleTransferTaskResult)        
+
+    // Unsubscribe from the 'sendCompleted' event on component unmount
+    return () => {
+        EventEmitter.off('ev_transferTask_result', handleTransferTaskResult)        
+    }
+}, [isTransferTaskSentToQueue])
+
+
 
 const resetState = function () {
     setEncodedInvoice('')
@@ -275,6 +359,7 @@ const resetState = function () {
     setIsLoading(false)
     setIsPasteInvoiceModalVisible(false)
     setIsInvoiceDonation(false)
+    setIsTransferTaskSentToQueue(false)
     setIsResultModalVisible(false)
     setResultModalInfo(undefined)
 }
@@ -382,7 +467,7 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
 const transfer = async function () {
     setIsLoading(true)
        
-    const {transaction, message, error, finalFee} = await Wallet.transfer(
+    WalletTask.transfer(
         mintBalanceToTransferFrom as MintBalance,
         parseInt(amountToTransfer),
         estimatedFee,
@@ -390,75 +475,6 @@ const transfer = async function () {
         memo,
         encodedInvoice,
     )
-
-    log.trace('[transfer]', 'Transfer result', {transaction, message, error, finalFee})
-
-    // handle errors before transaction is created
-    if (!transaction && error) {
-
-        setTransactionStatus(TransactionStatus.ERROR)
-        setResultModalInfo({
-            status: TransactionStatus.ERROR,                    
-            message: error.message,
-        })
-
-        setIsLoading(false)
-        toggleResultModal()
-        return
-    }
-    
-    const { status } = transaction as Transaction
-    setTransactionStatus(status)
-
-    if(transaction && lnurlPayParams && lnurlPayParams.address) {
-        await transactionsStore.updateSentTo( // set ln address to send to to the tx, could be elsewhere //
-            transaction.id as number,                    
-            lnurlPayParams.address as string
-        )
-    }
-
-    if (error) { // This handles timed out pending payments           
-
-        if(status === TransactionStatus.PENDING) {
-            setResultModalInfo({
-                status,                    
-                message,
-            })
-        } else {
-            setResultModalInfo({
-                status,
-                title: error.params?.message ? error.message : 'Payment failed',
-                message: error.params?.message || error.message,
-            })
-        }        
-
-    } else {
-        if(!isInvoiceDonation) {  // Donation polling triggers own ResultModal on paid invoice
-            setResultModalInfo({
-                status,
-                message,
-            })
-        }
-        
-        // update related paymentRequest status if exists
-        if(paymentHash) {
-            const pr = paymentRequestsStore.findByPaymentHash(paymentHash)
-
-            if(pr) {
-                pr.setStatus(PaymentRequestStatus.PAID)
-            }
-        }
-    }
-
-    if (finalFee) {
-        setFinalFee(finalFee)
-    }
-
-    setIsLoading(false)
-    
-    if(!isInvoiceDonation || error) {
-        toggleResultModal()
-    }
 }
     
 

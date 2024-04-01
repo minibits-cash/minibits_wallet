@@ -396,7 +396,7 @@ const getNormalizedNostrProfile = async function (nip05: string, relays: string[
         }        
     }
 
-    const profile: NostrProfile = await NostrClient.getProfileFromRelays(nip05Pubkey, relaysToConnect)
+    const profile: NostrProfile | undefined = await NostrClient.getProfileFromRelays(nip05Pubkey, relaysToConnect)
 
     if(!profile) {
         throw new AppError(Err.NOTFOUND_ERROR, `Profile could not be found on Nostr relays, visit Settings and add relay that hosts the profile.`, {nip05, relays})
@@ -471,6 +471,50 @@ const getNormalizedRelayUrl = function (url: string): string {
 }
 
 
+// returns array of values after the first element (tag name)
+const getTagsByName = function(tagsArray: [string, string][], tagName: string) {
+    let tagValues = tagsArray.find(t => t && t.length && t.length >= 2 && t[0] === tagName)
+    if(tagValues && tagValues.length > 1) {
+        tagValues.shift() // remove tag name
+        return tagValues
+    }
+
+    return undefined
+}
+
+// returns first element after tag name
+const getFirstTagValue = function (tagsArray: [string, string][], tagName: string): string | undefined {
+    const tag = tagsArray.find(([name]) => name === tagName)
+    return tag ? tag[1] : undefined
+}
+
+
+const findMemo = function (message: string): string | undefined {
+    // Find the last occurrence of "memo: "
+    const lastIndex = message.lastIndexOf("Memo: ")
+    
+    if (lastIndex !== -1) {        
+        const memoAfterLast = message.substring(lastIndex + 6) // skip "memo: " itself
+        return memoAfterLast
+    } 
+        
+    return undefined    
+}
+
+
+const findZapRequest = function (message: string): string | undefined {
+    // Find the last occurrence of "memo: "
+    const lastIndex = message.lastIndexOf("zapRequest:")
+    
+    if (lastIndex !== -1) {        
+        const zapRequestString = message.substring(lastIndex + 11) // skip "zapRequest:" itself
+        return zapRequestString
+    } 
+        
+    return undefined    
+}
+
+
 export const NostrClient = { // TODO split helper functions to separate module
     getRelayPool,    
     getDefaultRelays,
@@ -492,5 +536,9 @@ export const NostrClient = { // TODO split helper functions to separate module
     getProfileFromRelays,
     getNormalizedRelayUrl,
     getNormalizedNostrProfile,
-    deleteKeyPair,    
+    deleteKeyPair,
+    getTagsByName,
+    getFirstTagValue,
+    findMemo,
+    findZapRequest,
 }

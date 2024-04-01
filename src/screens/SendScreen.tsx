@@ -43,7 +43,7 @@ import {
 import {TransactionStatus, Transaction} from '../models/Transaction'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
-import {NostrClient, NostrProfile, NostrUnsignedEvent, Wallet} from '../services'
+import {NostrClient, NostrUnsignedEvent, TransactionTaskResult, WalletTask} from '../services'
 import {log} from '../services/logService'
 import AppError, {Err} from '../utils/AppError'
 import {translate} from '../i18n'
@@ -105,6 +105,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     const [isQRModalVisible, setIsQRModalVisible] = useState(false)     
     const [isNostrDMModalVisible, setIsNostrDMModalVisible] = useState(false)
     const [isProofSelectorModalVisible, setIsProofSelectorModalVisible] = useState(false) // offline mode
+    const [isSendTaskSentToQueue, setIsSendTaskSentToQueue] = useState(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)
     const [isNostrDMSending, setIsNostrDMSending] = useState(false)
     const [isNostrDMSuccess, setIsNostrDMSuccess] = useState(false)     
@@ -193,6 +194,50 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     }, [isInternetReachable])
 
 
+    useEffect(() => {
+        const handleSendTaskResult = async (result: TransactionTaskResult) => {
+            log.trace('handleSendTaskResult event handler triggered')
+            
+            setIsLoading(false)
+
+            const {status, id} = result.transaction as Transaction
+            setTransactionStatus(status)
+            setTransactionId(id)
+    
+            if (result.encodedTokenToSend) {
+                setEncodedTokenToSend(result.encodedTokenToSend)
+            }
+
+            if (result.error) {
+                setResultModalInfo({
+                    status: result.transaction?.status as TransactionStatus,
+                    title: result.error.params?.message ? result.error.message : 'Send failed',
+                    message: result.error.params?.message || result.error.message,
+                })
+                setIsResultModalVisible(true)
+                return
+            }
+    
+            setIsMintSelectorVisible(false)
+    
+            if (paymentOption === SendOption.SHOW_TOKEN) {
+                toggleQRModal()
+            }
+    
+            if (paymentOption === SendOption.SEND_TOKEN) {
+                toggleNostrDMModal()
+            }   
+        }
+
+        // Subscribe to the 'sendCompleted' event
+        EventEmitter.on('ev_sendTask_result', handleSendTaskResult)
+
+        // Unsubscribe from the 'sendCompleted' event on component unmount
+        return () => {
+            EventEmitter.off('ev_sendTask_result', handleSendTaskResult)
+        }
+    }, [isSendTaskSentToQueue])
+
 
     useEffect(() => {
         const handleSendCompleted = async (transactionIds: number[]) => {
@@ -227,11 +272,11 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         }
 
         // Subscribe to the 'sendCompleted' event
-        EventEmitter.on('sendCompleted', handleSendCompleted)
+        EventEmitter.on('ev_sendCompleted', handleSendCompleted)
 
         // Unsubscribe from the 'sendCompleted' event on component unmount
         return () => {
-            EventEmitter.off('sendCompleted', handleSendCompleted)
+            EventEmitter.off('ev_sendCompleted', handleSendCompleted)
         }
     }, [transactionId])
 
@@ -312,28 +357,14 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             return
         }
 
-        const result = await send()
-
-        if (result.error) {
-            setResultModalInfo({
-                status: result.transaction?.status as TransactionStatus,
-                title: result.error.params?.message ? result.error.message : 'Send failed',
-                message: result.error.params?.message || result.error.message,
-            })
-            setIsResultModalVisible(true)
-            return
-        }
-
-        setIsMintSelectorVisible(false)
-
-        if (paymentOption === SendOption.SHOW_TOKEN) {
-            toggleQRModal()
-        }
-
-        if (paymentOption === SendOption.SEND_TOKEN) {
-            toggleNostrDMModal()
-        }      
-        
+        setIsLoading(true)       
+        setIsSendTaskSentToQueue(true)       
+        WalletTask.send(
+            mintBalanceToSendFrom as MintBalance,
+            parseInt(amountToSend),
+            memo,
+            selectedProofs
+        )
     }
 
 
@@ -346,31 +377,6 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         : false
     }
 
-
-
-    const send = async function () {
-        setIsLoading(true)
-
-        log.trace('[send] Memo', {memo})        
-
-        const result = await Wallet.send(
-            mintBalanceToSendFrom as MintBalance,
-            parseInt(amountToSend),
-            memo,
-            selectedProofs
-        )
-
-        const {status, id} = result.transaction as Transaction
-        setTransactionStatus(status)
-        setTransactionId(id)
-
-        if (result.encodedTokenToSend) {
-            setEncodedTokenToSend(result.encodedTokenToSend)
-        }
-
-        setIsLoading(false)
-        return result
-    }
 
 
     const sendAsNostrDM = async function () {

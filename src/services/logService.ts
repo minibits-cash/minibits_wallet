@@ -8,6 +8,8 @@ import * as Sentry from '@sentry/react-native'
 import {rootStoreInstance} from '../models'
 import {LogLevel} from './log/logTypes'
 
+// refresh // refresh // refresh
+
 const {    
     userSettingsStore
 } = rootStoreInstance
@@ -52,7 +54,7 @@ const customSentryTransport: transportFunctionType = props => {
 
   
 const log = logger.createLogger<LogLevel.TRACE | LogLevel.DEBUG | LogLevel.INFO | LogLevel.WARN | LogLevel.ERROR>({    
-    severity: __DEV__ ? LogLevel.TRACE : LogLevel.DEBUG,
+    severity: __DEV__ ? LogLevel.WARN : LogLevel.DEBUG,
     levels: {
         trace: 0,
         debug: 1,

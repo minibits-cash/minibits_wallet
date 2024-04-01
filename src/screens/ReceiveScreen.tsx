@@ -1,5 +1,5 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useState, useCallback} from 'react'
+import React, {FC, useState, useCallback, useEffect} from 'react'
 import {CommonActions, useFocusEffect} from '@react-navigation/native'
 import {Alert, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
@@ -22,15 +22,15 @@ import {Token} from '../models/Token'
 import {Transaction, TransactionStatus} from '../models/Transaction'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
-import {Wallet} from '../services'
+import {TransactionTaskResult, WalletTask} from '../services'
 import {log} from '../services/logService'
 import AppError from '../utils/AppError'
+import EventEmitter from '../utils/eventEmitter'
 
 import {CashuUtils} from '../services/cashu/cashuUtils'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {MintListItem} from './Mints/MintListItem'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
-import { resolveTxt } from 'dns'
 import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
 
@@ -55,6 +55,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState(false)
+    const [isReceiveTaskSentToQueue, setIsReceiveTaskSentToQueue] = useState(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)
     const [resultModalInfo, setResultModalInfo] = useState<
       {status: TransactionStatus; title?: string, message: string} | undefined
@@ -74,6 +75,49 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         }, [route.params?.encodedToken]),
     )
 
+
+    useEffect(() => {
+        const handleReceiveTaskResult = async (result: TransactionTaskResult) => {
+            log.trace('handleReceiveTaskResult event handler triggered')
+            
+            setIsLoading(false)
+
+            const {error, message, transaction, receivedAmount} = result
+            const {status} = transaction as Transaction
+
+            setTransactionStatus(status)
+    
+            if (error) {
+                setResultModalInfo({
+                    status,
+                    title: error.params?.message ? error.message : 'Receive failed',
+                    message: error.params?.message || error.message,
+                })
+            } else {
+                setResultModalInfo({
+                    status,
+                    message,
+                })
+            }
+    
+            if (receivedAmount) {
+                setReceivedAmount(receivedAmount)
+            }    
+            
+            setIsResultModalVisible(true)            
+        }
+
+        // Subscribe to the 'sendCompleted' event
+        EventEmitter.on('ev_receiveTask_result', handleReceiveTaskResult)
+        EventEmitter.on('ev_receiveOfflinePrepareTask_result', handleReceiveTaskResult)
+
+        // Unsubscribe from the 'sendCompleted' event on component unmount
+        return () => {
+            EventEmitter.off('ev_receiveTask_result', handleReceiveTaskResult)
+            EventEmitter.off('ev_receiveOfflinePrepareTask_result', handleReceiveTaskResult)
+        }
+    }, [isReceiveTaskSentToQueue])
+
     const resetState = function () {
         setToken(undefined)
         setEncodedToken(undefined)
@@ -85,7 +129,8 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         setError(undefined)
         setIsLoading(false)
         setIsResultModalVisible(false)
-        setResultModalInfo(undefined)        
+        setResultModalInfo(undefined)
+        setIsReceiveTaskSentToQueue(false)        
     }
 
     
@@ -116,70 +161,30 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
 
 
     const receiveToken = async function () {
-        setIsLoading(true)
+        setIsLoading(true)       
+        setIsReceiveTaskSentToQueue(true) 
 
-        const {transaction, message, error, receivedAmount} =
-        await Wallet.receive(
+        WalletTask.receive(
             token as Token,
             amountToReceive,
             memo,
             encodedToken as string,
-        )
-
-        const {status} = transaction as Transaction
-        setTransactionStatus(status)
-
-        if (error) {
-            setResultModalInfo({
-                status,
-                title: error.params?.message ? error.message : 'Receive failed',
-                message: error.params?.message || error.message,
-            })
-        } else {
-            setResultModalInfo({
-                status,
-                message,
-            })
-        }
-
-        if (receivedAmount) {
-            setReceivedAmount(receivedAmount)
-        }
-
-        setIsLoading(false)
-        toggleResultModal()
+        )        
     }
 
 
     const receiveOfflineToken = async function () {
         setIsLoading(true)
+        setIsReceiveTaskSentToQueue(true) 
+
+        WalletTask.receiveOfflinePrepare(
+            token as Token,
+            amountToReceive,
+            memo,
+            encodedToken as string,
+        )
   
-        const {transaction, message, error} =
-            await Wallet.receiveOfflinePrepare(
-                token as Token,
-                amountToReceive,
-                memo,
-                encodedToken as string,
-            )
-  
-        const {status} = transaction as Transaction
-        setTransactionStatus(status)
-  
-        if (error) {
-            setResultModalInfo({
-                status,
-                title: error.params?.message ? error.message : 'Offline receive failed',
-                message: error.params?.message || error.message,
-            })
-        } else {
-            setResultModalInfo({
-                status,
-                message,
-            })
-        }
-  
-        setIsLoading(false)
-        toggleResultModal()
+
     }
 
 
