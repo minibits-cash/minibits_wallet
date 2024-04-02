@@ -332,7 +332,7 @@ const _handleSpentByMintTask = async function (
         const proofsFromMint = proofsStore.getByMint(mintUrl, isPending) as Proof[]
 
         if (proofsFromMint.length === 0) {
-            const message = `No ${isPending ? 'pending' : ''} proofs found for mint`            
+            const message = `No ${isPending ? 'pending' : ''} proofs found for mint, skipping mint call...`            
             log.trace('[_handleSpentByMintTask]', message, mintUrl)
 
             return {
@@ -550,7 +550,7 @@ const _handleInFlightByMintTask = async function (mint: Mint, seed: Uint8Array):
     const proofsCounter = mint.getOrCreateProofsCounter?.()  
 
     if(!proofsCounter?.inFlightFrom || !proofsCounter?.inFlightTo) {
-        const message = 'No inFlight proofs to restore'
+        const message = 'No inFlight proofs to restore, skipping mint call...'
         log.trace('[_handleInFlightByMintTask]', message, {mintUrl})
         return {
             taskFunction: '_handleInFlightByMintTask',
@@ -683,7 +683,7 @@ const handlePendingTopups = async function (): Promise<void> {
     const paymentRequests: PaymentRequest[] = paymentRequestsStore.allOutgoing
 
     if (paymentRequests.length === 0) {
-        log.trace('[handlePendingTopups]', 'No outgoing payment requests in store - no tasks to send to queue')
+        log.trace('[handlePendingTopups]', 'No outgoing payment requests in store - skipping task send to the queue...')
         return
     }
 
