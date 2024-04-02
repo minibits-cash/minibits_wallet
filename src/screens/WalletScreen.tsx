@@ -39,7 +39,7 @@ import EventEmitter from '../utils/eventEmitter'
 import {WalletStackScreenProps} from '../navigation'
 import {Mint, MintBalance, MintStatus} from '../models/Mint'
 import {MintsByHostname} from '../models/MintsStore'
-import {log, NostrClient} from '../services'
+import {Database, KeyChain, log, NostrClient} from '../services'
 import {Env} from '../utils/envtypes'
 import {Transaction, TransactionStatus} from '../models/Transaction'
 import {TransactionListItem} from './Transactions/TransactionListItem'
@@ -155,8 +155,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             WalletTask.handleInFlight().catch(e => false)
             // Create websocket subscriptions to receive tokens or payment requests by NOSTR DMs                    
             WalletTask.receiveEventsFromRelays().catch(e => false)
-
-            // log.trace('[getInitialData]', 'walletProfile', walletProfileStore)
+            // log.trace('[getInitialData]', 'walletProfile', walletProfileStore)            
         }
         
         Linking.addEventListener('url', handleDeeplink)
@@ -199,7 +198,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 return
             }                
             WalletTask.handleSpentFromPending().catch(e => false)               
-            WalletTask.handlePendingTopups().catch(e => false)   
+            WalletTask.handlePendingTopups().catch(e => false)            
         }, [])
     )
 

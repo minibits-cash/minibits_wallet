@@ -1,5 +1,5 @@
 import {Instance, SnapshotOut, types, flow} from 'mobx-state-tree'
-import {KeyChain, MinibitsClient, NostrClient, NostrUnsignedEvent, Wallet} from '../services'
+import {KeyChain, MinibitsClient, NostrClient, NostrUnsignedEvent, WalletTask} from '../services'
 import {log} from '../services/logService'
 import { Err } from '../utils/AppError'
 import { getRandomUsername } from '../utils/usernames'
@@ -65,7 +65,7 @@ export const WalletProfileStoreModel = types
                 // new wallet profile has not yet the relays
                 if(relaysStore.allUrls.length === 0) {
                     // saves default relays and creates subscription for incoming nostr messages
-                    Wallet.checkPendingReceived()
+                    WalletTask.receiveEventsFromRelays()
                 }
                 
                 const relaysToPublish: string[]  = relaysStore.allUrls
@@ -128,7 +128,7 @@ export const WalletProfileStoreModel = types
                     // this removes abandoned profile with the same seedHash if any
                     profileRecord = yield MinibitsClient.createWalletProfile(publicKey, name, seedHash) 
                     
-                    log.error('[create]', 'Profile reset executed to resolve duplicate profile on the server.', {caller: 'create', newWalletId: name})
+                    log.error('[create]', 'Profile reset executed to resolve duplicate profile on the server.', {caller: 'create', walletId, newWalletId: name})
                     self.hydrate(profileRecord)
 
                     return

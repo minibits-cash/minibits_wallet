@@ -2,6 +2,11 @@ import {MMKV} from 'react-native-mmkv'
 import {log} from './logService'
 import AppError, {Err} from '../utils/AppError'
 import {KeyChain} from './keyChain'
+import { ROOT_STORAGE_KEY } from '../models'
+import { Database } from './sqlite'
+
+const STORAGE_KEY = 'storage-v1'
+const ENCRYPTED_STORAGE_KEY = 'encrypted-storage-v1'
 
 let _storage: MMKV | undefined
 let _encryptionKey: string | undefined
@@ -10,6 +15,36 @@ const initEncryption = async function (): Promise<void> {
   if (!_encryptionKey) {
     try {
         _encryptionKey = await getOrCreateEncryptionKey()
+        
+        // init migration from previously encrypted storage-v1, needs to be this early            
+        if (!Database.getUserSettings().isStorageMigrated) {
+            log.error('[getInstance] Starting migration to new encrypted storage')
+
+            const _current_storage = new MMKV({
+                id: STORAGE_KEY,
+                encryptionKey: _encryptionKey,
+            })
+
+            const migratedWalletState = _current_storage.getString(ROOT_STORAGE_KEY)
+            
+            if(migratedWalletState) {
+                const _new_storage = new MMKV({
+                    id: ENCRYPTED_STORAGE_KEY,
+                    encryptionKey: _encryptionKey,
+                })
+    
+                _new_storage.set(ROOT_STORAGE_KEY, migratedWalletState)
+            }
+            
+            // remove encryption from default storage
+            _current_storage.recrypt(undefined)
+
+            const userSettings = Database.getUserSettings()
+            Database.updateUserSettings({...userSettings, isStorageMigrated: true})           
+
+        } // migration end
+
+
         getInstance() // Instantiate the MMKV instance with the encryption key
     } catch(e: any) {
         throw e
@@ -18,22 +53,24 @@ const initEncryption = async function (): Promise<void> {
 }
 
 const getInstance = function () {
-  if (!_storage) {
-    if (_encryptionKey) {
-      _storage = new MMKV({
-        id: 'storage-v1',
-        encryptionKey: _encryptionKey,
-      })
+    if (!_storage) {
 
-      log.trace('[getInstance]', 'MMKV encrypted storage initialized')
-    } else {
-      _storage = new MMKV({
-        id: 'storage-v1',
-      })
+        if (_encryptionKey) {
+            _storage = new MMKV({
+                id: ENCRYPTED_STORAGE_KEY,
+                encryptionKey: _encryptionKey,
+            })
 
-      log.trace('[getInstance]', 'MMKV storage initialized')
+            log.trace('[getInstance]', 'MMKV encrypted storage initialized')
+        } else {
+
+            _storage = new MMKV({
+                id: STORAGE_KEY,
+            })
+
+            log.trace('[getInstance]', 'MMKV storage initialized')
+        }
     }
-  }
 
   return _storage
 }
@@ -58,26 +95,50 @@ const getOrCreateEncryptionKey = async function (): Promise<string> {
     }
 }
 
-const recryptStorage = async function (): Promise<boolean> {
 
-        const storage = getInstance()
+const decryptStorage = function (): boolean {    
 
-        if (_encryptionKey) {
-            storage.recrypt(undefined)
-            _encryptionKey = undefined
+    if (_encryptionKey) {
+        // make a copy of wallet state from encrypted storage
+        const walletState = String(loadString(ROOT_STORAGE_KEY))
 
-            log.info('[recryptStorage]', 'Storage encryption has been removed')
-            return false
-        }
+        log.trace('[decryptStorage]', {walletState})
 
-        const key = await getOrCreateEncryptionKey()
+        // reset encrypted storage instance
+        _storage = undefined
+        _encryptionKey = undefined
 
-        storage.recrypt(key)
-        _encryptionKey = key
+        // create normal storage instance and save wallet state to it
+        saveString(ROOT_STORAGE_KEY, walletState as string)
 
-        log.info('[recryptStorage]', 'Storage has been encrypted')
+        log.info('[recryptStorage]', 'Storage has been decrypted')
         return true
+    }
 
+    return false
+}
+
+const encryptStorage = async function (): Promise<boolean> {    
+
+    if (!_encryptionKey) {
+        // make a copy of wallet state from normal storage
+        const walletState = String(loadString(ROOT_STORAGE_KEY))
+
+        log.trace('[encryptStorage]', {walletState})
+
+        // reset normal storage instance
+        _storage = undefined
+        // retrieve encryption key
+        _encryptionKey = await getOrCreateEncryptionKey()
+
+        // create encrypted storage instance and save wallet state to it
+        saveString(ROOT_STORAGE_KEY, walletState as string)
+
+        log.info('[encryptStorage]', 'Storage has been encrypted')
+        return true
+    }
+
+    return false
 }
 
 /**
@@ -207,7 +268,8 @@ const clearAll = function (): void {
 export const MMKVStorage = {
   initEncryption,
   getOrCreateEncryptionKey,
-  recryptStorage,
+  encryptStorage,
+  decryptStorage,
   loadString,
   saveString,
   saveNumber,

@@ -4,8 +4,12 @@ import QuickCrypto from 'react-native-quick-crypto'
 import { generateNewMnemonic } from '@cashu/cashu-ts'
 import { generatePrivateKey, getPublicKey } from 'nostr-tools'
 import {btoa, fromByteArray} from 'react-native-quick-base64'
+import {rootStoreInstance} from '../models'
 import {log} from './logService'
 
+const {
+    userSettingsStore
+} = rootStoreInstance
 
 export enum KeyChainServiceName {
   MMKV = 'app.minibits.mmkv',
@@ -54,7 +58,7 @@ const saveMnemonic = async function (
           KeyChainServiceName.MNEMONIC,
           mnemonic,
           {
-              service: KeyChainServiceName.MNEMONIC            
+              service: KeyChainServiceName.MNEMONIC,                          
           },
       )
   
@@ -129,7 +133,7 @@ const saveSeed = async function (
           KeyChainServiceName.SEED,
           seedStr,
           {
-              service: KeyChainServiceName.SEED            
+              service: KeyChainServiceName.SEED,              
           },
       )
   
@@ -347,7 +351,7 @@ const loadMmkvEncryptionKey = async function (): Promise<string | undefined> {
                 subtitle: '',
                 description: 'Your Minibits wallet data is encrypted. Please authenticate to get access.',
                 cancel: 'Cancel',
-            },
+            }
         })
 
         if (result) {

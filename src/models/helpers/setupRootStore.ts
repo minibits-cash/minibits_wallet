@@ -30,7 +30,7 @@ import { MintStatus } from '../Mint'
  * The key we'll be saving our state as within storage.
  */
 
-const ROOT_STORAGE_KEY = 'minibits-root-storage'
+export const ROOT_STORAGE_KEY = 'minibits-root-storage'
 
 /**
  * Setup the root state.
@@ -73,6 +73,9 @@ export async function setupRootStore(rootStore: RootStore) {
                     }
                 }  
             }      
+        } else {
+            // mark not encrypted wallets as migrated to avoid migration on later encryption turned on
+            Database.updateUserSettings({...userSettings, isStorageMigrated: true})
         }
 
         // load the last known state from storage
@@ -88,7 +91,7 @@ export async function setupRootStore(rootStore: RootStore) {
         _disposer()
     }
 
-    // track changes & save to storage // TODO defering and batching of writes to storage
+    // track changes & save to storage
     _disposer = onSnapshot(rootStore, snapshot =>
         MMKVStorage.save(ROOT_STORAGE_KEY, snapshot),
     )
@@ -226,6 +229,14 @@ async function _runMigrations(rootStore: RootStore) {
 
             log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
             rootStore.setVersion(rootStoreModelVersion)
+        }
+
+        if(currentVersion < 11) {
+            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v10`)
+            // migration code needs to run early so it is in mmkvStorage.getInstance()
+            userSettingsStore.setIsStorageMigrated(true)
+            rootStore.setVersion(rootStoreModelVersion)
+            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
         }
 
     } catch (e: any) {

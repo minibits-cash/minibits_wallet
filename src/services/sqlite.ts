@@ -20,7 +20,7 @@ import { Contact, ContactType } from '../models/Contact'
 
 let _db: QuickSQLiteConnection
 
-const _dbVersion = 7 // Update this if db changes require migrations
+const _dbVersion = 8 // Update this if db changes require migrations
 
 const getInstance = function () {
   if (!_db) {
@@ -76,6 +76,7 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
         isLocalBackupOn BOOLEAN,
         isTorDaemonOn BOOLEAN,
         isLoggerOn BOOLEAN,
+        isStorageMigrated BOOLEAN,
         logLevel TEXT,
         createdAt TEXT      
     )`,
@@ -190,6 +191,15 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
         ]) 
 
         log.info(`Prepared database migrations from ${currentVersion} -> 6`)
+    }
+
+    if (currentVersion < 8) {
+        migrationQueries.push([
+            `ALTER TABLE usersettings
+            ADD COLUMN isStorageMigrated BOOLEAN`,       
+        ])
+
+        log.info(`Prepared database migrations from ${currentVersion} -> 8`)
     }
 
   // Update db version as a part of migration sqls
@@ -314,6 +324,7 @@ const getUserSettings = function (): UserSettings {
                 isLocalBackupOn: 1,
                 isTorDaemonOn: 0,
                 isLoggerOn: 1,
+                isStorageMigrated: 0,
                 logLevel: LogLevel.ERROR
             })
             log.debug('[getUserSettings]', 'Stored default user settings in the database')
@@ -333,11 +344,11 @@ const getUserSettings = function (): UserSettings {
 const updateUserSettings = function (settings: UserSettings): UserSettings {
     try {
         const now = new Date()
-        const {walletId, isOnboarded, isStorageEncrypted, isLocalBackupOn, isTorDaemonOn, isLoggerOn, logLevel} = settings
+        const {walletId, isOnboarded, isStorageEncrypted, isLocalBackupOn, isTorDaemonOn, isLoggerOn, isStorageMigrated, logLevel} = settings
 
         const query = `
-        INSERT OR REPLACE INTO usersettings (id, walletId, isOnboarded, isStorageEncrypted, isLocalBackupOn, isTorDaemonOn, isLoggerOn, logLevel, createdAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)      
+        INSERT OR REPLACE INTO usersettings (id, walletId, isOnboarded, isStorageEncrypted, isLocalBackupOn, isTorDaemonOn, isLoggerOn, isStorageMigrated, logLevel, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)      
         `
         const params = [
             1,
@@ -346,7 +357,8 @@ const updateUserSettings = function (settings: UserSettings): UserSettings {
             isStorageEncrypted,
             isLocalBackupOn,
             isTorDaemonOn,
-            isLoggerOn, 
+            isLoggerOn,            
+            isStorageMigrated,          
             logLevel,
             now.toISOString(),
         ]
