@@ -128,32 +128,17 @@ export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer
                         }
                         style={$item}
                     />
-                    <ListItem
-                        tx="securityScreen.biometry"
-                        subTx={biometryType ? 'securityScreen.biometryAvailable' : 'securityScreen.biometryNone'}
-                        leftIcon='faFingerprint'
-                        leftIconColor={
-                            biometryType
-                            ? colors.palette.success200
-                            : colors.palette.neutral400
-                        }
-                        leftIconInverse={true}
-                        RightComponent={!!biometryType ? (
-                            <View style={[$rightContainer, {marginLeft: spacing.small}]}>
-                            <Icon
-                                icon='faCheckCircle'
-                                size={spacing.large}
-                                color={
-                                (isStorageEncrypted)
-                                    ? colors.palette.success200
-                                    : colors.palette.neutral400
-                                }
-                                inverse={false}
-                            />
-                            </View>
-                        ) : (<></>)}
-                        style={$item}
-                    />
+                    {isStorageEncrypted && (
+                        <ListItem
+                            tx="securityScreen.biometry"
+                            subTx={biometryType ? 'securityScreen.biometryAvailable' : 'securityScreen.biometryNone'}
+                            leftIcon='faFingerprint'
+                            leftIconColor={colors.palette.iconGreyBlue400}
+                            leftIconInverse={true}
+                            style={$item}
+                            topSeparator={true}
+                        /> 
+                    )} 
                 </>
                 }
             />            

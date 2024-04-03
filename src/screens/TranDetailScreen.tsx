@@ -11,6 +11,7 @@ import Clipboard from '@react-native-clipboard/clipboard'
 import JSONTree from 'react-native-json-tree'
 import {colors, spacing, useThemeColor} from '../theme'
 import {WalletStackScreenProps} from '../navigation'
+import EventEmitter from '../utils/eventEmitter'
 import {
   Button,
   Icon,
@@ -34,18 +35,18 @@ import {
 import AppError, {Err} from '../utils/AppError'
 import {log} from '../services/logService'
 import {isArray} from 'lodash'
-import {Database, TransactionResult, Wallet} from '../services'
+import {Database, TransactionTaskResult, WalletTask} from '../services'
 import {BackupProof, Proof} from '../models/Proof'
 import useColorScheme from '../theme/useThemeColor'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import QRCode from 'react-native-qrcode-svg'
-import { getEncodedToken } from '@cashu/cashu-ts'
-import { Token } from '../models/Token'
+import { getDecodedToken, getEncodedToken, Token as CashuToken } from '@cashu/cashu-ts'
 import { CashuUtils } from '../services/cashu/cashuUtils'
 import { MintStatus } from '../models/Mint'
 import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
+import { Token } from '../models/Token'
 
 type ProofsByStatus = {
   isSpent: Proof[]
@@ -427,44 +428,21 @@ const ReceiveInfoBlock = function (props: {
     } = props
 
     const isInternetReachable = useIsInternetReachable()
-    const retryResult = getTokenToRetryToReceive(transaction)  
+    const encodedTokenToRetry = getEncodedTokenToRetry(transaction)  
     const {transactionsStore, mintsStore} = useStores()
-
+    const [isReceiveTaskSentToQueue, setIsReceiveTaskSentToQueue] = useState<boolean>(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
     const [resultModalInfo, setResultModalInfo] = useState<
       {status: TransactionStatus; message: string} | undefined
     >()
     const [isLoading, setIsLoading] = useState(false)
 
-    const toggleResultModal = () =>
-    setIsResultModalVisible(previousState => !previousState)
 
-    const onRetryToReceive = async function () {                
-        if(!retryResult || !isInternetReachable) {
-            return
-        }
-        
-        setIsLoading(true)     
-
-        try {    
-            const {tokenToRetry, increaseProofsCounter} = retryResult               
-            const amountToReceive = CashuUtils.getTokenAmounts(tokenToRetry).totalAmount
-            const memo = tokenToRetry.memo || ''
-            const encoded = getEncodedToken(tokenToRetry)
-
-            if(increaseProofsCounter) {
-                const mintInstance = mintsStore.findByUrl(transaction.mint)
-                if(mintInstance) {
-                    mintInstance.increaseProofsCounter(20)
-                }
-            }
-
-            const result: TransactionResult = await Wallet.receive(
-                tokenToRetry as Token,
-                amountToReceive,
-                memo,
-                encoded
-            )
+    useEffect(() => {
+        const handleReceiveTaskResult = async (result: TransactionTaskResult) => {
+            log.trace('[handleReceiveTaskResult] event handler triggered')
+            
+            setIsLoading(false)
 
             if (result.error) {
                 setResultModalInfo({
@@ -475,7 +453,7 @@ const ReceiveInfoBlock = function (props: {
 
                 const transactionDataUpdate = {
                     status: TransactionStatus.EXPIRED,                    
-                    message: 'Ecash has been successfully received after retry within new transaction',
+                    message: 'Ecash has been successfully received after retry. New transaction has been created.',
                     createdAt: new Date(),
                 }
         
@@ -485,11 +463,49 @@ const ReceiveInfoBlock = function (props: {
                     JSON.stringify(transactionDataUpdate),
                 )
 
-                setResultModalInfo({
+                const modalInfo = {
                     status: result.transaction?.status as TransactionStatus,
                     message: result.message,
-                })
+                }               
+
+                setResultModalInfo(modalInfo)
             }
+            
+        }
+
+        // Subscribe to the 'sendCompleted' event
+        EventEmitter.on('ev_receiveTask_result', handleReceiveTaskResult)
+
+        // Unsubscribe from the 'sendCompleted' event on component unmount
+        return () => {
+            EventEmitter.off('ev_receiveTask_result', handleReceiveTaskResult)
+        }
+    }, [isReceiveTaskSentToQueue])
+
+
+    const toggleResultModal = () =>
+    setIsResultModalVisible(previousState => !previousState)
+
+    const onRetryToReceive = async function () {                
+        if(!encodedTokenToRetry || !isInternetReachable) {
+            return
+        }
+        
+        setIsLoading(true)     
+
+        try {    
+            const tokenToRetry: CashuToken = getDecodedToken(encodedTokenToRetry)              
+            const amountToReceive = CashuUtils.getTokenAmounts(tokenToRetry as Token).totalAmount
+            const memo = tokenToRetry.memo || ''
+            
+            setIsReceiveTaskSentToQueue(true)
+            WalletTask.receive(
+                tokenToRetry as Token,
+                amountToReceive,
+                memo,
+                encodedTokenToRetry
+            )
+ 
 
         } catch (e: any) {
             setResultModalInfo({
@@ -533,7 +549,7 @@ const ReceiveInfoBlock = function (props: {
                         label="tranDetailScreen.type"
                         value={transaction.type as string}
                     />
-                    {retryResult && isInternetReachable ? (
+                    {encodedTokenToRetry && isInternetReachable ? (
                         <View
                         style={{flexDirection: 'row', justifyContent: 'space-between'}}>
                         <TranItem
@@ -541,7 +557,7 @@ const ReceiveInfoBlock = function (props: {
                             value={transaction.status as string}
                         />
                         <Button
-                            style={{maxHeight: 10, marginTop: spacing.medium}}
+                            style={{marginTop: spacing.medium}}
                             // preset="secondary"
                             text="Retry to receive"
                             onPress={onRetryToReceive}
@@ -681,12 +697,43 @@ const ReceiveOfflineInfoBlock = function (props: {
 
     const labelColor = useThemeColor('textDim')
     const isInternetReachable = useIsInternetReachable()
-
+    const [isReceiveOfflineCompleteTaskSentToQueue, setIsReceiveOfflineCompleteTaskSentToQueue] = useState<boolean>(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
     const [resultModalInfo, setResultModalInfo] = useState<
       {status: TransactionStatus; message: string} | undefined
     >()
     const [isLoading, setIsLoading] = useState(false)
+
+
+    useEffect(() => {
+        const handleReceiveOfflineCompleteTaskResult = async (result: TransactionTaskResult) => {
+            log.trace('handleReceiveOfflineCompleteTaskResult event handler triggered')
+            
+            setIsLoading(false)
+
+            if (result.error) {
+                setResultModalInfo({
+                    status: result.transaction?.status as TransactionStatus,
+                    message: result.error.message,
+                })
+            } else {
+                setResultModalInfo({
+                    status: result.transaction?.status as TransactionStatus,
+                    message: result.message,
+                })
+            }
+            setIsLoading(false)
+            toggleResultModal() 
+        }
+
+        // Subscribe to the 'sendCompleted' event
+        EventEmitter.on('ev_receiveOfflineCompleteTask', handleReceiveOfflineCompleteTaskResult)
+
+        // Unsubscribe from the 'sendCompleted' event on component unmount
+        return () => {
+            EventEmitter.off('ev_receiveOfflineCompleteTask', handleReceiveOfflineCompleteTaskResult)
+        }
+    }, [isReceiveOfflineCompleteTaskSentToQueue])
 
     // MVP implementaition
     const toggleResultModal = () =>
@@ -694,22 +741,8 @@ const ReceiveOfflineInfoBlock = function (props: {
 
     const receiveOfflineComplete = async function () {
         setIsLoading(true)
-        
-        const result = await Wallet.receiveOfflineComplete(transaction)            
-
-        if (result.error) {
-            setResultModalInfo({
-                status: result.transaction?.status as TransactionStatus,
-                message: result.error.message,
-            })
-        } else {
-            setResultModalInfo({
-                status: result.transaction?.status as TransactionStatus,
-                message: result.message,
-            })
-        }
-        setIsLoading(false)
-        toggleResultModal()
+        setIsReceiveOfflineCompleteTaskSentToQueue(true)   
+        WalletTask.receiveOfflineComplete(transaction)             
     }
 
     const onGoBack = () => {
@@ -1367,15 +1400,17 @@ const getEncodedTokenToSend = (
 }
 
 
-const getTokenToRetryToReceive = (
+const getEncodedTokenToRetry = (
     transaction: Transaction,
-  ): {tokenToRetry: Token, increaseProofsCounter: boolean} | undefined => {
+  ): string | undefined => {
     try {
         if(transaction.type !== (TransactionType.RECEIVE || TransactionType.RECEIVE_OFFLINE)) {
             return undefined
         }
 
-        if(transaction.status !== TransactionStatus.ERROR) {
+        if (transaction.status !== TransactionStatus.ERROR && 
+            transaction.status !== TransactionStatus.DRAFT &&
+            transaction.status !== TransactionStatus.BLOCKED) {
             return undefined
         }
 
@@ -1389,29 +1424,33 @@ const getTokenToRetryToReceive = (
         }
 
         const data = JSON.parse(transaction.data)
+        const draftRecord = data.find(
+            (record: any) => record.status === 'DRAFT',
+        )
+
+        const encodedTokenToRetry: string = draftRecord.encodedToken
+
+        if(!encodedTokenToRetry) {return undefined}
+
+        // return token to retry if transaction somehow got stuck in DRAFT status or user blocked a mint and than changed his mind
+        // solves #57
+        if (transaction.status === TransactionStatus.DRAFT || transaction.status === TransactionStatus.BLOCKED){
+            return encodedTokenToRetry
+        }
+
         const errorRecord = data.find(
             (record: any) => record.status === 'ERROR',
         )
-
+        
         const {error} = errorRecord
         
-        if(error) {
-            
-            const {params} = error
+        if(error && error.params && error.params.message) {          
 
-            if(params) {
-                const {errorToken, message} = params
-
-                if(message.includes('Network request failed') || message.includes('Bad Gateway')) {                    
-                    return {tokenToRetry: errorToken, increaseProofsCounter: false}
-                }
-
-                if(message.includes('outputs have already been signed before')) {                             
-                    return {tokenToRetry: errorToken, increaseProofsCounter: true}
-                }
-
-                return undefined
+            if(error.params.message.includes('Network request failed') || error.params.message.includes('Bad Gateway')) {                    
+                return encodedTokenToRetry
             }
+
+            return undefined            
         }            
     } catch (e) {
         // silent

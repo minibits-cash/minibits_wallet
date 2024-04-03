@@ -34,7 +34,7 @@ import {
 import {TransactionStatus, Transaction} from '../models/Transaction'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
-import {NostrClient, NostrProfile, NostrUnsignedEvent, Wallet} from '../services'
+import {NostrClient, NostrProfile, NostrUnsignedEvent, TransactionTaskResult, WalletTask} from '../services'
 import {log} from '../services/logService'
 import AppError, { Err } from '../utils/AppError'
 
@@ -50,7 +50,6 @@ import { ReceiveOption } from './ReceiveOptionsScreen'
 import { LNURLWithdrawParams } from 'js-lnurl'
 import { roundDown } from '../utils/number'
 import { LnurlClient, LnurlWithdrawResult } from '../services/lnurlService'
-import { update } from 'lodash'
 import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
 
@@ -100,13 +99,12 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     const [isQRModalVisible, setIsQRModalVisible] = useState(false)
     const [isNostrDMModalVisible, setIsNostrDMModalVisible] = useState(false)
     const [isWithdrawModalVisible, setIsWithdrawModalVisible] = useState(false)
+    const [isTopupTaskSentToQueue, setIsTopupTaskSentToQueue] = useState(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)
     const [isNostrDMSending, setIsNostrDMSending] = useState(false)
     const [isNostrDMSuccess, setIsNostrDMSuccess] = useState(false)
     const [isWithdrawRequestSending, setIsWithdrawRequestSending] = useState(false)
     const [isWithdrawRequestSuccess, setIsWithdrawRequestSuccess] = useState(false)
-
-    
 
     useEffect(() => {
         const focus = () => {
@@ -194,6 +192,55 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
 
     useEffect(() => {
+        const handleTopupTaskResult = async (result: TransactionTaskResult) => {
+            log.trace('handleTopupTaskResult event handler triggered')
+            
+            setIsLoading(false)
+
+            const {status, id} = result.transaction as Transaction
+            setTransactionStatus(status)
+            setTransactionId(id)
+    
+            if (result.encodedInvoice) {
+                setInvoiceToPay(result.encodedInvoice)
+            }
+
+            if (result.error) {
+                setResultModalInfo({
+                    status: result.transaction?.status as TransactionStatus,
+                    title: result.error.params?.message ? result.error.message : 'Topup failed',
+                    message: result.error.params?.message || result.error.message,
+                })
+                setIsResultModalVisible(true)
+                return
+            }
+            
+            if (paymentOption === ReceiveOption.SHOW_INVOICE) {
+                toggleQRModal()
+            }
+    
+            if (paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) {
+                toggleNostrDMModal()
+            }
+    
+            if (paymentOption === ReceiveOption.LNURL_WITHDRAW) {
+                toggleWithdrawModal()
+            }
+          
+            setIsMintSelectorVisible(false)
+        }
+
+        // Subscribe to the 'sendCompleted' event
+        EventEmitter.on('ev_topupTask_result', handleTopupTaskResult)        
+
+        // Unsubscribe from the 'sendCompleted' event on component unmount
+        return () => {
+            EventEmitter.off('ev_topupTask_result', handleTopupTaskResult)        
+        }
+    }, [isTopupTaskSentToQueue])
+
+
+    useEffect(() => {
       const handleCompleted = (paymentRequest: PaymentRequest) => {
         log.trace('handleCompleted event handler triggered')
 
@@ -217,10 +264,10 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         }
       }
       
-      EventEmitter.on('topupCompleted', handleCompleted)
+      EventEmitter.on('ev_topupCompleted', handleCompleted)
       
       return () => {
-        EventEmitter.off('topupCompleted', handleCompleted)
+        EventEmitter.off('ev_topupCompleted', handleCompleted)
       }
     }, [transactionId])
 
@@ -305,59 +352,20 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
             return
         }
 
-        const result = await requestTopup()
-
-        if (result.error) {
-            setResultModalInfo({
-                status: result.transaction?.status as TransactionStatus,
-                title: result.error.params?.message ? result.error.message : 'Topup failed',
-                message: result.error.params?.message || result.error.message,
-            })
-            setIsResultModalVisible(true)
-            return
-        }
+        setIsLoading(true)
+        setIsTopupTaskSentToQueue(true)
         
-        if (paymentOption === ReceiveOption.SHOW_INVOICE) {
-            toggleQRModal()
-        }
-
-        if (paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) {
-            toggleNostrDMModal()
-        }
-
-        if (paymentOption === ReceiveOption.LNURL_WITHDRAW) {
-            toggleWithdrawModal()
-        }
-      
-        setIsMintSelectorVisible(false)
+        WalletTask.topup(
+            mintBalanceToTopup as MintBalance,
+            parseInt(amountToTopup),
+            memo,            
+            contactToSendTo
+        )        
     }
 
 
     const onMintBalanceCancel = async function () {
       setIsMintSelectorVisible(false)
-    }
-
-
-    const requestTopup = async function () {
-        setIsLoading(true)
-        
-        const result = await Wallet.topup(
-            mintBalanceToTopup as MintBalance,
-            parseInt(amountToTopup),
-            memo,            
-            contactToSendTo
-        )
-
-        const {status, id} = result.transaction as Transaction
-        setTransactionStatus(status)
-        setTransactionId(id)
-
-        if (result.encodedInvoice) {
-            setInvoiceToPay(result.encodedInvoice)
-        }
-
-        setIsLoading(false)
-        return result
     }
 
 

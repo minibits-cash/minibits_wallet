@@ -4,7 +4,8 @@ import {
     CashuWallet,
     deriveKeysetId,
     PayLnInvoiceResponse,
-  type Proof as CashuProof,
+    setGlobalRequestOptions,
+    type Proof as CashuProof,
 } from '@cashu/cashu-ts'
 import {rootStoreInstance} from '../models'
 import { KeyChain, TorDaemon } from '../services'
@@ -14,11 +15,10 @@ import {log} from './logService'
 import {
     type Token as CashuToken,
 } from '@cashu/cashu-ts'
-import {Token} from '../models/Token'
 import {Proof} from '../models/Proof'
 import { deriveSeedFromMnemonic } from '@cashu/cashu-ts'
 import { isObj } from '@cashu/cashu-ts/src/utils'
-import { UserCredentials } from 'react-native-keychain'
+import { JS_BUNDLE_VERSION } from '@env'
 
 export type MintKeys = {[k: number]: string}
 export type MintKeySets = {keysets: Array<string>}
@@ -96,6 +96,10 @@ const getMint = function (mintUrl: string) {
 
         return mint
     }
+
+    setGlobalRequestOptions({
+        headers: {'User-Agent': `Minibits/${JS_BUNDLE_VERSION}`}
+    })
 
     const mint = new CashuMint(mintUrl)
     _mints[mintUrl] = mint
@@ -451,6 +455,10 @@ const requestProofs = async function (
             newKeys
         }
     } catch (e: any) {
+        if(e.message.includes('quote not paid')) {
+            return
+        }
+        
         throw new AppError(
             Err.MINT_ERROR, 
             'The mint returned error on request to mint new ecash.', 

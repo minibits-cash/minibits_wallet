@@ -10,7 +10,8 @@ export type UserSettings = {
   isStorageEncrypted: boolean | 0 | 1
   isLocalBackupOn: boolean | 0 | 1
   isTorDaemonOn: boolean | 0 | 1
-  isLoggerOn: boolean | 0 | 1
+  isLoggerOn: boolean | 0 | 1  
+  isStorageMigrated: boolean | 0 | 1
   logLevel: LogLevel
 }
 
@@ -22,7 +23,8 @@ export const UserSettingsStoreModel = types
         isStorageEncrypted: types.optional(types.boolean, false),
         isLocalBackupOn: types.optional(types.boolean, true),
         isTorDaemonOn: types.optional(types.boolean, false),
-        isLoggerOn: types.optional(types.boolean, true),
+        isLoggerOn: types.optional(types.boolean, true),        
+        isStorageMigrated: types.optional(types.boolean, false),
         logLevel: types.optional(types.frozen<LogLevel>(), LogLevel.ERROR)
     })
     .actions(self => ({
@@ -33,7 +35,8 @@ export const UserSettingsStoreModel = types
                 isStorageEncrypted, 
                 isLocalBackupOn,
                 isTorDaemonOn,
-                isLoggerOn,
+                isLoggerOn,                
+                isStorageMigrated,
                 logLevel
             } = Database.getUserSettings()
             
@@ -42,13 +45,15 @@ export const UserSettingsStoreModel = types
             const booleanIsLocalBackupOn = isLocalBackupOn === 1            
             const booleanIsTorDaemonOn = isTorDaemonOn === 1
             const booleanIsLoggerOn = isLoggerOn === 1            
+            const booleanIsStorageMigrated = isStorageMigrated === 1            
             
             self.walletId = walletId as string                        
             self.isOnboarded = booleanIsOnboarded as boolean
             self.isStorageEncrypted = booleanIsStorageEncrypted as boolean
             self.isLocalBackupOn = booleanIsLocalBackupOn as boolean
             self.isTorDaemonOn = booleanIsTorDaemonOn as boolean
-            self.isLoggerOn = booleanIsLoggerOn as boolean
+            self.isLoggerOn = booleanIsLoggerOn as boolean            
+            self.isStorageMigrated = booleanIsStorageMigrated as boolean
             self.logLevel = logLevel as LogLevel
         },
         setWalletId: (walletId: string) => {
@@ -67,9 +72,13 @@ export const UserSettingsStoreModel = types
             return isLocalBackupOn
         },
         setIsStorageEncrypted: flow(function* setIsStorageEncryptedvalue(
-            value: boolean,
+            isEncrypted: boolean,
         ) {
-            const isEncrypted = yield MMKVStorage.recryptStorage()
+            if (isEncrypted) {
+                yield MMKVStorage.encryptStorage()
+            } else {
+                MMKVStorage.decryptStorage()
+            }
             Database.updateUserSettings({...self, isStorageEncrypted: isEncrypted})
             self.isStorageEncrypted = isEncrypted            
             return isEncrypted
@@ -83,6 +92,11 @@ export const UserSettingsStoreModel = types
             Database.updateUserSettings({...self, isLoggerOn})
             self.isLoggerOn = isLoggerOn            
             return isLoggerOn
+        },
+        setIsStorageMigrated: (isStorageMigrated: boolean) => {
+            Database.updateUserSettings({...self, isStorageMigrated})
+            self.isStorageMigrated = isStorageMigrated            
+            return isStorageMigrated
         },
         setLogLevel: (logLevel: LogLevel) => {
             Database.updateUserSettings({...self, logLevel})
@@ -99,7 +113,7 @@ export const UserSettingsStoreModel = types
         }, 
         get isTorOn() {
             return self.isTorDaemonOn
-        },       
+        },
         get userSettings() {
             return self
         },

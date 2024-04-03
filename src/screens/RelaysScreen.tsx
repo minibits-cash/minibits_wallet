@@ -10,12 +10,10 @@ import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import { Relay } from '../models/Relay'
 import AppError, { Err } from '../utils/AppError'
-import { log, NostrClient, Wallet } from '../services'
+import { log, NostrClient, WalletTask } from '../services'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
-import { MINIBITS_MINT_URL, MINIBITS_RELAY_URL } from '@env'
 
 interface SettingsScreenProps extends SettingsStackScreenProps<'Relays'> {}
-
 
 export const RelaysScreen: FC<SettingsScreenProps> = observer(
   function RelaysScreen(_props) {
@@ -59,7 +57,7 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
         log.trace('onConnect')    
         
         // Full force re-subscription, not just reconnect
-        Wallet.checkPendingReceived().catch(e => false)          
+        WalletTask.receiveEventsFromRelays().catch(e => false)          
         setSelectedRelay(undefined)        
     }
 

@@ -22,9 +22,9 @@ export const ContactListItem = observer(function (props: ContactListProps) {
     return (
       <ListItem
         key={contact.pubkey}                      
-        text={contact.name as string}        
+        text={contact.noteToSelf || contact.name as string}        
         textStyle={$mintText}
-        subText={contact.noteToSelf || contact.nip05}        
+        subText={contact.nip05}        
         LeftComponent={
             <View style={{}}>
                 <Image 

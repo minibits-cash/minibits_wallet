@@ -94,7 +94,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
     const headerBg = useThemeColor('header')
     
     return (
-      <Screen style={$screen} preset='auto'>
+      <Screen contentContainerStyle={$screen} preset='auto'>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text
             preset='heading'
@@ -214,17 +214,18 @@ const $screen: ViewStyle = {
 const $headerContainer: TextStyle = {
   alignItems: 'center',
   padding: spacing.medium,
-  height: spacing.screenHeight * 0.1,
+  height: spacing.screenHeight * 0.18,
 }
 
 const $contentContainer: TextStyle = {
   // flex: 1,
+  marginTop: -spacing.extraLarge * 2,
   padding: spacing.extraSmall,
   // alignItems: 'center',
 }
 
 const $card: ViewStyle = {
-  // marginVertical: 0,
+    //paddingVertical: 0,
 }
 
 const $item: ViewStyle = {

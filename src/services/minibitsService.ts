@@ -2,20 +2,26 @@ import AppError, { Err } from "../utils/AppError"
 import { log } from "./logService"
 import {
     MINIBITS_SERVER_API_KEY,
-    MINIBITS_SERVER_API_HOST,    
+    MINIBITS_SERVER_API_HOST,
+    JS_BUNDLE_VERSION,    
 } from '@env'
 import { WalletProfile, WalletProfileRecord } from "../models/WalletProfileStore"
 
-// refresh // refresh
+
+type MinibitsRequestArgs = {
+	method: 'POST' | 'PUT' | 'DELETE' | 'GET'
+	body?: Record<string, unknown>
+	headers?: Record<string, string>
+}
+
+type MinibitsRequestOptions = MinibitsRequestArgs & Omit<RequestInit, 'body' | 'headers' | 'method'>
 
 const getRandomPictures = async function () {
     const url = MINIBITS_SERVER_API_HOST + '/profile'  
-    const method = 'GET'        
-    const headers = getHeaders()
+    const method = 'GET'    
     
     const avatars: string[] = await fetchApi(url + `/avatars`, {
-        method,
-        headers,            
+        method,        
     })
 
     log.trace('[getRandomPictures]', `Got pictures`)
@@ -26,10 +32,9 @@ const getRandomPictures = async function () {
 
 const createWalletProfile = async function (pubkey: string, walletId: string, seedHash: string) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
-    const method = 'POST'        
-    const headers = getHeaders()
+    const method = 'POST'    
     
-    const requestBody = {
+    const body = {
         pubkey,
         walletId,
         seedHash
@@ -38,9 +43,8 @@ const createWalletProfile = async function (pubkey: string, walletId: string, se
     log.trace('[createWalletProfile]', `Create new profile`, {url})
     
     const walletProfile: WalletProfileRecord = await fetchApi(url, {
-        method,
-        headers,
-        body: JSON.stringify(requestBody)
+        method,        
+        body,
     })
 
     log.info('[createWalletProfile]', `Created new profile`, {walletProfile})
@@ -51,20 +55,18 @@ const createWalletProfile = async function (pubkey: string, walletId: string, se
 // what is passed in {update} gets updated
 const updateWalletProfile = async function (pubkey: string, update: {name?: string, lud16?: string, avatar?: string}) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
-    const method = 'PUT'        
-    const headers = getHeaders()
+    const method = 'PUT'    
     const { name, lud16, avatar } = update
     
-    const requestBody = {       
+    const body = {       
         name,
         lud16,
         avatar,        
     }        
 
     const walletProfile: WalletProfile = await fetchApi(url + `/${pubkey}`, {
-        method,
-        headers,
-        body: JSON.stringify(requestBody)
+        method,        
+        body,
     })
 
     log.trace('[updateWalletProfile]', `Updated wallet profile`, {update})
@@ -75,11 +77,10 @@ const updateWalletProfile = async function (pubkey: string, update: {name?: stri
 
 const updateWalletProfileNip05 = async function (pubkey: string, update: {newPubkey: string, name: string, nip05: string, lud16: string, avatar: string}) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
-    const method = 'PUT'        
-    const headers = getHeaders()
+    const method = 'PUT'    
     const { newPubkey, name, nip05, lud16, avatar } = update
     
-    const requestBody = {            
+    const body = {            
         newPubkey,
         nip05,
         lud16,        
@@ -88,9 +89,8 @@ const updateWalletProfileNip05 = async function (pubkey: string, update: {newPub
     }        
 
     const walletProfile: WalletProfile = await fetchApi(url + `/nip05/${pubkey}`, {
-        method,
-        headers,
-        body: JSON.stringify(requestBody)
+        method,        
+        body,
     })
 
     log.info('[updateWalletProfileNip05]', `Updated wallet profile nip05`, walletProfile.nip05)
@@ -101,18 +101,16 @@ const updateWalletProfileNip05 = async function (pubkey: string, update: {newPub
 
 const recoverProfile = async function (seedHash: string, update: {newPubkey: string}) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
-    const method = 'PUT'        
-    const headers = getHeaders()
+    const method = 'PUT'    
     const { newPubkey } = update
     
-    const requestBody = {            
+    const body = {            
         newPubkey,        
     }        
 
     const walletProfile: WalletProfile = await fetchApi(url + `/recover/seedHash/${seedHash}`, {
-        method,
-        headers,
-        body: JSON.stringify(requestBody)
+        method,        
+        body,
     })
 
     log.info('[recoverProfile]', `Recovered wallet profile with seedHash`, seedHash)
@@ -123,18 +121,16 @@ const recoverProfile = async function (seedHash: string, update: {newPubkey: str
 // Serves for migration from pre-seed wallet version
 const migrateSeedHash = async function (pubkey: string, update: {seedHash: string}) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
-    const method = 'PUT'        
-    const headers = getHeaders()
+    const method = 'PUT'    
     const { seedHash } = update
     
-    const requestBody = {            
+    const body = {            
         seedHash,        
     }        
 
     const walletProfile: WalletProfile = await fetchApi(url + `/migrate/pubkey/${pubkey}`, {
-        method,
-        headers,
-        body: JSON.stringify(requestBody)
+        method,        
+        body,
     })
 
     log.info('[migrateSeedHash]', `Migrated seedHash`, seedHash)
@@ -145,12 +141,10 @@ const migrateSeedHash = async function (pubkey: string, update: {seedHash: strin
 
 const getWalletProfile = async function (pubkey: string) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile' 
-    const method = 'GET'        
-    const headers = getHeaders()
+    const method = 'GET'    
 
     const walletProfile: WalletProfileRecord = await fetchApi(url + `/${pubkey}`, {
-        method,
-        headers,            
+        method,        
     })
 
     log.trace('[getWalletProfile]', `Got response`, walletProfile?.pubkey || null)
@@ -161,12 +155,10 @@ const getWalletProfile = async function (pubkey: string) {
 
 const getWalletProfileByWalletId = async function (walletId: string) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
-    const method = 'GET'        
-    const headers = getHeaders()
+    const method = 'GET'    
 
     const walletProfile: WalletProfileRecord = await fetchApi(url + `/walletId/${walletId}`, {
-        method,
-        headers,            
+        method,                   
     })
 
     log.trace('[getWalletProfileByWalletId]', `Got response`, walletProfile?.walletId || null)
@@ -177,12 +169,10 @@ const getWalletProfileByWalletId = async function (walletId: string) {
 
 const getWalletProfileByNip05 = async function (nip05: string) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
-    const method = 'GET'        
-    const headers = getHeaders()
+    const method = 'GET'    
 
     const walletProfile: WalletProfileRecord = await fetchApi(url + `/nip05/${nip05}`, {
-        method,
-        headers,            
+        method,            
     })
 
     log.trace('[getWalletProfileByNip05]', `Got response`, walletProfile?.walletId || null)
@@ -193,12 +183,10 @@ const getWalletProfileByNip05 = async function (nip05: string) {
 
 const getWalletProfileBySeedHash = async function (seedHash: string) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
-    const method = 'GET'        
-    const headers = getHeaders()
+    const method = 'GET'    
 
     const walletProfile: WalletProfileRecord = await fetchApi(url + `/seedHash/${seedHash}`, {
-        method,
-        headers,            
+        method,            
     })
 
     log.trace('[getWalletProfileBySeedHash]', `Got response`, walletProfile?.walletId || null)
@@ -209,10 +197,9 @@ const getWalletProfileBySeedHash = async function (seedHash: string) {
 
 const createDonation = async function (amount: number, memo: string, pubkey: string) {    
     const url = MINIBITS_SERVER_API_HOST + '/donation' 
-    const method = 'POST'        
-    const headers = getHeaders()
+    const method = 'POST'    
     
-    const requestBody = {
+    const body = {
         amount,
         memo,
         pubkey
@@ -222,9 +209,8 @@ const createDonation = async function (amount: number, memo: string, pubkey: str
         payment_hash: string, 
         payment_request: string
     } = await fetchApi(url, {
-        method,
-        headers,
-        body: JSON.stringify(requestBody)
+        method,        
+        body
     })
 
     log.info(`Created new donation invoice`, invoice, 'createDonation')
@@ -235,12 +221,10 @@ const createDonation = async function (amount: number, memo: string, pubkey: str
 
 const checkDonationPaid = async function (paymentHash: string, pubkey: string) {    
     const url = MINIBITS_SERVER_API_HOST + '/donation'      
-    const method = 'GET'        
-    const headers = getHeaders()
+    const method = 'GET'    
 
     const donationPaid: {paid: boolean} = await fetchApi(url + `/${paymentHash}/${pubkey}`, {
-        method,
-        headers,            
+        method,            
     })
 
     log.info(`Got response`, donationPaid, 'checkDonationPaid')
@@ -249,20 +233,20 @@ const checkDonationPaid = async function (paymentHash: string, pubkey: string) {
 }
 
 
-
-
-const fetchApi = async (url: string, options: any, timeout = 15000) => { //ms
-    log.trace('fetchApi', {url})
+const fetchApi = async (url: string, options: MinibitsRequestOptions, timeout = 10000) => { //ms
+    log.trace('[fetchApi]', {url})
     
     const controller = new AbortController()
+    const body = options.body ? JSON.stringify(options.body) : undefined
+    const headers = getHeaders()    
 
-    const promise = fetch(url, options)
+    const promise = fetch(url, {...options, body, headers})
     const kill = new Promise((resolve) => setTimeout(resolve, timeout))
     const response: Response = await Promise.race([promise, kill]) as Response        
 
     if (!response) {
         controller.abort()
-        throw new AppError(Err.NETWORK_ERROR, 'API takes too long to respond', {caller: 'fetchApi'})
+        throw new AppError(Err.NETWORK_ERROR, 'API takes too long to respond', {caller: 'fetchApi', url})
     }    
 
     const responseJson = await response.json()        
@@ -275,8 +259,7 @@ const fetchApi = async (url: string, options: any, timeout = 15000) => { //ms
             throw new AppError(error.name || Err.NETWORK_ERROR, error.message || '', {caller: 'fetchApi', message: error.params?.message || '', status: response.status})
         } else {
             throw new AppError(Err.NETWORK_ERROR, String(error), {caller: 'fetchApi', status: response.status})
-        }
-        
+        }        
     }
 
     return responseJson    
@@ -288,7 +271,8 @@ const getHeaders = () => {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'Accept-encoding': 'gzip, deflate',  
-        'Authorization': `Bearer ${MINIBITS_SERVER_API_KEY}`
+        'Authorization': `Bearer ${MINIBITS_SERVER_API_KEY}`,
+        'User-Agent': `Minibits/${JS_BUNDLE_VERSION}`
     }
 }
 
@@ -296,7 +280,7 @@ const getPublicHeaders = () => {
     return {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'Accept-encoding': 'gzip, deflate',             
+        'Accept-encoding': 'gzip, deflate',        
     }
 }
 

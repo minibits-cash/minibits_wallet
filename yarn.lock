@@ -7586,6 +7586,11 @@ signal-exit@^3.0.2, signal-exit@^3.0.3, signal-exit@^3.0.7:
   resolved "https://registry.yarnpkg.com/signal-exit/-/signal-exit-3.0.7.tgz#a9a1767f8af84155114eaabd73f99273c8f59ad9"
   integrity sha512-wnD2ZE+l+SPC/uoS0vXeE9L1+0wuaMqKlfz9AMUo38JsyLSBWSFcHR1Rri62LZc12vLr1gb3jl7iwQhgwpAbGQ==
 
+simple-js-task-queue@^0.1.7:
+  version "0.1.7"
+  resolved "https://registry.yarnpkg.com/simple-js-task-queue/-/simple-js-task-queue-0.1.7.tgz#4821f928035cd8c1eff251450f4d2f9fa41a26ba"
+  integrity sha512-VP2OHcaDHKnq7ijBGPjpxKCV/QGq01y/iVVRCeniFwR6ylAb8DkeUPaiZvZ0wRmPoJI2y3HOKmYAKVvHowgTpw==
+
 simple-plist@^1.1.0:
   version "1.3.1"
   resolved "https://registry.yarnpkg.com/simple-plist/-/simple-plist-1.3.1.tgz#16e1d8f62c6c9b691b8383127663d834112fb017"

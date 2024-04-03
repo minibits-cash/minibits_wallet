@@ -39,11 +39,11 @@ import EventEmitter from '../utils/eventEmitter'
 import {WalletStackScreenProps} from '../navigation'
 import {Mint, MintBalance, MintStatus} from '../models/Mint'
 import {MintsByHostname} from '../models/MintsStore'
-import {log, NostrClient} from '../services'
+import {Database, KeyChain, log, NostrClient} from '../services'
 import {Env} from '../utils/envtypes'
 import {Transaction, TransactionStatus} from '../models/Transaction'
 import {TransactionListItem} from './Transactions/TransactionListItem'
-import {MintClient, MintKeys, ReceivedEventResult, Wallet} from '../services'
+import {WalletTask} from '../services'
 import {translate} from '../i18n'
 import AppError, { Err } from '../utils/AppError'
 import {
@@ -141,41 +141,27 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         const getInitialData  = async () => {
             const url = await Linking.getInitialURL()
             
-            log.trace('returnWithNavigationReset', returnWithNavigationReset)
+            // log.trace('returnWithNavigationReset', returnWithNavigationReset)
                       
             if (url && !returnWithNavigationReset) {                            
                 handleDeeplink({url})                
                 return // deeplinks have priority over clipboard
             }
+            
+            if(!isInternetReachable) { return }
 
-            // auto-recover inflight proofs - do only on startup and before checkPendingReceived to prevent conflicts
+            // Auto-recover inflight proofs - do only on startup and before checkPendingReceived to prevent conflicts
             // TODO add manual option to recovery settings
-            if(isInternetReachable) {                
-                await Wallet.checkInFlight().catch(e => false)
-                setTimeout(() => {
-                    // Create websocket subscriptions to receive tokens or payment requests by NOSTR DMs                    
-                    Wallet.checkPendingReceived().catch(e => false)                            
-                }, 500)
-            } 
-
-            log.trace('[getInitialData]', 'walletProfile', walletProfileStore)
+            WalletTask.handleInFlight().catch(e => false)
+            // Create websocket subscriptions to receive tokens or payment requests by NOSTR DMs                    
+            WalletTask.receiveEventsFromRelays().catch(e => false)
+            // log.trace('[getInitialData]', 'walletProfile', walletProfileStore)            
         }
-         
-
-
-        EventEmitter.on('receiveTokenCompleted', onReceiveTokenCompleted)
-        EventEmitter.on('receivePaymentRequest', onReceivePaymentRequest)
-        EventEmitter.on('topupCompleted', onReceiveTopupCompleted)
-        Linking.addEventListener('url', handleDeeplink)       
         
-
+        Linking.addEventListener('url', handleDeeplink)
         getInitialData()
 
-        return () => {            
-            EventEmitter.off('receiveTokenCompleted', onReceiveTokenCompleted)
-            EventEmitter.off('receivePaymentRequest', onReceivePaymentRequest) 
-            EventEmitter.off('topupCompleted', onReceiveTopupCompleted)
-        }
+        return () => {}
     }, [])
 
 
@@ -208,13 +194,11 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
     useFocusEffect(        
         useCallback(() => {
-            setTimeout(async () => {
-                if(!isInternetReachable) {
-                    return
-                }                
-                await Wallet.checkPendingSpent().catch(e => false)                
-                Wallet.checkPendingTopups().catch(e => false)                
-            }, 100)
+            if(!isInternetReachable) {
+                return
+            }                
+            WalletTask.handleSpentFromPending().catch(e => false)               
+            WalletTask.handlePendingTopups().catch(e => false)            
         }, [])
     )
 
@@ -237,16 +221,15 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             if (
                 appState.current.match(/inactive|background/) &&
                 nextAppState === 'active') {
-                
-                setTimeout(async () => {
+
                     if(!isInternetReachable) {
                         return
-                    }                    
-                    await Wallet.checkPendingSpent().catch(e => false) 
-                    await Wallet.checkPendingTopups().catch(e => false)
+                    } 
+
+                    WalletTask.handleSpentFromPending().catch(e => false) 
+                    WalletTask.handlePendingTopups().catch(e => false)
                     // calls checkPendingReceived if re-connects
-                    NostrClient.reconnectToRelays().catch(e => false)
-                }, 100)            
+                    NostrClient.reconnectToRelays().catch(e => false)           
             }
     
             appState.current = nextAppState         
@@ -256,42 +239,6 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
           subscription.remove()          
         }
     }, [])
-
-    
-    const onReceiveTokenCompleted = async (result: ReceivedEventResult) => {
-        log.trace('onReceiveTokenCompleted event handler triggered', result)
-
-        if (result.status !== TransactionStatus.COMPLETED) {
-          return
-        }
-
-        await NotificationService.createLocalNotification(
-            result.title,
-            result.message,
-            result.picture,
-        )     
-    }
-
-
-    const onReceiveTopupCompleted = async (paymentRequest: PaymentRequest) => { // TODO make it ReceivedEventResult
-        log.trace('onReceiveTopupCompleted event handler triggered', paymentRequest)
-
-        await NotificationService.createLocalNotification(
-            `⚡ ${paymentRequest.amount} SATS received!`,
-            `Your invoice has been paid and your wallet balance credited with ${paymentRequest.amount} SATS.`,            
-        )     
-    }
-    
-    
-    const onReceivePaymentRequest = async (result: ReceivedEventResult) => {
-        log.trace('onReceivePaymentRequest event handler triggered', result)
-
-        await NotificationService.createLocalNotification(
-            result.title,
-            result.message,
-            result.picture,
-        )       
-    }
 
 
     const toggleUpdateModal = () => {

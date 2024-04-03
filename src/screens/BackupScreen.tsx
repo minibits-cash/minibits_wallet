@@ -1,5 +1,5 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useState} from 'react'
+import React, {FC, useEffect, useState} from 'react'
 import {Switch, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {SettingsStackScreenProps} from '../navigation'
@@ -18,8 +18,9 @@ import {
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import AppError from '../utils/AppError'
+import EventEmitter from '../utils/eventEmitter'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
-import {Database, Wallet} from '../services'
+import {Database, log, WalletTask, WalletTaskResult} from '../services'
 
 export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(function BackupScreen(_props) {
     const {navigation} = _props
@@ -38,7 +39,39 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
     const [info, setInfo] = useState('')
     const [isBackupModalVisible, setIsBackupModalVisible] =
       useState<boolean>(false)
+    const [isHandleSpentFromSpendavleSentToQueue, setIsHandleSpentFromSpendavleSentToQueue] = useState<boolean>(false)
     const [backupResultMessage, setBackupResultMessage] = useState<string>()
+    const [totalSpentCount, setTotalSpentCount] = useState<number>(0)
+    const [totalSpentAmount, setTotalSpentAmount] = useState<number>(0)
+
+
+    useEffect(() => {
+        const handleSpentByMintTaskResult = async (result: WalletTaskResult) => {
+            log.warn('handleSpentByMintTaskResult event handler triggered')
+            
+            setIsLoading(false)            
+            // runs per each mint
+            if (result && result.spentAmount > 0) {
+                setTotalSpentAmount(totalSpentAmount + result.spentAmount)
+                setTotalSpentCount(totalSpentCount + result.spentCount)
+                setInfo(
+                    `${totalSpentCount} ecash proofs, ${totalSpentAmount} SATS in total were removed from the wallet.`,
+                )
+                return
+            }
+        
+            setInfo('No spent ecash found in your wallet')            
+        }
+
+        // Subscribe to the 'sendCompleted' event
+        EventEmitter.on('ev__handleSpentByMintTask_result', handleSpentByMintTaskResult)
+        
+
+        // Unsubscribe from the 'sendCompleted' event on component unmount
+        return () => {
+            EventEmitter.off('ev__handleSpentByMintTask_result', handleSpentByMintTaskResult)            
+        }
+    }, [isHandleSpentFromSpendavleSentToQueue])
 
     const toggleBackupSwitch = () => {
       try {
@@ -82,20 +115,8 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
 
     const checkSpent = async function () {
       setIsLoading(true)
-      const result = (await Wallet.checkSpent()) as {
-        spentCount: number
-        spentAmount: number
-      } | void
-      setIsLoading(false)
-
-      if (result && result.spentAmount > 0) {
-        setInfo(
-          `${result.spentCount} ecash proofs, ${result.spentAmount} SATS in total were removed from the wallet.`,
-        )
-        return
-      }
-
-      setInfo('No spent ecash found in your wallet')
+      setIsHandleSpentFromSpendavleSentToQueue(true)
+      WalletTask.handleSpentFromSpendable()      
     }
 
 
