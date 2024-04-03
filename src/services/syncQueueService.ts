@@ -31,7 +31,7 @@ const getSyncQueue = function () {
 const addTask = function (taskId: TaskId, task: Promise<any> | any) {
     const queue = getSyncQueue()
 
-    log.warn(`Adding new task ${taskId} to the queue`)
+    log.info(`Adding new task ${taskId} to the queue`)
 
     queue
     .addTask(
@@ -45,7 +45,7 @@ const addTask = function (taskId: TaskId, task: Promise<any> | any) {
 const addPrioritizedTask = function (taskId: TaskId, task: Promise<any> | any) {
     const queue = getSyncQueue()
 
-    log.warn(`Adding new high priority task ${taskId} to the queue`)
+    log.info(`Adding new high priority task ${taskId} to the queue`)
 
     queue
     .addPrioritizedTask(
@@ -57,7 +57,7 @@ const addPrioritizedTask = function (taskId: TaskId, task: Promise<any> | any) {
 
 // retrieve result of wallet transaction by listening to ev_taskFuncion event
 const _handleTaskResult = (taskId: TaskId, result: WalletTaskResult | TransactionTaskResult) => {
-    log.warn(
+    log.info(
       `The result of task ${taskId}`, result
     )
 
@@ -66,7 +66,7 @@ const _handleTaskResult = (taskId: TaskId, result: WalletTaskResult | Transactio
   
 // Helper function to handle the task status changes
 const _handleTaskStatusChange = (status: TaskStatus, task: Task) => {
-    log.warn(
+    log.trace(
         `The status of task ${task.taskId} changed to ${status}`,
     )
 }

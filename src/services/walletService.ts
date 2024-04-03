@@ -846,10 +846,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
             return {
                 taskFunction: '_handlePendingTopupTask',
                 mintUrl: '',
-                message: `No proofs were returned by the mint`,
-                proofsCount: 0,
-                proofsAmount: 0,
-                pr,            
+                message: `No proofs were returned by the mint`,                            
             } as WalletTaskResult
         }        
 
@@ -899,16 +896,13 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
             balanceAfter,
         )     
     
-        paymentRequestsStore.removePaymentRequest(pr)
         _sendTopupNotification(pr)
+        paymentRequestsStore.removePaymentRequest(pr)        
 
         return {
             taskFunction: '_handlePendingTopupTask',
             mintUrl: '',
             message: `Topup completed`,
-            proofsCount: 0,
-            proofsAmount: 0,
-            pr,            
         } as WalletTaskResult
 
     } catch (e: any) {
@@ -920,10 +914,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
             taskFunction: '_handlePendingTopupTask',
             mintUrl: '',
             error: e,
-            message: `_handlePendingTopupTask ended with error: ${e.message}`,
-            proofsCount: 0,
-            proofsAmount: 0,
-            pr,            
+            message: `_handlePendingTopupTask ended with error: ${e.message}`,                        
         } as WalletTaskResult
     }
 

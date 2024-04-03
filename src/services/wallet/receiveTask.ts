@@ -62,7 +62,8 @@ export const receiveTask = async function (
         // Let's create new draft receive transaction in database
         transactionData.push({
             status: TransactionStatus.DRAFT,
-            amountToReceive,            
+            amountToReceive,
+            encodedToken,           
             createdAt: new Date(),
         })
 
@@ -71,7 +72,7 @@ export const receiveTask = async function (
             amount: amountToReceive,
             data: JSON.stringify(transactionData),
             memo,
-            mint: mintToReceive,
+            mint: mintToReceive,            
             status: TransactionStatus.DRAFT,
         }
 
@@ -82,6 +83,11 @@ export const receiveTask = async function (
         const isBlocked = mintsStore.isBlocked(mintToReceive)
 
         if (isBlocked) {
+            transactionData.push({
+                status: TransactionStatus.BLOCKED,
+                message: 'Mint is blocked in your Settings, ecash has not been received.',
+            })
+
             const blockedTransaction = await transactionsStore.updateStatus(
                 transactionId,
                 TransactionStatus.BLOCKED,

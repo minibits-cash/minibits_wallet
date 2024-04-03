@@ -41,12 +41,12 @@ import useColorScheme from '../theme/useThemeColor'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import QRCode from 'react-native-qrcode-svg'
-import { getEncodedToken } from '@cashu/cashu-ts'
-import { Token } from '../models/Token'
+import { getDecodedToken, getEncodedToken, Token as CashuToken } from '@cashu/cashu-ts'
 import { CashuUtils } from '../services/cashu/cashuUtils'
 import { MintStatus } from '../models/Mint'
 import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
+import { Token } from '../models/Token'
 
 type ProofsByStatus = {
   isSpent: Proof[]
@@ -428,7 +428,7 @@ const ReceiveInfoBlock = function (props: {
     } = props
 
     const isInternetReachable = useIsInternetReachable()
-    const retryResult = getTokenToRetryToReceive(transaction)  
+    const encodedTokenToRetry = getEncodedTokenToRetry(transaction)  
     const {transactionsStore, mintsStore} = useStores()
     const [isReceiveTaskSentToQueue, setIsReceiveTaskSentToQueue] = useState<boolean>(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
@@ -440,7 +440,7 @@ const ReceiveInfoBlock = function (props: {
 
     useEffect(() => {
         const handleReceiveTaskResult = async (result: TransactionTaskResult) => {
-            log.trace('handleReceiveTaskResult event handler triggered')
+            log.trace('[handleReceiveTaskResult] event handler triggered')
             
             setIsLoading(false)
 
@@ -463,19 +463,22 @@ const ReceiveInfoBlock = function (props: {
                     JSON.stringify(transactionDataUpdate),
                 )
 
-                setResultModalInfo({
+                const modalInfo = {
                     status: result.transaction?.status as TransactionStatus,
                     message: result.message,
-                })
+                }               
+
+                setResultModalInfo(modalInfo)
             }
+            
         }
 
         // Subscribe to the 'sendCompleted' event
-        EventEmitter.on('ev_receiveTask', handleReceiveTaskResult)
+        EventEmitter.on('ev_receiveTask_result', handleReceiveTaskResult)
 
         // Unsubscribe from the 'sendCompleted' event on component unmount
         return () => {
-            EventEmitter.off('ev_receiveOfflineCompleteTask', handleReceiveTaskResult)
+            EventEmitter.off('ev_receiveTask_result', handleReceiveTaskResult)
         }
     }, [isReceiveTaskSentToQueue])
 
@@ -484,31 +487,23 @@ const ReceiveInfoBlock = function (props: {
     setIsResultModalVisible(previousState => !previousState)
 
     const onRetryToReceive = async function () {                
-        if(!retryResult || !isInternetReachable) {
+        if(!encodedTokenToRetry || !isInternetReachable) {
             return
         }
         
         setIsLoading(true)     
 
         try {    
-            const {tokenToRetry, increaseProofsCounter} = retryResult               
-            const amountToReceive = CashuUtils.getTokenAmounts(tokenToRetry).totalAmount
+            const tokenToRetry: CashuToken = getDecodedToken(encodedTokenToRetry)              
+            const amountToReceive = CashuUtils.getTokenAmounts(tokenToRetry as Token).totalAmount
             const memo = tokenToRetry.memo || ''
-            const encoded = getEncodedToken(tokenToRetry)
-
-            if(increaseProofsCounter) {
-                const mintInstance = mintsStore.findByUrl(transaction.mint)
-                if(mintInstance) {
-                    mintInstance.increaseProofsCounter(20)
-                }
-            }
-
+            
             setIsReceiveTaskSentToQueue(true)
             WalletTask.receive(
                 tokenToRetry as Token,
                 amountToReceive,
                 memo,
-                encoded
+                encodedTokenToRetry
             )
  
 
@@ -554,7 +549,7 @@ const ReceiveInfoBlock = function (props: {
                         label="tranDetailScreen.type"
                         value={transaction.type as string}
                     />
-                    {retryResult && isInternetReachable ? (
+                    {encodedTokenToRetry && isInternetReachable ? (
                         <View
                         style={{flexDirection: 'row', justifyContent: 'space-between'}}>
                         <TranItem
@@ -562,7 +557,7 @@ const ReceiveInfoBlock = function (props: {
                             value={transaction.status as string}
                         />
                         <Button
-                            style={{maxHeight: 10, marginTop: spacing.medium}}
+                            style={{marginTop: spacing.medium}}
                             // preset="secondary"
                             text="Retry to receive"
                             onPress={onRetryToReceive}
@@ -1405,15 +1400,17 @@ const getEncodedTokenToSend = (
 }
 
 
-const getTokenToRetryToReceive = (
+const getEncodedTokenToRetry = (
     transaction: Transaction,
-  ): {tokenToRetry: Token, increaseProofsCounter: boolean} | undefined => {
+  ): string | undefined => {
     try {
         if(transaction.type !== (TransactionType.RECEIVE || TransactionType.RECEIVE_OFFLINE)) {
             return undefined
         }
 
-        if(transaction.status !== TransactionStatus.ERROR) {
+        if (transaction.status !== TransactionStatus.ERROR && 
+            transaction.status !== TransactionStatus.DRAFT &&
+            transaction.status !== TransactionStatus.BLOCKED) {
             return undefined
         }
 
@@ -1427,29 +1424,33 @@ const getTokenToRetryToReceive = (
         }
 
         const data = JSON.parse(transaction.data)
+        const draftRecord = data.find(
+            (record: any) => record.status === 'DRAFT',
+        )
+
+        const encodedTokenToRetry: string = draftRecord.encodedToken
+
+        if(!encodedTokenToRetry) {return undefined}
+
+        // return token to retry if transaction somehow got stuck in DRAFT status or user blocked a mint and than changed his mind
+        // solves #57
+        if (transaction.status === TransactionStatus.DRAFT || transaction.status === TransactionStatus.BLOCKED){
+            return encodedTokenToRetry
+        }
+
         const errorRecord = data.find(
             (record: any) => record.status === 'ERROR',
         )
-
+        
         const {error} = errorRecord
         
-        if(error) {
-            
-            const {params} = error
+        if(error && error.params && error.params.message) {          
 
-            if(params) {
-                const {errorToken, message} = params
-
-                if(message.includes('Network request failed') || message.includes('Bad Gateway')) {                    
-                    return {tokenToRetry: errorToken, increaseProofsCounter: false}
-                }
-
-                if(message.includes('outputs have already been signed before')) {                             
-                    return {tokenToRetry: errorToken, increaseProofsCounter: true}
-                }
-
-                return undefined
+            if(error.params.message.includes('Network request failed') || error.params.message.includes('Bad Gateway')) {                    
+                return encodedTokenToRetry
             }
+
+            return undefined            
         }            
     } catch (e) {
         // silent
