@@ -47,6 +47,8 @@ import { MintStatus } from '../models/Mint'
 import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
 import { Token } from '../models/Token'
+import { PaymentRequest } from '../models/PaymentRequest'
+import { pollerExists } from '../utils/poller'
 
 type ProofsByStatus = {
   isSpent: Proof[]
@@ -334,6 +336,7 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
                   isDataParsable={isDataParsable}
                   copyAuditTrail={copyAuditTrail}
                   colorScheme={colorScheme}
+                  navigation={navigation}
                 />
               )}
               {transaction.type === TransactionType.TRANSFER && (
@@ -664,7 +667,7 @@ const ReceiveInfoBlock = function (props: {
                     <Button
                       preset="secondary"
                       tx={'common.close'}
-                      onPress={onGoBack}
+                      onPress={toggleResultModal}
                     />
                   </View>
                 </>
@@ -1084,21 +1087,86 @@ const TopupInfoBlock = function (props: {
     isDataParsable: boolean
     copyAuditTrail: any
     colorScheme: 'dark' | 'light'
+    navigation: any
 }) {
-  const {transaction, isDataParsable, copyAuditTrail, colorScheme} = props
+  const {transaction, isDataParsable, copyAuditTrail, colorScheme, navigation} = props
+  
+  // retrieve pr from transaction as it might have been expired and removed from storage
+  const paymentRequest = getPaymentRequestToRetry(transaction)
+  const isInternetReachable = useIsInternetReachable()  
+  
+  const [isPendingTopupTaskSentToQueue, setIsPendingTopupTaskSentToQueue] = useState<boolean>(false)
+  const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
+  const [resultModalInfo, setResultModalInfo] = useState<
+    {status: TransactionStatus; message: string} | undefined
+  >()
+  const [isLoading, setIsLoading] = useState(false)
 
-  const {paymentRequestsStore} = useStores()
-  const paymentRequest = paymentRequestsStore.findByTransactionId(transaction.id as number)
 
-  const copyInvoice = function () {
-    try {
-      Clipboard.setString(paymentRequest?.encodedInvoice as string)
-    } catch (e: any) {
-      return false
+    useEffect(() => {
+        const handlePendingTopupTaskResult = async (result: TransactionTaskResult) => {
+            log.trace('[handlePendingTopupTaskResult] event handler triggered')
+            setIsLoading(false)
+
+            // do not react to an active poller :)
+            if(pollerExists(`handlePendingTopupTaskPoller-${result.paymentHash}`)) {
+                return false            
+            }
+
+            if (result.error) {
+                setResultModalInfo({
+                    status: result.transaction?.status as TransactionStatus,
+                    message: result.error.params?.message || result.error.message,
+                })
+            } else {
+                setResultModalInfo({
+                    status: result.transaction?.status as TransactionStatus,
+                    message: result.message,
+                })
+            }
+
+            toggleResultModal()            
+        }
+
+        // Subscribe to the 'sendCompleted' event
+        EventEmitter.on('ev__handlePendingTopupTask_result', handlePendingTopupTaskResult)
+
+        // Unsubscribe from the 'sendCompleted' event on component unmount
+        return () => {
+            EventEmitter.off('ev__handlePendingTopupTask_result', handlePendingTopupTaskResult)
+        }
+    }, [isPendingTopupTaskSentToQueue])
+
+
+    const toggleResultModal = () =>
+        setIsResultModalVisible(previousState => !previousState)
+
+    const copyInvoice = function () {
+        try {
+            Clipboard.setString(paymentRequest?.encodedInvoice as string)
+        } catch (e: any) {
+            return false
+        }
     }
-  }
 
-  const labelColor = useThemeColor('textDim')
+    const onRetryToHandlePendingTopup = async function () {                
+        if(!isInternetReachable || !paymentRequest) {
+            return
+        }    
+        setIsLoading(true)
+
+        setIsPendingTopupTaskSentToQueue(true)
+        WalletTask.handlePendingTopup(
+            {paymentRequest}
+        )
+
+    }
+
+    const onGoBack = () => {
+        navigation.goBack()
+    }
+
+    const labelColor = useThemeColor('textDim')
 
   return (
     <>
@@ -1125,10 +1193,26 @@ const TopupInfoBlock = function (props: {
                         label="tranDetailScreen.type"
                         value={transaction.type as string}
                     />
-                    <TranItem
-                        label="tranDetailScreen.status"
-                        value={transaction.status as string}
-                    />
+                    {paymentRequest && isInternetReachable ? (
+                        <View
+                        style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                        <TranItem
+                            label="tranDetailScreen.status"
+                            value={transaction.status as string}
+                        />
+                        <Button
+                            style={{marginTop: spacing.medium}}
+                            preset="secondary"
+                            text="Retry to complete"
+                            onPress={onRetryToHandlePendingTopup}
+                        />
+                        </View>
+                    ) : (
+                        <TranItem
+                            label="tranDetailScreen.status"
+                            value={transaction.status as string}
+                        />
+                    )}
                     {transaction.status === TransactionStatus.COMPLETED && (
                         <TranItem
                             label="tranDetailScreen.balanceAfter"
@@ -1218,6 +1302,83 @@ const TopupInfoBlock = function (props: {
                 />
             </>
         )}
+        <BottomModal
+          isVisible={isResultModalVisible ? true : false}          
+          ContentComponent={
+            <>
+              {(resultModalInfo?.status === TransactionStatus.COMPLETED) && (
+                <>
+                  <ResultModalInfo
+                    icon="faCheckCircle"
+                    iconColor={colors.palette.success200}
+                    title="Success!"
+                    message={resultModalInfo?.message}
+                  />
+                  <View style={$buttonContainer}>
+                    <Button
+                      preset="secondary"
+                      tx={'common.close'}
+                      onPress={onGoBack}
+                    />
+                  </View>
+                </>
+              )}
+              {(resultModalInfo?.status === TransactionStatus.PENDING) && (
+                <>
+                  <ResultModalInfo
+                    icon="faTriangleExclamation"
+                    iconColor={colors.palette.accent400}
+                    title="Invoice not paid"
+                    message={resultModalInfo?.message}
+                  />
+                  <View style={$buttonContainer}>
+                    <Button
+                      preset="secondary"
+                      tx={'common.close'}
+                      onPress={toggleResultModal}
+                    />
+                  </View>
+                </>
+              )}
+              {(resultModalInfo?.status === TransactionStatus.EXPIRED) && (
+                <>
+                  <ResultModalInfo
+                    icon="faTriangleExclamation"
+                    iconColor={colors.palette.accent400}
+                    title="Invoice expired"
+                    message={resultModalInfo?.message}
+                  />
+                  <View style={$buttonContainer}>
+                    <Button
+                      preset="secondary"
+                      tx={'common.close'}
+                      onPress={toggleResultModal}
+                    />
+                  </View>
+                </>
+              )}
+              {(resultModalInfo?.status === TransactionStatus.ERROR) && (
+                <>
+                  <ResultModalInfo
+                    icon="faTriangleExclamation"
+                    iconColor={colors.palette.angry500}
+                    title="Topup error"
+                    message={resultModalInfo?.message}
+                  />
+                  <View style={$buttonContainer}>
+                    <Button
+                      preset="secondary"
+                      tx={'common.close'}
+                      onPress={toggleResultModal}
+                    />
+                  </View>
+                </>
+              )}
+            </>
+          }
+          onBackButtonPress={toggleResultModal}
+          onBackdropPress={toggleResultModal}
+        />
     </>
   )
 }
@@ -1458,6 +1619,50 @@ const getEncodedTokenToRetry = (
     }
 }
 
+
+const getPaymentRequestToRetry = (
+    transaction: Transaction,
+  ): PaymentRequest | undefined => {
+    try {
+        if(transaction.type !== (TransactionType.TOPUP)) {
+            return undefined
+        }
+
+        if (transaction.status !== TransactionStatus.ERROR && 
+            transaction.status !== TransactionStatus.PENDING &&
+            transaction.status !== TransactionStatus.EXPIRED) {
+            return undefined
+        }
+
+        const {mintsStore} = useStores()
+
+        // skip if mint is still offline
+        const {mint} = transaction
+        const mintInstance = mintsStore.findByUrl(mint)
+        if(!mintInstance || mintInstance.status === MintStatus.OFFLINE) {
+            return undefined
+        }
+
+        const data = JSON.parse(transaction.data)
+        const pendingRecord = data.find(
+            (record: any) => record.status === 'PENDING',
+        )
+
+        const paymentRequest: PaymentRequest = pendingRecord.paymentRequest
+
+        if(!paymentRequest) {return undefined}
+        if(pollerExists(`handlePendingTopupTaskPoller-${paymentRequest.paymentHash}`)) {return undefined}
+
+        // return paymentRequest to retry if wallet somehow failed to retreive proofs for paid invoice        
+        return paymentRequest
+       
+    } catch (e) {
+        // silent
+        return undefined
+    }
+}
+
+
 const $screen: ViewStyle = {}
 
 const $headerContainer: TextStyle = {
@@ -1475,6 +1680,7 @@ const $tranAmount: TextStyle = {
     lineHeight: moderateVerticalScale(48),
     marginTop: spacing.extraSmall,
     marginLeft: -30,
+    color: 'white',
 }
 
 const $actionCard: ViewStyle = {

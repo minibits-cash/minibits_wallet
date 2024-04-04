@@ -126,7 +126,7 @@ export const topupTask = async function (
                 maxErrors: 5
             },        
             {paymentRequest})   
-        .then(() => log.trace('Polling completed', [], 'handlePendingTopupTaskPoller'))
+        .then(() => log.trace('Polling completed', [], `handlePendingTopupTaskPoller`))
 
         return {
             taskFunction: TOPUP,

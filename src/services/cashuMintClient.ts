@@ -444,19 +444,21 @@ const requestProofs = async function (
             amountPreferences,
             counter
         )
-        /* eslint-enable */
+        /* eslint-enable */        
         
-        if(proofs) {
-            log.trace('[MintClient.requestProofs]', proofs, newKeys)
-        }
+        log.info('[MintClient.requestProofs]', {proofs, newKeys})        
 
         return {
             proofs, 
             newKeys
         }
     } catch (e: any) {
+        log.info('[MintClient.requestProofs]', {error: {name: e.name, message: e.message}})
         if(e.message.includes('quote not paid')) {
-            return
+            return {
+                proofs: [],
+                newKeys: undefined
+            }
         }
         
         throw new AppError(
