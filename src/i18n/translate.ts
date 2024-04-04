@@ -27,6 +27,7 @@ import { TxKeyPath } from "./i18n"
  * // => "Hello world!"
  * ```
  */
-export function translate(key: TxKeyPath, options?: I18nOptions) {
-  return i18n.t(key, options)
+
+export function translate(key: TxKeyPath, options?: Partial<I18nOptions> & { [parameter: string]: any }) {
+  return i18n.t(key, options as I18nOptions)
 }
