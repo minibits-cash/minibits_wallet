@@ -17,6 +17,7 @@ import { ReceiveOption } from '../ReceiveOptionsScreen'
 import { SendOption } from '../SendOptionsScreen'
 import { infoMessage, warningMessage } from '../../utils/utils'
 import { IncomingDataType, IncomingParser } from '../../services/incomingParser'
+import { translate } from '../../i18n'
 
 
 
@@ -39,15 +40,15 @@ export const PrivateContacts = observer(function (props: {
         const { paymentOption } = props        
 
         if (paymentOption && paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) {
-            infoMessage('Select contact to send your payment request to.')
+            infoMessage(translate("contactsScreen.privateContacts.selectSendPaymentRequest"))
         }
 
         if (paymentOption && paymentOption === SendOption.SEND_TOKEN) {
-            infoMessage('Select contact to send your ecash to.')
+            infoMessage(translate("contactsScreen.privateContacts.selectSendToken"))
         }
 
         if (paymentOption && paymentOption === SendOption.LNURL_ADDRESS) {
-            infoMessage('Select contact to send Lightning payment to.')
+            infoMessage(translate("contactsScreen.privateContacts.selectSendLnURL"))
         }
     }, [])
     
@@ -80,14 +81,13 @@ export const PrivateContacts = observer(function (props: {
         log.trace('Start', newContactName, 'saveNewContact')
         
         if(!newContactName) {
-            setInfo(`Please enter a wallet address in name@domain.xyz format`)
+            setInfo(translate("contactsScreen.privateContacts.saveNewFormat"))
             return
         }
 
         toggleNewContactModal() // close
         setIsLoading(true)
         
-
         try {
 
             let newContact: Contact | undefined = undefined
@@ -117,7 +117,7 @@ export const PrivateContacts = observer(function (props: {
                 const profileRecord = await MinibitsClient.getWalletProfileByNip05(newContactName + MINIBITS_NIP05_DOMAIN)
 
                 if(!profileRecord) {
-                    warningMessage(`Profile name ${newContactName + MINIBITS_NIP05_DOMAIN} could not be found. Make sure the name is correct.`)
+                    warningMessage(translate("contactsScreen.privateContacts.profileNotFound", { name: newContactName + MINIBITS_NIP05_DOMAIN }))
                     setIsLoading(false)
                     return
                 }

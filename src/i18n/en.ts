@@ -129,6 +129,13 @@ const en = {
 			ctaPay: "Pay from wallet",
 			insufficient: 'Your wallet balance is not enough to pay this invoice amount but you can still pay it from another wallet.',
 			betaWarning: 'Please accept this is an early beta software. Your data can still be lost due to a bug or unexpected data loss.'
+		},
+		privateContacts: {
+			selectSendPaymentRequest: 'Select contact to send your payment request to.',
+			selectSendToken: 'Select contact to send your ecash to.',
+			selectSendLnURL: 'Select contact to send Lightning payment to.',
+			saveNewFormat: "Please enter a wallet address in name@domain.xyz format",
+			profileNotFound: "Profile name %{name} could not be found. Make sure the name is correct."
 		}
   },
 
