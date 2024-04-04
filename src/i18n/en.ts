@@ -118,14 +118,14 @@ const en = {
     newTitle: "Add new contact",
 		getInvoice: "Get invoice",
 		ownName: {
-			donationSuccess: "Thank you! Donation for :receiver has been successfully paid.",  
+			donationSuccess: "Thank you! Donation for %{receiver} has been successfully paid.",  
 			tooShort: 'Write your wallet profile name to the text box, use min 2 characters.',
 			illegalChar: 'Do not use . or - characters at the beginning or the end of name.',
 			profileExists: 'This wallet name is already in use, choose another one.',
 			chooseOwnName: 'Choose your own name',
 			chooseOwnNameFooter: 'Use lowercase letters, numbers and .-_',
-			available: ":name is available!",
-			payToGetOwnName: "Pay the following lightning invoice and get your :name wallet name.",
+			available: "%{name} is available!",
+			payToGetOwnName: "Pay the following lightning invoice and get your %{name} wallet name.",
 			ctaPay: "Pay from wallet",
 			insufficient: 'Your wallet balance is not enough to pay this invoice amount but you can still pay it from another wallet.',
 			betaWarning: 'Please accept this is an early beta software. Your data can still be lost due to a bug or unexpected data loss.'
