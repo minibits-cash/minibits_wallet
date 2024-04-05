@@ -414,7 +414,7 @@ const _handleSpentByMintTask = async function (
                     JSON.stringify(transactionDataUpdate),
                 )
 
-                EventEmitter.emit('ev_sendCompleted', relatedTransactionIds)
+                EventEmitter.emit('ev_sendCompleted', relatedTransactionIds) // TODO remove and listen to standard queue result event
                 stopPolling(`handleSpentByMintPoller-${mintUrl}`)
             }
         }       
@@ -689,7 +689,7 @@ const handlePendingTopups = async function (): Promise<void> {
 
     for (const pr of paymentRequests) {
         // skip pr if active poller exists
-        if(pollerExists(`handlePendingTopupPoller-${pr.paymentHash}`)) {
+        if(pollerExists(`handlePendingTopupTaskPoller-${pr.paymentHash}`)) {
             log.trace('[handlePendingTopups] Skipping check of paymentRequest, poller exists', {paymentHash: pr.paymentHash})
             continue
         }
@@ -724,6 +724,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
     const transactionId = {...pr}.transactionId // copy
     const mint = {...pr}.mint // copy
     const amount = {...pr}.amount // copy
+    const paymentHash = {...pr}.paymentHash // copy
     const mintInstance = mintsStore.findByUrl(mint as string)
 
     try {
@@ -734,7 +735,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         const amountPreferences = getDefaultAmountPreference(amount)        
         const countOfInFlightProofs = CashuUtils.getAmountPreferencesCount(amountPreferences)
         
-        log.trace('[_handlePendingTopupTask]', 'paymentRequest', pr.paymentHash)
+        log.trace('[_handlePendingTopupTask]', 'paymentRequest', paymentHash)
         log.trace('[_handlePendingTopupTask]', 'amountPreferences', amountPreferences)
         log.trace('[_handlePendingTopupTask]', 'countOfInFlightProofs', countOfInFlightProofs)  
         
@@ -752,11 +753,13 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         try {
             requestResult = (await MintClient.requestProofs(
                 mint as string,
-                pr.amount,
-                pr.paymentHash,
+                amount,
+                paymentHash,
                 amountPreferences,
                 lockedProofsCounter.inFlightFrom as number
             )) as {proofs: Proof[], newKeys: MintKeys}
+
+            log.info('[_handlePendingTopupTask]', {requestResult})
 
         } catch (e: any) {
             if (e instanceof AppError && 
@@ -768,8 +771,8 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
                     mintInstance.increaseProofsCounter(20)
                     requestResult = (await MintClient.requestProofs(
                         mint as string,
-                        pr.amount,
-                        pr.paymentHash,
+                        amount,
+                        paymentHash,
                         amountPreferences,
                         lockedProofsCounter.inFlightFrom as number + 20
                     )) as {proofs: Proof[], newKeys: MintKeys}
@@ -783,9 +786,6 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
                 // remove already expired invoices 
                 if (isBefore(pr.expiresAt as Date, new Date())) {
                     log.debug('[_handlePendingTopupTask]', `Invoice expired, removing: ${pr.paymentHash}`)
-                                        
-                    stopPolling(`handlePendingTopupPoller-${pr.paymentHash}`)         
-                    paymentRequestsStore.removePaymentRequest(pr)
 
                     // expire related tx - but only if it has not been completed before this check
                     const transaction = transactionsStore.findById(transactionId as number)
@@ -793,15 +793,20 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
                     if(transaction && transaction.status !== TransactionStatus.COMPLETED) {
                         const transactionDataUpdate = {
                             status: TransactionStatus.EXPIRED,
+                            message: 'Mint returned error and invoice expired',
+                            error: {name: e.name, message: e.message, params: e.params},
                             createdAt: new Date(),
                         }                        
     
-                        transactionsStore.updateStatuses(
+                        await transactionsStore.updateStatuses(
                             [transactionId as number],
                             TransactionStatus.EXPIRED,
                             JSON.stringify(transactionDataUpdate),
                         ) 
                     }
+
+                    stopPolling(`handlePendingTopupPoller-${paymentHash}`)         
+                    paymentRequestsStore.removePaymentRequest(pr)
                 }
 
                 // throw but keep polling
@@ -814,40 +819,46 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         const {proofs, newKeys} = requestResult
         if(newKeys) {WalletUtils.updateMintKeys(mint as string, newKeys)}  
         
-        // not sure this code ever runs, mint throws if not pais
+        // This runs if invoice has not yet been paid
         if (!proofs || proofs.length === 0) {
-            log.trace('[_handlePendingTopupTask]', 'No proofs returned from mint')
+            log.trace('[_handlePendingTopupTask]', 'Invoice has not yet been paid')
+            
+            const transaction = transactionsStore.findById(transactionId as number)   
+            let isExpired: boolean = false         
 
             // remove already expired invoices only after check that they have not been paid                
             if (isBefore(pr.expiresAt as Date, new Date())) {
-                log.debug('[_handlePendingTopupTask]', `Invoice expired, removing: ${pr.paymentHash}`)
-                
-                stopPolling(`handlePendingTopupTaskPoller-${pr.paymentHash}`)
-                paymentRequestsStore.removePaymentRequest(pr)
-                
-                // expire related tx - but only if it has not been completed before this check
-                const transaction = transactionsStore.findById(transactionId as number)
+                log.debug('[_handlePendingTopupTask]', `Invoice expired, removing: ${paymentHash}`)
 
                 if(transaction && transaction.status !== TransactionStatus.COMPLETED) {
                     const transactionDataUpdate = {
                         status: TransactionStatus.EXPIRED,
+                        message: 'Invoice expired before being paid.',
                         createdAt: new Date(),
                     }                        
 
-                    transactionsStore.updateStatuses(
+                    await transactionsStore.updateStatuses(
                         [transactionId as number],
                         TransactionStatus.EXPIRED,
                         JSON.stringify(transactionDataUpdate),
                     ) 
-                }                   
+                }
+
+                stopPolling(`handlePendingTopupTaskPoller-${paymentHash}`)
+                paymentRequestsStore.removePaymentRequest(pr)
+                isExpired = true                
             }
             // release lock and move on (keep polling)
-            mintInstance.resetInFlight(transactionId as number )            
+            mintInstance.resetInFlight(transactionId as number )
+                      
             return {
                 taskFunction: '_handlePendingTopupTask',
-                mintUrl: '',
-                message: `No proofs were returned by the mint`,                            
-            } as WalletTaskResult
+                mintUrl: mint,
+                amount,
+                paymentHash,
+                transaction,
+                message: isExpired ? 'Lightning invoice expired unpaid.' : 'Lightning invoice has not yet been paid.',
+            } as TransactionTaskResult
         }        
 
         // accept to the wallet whatever we've got
@@ -859,12 +870,12 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         
         // release lock and cleanup
         mintInstance.resetInFlight(transactionId as number )
-        stopPolling(`handlePendingTopupTaskPoller-${pr.paymentHash}`)               
+        stopPolling(`handlePendingTopupTaskPoller-${paymentHash}`)               
 
         if (receivedAmount !== pr.amount) {
             throw new AppError(
-            Err.VALIDATION_ERROR,
-            `Received amount ${receivedAmount} SATS is not equal to the requested amount ${pr.amount} SATS.`,
+                Err.VALIDATION_ERROR,
+                `Received amount ${receivedAmount} SATS is not equal to the requested amount ${amount} SATS.`,
             )
         }
 
@@ -874,7 +885,8 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
             createdAt: new Date(),
         }
 
-        transactionsStore.updateStatuses(
+        // await for final status
+        await transactionsStore.updateStatuses(
             [transactionId as number],
             TransactionStatus.COMPLETED,
             JSON.stringify(transactionDataUpdate),
@@ -885,8 +897,8 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
             pr.contactTo?.nip05 as string // payemnt has been sent from payment request receiver
         )
 
-        // Fire event that the TopupScreen can listen to
-        EventEmitter.emit('ev_topupCompleted', {...pr})
+        // Fire event that the TopupScreen can listen to // TODO replace by standard task result event
+        // EventEmitter.emit('ev_topupCompleted', {...pr})
         
         // Update tx with current balance
         const balanceAfter = proofsStore.getBalances().totalBalance
@@ -901,9 +913,12 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
 
         return {
             taskFunction: '_handlePendingTopupTask',
-            mintUrl: '',
-            message: `Topup completed`,
-        } as WalletTaskResult
+            mintUrl: mint,
+            amount,
+            paymentHash,
+            transaction: transactionsStore.findById(transactionId as number),
+            message: `Your invoice has been paid and your wallet balance credited with ${amount} SATS.`,
+        } as TransactionTaskResult
 
     } catch (e: any) {
         // release lock  
@@ -912,10 +927,13 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         }
         return {
             taskFunction: '_handlePendingTopupTask',
-            mintUrl: '',
-            error: e,
+            mintUrl: mint,
+            amount,
+            paymentHash,
+            transaction: transactionsStore.findById(transactionId as number),
+            error: {name: e.name, message: e.message},
             message: `_handlePendingTopupTask ended with error: ${e.message}`,                        
-        } as WalletTaskResult
+        } as TransactionTaskResult
     }
 
 }

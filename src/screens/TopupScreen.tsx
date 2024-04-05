@@ -241,19 +241,25 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
 
     useEffect(() => {
-      const handleCompleted = (paymentRequest: PaymentRequest) => {
-        log.trace('handleCompleted event handler triggered')
+      const handlePendingTopupTaskResult = (result: TransactionTaskResult) => {
+        log.trace('[handlePendingTopupTaskResult] event handler triggered')
 
         if (!transactionId) {
           return
         }
+        
         // Filter and handle events only for this topup transactionId
-        if (paymentRequest.transactionId === transactionId) {
-          log.trace('[handleCompleted]', 'Invoice has been paid and new proofs received')
+        if (result.transaction?.id === transactionId) {
+            // Show result modal only on completed topup
+            if (result.transaction.status !== TransactionStatus.COMPLETED) {                
+                return
+            }
+
+            log.trace('[handlePendingTopupTaskResult]', 'Invoice has been paid and new proofs received')
 
           setResultModalInfo({
-            status: TransactionStatus.COMPLETED,
-            message: `Your invoice has been paid and your wallet balance credited with ${paymentRequest.amount} SATS.`,
+            status: result.transaction.status,
+            message: result.message,
           })
 
           setTransactionStatus(TransactionStatus.COMPLETED)
@@ -264,10 +270,10 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         }
       }
       
-      EventEmitter.on('ev_topupCompleted', handleCompleted)
+      EventEmitter.on('ev__handlePendingTopupTask_result', handlePendingTopupTaskResult)
       
       return () => {
-        EventEmitter.off('ev_topupCompleted', handleCompleted)
+        EventEmitter.off('ev__handlePendingTopupTask_result', handlePendingTopupTaskResult)
       }
     }, [transactionId])
 
