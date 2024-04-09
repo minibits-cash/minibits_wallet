@@ -84,6 +84,10 @@ const en = {
     topUpWalletSubText: "Top up your balance by paying Bitcoin lightning invoice from another wallet",
     transferFromWallet: "Transfer from wallet",
     transferFromWalletSubText: "Debit your balance by paying Bitcoin lightning invoice from this wallet",
+		feeBadge: {
+			final: "+ final fee %{fee} SATS",
+			upto: "+ fee up to %{fee} SATS"
+		}
   },
   receiveScreen: {
     title: "Receive", 
