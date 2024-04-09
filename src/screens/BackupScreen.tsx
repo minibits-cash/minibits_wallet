@@ -37,8 +37,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
     )
     const [error, setError] = useState<AppError | undefined>()
     const [info, setInfo] = useState('')
-    const [isBackupModalVisible, setIsBackupModalVisible] =
-      useState<boolean>(false)
+    const [isBackupModalVisible, setIsBackupModalVisible] = useState<boolean>(false)
     const [isHandleSpentFromSpendavleSentToQueue, setIsHandleSpentFromSpendavleSentToQueue] = useState<boolean>(false)
     const [backupResultMessage, setBackupResultMessage] = useState<string>()
     const [totalSpentCount, setTotalSpentCount] = useState<number>(0)
