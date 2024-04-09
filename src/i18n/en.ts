@@ -13,7 +13,9 @@ const en = {
 		success: "Success!",
     offline: "Offline",
 		qr: "QR Code",
-		sats: "SATS"
+		sats: "SATS",
+		notCreated: 'Not yet created',
+		resetDefault: 'Reset to default'
   },
   welcomeScreen: {
     page1: {
@@ -144,6 +146,23 @@ const en = {
 			bottomModal: "Private contacts are unique identifiers of other Minibits wallets. You can use them to send or request ecash and you can safely share your own with others.",
 			domainMinibits: "Use minibits.cash domain",
 			domainExternal: "Use another domain"
+		},
+		publicContacts: {
+			npubPasteError: 'Copy your NPUB key first, then paste',
+			relayurlPasteError: 'Copy your relay URL key first, then paste',
+			relayExists: 'Relay already exists.',
+			missingLightningAddress: 'This contact does not have a Lightning address, send ecash instead.',
+			nostrTip: 'Tip the people you follow',
+			nostrTipSubText: 'Add your NOSTR social network public key (npub) and tip or donate to your favourite people and projects directly from the minibits wallet.',
+			nostrSetPublicKey: 'Set your public key',
+			nostrSetPublicKeySubText: 'Add or change your NOSTR social network public key (npub).',
+			nostrSetRelay: 'Set relay',
+			nostrSetRelaySubText: 'Add or change your own relay if your profile and follows are not hosted on the default relays.',
+			nostrRemovePub: 'Remove your public key',
+			nostrRemovePubSubText: 'Remove your npub key and stop loading public contacts.',
+			addNpub: 'Add your npub key',
+			pasteDemoKey: 'Paste demo key',
+			setOwnRelay: 'Set your own relay'
 		}
   },
 
