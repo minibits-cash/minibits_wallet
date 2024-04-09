@@ -135,7 +135,8 @@ const en = {
 			selectSendToken: 'Select contact to send your ecash to.',
 			selectSendLnURL: 'Select contact to send Lightning payment to.',
 			saveNewFormat: "Please enter a wallet address in name@domain.xyz format",
-			profileNotFound: "Profile name %{name} could not be found. Make sure the name is correct."
+			profileNotFound: "Profile name %{name} could not be found. Make sure the name is correct.",
+			noLightningAddress: 'This contact does not have a Lightning address, send ecash instead.'
 		}
   },
 

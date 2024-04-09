@@ -214,7 +214,7 @@ export const PrivateContacts = observer(function (props: {
 
             if(paymentOption && paymentOption === SendOption.LNURL_ADDRESS) {
                 if(!contact.lud16) {
-                    setInfo('This contact does not have a Lightning address, send ecash instead.')
+                    setInfo(translate("contactsScreen.privateContacts.noLightningAddress"))
                     return
                 }
 
@@ -258,120 +258,145 @@ export const PrivateContacts = observer(function (props: {
     const inputBg = useThemeColor('background')
 
     return (
-    <Screen contentContainerStyle={$screen}>        
+      <Screen contentContainerStyle={$screen}>
         <View style={$contentContainer}>
-            {contactsStore.count > 0 ? (
+          {contactsStore.count > 0 ? (
             <Card
-                ContentComponent={
-                    <>  
-                        <FlatList<Contact>
-                            data={contactsStore.all as Contact[]}
-                            renderItem={({ item, index }) => {                                
-                                return(
-                                    <ContactListItem                                        
-                                        contact={item}
-                                        isFirst={index === 0}
-                                        gotoContactDetail={() => gotoContactDetail(item)}                  
-                                    />
-                                )
-                            }}
-                            keyExtractor={(item) => item.pubkey} 
-                            style={{ flexGrow: 0  }}
-                        />
-                    </>
-                }
-                style={$card}
+              ContentComponent={
+                <FlatList<Contact>
+                  data={contactsStore.all as Contact[]}
+                  renderItem={({item, index}) => {
+                    return (
+                      <ContactListItem
+                        contact={item}
+                        isFirst={index === 0}
+                        gotoContactDetail={() => gotoContactDetail(item)}
+                      />
+                    )
+                  }}
+                  keyExtractor={item => item.pubkey}
+                  style={{flexGrow: 0}}
+                />
+              }
+              style={$card}
             />
-            ) : (
-                <Card
-                    ContentComponent={
-                        <>
-                        <ListItem
-                            leftIcon='faComment'
-                            leftIconInverse={true}
-                            leftIconColor={colors.palette.iconGreen200}
-                            text='Private contacts'
-                            subText={"Add other Minibits users as your private contacts. Every user gets sharable @minibits.cash wallet address. You can pay privately to your contacts anytime even if they are offline."}
-                            onPress={gotoNew}
-                        />
-                        <ListItem
-                            leftIcon='faCircleUser'
-                            leftIconInverse={true}
-                            leftIconColor={colors.palette.iconMagenta200}
-                            text="Switch your wallet name and picture?"
-                            subText={"Get cooler wallet name or profile picture. Select from an array of random names and images or opt for your own @minibits.cash wallet name."}
-                            onPress={gotoProfile}
-                            topSeparator={true}
-                        />                     
-                        </>
+          ) : (
+            <Card
+              ContentComponent={
+                <>
+                  <ListItem
+                    leftIcon="faComment"
+                    leftIconInverse={true}
+                    leftIconColor={colors.palette.iconGreen200}
+                    text="Private contacts"
+                    subText={
+                      'Add other Minibits users as your private contacts. Every user gets sharable @minibits.cash wallet address. You can pay privately to your contacts anytime even if they are offline.'
                     }
-                    style={$card}                
-                /> 
-            )}            
-            {isLoading && <Loading />}
+                    onPress={gotoNew}
+                  />
+                  <ListItem
+                    leftIcon="faCircleUser"
+                    leftIconInverse={true}
+                    leftIconColor={colors.palette.iconMagenta200}
+                    text="Switch your wallet name and picture?"
+                    subText={
+                      'Get cooler wallet name or profile picture. Select from an array of random names and images or opt for your own @minibits.cash wallet name.'
+                    }
+                    onPress={gotoProfile}
+                    topSeparator={true}
+                  />
+                </>
+              }
+              style={$card}
+            />
+          )}
+          {isLoading && <Loading />}
         </View>
         <View style={$bottomContainer}>
-            <View style={$buttonContainer}>
-                <Button
-                    tx={'contactsScreen.new'}
-                    LeftAccessory={() => (
-                        <Icon
-                        icon='faCircleUser'
-                        color='white'
-                        size={spacing.medium}                  
-                        />
-                    )}
-                    onPress={gotoNew}
-                    style={$buttonNew}
-                    />                
-            </View>
-        </View>       
+          <View style={$buttonContainer}>
+            <Button
+              tx={'contactsScreen.new'}
+              LeftAccessory={() => (
+                <Icon icon="faCircleUser" color="white" size={spacing.medium} />
+              )}
+              onPress={gotoNew}
+              style={$buttonNew}
+            />
+          </View>
+        </View>
         <BottomModal
-            isVisible={isNewContactModalVisible ? true : false}            
-            ContentComponent={
-                <View style={$newContainer}>
-                    <Text tx='contactsScreen.newTitle' preset="subheading" />
-                    <Text size='xxs' style={{color: domainText}} text='Private contacts are unique identifiers of other Minibits wallets. You can use them to send or request ecash and you can safely share your own with others.' />
-                    <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
-                        <TextInput
-                            ref={contactNameInputRef}
-                            onChangeText={newContactName => setNewContactName(newContactName)}
-                            value={newContactName}
-                            autoCapitalize='none'
-                            keyboardType='default'
-                            maxLength={60}                            
-                            selectTextOnFocus={true}
-                            style={[$contactInput, {backgroundColor: inputBg}, (isExternalDomain) && {marginRight: spacing.small, borderTopRightRadius: spacing.small, borderBottomRightRadius: spacing.small}]}                        
-                        />
-                        {!isExternalDomain && (
-                            <View style={[$contactDomain, { backgroundColor: inputBg}]}>
-                                <Text size='xxs' style={{color: domainText}} text={MINIBITS_NIP05_DOMAIN}/>
-                            </View>
-                        )}
-                        <Button
-                            tx={'common.save'}
-                            style={{
-                                borderRadius: spacing.small,
-                                marginRight: spacing.small,
-                            }}
-                            onPress={saveNewContact}
-                        />
-                    </View>                    
-                    <Button
-                        preset='tertiary'
-                        text={isExternalDomain ? 'Use minibits.cash domain' : 'Use another domain'}
-                        onPress={toggleExternalDomain}
-                        style={{alignSelf: 'flex-start', minHeight: verticalScale(30)}}
-                        textStyle={{lineHeight: verticalScale(16), fontSize: 12}}   
+          isVisible={isNewContactModalVisible ? true : false}
+          ContentComponent={
+            <View style={$newContainer}>
+              <Text tx="contactsScreen.newTitle" preset="subheading" />
+              <Text
+                size="xxs"
+                style={{color: domainText}}
+                text="Private contacts are unique identifiers of other Minibits wallets. You can use them to send or request ecash and you can safely share your own with others."
+              />
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  marginTop: spacing.small,
+                }}>
+                <TextInput
+                  ref={contactNameInputRef}
+                  onChangeText={newContactName =>
+                    setNewContactName(newContactName)
+                  }
+                  value={newContactName}
+                  autoCapitalize="none"
+                  keyboardType="default"
+                  maxLength={60}
+                  selectTextOnFocus={true}
+                  style={[
+                    $contactInput,
+                    {backgroundColor: inputBg},
+                    isExternalDomain && {
+                      marginRight: spacing.small,
+                      borderTopRightRadius: spacing.small,
+                      borderBottomRightRadius: spacing.small,
+                    },
+                  ]}
+                />
+                {!isExternalDomain && (
+                  <View style={[$contactDomain, {backgroundColor: inputBg}]}>
+                    <Text
+                      size="xxs"
+                      style={{color: domainText}}
+                      text={MINIBITS_NIP05_DOMAIN}
                     />
-                </View>
-            }
-            onBackButtonPress={toggleNewContactModal}
-            onBackdropPress={toggleNewContactModal}
-        /> 
+                  </View>
+                )}
+                <Button
+                  tx={'common.save'}
+                  style={{
+                    borderRadius: spacing.small,
+                    marginRight: spacing.small,
+                  }}
+                  onPress={saveNewContact}
+                />
+              </View>
+              <Button
+                preset="tertiary"
+                text={
+                  isExternalDomain
+                    ? 'Use minibits.cash domain'
+                    : 'Use another domain'
+                }
+                onPress={toggleExternalDomain}
+                style={{alignSelf: 'flex-start', minHeight: verticalScale(30)}}
+                textStyle={{lineHeight: verticalScale(16), fontSize: 12}}
+              />
+            </View>
+          }
+          onBackButtonPress={toggleNewContactModal}
+          onBackdropPress={toggleNewContactModal}
+        />
         {info && <InfoModal message={info} />}
         {error && <ErrorModal error={error} />}
-    </Screen>
+      </Screen>
     )
   })
 
