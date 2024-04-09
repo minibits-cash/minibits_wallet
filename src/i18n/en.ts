@@ -26,6 +26,16 @@ const en = {
 		payFromWallet: 'Pay from wallet',
 		receiveInPerson: "Receive in person"
 	},
+	transactionCommon: {
+		from: "From %{sender}",
+		receivedFrom: "Received from %{sender}",
+		sentTo: "Sent to %{receiver}",
+		paidTo: "Paid to %{receiver}",
+		youReceived: 'You received',
+		youSent: 'You sent',
+		youPaid: 'You paid',
+		unknown: 'Unknown transaction'
+	},
   welcomeScreen: {
     page1: {
       heading: "Welcome",

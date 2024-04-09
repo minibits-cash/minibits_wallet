@@ -6,6 +6,7 @@ import { Button, Icon, ListItem, Screen, Text } from "../../components"
 import { Transaction, TransactionStatus, TransactionType } from "../../models/Transaction"
 import { colors, spacing, typography, useThemeColor } from "../../theme"
 import useIsInternetReachable from "../../utils/useIsInternetReachable"
+import { translate } from "../../i18n"
 
 export interface TransactionListProps {
   transaction: Transaction,
@@ -25,26 +26,40 @@ export const TransactionListItem = observer(function (props: TransactionListProp
     const isInternetReachable = useIsInternetReachable()
   
     const getText = function(tx: Transaction) {
-      if(tx.noteToSelf) return tx.noteToSelf
+      if (tx.noteToSelf) return tx.noteToSelf
       // if(tx.memo) return tx.memo
-  
-      switch(tx.type) {
+
+      switch (tx.type) {
         case TransactionType.RECEIVE || TransactionType.RECEIVE_OFFLINE:
-            if(tx.sentFrom) {
-                if(!tx.memo || tx.memo.includes('Sent from Minibits')) {
-                    return `From ${tx.sentFrom}`
-                }
-            } else {
-                return tx.memo ? tx.memo : 'You received'
-            }          
+          if (tx.sentFrom) {
+            if (!tx.memo || tx.memo.includes('Sent from Minibits')) {
+              return translate('transactionCommon.from', {sender: tx.sentFrom})
+            }
+          } else {
+            return tx.memo
+              ? tx.memo
+              : translate('transactionCommon.youReceived')
+          }
         case TransactionType.SEND:
-          return tx.memo ? tx.memo : tx.sentTo ? `Sent to ${tx.sentTo}` : 'You sent'
+          return tx.memo
+            ? tx.memo
+            : tx.sentTo
+            ? translate('transactionCommon.sentTo', {receiver: tx.sentTo})
+            : translate('transactionCommon.youSent')
         case TransactionType.TOPUP:
-          return tx.memo ? tx.memo : tx.sentFrom ? `Received from ${tx.sentFrom}` : 'You received'
+          return tx.memo
+            ? tx.memo
+            : tx.sentFrom
+            ? translate("transactionCommon.receivedFrom", {sender: tx.sentFrom})
+            : translate("transactionCommon.youReceived")
         case TransactionType.TRANSFER:
-          return tx.memo ? tx.memo : tx.sentTo ? `Paid to ${tx.sentTo}` : 'You paid'
+          return tx.memo
+            ? tx.memo
+            : tx.sentTo
+            ? translate('transactionCommon.paidTo', {receiver: tx.sentTo})
+            : translate("transactionCommon.youPaid")
         default:
-          return 'Unknown transaction'
+          return translate("transactionCommon.unknown")
       }
     }
   
