@@ -288,20 +288,16 @@ export const PrivateContacts = observer(function (props: {
                     leftIcon="faComment"
                     leftIconInverse={true}
                     leftIconColor={colors.palette.iconGreen200}
-                    text="Private contacts"
-                    subText={
-                      'Add other Minibits users as your private contacts. Every user gets sharable @minibits.cash wallet address. You can pay privately to your contacts anytime even if they are offline.'
-                    }
+                    tx='contactsScreen.privateContacts.explainerText'
+                    subTx="contactsScreen.privateContacts.explainerSubText"
                     onPress={gotoNew}
                   />
                   <ListItem
                     leftIcon="faCircleUser"
                     leftIconInverse={true}
                     leftIconColor={colors.palette.iconMagenta200}
-                    text="Switch your wallet name and picture?"
-                    subText={
-                      'Get cooler wallet name or profile picture. Select from an array of random names and images or opt for your own @minibits.cash wallet name.'
-                    }
+                    tx="contactsScreen.privateContacts.switchName"
+                    subTx='contactsScreen.privateContacts.switchNameSubText'
                     onPress={gotoProfile}
                     topSeparator={true}
                   />
@@ -332,7 +328,7 @@ export const PrivateContacts = observer(function (props: {
               <Text
                 size="xxs"
                 style={{color: domainText}}
-                text="Private contacts are unique identifiers of other Minibits wallets. You can use them to send or request ecash and you can safely share your own with others."
+                tx="contactsScreen.privateContacts.bottomModal"
               />
               <View
                 style={{
@@ -380,10 +376,10 @@ export const PrivateContacts = observer(function (props: {
               </View>
               <Button
                 preset="tertiary"
-                text={
+                tx={
                   isExternalDomain
-                    ? 'Use minibits.cash domain'
-                    : 'Use another domain'
+                    ? 'contactsScreen.privateContacts.domainMinibits'
+                    : 'contactsScreen.privateContacts.domainExternal'
                 }
                 onPress={toggleExternalDomain}
                 style={{alignSelf: 'flex-start', minHeight: verticalScale(30)}}

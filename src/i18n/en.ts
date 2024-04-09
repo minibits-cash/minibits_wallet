@@ -136,7 +136,14 @@ const en = {
 			selectSendLnURL: 'Select contact to send Lightning payment to.',
 			saveNewFormat: "Please enter a wallet address in name@domain.xyz format",
 			profileNotFound: "Profile name %{name} could not be found. Make sure the name is correct.",
-			noLightningAddress: 'This contact does not have a Lightning address, send ecash instead.'
+			noLightningAddress: 'This contact does not have a Lightning address, send ecash instead.',
+			explainerText: "Private contacts",
+			explainerSubText: "Add other Minibits users as your private contacts. Every user gets sharable @minibits.cash wallet address. You can pay privately to your contacts anytime even if they are offline.",
+			switchName: "Switch your wallet name and picture?",
+			switchNameSubText: 'Get cooler wallet name or profile picture. Select from an array of random names and images or opt for your own @minibits.cash wallet name.',
+			bottomModal: "Private contacts are unique identifiers of other Minibits wallets. You can use them to send or request ecash and you can safely share your own with others.",
+			domainMinibits: "Use minibits.cash domain",
+			domainExternal: "Use another domain"
 		}
   },
 
