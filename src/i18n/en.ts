@@ -7,6 +7,7 @@ const en = {
     paste: "Paste",
     scan: "Scan",
     copy: "Copy",
+		copyFailParam: "Couldn't copy %{param}", 
     confirm: "Confirm",
     save: "Save",
     add: "Add",
@@ -15,8 +16,16 @@ const en = {
 		qr: "QR Code",
 		sats: "SATS",
 		notCreated: 'Not yet created',
-		resetDefault: 'Reset to default'
+		resetDefault: 'Reset to default',
+		share: "Share",
   },
+	paymentCommon: {
+		pay: "Pay",
+		payMe: 'Pay me',
+		paySatsAmountTo: "Pay %{amount} SATS to",
+		payFromWallet: 'Pay from wallet',
+		receiveInPerson: "Receive in person"
+	},
   welcomeScreen: {
     page1: {
       heading: "Welcome",
@@ -168,6 +177,23 @@ const en = {
 			selectOneOfUsernames: 'Select one of the usernames'
 		}
   },
+	paymentRequestScreen: {
+		incoming: {
+			noRequests: 'There are no incoming payment requests to be paid or they have already expired.'
+		},
+		outgoing: {
+			noRequests: 'There are no outgoing payment requests to be paid or they have already expired.',
+			invoiceShared: 'Lightning invoice has been shared, waiting to be paid by receiver.',
+			sharingCancelled: 'Sharing cancelled',
+			scanAndPay: 'Scan and pay to top-up'
+		},
+		// might move this to common later if it gets used in other screens
+		listItem: {
+			expires: "Expires %{datetime}",
+			expired: "Expired %{datetime}",
+			requestPaymentSuccess: 'Request has been paid'
+		}
+	},
 
   profileScreen: {    
     changeAvatar: "Change picture",
