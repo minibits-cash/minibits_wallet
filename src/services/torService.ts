@@ -1,8 +1,8 @@
-import Tor, { RequestMethod, TorType } from 'react-native-tor'
+// import Tor, { RequestMethod, TorType } from 'react-native-tor'
 import AppError, { Err } from '../utils/AppError';
 import { log } from './logService';
 
-let _tor: TorType
+/* let _tor: TorType
 let _globalRequestOptions: Partial<RequestOptions> = {};
 
 const getInstance = function () {
@@ -126,4 +126,4 @@ export const TorDaemon = {
     getInstance,
     torRequest,
     setGlobalRequestOptions,
-}
+} */

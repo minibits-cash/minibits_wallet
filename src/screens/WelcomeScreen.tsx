@@ -241,7 +241,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
                 </View>
             </View>
             {error && <ErrorModal error={error} />}
-            {isLoading && <Loading statusMessage={'Creating wallet seed, this takes a while...'} style={{backgroundColor: headerBg, opacity: 1}}/>}
+            {isLoading && <Loading statusMessage={'Creating wallet seed, this takes a while...'} style={{backgroundColor: headerBg, opacity: 1}} textStyle={{color: 'white'}}/>}
         </Screen>
     )
   }

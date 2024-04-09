@@ -1,8 +1,8 @@
 apply plugin: "com.android.application"
 apply plugin: "com.facebook.react"
-// minibits:react-native-camera-kit
-apply plugin: "kotlin-android" 
-apply plugin: "kotlin-android-extensions"
+apply plugin: "org.jetbrains.kotlin.android"
+// apply plugin: "kotlin-android" // minibits:react-native-camera-kit
+// apply plugin: "kotlin-android-extensions"
 
 
 import com.android.build.OutputFile
@@ -94,19 +94,16 @@ def reactNativeArchitectures() {
 
 android {
     ndkVersion rootProject.ext.ndkVersion
-
-    compileSdkVersion rootProject.ext.compileSdkVersion
-
+    buildToolsVersion rootProject.ext.buildToolsVersion
+    compileSdk rootProject.ext.compileSdkVersion
+    
     namespace "com.minibits_wallet"
     defaultConfig {
         applicationId "com.minibits_wallet"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 33
-        versionName "0.1.6"
-        ndk { 
-            abiFilters 'arm64-v8a', 'x86_64', 'x86', 'armeabi-v7a'
-        } // react-native-tor build
+        versionCode 34
+        versionName "0.1.7"
     }
 
     splits {
@@ -157,7 +154,6 @@ android {
         pickFirst 'lib/x86/libcrypto.so'
         pickFirst 'lib/x86_64/libcrypto.so'
         pickFirst 'lib/armeabi-v7a/libcrypto.so'
-        pickFirst 'lib/arm64-v8a/libcrypto.so'
     }
 
     // applicationVariants are e.g. debug, release
@@ -180,16 +176,9 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+    implementation("com.facebook.react:flipper-integration")
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.0.0")    
 
-    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.0.0")
-    implementation files("../../node_modules/react-native-tor/android/libs/sifir_android.aar") // react-native-tor
-
-    debugImplementation("com.facebook.flipper:flipper:${FLIPPER_VERSION}")
-    debugImplementation("com.facebook.flipper:flipper-network-plugin:${FLIPPER_VERSION}") {
-        exclude group:'com.squareup.okhttp3', module:'okhttp'
-    }
-
-    debugImplementation("com.facebook.flipper:flipper-fresco-plugin:${FLIPPER_VERSION}")
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {

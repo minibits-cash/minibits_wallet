@@ -137,6 +137,30 @@ export const MintModel = types
                 self.keysets.push(keyset) 
             }
             self.keys = keys
+            self.keysets = cast(self.keysets)            
+        },
+        increaseProofsCounter(numberOfProofs: number) {
+            const currentCounter = self.currentProofsCounter
+
+            if (currentCounter) {        
+                log.trace('[increaseProofsCounter]', 'Before update', {currentCounter})        
+                currentCounter.counter += numberOfProofs
+                log.trace('[increaseProofsCounter]', 'Updated proofsCounter', {numberOfProofs, currentCounter})
+            } else {
+                // If the counter doesn't exist, create a new one
+                const currentKeyset = deriveKeysetId(self.keys)
+
+                const newCounter = {
+                    keyset: currentKeyset,
+                    counter: numberOfProofs,
+                }
+
+                self.proofsCounters.push(newCounter)
+
+                log.trace('[increaseProofsCounter]', 'Adding new proofsCounter', {newCounter})
+            }
+            // Make sure to cast the frozen array back to a mutable array
+            self.proofsCounters = cast(self.proofsCounters)
         },
 
         setInFlight(inFlightFrom: number, inFlightTo: number, inFlightTid: number) {

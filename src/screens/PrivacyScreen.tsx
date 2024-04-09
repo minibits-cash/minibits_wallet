@@ -19,7 +19,7 @@ import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import AppError from '../utils/AppError'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
-import { KeyChain, MinibitsClient, TorDaemon } from '../services'
+import { KeyChain, MinibitsClient, } from '../services'
 import { log } from '../services/logService'
 import { OwnKeysScreen } from './OwnKeysScreen'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
@@ -75,10 +75,10 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
                 return
             }
 
-            const status = await TorDaemon.getStatus()            
+            //const status = await TorDaemon.getStatus()            
 
-            log.trace('torStatus', status, 'getTorStatus')
-            setTorStatus(status.toUpperCase())
+            //log.trace('torStatus', status, 'getTorStatus')
+            //setTorStatus(status.toUpperCase())
         }
         
         getTorStatus()
@@ -87,7 +87,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
     }, [])
 
 
-    const toggleTorDaemonSwitch = async () => {
+    /* const toggleTorDaemonSwitch = async () => {
         try {
             setIsLoading(true)
 
@@ -162,7 +162,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
     }
 
     const toggleTorModal = () =>
-        setIsTorModalVisible(previousState => !previousState)
+        setIsTorModalVisible(previousState => !previousState) */
     
 
     const toggleLoggerSwitch = async () => {
@@ -228,7 +228,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
           <Text preset="heading" text="Privacy" style={{color: 'white'}} />
         </View>
         <View style={$contentContainer}>
-            <Card
+            {/*<Card
                 style={[$card, {marginTop: spacing.medium}]}
                 ContentComponent={
                 <>
@@ -299,14 +299,14 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
                     )}                        
                 </>
                 }
-            />
+            />*/}
             <Card
                 style={[$card, {marginTop: spacing.medium}]}
                 ContentComponent={
                 <>                    
                     <ListItem
                         text="Use own Nostr profile"
-                        subText={walletProfileStore.isOwnProfile ? walletProfileStore.nip05 : "Import your own Nostr address and keys. Your wallet will stop communicating with minibits.cash Nostr and LNURL address servers, disabling Lightning address features for receiving zaps and payments. Only for hardcore ecash-ers!"}
+                        subText={walletProfileStore.isOwnProfile ? walletProfileStore.nip05 : "Import your own NOSTR address and keys. Your wallet stops communicate with minibits.cash Nostr and Lnurl address servers. However this will disable Lightning address features to receive zaps and payments. Only for hard core ecash-ers!"}
                         leftIcon={'faShareNodes'}
                         leftIconColor={
                             walletProfileStore.isOwnProfile
@@ -367,7 +367,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
             />
           {isLoading && <Loading />}
         </View>
-        <BottomModal
+        {/*<BottomModal
             isVisible={isTorModalVisible ? true : false}            
             ContentComponent={
                 <ResultModalInfo
@@ -385,7 +385,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
             }
             onBackButtonPress={toggleTorModal}
             onBackdropPress={toggleTorModal}
-        />
+        />*/}
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}      
       </Screen>

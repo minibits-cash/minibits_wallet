@@ -1,6 +1,6 @@
 import { MINIBITS_NIP05_DOMAIN, MINIBITS_SERVER_API_HOST } from "@env"
 import differenceInSeconds from "date-fns/differenceInSeconds"
-import formatDistance from "date-fns/formatDistance"
+import { formatDistance } from 'date-fns'
 import { observer } from "mobx-react-lite"
 import React from "react"
 import { Image, ImageStyle, ScrollView, StyleSheet, TextStyle, View, ViewStyle } from "react-native"

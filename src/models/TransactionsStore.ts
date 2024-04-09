@@ -16,9 +16,8 @@ import {
 } from './Transaction'
 import {Database, MintClient} from '../services'
 import {log} from '../services/logService'
-import { min } from 'date-fns'
 import { getRootStore } from './helpers/getRootStore'
-import formatDistance from 'date-fns/formatDistance'
+import { formatDistance } from 'date-fns'
 
 export const maxTransactionsInModel = 10
 export const maxTransactionsByMint = 10

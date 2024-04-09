@@ -142,6 +142,16 @@ export const MintsStoreModel = types
             }
             return missingMints
         },
+        currentProofsCounterValue(mintUrl: string) {
+            const mintInstance = self.findByUrl(mintUrl)
+
+            if (mintInstance) {
+                return mintInstance.currentProofsCounter?.counter || 0
+            }
+
+            log.warn('[currentProofsCounter]', 'Could not find mint', {mintUrl})
+            return 0
+        },
   }))
 
 export interface MintsStore extends Instance<typeof MintsStoreModel> {}

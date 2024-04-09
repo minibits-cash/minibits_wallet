@@ -14,7 +14,7 @@ export function Loading(props: ViewProps & {statusMessage?: string}) {
             zIndex: 9999,
         }, StyleSheet.absoluteFillObject, props.style]}>
             <ActivityIndicator color="#ccc" animating size="large" />
-            {props.statusMessage && (<Text style={{opacity: 1}} text={props.statusMessage}/>)}
+            {props.statusMessage && (<Text style={[{opacity: 1}, props.textStyle]} text={props.statusMessage}/>)}
         </View>
     )
 }

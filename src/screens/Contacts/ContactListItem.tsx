@@ -1,4 +1,4 @@
-import formatDistance from "date-fns/formatDistance"
+import { formatDistance } from 'date-fns'
 import { observer } from "mobx-react-lite"
 import React from "react"
 import { Image, ImageStyle, ScrollView, TextStyle, View, ViewStyle } from "react-native"

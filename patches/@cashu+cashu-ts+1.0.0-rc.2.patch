@@ -1,0 +1,130 @@
+diff --git a/node_modules/@cashu/cashu-ts/src/CashuMint.ts b/node_modules/@cashu/cashu-ts/src/CashuMint.ts
+index 198aa1f..e705235 100644
+--- a/node_modules/@cashu/cashu-ts/src/CashuMint.ts
++++ b/node_modules/@cashu/cashu-ts/src/CashuMint.ts
+@@ -17,9 +17,9 @@ import type {
+ 	PostRestorePayload,
+ 	MeltQuotePayload,
+ 	MeltQuoteResponse
+-} from './model/types/index.js';
+-import request from './request.js';
+-import { isObj, joinUrls } from './utils.js';
++} from './model/types/index';
++import request from './request';
++import { isObj, joinUrls } from './utils';
+ 
+ /**
+  * Class represents Cashu Mint API. This class contains Lower level functions that are implemented by CashuWallet.
+diff --git a/node_modules/@cashu/cashu-ts/src/CashuWallet.ts b/node_modules/@cashu/cashu-ts/src/CashuWallet.ts
+index 75cb177..320a083 100644
+--- a/node_modules/@cashu/cashu-ts/src/CashuWallet.ts
++++ b/node_modules/@cashu/cashu-ts/src/CashuWallet.ts
+@@ -1,7 +1,7 @@
+ import { bytesToHex, randomBytes } from '@noble/hashes/utils';
+-import { CashuMint } from './CashuMint.js';
+-import * as dhke from './DHKE.js';
+-import { BlindedMessage } from './model/BlindedMessage.js';
++import { CashuMint } from './CashuMint';
++import * as dhke from './DHKE';
++import { BlindedMessage } from './model/BlindedMessage';
+ import {
+ 	AmountPreference,
+ 	BlindedMessageData,
+@@ -21,15 +21,15 @@ import {
+ 	CheckStateEnum,
+ 	Token,
+ 	TokenEntry
+-} from './model/types/index.js';
++} from './model/types/index';
+ import {
+ 	bytesToNumber,
+ 	cleanToken,
+ 	getDecodedToken,
+ 	getDefaultAmountPreference,
+ 	splitAmount
+-} from './utils.js';
+-import { deriveBlindingFactor, deriveSecret, deriveSeedFromMnemonic } from './secrets.js';
++} from './utils';
++import { deriveBlindingFactor, deriveSecret, deriveSeedFromMnemonic } from './secrets';
+ import { validateMnemonic } from '@scure/bip39';
+ import { wordlist } from '@scure/bip39/wordlists/english';
+ import { createP2PKsecret, getSignedProofs } from '@gandlaf21/cashu-crypto/modules/client/NUT11';
+diff --git a/node_modules/@cashu/cashu-ts/src/DHKE.ts b/node_modules/@cashu/cashu-ts/src/DHKE.ts
+index da1dfe6..99f60a2 100644
+--- a/node_modules/@cashu/cashu-ts/src/DHKE.ts
++++ b/node_modules/@cashu/cashu-ts/src/DHKE.ts
+@@ -1,7 +1,7 @@
+ import { ProjPointType } from '@noble/curves/abstract/weierstrass';
+ import { secp256k1 } from '@noble/curves/secp256k1';
+-import { MintKeys, Proof, SerializedBlindedSignature } from './model/types/index.js';
+-import { bytesToNumber } from './utils.js';
++import { MintKeys, Proof, SerializedBlindedSignature } from './model/types/index';
++import { bytesToNumber } from './utils';
+ import { sha256 } from '@noble/hashes/sha256';
+ import { bytesToHex, hexToBytes } from '@noble/curves/abstract/utils';
+ import { Buffer } from 'buffer/';
+diff --git a/node_modules/@cashu/cashu-ts/src/index.ts b/node_modules/@cashu/cashu-ts/src/index.ts
+index f1c49f0..87476e9 100644
+--- a/node_modules/@cashu/cashu-ts/src/index.ts
++++ b/node_modules/@cashu/cashu-ts/src/index.ts
+@@ -1,8 +1,8 @@
+-import { CashuMint } from './CashuMint.js';
+-import { CashuWallet } from './CashuWallet.js';
+-import { setGlobalRequestOptions } from './request.js';
+-import { generateNewMnemonic, deriveSeedFromMnemonic } from './secrets.js';
+-import { getEncodedToken, getDecodedToken, deriveKeysetId } from './utils.js';
++import { CashuMint } from './CashuMint';
++import { CashuWallet } from './CashuWallet';
++import { setGlobalRequestOptions } from './request';
++import { generateNewMnemonic, deriveSeedFromMnemonic } from './secrets';
++import { getEncodedToken, getDecodedToken, deriveKeysetId } from './utils';
+ 
+ export * from './model/types/index.js';
+ 
+diff --git a/node_modules/@cashu/cashu-ts/src/model/BlindedMessage.ts b/node_modules/@cashu/cashu-ts/src/model/BlindedMessage.ts
+index 9bd02f3..fe7e70b 100644
+--- a/node_modules/@cashu/cashu-ts/src/model/BlindedMessage.ts
++++ b/node_modules/@cashu/cashu-ts/src/model/BlindedMessage.ts
+@@ -1,4 +1,4 @@
+-import { SerializedBlindedMessage } from './types/index.js';
++import { SerializedBlindedMessage } from './types/index';
+ import { ProjPointType } from '@noble/curves/abstract/weierstrass';
+ 
+ class BlindedMessage {
+diff --git a/node_modules/@cashu/cashu-ts/src/model/BlindedSignature.ts b/node_modules/@cashu/cashu-ts/src/model/BlindedSignature.ts
+index e998f32..16c4488 100644
+--- a/node_modules/@cashu/cashu-ts/src/model/BlindedSignature.ts
++++ b/node_modules/@cashu/cashu-ts/src/model/BlindedSignature.ts
+@@ -1,5 +1,5 @@
+ import { ProjPointType } from '@noble/curves/abstract/weierstrass';
+-import { SerializedBlindedSignature } from './types/index.js';
++import { SerializedBlindedSignature } from './types/index';
+ 
+ class BlindedSignature {
+ 	id: string;
+diff --git a/node_modules/@cashu/cashu-ts/src/model/Split.ts b/node_modules/@cashu/cashu-ts/src/model/Split.ts
+index dab9010..ea21a04 100644
+--- a/node_modules/@cashu/cashu-ts/src/model/Split.ts
++++ b/node_modules/@cashu/cashu-ts/src/model/Split.ts
+@@ -1,5 +1,5 @@
+-import { BlindedMessage } from './BlindedMessage.js';
+-import { Proof } from './types/index.js';
++import { BlindedMessage } from './BlindedMessage';
++import { Proof } from './types/index';
+ 
+ class Split {
+ 	proofs: Array<Proof>;
+diff --git a/node_modules/@cashu/cashu-ts/src/utils.ts b/node_modules/@cashu/cashu-ts/src/utils.ts
+index 1729b99..5614b37 100644
+--- a/node_modules/@cashu/cashu-ts/src/utils.ts
++++ b/node_modules/@cashu/cashu-ts/src/utils.ts
+@@ -1,6 +1,6 @@
+-import { encodeBase64ToJson, encodeJsonToBase64 } from './base64.js';
+-import { AmountPreference, Keys, Proof, Token, TokenEntry, TokenV2 } from './model/types/index.js';
+-import { TOKEN_PREFIX, TOKEN_VERSION } from './utils/Constants.js';
++import { encodeBase64ToJson, encodeJsonToBase64 } from './base64';
++import { AmountPreference, Keys, Proof, Token, TokenEntry, TokenV2 } from './model/types/index';
++import { TOKEN_PREFIX, TOKEN_VERSION } from './utils/Constants';
+ import { bytesToHex, hexToBytes } from '@noble/curves/abstract/utils';
+ import { sha256 } from '@noble/hashes/sha256';
+ 
