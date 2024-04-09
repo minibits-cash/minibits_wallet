@@ -34,7 +34,19 @@ const en = {
 		youReceived: 'You received',
 		youSent: 'You sent',
 		youPaid: 'You paid',
-		unknown: 'Unknown transaction'
+		unknown: 'Unknown transaction',
+		status: {
+			completedFee: 'Completed %{fee}',
+			draft: 'Draft',
+			error: 'Error',
+			pending: 'Pending',
+			prepared: 'Prepared',
+			reverted: 'Reverted',
+			blocked: 'Blocked',
+			expired: 'Expired'
+		},
+		tapToRedeem: 'Tap to redeem',
+		redeemOnline: 'Redeem online'
 	},
   welcomeScreen: {
     page1: {
