@@ -209,11 +209,11 @@ const publish = async function (
     const signed = {...event} as NostrEvent
 
     signed.created_at = Math.floor(Date.now() / 1000) 
-    signed.id = getEventHash(event)    
-    signed.sig = getSignature(event, keys.privateKey)    
+    signed.id = getEventHash(signed)    
+    signed.sig = getSignature(signed, keys.privateKey)    
 
-    if(!validateEvent(event)) {
-        throw new AppError(Err.VALIDATION_ERROR, 'Event is invalid and could not be published', event)
+    if(!validateEvent(signed)) {
+        throw new AppError(Err.VALIDATION_ERROR, 'Event is invalid and could not be published', signed)
     }
     
     log.trace('Event to be published', signed, 'publish')
