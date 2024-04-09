@@ -163,6 +163,9 @@ const en = {
 			addNpub: 'Add your npub key',
 			pasteDemoKey: 'Paste demo key',
 			setOwnRelay: 'Set your own relay'
+		},
+		randomName: {
+			selectOneOfUsernames: 'Select one of the usernames'
 		}
   },
 

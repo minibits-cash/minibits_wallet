@@ -8,6 +8,7 @@ import AppError, { Err } from '../../utils/AppError'
 import {$sizeStyles} from '../../components/Text'
 import {getRandomUsername} from '../../utils/usernames'
 import { scale } from '@gocodingnow/rn-size-matters'
+import { translate } from '../../i18n'
 
 
 export const RandomName = observer(function (props: {navigation: any, pubkey: string}) {
@@ -43,7 +44,7 @@ export const RandomName = observer(function (props: {navigation: any, pubkey: st
 
     const confirmSelectedName = async function () {
         if(!selectedName) {
-            setInfo('Select one of the usernames')
+            setInfo(translate("contactsScreen.randomName.selectOneOfUsernames"))
             return
         }
         
@@ -69,42 +70,40 @@ export const RandomName = observer(function (props: {navigation: any, pubkey: st
     return (
       <Screen contentContainerStyle={$screen}>
         <View style={$contentContainer}>
-            <Card
-                ContentComponent={
-                    <>  
-                        <FlatList
-                            data={randomNames}
-                            numColumns={2}
-                            renderItem={({ item, index }) => {                                
-                                return(
-                                    <Button
-                                        key={index}
-                                        preset={selectedName === item ? 'default' : 'secondary'}
-                                        onPress={() => setSelectedName(item)}
-                                        text={`${item}`}
-                                        style={{minWidth: scale(150), margin: spacing.extraSmall}}
-                                        textStyle={$sizeStyles.xs}
-                                     />
-                                )
-                            }}
-                            keyExtractor={(item) => item} 
-                            style={{ flexGrow: 0  }}
-                        />
-                    </>
-                }
-                style={$card}
-            />  
-            <View style={$buttonContainer}>
-                <Button                        
-                    onPress={() => confirmSelectedName()}
-                    text={'Confirm'}
-                    style={{marginTop: spacing.medium, minWidth: 120}}                        
-                />               
-            </View>        
+          <Card
+            ContentComponent={
+              <FlatList
+                data={randomNames}
+                numColumns={2}
+                renderItem={({item, index}) => {
+                  return (
+                    <Button
+                      key={index}
+                      preset={selectedName === item ? 'default' : 'secondary'}
+                      onPress={() => setSelectedName(item)}
+                      text={`${item}`}
+                      style={{minWidth: scale(150), margin: spacing.extraSmall}}
+                      textStyle={$sizeStyles.xs}
+                    />
+                  )
+                }}
+                keyExtractor={item => item}
+                style={{flexGrow: 0}}
+              />
+            }
+            style={$card}
+          />
+          <View style={$buttonContainer}>
+            <Button
+              onPress={() => confirmSelectedName()}
+              tx="common.confirm"
+              style={{marginTop: spacing.medium, minWidth: 120}}
+            />
+          </View>
         </View>
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
-        {isLoading && <Loading/>}
+        {isLoading && <Loading />}
       </Screen>
     )
   })
