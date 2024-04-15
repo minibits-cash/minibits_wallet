@@ -137,7 +137,7 @@ const getWallet = async function (
         mnemonicOrSeed: seed
       })
 
-      await newSeedWallet.getKeys(undefined, unit) // cache keys for wallet unit in wallet instance
+      await newSeedWallet.getKeys(undefined, unit) // make sure we have keys for wallet unit cached in wallet instance
 
       _seedWallets.push(newSeedWallet)
 
@@ -480,23 +480,18 @@ const mintProofs = async function (
 
 const restore = async function (
     mintUrl: string,
-    indexFrom: number,
-    indexTo: number,
+    unit: MintUnit,
     seed: Uint8Array,
+    indexFrom: number,
+    indexTo: number,    
     keysetId?: string  // support recovery from older but still active keysets
   ) {
     try {
         // need special wallet instance to pass seed and keysetId directly
         const cashuMint = getMint(mintUrl)
-        const mint = mintsStore.findByUrl(mintUrl)
-
-        if(!mint) {
-            throw new AppError(Err.MINT_ERROR, 'Could not find mint in wallet state', {caller: 'restore', mintUrl})
-        }
         
         const seedWallet = new CashuWallet(cashuMint, {
-          unit: undefined, 
-          keys: mint ? mint.keys : undefined, 
+          unit,           
           mnemonicOrSeed: seed
         })
 
@@ -546,6 +541,7 @@ const getMintInfo = async function (
 
 
 export const MintClient = {
+    getWallet,
     getOrCreateMnemonic,
     getMnemonic,
     getSeed,

@@ -1,12 +1,11 @@
 import {cast, flow, Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
 import {withSetPropAction} from './helpers/withSetPropAction'
-import type {GetInfoResponse, MintKeys} from '@cashu/cashu-ts'
+import type {GetInfoResponse} from '@cashu/cashu-ts'
 import {colors, getRandomIconColor} from '../theme'
 import { log, MintClient } from '../services'
-import { deriveKeysetId } from '@cashu/cashu-ts'
 import { MINIBITS_MINT_URL } from '@env'
-import { delay } from '../utils/utils'
-import AppError, { Err } from '../utils/AppError'
+
+import { Err } from '../utils/AppError'
 
 // used as a helper type across app
 export type MintBalance = {
@@ -34,9 +33,7 @@ export const MintModel = types
     .model('Mint', {
         mintUrl: types.identifier,
         hostname: types.maybe(types.string),
-        shortname: types.maybe(types.string),
-        keys: types.frozen<MintKeys>(),
-        keysets: types.array(types.string),
+        shortname: types.maybe(types.string),        
         proofsCounters: types.array(
             types.model('MintProofsCounter', {
               keyset: types.string,
@@ -52,24 +49,23 @@ export const MintModel = types
     })
     .actions(withSetPropAction) // TODO start to use across app to avoid pure setter methods, e.g. mint.setProp('color', '#ccc')
     .actions(self => ({
-        getOrCreateProofsCounter() {
-            const currentKeyset = deriveKeysetId(self.keys)
-            const currentCounter = self.proofsCounters.find(c => c.keyset === currentKeyset)
+        getOrCreateProofsCounter(keyset: string) {            
+            const counter = self.proofsCounters.find(c => c.keyset === keyset)
 
-            if(!currentCounter) {            
+            if(!counter) {            
                 const newCounter = {
-                    keyset: currentKeyset,
+                    keyset,
                     counter: 0,
                 }
 
                 self.proofsCounters.push(newCounter)
-                const instance = self.proofsCounters.find(c => c.keyset === currentKeyset) as MintProofsCounter
+                const instance = self.proofsCounters.find(c => c.keyset === keyset) as MintProofsCounter
 
                 log.trace('[getOrCreateProofsCounter] new', {newCounter: instance})
                 return instance
             }
             
-            return currentCounter as MintProofsCounter
+            return counter as MintProofsCounter
         },
     }))
     .actions(self => ({
@@ -132,83 +128,52 @@ export const MintModel = types
         setStatus(status: MintStatus) {
             self.status = status
         },
-        updateKeys(keyset: string, keys: MintKeys) {                  
-            if(!self.keysets.includes(keyset)){
-                self.keysets.push(keyset) 
-            }
-            self.keys = keys
-            self.keysets = cast(self.keysets)            
-        },
-        increaseProofsCounter(numberOfProofs: number) {
-            const currentCounter = self.currentProofsCounter
+        setInFlight(keyset: string, inFlightFrom: number, inFlightTo: number, inFlightTid: number) {
+            const counter = self.getOrCreateProofsCounter(keyset)
 
-            if (currentCounter) {        
-                log.trace('[increaseProofsCounter]', 'Before update', {currentCounter})        
-                currentCounter.counter += numberOfProofs
-                log.trace('[increaseProofsCounter]', 'Updated proofsCounter', {numberOfProofs, currentCounter})
-            } else {
-                // If the counter doesn't exist, create a new one
-                const currentKeyset = deriveKeysetId(self.keys)
+            counter.inFlightFrom = inFlightFrom
+            counter.inFlightTo = inFlightTo
+            counter.counter = inFlightTo // temp increase of main counter value
+            counter.inFlightTid = inFlightTid
 
-                const newCounter = {
-                    keyset: currentKeyset,
-                    counter: numberOfProofs,
-                }
-
-                self.proofsCounters.push(newCounter)
-
-                log.trace('[increaseProofsCounter]', 'Adding new proofsCounter', {newCounter})
-            }
-            // Make sure to cast the frozen array back to a mutable array
-            self.proofsCounters = cast(self.proofsCounters)
-        },
-
-        setInFlight(inFlightFrom: number, inFlightTo: number, inFlightTid: number) {
-            const currentCounter = self.getOrCreateProofsCounter()
-
-            currentCounter.inFlightFrom = inFlightFrom
-            currentCounter.inFlightTo = inFlightTo
-            currentCounter.counter = inFlightTo // temp increase of main counter value
-            currentCounter.inFlightTid = inFlightTid
-
-            log.trace('[setInFlight]', 'Lock and inflight indexes were set', currentCounter)
+            log.trace('[setInFlight]', 'Lock and inflight indexes were set', counter)
 
             self.proofsCounters = cast(self.proofsCounters)
         },
-        resetInFlight(inFlightTid: number) {
-            const currentCounter = self.getOrCreateProofsCounter()
+        resetInFlight(keyset: string, inFlightTid: number) {
+            const counter = self.getOrCreateProofsCounter(keyset)
 
-            if(currentCounter.inFlightTid && currentCounter.inFlightTid !== inFlightTid) {
+            if(counter.inFlightTid && counter.inFlightTid !== inFlightTid) {
                 // should not happen, log
                 log.error(
                     Err.LOCKED_ERROR, 
                     'Trying to reset counter locked by another transaction, aborting reset', 
-                    {currentCounter, inFlightTid, caller: 'resetInFlight'}
+                    {counter, inFlightTid, caller: 'resetInFlight'}
                 )
                 return
             }
 
-            currentCounter.inFlightFrom = undefined
-            currentCounter.inFlightTo = undefined
-            currentCounter.inFlightTid = undefined
+            counter.inFlightFrom = undefined
+            counter.inFlightTo = undefined
+            counter.inFlightTid = undefined
             
             log.trace('[resetInFlight]', 'Lock and inflight indexes were reset')
 
             self.proofsCounters = cast(self.proofsCounters)
         },
-        increaseProofsCounter(numberOfProofs: number) {
-            const currentCounter = self.getOrCreateProofsCounter()             
-            currentCounter.counter += numberOfProofs
-            log.trace('[increaseProofsCounter]', 'Increased proofsCounter', {numberOfProofs, currentCounter})
+        increaseProofsCounter(keyset: string, numberOfProofs: number) {
+            const counter = self.getOrCreateProofsCounter(keyset)             
+            counter.counter += numberOfProofs
+            log.trace('[increaseProofsCounter]', 'Increased proofsCounter', {numberOfProofs, counter})
 
             // Make sure to cast the frozen array back to a mutable array
             self.proofsCounters = cast(self.proofsCounters)
         },
-        decreaseProofsCounter(numberOfProofs: number) {
-            const currentCounter = self.getOrCreateProofsCounter()
-            currentCounter.counter -= numberOfProofs
-            Math.max(0, currentCounter.counter)
-            log.trace('[decreaseProofsCounter]', 'Decreased proofsCounter', {numberOfProofs, currentCounter})
+        decreaseProofsCounter(keyset: string, numberOfProofs: number) {
+            const counter = self.getOrCreateProofsCounter(keyset)
+            counter.counter -= numberOfProofs
+            Math.max(0, counter.counter)
+            log.trace('[decreaseProofsCounter]', 'Decreased proofsCounter', {numberOfProofs, counter})
 
             self.proofsCounters = cast(self.proofsCounters)                        
         },
@@ -217,9 +182,7 @@ export const MintModel = types
     
 
 export type Mint = {
-    mintUrl: string
-    keys: MintKeys
-    keysets: string[]
+    mintUrl: string    
 } & Partial<Instance<typeof MintModel>>
 export interface MintSnapshotOut extends SnapshotOut<typeof MintModel> {}
 export interface MintSnapshotIn extends SnapshotIn<typeof MintModel> {}
