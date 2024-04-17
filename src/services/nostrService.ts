@@ -472,7 +472,7 @@ const getNormalizedRelayUrl = function (url: string): string {
 
 
 // returns array of values after the first element (tag name)
-const getTagsByName = function(tagsArray: [string, string][], tagName: string) {
+const getTagsByName = function(tagsArray: string[][], tagName: string) {
     let tagValues = tagsArray.find(t => t && t.length && t.length >= 2 && t[0] === tagName)
     if(tagValues && tagValues.length > 1) {
         tagValues.shift() // remove tag name
@@ -483,7 +483,7 @@ const getTagsByName = function(tagsArray: [string, string][], tagName: string) {
 }
 
 // returns first element after tag name
-const getFirstTagValue = function (tagsArray: [string, string][], tagName: string): string | undefined {
+const getFirstTagValue = function (tagsArray: string[][], tagName: string): string | undefined {
     const tag = tagsArray.find(([name]) => name === tagName)
     return tag ? tag[1] : undefined
 }

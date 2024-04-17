@@ -1,5 +1,6 @@
 import {Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
 import {withSetPropAction} from './helpers/withSetPropAction'
+import { MintUnit } from '../services'
 
 /**
  * Proof type saved in database backup
@@ -21,8 +22,9 @@ export const ProofModel = types
         amount: types.number,
         secret: types.identifier,
         C: types.string,
-        tId: types.maybe(types.number),
-        mintUrl: types.maybe(types.string),
+        tId: types.number,
+        mintUrl: types.string,
+        unit: types.frozen<MintUnit>(),
     })
     .actions(withSetPropAction)
     .actions(self => ({
@@ -31,6 +33,9 @@ export const ProofModel = types
         },
         setMintUrl(url: string) {
             self.mintUrl = url
+        },
+        setUnit(unit: MintUnit) {
+            self.unit = unit
         },
     }))
 

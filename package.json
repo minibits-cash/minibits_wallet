@@ -12,7 +12,7 @@
     "start": "npx react-native start",
     "test": "jest",
     "adb": "adb devices && adb reverse tcp:9090 tcp:9090 && adb reverse tcp:3000 tcp:3000 && adb reverse tcp:9001 tcp:9001 && adb reverse tcp:8081 tcp:8081",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package --exclude 'nothing'"
   },
   "dependencies": {
     "@cashu/cashu-ts": "1.0.0-rc.3",
@@ -20,6 +20,7 @@
     "@fortawesome/free-regular-svg-icons": "^6.5.2",
     "@fortawesome/free-solid-svg-icons": "^6.5.2",
     "@fortawesome/react-native-fontawesome": "^0.3.0",
+    "@gandlaf21/bolt11-decode": "^3.1.1",
     "@gocodingnow/rn-size-matters": "^0.0.4",
     "@notifee/react-native": "^7.8.2",
     "@react-native-clipboard/clipboard": "^1.13.2",

@@ -10,7 +10,6 @@ import {
   FlatList,
   TextInput,
 } from 'react-native'
-import QuickCrypto from 'react-native-quick-crypto'
 import {spacing, useThemeColor, colors, typography} from '../theme'
 import {WalletStackScreenProps} from '../navigation'
 import {
@@ -29,24 +28,25 @@ import {Mint} from '../models/Mint'
 import {Transaction, TransactionStatus} from '../models/Transaction'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
-import {MintClient, TransactionTaskResult, WalletTask} from '../services'
+import {MintClient, MintUnit, TransactionTaskResult, WalletTask} from '../services'
 import EventEmitter from '../utils/eventEmitter'
 import {log} from '../services/logService'
 import AppError, {Err} from '../utils/AppError'
 import {MintBalance} from '../models/Mint'
 import {MintListItem} from './Mints/MintListItem'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
-import addSeconds from 'date-fns/addSeconds'
+import {addSeconds} from 'date-fns'
 import { PaymentRequestStatus } from '../models/PaymentRequest'
 import { infoMessage } from '../utils/utils'
 import { DecodedLightningInvoice, LightningUtils } from '../services/lightning/lightningUtils'
 import { SendOption } from './SendOptionsScreen'
-import { roundDown, roundUp } from '../utils/number'
+import { roundUp } from '../utils/number'
 import { LnurlClient, LNURLPayParams } from '../services/lnurlService'
-import { moderateScale, moderateVerticalScale, scale, verticalScale } from '@gocodingnow/rn-size-matters'
+import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
 import { FeeBadge } from './Wallet/FeeBadge'
-import { isObj } from '@cashu/cashu-ts/src/utils'
+import { MeltQuoteResponse } from '@cashu/cashu-ts'
+
 
 if (
   Platform.OS === 'android' &&
@@ -69,11 +69,12 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     const [encodedInvoice, setEncodedInvoice] = useState<string>('')
     const [invoice, setInvoice] = useState<DecodedLightningInvoice | undefined>()
     const [amountToTransfer, setAmountToTransfer] = useState<string>('0')
+    const [unit, setUnit] = useState<MintUnit>('sat')
     const [invoiceExpiry, setInvoiceExpiry] = useState<Date | undefined>()
     const [paymentHash, setPaymentHash] = useState<string | undefined>()
     const [lnurlPayParams, setLnurlPayParams] = useState<LNURLPayParams & {address?: string} | undefined>()
     const [isWaitingForFees, setIsWaitingForFees] = useState<boolean>(false)
-    const [estimatedFee, setEstimatedFee] = useState<number>(0)
+    const [meltQuote, setMeltQuote] = useState<MeltQuoteResponse | undefined>()
     const [finalFee, setFinalFee] = useState<number>(0)
     const [memo, setMemo] = useState('')
     const [lnurlDescription, setLnurlDescription] = useState('')
@@ -239,19 +240,20 @@ useEffect(() => {
                 return
             }            
             setIsLoading(true)
-            const fee = await MintClient.getLightningFee(
+            const meltQuote = await MintClient.getLightningMeltQuote(
                 mintBalanceToTransferFrom.mint,
+                unit,
                 encodedInvoice,
             )
             setIsLoading(false)
             
-            if (parseInt(amountToTransfer) + fee > mintBalanceToTransferFrom.balance) {
+            if (parseInt(amountToTransfer) + meltQuote.fee_reserve > mintBalanceToTransferFrom.balance) {
                 setInfo(
                     'There are not enough funds to cover expected lightning network fee. Try selecting another mint with a higher balance.',
                 )
             }
 
-            setEstimatedFee(fee)
+            setMeltQuote(meltQuote)
         } catch (e: any) { 
             handleError(e)
         }
@@ -349,7 +351,7 @@ const resetState = function () {
     setInvoice(undefined)      
     setAmountToTransfer('')
     setInvoiceExpiry(undefined)
-    setEstimatedFee(0)
+    setMeltQuote(undefined)
     setMemo('')
     setAvailableMintBalances([])
     setMintBalanceToTransferFrom(undefined)    
@@ -466,15 +468,24 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
 
 const transfer = async function () {
     setIsLoading(true)
-       
-    WalletTask.transfer(
-        mintBalanceToTransferFrom as MintBalance,
-        parseInt(amountToTransfer),
-        estimatedFee,
-        invoiceExpiry as Date,
-        memo,
-        encodedInvoice,
-    )
+
+    try {
+        if(!meltQuote) {
+            throw new AppError(Err.VALIDATION_ERROR, 'Missing quote to initiate transfer transaction')
+        }
+
+        WalletTask.transfer(
+            mintBalanceToTransferFrom as MintBalance,
+            parseInt(amountToTransfer),
+            unit,
+            meltQuote,        
+            memo,
+            invoiceExpiry as Date,
+            encodedInvoice,
+        )
+    } catch (e: any) {
+
+    }
 }
     
 
@@ -516,10 +527,10 @@ const satsColor = colors.palette.primary200
                         }
                     />
 
-                    {encodedInvoice && (estimatedFee || finalFee) ? (
+                    {encodedInvoice && (meltQuote?.fee_reserve || finalFee) ? (
                         <FeeBadge
                             currencyCode={CurrencyCode.SATS}
-                            estimatedFee={estimatedFee}
+                            estimatedFee={meltQuote?.fee_reserve || 0}
                             finalFee={finalFee}              
                         />    
                     ) : (

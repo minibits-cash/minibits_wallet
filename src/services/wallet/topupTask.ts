@@ -6,7 +6,7 @@ import { poller } from '../../utils/poller'
 import { Transaction, TransactionData, TransactionRecord, TransactionStatus, TransactionType } from '../../models/Transaction'
 import { log } from '../logService'
 import { Contact } from '../../models/Contact'
-import { MintClient } from '../cashuMintClient'
+import { MintClient, MintUnit } from '../cashuMintClient'
 import { LightningUtils } from '../lightning/lightningUtils'
 import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
 import { PaymentRequest, PaymentRequestStatus, PaymentRequestType } from '../../models/PaymentRequest'
@@ -23,17 +23,19 @@ const TOPUP = 'topupTask'
 export const topupTask = async function (
     mintBalanceToTopup: MintBalance,
     amountToTopup: number,
+    unit: MintUnit,
     memo: string,
     contactToSendTo?: Contact
 ) : Promise<TransactionTaskResult> {
     log.info('[topupTask]', 'mintBalanceToTopup', mintBalanceToTopup)
-    log.info('[topupTask]', 'amountToTopup', amountToTopup)
+    log.info('[topupTask]', 'amountToTopup', {amountToTopup, unit})
 
     // create draft transaction
     const transactionData: TransactionData[] = [
         {
             status: TransactionStatus.DRAFT,
             amountToTopup,
+            unit,
             createdAt: new Date(),
         },
     ]
@@ -45,6 +47,8 @@ export const topupTask = async function (
         const newTransaction: Transaction = {
             type: TransactionType.TOPUP,
             amount: amountToTopup,
+            fee: 0,
+            unit,
             data: JSON.stringify(transactionData),
             memo,
             mint: mintUrl,
@@ -54,10 +58,10 @@ export const topupTask = async function (
         const storedTransaction: TransactionRecord = await transactionsStore.addTransaction(newTransaction)
         transactionId = storedTransaction.id as number        
 
-        const {encodedInvoice, paymentHash} = await MintClient.requestLightningInvoice(mintUrl, amountToTopup)
+        const {encodedInvoice, mintQuote} = await MintClient.getLightningMintQuote(mintUrl, unit, amountToTopup)
 
         const decodedInvoice = LightningUtils.decodeInvoice(encodedInvoice)
-        const {amount, expiry, timestamp} = LightningUtils.getInvoiceData(decodedInvoice)
+        const {amount, payment_hash, expiry, timestamp} = LightningUtils.getInvoiceData(decodedInvoice)
 
         if (amount !== amountToTopup) {
             throw new AppError(
@@ -92,10 +96,12 @@ export const topupTask = async function (
             type: PaymentRequestType.OUTGOING,
             status: PaymentRequestStatus.ACTIVE,
             mint: mintUrl,
+            unit,
+            mintQuote,
             encodedInvoice,
             amount,
             description: memo ? memo : contactTo ? `Pay to ${walletProfileStore.nip05}` : '',
-            paymentHash,
+            paymentHash: payment_hash,
             contactFrom,
             contactTo: contactTo || undefined,
             expiry: expiry || 600,

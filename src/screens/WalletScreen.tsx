@@ -109,7 +109,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                     setUpdateDescription(update.description)
                     setUpdateSize(`${round(update.packageSize *  0.000001, 2)}MB`)
                     setIsUpdateAvailable(true)
-                    // toggleUpdateModal()
+                    toggleUpdateModal()
                     log.info('OTA Update available', update, 'checkForUpdate')
                 }             
             } catch (e: any) {                

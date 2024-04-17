@@ -34,7 +34,7 @@ import {
 import {TransactionStatus, Transaction} from '../models/Transaction'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
-import {NostrClient, NostrProfile, NostrUnsignedEvent, TransactionTaskResult, WalletTask} from '../services'
+import {MintUnit, NostrClient, NostrProfile, NostrUnsignedEvent, TransactionTaskResult, WalletTask} from '../services'
 import {log} from '../services/logService'
 import AppError, { Err } from '../utils/AppError'
 
@@ -74,6 +74,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
     const [paymentOption, setPaymentOption] = useState<ReceiveOption>(ReceiveOption.SHOW_INVOICE)
     const [amountToTopup, setAmountToTopup] = useState<string>('0')
+    const [unit, setUnit] = useState<MintUnit>('sat')
     const [contactToSendFrom, setContactToSendFrom] = useState<Contact| undefined>()    
     const [contactToSendTo, setContactToSendTo] = useState<Contact| undefined>()        
     const [relaysToShareTo, setRelaysToShareTo] = useState<string[]>([])
@@ -364,6 +365,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         WalletTask.topup(
             mintBalanceToTopup as MintBalance,
             parseInt(amountToTopup),
+            unit,
             memo,            
             contactToSendTo
         )        
@@ -401,7 +403,8 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                 kind: 4,
                 pubkey: senderPubkey,
                 tags: [['p', receiverPubkey as string], ['from', walletProfileStore.nip05]],
-                content: encryptedContent,                                                    
+                content: encryptedContent,
+                created_at: Math.floor(Date.now() / 1000)                                                   
             }
 
             const sentEvent: Event | undefined = await NostrClient.publish(

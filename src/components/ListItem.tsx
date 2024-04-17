@@ -100,6 +100,11 @@ export interface ListItemProps extends TouchableOpacityProps {
    * Overrides `leftIcon`.
    */
   LeftComponent?: ReactElement
+  /**
+   * Bottom ReactElement.
+   * 
+   */
+  BottomComponent?: ReactElement
 }
 
 interface ListItemActionProps {
@@ -134,6 +139,7 @@ export function ListItem(props: ListItemProps) {
     rightIconColor = useThemeColor('textDim'),
     rightIconTransform,
     rightIconInverse = false,
+    BottomComponent,
     style,
     text,
     subText,
@@ -181,6 +187,11 @@ export function ListItem(props: ListItemProps) {
             </Text>
             <Text {...TextProps} size="xs" tx={subTx} text={subText} txOptions={txOptions} style={[$subTextStyles, {color: subTextColor}]}>              
             </Text>
+            {(BottomComponent) && (
+              <View style={$bottomComponentContainer}>
+                {BottomComponent}
+              </View>
+            )}
           </View>
         ) : (
           <Text {...TextProps} tx={tx} text={text} txOptions={txOptions} style={$textStyles}>
@@ -269,6 +280,10 @@ const $touchableStyle: ViewStyle = {
 const $componentContainer: ViewStyle = {
     flex: 0,
     alignSelf: 'center',      
+}
+
+const $bottomComponentContainer: ViewStyle = {
+  flex: 0,  
 }
 
 const $iconContainer: ViewStyle = {

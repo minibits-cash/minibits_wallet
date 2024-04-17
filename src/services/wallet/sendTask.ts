@@ -1,6 +1,6 @@
 import {CashuMint, deriveKeysetId, getEncodedToken} from '@cashu/cashu-ts'
 import {log} from '../logService'
-import {MintClient, MintKeys} from '../cashuMintClient'
+import {MintClient, MintKeys, MintUnit} from '../cashuMintClient'
 import {
   Transaction,
   TransactionData,
@@ -35,6 +35,7 @@ const {
 export const sendTask = async function (
     mintBalanceToSendFrom: MintBalance,
     amountToSend: number,
+    unit: MintUnit,
     memo: string,
     selectedProofs: Proof[]
 ) : Promise<TransactionTaskResult> {
@@ -42,7 +43,7 @@ export const sendTask = async function (
 
 
     log.trace('[send]', 'mintBalanceToSendFrom', mintBalanceToSendFrom)
-    log.trace('[send]', 'amountToSend', amountToSend)    
+    log.trace('[send]', 'amountToSend', {amountToSend, unit})    
     log.trace('[send]', 'memo', memo)
 
     // create draft transaction
@@ -60,6 +61,8 @@ export const sendTask = async function (
         const newTransaction: Transaction = {
             type: TransactionType.SEND,
             amount: amountToSend,
+            fee: 0,
+            unit,
             data: JSON.stringify(transactionData),
             memo,
             mint: mintUrl,
@@ -75,6 +78,7 @@ export const sendTask = async function (
         const proofsToSend = await sendFromMint(
             mintBalanceToSendFrom,
             amountToSend,
+            unit,
             selectedProofs,
             transactionId,
         )
@@ -104,6 +108,7 @@ export const sendTask = async function (
 
         const encodedTokenToSend = getEncodedToken({
             token: [tokenEntryToSend as CashuTokenEntry],
+            unit,
             memo,
         })
 
@@ -126,7 +131,7 @@ export const sendTask = async function (
 
         log.trace('[send] totalBalance after', balanceAfter)
 
-        // Start polling for accepted payment
+        // Start polling for accepted payment        
         poller(
             `handleSpentByMintPoller-${mintUrl}`,
             WalletTask.handleSpentByMint,
@@ -178,6 +183,7 @@ export const sendTask = async function (
 export const sendFromMint = async function (
     mintBalance: MintBalance,
     amountToSend: number,
+    unit: MintUnit,
     selectedProofs: Proof[],
     transactionId: number,
 ) {
@@ -268,60 +274,36 @@ export const sendFromMint = async function (
         log.trace('[sendFromMint]', 'countOfInFlightProofs', countOfInFlightProofs)    
         
         // temp increase the counter + acquire lock and set inFlight values                
-        await WalletUtils.lockAndSetInFlight(mintInstance, countOfInFlightProofs, transactionId)
+        await WalletUtils.lockAndSetInFlight(mintInstance, unit, countOfInFlightProofs, transactionId)
         
         // get locked counter values
-        const lockedProofsCounter = mintInstance.getOrCreateProofsCounter?.()        
+        const lockedProofsCounter = await mintInstance.getProofsCounterByUnit?.(unit)        
         
         // if split to required denominations was necessary, this gets it done with the mint and we get the return
-        let sendResult: {returnedProofs: Proof[], proofsToSend: Proof[], newKeys: MintKeys | undefined} = {
-            returnedProofs: [],
-            proofsToSend: [],
-            newKeys: undefined
-        }
-
-        try {
-            sendResult = await MintClient.sendFromMint(
-                mintUrl,
-                amountToSend,
-                proofsToSendFrom,
-                amountPreferences,
-                lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
-            )    
-        } catch (e: any) {
-            if (e instanceof AppError && 
-                e.params && 
-                e.params.message?.includes('outputs have already been signed before')) {
-
-                    log.error('[sendFromMint] Emergency increase of proofsCounter and retrying the send')
-
-                    mintInstance.increaseProofsCounter(20)
-                    sendResult = await MintClient.sendFromMint(
-                        mintUrl,
-                        amountToSend,
-                        proofsToSendFrom,
-                        amountPreferences,
-                        lockedProofsCounter.inFlightFrom as number + 20
-                    )
-                    
-                    log.error('[sendFromMint] Emergency increase of proofsCounter, send retry result', {sendResult})
-            } else {
-                throw e
-            }
-        }
+        
+        const {returnedProofs, proofsToSend} = await MintClient.sendFromMint(
+            mintUrl,
+            unit,
+            amountToSend,
+            proofsToSendFrom,
+            amountPreferences,
+            lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
+        )    
+        
 
         // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs        
-        mintInstance.decreaseProofsCounter(countOfInFlightProofs) 
-
-        const {returnedProofs, proofsToSend, newKeys} = sendResult        
-        if (newKeys) {WalletUtils.updateMintKeys(mintUrl, newKeys)}
+        mintInstance.decreaseProofsCounter(lockedProofsCounter.keyset, countOfInFlightProofs) 
 
         // add proofs returned by the mint after the split
         if (returnedProofs.length > 0) {
             const { addedProofs, addedAmount } = WalletUtils.addCashuProofs(
-                returnedProofs,
                 mintUrl,
-                transactionId          
+                returnedProofs,
+                {
+                    unit,
+                    transactionId,
+                    isPending: false
+                }                
             )            
         }
 
@@ -329,11 +311,14 @@ export const sendFromMint = async function (
         proofsStore.removeProofs(proofsToSendFrom)
 
         // these might be original proofToSendFrom if they matched the exact amount and split was not necessary        
-        const { addedProofs, addedAmount } = WalletUtils.addCashuProofs(
-            proofsToSend,
+        const { addedProofs, addedAmount } = WalletUtils.addCashuProofs(            
             mintUrl,
-            transactionId,
-            true       
+            proofsToSend,
+            {
+                unit,
+                transactionId,
+                isPending: false
+            }       
         )
 
         // release lock
@@ -342,10 +327,10 @@ export const sendFromMint = async function (
         // Clean private properties to not to send them out. This returns plain js array, not model objects.
         const cleanedProofsToSend = proofsToSend.map(proof => {
             if (isStateTreeNode(proof)) {
-                const {mintUrl, tId, ...rest} = getSnapshot(proof)
+                const {mintUrl, unit, tId, ...rest} = getSnapshot(proof)
                 return rest
             } else {
-                const {mintUrl, tId, ...rest} = proof as Proof
+                const {mintUrl, unit, tId, ...rest} = proof as Proof
                 return rest
             }
         })        

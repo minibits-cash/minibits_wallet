@@ -56,7 +56,8 @@ export const WalletProfileStoreModel = types
                         picture,
                         nip05,
                         lud16,                       
-                    }),                              
+                    }),
+                    created_at: Math.floor(Date.now() / 1000)                              
                 }
 
                 const rootStore = getRootStore(self)

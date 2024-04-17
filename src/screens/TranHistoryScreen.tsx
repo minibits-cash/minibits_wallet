@@ -111,6 +111,7 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
         setIsDeleteModalVisible(previousState => !previousState)
     }
 
+    // TODO debug
     const getTransactionsList = async function () {
         setIsLoading(true)
         try {
@@ -136,7 +137,7 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
     }
 
 
-
+    // TODO debug
     const getPendingTransactionsList = async function () {
         setIsLoading(true)
         try {

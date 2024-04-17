@@ -10,8 +10,9 @@ import {
   import {withSetPropAction} from './helpers/withSetPropAction'
   import {MintModel, Mint} from './Mint'
   import {log} from '../services/logService'  
-  import { MintClient } from '../services'  
+  import { MintClient, MintUnit } from '../services'  
   import AppError, { Err } from '../utils/AppError'
+import { MintKeyset } from '@cashu/cashu-ts'
   
   export type MintsByHostname = {
       hostname: string
@@ -32,24 +33,32 @@ import {
       .actions(withSetPropAction)
       .actions(self => ({
           addMint: flow(function* addMint(mintUrl: string) {
-              if(!mintUrl.includes('.onion') && !mintUrl.startsWith('https')) {
-                  throw new AppError(Err.VALIDATION_ERROR, 'Mint URL needs to start with https')
-              }
-  
-            // create default wallet instance then download and cache up to date mint keys in that instance
-            const cashuWallet = yield MintClient.getWallet(mintUrl, 'sat', {withSeed: true})            
+                if(!mintUrl.includes('.onion') && !mintUrl.startsWith('https')) {
+                    throw new AppError(Err.VALIDATION_ERROR, 'Mint URL needs to start with https')
+                }
+    
+                // create default wallet instance then download and cache up to date mint keys in that instance
+                const activeKeysets: MintKeyset[] = yield MintClient.getMintKeysets(mintUrl)
               
-              const newMint: Mint = {
-                  mintUrl,
-              }
-  
-              const mintInstance = MintModel.create(newMint)
-  
-              mintInstance.setHostname()
-              mintInstance.setRandomColor()       
-              yield mintInstance.setShortname()            
-  
-              self.mints.push(mintInstance)
+                const newMint: Mint = {
+                    mintUrl,                    
+                }
+    
+                const mintInstance = MintModel.create(newMint)
+    
+                mintInstance.setHostname()
+                mintInstance.setRandomColor()
+
+                for(const keyset of activeKeysets) {
+                    if(keyset.active === true) {
+                        mintInstance.addUnit(keyset.unit as MintUnit) // add supported units by mint
+                        mintInstance.getOrCreateProofsCounter(keyset.id, keyset.unit as MintUnit) // create proofsCounters
+                    }
+                }
+                
+                yield mintInstance.setShortname()            
+    
+                self.mints.push(mintInstance)
           }),
           removeMint(mintToBeRemoved: Mint) {
               if (self.blockedMintUrls.some(m => m === mintToBeRemoved.mintUrl)) {

@@ -10,9 +10,9 @@ import {withSetPropAction} from './helpers/withSetPropAction'
 import {PaymentRequestModel, PaymentRequest, PaymentRequestStatus, PaymentRequestType} from './PaymentRequest'
 import {log} from '../services/logService'
 import AppError, { Err } from '../utils/AppError'
-import isBefore from 'date-fns/isBefore'
-import isAfter from 'date-fns/isAfter'
-import addSeconds from 'date-fns/addSeconds'
+import {isBefore} from 'date-fns'
+import {isAfter} from 'date-fns'
+import {addSeconds} from 'date-fns'
 
 export const PaymentRequestsStoreModel = types
     .model('PaymentRequests', {        

@@ -43,7 +43,7 @@ import {
 import {TransactionStatus, Transaction} from '../models/Transaction'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
-import {NostrClient, NostrUnsignedEvent, TransactionTaskResult, WalletTask} from '../services'
+import {MintUnit, NostrClient, NostrUnsignedEvent, TransactionTaskResult, WalletTask} from '../services'
 import {log} from '../services/logService'
 import AppError, {Err} from '../utils/AppError'
 import {translate} from '../i18n'
@@ -84,6 +84,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     const [paymentOption, setPaymentOption] = useState<SendOption>(SendOption.SHOW_TOKEN)
     const [encodedTokenToSend, setEncodedTokenToSend] = useState<string | undefined>()
     const [amountToSend, setAmountToSend] = useState<string>('0')
+    const [unit, setUnit] = useState<MintUnit>('sat')
     const [contactToSendFrom, setContactToSendFrom] = useState<Contact| undefined>()    
     const [contactToSendTo, setContactToSendTo] = useState<Contact| undefined>()        
     const [relaysToShareTo, setRelaysToShareTo] = useState<string[]>([])
@@ -362,6 +363,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         WalletTask.send(
             mintBalanceToSendFrom as MintBalance,
             parseInt(amountToSend),
+            unit,
             memo,
             selectedProofs
         )
@@ -400,7 +402,8 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 kind: 4,
                 pubkey: senderPubkey,
                 tags: [['p', receiverPubkey as string], ['from', walletProfileStore.nip05]],
-                content: encryptedContent,                                                    
+                content: encryptedContent,
+                created_at: Math.floor(Date.now() / 1000)
             }
 
             const sentEvent: Event | undefined = await NostrClient.publish(

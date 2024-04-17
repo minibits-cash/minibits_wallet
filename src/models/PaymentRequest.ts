@@ -4,6 +4,7 @@ import {withSetPropAction} from './helpers/withSetPropAction'
 import {Contact, ContactModel} from './Contact'
 import {log} from '../services/logService'
 import addSeconds from 'date-fns/addSeconds'
+import { MintUnit } from '../services'
 
 /**
  * This represents incoming lightning invoice to pay (by transfer tx)
@@ -25,9 +26,11 @@ export const PaymentRequestModel = types
     .model('PaymentRequest', {
         type: types.frozen<PaymentRequestType>(),
         status: types.frozen<PaymentRequestStatus>(),
-        mint: types.maybe(types.string),    
+        mint: types.maybe(types.string),
+        mintQuote: types.maybe(types.string),   
         encodedInvoice: types.string,
         amount: types.number,
+        unit: types.frozen<MintUnit>(), // TODO migration to set default unit for existing PRs
         description: types.optional(types.string, ''),        
         paymentHash: types.string,
         contactFrom: types.frozen<Contact>(),
@@ -49,8 +52,10 @@ export type PaymentRequest = {
     type: PaymentRequestType
     status: PaymentRequestStatus
     mint?: string
+    mintQuote?: string
     encodedInvoice: string
     amount: number
+    unit: MintUnit
     description?: string    
     paymentHash: string
     contactFrom: Contact

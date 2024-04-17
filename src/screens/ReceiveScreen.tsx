@@ -1,8 +1,7 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useState, useCallback, useEffect} from 'react'
-import {CommonActions, useFocusEffect} from '@react-navigation/native'
-import {Alert, TextInput, TextStyle, View, ViewStyle} from 'react-native'
-import Clipboard from '@react-native-clipboard/clipboard'
+import {useFocusEffect} from '@react-navigation/native'
+import {TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import {spacing, useThemeColor, colors, typography} from '../theme'
 import {WalletStackScreenProps} from '../navigation'
 import {
@@ -22,7 +21,7 @@ import {Token} from '../models/Token'
 import {Transaction, TransactionStatus} from '../models/Transaction'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
-import {TransactionTaskResult, WalletTask} from '../services'
+import {MintUnit, TransactionTaskResult, WalletTask} from '../services'
 import {log} from '../services/logService'
 import AppError from '../utils/AppError'
 import EventEmitter from '../utils/eventEmitter'
@@ -31,7 +30,7 @@ import {CashuUtils} from '../services/cashu/cashuUtils'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {MintListItem} from './Mints/MintListItem'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
-import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
+import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
 
 export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
@@ -47,6 +46,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
     const [token, setToken] = useState<Token | undefined>()
     const [encodedToken, setEncodedToken] = useState<string | undefined>()
     const [amountToReceive, setAmountToReceive] = useState<number>(0)
+    const [unit, setUnit] = useState<MintUnit>('sat')
     const [receivedAmount, setReceivedAmount] = useState<number>(0)
     const [transactionStatus, setTransactionStatus] = useState<
       TransactionStatus | undefined
@@ -150,7 +150,11 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
 
         setToken(decoded)
         setAmountToReceive(tokenAmounts.totalAmount)
-
+        
+        if(decoded.unit) {
+          setUnit(decoded.unit)
+        }
+        
         if (decoded.memo && decoded.memo.length > 0) {
           setMemo(decoded.memo as string)
         }

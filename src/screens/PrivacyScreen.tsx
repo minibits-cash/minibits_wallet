@@ -306,7 +306,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
                 <>                    
                     <ListItem
                         text="Use own Nostr profile"
-                        subText={walletProfileStore.isOwnProfile ? walletProfileStore.nip05 : "Import your own NOSTR address and keys. Your wallet stops communicate with minibits.cash Nostr and Lnurl address servers. However this will disable Lightning address features to receive zaps and payments. Only for hard core ecash-ers!"}
+                        subText={walletProfileStore.isOwnProfile ? walletProfileStore.nip05 : "Import your own Nostr address and keys. Your wallet will stop communicating with minibits.cash Nostr and LNURL address servers, disabling Lightning address features for receiving zaps and payments. Only for hardcore ecash-ers!"}
                         leftIcon={'faShareNodes'}
                         leftIconColor={
                             walletProfileStore.isOwnProfile

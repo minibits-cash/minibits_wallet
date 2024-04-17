@@ -232,12 +232,28 @@ async function _runMigrations(rootStore: RootStore) {
         }
 
         if(currentVersion < 11) {
-            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v10`)
+            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v11`)
             // migration code needs to run early so it is in mmkvStorage.getInstance()
             userSettingsStore.setIsStorageMigrated(true)
             rootStore.setVersion(rootStoreModelVersion)
             log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
         }
+
+        if(currentVersion < 12) {
+            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v12`)
+
+            for (const mint of mintsStore.allMints) {
+                try {
+                    mint.addUnit('sat')
+                    mint.resetCounters()
+                } catch (e: any) {
+                    continue
+                }
+            }
+
+            rootStore.setVersion(rootStoreModelVersion)
+            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+        }        
 
     } catch (e: any) {
         throw new AppError(

@@ -1,8 +1,6 @@
-import {
-  getDecodedLnInvoice,
-} from '@cashu/cashu-ts'
-import AppError, {Err} from '../../utils/AppError'
-import addSeconds from 'date-fns/addSeconds'
+import { decode } from "@gandlaf21/bolt11-decode"
+import AppError, { Err } from '../../utils/AppError'
+import { addSeconds } from 'date-fns'
 import { log } from '../logService'
 
 // TODO refactor all this into own module
@@ -70,8 +68,8 @@ const extractEncodedLightningInvoice = function (maybeInvoice: string) {
 
 const decodeInvoice = function (encoded: string): DecodedLightningInvoice {
   try {
-    const decoded = getDecodedLnInvoice(encoded)
-    return decoded as DecodedLightningInvoice
+    const decoded: DecodedLightningInvoice = decode(encoded)
+    return decoded
   } catch (e: any) {
     throw new AppError(
       Err.VALIDATION_ERROR,

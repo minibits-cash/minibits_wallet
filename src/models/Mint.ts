@@ -1,11 +1,11 @@
 import {cast, flow, Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
 import {withSetPropAction} from './helpers/withSetPropAction'
-import type {GetInfoResponse} from '@cashu/cashu-ts'
+import type {GetInfoResponse, MintKeys, MintKeyset} from '@cashu/cashu-ts'
 import {colors, getRandomIconColor} from '../theme'
-import { log, MintClient } from '../services'
+import { log, MintClient, MintUnit } from '../services'
 import { MINIBITS_MINT_URL } from '@env'
 
-import { Err } from '../utils/AppError'
+import AppError, { Err } from '../utils/AppError'
 
 // used as a helper type across app
 export type MintBalance = {
@@ -21,6 +21,7 @@ export enum MintStatus {
 export type MintProofsCounter = {
     keyset: string
     counter: number
+    unit: MintUnit
     inFlightFrom?: number // starting counter index for pending split request sent to mint (for recovery from failure to receive proofs)
     inFlightTo?: number // last counter index for pending split request sent to mint 
     inFlightTid?: number // related tx id
@@ -33,10 +34,12 @@ export const MintModel = types
     .model('Mint', {
         mintUrl: types.identifier,
         hostname: types.maybe(types.string),
-        shortname: types.maybe(types.string),        
+        shortname: types.maybe(types.string),
+        units: types.array(types.frozen<MintUnit>()),        
         proofsCounters: types.array(
             types.model('MintProofsCounter', {
               keyset: types.string,
+              unit: types.optional(types.frozen<MintUnit>(), 'sat'),
               counter: types.number,
               inFlightFrom: types.maybe(types.number),
               inFlightTo: types.maybe(types.number),
@@ -47,28 +50,74 @@ export const MintModel = types
         status: types.optional(types.frozen<MintStatus>(), MintStatus.ONLINE),
         createdAt: types.optional(types.Date, new Date()),
     })
-    .actions(withSetPropAction) // TODO start to use across app to avoid pure setter methods, e.g. mint.setProp('color', '#ccc')
+    .actions(withSetPropAction) // TODO? start to use across app to avoid pure setter methods, e.g. mint.setProp('color', '#ccc')
     .actions(self => ({
-        getOrCreateProofsCounter(keyset: string) {            
-            const counter = self.proofsCounters.find(c => c.keyset === keyset)
+        addUnit(unit: MintUnit) {
+            const alreadyExists = self.units.some(u => u === unit)
 
-            if(!counter) {            
+            if(!alreadyExists) {
+                self.units.push(unit)
+            }
+
+            self.units = cast(self.units)
+        },
+        removeUnit(unit: MintUnit) {
+            const index = self.units.findIndex(u => u === unit)
+
+            if(index) {
+                self.units.splice(index, 0)
+            }
+
+            self.units = cast(self.units)
+        },
+    }))
+    .actions(self => ({          
+        getOrCreateProofsCounter(keysetId: string, unit?: MintUnit) {            
+            const counter = self.proofsCounters.find(c => c.keyset === keysetId)
+
+            if(!counter) {  
+                if (!unit) {
+                    throw new AppError(Err.VALIDATION_ERROR, 'Can not create proofs counter: missing unit')
+                }
+
                 const newCounter = {
-                    keyset,
+                    keyset: keysetId,
+                    unit,                    
                     counter: 0,
                 }
 
-                self.proofsCounters.push(newCounter)
-                const instance = self.proofsCounters.find(c => c.keyset === keyset) as MintProofsCounter
+                self.proofsCounters.push(newCounter)                
+                self.addUnit(unit)
+                const instance = self.proofsCounters.find(c => c.keyset === keysetId) as MintProofsCounter
 
                 log.trace('[getOrCreateProofsCounter] new', {newCounter: instance})
                 return instance
             }
+
+            if(counter.unit !== unit) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Mistmatch of proofsCounter keyset and passed unit', {counter, unit})
+            }
             
             return counter as MintProofsCounter
         },
+        findInFlightProofsCounter() {            
+            const counter = self.proofsCounters.find(c => c.inFlightFrom && c.inFlightTo && c.inFlightTid)                       
+            return counter as MintProofsCounter | undefined
+        },
+        findInFlightProofsCounterByTId(tId: number) {            
+            const counter = self.proofsCounters.find(c => c.inFlightTid === tId)                       
+            return counter as MintProofsCounter | undefined
+        },
     }))
     .actions(self => ({
+        getProofsCounterByUnit: flow(function* getProofsCounterByUnit(unit: MintUnit) {
+            // Retrieve current keys for this unit from new or existing cashu-ts wallet instance
+            const keys: MintKeys = (yield MintClient.getWallet(self.mintUrl, unit)).keys
+
+            // Get or create new proofs counter for this keyset            
+            const counter = self.getOrCreateProofsCounter(keys.id, unit)
+            return counter
+        }),
         validateURL(url: string) {
             try {
                 new URL(url)
@@ -128,28 +177,23 @@ export const MintModel = types
         setStatus(status: MintStatus) {
             self.status = status
         },
-        setInFlight(keyset: string, inFlightFrom: number, inFlightTo: number, inFlightTid: number) {
+        setInFlight(keyset: string, options: {inFlightFrom: number, inFlightTo: number, inFlightTid: number}) {
             const counter = self.getOrCreateProofsCounter(keyset)
 
-            counter.inFlightFrom = inFlightFrom
-            counter.inFlightTo = inFlightTo
-            counter.counter = inFlightTo // temp increase of main counter value
-            counter.inFlightTid = inFlightTid
+            counter.inFlightFrom = options.inFlightFrom
+            counter.inFlightTo = options.inFlightTo
+            counter.counter = options.inFlightTo // temp increase of main counter value
+            counter.inFlightTid = options.inFlightTid
 
             log.trace('[setInFlight]', 'Lock and inflight indexes were set', counter)
 
             self.proofsCounters = cast(self.proofsCounters)
         },
-        resetInFlight(keyset: string, inFlightTid: number) {
-            const counter = self.getOrCreateProofsCounter(keyset)
+        resetInFlight(inFlightTid: number) {
+            const counter = self.findInFlightProofsCounterByTId(inFlightTid)
 
-            if(counter.inFlightTid && counter.inFlightTid !== inFlightTid) {
-                // should not happen, log
-                log.error(
-                    Err.LOCKED_ERROR, 
-                    'Trying to reset counter locked by another transaction, aborting reset', 
-                    {counter, inFlightTid, caller: 'resetInFlight'}
-                )
+            if(!counter) {
+                log.warn('[resetInFlight]', 'Could not find counter locked by inFlightTid', {inFlightTid})
                 return
             }
 
@@ -157,7 +201,7 @@ export const MintModel = types
             counter.inFlightTo = undefined
             counter.inFlightTid = undefined
             
-            log.trace('[resetInFlight]', 'Lock and inflight indexes were reset')
+            log.trace('[resetInFlight]', 'Lock and inflight indexes were reset', {inFlightTid})
 
             self.proofsCounters = cast(self.proofsCounters)
         },
@@ -176,6 +220,14 @@ export const MintModel = types
             log.trace('[decreaseProofsCounter]', 'Decreased proofsCounter', {numberOfProofs, counter})
 
             self.proofsCounters = cast(self.proofsCounters)                        
+        },
+        resetCounters() {
+            for(const counter of self.proofsCounters) {
+                log.warn('Resetting counter', counter.keyset)
+                counter.counter = 0
+            }
+            
+            self.proofsCounters = cast(self.proofsCounters)
         },
     }))
     

@@ -94,7 +94,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
         Database.removeAllProofs()
         setIsLoading(false)
         setBackupResultMessage(
-          'Your backup of minibits tokens has been deleted. New tokens will not be backed up.',
+          'Your backup of minibits tokens has been deleted. New tokens will NOT be backed up.',
         )
         toggleBackupModal()
       } catch (e: any) {

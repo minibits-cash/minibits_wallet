@@ -1,12 +1,12 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useCallback, useRef, useState} from 'react'
+import React, {FC, useRef, useState} from 'react'
 import {Alert, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
 import {
     MINIBITS_MINT_URL 
 } from '@env'
-import {spacing, typography, useThemeColor, colors} from '../theme'
-import {AppStackScreenProps, SettingsStackScreenProps} from '../navigation'
+import {spacing, typography, useThemeColor} from '../theme'
+import {SettingsStackScreenProps} from '../navigation'
 import {
   Button,
   Icon,
@@ -22,7 +22,6 @@ import {
 import {Mint} from '../models/Mint'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
-import {MintKeys, MintClient} from '../services'
 import {log} from '../services/logService'
 import AppError from '../utils/AppError'
 import {translate} from '../i18n'
@@ -86,7 +85,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
 
         if(mintUrl.includes('.onion')) {
             if(!userSettingsStore.isTorDaemonOn) {
-                setInfo('Please enable Tor daemon in Privacy settings before connecting to the mint using .onion address.')
+                setInfo('Tor support has been discontinued in version v0.1.7-beta-beta. Minibits needs help to get Tor support back. Visit our Github for more info.')
                 return
             }
         }
@@ -325,8 +324,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                 tx={'mintsScreen.removeMint'}
                 bottomSeparator={true}
                 style={{paddingHorizontal: spacing.medium}}
-              />
-              <Text text={`Current recovery index: ${selectedMint && selectedMint.getOrCreateProofsCounter?.().counter}`} size='xxs' style={{alignSelf: 'center', marginTop: spacing.small}} />
+              />              
             </View>
           }
           onBackButtonPress={onMintUnselect}

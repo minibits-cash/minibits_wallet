@@ -20,7 +20,7 @@ import { Contact, ContactType } from '../models/Contact'
 
 let _db: QuickSQLiteConnection
 
-const _dbVersion = 8 // Update this if db changes require migrations
+const _dbVersion = 9 // Update this if db changes require migrations
 
 const getInstance = function () {
   if (!_db) {
@@ -54,6 +54,7 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
         id INTEGER PRIMARY KEY NOT NULL,
         type TEXT,
         amount INTEGER,
+        unit TEXT,
         fee INTEGER,
         data TEXT,
         sentFrom TEXT,
@@ -86,7 +87,8 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
         id TEXT NOT NULL,
         amount INTEGER NOT NULL,
         secret TEXT PRIMARY KEY NOT NULL,
-        C TEXT NOT NULL,     
+        C TEXT NOT NULL,
+        unit TEXT,
         tId INTEGER,
         isPending BOOLEAN,
         isSpent BOOLEAN,
@@ -201,6 +203,18 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
 
         log.info(`Prepared database migrations from ${currentVersion} -> 8`)
     }
+
+    if (currentVersion < 8) {
+      migrationQueries.push([
+          `ALTER TABLE transactions
+          ADD COLUMN unit TEXT`,       
+      ], [
+        `ALTER TABLE proofs
+        ADD COLUMN unit TEXT`,
+      ])
+
+      log.info(`Prepared database migrations from ${currentVersion} -> 9`)
+  }
 
   // Update db version as a part of migration sqls
   migrationQueries.push([
@@ -429,14 +443,14 @@ const getTransactionById = function (id: number) {
 
 const addTransactionAsync = async function (tx: Transaction) {
   try {
-    const {type, amount, data, memo, mint, status} = tx
+    const {type, amount, fee, unit, data, memo, mint, status} = tx
     const now = new Date()
 
     const query = `
-      INSERT INTO transactions (type, amount, data, memo, mint, status, createdAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO transactions (type, amount, fee, unit, data, memo, mint, status, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
-    const params = [type, amount, data, memo, mint, status, now.toISOString()]
+    const params = [type, amount, fee, unit, data, memo, mint, status, now.toISOString()]
 
     const db = getInstance()
     const result = await db.executeAsync(query, params)
@@ -567,6 +581,7 @@ const updateBalanceAfterAsync = async function (
   }
 }
 
+
 const updateFeeAsync = async function (id: number, fee: number) {
   try {
     const query = `
@@ -592,6 +607,7 @@ const updateFeeAsync = async function (id: number, fee: number) {
     )
   }
 }
+
 
 const updateReceivedAmountAsync = async function (id: number, amount: number) {
   try {

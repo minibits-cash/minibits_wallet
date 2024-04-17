@@ -1,11 +1,13 @@
 import {Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
 import { log } from '../services/logService'
+import { MintUnit } from '../services'
 
 export interface TransactionRecord {
     id?: number
     type: TransactionType
     amount: number
-    fee?: number | null
+    fee: number
+    unit: MintUnit
     data: string
     sentFrom?: string | null
     memo?: string | null  
@@ -48,7 +50,8 @@ export const TransactionModel = types
         id: types.maybe(types.number),
         type: types.frozen<TransactionType>(),
         amount: types.integer,
-        fee: types.maybe(types.maybeNull(types.integer)),
+        fee: types.integer,
+        unit: types.frozen<MintUnit>(),
         data: types.string,
         sentFrom: types.maybe(types.maybeNull(types.string)),
         sentTo: types.maybe(types.maybeNull(types.string)),
@@ -63,7 +66,9 @@ export const TransactionModel = types
     
 
 export type Transaction = {
-    amount: number    
+    amount: number
+    fee: number
+    unit: MintUnit    
     type: TransactionType    
     data: string
     mint: string

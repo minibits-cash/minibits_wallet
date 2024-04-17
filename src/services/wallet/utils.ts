@@ -11,9 +11,9 @@ import AppError from "../../utils/AppError"
 import { log } from '../logService'
 import { isStateTreeNode } from 'mobx-state-tree'
 import { CashuUtils } from '../cashu/cashuUtils'
-import { Mint } from '../../models/Mint'
+import { Mint, MintProofsCounter } from '../../models/Mint'
 import { delay } from '../../utils/utils'
-import { MintClient } from '../cashuMintClient'
+import { MintClient, MintUnit } from '../cashuMintClient'
 
 
 
@@ -25,18 +25,20 @@ const {
 
 const lockAndSetInFlight = async function (
     mint: Mint, 
-    countOfInFlightProofs: number, 
+    unit: MintUnit,    
+    countOfInFlightProofs: number,
     transactionId: number,
-    retryCount: number = 0
+    retryCount: number = 0,    
 ): Promise<void> {
     
-    const currentCounter = mint.getOrCreateProofsCounter?.()
+    const currentCounter = await mint.getProofsCounterByUnit?.(unit)
     log.trace('[lockAndSetInFlight] proofsCounter', {currentCounter})
 
     if(!retryCount) {
-        retryCount = 50
+        retryCount = 10
     }
     
+    // deprecated, should not be necessary anymore with serial task queue processing
     if(currentCounter && currentCounter.inFlightTid && currentCounter.inFlightTid !== transactionId) {
         
         log.warn('[lockAndSetInFlight] Waiting for a lock to release', {
@@ -50,6 +52,7 @@ const lockAndSetInFlight = async function (
             // retry to acquire lock, increment the count of retries up to 50 seconds
             return lockAndSetInFlight(
                 mint,
+                unit,
                 countOfInFlightProofs,
                 transactionId,
                 retryCount + 1
@@ -61,36 +64,45 @@ const lockAndSetInFlight = async function (
             })         
             mint.resetInFlight?.(currentCounter.inFlightTid as number)
         }
-    }
+    } // deprecated end
 
     // This sets inFlightFrom -> inFlightTo recovery interval in case the mint response won't come
     // It sets as well the counter to inFlightTo until response comes
     mint.setInFlight?.(
-        currentCounter?.counter as number, 
-        currentCounter?.counter as number + countOfInFlightProofs,
-        transactionId
+        currentCounter?.keyset as string,        
+        {
+            inFlightFrom:  currentCounter?.counter as number,
+            inFlightTo: currentCounter?.counter as number + countOfInFlightProofs,
+            inFlightTid: transactionId
+        }
     )
 }
 
 
-const addCashuProofs = function (
-    proofsToAdd: CashuProof[] | Proof[],
+const addCashuProofs = function (    
     mintUrl: string,
-    transactionId: number,
-    isPending: boolean = false  
-): {  
+    proofsToAdd: CashuProof[] | Proof[],
+    options: {
+        unit: MintUnit,
+        transactionId: number,
+        isPending: boolean  
+    }    
+):{  
     amountToAdd: number,  
     addedAmount: number,
     addedProofs: Proof[]
 } {
+    const {unit, transactionId, isPending} = options
     // Add internal references
     for (const proof of proofsToAdd) {
         if (isStateTreeNode(proof)) {
             proof.setTransactionId(transactionId)
             proof.setMintUrl(mintUrl)
+            proof.setUnit(unit)
         } else {
             ;(proof as Proof).tId = transactionId
             ;(proof as Proof).mintUrl = mintUrl
+            ;(proof as Proof).unit = unit
         }
     }
 
@@ -108,21 +120,6 @@ const addCashuProofs = function (
 }
 
 
-const updateMintKeys = function (mintUrl: string, newKeys: MintKeys) {
-    if(!CashuUtils.validateMintKeys(newKeys)) {
-        // silent
-        log.warn('[_updateMintKeys]', 'Invalid mint keys to update, skipping', newKeys)
-        return
-    }
-
-    const keyset = deriveKeysetId(newKeys)
-    const mint = mintsStore.findByUrl(mintUrl)
-    mint?.updateKeys(keyset, newKeys)
-    // needed to get rid of cached old keyset
-    MintClient.resetCachedWallets()
-}
-
-
 const formatError = function (e: AppError) {
     return {
         name: e.name,
@@ -133,7 +130,6 @@ const formatError = function (e: AppError) {
 
 export const WalletUtils = {
     lockAndSetInFlight,
-    addCashuProofs,
-    updateMintKeys,
+    addCashuProofs,    
     formatError
 }

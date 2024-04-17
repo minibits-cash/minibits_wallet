@@ -106,6 +106,7 @@ const getMint = function (mintUrl: string): CashuMint {
 }
 
 
+// wallet instances are created per mint and unit
 const getWallet = async function (
     mintUrl: string,
     unit: MintUnit,
@@ -137,7 +138,12 @@ const getWallet = async function (
         mnemonicOrSeed: seed
       })
 
-      await newSeedWallet.getKeys(undefined, unit) // make sure we have keys for wallet unit cached in wallet instance
+      // make sure we have keys for wallet unit cached in wallet instance
+      const keys = await newSeedWallet.getKeys(undefined, unit)
+
+      if(!keys || keys.unit !== unit) {
+        throw new AppError(Err.VALIDATION_ERROR, `This mint does not currently support unit ${unit}`)
+      }
 
       _seedWallets.push(newSeedWallet)
 
@@ -264,7 +270,7 @@ const sendFromMint = async function (
     if (totalAmountToSendFrom !== returnedAmount + proofsAmount) {
       throw new AppError(
         Err.VALIDATION_ERROR,
-        `Amount returned byt he mint as a change ${returnedAmount} is incorrect, it should be ${
+        `Amount returned by the mint as a change ${returnedAmount} is incorrect, it should be ${
           totalAmountToSendFrom - proofsAmount
         }`,
       )
@@ -294,11 +300,12 @@ const sendFromMint = async function (
 
 const getSpentOrPendingProofsFromMint = async function (
   mintUrl: string,
-  unit: MintUnit,
+  // unit: MintUnit,
   proofs: Proof[],
 ) {
   try {
-    const cashuWallet = await getWallet(mintUrl, unit, {withSeed: true})
+    // use default unit as check does not need it
+    const cashuWallet = await getWallet(mintUrl, 'sat', {withSeed: true}) 
 
     const spentPendingProofs = await cashuWallet.checkProofsSpent(proofs)
 
@@ -358,7 +365,7 @@ const getLightningMeltQuote = async function (
 const payLightningMelt = async function (
   mintUrl: string,
   unit: MintUnit,
-  lightningQuote: MeltQuoteResponse,  // invoice is stored by mint by quote
+  lightningMeltQuote: MeltQuoteResponse,  // invoice is stored by mint by quote
   proofsToPayFrom: CashuProof[],  // proofAmount >= amount + fee_reserve
   counter: number
 ) {
@@ -367,7 +374,7 @@ const payLightningMelt = async function (
 
     const {isPaid, preimage, change: feeSavedProofs}: MeltTokensResponse =
       await cashuWallet.meltTokens(
-        lightningQuote,
+        lightningMeltQuote,
         proofsToPayFrom,
         {
           keysetId: undefined,
@@ -455,14 +462,13 @@ const mintProofs = async function (
         
         log.info('[mintProofs]', {proofs})        
 
-        return {proofs}
+        return proofs
 
     } catch (e: any) {
         log.info('[mintProofs]', {error: {name: e.name, message: e.message}})
         if(e.message.includes('quote not paid')) {
             return {
-                proofs: [],
-                newKeys: undefined
+                proofs: [],                
             }
         }
         
@@ -479,19 +485,22 @@ const mintProofs = async function (
 }
 
 const restore = async function (
-    mintUrl: string,
-    unit: MintUnit,
+    mintUrl: string,    
     seed: Uint8Array,
-    indexFrom: number,
-    indexTo: number,    
-    keysetId?: string  // support recovery from older but still active keysets
+    options: {
+      indexFrom: number,
+      indexTo: number,    
+      keysetId: string
+    }
+      // support recovery from older but still active keysets
   ) {
     try {
+        const {indexFrom, indexTo, keysetId} = options
         // need special wallet instance to pass seed and keysetId directly
         const cashuMint = getMint(mintUrl)
         
         const seedWallet = new CashuWallet(cashuMint, {
-          unit,           
+          unit: 'sats', // just use default unit as we restore by keyset        
           mnemonicOrSeed: seed
         })
 
