@@ -230,7 +230,7 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
     const headerBg = useThemeColor('header')
     const iconColor = useThemeColor('textDim')    
     const activeIconColor = useThemeColor('button')
-    const pendingBalance = proofsStore.getBalances().totalPendingBalance
+    const pendingBalance = proofsStore.getBalances().mintPendingBalances
 
     const sections = showPendingOnly ? Object.keys(transactionsStore.groupedPendingByTimeAgo).map((timeAgo) => ({
         title: timeAgo,
@@ -252,7 +252,21 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
                 ContentComponent={
                     <>
                         <ListItem
-                        text={'Pending balance'}
+                            text={showPendingOnly ? `Showing ${transactionsStore.pending.length} of ${pendingDbCount} pending` : `Showing ${transactionsStore.count} of ${dbCount} total`}
+                            LeftComponent={
+                                <Icon
+                                containerStyle={$iconContainer}
+                                icon="faListUl"
+                                size={spacing.medium}
+                                color={iconColor}
+                                />
+                            }
+                            style={$item}
+                            bottomSeparator={false}
+                            onPress={() => false}
+                        />
+                        <ListItem
+                        text={'Pending transactions'}
                         LeftComponent={
                             <Icon
                             containerStyle={$iconContainer}
@@ -262,25 +276,11 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
                             />
                         }
                         RightComponent={
-                            <Text style={$txAmount} text={`${pendingBalance}`} />
+                            <Text style={$txAmount} text={`${transactionsStore.pending.length}`} />
                         }
                         style={$item}
                         // bottomSeparator={true}
                         onPress={toggleShowPendingOnly}
-                        />
-                        <ListItem
-                        text={showPendingOnly ? `Showing ${transactionsStore.pending.length} of ${pendingDbCount} pending` : `Showing ${transactionsStore.count} of ${dbCount} total`}
-                        LeftComponent={
-                            <Icon
-                            containerStyle={$iconContainer}
-                            icon="faListUl"
-                            size={spacing.medium}
-                            color={iconColor}
-                            />
-                        }
-                        style={$item}
-                        bottomSeparator={false}
-                        onPress={() => false}
                         />
                     </>
                 }
@@ -293,7 +293,7 @@ export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function T
                         <Card
                             ContentComponent={
                                 <>
-                                {data.map((item, index) => (
+                                {data.map((item: Transaction, index: number) => (
                                     <TransactionListItem
                                         key={item.id}
                                         transaction={item as Transaction}

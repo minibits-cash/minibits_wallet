@@ -1,5 +1,4 @@
-import { MINIBITS_NIP05_DOMAIN, MINIBITS_SERVER_API_HOST } from "@env"
-import differenceInSeconds from "date-fns/differenceInSeconds"
+import {differenceInSeconds} from "date-fns"
 import { formatDistance } from 'date-fns'
 import { observer } from "mobx-react-lite"
 import React from "react"
@@ -12,7 +11,8 @@ import { colors, spacing, typography, useThemeColor } from "../../theme"
 import { getImageSource } from '../../utils/utils'
 import { ContactListItem } from "../Contacts/ContactListItem"
 import { SendOption } from "../SendOptionsScreen"
-import { CurrencyCode, CurrencySign } from "../Wallet/CurrencySign"
+import { CurrencySign } from "../Wallet/CurrencySign"
+import { CurrencyCode } from "../../services/wallet/currency"
 
 
 export interface PaymentRequestListProps {

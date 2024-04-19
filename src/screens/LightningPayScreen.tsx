@@ -1,21 +1,17 @@
 import React, {FC, useState, useEffect, useRef} from 'react'
 import {
-    Platform,
-    PermissionsAndroid,
-    Alert,
     ViewStyle,
     View,
     TextStyle,
     TextInput,
 } from 'react-native'
 import {WalletStackScreenProps} from '../navigation'
-import {CameraScreen, CameraType} from 'react-native-camera-kit'
-import {colors, spacing, typography, useThemeColor} from '../theme'
+import {colors, spacing, useThemeColor} from '../theme'
 import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 import AppError, { Err } from '../utils/AppError'
-import { BottomModal, Button, Card, ErrorModal, Icon, ListItem, ScanIcon, Screen, Text } from '../components'
+import { Button, Card, ErrorModal, Icon, ListItem, ScanIcon, Screen, Text } from '../components'
 import { LnurlUtils } from '../services/lnurl/lnurlUtils'
 import { infoMessage } from '../utils/utils'
 import Clipboard from '@react-native-clipboard/clipboard'

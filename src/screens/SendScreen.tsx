@@ -43,7 +43,7 @@ import {
 import {TransactionStatus, Transaction} from '../models/Transaction'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
-import {MintUnit, NostrClient, NostrUnsignedEvent, TransactionTaskResult, WalletTask} from '../services'
+import {NostrClient, NostrUnsignedEvent, TransactionTaskResult, WalletTask} from '../services'
 import {log} from '../services/logService'
 import AppError, {Err} from '../utils/AppError'
 import {translate} from '../i18n'
@@ -59,7 +59,8 @@ import { getImageSource, infoMessage } from '../utils/utils'
 import { NotificationService } from '../services/notificationService'
 import { SendOption } from './SendOptionsScreen'
 import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
-import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
+import { CurrencySign } from './Wallet/CurrencySign'
+import { CurrencyCode, MintUnit, MintUnits } from "../services/wallet/currency"
 
 
 if (Platform.OS === 'android' &&
@@ -176,7 +177,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         log.trace('Offline send effect')
 
         // if offline we set all non-zero mint balances as available to allow ecash selection
-        const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(1)
+        const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(1, unit)
 
         if (availableBalances.length === 0) {
             setInfo('There are not enough funds to send')
@@ -297,7 +298,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 return
             }
 
-            const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(amount)
+            const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(amount, unit)
 
             if (availableBalances.length === 0) {
                 infoMessage('There are not enough funds to send this amount.')
@@ -557,7 +558,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>        
             <View style={$amountContainer}>
                 <CurrencySign 
-                    currencyCode={CurrencyCode.SATS}
+                    currencyCode={MintUnits[unit as any] as CurrencyCode}
                     textStyle={{color: 'white'}}
                 />
                 <TextInput
@@ -635,6 +636,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 <MintBalanceSelector
                     availableMintBalances={availableMintBalances}
                     mintBalanceToSendFrom={mintBalanceToSendFrom as MintBalance}
+                    unit={unit}
                     onMintBalanceSelect={onMintBalanceSelect}
                     onCancel={onMintBalanceCancel}                
                     onMintBalanceConfirm={onMintBalanceConfirm}
@@ -668,7 +670,8 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
           ContentComponent={
             <SelectProofsBlock
                 availableMintBalances={availableMintBalances}
-                mintBalanceToSendFrom={mintBalanceToSendFrom as MintBalance}                
+                mintBalanceToSendFrom={mintBalanceToSendFrom as MintBalance}
+                unit={unit}                
                 onMintBalanceSelect={onMintBalanceSelect}
                 selectedProofs={selectedProofs}               
                 toggleProofSelectorModal={toggleProofSelectorModal}
@@ -777,13 +780,14 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 const MintBalanceSelector = observer(function (props: {
   availableMintBalances: MintBalance[]
   mintBalanceToSendFrom: MintBalance
+  unit: MintUnit
   onMintBalanceSelect: any
   onCancel: any  
   onMintBalanceConfirm: any
 }) {
 
   const onMintSelect = function (balance: MintBalance) {
-    log.trace('onMintBalanceSelect', balance.mint)
+    log.trace('onMintBalanceSelect', balance.mintUrl)
     return props.onMintBalanceSelect(balance)
   }
 
@@ -802,17 +806,18 @@ const MintBalanceSelector = observer(function (props: {
                 renderItem={({ item, index }) => {                                
                     return(
                         <MintListItem
-                            key={item.mint}
-                            mint={mintsStore.findByUrl(item.mint) as Mint}
+                            key={item.mintUrl}
+                            mint={mintsStore.findByUrl(item.mintUrl) as Mint}
                             mintBalance={item}
+                            selectedUnit={props.unit}
                             onMintSelect={() => onMintSelect(item)}
                             isSelectable={true}
-                            isSelected={props.mintBalanceToSendFrom.mint === item.mint}
+                            isSelected={props.mintBalanceToSendFrom.mintUrl === item.mintUrl}
                             separator={'top'}
                         />
                     )
                 }}                
-                keyExtractor={(item) => item.mint} 
+                keyExtractor={(item) => item.mintUrl} 
                 style={{ flexGrow: 0, maxHeight: spacing.screenHeight * 0.35 }}
             />            
           </>
@@ -846,7 +851,8 @@ const MintBalanceSelector = observer(function (props: {
 
 const SelectProofsBlock = observer(function (props: {
     availableMintBalances: MintBalance[]
-    mintBalanceToSendFrom: MintBalance    
+    mintBalanceToSendFrom: MintBalance
+    unit: MintUnit    
     onMintBalanceSelect: any
     selectedProofs: Proof[]
     toggleProofSelectorModal: any                    
@@ -859,7 +865,7 @@ const SelectProofsBlock = observer(function (props: {
     const hintColor = useThemeColor('textDim')
 
     const onMintSelect = function (balance: MintBalance) {
-        log.info('onMintBalanceSelect', balance.mint)
+        log.info('onMintBalanceSelect', balance.mintUrl)
         return props.onMintBalanceSelect(balance)
     }
     
@@ -881,12 +887,12 @@ const SelectProofsBlock = observer(function (props: {
                     {props.availableMintBalances.map(
                         (balance: MintBalance, index: number) => (
                             <MintListItem
-                                key={balance.mint}
-                                mint={mintsStore.findByUrl(balance.mint) as Mint}
+                                key={balance.mintUrl}
+                                mint={mintsStore.findByUrl(balance.mintUrl) as Mint}
                                 mintBalance={balance}
                                 onMintSelect={() => onMintSelect(balance)}
                                 isSelectable={true}
-                                isSelected={props.mintBalanceToSendFrom ? props.mintBalanceToSendFrom.mint === balance.mint : false}
+                                isSelected={props.mintBalanceToSendFrom ? props.mintBalanceToSendFrom.mintUrl === balance.mintUrl : false}
                                 separator={'top'}
                             />
                         )
@@ -912,7 +918,7 @@ const SelectProofsBlock = observer(function (props: {
                 />
                 <View style={{maxHeight: spacing.screenHeight * 0.5}}>
                     <FlatList<Proof>
-                        data={proofsStore.getByMint(props.mintBalanceToSendFrom.mint)}
+                        data={proofsStore.getByMint(props.mintBalanceToSendFrom.mintUrl, {isPending: false, unit: props.unit})}
                         renderItem={({ item }) => {
                             const isSelected = props.selectedProofs.some(
                                 p => p.secret === item.secret
@@ -973,7 +979,7 @@ const SelectedMintBlock = observer(function (props: {
                     <MintListItem
                         mint={
                         mintsStore.findByUrl(
-                            props.mintBalanceToSendFrom?.mint as string,
+                            props.mintBalanceToSendFrom?.mintUrl as string,
                         ) as Mint
                         }
                         isSelectable={false}                

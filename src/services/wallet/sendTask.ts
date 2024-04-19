@@ -1,6 +1,6 @@
-import {CashuMint, deriveKeysetId, getEncodedToken} from '@cashu/cashu-ts'
+import {getEncodedToken} from '@cashu/cashu-ts'
 import {log} from '../logService'
-import {MintClient, MintKeys, MintUnit} from '../cashuMintClient'
+import {MintClient} from '../cashuMintClient'
 import {
   Transaction,
   TransactionData,
@@ -24,6 +24,7 @@ import { Proof } from '../../models/Proof'
 import { poller } from '../../utils/poller'
 import { WalletUtils } from './utils'
 import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
+import { MintUnit } from './currency'
 
 const {
     mintsStore,
@@ -198,7 +199,7 @@ export const sendFromMint = async function (
             )
         }
 
-        const proofsFromMint = proofsStore.getByMint(mintUrl) as Proof[]
+        const proofsFromMint = proofsStore.getByMint(mintUrl, {isPending: false, unit}) as Proof[]
 
         log.debug('[sendFromMint]', 'proofsFromMint count', proofsFromMint.length)
 

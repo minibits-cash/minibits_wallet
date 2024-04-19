@@ -10,8 +10,9 @@ import {ProofModel, Proof} from './Proof'
 import {log} from '../services/logService'
 import {getRootStore} from './helpers/getRootStore'
 import AppError, {Err} from '../utils/AppError'
-import {Mint, MintBalance} from './Mint'
+import {Mint, MintBalance, UnitBalance} from './Mint'
 import {Database} from '../services'
+import { MintUnit, MintUnits } from '../services/wallet/currency'
 
 export const ProofsStoreModel = types
     .model('Proofs', {
@@ -31,9 +32,11 @@ export const ProofsStoreModel = types
             const rootStore = getRootStore(self)
             const {mintsStore} = rootStore
 
-            for (const m of mintsStore.allMints) {
-                if (m.keysets?.includes(proof.id)) {
-                    return m
+            for (const mint of mintsStore.allMints) {
+                for (const counter of mint.proofsCounters) {
+                    if (counter.keyset === proof.id) {
+                        return mint
+                    }
                 }
             }
 
@@ -41,9 +44,17 @@ export const ProofsStoreModel = types
         },
         getByMint(
             mintUrl: string,
-            isPending: boolean = false,
+            options: {
+                unit?: MintUnit, 
+                isPending: boolean,
+            }
+            
         ): Proof[] | undefined {
-            const proofs = isPending ? self.pendingProofs : self.proofs
+            const proofs = options.isPending ? self.pendingProofs : self.proofs
+            if (options.unit) {
+                return proofs.filter(proof => proof.mintUrl === mintUrl && proof.unit === options.unit)    
+            }
+
             return proofs.filter(proof => proof.mintUrl === mintUrl)
         },
         getProofInstance(proof: Proof, isPending: boolean = false) {
@@ -67,10 +78,22 @@ export const ProofsStoreModel = types
             const proofs = isPending ? self.pendingProofs : self.proofs
             let addedAmount: number = 0
             let addedProofs: Proof[] = []
+            const unit: MintUnit = newProofs[0].unit
+            const keysetId: string = newProofs[0].id
 
             for (const proof of newProofs) { 
                 if(self.alreadyExists(proof)) {
                     log.error('[addProofs]', `${isPending ? ' pending' : ''} proof with this secret already exists in the ProofsStore`, {proof})
+                    continue
+                }
+
+                if(proof.unit !== unit) {
+                    log.error('[addProofs]', `Proof has a different unit then others`, {proof, unit})
+                    continue
+                }
+
+                if(proof.id !== keysetId) {
+                    log.error('[addProofs]', `Proof has a different keysetId then others`, {proof, keysetId})
                     continue
                 }
 
@@ -89,7 +112,7 @@ export const ProofsStoreModel = types
             const mintsStore = getRootStore(self).mintsStore
             const mintInstance = mintsStore.findByUrl(newProofs[0].mintUrl as string)
             
-            mintInstance?.increaseProofsCounter(addedProofs.length)                      
+            mintInstance?.increaseProofsCounter(keysetId, addedProofs.length)                      
 
             log.debug('[addProofs]', `Added new ${addedProofs.length}${isPending ? ' pending' : ''} proofs to the ProofsStore`,)
 
@@ -165,75 +188,106 @@ export const ProofsStoreModel = types
             return self.pendingProofs
         },
     }))
-    .views(self => ({
+    .views(self => ({ // move to MintsStore?
         getBalances() {
-            let totalBalance = 0
-            let totalPendingBalance = 0
+            const mintBalancesMap: Map<string, MintBalance> = new Map()
+            const unitBalancesMap: Map<MintUnit, number> = new Map()
 
-            const mints = getRootStore(self).mintsStore.allMints
-            const mintBalances: MintBalance[] = mints.map(mint => {
-                return {mint: mint.mintUrl, balance: 0}
-            })
-            const mintPendingBalances: MintBalance[] = mints.map(mint => {
-                return {mint: mint.mintUrl, balance: 0}
-            })
-
-            self.proofs.forEach(proof => {
-                const amount = proof.amount
-                totalBalance += amount
-
-                for (const mintBalance of mintBalances) {
-                if (mintBalance.mint === proof.mintUrl) {
-                    mintBalance.balance += amount
+            self.proofs.forEach((proof) => {
+                const { mintUrl, unit, amount } = proof
+        
+                // Initialize MintBalance if not present for the mintUrl
+                if (!mintBalancesMap.has(mintUrl)) {
+                    mintBalancesMap.set(mintUrl, { mintUrl, balances: {} })
                 }
-                }
+        
+                // Update balance for the unit
+                const mintBalance = mintBalancesMap.get(mintUrl)!
+                mintBalance.balances[unit] = (mintBalance.balances[unit] || 0) + amount
+                unitBalancesMap.set(unit, (unitBalancesMap.get(unit) || 0) + amount)
             })
+        
+            const mintBalances: MintBalance[] = Array.from(mintBalancesMap.values())
 
-            self.pendingProofs.forEach(proof => {
-                const amount = proof.amount
-                totalPendingBalance += amount
+            // Convert map to array of UnitBalance objects
+            const unitBalances: UnitBalance[]  = Array.from(unitBalancesMap.entries()).map(([unit, unitBalance]) => ({
+                unitBalance,
+                unit
+            }))
 
-                for (const pendingBalance of mintPendingBalances) {
-                if (pendingBalance.mint === proof.mintUrl) {
-                    pendingBalance.balance += amount
+            const mintPendingBalancesMap: Map<string, MintBalance> = new Map()
+            const unitPendingBalancesMap: Map<MintUnit, number> = new Map()
+
+            self.pendingProofs.forEach((proof) => {
+                const { mintUrl, unit, amount } = proof
+        
+                // Initialize MintBalance if not present for the mintUrl
+                if (!mintPendingBalancesMap.has(mintUrl)) {
+                    mintPendingBalancesMap.set(mintUrl, { mintUrl, balances: {} })
                 }
-                }
+        
+                // Update balance for the unit
+                const mintBalance = mintPendingBalancesMap.get(mintUrl)!
+                mintBalance.balances[unit] = (mintBalance.balances[unit] || 0) + amount
+                unitPendingBalancesMap.set(unit, (unitPendingBalancesMap.get(unit) || 0) + amount)
             })
+        
+            const mintPendingBalances: MintBalance[] = Array.from(mintPendingBalancesMap.values())
 
-            const balances = {
-                totalBalance,
-                totalPendingBalance,
+            // Convert map to array of UnitBalance objects
+            const unitPendingBalances: UnitBalance[]  = Array.from(unitPendingBalancesMap.entries()).map(([unit, unitBalance]) => ({
+                unitBalance,
+                unit
+            }))            
+
+            const balances = {            
                 mintBalances,
                 mintPendingBalances,
-            }            
+                unitBalances,
+                unitPendingBalances,  
+            }
+        
+            log.debug('[getBalances]', balances)
+            // console.log(balances)
 
             return balances
         },
     }))
-    .views(self => ({
+    .views(self => ({ // Move to MintsStore?
         getMintBalance: (mintUrl: string) => {
             const balances = self.getBalances().mintBalances
 
             const mintBalance = balances
-                .find((balance: MintBalance) => balance.mint === mintUrl)                
+                .find((balance: MintBalance) => balance.mintUrl === mintUrl)                
 
             return mintBalance
         },
-        getMintBalancesWithEnoughBalance: (amount: number) => {
+        getMintBalancesWithEnoughBalance: (amount: number, unit: MintUnit) => {
             const balances = self.getBalances().mintBalances
 
             const filteredMintBalances = balances
                 .slice()
-                .filter((balance: MintBalance) => balance.balance >= amount)
-                .sort((a, b) => b.balance - a.balance)
+                .filter((balance: MintBalance) => {
+                    if(balance.balances[unit] !== undefined) {
+                        if(balance.balances[unit as MintUnit] >= amount) {
+                            return true
+                        }
+                    }
+                    return false
+                })
+                .sort((a, b) => b.balances[unit] - a.balances[unit])
 
             return filteredMintBalances
         },
-        getMintBalanceWithMaxBalance: () => {
+        getMintBalanceWithMaxBalance: (unit: MintUnit) => {
             const balances = self.getBalances().mintBalances
 
             const maxBalance = balances.reduce((maxBalance, currentBalance) => {
-                if (currentBalance.balance > maxBalance.balance) {
+                if(currentBalance.balances[unit as MintUnit] === undefined) {
+                    return maxBalance
+                }
+
+                if (currentBalance.balances[unit] > maxBalance.balances[unit]) {
                   return currentBalance
                 }
                 return maxBalance

@@ -6,16 +6,13 @@ import {colors, spacing, typography, useThemeColor} from '../theme'
 import {Header, Icon, Screen} from '../components'
 import {useStores} from '../models'
 import {ContactsStackScreenProps} from '../navigation'
-import { KeyChain, MintClient, NostrClient } from '../services'
 import { PrivateContacts } from './Contacts/PrivateContacts'
 import { PublicContacts } from './Contacts/PublicContacts'
 import { log } from '../services/logService'
 import { getImageSource } from '../utils/utils'
 import { ReceiveOption } from './ReceiveOptionsScreen'
 import { SendOption } from './SendOptionsScreen'
-import { WalletProfile } from '../models/WalletProfileStore'
-import { Err } from '../utils/AppError'
-import { getRandomUsername } from '../utils/usernames'
+
 
 interface ContactsScreenProps extends ContactsStackScreenProps<'Contacts'> {}
 

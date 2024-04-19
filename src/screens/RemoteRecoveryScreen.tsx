@@ -20,7 +20,7 @@ import {
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import AppError, { Err } from '../utils/AppError'
-import { KeyChain, log, MinibitsClient, MintClient, MintKeys, MintKeySets, MintUnit, NostrClient } from '../services'
+import { KeyChain, log, MinibitsClient, MintClient, NostrClient } from '../services'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { useStores } from '../models'
 import { MintListItem } from './Mints/MintListItem'
@@ -40,6 +40,7 @@ import { isStateTreeNode } from 'mobx-state-tree'
 import { scale } from '@gocodingnow/rn-size-matters'
 import { WalletUtils } from '../services/wallet/utils'
 import { WalletScreen } from './WalletScreen'
+import { MintUnit } from '../services/wallet/currency'
 
 if (Platform.OS === 'android' &&
     UIManager.setLayoutAnimationEnabledExperimental) {
@@ -320,8 +321,8 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                         JSON.stringify(transactionData),
                     )
 
-                    const balanceAfter = proofsStore.getBalances().totalBalance
-                    await transactionsStore.updateBalanceAfter(transactionId, balanceAfter)
+                    const balanceAfter = proofsStore.getBalances().mintBalances[recoveredMint.mintUrl as any].balances[selectedKeyset?.unit as MintUnit]
+                    await transactionsStore.updateBalanceAfter(transactionId, balanceAfter as number)
                 }
             
                 if(pending && pending.length > 0) {

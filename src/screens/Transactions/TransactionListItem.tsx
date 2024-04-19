@@ -1,8 +1,8 @@
 import { formatDistance } from 'date-fns'
 import { observer } from "mobx-react-lite"
 import React from "react"
-import { ScrollView, TextStyle, View, ViewStyle } from "react-native"
-import { Button, Icon, ListItem, Screen, Text } from "../../components"
+import { TextStyle, View, ViewStyle } from "react-native"
+import { Icon, ListItem, Text } from "../../components"
 import { Transaction, TransactionStatus, TransactionType } from "../../models/Transaction"
 import { colors, spacing, typography, useThemeColor } from "../../theme"
 import useIsInternetReachable from "../../utils/useIsInternetReachable"

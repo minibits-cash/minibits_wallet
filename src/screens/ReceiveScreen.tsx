@@ -21,7 +21,7 @@ import {Token} from '../models/Token'
 import {Transaction, TransactionStatus} from '../models/Transaction'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
-import {MintUnit, TransactionTaskResult, WalletTask} from '../services'
+import {TransactionTaskResult, WalletTask} from '../services'
 import {log} from '../services/logService'
 import AppError from '../utils/AppError'
 import EventEmitter from '../utils/eventEmitter'
@@ -31,7 +31,8 @@ import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {MintListItem} from './Mints/MintListItem'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
-import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
+import { CurrencySign } from './Wallet/CurrencySign'
+import { CurrencyCode, MintUnit, MintUnitCurrencyPairs, MintUnits } from "../services/wallet/currency"
 
 export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
   function ReceiveScreen({route, navigation}) {
@@ -145,13 +146,14 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         const decoded: Token = CashuUtils.decodeToken(encoded)
         const tokenAmounts = CashuUtils.getTokenAmounts(decoded)
 
-        log.trace('decoded token', decoded)
-        log.trace('tokenAmounts', tokenAmounts)
+        log.trace('decoded token', {decoded})
+        log.trace('tokenAmounts', {tokenAmounts})
 
         setToken(decoded)
         setAmountToReceive(tokenAmounts.totalAmount)
         
         if(decoded.unit) {
+          log.trace('Token unit', decoded.unit)
           setUnit(decoded.unit)
         }
         
@@ -214,7 +216,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
             {receivedAmount > 0 ? (
             <View style={$amountContainer}>
                 <CurrencySign 
-                    currencyCode={CurrencyCode.SATS}
+                    currencyCode={MintUnitCurrencyPairs[unit]}
                     textStyle={{color: 'white'}}                       
                 />
                 <TextInput                                        
@@ -227,7 +229,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
             ) : (
             <View style={$amountContainer}>
                 <CurrencySign 
-                    currencyCode={CurrencyCode.SATS}
+                    currencyCode={MintUnitCurrencyPairs[unit]}
                     textStyle={{color: 'white'}}                        
                 />
                 <TextInput                                        

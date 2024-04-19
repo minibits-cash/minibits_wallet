@@ -6,7 +6,7 @@ export interface TransactionRecord {
     id?: number
     type: TransactionType
     amount: number
-    fee: number
+    fee?: number | null
     unit: MintUnit
     data: string
     sentFrom?: string | null
@@ -50,7 +50,7 @@ export const TransactionModel = types
         id: types.maybe(types.number),
         type: types.frozen<TransactionType>(),
         amount: types.integer,
-        fee: types.integer,
+        fee: types.maybe(types.maybeNull(types.integer)),
         unit: types.frozen<MintUnit>(),
         data: types.string,
         sentFrom: types.maybe(types.maybeNull(types.string)),

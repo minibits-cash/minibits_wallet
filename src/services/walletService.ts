@@ -1,7 +1,7 @@
 import {isBefore} from 'date-fns'
 import {getSnapshot} from 'mobx-state-tree'
 import {log} from './logService'
-import {MintClient, MintKeys, MintUnit} from './cashuMintClient'
+import {MintClient} from './cashuMintClient'
 import {Proof} from '../models/Proof'
 import {
   Transaction,
@@ -30,6 +30,7 @@ import { topupTask } from './wallet/topupTask'
 import { transferTask } from './wallet/transferTask'
 import { WalletUtils } from './wallet/utils'
 import { NotificationService } from './notificationService'
+import { MintUnit } from './wallet/currency'
 
 
 type WalletTaskService = {
@@ -339,8 +340,8 @@ const _handleSpentByMintTask = async function (
     try {
     
         // select either spendable or pending proofs by the wallet
-        // TODO units?      
-        const proofsFromMint = proofsStore.getByMint(mintUrl, isPending) as Proof[]
+        // all units      
+        const proofsFromMint = proofsStore.getByMint(mintUrl, {isPending}) as Proof[]
 
         if (proofsFromMint.length === 0) {
             const message = `No ${isPending ? 'pending' : ''} proofs found for mint, skipping mint call...`            

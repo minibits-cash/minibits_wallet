@@ -45,7 +45,8 @@ import { getDecodedToken, getEncodedToken, Token as CashuToken } from '@cashu/ca
 import { CashuUtils } from '../services/cashu/cashuUtils'
 import { MintStatus } from '../models/Mint'
 import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
-import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
+import { CurrencySign } from './Wallet/CurrencySign'
+import { CurrencyCode, MintUnit, MintUnitCurrencyPairs, MintUnits } from "../services/wallet/currency"
 import { Token } from '../models/Token'
 import { PaymentRequest } from '../models/PaymentRequest'
 import { pollerExists } from '../utils/poller'
@@ -253,11 +254,17 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
           <>
             <View style={[$headerContainer, {backgroundColor: headerBg}]}>
               {transaction && (
-                <Text
-                    preset="heading"
-                    text={getFormattedAmount(transaction.amount)}
-                    style={$tranAmount}
-                />
+                <>
+                  <CurrencySign 
+                      currencyCode={MintUnitCurrencyPairs[transaction.unit as MintUnit]}
+                      textStyle={{color: 'white'}}                        
+                  />
+                  <Text
+                      preset="heading"
+                      text={getFormattedAmount(transaction.amount)}
+                      style={$tranAmount}
+                  />
+                </>
               )}
             </View>
             <View style={$contentContainer}>
@@ -535,7 +542,7 @@ const ReceiveInfoBlock = function (props: {
                 <>
                     <TranItem
                         label="tranDetailScreen.amount"
-                        value={`${transaction.amount}`}
+                        value={`${transaction.amount} ${MintUnitCurrencyPairs[transaction.unit as MintUnit]}`}
                         isFirst={true}
                     />
                     <TranItem
@@ -763,7 +770,7 @@ const ReceiveOfflineInfoBlock = function (props: {
                         style={{flexDirection: 'row', justifyContent: 'space-between'}}>
                         <TranItem
                             label="tranDetailScreen.amount"
-                            value={`${transaction.amount}`}
+                            value={`${transaction.amount} ${MintUnitCurrencyPairs[transaction.unit as MintUnit]}`}
                             isFirst={true}
                         />
                         {isInternetReachable ? (
@@ -933,7 +940,7 @@ const SendInfoBlock = function (props: {
                     <>
                         <TranItem
                             label="tranDetailScreen.amount"
-                            value={`${transaction.amount}`}
+                            value={`${transaction.amount} ${MintUnitCurrencyPairs[transaction.unit as MintUnit]}`}
                             isFirst={true}
                         />
                         <TranItem
@@ -1176,7 +1183,7 @@ const TopupInfoBlock = function (props: {
                 <>
                     <TranItem
                         label="tranDetailScreen.amount"
-                        value={`${transaction.amount}`}
+                        value={`${transaction.amount} ${MintUnitCurrencyPairs[transaction.unit as MintUnit]}`}
                         isFirst={true}
                     />
                     <TranItem
@@ -1403,7 +1410,7 @@ const TransferInfoBlock = function (props: {
           <>
             <TranItem
               label="tranDetailScreen.amount"
-              value={`${transaction.amount}`}
+              value={`${transaction.amount} ${MintUnitCurrencyPairs[transaction.unit as MintUnit]}`}
               isFirst={true}
             />
             <TranItem

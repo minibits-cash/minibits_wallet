@@ -2,16 +2,36 @@ import {cast, flow, Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-t
 import {withSetPropAction} from './helpers/withSetPropAction'
 import type {GetInfoResponse, MintKeys, MintKeyset} from '@cashu/cashu-ts'
 import {colors, getRandomIconColor} from '../theme'
-import { log, MintClient, MintUnit } from '../services'
+import { log, MintClient } from '../services'
 import { MINIBITS_MINT_URL } from '@env'
 
 import AppError, { Err } from '../utils/AppError'
+import { MintUnit } from '../services/wallet/currency'
 
 // used as a helper type across app
-export type MintBalance = {
-    mint: string
+/* export type Balance = {
     balance: number
+    unit: MintUnit
+}*/
+
+export type MintBalance = {
+    mintUrl: string
+    balances: {
+        [key in MintUnit]?: number
+    }   
+}  
+
+export type UnitBalance = {    
+    unitBalance: number
+    unit: MintUnit
 }
+
+export type Balances = {
+    mintBalances: MintBalance[]
+    unitBalances: UnitBalance[]
+}
+
+
 
 export enum MintStatus {
     ONLINE = 'ONLINE',
@@ -72,7 +92,8 @@ export const MintModel = types
         },
     }))
     .actions(self => ({          
-        getOrCreateProofsCounter(keysetId: string, unit?: MintUnit) {            
+        getOrCreateProofsCounter(keysetId: string, unit?: MintUnit) {
+            log.trace('[getOrCreateProofsCounter]', keysetId, unit)           
             const counter = self.proofsCounters.find(c => c.keyset === keysetId)
 
             if(!counter) {  
@@ -94,8 +115,8 @@ export const MintModel = types
                 return instance
             }
 
-            if(counter.unit !== unit) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Mistmatch of proofsCounter keyset and passed unit', {counter, unit})
+            if(unit && counter.unit !== unit) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Mismatch of proofsCounter keyset and passed unit', {counter, unit})
             }
             
             return counter as MintProofsCounter
@@ -142,24 +163,7 @@ export const MintModel = types
                 const info: GetInfoResponse = yield MintClient.getMintInfo(self.mintUrl)
 
                 if(info.name.length > 0) {
-                    let identifier: string = ''
-
-                    if(shortname.length > 6) {
-                        identifier = `${shortname.slice(0, 3)}...${shortname.slice(-3)}`
-                    } else {
-                        identifier = shortname
-                    }
-
-                    if(identifier.length > 0) {
-                        shortname = `${info.name} (${identifier})`
-                    } else {
-                        shortname = info.name
-                    }
-                }
-
-                // temporary UX fix for minibits mint
-                if(self.mintUrl === MINIBITS_MINT_URL) {
-                    shortname = 'Bitcoin (sats)'
+                    shortname = info.name                    
                 }
 
                 self.shortname = shortname

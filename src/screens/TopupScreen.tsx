@@ -34,7 +34,7 @@ import {
 import {TransactionStatus, Transaction} from '../models/Transaction'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
-import {MintUnit, NostrClient, NostrProfile, NostrUnsignedEvent, TransactionTaskResult, WalletTask} from '../services'
+import {NostrClient, NostrProfile, NostrUnsignedEvent, TransactionTaskResult, WalletTask} from '../services'
 import {log} from '../services/logService'
 import AppError, { Err } from '../utils/AppError'
 
@@ -51,7 +51,8 @@ import { LNURLWithdrawParams } from 'js-lnurl'
 import { roundDown } from '../utils/number'
 import { LnurlClient, LnurlWithdrawResult } from '../services/lnurlService'
 import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
-import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
+import { CurrencySign } from './Wallet/CurrencySign'
+import { CurrencyCode, MintUnit, MintUnitCurrencyPairs, MintUnits } from "../services/wallet/currency"
 
 if (
   Platform.OS === 'android' &&
@@ -560,8 +561,9 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
             <View style={$amountContainer}>
                 <CurrencySign 
-                    currencyCode={CurrencyCode.SATS}
-                    textStyle={{color: 'white'}}                    
+                    currencyCode={MintUnitCurrencyPairs[unit]}
+                    textStyle={{color: 'white'}} 
+                    containerStyle={{alignSelf: 'center'}}                   
                 />
                 <TextInput
                     ref={amountInputRef}
@@ -622,6 +624,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                     <MintBalanceSelector
                         availableMintBalances={availableMintBalances}
                         mintBalanceToTopup={mintBalanceToTopup as MintBalance}
+                        unit={unit}
                         onMintBalanceSelect={onMintBalanceSelect}
                         onCancel={onMintBalanceCancel}
                         findByUrl={mintsStore.findByUrl}
@@ -777,13 +780,14 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 const MintBalanceSelector = observer(function (props: {
   availableMintBalances: MintBalance[]
   mintBalanceToTopup: MintBalance
+  unit: MintUnit
   onMintBalanceSelect: any
   onCancel: any
   findByUrl: any
   onMintBalanceConfirm: any
 }) {
   const onMintSelect = function (balance: MintBalance) {
-    log.trace('onMintBalanceSelect', balance.mint)
+    log.trace('onMintBalanceSelect', balance.mintUrl)
     return props.onMintBalanceSelect(balance)
   }
 
@@ -800,17 +804,18 @@ const MintBalanceSelector = observer(function (props: {
                 renderItem={({ item, index }) => {                                
                     return(
                         <MintListItem
-                            key={item.mint}
-                            mint={props.findByUrl(item.mint)}
+                            key={item.mintUrl}
+                            mint={props.findByUrl(item.mintUrl)}
                             mintBalance={item}
+                            selectedUnit={props.unit}
                             onMintSelect={() => onMintSelect(item)}
                             isSelectable={true}
-                            isSelected={props.mintBalanceToTopup.mint === item.mint}
+                            isSelected={props.mintBalanceToTopup.mintUrl === item.mintUrl}
                             separator={'top'}
                         />
                     )
                 }}
-                keyExtractor={(item) => item.mint} 
+                keyExtractor={(item) => item.mintUrl} 
                 style={{ flexGrow: 0, maxHeight: spacing.screenHeight * 0.35 }}
             /> 
           </>
@@ -858,7 +863,7 @@ const SelectedMintBlock = observer(function (props: {
                     <MintListItem
                         mint={
                         mintsStore.findByUrl(
-                            props.mintBalanceToTopup?.mint as string,
+                            props.mintBalanceToTopup?.mintUrl as string,
                         ) as Mint
                         }
                         isSelectable={false}                
@@ -1148,7 +1153,7 @@ const LnurlWithdrawBlock = observer(function (props: {
             leftIcon='faCheckCircle'
             leftIconColor={colors.palette.success200}
             text={`Invoice for ${props.amountToTopup} SATS created`}
-            subText={`Your selected mint balance to top up is ${props.mintBalanceToTopup.mint}`}
+            subText={`Your selected mint balance to top up is ${props.mintBalanceToTopup.mintUrl}`}
             bottomSeparator={true}
         />
         {props.isWithdrawRequestSending ? (

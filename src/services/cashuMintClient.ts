@@ -21,10 +21,8 @@ import {Proof} from '../models/Proof'
 import { deriveSeedFromMnemonic } from '@cashu/cashu-ts'
 import { isObj } from '@cashu/cashu-ts/src/utils'
 import { JS_BUNDLE_VERSION } from '@env'
+import { MintUnit } from './wallet/currency'
 
-export type MintKeys = {[k: number]: string}
-export type MintKeySets = {keysets: Array<string>}
-export type MintUnit = 'sat' | 'msat' | 'usd'
 
 let _mints: CashuMint[] = []
 let _wallets: CashuWallet[] = [] // used where seed is not required (perf)

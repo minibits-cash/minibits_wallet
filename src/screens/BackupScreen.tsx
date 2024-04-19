@@ -21,6 +21,7 @@ import AppError from '../utils/AppError'
 import EventEmitter from '../utils/eventEmitter'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {Database, log, WalletTask, WalletTaskResult} from '../services'
+import { getSnapshot } from 'mobx-state-tree'
 
 export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(function BackupScreen(_props) {
     const {navigation} = _props
@@ -79,9 +80,17 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
         const result = userSettingsStore.setIsLocalBackupOn(!isLocalBackupOn)
         setIsLocalBackupOn(result)
 
-        if (result === true) {
-          Database.addOrUpdateProofs(proofsStore.allProofs)
-          Database.addOrUpdateProofs(proofsStore.allPendingProofs, true)
+        if (result === true) { 
+                    
+          log.trace('[toggleBackupSwitch]', JSON.stringify(proofsStore.getBalances()))
+          
+          if(proofsStore.allProofs.length > 0){
+            log.trace('[toggleBackupSwitch]', JSON.stringify(proofsStore.allProofs))
+            Database.addOrUpdateProofs(proofsStore.allProofs)
+          }
+          if(proofsStore.allPendingProofs.length > 0){
+            Database.addOrUpdateProofs(proofsStore.allPendingProofs, true)
+          }
 
           setBackupResultMessage(
             'Your minibits tokens were backed up to local database. New tokens will be backed up automatically.',
@@ -122,9 +131,10 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
 
     const increaseCounters = async function () {
         for (const mint of mintsStore.allMints) {
-            mint.increaseProofsCounter(50)
-        }
-  
+          for(const counter of mint.proofsCounters) {
+            mint.increaseProofsCounter(counter.keyset, 50)
+          }            
+        }  
         setInfo('Recovery indexes increased by 50')
     }
 

@@ -283,7 +283,9 @@ const $componentContainer: ViewStyle = {
 }
 
 const $bottomComponentContainer: ViewStyle = {
-  flex: 0,  
+  flex: 0,
+  flexDirection: 'row',
+  paddingBottom: spacing.extraSmall,
 }
 
 const $iconContainer: ViewStyle = {

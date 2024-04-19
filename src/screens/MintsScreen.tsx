@@ -120,12 +120,12 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
 	const removeMint = async function () {
         if (!selectedMint) {return}
 
-        const proofsByMint = proofsStore.getByMint(selectedMint.mintUrl)
-        const pendingProofsByMint = proofsStore.getByMint(selectedMint.mintUrl, true)
+        const proofsByMint = proofsStore.getByMint(selectedMint.mintUrl, {isPending: false})
+        const pendingProofsByMint = proofsStore.getByMint(selectedMint.mintUrl, {isPending: true})
         let message: string = ''
 
         if (proofsByMint && proofsByMint.length > 0) {
-            message = `Your wallet has ${proofsStore.getMintBalance(selectedMint.mintUrl)?.balance} SATS balance with this mint. If removed, your ecash will be lost!\n\n`            
+            message = `Your wallet has non-zero balance with this mint. If removed, your ecash will be lost!\n\n`            
         }
 
         message += `Do you really want to remove ${selectedMint.hostname} - ${selectedMint.shortname} from the wallet?`
@@ -266,6 +266,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                       isSelectable={true}
                       isSelected={selectedMint?.mintUrl === mint.mintUrl}
                       isBlocked={mintsStore.isBlocked(mint.mintUrl as string)}
+                      isUnitVisible={true}
                       separator={index !== 0 ? 'top' : undefined}
                     />
                   ))}
@@ -343,6 +344,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                         <TextInput
                             ref={mintInputRef}
                             onChangeText={mintUrl => setMintUrl(mintUrl)}
+                            onFocus={() => mintUrl.length === 0 ? setMintUrl('https://') : undefined}
                             autoCapitalize='none'
                             keyboardType='default'
                             value={mintUrl}

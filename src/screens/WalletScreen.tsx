@@ -7,8 +7,7 @@ import {
   View,
   Text as RNText,
   AppState,
-  Image,
-  InteractionManager,
+  Image,  
   Animated,
   FlatList,
   Pressable,
@@ -35,13 +34,12 @@ import {
   ScanIcon
 } from '../components'
 import {useStores} from '../models'
-import EventEmitter from '../utils/eventEmitter'
 import {WalletStackScreenProps} from '../navigation'
-import {Mint, MintBalance, MintStatus} from '../models/Mint'
+import {Mint, MintBalance, MintStatus, UnitBalance} from '../models/Mint'
 import {MintsByHostname} from '../models/MintsStore'
-import {Database, KeyChain, log, NostrClient} from '../services'
+import {log, NostrClient} from '../services'
 import {Env} from '../utils/envtypes'
-import {Transaction, TransactionStatus} from '../models/Transaction'
+import {Transaction} from '../models/Transaction'
 import {TransactionListItem} from './Transactions/TransactionListItem'
 import {WalletTask} from '../services'
 import {translate} from '../i18n'
@@ -54,12 +52,10 @@ import {
     NATIVE_VERSION_ANDROID
 } from '@env'
 import { round } from '../utils/number'
-import { NotificationService } from '../services/notificationService'
-import { PaymentRequest } from '../models/PaymentRequest'
-import Clipboard from '@react-native-clipboard/clipboard'
 import { IncomingParser } from '../services/incomingParser'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
-import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
+import { CurrencySign } from './Wallet/CurrencySign'
+import { Currencies, CurrencyCode, MintUnit, MintUnitCurrencyPairs, MintUnits } from "../services/wallet/currency"
 
 // refresh
 
@@ -380,8 +376,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 }                
             />        
             <TotalBalanceBlock
-                totalBalance={balances.totalBalance}
-                pendingBalance={balances.totalPendingBalance}
+                unitBalances={balances.unitBalances}                
                 isMoreThenOneMint={groupedMints.length > 1 ? true : false}
             />
             <View style={[$contentContainer, (groupedMints.length > 1) ? {marginTop: -spacing.extraLarge * 2.4} : {marginTop: -spacing.extraLarge * 1.8}]}>
@@ -413,7 +408,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                 <View key={mints.hostname}>
                                     <MintsByHostnameListItem                                    
                                         mintsByHostname={mints}
-                                        mintBalances={balances.mintBalances.filter(balance => balance.mint.includes(mints.hostname))}
+                                        mintBalances={balances.mintBalances.filter(balance => balance.mintUrl.includes(mints.hostname))}
                                         gotoMintInfo={gotoMintInfo}                                     
                                     />
                                     {transactionsStore.recentByHostname(mints.hostname).length > 0 && (
@@ -518,8 +513,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 )
 
 const TotalBalanceBlock = observer(function (props: {
-    totalBalance: number
-    pendingBalance: number
+    unitBalances: UnitBalance[]    
     isMoreThenOneMint: boolean
 }) {
     const headerBg = useThemeColor('header')
@@ -532,7 +526,7 @@ const TotalBalanceBlock = observer(function (props: {
                 testID='total-balance'
                 preset='heading'              
                 style={[$totalBalance, props.isMoreThenOneMint ? {color: balanceColor} : {color: balanceColor, paddingTop: spacing.tiny}]}            
-                text={props.totalBalance.toLocaleString()}
+                text={props.unitBalances[0].unitBalance.toLocaleString()}
             />
         </View>
     )
@@ -580,14 +574,18 @@ const MintsByHostnameListItem = observer(function (props: {
     gotoMintInfo: any
 }) {
     const color = useThemeColor('textDim')
-    const balanceColor = useThemeColor('amount')       
+    const balanceColor = useThemeColor('amount')
+    const {mintsByHostname, mintBalances} = props
+
+    const isSingleMint: boolean = mintsByHostname.mints.length === 1 || false
+    const singleMint: Mint = mintsByHostname.mints[0]    
 
     return (
         <Card
             verticalAlignment='force-footer-bottom'
             HeadingComponent={
             <ListItem
-                text={props.mintsByHostname.hostname}
+                text={mintsByHostname.hostname}
                 textStyle={$cardHeading}
                 style={{marginHorizontal: spacing.micro}}
                 //bottomSeparator={true}                
@@ -595,19 +593,57 @@ const MintsByHostnameListItem = observer(function (props: {
             }
             ContentComponent={
             <>
-                {props.mintsByHostname.mints.map((mint: Mint) => (
+                {isSingleMint && singleMint.units && (
+                    singleMint.units.map((unit: MintUnit) => (
+                    <ListItem
+                        key={unit}
+                        text={MintUnitCurrencyPairs[unit]}
+                        textStyle={[$mintText, {color}]}
+                        LeftComponent={
+                            <SvgXml 
+                                width={spacing.large} 
+                                height={spacing.large} 
+                                xml={Currencies[MintUnitCurrencyPairs[unit]]?.icon || null}                                
+                                style={{marginHorizontal: spacing.extraSmall}}
+                            />                            
+                        }
+                        RightComponent={
+                        <View style={$balanceContainer}>
+                            <Text style={[$balance, {color: balanceColor}]}>
+                            {(mintBalances.find(b => b.mintUrl === singleMint.mintUrl)
+                                ?.balances[unit] || 0).toLocaleString()}
+                            </Text>
+                        </View>
+                        }
+                        BottomComponent={singleMint.status === MintStatus.OFFLINE ? 
+                            <View style={{flexDirection: 'row'}}>
+                                <Icon icon='faTriangleExclamation' />
+                                <Text text='OFFLINE' size='xxs' style={{color}}/> 
+                            </View>
+                        : undefined}                        
+                        style={$item}
+                        onPress={() => props.gotoMintInfo(singleMint.mintUrl)}
+                    />
+                )))}
+                {!isSingleMint && mintsByHostname.mints.map((mint: Mint) => (
                 <ListItem
                     key={mint.mintUrl}
-                    text={mint.shortname}
+                    text={`${MintUnitCurrencyPairs[mint.units[0]]} (${mint.shortname})`}
                     textStyle={[$mintText, {color}]}
-                    leftIcon={mint.status === MintStatus.OFFLINE ? 'faTriangleExclamation' : 'faCoins'}
-                    leftIconColor={mint.color}                    
+                    LeftComponent={
+                        <SvgXml 
+                            width={spacing.large} 
+                            height={spacing.large} 
+                            xml={Currencies[MintUnitCurrencyPairs[mint.units[0]]]?.icon || null}                                
+                            style={{marginHorizontal: spacing.extraSmall}}
+                        />                            
+                    }                 
                     leftIconInverse={true}
                     RightComponent={
                     <View style={$balanceContainer}>
                         <Text style={[$balance, {color: balanceColor}]}>
-                        {(props.mintBalances.find(b => b.mint === mint.mintUrl)
-                            ?.balance || 0).toLocaleString()}
+                        {(mintBalances.find(b => b.mintUrl === mint.mintUrl)
+                            ?.balances[mint.units[0]] || 0).toLocaleString()}
                         </Text>
                     </View>
                     }

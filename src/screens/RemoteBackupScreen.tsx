@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
-import {FlatList, Linking, Platform, Switch, TextStyle, View, ViewStyle} from 'react-native'
+import {FlatList, TextStyle, View, ViewStyle} from 'react-native'
 import {validateMnemonic} from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import {colors, spacing, useThemeColor} from '../theme'

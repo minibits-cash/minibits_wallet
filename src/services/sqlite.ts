@@ -204,7 +204,7 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
         log.info(`Prepared database migrations from ${currentVersion} -> 8`)
     }
 
-    if (currentVersion < 8) {
+    if (currentVersion < 9) {
       migrationQueries.push([
           `ALTER TABLE transactions
           ADD COLUMN unit TEXT`,       
@@ -214,14 +214,14 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
       ])
 
       log.info(`Prepared database migrations from ${currentVersion} -> 9`)
-  }
+    }
 
-  // Update db version as a part of migration sqls
-  migrationQueries.push([
-    `INSERT OR REPLACE INTO dbversion (id, version, createdAt)
-     VALUES (?, ?, ?)`,
-    [1, _dbVersion, now.toISOString()],
-  ])
+    // Update db version as a part of migration sqls
+    migrationQueries.push([
+      `INSERT OR REPLACE INTO dbversion (id, version, createdAt)
+      VALUES (?, ?, ?)`,
+      [1, _dbVersion, now.toISOString()],
+    ])
 
   try {
     const {rowsAffected} = db.executeBatch(migrationQueries)
@@ -876,14 +876,15 @@ const addOrUpdateProofs = function (
 
     for (const proof of proofs) {
       insertQueries.push([
-        ` INSERT OR REPLACE INTO proofs (id, amount, secret, C, tId, isPending, isSpent, updatedAt)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ` INSERT OR REPLACE INTO proofs (id, amount, secret, C, unit, tId, isPending, isSpent, updatedAt)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           proof.id,
           proof.amount,
           proof.secret,
           proof.C,
+          proof.unit,
           proof.tId,
           isPending,
           isSpent,
@@ -891,6 +892,8 @@ const addOrUpdateProofs = function (
         ],
       ])
     }
+
+    // log.trace('[addOrUpdateProofs]', {insertQueries})
 
     // Execute the batch of SQL statements
     const db = getInstance()

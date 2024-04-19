@@ -1,12 +1,11 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useEffect, useState} from 'react'
+import React, {FC, useState} from 'react'
 import {TextStyle, View, ViewStyle} from 'react-native'
 import { TabBar, TabView, Route } from 'react-native-tab-view'
 import {colors, spacing, useThemeColor} from '../theme'
 import {Screen, Text} from '../components'
 import { IncomingRequests } from './PaymentRequests/IncomingRequests'
 import { OutgoingRequests } from './PaymentRequests/OutgoingRequests'
-import { log } from '../services/logService'
 import { useHeader } from '../utils/useHeader'
 import { WalletStackScreenProps } from '../navigation'
 

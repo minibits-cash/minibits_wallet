@@ -28,7 +28,7 @@ import {Mint} from '../models/Mint'
 import {Transaction, TransactionStatus} from '../models/Transaction'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
-import {MintClient, MintUnit, TransactionTaskResult, WalletTask} from '../services'
+import {MintClient, TransactionTaskResult, WalletTask} from '../services'
 import EventEmitter from '../utils/eventEmitter'
 import {log} from '../services/logService'
 import AppError, {Err} from '../utils/AppError'
@@ -43,7 +43,8 @@ import { SendOption } from './SendOptionsScreen'
 import { roundUp } from '../utils/number'
 import { LnurlClient, LNURLPayParams } from '../services/lnurlService'
 import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
-import { CurrencyCode, CurrencySign } from './Wallet/CurrencySign'
+import { CurrencySign } from './Wallet/CurrencySign'
+import { CurrencyCode, MintUnit, MintUnits } from "../services/wallet/currency"
 import { FeeBadge } from './Wallet/FeeBadge'
 import { MeltQuoteResponse } from '@cashu/cashu-ts'
 
@@ -236,18 +237,18 @@ useEffect(() => {
     const getEstimatedFee = async function () {
         try {
             log.trace('[getEstimatedFee]', 'mintBalanceToTransferFrom', mintBalanceToTransferFrom)  
-            if (!mintBalanceToTransferFrom || !encodedInvoice) {
+            if (!mintBalanceToTransferFrom || !mintBalanceToTransferFrom.balances[unit] || !encodedInvoice) {
                 return
             }            
             setIsLoading(true)
             const meltQuote = await MintClient.getLightningMeltQuote(
-                mintBalanceToTransferFrom.mint,
+                mintBalanceToTransferFrom.mintUrl,
                 unit,
                 encodedInvoice,
             )
             setIsLoading(false)
             
-            if (parseInt(amountToTransfer) + meltQuote.fee_reserve > mintBalanceToTransferFrom.balance) {
+            if (parseInt(amountToTransfer) + meltQuote.fee_reserve > mintBalanceToTransferFrom.balances[unit]) {
                 setInfo(
                     'There are not enough funds to cover expected lightning network fee. Try selecting another mint with a higher balance.',
                 )
@@ -438,7 +439,7 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
         }        
 
         // all with enough balance
-        let availableBalances = proofsStore.getMintBalancesWithEnoughBalance(amount)
+        let availableBalances = proofsStore.getMintBalancesWithEnoughBalance(amount, unit)
 
         if (availableBalances.length === 0) {
             infoMessage('There are not enough funds to send this amount')
@@ -510,7 +511,7 @@ const satsColor = colors.palette.primary200
             <View style={[$headerContainer, {backgroundColor: headerBg}]}>
                 <View style={$amountContainer}>
                     <CurrencySign 
-                        currencyCode={CurrencyCode.SATS}
+                        currencyCode={MintUnits[unit as any] as CurrencyCode}
                         textStyle={{color: 'white'}}                        
                     />
                     <TextInput
@@ -567,7 +568,8 @@ const satsColor = colors.palette.primary200
                     transactionStatus !== TransactionStatus.COMPLETED && (
                     <MintBalanceSelector
                         availableMintBalances={availableMintBalances}
-                        mintBalanceToSendFrom={mintBalanceToTransferFrom as MintBalance}                        
+                        mintBalanceToSendFrom={mintBalanceToTransferFrom as MintBalance}
+                        unit={unit}                      
                         onMintBalanceSelect={onMintBalanceSelect}
                         onCancel={onClose}
                         findByUrl={mintsStore.findByUrl}
@@ -584,15 +586,16 @@ const satsColor = colors.palette.primary200
                         <MintListItem
                             mint={
                             mintsStore.findByUrl(
-                                mintBalanceToTransferFrom?.mint as string,
+                                mintBalanceToTransferFrom?.mintUrl as string,
                             ) as Mint
                             }
+                            selectedUnit={unit}
                             isSelectable={false}
                             mintBalance={proofsStore
                             .getBalances()
                             .mintBalances.find(
                                 balance =>
-                                balance.mint === mintBalanceToTransferFrom?.mint,
+                                balance.mintUrl === mintBalanceToTransferFrom?.mintUrl,
                             )}
                             separator={'top'}
                         />
@@ -712,7 +715,8 @@ const satsColor = colors.palette.primary200
 
 const MintBalanceSelector = observer(function (props: {
   availableMintBalances: MintBalance[]
-  mintBalanceToSendFrom: MintBalance  
+  mintBalanceToSendFrom: MintBalance
+  unit: MintUnit 
   onMintBalanceSelect: any
   onCancel: any
   findByUrl: any
@@ -720,7 +724,7 @@ const MintBalanceSelector = observer(function (props: {
 }) {
 
     const onMintSelect = function(balance: MintBalance) {
-        log.trace('onMintBalanceSelect', balance.mint)
+        log.trace('onMintBalanceSelect', balance.mintUrl)
         return props.onMintBalanceSelect(balance)
     }
 
@@ -737,17 +741,18 @@ const MintBalanceSelector = observer(function (props: {
                 renderItem={({ item, index }) => {                                
                     return(
                         <MintListItem
-                            key={item.mint}
-                            mint={props.findByUrl(item.mint) as Mint}
+                            key={item.mintUrl}
+                            mint={props.findByUrl(item.mintUrl) as Mint}
                             mintBalance={item}
+                            selectedUnit={props.unit}
                             onMintSelect={() => onMintSelect(item)}
                             isSelectable={true}
-                            isSelected={props.mintBalanceToSendFrom.mint === item.mint}
+                            isSelected={props.mintBalanceToSendFrom.mintUrl === item.mintUrl}
                             separator={'top'}
                         />
                     )
                 }}                
-                keyExtractor={(item) => item.mint} 
+                keyExtractor={(item) => item.mintUrl} 
                 style={{ flexGrow: 0, maxHeight: spacing.screenHeight * 0.35 }}
             />
           </>

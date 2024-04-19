@@ -1,7 +1,7 @@
 import {observer} from 'mobx-react-lite'
 import { Observer } from 'mobx-react-lite'
 import Clipboard from '@react-native-clipboard/clipboard'
-import React, {FC, useCallback, useEffect, useRef, useState} from 'react'
+import React, {FC, useRef, useState} from 'react'
 import {FlatList, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {SettingsStackScreenProps} from '../navigation' // @demo remove-current-line
@@ -10,7 +10,7 @@ import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import { Relay } from '../models/Relay'
 import AppError, { Err } from '../utils/AppError'
-import { log, NostrClient, WalletTask } from '../services'
+import { log, WalletTask } from '../services'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 
 interface SettingsScreenProps extends SettingsStackScreenProps<'Relays'> {}

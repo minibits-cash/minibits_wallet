@@ -1,31 +1,24 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useState, useEffect, useRef, useMemo} from 'react'
+import React, {FC, useState, useEffect} from 'react'
 import {
   ImageStyle,
   TextStyle,
   ViewStyle,
-  View,
-  Image,
+  View,  
   FlatList,
 } from 'react-native'
-import {formatDistance, toDate} from 'date-fns'
-import {useThemeColor, spacing, colors, typography} from '../../theme'
+import {useThemeColor, spacing, typography} from '../../theme'
 import {
   Screen,
-  Text,
   Card,
-  ListItem,
   ErrorModal,
   InfoModal,
   Loading,
 } from '../../components'
-import {WalletStackParamList, WalletStackScreenProps} from '../../navigation'
-import {useHeader} from '../../utils/useHeader'
+import {WalletStackParamList} from '../../navigation'
 import {useStores} from '../../models'
 import AppError from '../../utils/AppError'
 import { PaymentRequest } from '../../models/PaymentRequest'
-import { MINIBITS_NIP05_DOMAIN, MINIBITS_SERVER_API_HOST } from '@env'
-import { SendOption } from '../SendOptionsScreen'
 import { StackNavigationProp } from '@react-navigation/stack'
 import { PaymentRequestListItem } from './PaymentRequestListItem'
 

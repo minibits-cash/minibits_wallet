@@ -30,7 +30,7 @@ index 1491934..7a88aea 100644
  /**
   * Class represents Cashu Mint API. This class contains Lower level functions that are implemented by CashuWallet.
 diff --git a/node_modules/@cashu/cashu-ts/src/CashuWallet.ts b/node_modules/@cashu/cashu-ts/src/CashuWallet.ts
-index 6d3a0b4..c30dbf6 100644
+index 6d3a0b4..02ddb59 100644
 --- a/node_modules/@cashu/cashu-ts/src/CashuWallet.ts
 +++ b/node_modules/@cashu/cashu-ts/src/CashuWallet.ts
 @@ -1,7 +1,7 @@
@@ -44,6 +44,25 @@ index 6d3a0b4..c30dbf6 100644
  import {
  	type AmountPreference,
  	type BlindedMessageData,
+@@ -21,15 +21,15 @@ import {
+ 	type Token,
+ 	type TokenEntry,
+ 	CheckStateEnum
+-} from './model/types/index.js';
++} from './model/types/index';
+ import {
+ 	bytesToNumber,
+ 	cleanToken,
+ 	getDecodedToken,
+ 	getDefaultAmountPreference,
+ 	splitAmount
+-} from './utils.js';
+-import { deriveBlindingFactor, deriveSecret, deriveSeedFromMnemonic } from './secrets.js';
++} from './utils';
++import { deriveBlindingFactor, deriveSecret, deriveSeedFromMnemonic } from './secrets';
+ import { validateMnemonic } from '@scure/bip39';
+ import { wordlist } from '@scure/bip39/wordlists/english';
+ import { createP2PKsecret, getSignedProofs } from '@cashu/crypto/modules/client/NUT11';
 @@ -113,6 +113,7 @@ class CashuWallet {
  		}
  	): Promise<ReceiveResponse> {
@@ -214,7 +233,7 @@ index dab9010..ea21a04 100644
  class Split {
  	proofs: Array<Proof>;
 diff --git a/node_modules/@cashu/cashu-ts/src/model/types/index.ts b/node_modules/@cashu/cashu-ts/src/model/types/index.ts
-index 95f7d4e..ed034ba 100644
+index 95f7d4e..03effa7 100644
 --- a/node_modules/@cashu/cashu-ts/src/model/types/index.ts
 +++ b/node_modules/@cashu/cashu-ts/src/model/types/index.ts
 @@ -93,6 +93,10 @@ export type ReceiveTokenEntryResponse = {
@@ -239,6 +258,17 @@ index 95f7d4e..ed034ba 100644
  };
  
  /**
+@@ -384,6 +392,10 @@ export type Token = {
+ 	 * token entries
+ 	 */
+ 	token: Array<TokenEntry>;
++	/**
++	 * unit
++	 */
++	unit?: string;
+ 	/**
+ 	 * a message to send along with the token
+ 	 */
 diff --git a/node_modules/@cashu/cashu-ts/src/utils.ts b/node_modules/@cashu/cashu-ts/src/utils.ts
 index 1729b99..5614b37 100644
 --- a/node_modules/@cashu/cashu-ts/src/utils.ts

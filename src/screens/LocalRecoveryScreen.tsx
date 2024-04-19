@@ -1,17 +1,12 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useState, useEffect, useRef, useMemo} from 'react'
 import {
-  ImageStyle,
   TextStyle,
   ViewStyle,
   View,
-  ScrollView,
-  Alert,
   useColorScheme,
 } from 'react-native'
-import {formatDistance, toDate} from 'date-fns'
 import {
-    type TokenEntry as CashuTokenEntry,
     type Proof as CashuProof,
 } from '@cashu/cashu-ts'
 import {useThemeColor, spacing, colors, typography} from '../theme'
@@ -31,13 +26,12 @@ import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
 import {Database} from '../services'
 import AppError from '../utils/AppError'
-import {BackupProof, Proof} from '../models/Proof'
+import {BackupProof} from '../models/Proof'
 import { useStores } from '../models'
 import { CashuUtils } from '../services/cashu/cashuUtils'
 import JSONTree from 'react-native-json-tree'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { getEncodedToken } from '@cashu/cashu-ts'
-import { TokenEntry } from '../models/TokenEntry'
 
 interface LocalRecoveryScreenProps
   extends SettingsStackScreenProps<'LocalRecovery'> {}

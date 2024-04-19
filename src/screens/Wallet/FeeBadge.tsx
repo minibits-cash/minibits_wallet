@@ -2,10 +2,9 @@ import React from "react"
 import { TextStyle, View, ViewStyle } from "react-native"
 import { Button, Icon, IconTypes, ListItem, Screen, Text } from "../../components"
 import { colors, spacing, typography, useThemeColor } from "../../theme"
+import { CurrencyCode } from "../../services/wallet/currency"
 
-export enum CurrencyCode {
-    SATS = 'SATS',    
-}
+
 
 export const FeeBadge = function(props: {
     currencyCode: CurrencyCode,
@@ -30,7 +29,7 @@ export const FeeBadge = function(props: {
             }, props.containerStyle || {}]}
         >
         <Text 
-            text={props.finalFee ? `+ final fee ${props.finalFee} SATS` : `+ fee up to ${props.estimatedFee} SATS`}
+            text={props.finalFee ? `+ final fee ${props.finalFee} ${props.currencyCode}` : `+ fee up to ${props.estimatedFee} ${props.currencyCode}`}
             style={[{
                 color: textColor,
                 fontSize: 10,
