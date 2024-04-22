@@ -35,6 +35,7 @@ import { PaymentRequestListItem } from './PaymentRequestListItem'
 import QRCode from 'react-native-qrcode-svg'
 import { infoMessage } from '../../utils/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
+import { translate } from '../../i18n'
 
 
 export const OutgoingRequests = observer(function (props: {
@@ -79,11 +80,11 @@ export const OutgoingRequests = observer(function (props: {
   
           if (result.action === Share.sharedAction) {          
             setTimeout(
-              () => infoMessage('Lightning invoice has been shared, waiting to be paid by receiver.'),              
+              () => infoMessage(translate("paymentRequestScreen.outgoing.invoiceShared")),              
               500,
             )
           } else if (result.action === Share.dismissedAction) {
-              infoMessage('Sharing cancelled')          
+              infoMessage(translate("paymentRequestScreen.outgoing.sharingCancelled"))          
           }
         } catch (e: any) {
           handleError(e)
@@ -95,7 +96,7 @@ export const OutgoingRequests = observer(function (props: {
         try {
             Clipboard.setString(selectedRequest?.encodedInvoice as string)
         } catch (e: any) {
-            setInfo(`Could not copy: ${e.message}`)
+            setInfo(translate("common.copyFailParam", { param: e.message }))
         }
     }
 
@@ -133,7 +134,7 @@ export const OutgoingRequests = observer(function (props: {
                
           ) : (
             <Card
-              content={'There are no outgoing payment requests to be paid or they have already expired.'}
+              contentTx="paymentRequestScreen.outgoing.noRequests"
               contentStyle={{color: hintColor, padding: spacing.small}}
               style={$card}
             />
@@ -171,7 +172,7 @@ const ShareAsQRCodeBlock = observer(function (props: {
   }) {
     return (
       <View style={[$bottomModal, {marginHorizontal: spacing.small}]}>
-        <Text text={'Scan and pay to top-up'} />
+        <Text tx="paymentRequestScreen.outgoing.scanAndPay" />
         <View style={$qrCodeContainer}>
           <QRCode 
               size={270} 
@@ -181,7 +182,7 @@ const ShareAsQRCodeBlock = observer(function (props: {
         </View>
         <View style={$buttonContainer}>
           <Button
-            text="Share"
+            tx="common.share"
             onPress={props.onShareToApp}
             style={{marginRight: spacing.medium}}
             LeftAccessory={() => (
@@ -193,10 +194,10 @@ const ShareAsQRCodeBlock = observer(function (props: {
               />
             )}
           />
-          <Button preset="secondary" text="Copy" onPress={props.onCopy} />
+          <Button preset="secondary" tx="common.copy" onPress={props.onCopy} />
           <Button
             preset="tertiary"
-            text="Close"
+            tx="common.close"
             onPress={props.toggleQRModal}
           />
         </View>
