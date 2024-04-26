@@ -7,6 +7,7 @@ import { MINIBITS_MINT_URL } from '@env'
 
 import AppError, { Err } from '../utils/AppError'
 import { MintUnit } from '../services/wallet/currency'
+import { getRootStore } from './helpers/getRootStore'
 
 // used as a helper type across app
 /* export type Balance = {
@@ -232,6 +233,12 @@ export const MintModel = types
             }
             
             self.proofsCounters = cast(self.proofsCounters)
+        },
+    }))
+    .views(self => ({
+        get balances(): MintBalance | undefined {
+            const mintBalance: MintBalance | undefined = getRootStore(self).proofsStore.getMintBalance(self.mintUrl)
+            return mintBalance
         },
     }))
     

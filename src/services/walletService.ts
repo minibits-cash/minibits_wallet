@@ -250,7 +250,7 @@ const topup = async function (
  * Checks with all mints whether their proofs kept in pending state by the wallet have been spent.
  */
 const handleSpentFromPending = async function (): Promise<void> {
-    log.trace('[handleSpentFromSpendable] start')    
+    log.trace('[handleSpentFromPending] start')    
     if (mintsStore.mintCount === 0) {
         return
     }
@@ -909,7 +909,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         // EventEmitter.emit('ev_topupCompleted', {...pr})
         
         // Update tx with current balance
-        const balanceAfter = proofsStore.getBalances().totalBalance
+        const balanceAfter = proofsStore.getBalances().mintBalances[mint as any].balances[unit as MintUnit]!
 
         await transactionsStore.updateBalanceAfter(
             transactionId as number,
@@ -1213,7 +1213,20 @@ const _sendReceiveNotification = async function (
 ): Promise<void> {
     let sentFromPubkey = event.pubkey
     let sentFrom = NostrClient.getFirstTagValue(event.tags, 'from')
-    let sentFromPicture: string | undefined = undefined  
+    let sentFromPicture: string | undefined = undefined
+
+    if(transaction) {
+        await transactionsStore.updateSentFrom(
+            transaction.id as number,
+            sentFrom as string
+        ) 
+    }
+
+    // Do not spent time to connect to relays if user has not allowed notifications
+    const enabled = await NotificationService.areNotificationsEnabled()
+    if(!enabled) {
+        return
+    }
 
     const maybeZapRequestString = NostrClient.findZapRequest(decrypted)
     let zapRequest: NostrEvent | undefined = undefined
@@ -1244,13 +1257,6 @@ const _sendReceiveNotification = async function (
         } catch (e: any) {
             log.warn('[_handleReceivedEventTask]', 'Could not get sender from zapRequest', {message: e.message, maybeZapRequestString})
         }
-    }
-
-    if(transaction) {
-        await transactionsStore.updateSentFrom(
-            transaction.id as number,
-            sentFrom as string
-        ) 
     }
 
     //

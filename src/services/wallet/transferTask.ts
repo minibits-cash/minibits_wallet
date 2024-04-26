@@ -7,10 +7,11 @@ import { MintBalance } from '../../models/Mint'
 import { Proof } from '../../models/Proof'
 import { Transaction, TransactionData, TransactionRecord, TransactionStatus, TransactionType } from '../../models/Transaction'
 import { log } from '../logService'
-import { MintClient, MintKeys, MintUnit } from '../cashuMintClient'
+import { MintClient } from '../cashuMintClient'
 import { WalletUtils } from './utils'
 import {isBefore} from 'date-fns'
 import { sendFromMint } from './sendTask'
+import { MintUnit } from './currency'
 
 const {
     transactionsStore,
@@ -29,7 +30,7 @@ export const transferTask = async function (
     invoiceExpiry: Date,    
     encodedInvoice: string,
 )  : Promise<TransactionTaskResult> {
-    const mintUrl = mintBalanceToTransferFrom.mint
+    const mintUrl = mintBalanceToTransferFrom.mintUrl
     const mintInstance = mintsStore.findByUrl(mintUrl)
 
     log.debug('[transfer]', 'mintBalanceToTransferFrom', mintBalanceToTransferFrom)
@@ -53,7 +54,7 @@ export const transferTask = async function (
     let proofsToPay: CashuProof[] = []
 
     try {
-        if (amountToTransfer + meltQuote.fee_reserve > mintBalanceToTransferFrom.balance) {
+        if (amountToTransfer + meltQuote.fee_reserve > mintBalanceToTransferFrom.balances[unit]!) {
             throw new AppError(Err.VALIDATION_ERROR, 'Mint balance is insufficient to cover the amount to transfer with expected Lightning fees.')
         }
     
@@ -75,7 +76,7 @@ export const transferTask = async function (
             unit,
             data: JSON.stringify(transactionData),
             memo,
-            mint: mintBalanceToTransferFrom.mint,
+            mint: mintBalanceToTransferFrom.mintUrl,
             status: TransactionStatus.DRAFT,
         }
 
@@ -215,7 +216,7 @@ export const transferTask = async function (
             JSON.stringify(transactionData),
         )
 
-        const balanceAfter = proofsStore.getBalances().totalBalance
+        const balanceAfter = proofsStore.getBalances().mintBalances[mintUrl as any].balances[unit as MintUnit]!
 
         await transactionsStore.updateBalanceAfter(transactionId, balanceAfter)       
 

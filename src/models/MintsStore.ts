@@ -8,15 +8,22 @@ import {
     flow,
   } from 'mobx-state-tree'
   import {withSetPropAction} from './helpers/withSetPropAction'
-  import {MintModel, Mint} from './Mint'
+  import {MintModel, Mint, MintBalance} from './Mint'
   import {log} from '../services/logService'  
-  import { MintClient, MintUnit } from '../services'  
+  import { MintClient } from '../services'  
   import AppError, { Err } from '../utils/AppError'
 import { MintKeyset } from '@cashu/cashu-ts'
+import { getRootStore } from './helpers/getRootStore'
+import { MintUnit } from '../services/wallet/currency'
   
   export type MintsByHostname = {
       hostname: string
       mints: Mint[]
+  }
+
+  export type MintsByUnit = {
+    unit: MintUnit
+    mints: Mint[]
   }
   
   export const MintsStoreModel = types
@@ -39,6 +46,10 @@ import { MintKeyset } from '@cashu/cashu-ts'
     
                 // create default wallet instance then download and cache up to date mint keys in that instance
                 const activeKeysets: MintKeyset[] = yield MintClient.getMintKeysets(mintUrl)
+
+                if(!activeKeysets || activeKeysets.length === 0) {
+                    throw new AppError(Err.VALIDATION_ERROR, 'Mint has no active keysets and is not operational', {mintUrl})
+                }
               
                 const newMint: Mint = {
                     mintUrl,                    
@@ -117,6 +128,20 @@ import { MintKeyset } from '@cashu/cashu-ts'
               })
   
               return Object.values(grouped) as MintsByHostname[]
+          },
+          get groupedByUnit() {
+            const groupedByUnit: Record<string, MintsByUnit> = {}
+
+            self.mints.forEach(mint => {
+                mint.units.forEach(unit => {
+                    if (!groupedByUnit[unit]) {
+                        groupedByUnit[unit] = { unit, mints: [] }
+                    }
+                    groupedByUnit[unit].mints.push(mint)
+                })
+            })
+
+            return Object.values(groupedByUnit) as MintsByUnit[]
           },
           alreadyExists(mintUrl: string) {
               return self.mints.some(m => m.mintUrl === mintUrl) ? true : false

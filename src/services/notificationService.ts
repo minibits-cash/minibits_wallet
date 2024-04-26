@@ -1,4 +1,4 @@
-import notifee, { AndroidImportance } from '@notifee/react-native'
+import notifee, { AndroidImportance, AuthorizationStatus } from '@notifee/react-native'
 import { colors } from '../theme';
 import { log } from './logService';
 
@@ -78,8 +78,20 @@ const cancelNotification = async function (id: string) {
     await notifee.cancelNotification(id)
 }
 
+
+const areNotificationsEnabled = async function (): Promise<boolean> {
+  const settings = await notifee.getNotificationSettings()
+
+  if (settings.authorizationStatus == AuthorizationStatus.AUTHORIZED) {
+    return true
+  } 
+  
+  return false
+}
+
 export const NotificationService = {
     createLocalNotification,
     updateLocalNotification,
     cancelNotification,
+    areNotificationsEnabled
 }

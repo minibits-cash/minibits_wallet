@@ -2,7 +2,7 @@ import React from "react"
 import { TextStyle, View, ViewStyle } from "react-native"
 import { SvgXml } from "react-native-svg"
 import { Text } from "../../components"
-import { colors, spacing, typography, useThemeColor } from "../../theme"
+import { Spacing, colors, spacing, typography, useThemeColor } from "../../theme"
 import { CurrencyCode, Currencies } from "../../services/wallet/currency"
 
 
@@ -10,6 +10,7 @@ export const CurrencySign = function(props: {
     currencyCode: CurrencyCode,
     containerStyle?: ViewStyle,
     textStyle?: TextStyle
+    size?: Spacing
   }
 ) {
   
@@ -26,11 +27,12 @@ export const CurrencySign = function(props: {
                 // borderWidth: 1,
                 flexDirection: 'row',
                 alignItems: 'center',
+                justifyContent: 'center',
             }, props.containerStyle || {}]}
         >
         <SvgXml        
-            width={spacing.medium}
-            height={spacing.medium}
+            width={props.size && spacing[props.size] * 1.5 || spacing.small * 1.5}
+            height={props.size && spacing[props.size] * 1.5 || spacing.small * 1.5}
             style={{marginRight: spacing.tiny}}
             xml={Currencies[props.currencyCode]?.icon || null}            
         />
@@ -38,9 +40,10 @@ export const CurrencySign = function(props: {
             text={Currencies[props.currencyCode]?.code}            
             style={[{
                 color: textColor,
-                fontSize: 10,
+                fontSize: props.size && spacing[props.size] || spacing.small,
                 fontFamily: typography.primary?.light,
-                lineHeight: spacing.large
+                lineHeight: props.size && spacing[props.size] * 1.5 || spacing.small * 1.5
+
             }, props.textStyle || {}]}
         />
         </View>

@@ -17,7 +17,7 @@ import codePush, { RemotePackage } from 'react-native-code-push'
 import {moderateVerticalScale, verticalScale} from '@gocodingnow/rn-size-matters'
 import { SvgXml } from 'react-native-svg'
 import PagerView, { PagerViewOnPageScrollEventData } from 'react-native-pager-view'
-import { ScalingDot } from 'react-native-animated-pagination-dots'
+import { ScalingDot, SlidingDot } from 'react-native-animated-pagination-dots'
 import {useThemeColor, spacing, colors, typography} from '../theme'
 import {
   Button,
@@ -36,7 +36,7 @@ import {
 import {useStores} from '../models'
 import {WalletStackScreenProps} from '../navigation'
 import {Mint, MintBalance, MintStatus, UnitBalance} from '../models/Mint'
-import {MintsByHostname} from '../models/MintsStore'
+import {MintsByHostname, MintsByUnit} from '../models/MintsStore'
 import {log, NostrClient} from '../services'
 import {Env} from '../utils/envtypes'
 import {Transaction} from '../models/Transaction'
@@ -56,6 +56,7 @@ import { IncomingParser } from '../services/incomingParser'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { CurrencySign } from './Wallet/CurrencySign'
 import { Currencies, CurrencyCode, MintUnit, MintUnitCurrencyPairs, MintUnits } from "../services/wallet/currency"
+import { CurrencyAmount } from './Wallet/CurrencyAmount'
 
 // refresh
 
@@ -303,7 +304,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     }
     
     /* Mints pager */
-    const groupedMints = mintsStore.groupedByHostname
+    const groupedMints = mintsStore.groupedByUnit
+    log.trace('[WalletScreen]', {groupedByUnit: groupedMints})
     const width = spacing.screenWidth
     const pagerRef = useRef<PagerView>(null)
     const scrollOffsetAnimatedValue = React.useRef(new Animated.Value(0)).current
@@ -353,13 +355,18 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             <Header 
                 leftIcon='faListUl'
                 leftIconColor={colors.palette.primary100}
+                // style={{borderWidth: 1, borderColor: 'red'}}
                 onLeftPress={gotoTranHistory}
                 TitleActionComponent={
-                    <CurrencySign 
-                        currencyCode={CurrencyCode.SATS}
-                        // containerStyle={{}}
-                        textStyle={{color: 'white'}}              
-                    />
+                    <>
+                    {!isInternetReachable ? (
+                        <Text   
+                            tx={'common.offline'}
+                            style={$offline}
+                            size='xxs'                          
+                        />
+                    ) : (undefined)}
+                    </>
                 }
                 RightActionComponent={
                 <>
@@ -374,115 +381,101 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                     )}
                 </>
                 }                
-            />        
-            <TotalBalanceBlock
-                unitBalances={balances.unitBalances}                
-                isMoreThenOneMint={groupedMints.length > 1 ? true : false}
             />
-            <View style={[$contentContainer, (groupedMints.length > 1) ? {marginTop: -spacing.extraLarge * 2.4} : {marginTop: -spacing.extraLarge * 1.8}]}>
-                {mintsStore.mintCount === 0 ? (
-                    <PromoBlock addMint={addMint} />
-                ) : (
-                    <>
-                        {groupedMints.length > 1 && (
-                            <ScalingDot
-                                testID={'sliding-border'}                        
-                                data={groupedMints}
-                                inActiveDotColor={colors.palette.primary300}
-                                activeDotColor={colors.palette.primary100}
-                                activeDotScale={1.2}
-                                containerStyle={{bottom: undefined, position: undefined, marginTop: -spacing.tiny, paddingBottom: spacing.medium}}
-                                //@ts-ignore
-                                scrollX={scrollX}
-                                dotSize={30}
+            {groupedMints.length === 0 && (
+                <>
+                    <ZeroBalanceBlock/>
+                    <View style={$contentContainer}>
+                        <PromoBlock addMint={addMint} />
+                    </View>
+                </>
+            )}
+            <AnimatedPagerView                            
+                initialPage={0}
+                ref={pagerRef}    
+                style={{flexGrow: 1, zIndex: 101, elevation: 6}}                                                        
+                onPageScroll={onPageScroll}
+            >
+                {groupedMints.map((mints) => (
+                    <View key={mints.unit}>
+                        <UnitBalanceBlock                            
+                            unitBalance={balances.unitBalances.find(balance => balance.unit === mints.unit)!}
+                        />
+                        <View style={$contentContainer}>
+                            <MintsByUnitListItem                                    
+                                mintsByUnit={mints}                                
+                                gotoMintInfo={gotoMintInfo}                                     
                             />
-                        )}
-                        <AnimatedPagerView
-                            testID="pager-view"
-                            initialPage={0}
-                            ref={pagerRef}
-                            style={{flexGrow: 1}}                                             
-                            onPageScroll={onPageScroll}
-                        >
-                            {groupedMints.map((mints) => (
-                                <View key={mints.hostname}>
-                                    <MintsByHostnameListItem                                    
-                                        mintsByHostname={mints}
-                                        mintBalances={balances.mintBalances.filter(balance => balance.mintUrl.includes(mints.hostname))}
-                                        gotoMintInfo={gotoMintInfo}                                     
-                                    />
-                                    {transactionsStore.recentByHostname(mints.hostname).length > 0 && (
-                                        <Card                                    
-                                            ContentComponent={                                            
-                                                <FlatList
-                                                    data={transactionsStore.recentByHostname(mints.hostname) as Transaction[]}
-                                                    renderItem={({item, index}) => {
-                                                        return (<TransactionListItem
-                                                            key={item.id}
-                                                            transaction={item}
-                                                            isFirst={index === 0}
-                                                            isTimeAgoVisible={true}
-                                                            gotoTranDetail={gotoTranDetail}
-                                                        />)
-                                                        }
-                                                    }
-                                                    // keyExtractor={(item, index) => item.id}
-                                                    // contentContainerStyle={{paddingRight: spacing.small}}
-                                                    style={{ maxHeight: 300 - (mints.mints.length > 1 ? mints.mints.length * 38 : 0)}}
-                                                />                                            
+                            {/*transactionsStore.recentByHostname(mints.hostname).length > 0 && (
+                                <Card                                    
+                                    ContentComponent={                                            
+                                        <FlatList
+                                            data={transactionsStore.recentByHostname(mints.hostname) as Transaction[]}
+                                            renderItem={({item, index}) => {
+                                                return (<TransactionListItem
+                                                    key={item.id}
+                                                    transaction={item}
+                                                    isFirst={index === 0}
+                                                    isTimeAgoVisible={true}
+                                                    gotoTranDetail={gotoTranDetail}
+                                                />)
+                                                }
                                             }
-                                            style={[$card, {paddingTop: spacing.extraSmall}]}
-                                        />
-                                    )}                               
-                                
-                                </View>
-                            ))}
-                        </AnimatedPagerView>
-                    </>
-                )}          
-
-                {isLoading && <Loading />}
-          </View>
-        
+                                            // keyExtractor={(item, index) => item.id}
+                                            // contentContainerStyle={{paddingRight: spacing.small}}
+                                            style={{ maxHeight: 300 - (mints.mints.length > 1 ? mints.mints.length * 38 : 0)}}
+                                        />                                            
+                                    }
+                                    style={[$card, {paddingTop: spacing.extraSmall}]}
+                                />
+                            )*/}
+                            
+                        </View>
+                    </View>     
+                ))}        
+            </AnimatedPagerView>
+          
+        {isLoading && <Loading />}
         <View style={[$bottomContainer]}>
-          <View style={$buttonContainer}>
-            <Button
-              tx={'walletScreen.receive'}
-              LeftAccessory={() => (
-                <Icon
-                  icon='faArrowDown'
-                  color='white'
-                  size={spacing.medium}                  
+
+            <View style={$buttonContainer}>
+                <Button
+                    tx={'walletScreen.receive'}
+                    LeftAccessory={() => (
+                        <Icon
+                        icon='faArrowDown'
+                        color='white'
+                        size={spacing.medium}                  
+                        />
+                    )}
+                    onPress={gotoReceiveOptions}
+                    style={[$buttonReceive, {borderRightColor: screenBg}]}
                 />
-              )}
-              onPress={gotoReceiveOptions}
-              style={[$buttonReceive, {borderRightColor: screenBg}]}
-            />
-            <Button
-              RightAccessory={() => (
-                <SvgXml 
-                    width={spacing.medium} 
-                    height={spacing.medium} 
-                    xml={ScanIcon}
-                    fill='white'
+                <Button
+                    RightAccessory={() => (
+                        <SvgXml 
+                            width={spacing.medium} 
+                            height={spacing.medium} 
+                            xml={ScanIcon}
+                            fill='white'
+                        />
+                    )}
+                    onPress={gotoScan}
+                    style={$buttonScan}
                 />
-              )}
-              onPress={gotoScan}
-              style={$buttonScan}
-            />
-            <Button
-              tx={'walletScreen.send'}
-              RightAccessory={() => (
-                <Icon
-                  icon='faArrowUp'
-                  color='white'
-                  size={spacing.medium}                  
+                <Button
+                    tx={'walletScreen.send'}
+                    RightAccessory={() => (
+                        <Icon
+                        icon='faArrowUp'
+                        color='white'
+                        size={spacing.medium}                  
+                        />
+                    )}
+                    onPress={gotoSendOptions}
+                    style={[$buttonSend, {borderLeftColor: screenBg}]}
                 />
-              )}
-              onPress={gotoSendOptions}
-              style={[$buttonSend, {borderLeftColor: screenBg}]}
-            />
-          </View>
+            </View>
         </View>
         <BottomModal
           isVisible={isUpdateModalVisible ? true : false}
@@ -512,25 +505,50 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
   },
 )
 
-const TotalBalanceBlock = observer(function (props: {
-    unitBalances: UnitBalance[]    
-    isMoreThenOneMint: boolean
+
+const UnitBalanceBlock = observer(function (props: {
+    unitBalance: UnitBalance
 }) {
     const headerBg = useThemeColor('header')
     const balanceColor = 'white'
     const currencyColor = colors.palette.primary200
+    const {unitBalance} = props
+    
+    log.trace('[UnitBalanceBlock]', {unitBalance})
 
     return (
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-            <Text
-                testID='total-balance'
+            <CurrencySign                
+                currencyCode={MintUnitCurrencyPairs[unitBalance.unit as MintUnit]}
+                size='small'
+                textStyle={{color: balanceColor}}
+            />
+            <Text                
                 preset='heading'              
-                style={[$totalBalance, props.isMoreThenOneMint ? {color: balanceColor} : {color: balanceColor, paddingTop: spacing.tiny}]}            
-                text={props.unitBalances[0].unitBalance.toLocaleString()}
+                style={[$unitBalance, {color: balanceColor, marginTop: spacing.small}]}            
+                text={unitBalance && unitBalance.unitBalance.toLocaleString() || '0'}
             />
         </View>
     )
 })
+
+
+const ZeroBalanceBlock = function () {
+    const headerBg = useThemeColor('header')
+    const balanceColor = 'white'
+    const currencyColor = colors.palette.primary200
+    
+
+    return (
+        <View style={[$headerContainer, {backgroundColor: headerBg}]}>
+            <Text                
+                preset='heading'              
+                style={[$unitBalance, {color: balanceColor}]}            
+                text={'0'}
+            />
+        </View>
+    )
+}
 
 const PromoBlock = function (props: {addMint: any}) {
     return (
@@ -567,93 +585,57 @@ const PromoBlock = function (props: {addMint: any}) {
 }
 
 
-
-const MintsByHostnameListItem = observer(function (props: {
-    mintsByHostname: MintsByHostname
-    mintBalances: MintBalance[]
+const MintsByUnitListItem = observer(function (props: {
+    mintsByUnit: MintsByUnit    
     gotoMintInfo: any
 }) {
+    /*const [isMenuVisible, setIsMenuVisible] = useState<boolean>(false)
+
+    const toggleMenu = function () {
+        if (isMenuVisible) {
+            log.trace('[toggleMenu]', !isMenuVisible)
+            setIsMenuVisible(false)
+        } else {
+            log.trace('[toggleMenu]', !isMenuVisible)
+            setIsMenuVisible(true)
+        }
+    }*/
+
     const color = useThemeColor('textDim')
     const balanceColor = useThemeColor('amount')
-    const {mintsByHostname, mintBalances} = props
+    const {mintsByUnit} = props
 
-    const isSingleMint: boolean = mintsByHostname.mints.length === 1 || false
-    const singleMint: Mint = mintsByHostname.mints[0]    
+    /* const isSingleMint: boolean = mintsByUnit.mints.length === 1 || false
+    const singleMint: Mint = mintsByUnit.mints[0] */
+
 
     return (
         <Card
-            verticalAlignment='force-footer-bottom'
-            HeadingComponent={
-            <ListItem
-                text={mintsByHostname.hostname}
-                textStyle={$cardHeading}
-                style={{marginHorizontal: spacing.micro}}
-                //bottomSeparator={true}                
-            />
-            }
+            verticalAlignment='force-footer-bottom'            
             ContentComponent={
-            <>
-                {isSingleMint && singleMint.units && (
-                    singleMint.units.map((unit: MintUnit) => (
+            <>                
+                {mintsByUnit.mints.map((mint: Mint) => (
                     <ListItem
-                        key={unit}
-                        text={MintUnitCurrencyPairs[unit]}
-                        textStyle={[$mintText, {color}]}
-                        LeftComponent={
-                            <SvgXml 
-                                width={spacing.large} 
-                                height={spacing.large} 
-                                xml={Currencies[MintUnitCurrencyPairs[unit]]?.icon || null}                                
-                                style={{marginHorizontal: spacing.extraSmall}}
-                            />                            
-                        }
+                        key={mint.mintUrl}
+                        text={mint.shortname}
+                        subText={mint.hostname}                    
+                        leftIcon='faCoins'              
+                        leftIconInverse={true}
+                        leftIconColor={mint.color}
                         RightComponent={
-                        <View style={$balanceContainer}>
-                            <Text style={[$balance, {color: balanceColor}]}>
-                            {(mintBalances.find(b => b.mintUrl === singleMint.mintUrl)
-                                ?.balances[unit] || 0).toLocaleString()}
-                            </Text>
-                        </View>
+                            <CurrencyAmount 
+                                amount={mint.balances?.balances[mintsByUnit.unit as MintUnit]}
+                                mintUnit={mintsByUnit.unit}
+                                size='medium'
+                            />                    
                         }
-                        BottomComponent={singleMint.status === MintStatus.OFFLINE ? 
-                            <View style={{flexDirection: 'row'}}>
-                                <Icon icon='faTriangleExclamation' />
-                                <Text text='OFFLINE' size='xxs' style={{color}}/> 
-                            </View>
-                        : undefined}                        
+                        //topSeparator={true}
                         style={$item}
-                        onPress={() => props.gotoMintInfo(singleMint.mintUrl)}
+                        onPress={() => props.gotoMintInfo(mint.mintUrl)}
                     />
-                )))}
-                {!isSingleMint && mintsByHostname.mints.map((mint: Mint) => (
-                <ListItem
-                    key={mint.mintUrl}
-                    text={`${MintUnitCurrencyPairs[mint.units[0]]} (${mint.shortname})`}
-                    textStyle={[$mintText, {color}]}
-                    LeftComponent={
-                        <SvgXml 
-                            width={spacing.large} 
-                            height={spacing.large} 
-                            xml={Currencies[MintUnitCurrencyPairs[mint.units[0]]]?.icon || null}                                
-                            style={{marginHorizontal: spacing.extraSmall}}
-                        />                            
-                    }                 
-                    leftIconInverse={true}
-                    RightComponent={
-                    <View style={$balanceContainer}>
-                        <Text style={[$balance, {color: balanceColor}]}>
-                        {(mintBalances.find(b => b.mintUrl === mint.mintUrl)
-                            ?.balances[mint.units[0]] || 0).toLocaleString()}
-                        </Text>
-                    </View>
-                    }
-                    //topSeparator={true}
-                    style={$item}
-                    onPress={() => props.gotoMintInfo(mint.mintUrl)}
-                />
                 ))}
             </>
-            }
+            }            
             contentStyle={{color}}            
             style={$card}
         />
@@ -668,8 +650,8 @@ const $screen: ViewStyle = {
 
 const $headerContainer: TextStyle = {
     alignItems: 'center',
-    padding: spacing.tiny,  
-    height: spacing.screenHeight * 0.18,
+    // padding: spacing.tiny,  
+    height: spacing.screenHeight * 0.20,
 }
 
 const $buttonContainer: ViewStyle = {
@@ -679,8 +661,9 @@ const $buttonContainer: ViewStyle = {
 }
 
 const $contentContainer: TextStyle = {
+    marginTop: -spacing.extraLarge * 2
     // padding: spacing.extraSmall,    
-    flex: 0.85,
+    // flex: 0.82,
     // paddingTop: spacing.extraSmall - 3,
     // borderWidth: 1,
     // borderColor: 'green',
@@ -698,7 +681,7 @@ const $cardHeading: TextStyle = {
   fontSize: moderateVerticalScale(18),
 }
 
-const $totalBalance: TextStyle = {
+const $unitBalance: TextStyle = {
     fontSize: moderateVerticalScale(48),
     lineHeight: moderateVerticalScale(48)
 }
@@ -735,7 +718,7 @@ const $balance: TextStyle = {
 }
 
 const $bottomContainer: ViewStyle = {  
-  flex: 0.1,
+  flex: 0.18,
   justifyContent: 'flex-start',
   marginBottom: spacing.medium,
   alignSelf: 'stretch',
@@ -769,4 +752,15 @@ const $bottomModal: ViewStyle = {
     alignItems: 'center',  
     paddingVertical: spacing.large,
     paddingHorizontal: spacing.small,  
+}
+
+
+const $offline: TextStyle = {
+    paddingHorizontal: spacing.small,
+    borderRadius: spacing.tiny,
+    alignSelf: 'center',
+    marginVertical: spacing.small,
+    lineHeight: spacing.medium,    
+    backgroundColor: colors.palette.orange400,
+    color: 'white',
 }

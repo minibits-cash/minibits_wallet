@@ -180,25 +180,28 @@ export function ListItem(props: ListItemProps) {
           iconInverse={leftIconInverse}
           Component={LeftComponent}          
         />
+        <View style={$subTextContainer}>
+          <>
         {(subText || subTx) ? (
-          <View style={$subTextContainer}>
-            <Text {...TextProps} tx={tx} text={text} txOptions={txOptions} style={[$textStyles, {alignSelf: 'flex-start'}]}>
+          <>
+            <Text {...TextProps} tx={tx} text={text} txOptions={txOptions} style={$textStyles}>
               {children}
             </Text>
             <Text {...TextProps} size="xs" tx={subTx} text={subText} txOptions={txOptions} style={[$subTextStyles, {color: subTextColor}]}>              
             </Text>
-            {(BottomComponent) && (
-              <View style={$bottomComponentContainer}>
-                {BottomComponent}
-              </View>
-            )}
-          </View>
+          </>
         ) : (
           <Text {...TextProps} tx={tx} text={text} txOptions={txOptions} style={$textStyles}>
             {children}
-          </Text>    
+          </Text>  
         )}
-        
+        {(BottomComponent) && (
+          <View style={$bottomComponentContainer}>
+            {BottomComponent}
+          </View>
+        )} 
+        </> 
+        </View>
         <ListItemAction
           side="right"
           size={height}
@@ -253,13 +256,15 @@ const $separatorBottom: ViewStyle = {
 }
 
 const $textStyle: TextStyle = {
+  // alignSelf: 'flex-start',
   paddingVertical: spacing.extraSmall,
-  alignSelf: "center",
+  // alignSelf: "center",
+  textAlignVertical: 'center',
   flexGrow: 1,
   flexShrink: 1,
 }
 
-const $subTextContainer: TextStyle = {  
+const $subTextContainer: ViewStyle = {  
   flex: 1,
   flexDirection: 'column',  
   // borderColor: 'red',

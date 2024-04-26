@@ -18,6 +18,7 @@ import { displayName as appName } from '../../app.json'
 import { ExtendedEdge, useSafeAreaInsetsStyle } from "../utils/useSafeAreaInsetsStyle"
 import { Icon, IconTypes } from "./Icon"
 import { Text, TextProps } from "./Text"
+import { moderateVerticalScale } from "@gocodingnow/rn-size-matters"
 
 export interface HeaderProps {
   /**
@@ -246,15 +247,8 @@ export function Header(props: HeaderProps) {
                         text={titleContent}
                         style={[$title, $titleStyleOverride]}
                 />
-                {!isInternetReachable && (
-                    <Text                    
-                        size="xxs"
-                        tx='common.offline'
-                        style={$offline}
-                    />
-                )}
             </View>            
-        )} 
+        )}
         <HeaderAction
           tx={rightTx}
           text={rightText}
@@ -306,10 +300,11 @@ function HeaderAction(props: HeaderActionProps) {
 }
 
 const $wrapper: ViewStyle = {
-  height: 56,
+  height: moderateVerticalScale(40),
   flexDirection: "row",
   alignItems: "center",  
   justifyContent: "space-between",
+  // overflow: 'visible',
   // borderWidth: 1,
   // borderColor: 'red',
 }
@@ -365,10 +360,12 @@ const $titleWrapperFlex: ViewStyle = {
   flexGrow: 1,
 }
 
-const $offline: TextStyle = {
-    position: 'absolute',
-    bottom: -5,
-    fontFamily: typography.code?.normal,
-    color: colors.palette.accent200,
-    paddingHorizontal: spacing.tiny,
-}
+/* const $offline: TextStyle = {
+  position: 'absolute',
+  top: 15,
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 10,
+  fontFamily: typography.code?.normal,
+  color: colors.palette.accent200,  
+}*/

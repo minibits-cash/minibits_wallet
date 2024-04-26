@@ -6,11 +6,12 @@ import { poller } from '../../utils/poller'
 import { Transaction, TransactionData, TransactionRecord, TransactionStatus, TransactionType } from '../../models/Transaction'
 import { log } from '../logService'
 import { Contact } from '../../models/Contact'
-import { MintClient, MintUnit } from '../cashuMintClient'
+import { MintClient } from '../cashuMintClient'
 import { LightningUtils } from '../lightning/lightningUtils'
 import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
 import { PaymentRequest, PaymentRequestStatus, PaymentRequestType } from '../../models/PaymentRequest'
 import { WalletUtils } from './utils'
+import { MintUnit } from './currency'
 
 const {
     transactionsStore,
@@ -41,7 +42,7 @@ export const topupTask = async function (
     ]
 
     let transactionId: number = 0
-    const mintUrl = mintBalanceToTopup.mint
+    const mintUrl = mintBalanceToTopup.mintUrl
 
     try {
         const newTransaction: Transaction = {
