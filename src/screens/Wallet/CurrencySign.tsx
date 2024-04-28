@@ -3,16 +3,23 @@ import { TextStyle, View, ViewStyle } from "react-native"
 import { SvgXml } from "react-native-svg"
 import { Text } from "../../components"
 import { Spacing, colors, spacing, typography, useThemeColor } from "../../theme"
-import { CurrencyCode, Currencies } from "../../services/wallet/currency"
+import { CurrencyCode, Currencies, MintUnit, MintUnitCurrencyPairs } from "../../services/wallet/currency"
 
 
 export const CurrencySign = function(props: {
-    currencyCode: CurrencyCode,
+    currencyCode?: CurrencyCode,
+    mintUnit?: MintUnit,
     containerStyle?: ViewStyle,
     textStyle?: TextStyle
     size?: Spacing
   }
 ) {
+    const {currencyCode, mintUnit, containerStyle, textStyle, size} = props
+    let code = currencyCode || CurrencyCode.SATS
+
+    if(!!mintUnit) {
+        code = Currencies[MintUnitCurrencyPairs[mintUnit]]!.code
+    }
   
     const textColor = useThemeColor('amount')
     const bgColor = colors.palette.primary200
@@ -34,10 +41,10 @@ export const CurrencySign = function(props: {
             width={props.size && spacing[props.size] * 1.5 || spacing.small * 1.5}
             height={props.size && spacing[props.size] * 1.5 || spacing.small * 1.5}
             style={{marginRight: spacing.tiny}}
-            xml={Currencies[props.currencyCode]?.icon || null}            
+            xml={Currencies[code]?.icon || null}            
         />
         <Text 
-            text={Currencies[props.currencyCode]?.code}            
+            text={Currencies[code]?.code}            
             style={[{
                 color: textColor,
                 fontSize: props.size && spacing[props.size] || spacing.small,

@@ -36,7 +36,7 @@ export const MintListItem = observer(function(props: {
 
     const {mint, mintBalance, selectedUnit, onMintSelect, isSelected, isSelectable, isBlocked, isUnitVisible, separator} = props
 
-    log.trace('[MintListItem]', props)
+    // log.trace('[MintListItem]', props)
   
     return (
           <ListItem

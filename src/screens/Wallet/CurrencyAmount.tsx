@@ -19,14 +19,14 @@ export const CurrencyAmount = observer(function (props: {
   }) 
 {
     const {currencyCode, mintUnit, amount, symbolStyle, amountStyle, containerStyle, size} = props
-    let currencySymbol: string = Currencies.SATS?.symbol!
+    let currencySymbol: string = Currencies.SATS!.symbol
 
     if(!!currencyCode) {
-        currencySymbol = Currencies[currencyCode]?.symbol!
+        currencySymbol = Currencies[currencyCode]!.symbol
     }
 
     if(!!mintUnit) {
-        currencySymbol = Currencies[MintUnitCurrencyPairs[mintUnit]]?.symbol!
+        currencySymbol = Currencies[MintUnitCurrencyPairs[mintUnit]]!.symbol
     }
     
     const amountColor = useThemeColor('amount')
@@ -34,14 +34,11 @@ export const CurrencyAmount = observer(function (props: {
   
     return (
         <View
-            style={[{
-                // alignSelf:'center',                
+            style={[{                
                 paddingHorizontal: spacing.tiny,
-                // borderRadius: spacing.tiny,
-                borderColor: 'red',
-                borderWidth: 1,
-                flexDirection: 'row',               
-                // justifyContent: 'space-between',
+                // borderColor: 'red',
+                // borderWidth: 1,
+                flexDirection: 'row',                
             }, containerStyle || {}]}
         >
             <Text         

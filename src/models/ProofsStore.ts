@@ -262,7 +262,7 @@ export const ProofsStoreModel = types
                 unitPendingBalances,  
             }
         
-            log.debug('[getBalances]', balances)
+            // log.debug('[getBalances]', balances)
             // console.log(balances)
 
             return balances
@@ -284,6 +284,21 @@ export const ProofsStoreModel = types
                 .slice()
                 .filter((balance: MintBalance) => {                    
                         if((balance.balances[unit] || 0) >= amount) {
+                            return true
+                        }                    
+                    return false
+                })
+                .sort((a, b) => b.balances[unit]! - a.balances[unit]!)
+
+            return filteredMintBalances
+        },
+        getMintBalancesWithUnit: (unit: MintUnit) => {
+            const balances = self.getBalances().mintBalances
+
+            const filteredMintBalances = balances
+                .slice()
+                .filter((balance: MintBalance) => {                                            
+                        if(Object.keys(balance.balances).includes(unit)) {
                             return true
                         }                    
                     return false

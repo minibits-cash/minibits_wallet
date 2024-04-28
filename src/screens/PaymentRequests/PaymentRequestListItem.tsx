@@ -12,7 +12,7 @@ import { getImageSource } from '../../utils/utils'
 import { ContactListItem } from "../Contacts/ContactListItem"
 import { SendOption } from "../SendOptionsScreen"
 import { CurrencySign } from "../Wallet/CurrencySign"
-import { CurrencyCode } from "../../services/wallet/currency"
+import { CurrencyCode, MintUnitCurrencyPairs } from "../../services/wallet/currency"
 
 
 export interface PaymentRequestListProps {
@@ -29,7 +29,7 @@ export const PaymentRequestListItem = observer(function (props: PaymentRequestLi
     const secToExpiry = differenceInSeconds(pr.expiresAt as Date, new Date())
     const expiryBg = ( secToExpiry < 0 ? colors.palette.angry500 : secToExpiry < 60 ? colors.palette.orange400 : colors.palette.success300)
     const separatorColor = useThemeColor('separator')
-
+    
     const onGotoContactDetail = function() {  
         log.trace(pr)                
         navigation.navigate('ContactsNavigator', {
@@ -63,10 +63,10 @@ export const PaymentRequestListItem = observer(function (props: PaymentRequestLi
                     />
                     <Text                            
                         preset='heading'
-                        text={pr.amount.toLocaleString()}
+                        text={pr.type === PaymentRequestType.INCOMING ? pr.invoicedAmount.toLocaleString() : pr.amountToTopup.toLocaleString()}
                     /> 
-                    <CurrencySign 
-                        currencyCode={CurrencyCode.SATS}
+                    <CurrencySign
+                        mintUnit={pr.type === PaymentRequestType.INCOMING ? pr.invoicedUnit : pr.mintUnit}                        
                         containerStyle={{marginBottom: spacing.small}}
                     />             
                 </View>
@@ -95,7 +95,7 @@ export const PaymentRequestListItem = observer(function (props: PaymentRequestLi
                                         size={spacing.medium}                    
                                         color={dim}                
                                 />
-                                <Text size='xxs' style={{color: dim, marginBottom: -10}} text={`pay ${pr.amount} SATS to`} />
+                                <Text size='xxs' style={{color: dim, marginBottom: -10}} text={`pay ${pr.invoicedAmount} ${pr.invoicedUnit} to`} />
                             </View>
                             <Text size='xxs' style={{color: dim, textAlign: 'center', marginRight: 30, marginBottom: 20}} text='...........' />
                             <View style={{flexDirection: 'column', alignItems: 'center', width: 100}}>

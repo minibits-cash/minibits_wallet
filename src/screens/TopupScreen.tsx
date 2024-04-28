@@ -48,11 +48,11 @@ import { Contact } from '../models/Contact'
 import { getImageSource, infoMessage } from '../utils/utils'
 import { ReceiveOption } from './ReceiveOptionsScreen'
 import { LNURLWithdrawParams } from 'js-lnurl'
-import { roundDown } from '../utils/number'
+import { roundDown, roundUp, toNumber } from '../utils/number'
 import { LnurlClient, LnurlWithdrawResult } from '../services/lnurlService'
 import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencySign } from './Wallet/CurrencySign'
-import { CurrencyCode, MintUnit, MintUnitCurrencyPairs, MintUnits } from "../services/wallet/currency"
+import { Currencies, CurrencyCode, MintUnit, MintUnitCurrencyPairs, MintUnits } from "../services/wallet/currency"
 
 if (
   Platform.OS === 'android' &&
@@ -118,6 +118,19 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         return () => {
             clearTimeout(timer)
         }
+    }, [])
+
+    useEffect(() => {
+      const { mintUrl, unit } = route.params
+
+      const setSelectedMintandUnit = () => {
+        setUnit(unit!)
+        setMintBalanceToTopup(proofsStore.getMintBalance(mintUrl!))
+      }
+
+      if(mintUrl && unit) {                
+          setSelectedMintandUnit()
+      }
     }, [])
 
     // Send to contact
@@ -288,7 +301,11 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
     const onAmountEndEditing = function () {
       try {
-            const amount = parseInt(amountToTopup)
+            const precision = Currencies[MintUnitCurrencyPairs[unit]]!.precision
+            const mantissa = Currencies[MintUnitCurrencyPairs[unit]]!.mantissa
+            const amount = toNumber(amountToTopup) * precision
+
+            log.trace('[onAmountEndEditing]', amount)
 
             if (!amount || amount === 0) {
                 infoMessage('Amount should be positive number.')          
@@ -300,17 +317,18 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                 return
             }
 
-            const availableBalances = proofsStore.getBalances().mintBalances
+            const availableBalances = proofsStore.getMintBalancesWithUnit(unit)
 
             if (availableBalances.length === 0) {
-                infoMessage('Add the mint first.', 'There is no mint connected to your wallet that you would receive your ecash from.')
+                infoMessage('Add the mint first.', 'There is no mint connected to your wallet that you would receive your ecash to.')
                 return
             }
 
+            setAmountToTopup(`${roundUp(toNumber(amountToTopup), mantissa)}`) // round amount based on currency format
             setAvailableMintBalances(availableBalances)
 
-            // Default mint with highest balance to topup
-            setMintBalanceToTopup(availableBalances[0])
+            // Default mint is the one with the highest balance to topup
+            if(!mintBalanceToTopup) setMintBalanceToTopup(availableBalances[0])
             setIsAmountEndEditing(true)
             // We do not make memo focus mandatory
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
@@ -365,7 +383,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         
         WalletTask.topup(
             mintBalanceToTopup as MintBalance,
-            parseInt(amountToTopup),
+            toNumber(amountToTopup) * Currencies[MintUnitCurrencyPairs[unit]]!.precision,
             unit,
             memo,            
             contactToSendTo

@@ -47,6 +47,7 @@ import { MintBalance } from "../models/Mint"
 import { PaymentRequest } from "../models/PaymentRequest"
 import { LNURLPayParams, LNURLWithdrawParams } from "js-lnurl"
 import { IncomingDataType } from "../services/incomingParser"
+import { MintUnit } from "../services/wallet/currency"
 
 
 export type TabsParamList = {
@@ -124,12 +125,29 @@ export type WalletStackParamList = {
     SendOptions: undefined
     Send: {contact?: Contact, relays?: string[], paymentOption?: SendOption}
     Scan: undefined
-    LightningPay: undefined
+    LightningPay: {
+      mintUrl?: string,
+      unit?: MintUnit    
+    }
     TranDetail: {id: number}
     TranHistory: undefined
     PaymentRequests: undefined 
-    Transfer: {encodedInvoice?: string, paymentRequest?: PaymentRequest, lnurlParams?: LNURLPayParams & {address?: string}, paymentOption?: SendOption,}
-    Topup: {contact?: Contact, relays?: string[], paymentOption?: ReceiveOption, lnurlParams?: LNURLWithdrawParams}
+    Transfer: {
+      encodedInvoice?: string, 
+      paymentRequest?: PaymentRequest, 
+      lnurlParams?: LNURLPayParams & {address?: string}, 
+      paymentOption?: SendOption,
+      mintUrl?: string,
+      unit?: MintUnit
+    }
+    Topup: {
+      contact?: Contact, 
+      relays?: string[], 
+      paymentOption?: ReceiveOption, 
+      lnurlParams?: LNURLWithdrawParams,
+      mintUrl?: string,
+      unit?: MintUnit
+    }
     ContactsNavigator: {screen: string, params: any}
     SettingsNavigator: {screen: string, params: any}
 }

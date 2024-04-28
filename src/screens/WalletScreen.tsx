@@ -11,7 +11,8 @@ import {
   Animated,
   FlatList,
   Pressable,
-  Linking
+  Linking,
+  LayoutAnimation
 } from 'react-native'
 import codePush, { RemotePackage } from 'react-native-code-push'
 import {moderateVerticalScale, verticalScale} from '@gocodingnow/rn-size-matters'
@@ -57,6 +58,7 @@ import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { CurrencySign } from './Wallet/CurrencySign'
 import { Currencies, CurrencyCode, MintUnit, MintUnitCurrencyPairs, MintUnits } from "../services/wallet/currency"
 import { CurrencyAmount } from './Wallet/CurrencyAmount'
+import { ReceiveOption } from './ReceiveOptionsScreen'
 
 // refresh
 
@@ -287,9 +289,9 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         navigation.navigate('Scan')
     }
 
-    const gotoMintInfo = function (mintUrl: string) {
+    /* const gotoMintInfo = function (mintUrl: string) {
         navigation.navigate('SettingsNavigator', {screen: 'MintInfo', params: {mintUrl}})
-    }
+    } */
 
     const gotoTranHistory = function () {
         navigation.navigate('TranHistory')
@@ -305,7 +307,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     
     /* Mints pager */
     const groupedMints = mintsStore.groupedByUnit
-    log.trace('[WalletScreen]', {groupedByUnit: groupedMints})
+    // log.trace('[WalletScreen]', {groupedByUnit: groupedMints})
     const width = spacing.screenWidth
     const pagerRef = useRef<PagerView>(null)
     const scrollOffsetAnimatedValue = React.useRef(new Animated.Value(0)).current
@@ -404,7 +406,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                         <View style={$contentContainer}>
                             <MintsByUnitListItem                                    
                                 mintsByUnit={mints}                                
-                                gotoMintInfo={gotoMintInfo}                                     
+                                navigation={navigation}                                     
                             />
                             {/*transactionsStore.recentByHostname(mints.hostname).length > 0 && (
                                 <Card                                    
@@ -587,20 +589,44 @@ const PromoBlock = function (props: {addMint: any}) {
 
 const MintsByUnitListItem = observer(function (props: {
     mintsByUnit: MintsByUnit    
-    gotoMintInfo: any
+    navigation: any
 }) {
-    /*const [isMenuVisible, setIsMenuVisible] = useState<boolean>(false)
+    
+    const [selectedMintUrl, setSelectedMintUrl] = useState<string | undefined>(undefined)
 
-    const toggleMenu = function () {
-        if (isMenuVisible) {
-            log.trace('[toggleMenu]', !isMenuVisible)
-            setIsMenuVisible(false)
-        } else {
-            log.trace('[toggleMenu]', !isMenuVisible)
-            setIsMenuVisible(true)
+    const onSelectedMint = function (mintUrl: string) {
+        if (selectedMintUrl && selectedMintUrl === mintUrl) {            
+            LayoutAnimation.easeInEaseOut()
+            setSelectedMintUrl(undefined)
+            return
         }
-    }*/
 
+        LayoutAnimation.easeInEaseOut()
+        setSelectedMintUrl(mintUrl)        
+    }
+
+    const gotoMintInfo = function (mintUrl: string) {
+        props.navigation.navigate('SettingsNavigator', {screen: 'MintInfo', params: {mintUrl}})
+    }
+
+
+    const gotoTopup = function (mintUrl: string, unit: MintUnit) {
+        props.navigation.navigate('Topup', {            
+            paymentOption: ReceiveOption.SHOW_INVOICE,
+            mintUrl,
+            unit
+        })
+    }
+
+
+    const gotoLightningPay = async function (mintUrl: string, unit: MintUnit) {
+        props.navigation.navigate('LightningPay', {
+            mintUrl,
+            unit
+        })
+    }
+
+    
     const color = useThemeColor('textDim')
     const balanceColor = useThemeColor('amount')
     const {mintsByUnit} = props
@@ -615,11 +641,11 @@ const MintsByUnitListItem = observer(function (props: {
             ContentComponent={
             <>                
                 {mintsByUnit.mints.map((mint: Mint) => (
-                    <ListItem
-                        key={mint.mintUrl}
+                    <View key={mint.mintUrl}>
+                    <ListItem                        
                         text={mint.shortname}
                         subText={mint.hostname}                    
-                        leftIcon='faCoins'              
+                        leftIcon={mint.status === MintStatus.OFFLINE ? 'faTriangleExclamation' : 'faCoins'}              
                         leftIconInverse={true}
                         leftIconColor={mint.color}
                         RightComponent={
@@ -631,8 +657,55 @@ const MintsByUnitListItem = observer(function (props: {
                         }
                         //topSeparator={true}
                         style={$item}
-                        onPress={() => props.gotoMintInfo(mint.mintUrl)}
+                        onPress={() => onSelectedMint(mint.mintUrl)}
                     />
+                    {selectedMintUrl === mint.mintUrl &&  (
+                        <View style={{flexDirection: 'row', marginBottom: spacing.small}}>
+                            <Button
+                                text={'Add funds'}
+                                LeftAccessory={() => (
+                                    <Icon
+                                    icon='faPlus'
+                                    color={color}
+                                    size={spacing.medium}                  
+                                    />
+                                )}
+                                preset='tertiary'
+                                textStyle={{fontSize: 14, color}}
+                                onPress={() => gotoTopup(mint.mintUrl, mintsByUnit.unit)}
+                                style={{minHeight: moderateVerticalScale(40), paddingVertical: moderateVerticalScale(spacing.tiny)}}                    
+                            />
+                            {/*<Button
+                                text={'Exchange'}
+                                LeftAccessory={() => (
+                                    <Icon
+                                    icon='faRotate'
+                                    color={color}
+                                    size={spacing.medium}                  
+                                    />
+                                )}
+                                textStyle={{fontSize: 14, color}}
+                                preset='tertiary'
+                                onPress={props.gotoMintInfo}
+                                style={{minHeight: moderateVerticalScale(40), paddingVertical: moderateVerticalScale(spacing.tiny)}}                    
+                            />*/}
+                            <Button
+                                text={'Cash out'}
+                                LeftAccessory={() => (
+                                    <Icon
+                                    icon='faArrowTurnUp'
+                                    color={color}
+                                    size={spacing.medium}                  
+                                    />
+                                )}
+                                textStyle={{fontSize: 14, color}}
+                                preset='tertiary'
+                                onPress={() => gotoLightningPay(mint.mintUrl, mintsByUnit.unit)}
+                                style={{minHeight: moderateVerticalScale(40), paddingVertical: moderateVerticalScale(spacing.tiny)}}                    
+                            />
+                        </View>
+                    )}
+                    </View>
                 ))}
             </>
             }            
