@@ -12,7 +12,7 @@ import { MintListItem } from "./MintListItem"
 
 export const MintBalanceSelector = observer(function (props: {
     mintBalances: MintBalance[]
-    selectedMintBalance: MintBalance
+    selectedMintBalance?: MintBalance
     unit: MintUnit
     title: string
     confirmTitle: string
@@ -22,7 +22,7 @@ export const MintBalanceSelector = observer(function (props: {
   }) {
   
     const {mintsStore} = useStores()
-    log.trace('[MintBalanceSelector]', props.selectedMintBalance.mintUrl)
+    // log.trace('[MintBalanceSelector]', props.selectedMintBalance.mintUrl)
   
     useEffect(() => {    
       if(!props.selectedMintBalance) {
@@ -63,9 +63,9 @@ export const MintBalanceSelector = observer(function (props: {
                               selectedUnit={props.unit}
                               onMintSelect={() => onMintSelect(item)}
                               isSelectable={true}
-                              isSelected={props.selectedMintBalance.mintUrl === item.mintUrl}
+                              isSelected={!!props.selectedMintBalance ? props.selectedMintBalance.mintUrl === item.mintUrl : false}
                               separator={'top'}
-                              style={(!allVisible && props.selectedMintBalance.mintUrl !== item.mintUrl) ? {display: 'none'} : {}}                            
+                              style={(!allVisible && props.selectedMintBalance && props.selectedMintBalance.mintUrl !== item.mintUrl) ? {display: 'none'} : {}}                            
                           />
                       )
                   }}

@@ -695,20 +695,6 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         )}
         {isLoading && <Loading />}
         </View>        
-        {/*<BottomModal
-            isVisible={isQRModalVisible}
-            ContentComponent={
-                <ShareAsQRCodeBlock
-                    toggleQRModal={toggleQRModal}
-                    invoiceToPay={invoiceToPay as string}
-                    onShareToApp={onShareToApp}
-                    onCopy={onCopy}
-                    onError={handleError}
-                />
-            }
-            onBackButtonPress={toggleQRModal}
-            onBackdropPress={toggleQRModal}
-          />*/}
         <BottomModal
           isVisible={isNostrDMModalVisible ? true : false}
           ContentComponent={

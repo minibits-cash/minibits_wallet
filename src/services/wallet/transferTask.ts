@@ -216,7 +216,7 @@ export const transferTask = async function (
             JSON.stringify(transactionData),
         )
 
-        const balanceAfter = proofsStore.getBalances().mintBalances[mintUrl as any].balances[unit as MintUnit]!
+        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
 
         await transactionsStore.updateBalanceAfter(transactionId, balanceAfter)       
 

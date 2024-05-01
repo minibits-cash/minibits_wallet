@@ -47,6 +47,8 @@ import { CurrencySign } from './Wallet/CurrencySign'
 import { CurrencyCode, MintUnit, MintUnits } from "../services/wallet/currency"
 import { FeeBadge } from './Wallet/FeeBadge'
 import { MeltQuoteResponse } from '@cashu/cashu-ts'
+import { MintHeader } from './Mints/MintHeader'
+import { MintBalanceSelector } from './Mints/MintBalanceSelector'
 
 
 if (
@@ -58,11 +60,6 @@ if (
 
 export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
   function TransferScreen({route, navigation}) {
-
-  useHeader({
-    leftIcon: 'faArrowLeft',
-      onLeftPress: () => navigation.goBack(),
-    })
 
     const amountInputRef = useRef<TextInput>(null)
     const {proofsStore, mintsStore, paymentRequestsStore, transactionsStore} = useStores()
@@ -109,6 +106,20 @@ useEffect(() => {
         clearTimeout(timer)
     }
 }, [])
+
+
+useEffect(() => {
+    const { mintUrl, unit } = route.params    
+
+    const setSelectedUnit = () => {        
+        setUnit(unit)
+        //setMintBalanceToTransferFrom(proofsStore.getMintBalance(mintUrl!))
+    }
+
+    if(mintUrl && unit) {                
+        setSelectedUnit()
+    }
+  }, [])
 
 
 useFocusEffect(
@@ -238,6 +249,7 @@ useEffect(() => {
         try {
             log.trace('[getEstimatedFee]', 'mintBalanceToTransferFrom', mintBalanceToTransferFrom)  
             if (!mintBalanceToTransferFrom || !mintBalanceToTransferFrom.balances[unit] || !encodedInvoice) {
+                log.trace('[getEstimatedFee]', 'Not ready... exiting')  
                 return
             }            
             setIsLoading(true)
@@ -248,7 +260,7 @@ useEffect(() => {
             )
             setIsLoading(false)
             
-            if (parseInt(amountToTransfer) + meltQuote.fee_reserve > mintBalanceToTransferFrom.balances[unit]) {
+            if (parseInt(amountToTransfer) + meltQuote.fee_reserve > mintBalanceToTransferFrom.balances[unit]!) {
                 setInfo(
                     'There are not enough funds to cover expected lightning network fee. Try selecting another mint with a higher balance.',
                 )
@@ -442,17 +454,24 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
         let availableBalances = proofsStore.getMintBalancesWithEnoughBalance(amount, unit)
 
         if (availableBalances.length === 0) {
-            infoMessage('There are not enough funds to send this amount')
+            infoMessage('There are not enough funds to pay this amount')
             return
         }
 
         const expiresAt = addSeconds(new Date(timestamp as number * 1000), expiry as number)
-
-        setAvailableMintBalances(availableBalances)
-        setMintBalanceToTransferFrom(availableBalances[0])
+        
+        setAvailableMintBalances(availableBalances)        
         setInvoice(invoice)
         setAmountToTransfer(`${amount}`)
         setInvoiceExpiry(expiresAt)
+
+        const { mintUrl } = route.params
+
+        if (mintUrl) {
+            setMintBalanceToTransferFrom(proofsStore.getMintBalance(mintUrl))
+        } else {
+            setMintBalanceToTransferFrom(availableBalances[0])
+        }
         
         if (paymentRequestDesc) {
             setMemo(paymentRequestDesc)
@@ -508,12 +527,13 @@ const satsColor = colors.palette.primary200
 
     return (
         <Screen preset="fixed" contentContainerStyle={$screen}>
+            <MintHeader 
+                mint={mintBalanceToTransferFrom ? mintsStore.findByUrl(mintBalanceToTransferFrom?.mintUrl) : undefined}
+                unit={unit}
+                navigation={navigation}
+            />
             <View style={[$headerContainer, {backgroundColor: headerBg}]}>
                 <View style={$amountContainer}>
-                    <CurrencySign 
-                        currencyCode={MintUnits[unit as any] as CurrencyCode}
-                        textStyle={{color: 'white'}}                        
-                    />
                     <TextInput
                         ref={amountInputRef}
                         onChangeText={amount => setAmountToTransfer(amount)}                                
@@ -546,10 +566,10 @@ const satsColor = colors.palette.primary200
             <View style={$contentContainer}>
                 <>                    
                     <Card
-                        style={[$card, {minHeight: 0}]}
+                        style={[$card, {minHeight: 50}]}
                         ContentComponent={
                             <ListItem
-                                text={lnurlPayParams?.address || memo || lnurlPayParams?.domain || 'Payment info'}
+                                text={lnurlPayParams?.address || memo || lnurlPayParams?.domain || 'No description'}
                                 subText={lnurlDescription}
                                 LeftComponent={
                                     <Icon
@@ -563,18 +583,18 @@ const satsColor = colors.palette.primary200
                             />
                         }
                     />
-                    {mintBalanceToTransferFrom &&
-                    availableMintBalances.length > 0 &&
+                    {availableMintBalances.length > 0 &&
                     transactionStatus !== TransactionStatus.COMPLETED && (
-                    <MintBalanceSelector
-                        availableMintBalances={availableMintBalances}
-                        mintBalanceToSendFrom={mintBalanceToTransferFrom as MintBalance}
-                        unit={unit}                      
-                        onMintBalanceSelect={onMintBalanceSelect}
-                        onCancel={onClose}
-                        findByUrl={mintsStore.findByUrl}
-                        onMintBalanceConfirm={transfer}
-                    />
+                        <MintBalanceSelector
+                            mintBalances={availableMintBalances}
+                            selectedMintBalance={mintBalanceToTransferFrom}
+                            unit={unit}
+                            title='Pay from'
+                            confirmTitle='Pay now'
+                            onMintBalanceSelect={onMintBalanceSelect}
+                            onCancel={onClose}              
+                            onMintBalanceConfirm={transfer}
+                        />
                     )}
                 </>                
                 {transactionStatus === TransactionStatus.COMPLETED && (
@@ -713,69 +733,6 @@ const satsColor = colors.palette.primary200
 )
 
 
-const MintBalanceSelector = observer(function (props: {
-  availableMintBalances: MintBalance[]
-  mintBalanceToSendFrom: MintBalance
-  unit: MintUnit 
-  onMintBalanceSelect: any
-  onCancel: any
-  findByUrl: any
-  onMintBalanceConfirm: any
-}) {
-
-    const onMintSelect = function(balance: MintBalance) {
-        log.trace('onMintBalanceSelect', balance.mintUrl)
-        return props.onMintBalanceSelect(balance)
-    }
-
-  return (
-    <View style={{flex: 1}}>
-      <Card
-        style={$card}
-        heading={'Pay from'}
-        headingStyle={{textAlign: 'center', padding: spacing.small}}
-        ContentComponent={
-          <>
-            <FlatList<MintBalance>
-                data={props.availableMintBalances}
-                renderItem={({ item, index }) => {                                
-                    return(
-                        <MintListItem
-                            key={item.mintUrl}
-                            mint={props.findByUrl(item.mintUrl) as Mint}
-                            mintBalance={item}
-                            selectedUnit={props.unit}
-                            onMintSelect={() => onMintSelect(item)}
-                            isSelectable={true}
-                            isSelected={props.mintBalanceToSendFrom.mintUrl === item.mintUrl}
-                            separator={'top'}
-                        />
-                    )
-                }}                
-                keyExtractor={(item) => item.mintUrl} 
-                style={{ flexGrow: 0, maxHeight: spacing.screenHeight * 0.35 }}
-            />
-          </>
-        }
-      />
-      <View style={$bottomContainer}>
-        <View style={[$buttonContainer, {marginTop: spacing.large}]}>
-            <Button
-            text={'Pay now'}
-            onPress={props.onMintBalanceConfirm}
-            style={{marginRight: spacing.medium}}          
-            />
-            <Button
-            preset="secondary"
-            tx={'common.cancel'}
-            onPress={props.onCancel}
-            />
-        </View>
-      </View>
-    </View>
-  )
-})
-
 const $screen: ViewStyle = {
     flex: 1,
 }
@@ -802,7 +759,8 @@ const $headerContainer: TextStyle = {
 
 const $contentContainer: TextStyle = {
     flex: 1,
-    padding: spacing.extraSmall,    
+    padding: spacing.extraSmall,
+    marginTop: -spacing.large * 2    
 }
 
 const $iconContainer: ViewStyle = {

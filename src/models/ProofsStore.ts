@@ -212,10 +212,10 @@ export const ProofsStoreModel = types
                 }
             }
 
-            log.trace('[getBalances] zero balances', [...mintBalancesMap.entries()])
-            log.trace('[getBalances] zero pendingBalances', [...mintPendingBalancesMap.entries()])
+            //log.trace('[getBalances] zero balances', [...mintBalancesMap.entries()])
+            //log.trace('[getBalances] zero pendingBalances', [...mintPendingBalancesMap.entries()])
 
-            log.trace('[getBalances] proofs count', self.proofs.length)
+            //log.trace('[getBalances] proofs count', self.proofs.length)
 
             for (const proof of self.proofs) {
                 const { mintUrl, unit, amount } = proof
@@ -233,9 +233,9 @@ export const ProofsStoreModel = types
         
             const mintBalances: MintBalance[] = Array.from(mintBalancesMap.values())
 
-            log.trace('[getBalances] filled balances', [...mintBalancesMap.entries()])
+            //log.trace('[getBalances] filled balances', [...mintBalancesMap.entries()])
 
-            log.trace('[getBalances] zero pendingBalances', [...mintPendingBalancesMap.entries()])
+            //log.trace('[getBalances] zero pendingBalances', [...mintPendingBalancesMap.entries()])
 
             // Convert map to array of UnitBalance objects
             const unitBalances: UnitBalance[]  = Array.from(unitBalancesMap.entries()).map(([unit, unitBalance]) => ({
@@ -246,7 +246,7 @@ export const ProofsStoreModel = types
             for (const proof of self.pendingProofs) {
                 const { mintUrl, unit, amount } = proof
 
-                log.trace('adding pending proof amount', proof.amount)
+                //log.trace('adding pending proof amount', proof.amount)
         
                 // Make sure to not cause madness from orphaned proofs if it would happen
                 if (!mintPendingBalancesMap.has(mintUrl)) {
@@ -259,7 +259,7 @@ export const ProofsStoreModel = types
                 unitPendingBalancesMap.set(unit, (unitPendingBalancesMap.get(unit) || 0) + amount)
             }
 
-            log.trace('[getBalances] pendingBalances', [...mintPendingBalancesMap.entries()])
+            //log.trace('[getBalances] pendingBalances', [...mintPendingBalancesMap.entries()])
         
             const mintPendingBalances: MintBalance[] = Array.from(mintPendingBalancesMap.values())
 
