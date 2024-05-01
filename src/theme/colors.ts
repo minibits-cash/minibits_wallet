@@ -44,9 +44,12 @@ const palette = {
 
   blue100: '#75B4FB',
   blue200: '#818AFF',
+  blue400: '#2d57e1',
+
+  green400: '#599D52',
 
   orange200: '#FFAB51',
-  orange400: '#F7931A',
+  orange400: '#FF9900',
 
   focus100: '#FB4E9E',
   focus200: '#F62586',

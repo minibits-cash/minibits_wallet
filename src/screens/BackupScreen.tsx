@@ -40,7 +40,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
     const [info, setInfo] = useState('')
     const [isBackupModalVisible, setIsBackupModalVisible] =
       useState<boolean>(false)
-    const [isHandleSpentFromSpendavleSentToQueue, setIsHandleSpentFromSpendavleSentToQueue] = useState<boolean>(false)
+    const [isHandleSpentFromSpendableSentToQueue, setIsHandleSpentFromSpendableSentToQueue] = useState<boolean>(false)
     const [backupResultMessage, setBackupResultMessage] = useState<string>()
     const [totalSpentCount, setTotalSpentCount] = useState<number>(0)
     const [totalSpentAmount, setTotalSpentAmount] = useState<number>(0)
@@ -72,7 +72,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
         return () => {
             EventEmitter.off('ev__handleSpentByMintTask_result', handleSpentByMintTaskResult)            
         }
-    }, [isHandleSpentFromSpendavleSentToQueue])
+    }, [isHandleSpentFromSpendableSentToQueue])
 
     const toggleBackupSwitch = () => {
       try {
@@ -124,7 +124,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
 
     const checkSpent = async function () {
       setIsLoading(true)
-      setIsHandleSpentFromSpendavleSentToQueue(true)
+      setIsHandleSpentFromSpendableSentToQueue(true)
       WalletTask.handleSpentFromSpendable()      
     }
 

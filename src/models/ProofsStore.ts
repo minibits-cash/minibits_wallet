@@ -51,6 +51,7 @@ export const ProofsStoreModel = types
             
         ): Proof[] | undefined {
             const proofs = options.isPending ? self.pendingProofs : self.proofs
+            
             if (options.unit) {
                 return proofs.filter(proof => proof.mintUrl === mintUrl && proof.unit === options.unit)    
             }
@@ -188,7 +189,7 @@ export const ProofsStoreModel = types
             return self.pendingProofs
         },
     }))
-    .views(self => ({ // move to MintsStore?
+    .views(self => ({
         getBalances() {
             const mintBalancesMap: Map<string, MintBalance> = new Map()
             const unitBalancesMap: Map<MintUnit, number> = new Map()
@@ -200,14 +201,21 @@ export const ProofsStoreModel = types
             // make sure balances are defined even if we have no proofs
             for (const mint of mints) {
                 const {mintUrl, units} = mint
-                const zeroBalances = Object.fromEntries(units!.map(unit => [unit, 0])) as { [key in MintUnit]: number };
-                mintBalancesMap.set(mintUrl, { mintUrl, balances: zeroBalances})
-                mintPendingBalancesMap.set(mintUrl, { mintUrl, balances: zeroBalances})
+                const zeroBalances = Object.fromEntries(units!.map(unit => [unit, 0])) as { [key in MintUnit]: number };                
+
+                // make distinct copies of zeroBalances so that balances are not summed by reference!!!
+                mintBalancesMap.set(mintUrl, { mintUrl, balances: JSON.parse(JSON.stringify(zeroBalances))})
+                mintPendingBalancesMap.set(mintUrl, { mintUrl, balances: JSON.parse(JSON.stringify(zeroBalances))})
 
                 for (const unit of mint.units!) {
                     unitBalancesMap.set(unit, 0)
                 }
             }
+
+            log.trace('[getBalances] zero balances', [...mintBalancesMap.entries()])
+            log.trace('[getBalances] zero pendingBalances', [...mintPendingBalancesMap.entries()])
+
+            log.trace('[getBalances] proofs count', self.proofs.length)
 
             for (const proof of self.proofs) {
                 const { mintUrl, unit, amount } = proof
@@ -225,16 +233,20 @@ export const ProofsStoreModel = types
         
             const mintBalances: MintBalance[] = Array.from(mintBalancesMap.values())
 
+            log.trace('[getBalances] filled balances', [...mintBalancesMap.entries()])
+
+            log.trace('[getBalances] zero pendingBalances', [...mintPendingBalancesMap.entries()])
+
             // Convert map to array of UnitBalance objects
             const unitBalances: UnitBalance[]  = Array.from(unitBalancesMap.entries()).map(([unit, unitBalance]) => ({
                 unitBalance,
                 unit
-            }))
-
-
+            }))            
 
             for (const proof of self.pendingProofs) {
                 const { mintUrl, unit, amount } = proof
+
+                log.trace('adding pending proof amount', proof.amount)
         
                 // Make sure to not cause madness from orphaned proofs if it would happen
                 if (!mintPendingBalancesMap.has(mintUrl)) {
@@ -242,10 +254,12 @@ export const ProofsStoreModel = types
                 }
         
                 // Update balance for the unit
-                const mintBalance = mintPendingBalancesMap.get(mintUrl)!
-                mintBalance.balances[unit] = (mintBalance.balances[unit] || 0) + amount
+                const mintPendingBalance = mintPendingBalancesMap.get(mintUrl)!
+                mintPendingBalance.balances[unit] = (mintPendingBalance.balances[unit] || 0) + amount
                 unitPendingBalancesMap.set(unit, (unitPendingBalancesMap.get(unit) || 0) + amount)
             }
+
+            log.trace('[getBalances] pendingBalances', [...mintPendingBalancesMap.entries()])
         
             const mintPendingBalances: MintBalance[] = Array.from(mintPendingBalancesMap.values())
 
@@ -323,6 +337,14 @@ export const ProofsStoreModel = types
 
             log.debug('[getMintBalanceWithMaxBalance]', maxBalance)
             return maxBalance
+        },
+        getUnitBalance: (unit: MintUnit) => {
+            const balances = self.getBalances().unitBalances
+
+            const unitBalance = balances
+                .find((balance: UnitBalance) => balance.unit === unit)                
+
+            return unitBalance
         },
         getProofsToSend: (amount: number, proofs: Proof[]) => {
             let proofsAmount = 0

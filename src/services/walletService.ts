@@ -30,7 +30,7 @@ import { topupTask } from './wallet/topupTask'
 import { transferTask } from './wallet/transferTask'
 import { WalletUtils } from './wallet/utils'
 import { NotificationService } from './notificationService'
-import { MintUnit } from './wallet/currency'
+import { Currencies, CurrencyCode, MintUnit, MintUnitCurrencyPairs, MintUnits } from './wallet/currency'
 
 
 type WalletTaskService = {
@@ -296,7 +296,7 @@ const handleSpentByMint = async function (
     }  
 ): Promise<void> {
     const {mintUrl, isPending} = options
-    log.trace('[handleSpentByMint] start')
+    log.trace('[handleSpentByMint] start', {mintUrl, isPending})
     const now = new Date().getTime()
 
     return SyncQueue.addTask(
@@ -378,7 +378,7 @@ const _handleSpentByMintTask = async function (
         pendingCount = pendingProofs.length
         pendingAmount = CashuUtils.getProofsAmount(pendingProofs as Proof[])
         
-        log.trace('[_handleSpentByMintTask]', `${isPending ? 'Pending' : ''} spents and pending by mint amounts`, {spentAmount, pendingAmount, isPending})
+        log.trace('[_handleSpentByMintTask]', `${isPending ? 'Pending' : ''} spent and pending by mint amounts`, {spentAmount, pendingAmount, isPending})
 
         if (spentCount  > 0) {
             // identify txIds to update their statuses, there might be more then one tx to complete
@@ -698,9 +698,10 @@ const _handleInFlightByMintTask = async function (mint: Mint, seed: Uint8Array):
 
 
 
-const handlePendingTopups = async function (): Promise<void> {
-    log.trace('[handlePendingTopups] start')
+const handlePendingTopups = async function (): Promise<void> {    
     const paymentRequests: PaymentRequest[] = paymentRequestsStore.allOutgoing
+
+    log.trace('[handlePendingTopups] start', {paymentRequests})
 
     if (paymentRequests.length === 0) {
         log.trace('[handlePendingTopups]', 'No outgoing payment requests in store - skipping task send to the queue...')
@@ -743,23 +744,42 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
     const {paymentRequest: pr} = params
     const transactionId = {...pr}.transactionId || 0// copy
     const mint = {...pr}.mint // copy
-    const unit = {...pr}.unit // copy
-    const amount = {...pr}.amount // copy
+    const unit = {...pr}.mintUnit // copy, unit of proofs to be received
+    const amount = {...pr}.amountToTopup // copy, amount of proofs to be received    
     const paymentHash = {...pr}.paymentHash // copy
     const mintQuote = {...pr}.mintQuote // copy
     const mintInstance = mintsStore.findByUrl(mint as string)
 
     try {
-        if(!mintInstance) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Missing mint', {mintUrl: mint})
+        if(!mintInstance || !mintQuote || !unit || !amount) {
+            throw new AppError(Err.VALIDATION_ERROR, 'Missing mint or mint quote or mintUnit or amountToTopup', {mintUrl: mint})
         }
-
+        
         const amountPreferences = getDefaultAmountPreference(amount)        
         const countOfInFlightProofs = CashuUtils.getAmountPreferencesCount(amountPreferences)
         
         log.trace('[_handlePendingTopupTask]', 'paymentRequest', paymentHash)
         log.trace('[_handlePendingTopupTask]', 'amountPreferences', amountPreferences)
-        log.trace('[_handlePendingTopupTask]', 'countOfInFlightProofs', countOfInFlightProofs)  
+        log.trace('[_handlePendingTopupTask]', 'countOfInFlightProofs', countOfInFlightProofs)
+        
+        // check is quote has been paid
+        const { isPaid, mintQuote: quote } = await MintClient.getBolt11MintQuoteIsPaid(mint!, mintQuote)
+
+        if (quote !== mintQuote) {
+            throw new AppError(Err.VALIDATION_ERROR, 'Returned quote is different then the one requested', {mintUrl: mint, quote, mintQuote})
+        }
+
+        if (isPaid !== true) {
+            log.trace('[_handlePendingTopupTask] Quot not paid', {mintUrl: mint, mintQuote})
+            return {
+                taskFunction: '_handlePendingTopupTask',
+                mintUrl: mint,
+                unit,
+                amount,
+                paymentHash,                
+                message: `Quote ${mintQuote} not paid`,
+            } as WalletTaskResult
+        }
         
         // temp increase the counter + acquire lock and set inFlight values        
         await WalletUtils.lockAndSetInFlight(
@@ -784,7 +804,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
                 lockedProofsCounter.inFlightFrom as number
             )) as CashuProof[]
 
-            log.info('[_handlePendingTopupTask]', {proofs})
+            // log.info('[_handlePendingTopupTask]', {proofs})
 
         } catch (e: any) {            
             // decrease so that unpaid invoices does not cause counter gaps from polling
@@ -880,10 +900,12 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         mintInstance.resetInFlight(transactionId as number )
         stopPolling(`handlePendingTopupTaskPoller-${paymentHash}`)               
 
-        if (receivedAmount !== pr.amount) {
+        const precision: number = Currencies[MintUnitCurrencyPairs[pr.mintUnit as MintUnit]]!.precision
+
+        if (receivedAmount !== amount) {
             throw new AppError(
                 Err.VALIDATION_ERROR,
-                `Received amount ${receivedAmount} SATS is not equal to the requested amount ${amount} SATS.`,
+                `Received amount ${receivedAmount / precision} ${unit} is not equal to the requested amount ${amount / precision} ${unit}.`,
             )
         }
 
@@ -908,8 +930,8 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         // Fire event that the TopupScreen can listen to // TODO replace by standard task result event
         // EventEmitter.emit('ev_topupCompleted', {...pr})
         
-        // Update tx with current balance
-        const balanceAfter = proofsStore.getBalances().mintBalances[mint as any].balances[unit as MintUnit]!
+        // Update tx with current total balance of topup unit/currency
+        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
 
         await transactionsStore.updateBalanceAfter(
             transactionId as number,
@@ -919,6 +941,8 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         _sendTopupNotification(pr)
         paymentRequestsStore.removePaymentRequest(pr)        
 
+        
+
         return {
             taskFunction: '_handlePendingTopupTask',
             mintUrl: mint,
@@ -926,7 +950,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
             amount,
             paymentHash,
             transaction: transactionsStore.findById(transactionId as number),
-            message: `Your invoice has been paid and your wallet balance credited with ${amount} SATS.`,
+            message: `Your invoice has been paid and your wallet balance credited with ${amount / precision} ${unit}.`,
         } as TransactionTaskResult
 
     } catch (e: any) {
@@ -948,10 +972,15 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
 
 }
 
+
+
 const _sendTopupNotification = async function (pr: PaymentRequest) {
+
+    const precision: number = Currencies[MintUnitCurrencyPairs[pr.mintUnit as MintUnit]]!.precision
+
     await NotificationService.createLocalNotification(
-        `⚡ ${pr.amount} SATS received!`,
-        `Your invoice has been paid and your wallet balance credited with ${pr.amount} SATS.`,            
+        `⚡ ${pr.amountToTopup! / precision} ${pr.mintUnit} received!`,
+        `Your invoice has been paid and your wallet balance credited with ${pr.amountToTopup! / precision} ${pr.mintUnit}.`,           
     ) 
 }
 
@@ -1174,8 +1203,8 @@ const _handleReceivedEventTask = async function (event: NostrEvent): Promise<Wal
             type: PaymentRequestType.INCOMING,
             status: PaymentRequestStatus.ACTIVE,                            
             encodedInvoice: incoming.encoded,
-            unit: 'sat', // bolt11
-            amount: amount || 0,            
+            invoicedUnit: 'sat', // bolt11
+            invoicedAmount: amount || 0,            
             description: maybeMemo ? maybeMemo : description,                            
             paymentHash,
             contactFrom: contactFrom || {pubkey: sentFromPubkey, npub: sentFromNpub},
@@ -1276,7 +1305,7 @@ const _sendReceiveNotification = async function (
 
 const _sendPaymentRequestNotification = async function (pr: PaymentRequest) {    
     await NotificationService.createLocalNotification(
-        `⚡ Please pay ${pr.amount} SATS!`,
+        `⚡ Please pay ${pr.invoicedAmount} ${pr.invoicedUnit}!`,
         `${pr.contactFrom.nip05 || 'Unknown'} has sent you a request to pay an invoice.`,
         pr.contactFrom.picture,
     )

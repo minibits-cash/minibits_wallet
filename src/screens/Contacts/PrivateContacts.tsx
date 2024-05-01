@@ -17,12 +17,13 @@ import { ReceiveOption } from '../ReceiveOptionsScreen'
 import { SendOption } from '../SendOptionsScreen'
 import { infoMessage, warningMessage } from '../../utils/utils'
 import { IncomingDataType, IncomingParser } from '../../services/incomingParser'
+import { RouteProp } from '@react-navigation/native'
 
 
 
 export const PrivateContacts = observer(function (props: {
-    navigation: StackNavigationProp<ContactsStackParamList, "Contacts", undefined>,     
-    paymentOption: ReceiveOption | SendOption | undefined}
+    navigation: StackNavigationProp<ContactsStackParamList, "Contacts", undefined>,             
+    paymentOption: ReceiveOption | SendOption | undefined},    
 ) { 
     const {contactsStore, relaysStore} = useStores()
     const {navigation} = props
@@ -39,15 +40,15 @@ export const PrivateContacts = observer(function (props: {
         const { paymentOption } = props        
 
         if (paymentOption && paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) {
-            infoMessage('Select contact to send your payment request to.')
+            // infoMessage('Select contact to send your payment request to.')
         }
 
         if (paymentOption && paymentOption === SendOption.SEND_TOKEN) {
-            infoMessage('Select contact to send your ecash to.')
+            // infoMessage('Select contact to send your ecash to.')
         }
 
         if (paymentOption && paymentOption === SendOption.LNURL_ADDRESS) {
-            infoMessage('Select contact to send Lightning payment to.')
+            // infoMessage('Select contact to send Lightning payment to.')
         }
     }, [])
     
@@ -160,28 +161,22 @@ export const PrivateContacts = observer(function (props: {
             
             log.trace('paymentOption', {paymentOption}, 'gotoContactDetail')
             
-            const relays = relaysStore.allUrls
-            
             if(paymentOption && paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) { // Topup tx contact selection
                 setIsLoading(true)
                 
                 if(contact.nip05) {                
                     await NostrClient.verifyNip05(contact.nip05 as string, contact.pubkey) // throws
                 }
-                
+
+                // contactsStore.selectContact(contact)
                 navigation.navigate('WalletNavigator', { 
                     screen: 'Topup',
                     params: {
-                        paymentOption, 
-                        contact, 
-                        relays // TODO remove, switch to relaysStore
-                    },
+                        paymentOption,
+                        contact                             
+                    },                                            
                 })
-
-                //reset
-                navigation.setParams({
-                    paymentOption: undefined,
-                })
+                
                 setIsLoading(false)
                 return
             }
@@ -198,15 +193,10 @@ export const PrivateContacts = observer(function (props: {
                     screen: 'Send',
                     params: {
                         paymentOption, 
-                        contact, 
-                        relays // TODO remove, switch to relaysStore
+                        contact                        
                     },
                 })
 
-                //reset
-                navigation.setParams({
-                    paymentOption: undefined,
-                })
                 setIsLoading(false)
                 return
             }
@@ -231,10 +221,8 @@ export const PrivateContacts = observer(function (props: {
                 return
             }
 
-            navigation.navigate('ContactDetail', {                   
-                contact, 
-                relays    // TODO remove, switch to relaysStore 
-            })
+            navigation.navigate('ContactDetail', {contact})
+
         } catch (e: any) {
             // reset so that invalid contact can be deleted
             navigation.setParams({

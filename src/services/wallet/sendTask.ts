@@ -40,7 +40,7 @@ export const sendTask = async function (
     memo: string,
     selectedProofs: Proof[]
 ) : Promise<TransactionTaskResult> {
-    const mintUrl = mintBalanceToSendFrom.mint
+    const mintUrl = mintBalanceToSendFrom.mintUrl
 
 
     log.trace('[send]', 'mintBalanceToSendFrom', mintBalanceToSendFrom)
@@ -126,7 +126,7 @@ export const sendTask = async function (
             JSON.stringify(transactionData),
         )
 
-        const balanceAfter = proofsStore.getBalances().totalBalance
+        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
 
         await transactionsStore.updateBalanceAfter(transactionId, balanceAfter)
 
@@ -138,7 +138,7 @@ export const sendTask = async function (
             WalletTask.handleSpentByMint,
             {
                 interval: 6 * 1000,
-                maxPolls: 20,
+                maxPolls: 1, // TODO 10
                 maxErrors: 2
             },
             {mintUrl, isPending: true}
@@ -188,7 +188,7 @@ export const sendFromMint = async function (
     selectedProofs: Proof[],
     transactionId: number,
 ) {
-    const mintUrl = mintBalance.mint
+    const mintUrl = mintBalance.mintUrl
     const mintInstance = mintsStore.findByUrl(mintUrl)
 
     try {
@@ -295,8 +295,9 @@ export const sendFromMint = async function (
         // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs        
         mintInstance.decreaseProofsCounter(lockedProofsCounter.keyset, countOfInFlightProofs) 
 
-        // add proofs returned by the mint after the split
+        // add proofs returned by the mint after the split        
         if (returnedProofs.length > 0) {
+            log.trace('[sendFromMint] add returned proofs to spendable')
             const { addedProofs, addedAmount } = WalletUtils.addCashuProofs(
                 mintUrl,
                 returnedProofs,
@@ -309,16 +310,18 @@ export const sendFromMint = async function (
         }
 
         // remove used proofs and move sent proofs to pending
+        log.trace('[sendFromMint] remove proofsToSendFrom from spendable')
         proofsStore.removeProofs(proofsToSendFrom)
 
-        // these might be original proofToSendFrom if they matched the exact amount and split was not necessary        
+        // these might be original proofToSendFrom if they matched the exact amount and split was not necessary  
+        log.trace('[sendFromMint] add proofsToSend to pending')      
         const { addedProofs, addedAmount } = WalletUtils.addCashuProofs(            
             mintUrl,
             proofsToSend,
             {
                 unit,
                 transactionId,
-                isPending: false
+                isPending: true
             }       
         )
 

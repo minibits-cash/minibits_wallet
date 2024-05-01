@@ -11,22 +11,25 @@ import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 import AppError, { Err } from '../utils/AppError'
-import { Button, Card, ErrorModal, Icon, ListItem, ScanIcon, Screen, Text } from '../components'
+import { Button, Card, ErrorModal, Header, Icon, ListItem, ScanIcon, Screen, Text } from '../components'
 import { LnurlUtils } from '../services/lnurl/lnurlUtils'
 import { infoMessage } from '../utils/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { SvgXml } from 'react-native-svg'
 import { SendOption } from './SendOptionsScreen'
+import { CurrencyCode, MintUnit } from '../services/wallet/currency'
+import { CurrencySign } from './Wallet/CurrencySign'
+import { useStores } from '../models'
+import { setMinutes } from 'date-fns'
+import { Mint } from '../models/Mint'
+import { CurrencyAmount } from './Wallet/CurrencyAmount'
+import { MintHeader } from './Mints/MintHeader'
 
 
 export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = function LightningPayScreen(_props) {
-    const {navigation} = _props
-    useHeader({
-        leftIcon: 'faArrowLeft',        
-        onLeftPress: () => navigation.goBack(),
-    })
-
-    const lightningInputRef = useRef<TextInput>(null)   
+    const {navigation, route} = _props
+    const lightningInputRef = useRef<TextInput>(null)
+    const {mintsStore} = useStores()
 
     useEffect(() => {
         const focus = () => {
@@ -40,10 +43,28 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
         }
     }, [])
 
+    useEffect(() => {
+        const setUnitAndMint = () => {
+            if(route.params && route.params.unit && route.params.mintUrl) {
+                const mint = mintsStore.findByUrl(route.params.mintUrl)
+                const unit = route.params.unit
+
+                setMint(mint)
+                setUnit(unit)
+            }
+        }
+        
+        setUnitAndMint()
+
+        return () => {}
+    }, [])
+
        
     
     const [prevRouteName, setPrevRouteName] = useState<string>('')
-    const [lightningData, setLightningData] = useState<string | undefined>(undefined)    
+    const [lightningData, setLightningData] = useState<string | undefined>(undefined)
+    const [unit, setUnit] = useState<MintUnit | undefined>(undefined)
+    const [mint, setMint] = useState<Mint | undefined>(undefined)    
     const [error, setError] = useState<AppError | undefined>()
 
 
@@ -80,7 +101,7 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
 
         try {
             const invoiceResult = IncomingParser.findAndExtract(lightningData as string, IncomingDataType.INVOICE)
-            return IncomingParser.navigateWithIncomingData(invoiceResult, navigation)
+            return IncomingParser.navigateWithIncomingData(invoiceResult, navigation, mint && unit && {mintUrl: mint.mintUrl, unit})
             
         } catch (e: any) {
             const maybeLnurlAddress = LnurlUtils.findEncodedLnurlAddress(lightningData as string)
@@ -93,8 +114,8 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                     if(validAddress) {                            
                         await IncomingParser.navigateWithIncomingData({
                             type: IncomingDataType.LNURL_ADDRESS,
-                            encoded: validAddress
-                        }, navigation)    
+                            encoded: validAddress,
+                        }, navigation, mint && unit && {mintUrl: mint.mintUrl, unit})    
                     }
                     return          
                 } catch (e3: any) {
@@ -114,7 +135,7 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                         await IncomingParser.navigateWithIncomingData({
                             type: IncomingDataType.LNURL,
                             encoded: encodedLnurl
-                        }, navigation)
+                        }, navigation, mint && unit && {mintUrl: mint.mintUrl, unit})
                     }
                     return
                 } catch (e2: any) {
@@ -136,11 +157,20 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
     }
 
     const hintText = useThemeColor('textDim')
+    const scanIcon = useThemeColor('text')    
     const inputBg = useThemeColor('background')
+    const contactIcon = useThemeColor('button')
     const headerBg = useThemeColor('header')
+    
+    
 
     return (
         <Screen preset="fixed" contentContainerStyle={$screen}>
+            <MintHeader 
+                mint={mint}
+                unit={unit}
+                navigation={navigation}
+            />
             <View style={[$headerContainer, {backgroundColor: headerBg}]}>                
                 <Text
                     preset="heading"
@@ -160,10 +190,10 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                             RightComponent={
                                 <Button
                                     preset='tertiary'                                    
-                                    LeftAccessory={() => <Icon containerStyle={{paddingVertical: 0}} icon='faAddressBook' />}
+                                    LeftAccessory={() => <Icon color={contactIcon} containerStyle={{paddingVertical: 0}} icon='faAddressBook' />}
                                     onPress={gotoContacts}
                                     text='Contacts'
-                                    textStyle={{fontSize: 12, color: hintText}}
+                                    textStyle={{fontSize: 12, color: contactIcon}}
                                 />
                             }
                         />
@@ -203,7 +233,7 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                                 tx={'common.confirm'}
                                 onPress={onConfirm}
                                 style={{marginLeft: spacing.small}}
-                                LeftAccessory={() => <Icon icon='faCheckCircle'/>}
+                                LeftAccessory={() => <Icon icon='faCheckCircle' color='white'/>}
                             />
                             <Button
                                 preset='secondary'
@@ -216,7 +246,7 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                                             width={spacing.medium} 
                                             height={spacing.medium} 
                                             xml={ScanIcon}
-                                            fill='white'
+                                            fill={scanIcon}
                                             style={{marginHorizontal: spacing.extraSmall}}
                                         />
                                     )

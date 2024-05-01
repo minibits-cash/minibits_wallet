@@ -101,6 +101,7 @@ export function Button(props: ButtonProps) {
       { backgroundColor: defaultBg },
       preset === "secondary" && { backgroundColor: secondaryBg },
       preset === "tertiary" && { backgroundColor: tertiaryBg },
+      !!LeftAccessory && {paddingLeft: spacing.tiny},
       $viewStyleOverride,
       !!pressed && [$pressedViewPresets[preset], $pressedViewStyleOverride],
     ]
@@ -141,8 +142,9 @@ const $baseViewStyle: ViewStyle = {
   justifyContent: "center",
   alignItems: "center",
   flexDirection: "row",
-  paddingVertical: moderateVerticalScale(spacing.small),
-  paddingHorizontal: spacing.small,  
+  paddingVertical: spacing.small,
+  paddingLeft: spacing.small,  
+  paddingRight: spacing.small,
   overflow: "hidden",
 }
 

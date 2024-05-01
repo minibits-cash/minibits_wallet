@@ -13,7 +13,7 @@ index f2809bd..48176f1 100644
  		"type": "git",
  		"url": "git+https://github.com/cashubtc/cashu-ts"
 diff --git a/node_modules/@cashu/cashu-ts/src/CashuMint.ts b/node_modules/@cashu/cashu-ts/src/CashuMint.ts
-index 1491934..7a88aea 100644
+index 1491934..7852bd1 100644
 --- a/node_modules/@cashu/cashu-ts/src/CashuMint.ts
 +++ b/node_modules/@cashu/cashu-ts/src/CashuMint.ts
 @@ -17,9 +17,9 @@ import type {
@@ -29,6 +29,39 @@ index 1491934..7a88aea 100644
  
  /**
   * Class represents Cashu Mint API. This class contains Lower level functions that are implemented by CashuWallet.
+@@ -81,6 +81,32 @@ class CashuMint {
+ 	async mintQuote(mintQuotePayload: MintQuotePayload): Promise<MintQuoteResponse> {
+ 		return CashuMint.mintQuote(this._mintUrl, mintQuotePayload, this._customRequest);
+ 	}
++	/**
++	 * Retrieve if a mint quote has been paid
++	 * @param mintUrl
++	 * @param quote Quote ID.
++	 * @param customRequest
++	 * @returns MintQuoteResponse with paid boolean
++	 */
++	public static async mintQuotePaid(
++		mintUrl: string,
++		quote: string,
++		customRequest?: typeof request
++	): Promise<MintQuoteResponse & {paid: boolean}> {
++		const requestInstance = customRequest || request;
++		return requestInstance<MintQuoteResponse & {paid: boolean}>({
++			endpoint: joinUrls(mintUrl, '/v1/mint/quote/bolt11', quote)
++		});
++	}
++
++	/**
++	 * Retrieve if a mint quote has been paid
++	 * @param quote Quote ID.
++	 * @returns MintQuoteResponse with paid boolean
++	 */
++	async mintQuotePaid(quote: string): Promise<MintQuoteResponse  & {paid: boolean}> {
++		return CashuMint.mintQuotePaid(this._mintUrl, quote, this._customRequest);
++	}
+ 	/**
+ 	 * Requests the mint to perform token minting after the LN invoice has been paid
+ 	 * @param mintUrl
 diff --git a/node_modules/@cashu/cashu-ts/src/CashuWallet.ts b/node_modules/@cashu/cashu-ts/src/CashuWallet.ts
 index 6d3a0b4..02ddb59 100644
 --- a/node_modules/@cashu/cashu-ts/src/CashuWallet.ts

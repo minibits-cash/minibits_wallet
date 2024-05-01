@@ -120,33 +120,37 @@ export function TabsNavigator() {
 
 export type WalletStackParamList = {  
     Wallet: {scannedMintUrl? : string, returnWithNavigationReset?: boolean}
-    ReceiveOptions: undefined
+    ReceiveOptions: {unit: MintUnit}
     Receive: {encodedToken? : string}
-    SendOptions: undefined
-    Send: {contact?: Contact, relays?: string[], paymentOption?: SendOption}
+    SendOptions: {unit: MintUnit}
+    Send: {
+      unit: MintUnit,
+      paymentOption?: SendOption,
+      contact?: Contact,
+      mintUrl?: string,      
+    }
     Scan: undefined
     LightningPay: {
-      mintUrl?: string,
-      unit?: MintUnit    
+      unit: MintUnit    
+      mintUrl?: string,      
     }
     TranDetail: {id: number}
     TranHistory: undefined
     PaymentRequests: undefined 
     Transfer: {
-      encodedInvoice?: string, 
+      unit: MintUnit,
+      encodedInvoice?: string,
       paymentRequest?: PaymentRequest, 
       lnurlParams?: LNURLPayParams & {address?: string}, 
       paymentOption?: SendOption,
-      mintUrl?: string,
-      unit?: MintUnit
+      mintUrl?: string,      
     }
-    Topup: {
-      contact?: Contact, 
-      relays?: string[], 
-      paymentOption?: ReceiveOption, 
+    Topup: {      
+      unit: MintUnit,
+      paymentOption?: ReceiveOption,
+      contact?: Contact,
       lnurlParams?: LNURLWithdrawParams,
-      mintUrl?: string,
-      unit?: MintUnit
+      mintUrl?: string,      
     }
     ContactsNavigator: {screen: string, params: any}
     SettingsNavigator: {screen: string, params: any}
@@ -192,7 +196,7 @@ export type ContactsStackParamList = {
     WalletName: undefined
     RandomName: {navigation: any}
     OwnName: {navigation: any}
-    ContactDetail: {contact: Contact, relays: string[]}
+    ContactDetail: {contact: Contact}
     OwnKeys: undefined
     WalletNavigator: {screen: string, params: any}
     SettingsNavigator: {screen: string}    

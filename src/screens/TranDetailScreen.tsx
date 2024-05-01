@@ -61,16 +61,6 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
   observer(function TranDetailScreen(_props) {
     const {navigation, route} = _props
     const {transactionsStore, userSettingsStore} = useStores()
-    useHeader({
-      leftIcon: 'faArrowLeft',
-      onLeftPress: () => navigation.goBack(),
-      TitleActionComponent:                     
-        <CurrencySign 
-            currencyCode={CurrencyCode.SATS}
-            // containerStyle={{}}
-            textStyle={{color: 'white'}}              
-        />
-    })
     
     const noteInputRef = useRef<TextInput>(null)
 
@@ -84,6 +74,16 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
     const [info, setInfo] = useState('')
     const [note, setNote] = useState<string>('')
     const [savedNote, setSavedNote] = useState<string>('')
+
+    useHeader({
+      leftIcon: 'faArrowLeft',
+      onLeftPress: () => navigation.goBack(),
+      TitleActionComponent:                     
+        <CurrencySign 
+            mintUnit={transaction?.unit}
+            textStyle={{color: 'white'}}              
+        />
+    })
 
     useEffect(() => {
       try {
@@ -254,17 +254,11 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
           <>
             <View style={[$headerContainer, {backgroundColor: headerBg}]}>
               {transaction && (
-                <>
-                  <CurrencySign 
-                      currencyCode={MintUnitCurrencyPairs[transaction.unit as MintUnit]}
-                      textStyle={{color: 'white'}}                        
-                  />
                   <Text
                       preset="heading"
                       text={getFormattedAmount(transaction.amount)}
                       style={$tranAmount}
                   />
-                </>
               )}
             </View>
             <View style={$contentContainer}>

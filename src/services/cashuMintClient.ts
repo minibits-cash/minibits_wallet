@@ -307,7 +307,7 @@ const getSpentOrPendingProofsFromMint = async function (
 
     const spentPendingProofs = await cashuWallet.checkProofsSpent(proofs)
 
-    log.trace('[CashuMintClient.getSpentOrPendingProofsFromMint]', {spentPendingProofs})
+    log.trace('[CashuMintClient.getSpentOrPendingProofsFromMint]', {mintUrl, spentPendingProofs})
 
     return spentPendingProofs as {
         spent: CashuProof[]
@@ -402,19 +402,22 @@ const payLightningMelt = async function (
 
 
 
-const getLightningMintQuote = async function (
+const getBolt11MintQuote = async function (
   mintUrl: string,
   unit: MintUnit,
   amount: number,
 ) {
   try {
     const cashuMint = getMint(mintUrl)
-    const {request: encodedInvoice, quote: mintQuote} = await cashuMint.mintQuote({
+    const {
+      request: encodedInvoice, 
+      quote: mintQuote,      
+    } = await cashuMint.mintQuote({
       unit, 
       amount
     })
 
-    log.info('[getLightningMintQuote]', {encodedInvoice, mintQuote})
+    log.info('[getBolt11MintQuote]', {encodedInvoice, mintQuote})
 
     return {
       encodedInvoice,
@@ -426,7 +429,42 @@ const getLightningMintQuote = async function (
         'The mint could not return an invoice.', 
         {
             message: e.message,
-            caller: 'getLightningMintQuote', 
+            caller: 'getBolt11MintQuote', 
+            mintUrl,            
+        }
+    )
+  }
+}
+
+
+const getBolt11MintQuoteIsPaid = async function (
+  mintUrl: string,
+  quote: string,  
+) {
+  try {
+    const cashuMint = getMint(mintUrl)
+    const {
+      request: encodedInvoice, 
+      quote: mintQuote, 
+      paid: isPaid
+    } = await cashuMint.mintQuotePaid(      
+      quote
+    )
+
+    log.info('[getBolt11MintQuoteIsPaid]', {encodedInvoice, mintQuote, isPaid})
+
+    return {
+      encodedInvoice,
+      mintQuote,
+      isPaid
+    }
+  } catch (e: any) {
+    throw new AppError(
+        Err.MINT_ERROR, 
+        'The mint could not return the state of a mint quote.', 
+        {
+            message: e.message,
+            caller: 'getBolt11MintQuoteIsPaid', 
             mintUrl,            
         }
     )
@@ -557,7 +595,8 @@ export const MintClient = {
     receiveFromMint,
     sendFromMint,
     getSpentOrPendingProofsFromMint,
-    getLightningMintQuote,
+    getBolt11MintQuote,
+    getBolt11MintQuoteIsPaid,
     mintProofs,
     getLightningMeltQuote,
     payLightningMelt,

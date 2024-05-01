@@ -9,24 +9,27 @@ import { verticalScale } from "@gocodingnow/rn-size-matters"
 
 
 export const CurrencyAmount = observer(function (props: {
-    amount?: number
+    amount: number
     currencyCode?: CurrencyCode,
     mintUnit?: MintUnit,
     containerStyle?: ViewStyle,
     symbolStyle?: TextStyle,
-    amountStyle?: TextStyle,
+    amountStyle?: TextStyle | TextStyle[],
     size?: Spacing
   }) 
 {
     const {currencyCode, mintUnit, amount, symbolStyle, amountStyle, containerStyle, size} = props
     let currencySymbol: string = Currencies.SATS!.symbol
+    let currencyPrecision: number = Currencies.SATS!.precision
 
     if(!!currencyCode) {
         currencySymbol = Currencies[currencyCode]!.symbol
+        currencyPrecision = Currencies[currencyCode]!.precision
     }
 
     if(!!mintUnit) {
         currencySymbol = Currencies[MintUnitCurrencyPairs[mintUnit]]!.symbol
+        currencyPrecision = Currencies[MintUnitCurrencyPairs[mintUnit]]!.precision
     }
     
     const amountColor = useThemeColor('amount')
@@ -58,7 +61,7 @@ export const CurrencyAmount = observer(function (props: {
                     fontSize: props.size && spacing[props.size] * 1.2 || spacing.small * 1.2,
                     lineHeight: size && spacing[size] * 1.2 || spacing.small * 1.2
                 }, amountStyle || {}]} 
-                text={`${amount || 0}`}                
+                text={`${amount / currencyPrecision}`}                
             />
         </View>
     )

@@ -54,13 +54,15 @@ import EventEmitter from '../utils/eventEmitter'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { Proof } from '../models/Proof'
-import { Contact } from '../models/Contact'
+import { Contact, ContactType } from '../models/Contact'
 import { getImageSource, infoMessage } from '../utils/utils'
 import { NotificationService } from '../services/notificationService'
 import { SendOption } from './SendOptionsScreen'
 import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencySign } from './Wallet/CurrencySign'
 import { CurrencyCode, MintUnit, MintUnits } from "../services/wallet/currency"
+import { MintHeader } from './Mints/MintHeader'
+import { MintBalanceSelector } from './Mints/MintBalanceSelector'
 
 
 if (Platform.OS === 'android' &&
@@ -71,14 +73,9 @@ if (Platform.OS === 'android' &&
 export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
   function SendScreen({route, navigation}) {
 
-    useHeader({
-        leftIcon: 'faArrowLeft',
-        onLeftPress: () => navigation.goBack(),
-    })
-
     const isInternetReachable = useIsInternetReachable()
 
-    const {proofsStore, walletProfileStore, transactionsStore} = useStores()
+    const {proofsStore, walletProfileStore, transactionsStore, mintsStore, relaysStore} = useStores()
     const amountInputRef = useRef<TextInput>(null)
     const memoInputRef = useRef<TextInput>(null)
     
@@ -125,46 +122,78 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     }, [])
 
 
+    useEffect(() => {
+        const { mintUrl, unit } = route.params
+  
+        const setSelectedMintandUnit = () => {
+            log.trace('[setSelectedMintandUnit]', mintUrl)
+            setUnit(unit)
+            setMintBalanceToSendFrom(proofsStore.getMintBalance(mintUrl!))
+        }
+  
+        if(mintUrl && unit) {                
+            setSelectedMintandUnit()
+        }
+    }, [])
+
+
     // Send to contact
     useFocusEffect(
         useCallback(() => {
 
-            const {paymentOption} = route.params
+            const {paymentOption, contact} = route.params
 
-            const prepareSendToken = () => {
-                log.trace('prepareSendToken start')
-                
-                const {contact, relays} = route.params
+            const prepareSendToContact = () => {
+                try {
+                    let relays: string[] = []                
+                    log.trace('[prepareSendToContact] selected contact', contact, paymentOption)
+        
+                    if(contact?.type === ContactType.PUBLIC) {
+                        relays = relaysStore.allPublicUrls
+                    } else {
+                        relays = relaysStore.allUrls
+                    }
+        
+                    if (!relays) {                    
+                        throw new AppError(Err.VALIDATION_ERROR, 'Missing NOSTR relays')
+                    }
+                    
+                    const {
+                        pubkey,
+                        npub,
+                        name,
+                        picture,
+                    } = walletProfileStore
 
-                if (!contact || !relays) {                    
-                    throw new AppError(Err.VALIDATION_ERROR, 'Missing contact or relay')
+                    const contactFrom: Contact = {
+                        pubkey,
+                        npub,
+                        name,
+                        picture
+                    }
+
+                    setPaymentOption(SendOption.SEND_TOKEN)
+                    setContactToSendFrom(contactFrom)                
+                    setContactToSendTo(contact)                
+                    setRelaysToShareTo(relays)
+
+                    if(encodedTokenToSend) {
+                        toggleNostrDMModal() // open if we already have an invoice
+                    }
+
+                    //reset
+                    navigation.setParams({
+                        paymentOption: undefined,
+                        contact: undefined
+                    })
+                    
+                } catch(e: any) {
+                    handleError(e)
                 }
-                
-                const {
-                    pubkey,
-                    npub,
-                    name,
-                    picture,
-                } = walletProfileStore
-
-                const contactFrom: Contact = {
-                    pubkey,
-                    npub,
-                    name,
-                    picture
-                }
-
-                setPaymentOption(SendOption.SEND_TOKEN)
-                setContactToSendFrom(contactFrom)                
-                setContactToSendTo(contact)                
-                setRelaysToShareTo(relays)
-
-                navigation.setParams({contact: undefined})
-                navigation.setParams({relays: undefined})
             }            
 
-            if(paymentOption && paymentOption === SendOption.SEND_TOKEN) {
-                prepareSendToken()
+            if(paymentOption && contact && paymentOption === SendOption.SEND_TOKEN) {
+                prepareSendToContact()
             }
             
         }, [route.params?.paymentOption])
@@ -307,8 +336,8 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
             setAvailableMintBalances(availableBalances)
 
-            // Default mint with highest balance to topup
-            setMintBalanceToSendFrom(availableBalances[0])
+            // Default mint if not set from route params is with the one with highest balance
+            if(!mintBalanceToSendFrom) {setMintBalanceToSendFrom(availableBalances[0])}
             setIsAmountEndEditing(true)
             // We do not make memo focus mandatory
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
@@ -520,6 +549,15 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     }
 
 
+    const gotoContacts = function () {
+        navigation.navigate('ContactsNavigator', {
+            screen: 'Contacts', 
+            params: {            
+              paymentOption: SendOption.SEND_TOKEN
+            }})
+    }
+
+
     const resetState = function () {
         // reset state so it does not interfere next payment
         setAmountToSend('')
@@ -555,12 +593,13 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
     return (
       <Screen preset="fixed" contentContainerStyle={$screen}>
+        <MintHeader 
+            mint={mintBalanceToSendFrom ? mintsStore.findByUrl(mintBalanceToSendFrom?.mintUrl) : undefined}
+            unit={unit}
+            navigation={navigation}
+        />
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>        
             <View style={$amountContainer}>
-                <CurrencySign 
-                    currencyCode={MintUnits[unit as any] as CurrencyCode}
-                    textStyle={{color: 'white'}}
-                />
                 <TextInput
                     ref={amountInputRef}
                     onChangeText={amount => setAmountToSend(amount)}                
@@ -584,6 +623,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             </View>          
         </View>
         <View style={$contentContainer}>
+        {!encodedTokenToSend && (
             <Card
                 style={$memoCard}
                 ContentComponent={
@@ -618,6 +658,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 </View>
                 }
             />
+            )} 
             {!isInternetReachable && !isMemoEndEditing && (
                 <Button
                     preset="secondary"                    
@@ -632,25 +673,31 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 />
             )}
           
-            {isMintSelectorVisible &&(
+            {isMintSelectorVisible && (
                 <MintBalanceSelector
-                    availableMintBalances={availableMintBalances}
-                    mintBalanceToSendFrom={mintBalanceToSendFrom as MintBalance}
+                    mintBalances={availableMintBalances}
+                    selectedMintBalance={mintBalanceToSendFrom as MintBalance}
                     unit={unit}
+                    title='Send from mint'
+                    confirmTitle='Create token'
                     onMintBalanceSelect={onMintBalanceSelect}
-                    onCancel={onMintBalanceCancel}                
+                    onCancel={onMintBalanceCancel}              
                     onMintBalanceConfirm={onMintBalanceConfirm}
                 />
             )}
             {transactionStatus === TransactionStatus.PENDING && encodedTokenToSend && paymentOption && (
-                <SelectedMintBlock                    
-                    toggleNostrDMModal={toggleNostrDMModal}
-                    toggleQRModal={toggleQRModal}
-                    paymentOption={paymentOption}
-                    encodedTokenToSend={encodedTokenToSend}
-                    mintBalanceToSendFrom={mintBalanceToSendFrom as MintBalance}
-                    gotoWallet={resetState}
-                />
+                <>
+                    <SendAsQRCodeBlock                        
+                        encodedTokenToSend={encodedTokenToSend as string}
+                        onShareToApp={onShareToApp}      
+                        onCopy={onCopy}                                          
+                    />
+                    <TokenOptionsBlock                    
+                        toggleNostrDMModal={toggleNostrDMModal}
+                        contactToSendTo={contactToSendTo}                  
+                        gotoContacts={gotoContacts}                    
+                    />
+                </>
             )}
             {(transactionStatus === TransactionStatus.COMPLETED)  && (
                 <View style={$bottomContainer}>
@@ -682,20 +729,6 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
           }
           onBackButtonPress={toggleProofSelectorModal}
           onBackdropPress={toggleProofSelectorModal}
-        />
-        <BottomModal
-          isVisible={isQRModalVisible ? true : false}
-          ContentComponent={
-            <SendAsQRCodeBlock
-              toggleQRModal={toggleQRModal}
-              encodedTokenToSend={encodedTokenToSend as string}
-              onCopy={onCopy}
-              onShareToApp={onShareToApp}
-              // handleError={handleError}
-            />
-          }
-          onBackButtonPress={toggleQRModal}
-          onBackdropPress={toggleQRModal}
         />
         <BottomModal
           isVisible={isNostrDMModalVisible ? true : false}
@@ -777,77 +810,6 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
   }
 )
 
-const MintBalanceSelector = observer(function (props: {
-  availableMintBalances: MintBalance[]
-  mintBalanceToSendFrom: MintBalance
-  unit: MintUnit
-  onMintBalanceSelect: any
-  onCancel: any  
-  onMintBalanceConfirm: any
-}) {
-
-  const onMintSelect = function (balance: MintBalance) {
-    log.trace('onMintBalanceSelect', balance.mintUrl)
-    return props.onMintBalanceSelect(balance)
-  }
-
-  const {mintsStore} = useStores()
-
-  return (
-    <View style={{flex: 1}}>
-      <Card
-        style={$card}
-        heading={'Pay from'}
-        headingStyle={{textAlign: 'center', padding: spacing.small}}
-        ContentComponent={
-          <>
-            <FlatList<MintBalance>
-                data={props.availableMintBalances}
-                renderItem={({ item, index }) => {                                
-                    return(
-                        <MintListItem
-                            key={item.mintUrl}
-                            mint={mintsStore.findByUrl(item.mintUrl) as Mint}
-                            mintBalance={item}
-                            selectedUnit={props.unit}
-                            onMintSelect={() => onMintSelect(item)}
-                            isSelectable={true}
-                            isSelected={props.mintBalanceToSendFrom.mintUrl === item.mintUrl}
-                            separator={'top'}
-                        />
-                    )
-                }}                
-                keyExtractor={(item) => item.mintUrl} 
-                style={{ flexGrow: 0, maxHeight: spacing.screenHeight * 0.35 }}
-            />            
-          </>
-        }
-      />
-      <View style={$bottomContainer}>
-        <View style={[$buttonContainer, {marginTop: spacing.large}]}>
-            <Button
-            text="Send now"
-            onPress={props.onMintBalanceConfirm}
-            style={{marginRight: spacing.medium}}
-            LeftAccessory={() => (
-                <Icon
-                    icon="faArrowUp"
-                    color="white"
-                    size={spacing.medium}                                
-                />
-            )}
-            // LeftAccessory={() => <Icon icon="faCoins" color="white" size={spacing.medium} containerStyle={{marginRight: spacing.small}}/>}
-            />
-            <Button
-            preset="secondary"
-            tx={'common.cancel'}
-            onPress={props.onCancel}
-            />
-        </View>
-      </View>
-    </View>
-  )
-})
 
 const SelectProofsBlock = observer(function (props: {
     availableMintBalances: MintBalance[]
@@ -951,93 +913,60 @@ const SelectProofsBlock = observer(function (props: {
                 </View>
             </View>
         )
-    }
-    
+    }    
   })
 
 
-const SelectedMintBlock = observer(function (props: {
+  const TokenOptionsBlock = observer(function (props: {
     toggleNostrDMModal: any
-    toggleQRModal: any
-    encodedTokenToSend: string
-    paymentOption: SendOption
-    mintBalanceToSendFrom: MintBalance
-    gotoWallet: any
+    contactToSendTo?: Contact   
+    gotoContacts: any
 }) {
 
-    const {mintsStore} = useStores()
-    const sendBg = useThemeColor('card')
-    const tokenTextColor = useThemeColor('textDim')
-
-  return (
-        <View style={{flex: 1}}>
-            <Card
-                style={$card}
-                heading={'Send from'}
-                headingStyle={{textAlign: 'center', padding: spacing.small}}
-                ContentComponent={
-                    <MintListItem
-                        mint={
-                        mintsStore.findByUrl(
-                            props.mintBalanceToSendFrom?.mintUrl as string,
-                        ) as Mint
-                        }
-                        isSelectable={false}                
-                        separator={'top'}
-                    />
-                }
-            />
+    return (
+        <View style={{flex: 1}}>               
             <View style={$bottomContainer}>
                 <View style={$buttonContainer}>
-                <Button
-                    text='QR code'
-                    preset='secondary'
-                    onPress={props.toggleQRModal}          
-                    LeftAccessory={() => (
-                        <Icon
-                        icon='faQrcode'
-                        //color="white"
-                        size={spacing.medium}              
-                        />
-                    )}
-                />
-                {props.paymentOption === SendOption.SEND_TOKEN && (
+                  {props.contactToSendTo ? (
                     <Button
-                        text='Send to contact'
+                        text={`Send to ${props.contactToSendTo.nip05}`}
                         preset='secondary'
                         onPress={props.toggleNostrDMModal}
-                        style={{marginLeft: spacing.small}}
+                        style={{marginLeft: spacing.medium}}
                         LeftAccessory={() => (
                             <Icon
                             icon='faPaperPlane'
-                            //color="white"
+                            // color="white"
                             size={spacing.medium}              
                             />
                         )} 
                     />
-                )}
+                  ) : (
                     <Button
-                        preset="secondary"
-                        tx={'common.close'}
-                        onPress={props.gotoWallet}
-                        style={{marginLeft: spacing.small}}
+                        text='Send to contact'
+                        preset='secondary'
+                        onPress={props.gotoContacts}
+                        style={{marginLeft: spacing.medium}}
+                        LeftAccessory={() => (
+                            <Icon
+                            icon='faPaperPlane'
+                            // color="white"
+                            size={spacing.medium}              
+                            />
+                        )} 
                     />
+                  )}
                 </View>
-            </View> 
-
+            </View>  
         </View>
-  )
+    )
 })
 
 
-
-
-const SendAsQRCodeBlock = observer(function (props: {
-  toggleQRModal: any
+const SendAsQRCodeBlock = observer(function (props: {  
   encodedTokenToSend: string
   onCopy: any
-  onShareToApp: any  
-  // handleError: any
+  onShareToApp: any
 }) {
 
     const [qrError, setQrError] = useState<Error | undefined>()
@@ -1047,49 +976,53 @@ const SendAsQRCodeBlock = observer(function (props: {
     }
 
   return (
-    <View style={[{marginHorizontal: spacing.small}]}>
-      <Text text={'Scan to receive'} style={{alignSelf: 'center'}}/>
-      
-            {qrError ? (
-                <ListItem 
-                    text='Could not display QR code, copy token instead.'
-                    subText={qrError ? qrError.message : ''}
-                    leftIcon='faTriangleExclamation'
-                    containerStyle={{marginVertical: spacing.large}}
-                    leftIconColor={colors.palette.angry500}
-                />
-            ) : (
-                <View style={$qrCodeContainer}>
-                    <QRCode 
-                        size={spacing.screenWidth - spacing.large * 2} value={props.encodedTokenToSend} 
-                        onError={(error: any) => handleQrError(error)}
-                    />
-                </View>              
-            )}                 
-            
-      
-      <View style={$buttonContainer}>
-        <Button
-          text="Share"
-          onPress={props.onShareToApp}
-          style={{marginRight: spacing.medium}}
-          LeftAccessory={() => (
-            <Icon
-              icon="faShareFromSquare"
-              color="white"
-              size={spacing.medium}
-              // containerStyle={{marginRight: spacing.small}}
+    <Card
+      heading='Token to share'
+      headingStyle={{textAlign: 'center'}}
+      ContentComponent={qrError ? (
+            <ListItem 
+                text='Could not display QR code, copy token instead.'
+                subText={qrError ? qrError.message : ''}
+                leftIcon='faTriangleExclamation'
+                containerStyle={{marginVertical: spacing.large}}
+                leftIconColor={colors.palette.angry500}
             />
-          )}
-        />
-        <Button preset="secondary" text="Copy" onPress={props.onCopy} />
-        <Button
-          preset="tertiary"
-          text="Close"
-          onPress={props.toggleQRModal}
-        />
-      </View>
-    </View>
+        ) : (
+            <View style={$qrCodeContainer}>
+                <QRCode 
+                    size={spacing.screenWidth - spacing.large * 2} value={props.encodedTokenToSend} 
+                    onError={(error: any) => handleQrError(error)}
+                />
+            </View>              
+        )
+      }
+      FooterComponent={
+        <View style={$buttonContainer}>
+          <Button
+            text="Share"
+            preset="secondary" 
+            onPress={props.onShareToApp}
+            textStyle={{fontSize: 14}}
+            style={{
+              minHeight: moderateVerticalScale(40), 
+              paddingVertical: moderateVerticalScale(spacing.tiny),
+              marginRight: spacing.tiny
+            }}  
+          />
+          <Button 
+            preset="secondary" 
+            text="Copy" 
+            onPress={props.onCopy}
+            textStyle={{fontSize: 14}}
+            style={{
+              minHeight: moderateVerticalScale(40), 
+              paddingVertical: moderateVerticalScale(spacing.tiny),
+              marginRight: spacing.tiny
+            }}  
+          />
+        </View>
+      }
+    />    
   )
 })
 
@@ -1281,6 +1214,7 @@ const $amountInput: TextStyle = {
 const $contentContainer: TextStyle = {
     flex: 1,
     padding: spacing.extraSmall,
+    marginTop: -spacing.large * 2
 }
 
 const $memoCard: ViewStyle = {
@@ -1334,7 +1268,8 @@ const $qrCodeContainer: ViewStyle = {
     backgroundColor: 'white',
     padding: spacing.small,
     margin: spacing.small,
-    borderRadius: spacing.small
+    borderRadius: spacing.small,
+    alignItems: 'center',
 }
 
 const $buttonContainer: ViewStyle = {

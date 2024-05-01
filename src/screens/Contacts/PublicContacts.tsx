@@ -17,6 +17,7 @@ import { ReceiveOption } from '../ReceiveOptionsScreen'
 import { useSafeAreaInsetsStyle } from '../../utils/useSafeAreaInsetsStyle'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { IncomingDataType, IncomingParser } from '../../services/incomingParser'
+import { RouteProp } from '@react-navigation/native'
 
 
 // const defaultPublicNpub = 'npub14n7frsyufzqsxlvkx8vje22cjah3pcwnnyqncxkuj2243jvt9kmqsdgs52'
@@ -341,44 +342,38 @@ export const PublicContacts = observer(function (props: {
 
     const gotoContactDetail = async function (contact: Contact) {
         const {paymentOption} = props
-        contact.type = ContactType.PUBLIC      // ???
-
-        const relays = relaysStore.allPublicUrls
+        contact.type = ContactType.PUBLIC
         
-        if(paymentOption && paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) {
-            navigation.navigate('WalletNavigator', { 
-                screen: 'Topup',
-                params: {   
-                    paymentOption,                 
-                    contact, 
-                    relays // TODO remove, switch to relaysStore
-                },
-            })
-
-            //reset
-            navigation.setParams({
-                paymentOption: undefined,
-            })
-
+        
+        if(paymentOption && paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) { // Topup tx contact selection                     
+            /*if(contact.nip05) {     // test ifworks and makes sense           
+                await NostrClient.verifyNip05(contact.nip05 as string, contact.pubkey) // throws
+            }*/
+            
+            if(paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) {
+                navigation.navigate('WalletNavigator', { 
+                    screen: 'Topup',
+                    params: {
+                        paymentOption, 
+                        contact                            
+                    },                                            
+                })
+            }
+           
             return
         }
 
 
-        if(paymentOption && paymentOption === SendOption.SEND_TOKEN) {
+        if(paymentOption && paymentOption === SendOption.SEND_TOKEN) {            
+
             navigation.navigate('WalletNavigator', { 
                 screen: 'Send',
                 params: {   
                     paymentOption,                  
-                    contact, 
-                    relays // TODO remove, switch to relaysStore
+                    contact                    
                 },
             })
-
-            //reset
-            navigation.setParams({
-                paymentOption: undefined,
-            })
-
+            
             return
         }
 
@@ -410,8 +405,7 @@ export const PublicContacts = observer(function (props: {
         log.trace('[gotoContactDetail]', contact)
 
         navigation.navigate('ContactDetail', {
-            contact, 
-            relays // TODO remove, switch to relaysStore
+            contact            
         })
     }
 

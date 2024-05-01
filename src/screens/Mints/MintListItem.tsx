@@ -4,7 +4,7 @@ import { ListItem, Text } from "../../components"
 import { Mint, MintStatus } from "../../models/Mint"
 import { MintBalance } from "../../models/Mint"
 import { colors, spacing, typography, useThemeColor } from "../../theme"
-import { TextStyle } from "react-native"
+import { TextStyle, ViewStyle } from "react-native"
 import { CurrencySign } from "../Wallet/CurrencySign"
 import { CurrencyCode, MintUnit, MintUnitCurrencyPairs, MintUnits } from "../../services/wallet/currency"
 import { log } from "../../services"
@@ -18,7 +18,8 @@ export const MintListItem = observer(function(props: {
     isSelectable: boolean,
     isBlocked?: boolean,
     isUnitVisible?: boolean,
-    separator: 'bottom' | 'top' |  'both' | undefined 
+    separator?: 'bottom' | 'top' |  'both'
+    style?: ViewStyle
   }) {    
     
     const iconSelectedColor = useThemeColor('button')
@@ -34,26 +35,26 @@ export const MintListItem = observer(function(props: {
       margin: spacing.extraSmall                             
     }
 
-    const {mint, mintBalance, selectedUnit, onMintSelect, isSelected, isSelectable, isBlocked, isUnitVisible, separator} = props
+    const {mint, mintBalance, selectedUnit, onMintSelect, isSelected, isSelectable, isBlocked, isUnitVisible, separator, style} = props
 
     // log.trace('[MintListItem]', props)
   
     return (
           <ListItem
               key={mint.mintUrl}
-              text={mint.hostname || ''}
-              subText={mint.shortname || ''}
+              text={mint.shortname}
+              subText={mint.hostname}
               leftIcon={isSelectable ? isSelected ? 'faCheckCircle' : 'faCircle' : undefined}          
               leftIconColor={isSelected ? iconSelectedColor as string : iconColor as string}
               rightIcon={isBlocked ? 'faShieldHalved' : mint.status === MintStatus.OFFLINE ? 'faTriangleExclamation' : undefined}
               rightIconColor={isBlocked ? iconBlockedColor : iconColor as string}          
               onPress={onMintSelect ? () => onMintSelect(mint, mintBalance) : undefined}                    
               RightComponent={mintBalance && selectedUnit && <Text text={`${mintBalance?.balances[selectedUnit]}`} style={{alignSelf: 'center', marginRight: spacing.medium}}/>}
-              BottomComponent={isUnitVisible && mint.units ? (<>{mint.units.map(unit => <CurrencySign containerStyle={{paddingLeft: 0, marginRight: spacing.small}} key={unit} currencyCode={MintUnitCurrencyPairs[unit]}/>)}</>) : undefined}
-              style={{paddingHorizontal: spacing.tiny}}
+              BottomComponent={isUnitVisible && mint.units ? (<>{mint.units.map(unit => <CurrencySign containerStyle={{paddingLeft: 0, marginRight: spacing.small}} key={unit} currencyCode={MintUnitCurrencyPairs[unit]}/>)}</>) : undefined}              
               containerStyle={{alignSelf: 'stretch'}}
               bottomSeparator={separator === 'bottom' || separator === 'both'}
               topSeparator={separator === 'top' || separator === 'both'}
+              style={[{paddingHorizontal: spacing.tiny}, style]}
           />
     )})
 

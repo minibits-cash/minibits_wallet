@@ -21,7 +21,7 @@ interface ContactDetailScreenProps extends ContactsStackScreenProps<'ContactDeta
 
 export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
   function ContactScreen({route, navigation}) {
-    const {contact, relays} = route.params
+    const {contact} = route.params
     const {contactsStore} = useStores()
     const noteInputRef = useRef<TextInput>(null)
 
@@ -50,24 +50,24 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
 
     
     const gotoTopup = () => {
+        
         navigation.navigate('WalletNavigator', { 
             screen: 'Topup',
             params: {
-                paymentOption: ReceiveOption.SEND_PAYMENT_REQUEST, 
-                contact, 
-                relays
+                paymentOption: ReceiveOption.SEND_PAYMENT_REQUEST,
+                contact                 
             },
         })
     }
 
 
     const gotoSend = () => {
+        
         navigation.navigate('WalletNavigator', { 
             screen: 'Send',
             params: {
-                paymentOption: SendOption.SEND_TOKEN, 
-                contact, 
-                relays
+                paymentOption: SendOption.SEND_TOKEN,
+                contact
             },
         })
     }

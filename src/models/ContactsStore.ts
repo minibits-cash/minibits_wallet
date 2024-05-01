@@ -6,6 +6,7 @@ import {
     destroy,
     isStateTreeNode,
     detach,
+    getSnapshot,
   } from 'mobx-state-tree'
   import {withSetPropAction} from './helpers/withSetPropAction'
   import {
@@ -23,7 +24,8 @@ import { MINIBITS_NIP05_DOMAIN } from '@env'
           contacts: types.array(ContactModel),
           publicPubkey: types.maybe(types.string),          
           lastPendingReceivedCheck: types.maybe(types.number), // UNIX timestamp
-          receivedEventIds: types.optional(types.array(types.string), [])
+          receivedEventIds: types.optional(types.array(types.string), []),
+          selectedContact: types.maybe(types.frozen<Contact>())
       })
       .actions(withSetPropAction)
       .views(self => ({          
@@ -98,6 +100,12 @@ import { MINIBITS_NIP05_DOMAIN } from '@env'
                     destroy(contactInstance)
                     log.debug('[removeContact]', 'Contact removed from MintsStore')
                 }
+            },
+            selectContact(contact: Contact) {
+                self.selectedContact = getSnapshot(contact)
+            },
+            unselectContact() {
+                self.selectedContact = undefined
             },
             removeAllContacts() {            
                 self.contacts.clear()

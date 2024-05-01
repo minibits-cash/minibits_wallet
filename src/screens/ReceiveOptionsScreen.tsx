@@ -19,6 +19,7 @@ import AppError from '../utils/AppError'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 
 export enum ReceiveOption {
+    // CREATE_AND_SEND_PAYMENT_REQUEST = 'CREATE_AND_SEND_PAYMENT_REQUEST',
     SEND_PAYMENT_REQUEST = 'SEND_PAYMENT_REQUEST',
     PASTE_OR_SCAN_TOKEN = 'PASTE_OR_SCAN_TOKEN',
     SHOW_INVOICE = 'SHOW_INVOICE',
@@ -41,7 +42,10 @@ export const ReceiveOptionsScreen: FC<WalletStackScreenProps<'ReceiveOptions'>> 
     const gotoContacts = function () {
         navigation.navigate('ContactsNavigator', {
             screen: 'Contacts', 
-            params: {paymentOption: ReceiveOption.SEND_PAYMENT_REQUEST}})
+            params: {
+              paymentOption: ReceiveOption.SEND_PAYMENT_REQUEST
+            }
+        })
     }
 
 

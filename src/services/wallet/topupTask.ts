@@ -11,7 +11,7 @@ import { LightningUtils } from '../lightning/lightningUtils'
 import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
 import { PaymentRequest, PaymentRequestStatus, PaymentRequestType } from '../../models/PaymentRequest'
 import { WalletUtils } from './utils'
-import { MintUnit } from './currency'
+import { MintUnit, MintUnits } from './currency'
 
 const {
     transactionsStore,
@@ -59,7 +59,7 @@ export const topupTask = async function (
         const storedTransaction: TransactionRecord = await transactionsStore.addTransaction(newTransaction)
         transactionId = storedTransaction.id as number        
 
-        const {encodedInvoice, mintQuote} = await MintClient.getLightningMintQuote(mintUrl, unit, amountToTopup)
+        const {encodedInvoice, mintQuote} = await MintClient.getBolt11MintQuote(mintUrl, unit, amountToTopup)
 
         const decodedInvoice = LightningUtils.decodeInvoice(encodedInvoice)
         const {amount, payment_hash, expiry, timestamp} = LightningUtils.getInvoiceData(decodedInvoice)
@@ -103,7 +103,8 @@ export const topupTask = async function (
             mintUnit: unit,
             amountToTopup,
             encodedInvoice,
-            invoicedAmount: amount,            
+            invoicedAmount: amount,
+            invoicedUnit: 'sat',
             description: memo ? memo : contactTo ? `Pay to ${walletProfileStore.nip05}` : '',
             paymentHash: payment_hash,
             contactFrom,
@@ -132,8 +133,8 @@ export const topupTask = async function (
             WalletTask.handlePendingTopup,
             {
                 interval: 6 * 1000,
-                maxPolls: 1, // TODO 20!!!
-                maxErrors: 5
+                maxPolls: 10,
+                maxErrors: 2
             },        
             {paymentRequest})   
         .then(() => log.trace('Polling completed', [], `handlePendingTopupTaskPoller`))

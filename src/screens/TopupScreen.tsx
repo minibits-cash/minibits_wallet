@@ -33,26 +33,26 @@ import {
 } from '../components'
 import {TransactionStatus, Transaction} from '../models/Transaction'
 import {useStores} from '../models'
-import {useHeader} from '../utils/useHeader'
 import {NostrClient, NostrProfile, NostrUnsignedEvent, TransactionTaskResult, WalletTask} from '../services'
 import {log} from '../services/logService'
 import AppError, { Err } from '../utils/AppError'
 
-import {Mint, MintBalance} from '../models/Mint'
+import {MintBalance} from '../models/Mint'
 import {MintListItem} from './Mints/MintListItem'
 import EventEmitter from '../utils/eventEmitter'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
-import {PaymentRequest} from '../models/PaymentRequest'
 import { useFocusEffect } from '@react-navigation/native'
-import { Contact } from '../models/Contact'
+import { Contact, ContactType } from '../models/Contact'
 import { getImageSource, infoMessage } from '../utils/utils'
 import { ReceiveOption } from './ReceiveOptionsScreen'
 import { LNURLWithdrawParams } from 'js-lnurl'
 import { roundDown, roundUp, toNumber } from '../utils/number'
 import { LnurlClient, LnurlWithdrawResult } from '../services/lnurlService'
 import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
-import { CurrencySign } from './Wallet/CurrencySign'
-import { Currencies, CurrencyCode, MintUnit, MintUnitCurrencyPairs, MintUnits } from "../services/wallet/currency"
+import { Currencies, MintUnit, MintUnitCurrencyPairs, MintUnits } from "../services/wallet/currency"
+import { MintHeader } from './Mints/MintHeader'
+import useIsInternetReachable from '../utils/useIsInternetReachable'
+import { MintBalanceSelector } from './Mints/MintBalanceSelector'
 
 if (
   Platform.OS === 'android' &&
@@ -63,12 +63,10 @@ if (
 
 export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
   function TopupScreen({navigation, route}) {
-    useHeader({
-      leftIcon: 'faArrowLeft',
-      onLeftPress: () => navigation.goBack(),
-    })
 
-    const {proofsStore, mintsStore, walletProfileStore, transactionsStore} = useStores()
+    const isInternetReachable = useIsInternetReachable()
+    
+    const {proofsStore, mintsStore, walletProfileStore, transactionsStore, relaysStore} = useStores()
     const amountInputRef = useRef<TextInput>(null)
     const memoInputRef = useRef<TextInput>(null)
     // const tokenInputRef = useRef<TextInput>(null)
@@ -124,7 +122,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
       const { mintUrl, unit } = route.params
 
       const setSelectedMintandUnit = () => {
-        setUnit(unit!)
+        setUnit(unit)
         setMintBalanceToTopup(proofsStore.getMintBalance(mintUrl!))
       }
 
@@ -133,46 +131,59 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
       }
     }, [])
 
-    // Send to contact
+    // Send to contact and LNURL withdraw topup inititalization
     useFocusEffect(
         useCallback(() => {
-            const { paymentOption } = route.params
-            
-            const prepareSendPaymentRequest = () => {
-                try {
-                    const {contact, relays} = route.params
+            const { paymentOption, contact } = route.params
 
-                    if (!contact || !relays) {                    
-                        throw new AppError(Err.VALIDATION_ERROR, 'Missing contact or relay')
-                    }
-
-                    const {
-                        pubkey,
-                        npub,
-                        name,
-                        picture,
-                    } = walletProfileStore
-
-                    const contactFrom: Contact = {
-                        pubkey,
-                        npub,
-                        name,
-                        picture
-                    }
-                        
-                    setPaymentOption(ReceiveOption.SEND_PAYMENT_REQUEST)
-                    setContactToSendFrom(contactFrom)                
-                    setContactToSendTo(contact)                
-                    setRelaysToShareTo(relays)
-
-                    navigation.setParams({contact: undefined})
-                    navigation.setParams({relays: undefined})
-                } catch(e: any) {
-                    handleError(e)
+            const prepareSendToContact = () => {              
+              try {                
+                let relays: string[] = []                
+                log.trace('[prepareSendToContact] selected contact', contact, paymentOption)
+      
+                if(contact?.type === ContactType.PUBLIC) {
+                  relays = relaysStore.allPublicUrls
+                } else {
+                  relays = relaysStore.allUrls
                 }
+      
+                if (!relays) {                    
+                  throw new AppError(Err.VALIDATION_ERROR, 'Missing NOSTR relays')
+                }
+      
+                const {
+                    pubkey,
+                    npub,
+                    name,
+                    picture,
+                } = walletProfileStore
+      
+                const contactFrom: Contact = {
+                    pubkey,
+                    npub,
+                    name,
+                    picture
+                }
+                    
+                setPaymentOption(paymentOption!)
+                setContactToSendFrom(contactFrom)                
+                setContactToSendTo(contact)                
+                setRelaysToShareTo(relays)
+                                
+                if(invoiceToPay) {
+                  toggleNostrDMModal() // open if we already have an invoice
+                }
+                
+                //reset
+                navigation.setParams({
+                  paymentOption: undefined,
+                  contact: undefined
+                })
+  
+            } catch(e: any) {
+                handleError(e)
             }
-
-
+          }
 
             const prepareLnurlWithdraw = () => {
                 try {
@@ -186,22 +197,19 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                     setAmountToTopup(`${amountSats}`)
                     setLnurlWithdrawParams(lnurlParams)
                     setMemo(lnurlParams.defaultDescription)                    
-                    setPaymentOption(ReceiveOption.LNURL_WITHDRAW)                
-
-                    // onAmountEndEditing(`${amountSats}`)
+                    setPaymentOption(ReceiveOption.LNURL_WITHDRAW)
                 } catch(e: any) {
                     handleError(e)
                 }
             }
 
-            if(paymentOption && paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) {                
-                prepareSendPaymentRequest()
+            if(paymentOption && contact && paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) {                
+              prepareSendToContact()
             }
 
             if(paymentOption && paymentOption === ReceiveOption.LNURL_WITHDRAW) {                
-                prepareLnurlWithdraw()
+              prepareLnurlWithdraw()
             }
-            
         }, [route.params?.paymentOption])
     )
 
@@ -228,10 +236,6 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                 })
                 setIsResultModalVisible(true)
                 return
-            }
-            
-            if (paymentOption === ReceiveOption.SHOW_INVOICE) {
-                toggleQRModal()
             }
     
             if (paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) {
@@ -291,13 +295,10 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         EventEmitter.off('ev__handlePendingTopupTask_result', handlePendingTopupTaskResult)
       }
     }, [transactionId])
-
-
-    const toggleQRModal = () => setIsQRModalVisible(previousState => !previousState)
+    
     const toggleNostrDMModal = () => setIsNostrDMModalVisible(previousState => !previousState)
     const toggleWithdrawModal = () => setIsWithdrawModalVisible(previousState => !previousState)
     const toggleResultModal = () => setIsResultModalVisible(previousState => !previousState)
-
 
     const onAmountEndEditing = function () {
       try {
@@ -327,8 +328,8 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
             setAmountToTopup(`${roundUp(toNumber(amountToTopup), mantissa)}`) // round amount based on currency format
             setAvailableMintBalances(availableBalances)
 
-            // Default mint is the one with the highest balance to topup
-            if(!mintBalanceToTopup) setMintBalanceToTopup(availableBalances[0])
+            // Default mint if not set from route params is the one with the highest balance to topup
+            if(!mintBalanceToTopup) {setMintBalanceToTopup(availableBalances[0])}
             setIsAmountEndEditing(true)
             // We do not make memo focus mandatory
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
@@ -492,6 +493,16 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     }
 
 
+    const gotoContacts = function () {
+      navigation.navigate('ContactsNavigator', {
+          screen: 'Contacts', 
+          params: {            
+            paymentOption: ReceiveOption.SEND_PAYMENT_REQUEST
+          }})
+    }
+
+
+
     const onLnurlWithdraw = async function () {
         try {
             setIsWithdrawRequestSending(true) // replace, not working
@@ -575,14 +586,14 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     const satsColor = colors.palette.primary200
 
     return (
-      <Screen preset="fixed" contentContainerStyle={$screen}>
+      <Screen preset="fixed" contentContainerStyle={$screen}>        
+        <MintHeader 
+            mint={mintBalanceToTopup ? mintsStore.findByUrl(mintBalanceToTopup?.mintUrl) : undefined}
+            unit={unit}
+            navigation={navigation}
+        />
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
             <View style={$amountContainer}>
-                <CurrencySign 
-                    currencyCode={MintUnitCurrencyPairs[unit]}
-                    textStyle={{color: 'white'}} 
-                    containerStyle={{alignSelf: 'center'}}                   
-                />
                 <TextInput
                     ref={amountInputRef}
                     onChangeText={amount => setAmountToTopup(amount)}                    
@@ -593,7 +604,9 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                     keyboardType="numeric"
                     selectTextOnFocus={true}
                     editable={
-                        transactionStatus === TransactionStatus.PENDING ? false : true
+                      (transactionStatus === TransactionStatus.PENDING || !isInternetReachable)
+                      ? false 
+                      : true
                     }
                 />
                 <Text
@@ -604,6 +617,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
           </View>
         </View>
         <View style={$contentContainer}>
+        {!invoiceToPay && (
           <Card
             style={$memoCard}
             ContentComponent={
@@ -637,43 +651,51 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                 />
               </View>
             }
-          />          
-            {isMintSelectorVisible && (
-                    <MintBalanceSelector
-                        availableMintBalances={availableMintBalances}
-                        mintBalanceToTopup={mintBalanceToTopup as MintBalance}
-                        unit={unit}
-                        onMintBalanceSelect={onMintBalanceSelect}
-                        onCancel={onMintBalanceCancel}
-                        findByUrl={mintsStore.findByUrl}
-                        onMintBalanceConfirm={onMintBalanceConfirm}
+          /> 
+        )}                   
+        {isMintSelectorVisible && (
+          <MintBalanceSelector
+              mintBalances={availableMintBalances}
+              selectedMintBalance={mintBalanceToTopup as MintBalance}
+              unit={unit}
+              title='Topup mint'
+              confirmTitle='Create invoice'
+              onMintBalanceSelect={onMintBalanceSelect}
+              onCancel={onMintBalanceCancel}              
+              onMintBalanceConfirm={onMintBalanceConfirm}
+          />
+        )}
+        {transactionStatus === TransactionStatus.PENDING && invoiceToPay && paymentOption && (
+            <>
+              <ShareAsQRCodeBlock                  
+                  invoiceToPay={invoiceToPay as string}
+                  onShareToApp={onShareToApp}
+                  onCopy={onCopy}
+                  onError={handleError}
+              />
+              <InvoiceOptionsBlock                    
+                  toggleNostrDMModal={toggleNostrDMModal}                  
+                  toggleWithdrawModal={toggleWithdrawModal}
+                  paymentOption={paymentOption}
+                  contactToSendTo={contactToSendTo}                  
+                  gotoContacts={gotoContacts}                  
+              />
+            </>
+        )}
+        {(transactionStatus === TransactionStatus.COMPLETED)  && (
+            <View style={$bottomContainer}>
+                <View style={$buttonContainer}>
+                    <Button
+                        preset="secondary"
+                        tx={'common.close'}
+                        onPress={resetState}
                     />
-            )}
-            {transactionStatus === TransactionStatus.PENDING && invoiceToPay && paymentOption && (
-                    <SelectedMintBlock                    
-                        toggleNostrDMModal={toggleNostrDMModal}
-                        toggleQRModal={toggleQRModal}
-                        toggleWithdrawModal={toggleWithdrawModal}
-                        paymentOption={paymentOption}
-                        invoiceToPay={invoiceToPay}
-                        mintBalanceToTopup={mintBalanceToTopup as MintBalance}
-                        gotoWallet={resetState}
-                    />
-            )}
-            {(transactionStatus === TransactionStatus.COMPLETED)  && (
-                <View style={$bottomContainer}>
-                    <View style={$buttonContainer}>
-                        <Button
-                            preset="secondary"
-                            tx={'common.close'}
-                            onPress={resetState}
-                        />
-                    </View>
                 </View>
-            )}
-            {isLoading && <Loading />}
+            </View>
+        )}
+        {isLoading && <Loading />}
         </View>        
-        <BottomModal
+        {/*<BottomModal
             isVisible={isQRModalVisible}
             ContentComponent={
                 <ShareAsQRCodeBlock
@@ -686,7 +708,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
             }
             onBackButtonPress={toggleQRModal}
             onBackdropPress={toggleQRModal}
-        />
+          />*/}
         <BottomModal
           isVisible={isNostrDMModalVisible ? true : false}
           ContentComponent={
@@ -795,197 +817,119 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
   },
 )
 
-const MintBalanceSelector = observer(function (props: {
-  availableMintBalances: MintBalance[]
-  mintBalanceToTopup: MintBalance
-  unit: MintUnit
-  onMintBalanceSelect: any
-  onCancel: any
-  findByUrl: any
-  onMintBalanceConfirm: any
-}) {
-  const onMintSelect = function (balance: MintBalance) {
-    log.trace('onMintBalanceSelect', balance.mintUrl)
-    return props.onMintBalanceSelect(balance)
-  }
 
-  return (
-    <View style={{flex: 1}}>
-      <Card
-        style={$card}
-        heading={'Select mint to top-up'}
-        headingStyle={{textAlign: 'center', padding: spacing.small}}
-        ContentComponent={
-          <>
-            <FlatList<MintBalance>
-                data={props.availableMintBalances}
-                renderItem={({ item, index }) => {                                
-                    return(
-                        <MintListItem
-                            key={item.mintUrl}
-                            mint={props.findByUrl(item.mintUrl)}
-                            mintBalance={item}
-                            selectedUnit={props.unit}
-                            onMintSelect={() => onMintSelect(item)}
-                            isSelectable={true}
-                            isSelected={props.mintBalanceToTopup.mintUrl === item.mintUrl}
-                            separator={'top'}
-                        />
-                    )
-                }}
-                keyExtractor={(item) => item.mintUrl} 
-                style={{ flexGrow: 0, maxHeight: spacing.screenHeight * 0.35 }}
-            /> 
-          </>
-        }
-      />
-      <View style={$bottomContainer}>
-        <View style={[$buttonContainer, {marginTop: spacing.large}]}>
-            <Button
-            text="Create invoice"
-            onPress={props.onMintBalanceConfirm}
-            style={{marginRight: spacing.medium}}          
-            />
-            <Button
-            preset="secondary"
-            tx={'common.cancel'}
-            onPress={props.onCancel}
-            />
-        </View>
-      </View>
-    </View>
-  )
-})
-
-const SelectedMintBlock = observer(function (props: {
-    toggleNostrDMModal: any
-    toggleQRModal: any
-    toggleWithdrawModal: any
-    invoiceToPay: string
+const InvoiceOptionsBlock = observer(function (props: {
+    toggleNostrDMModal: any    
+    toggleWithdrawModal: any    
+    contactToSendTo?: Contact
     paymentOption: ReceiveOption
-    mintBalanceToTopup: MintBalance
-    gotoWallet: any
+    gotoContacts: any
 }) {
-
-    const {mintsStore} = useStores()
-    const sendBg = useThemeColor('card')
-    const tokenTextColor = useThemeColor('textDim')
 
     return (
-        <View style={{flex: 1}}>           
-            <Card
-                style={$card}
-                heading={'Mint to topup'}
-                headingStyle={{textAlign: 'center', padding: spacing.small}}
-                ContentComponent={
-                    <MintListItem
-                        mint={
-                        mintsStore.findByUrl(
-                            props.mintBalanceToTopup?.mintUrl as string,
-                        ) as Mint
-                        }
-                        isSelectable={false}                
-                        separator={'top'}
-                    />
-                }
-            />      
+        <View style={{flex: 1}}>               
             <View style={$bottomContainer}>
                 <View style={$buttonContainer}>
+                  {props.contactToSendTo ? (
                     <Button
-                    text='QR code'
-                    preset='secondary'
-                    onPress={props.toggleQRModal}          
-                    LeftAccessory={() => (
-                        <Icon
-                        icon='faQrcode'
-                        // color="white"
-                        size={spacing.medium}              
-                        />
-                    )}
+                        text={`Send to ${props.contactToSendTo.nip05}`}
+                        preset='secondary'
+                        onPress={props.toggleNostrDMModal}
+                        style={{marginLeft: spacing.medium}}
+                        LeftAccessory={() => (
+                            <Icon
+                            icon='faPaperPlane'
+                            // color="white"
+                            size={spacing.medium}              
+                            />
+                        )} 
                     />
-                    {props.paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST && (
-                        <Button
-                            text='Send to contact'
-                            preset='secondary'
-                            onPress={props.toggleNostrDMModal}
-                            style={{marginLeft: spacing.medium}}
-                            LeftAccessory={() => (
-                                <Icon
-                                icon='faPaperPlane'
-                                // color="white"
-                                size={spacing.medium}              
-                                />
-                            )} 
-                        />
-                    )}
-                    {props.paymentOption === ReceiveOption.LNURL_WITHDRAW && (
-                        <Button
-                            text='Withdraw'
-                            preset='secondary'
-                            onPress={props.toggleWithdrawModal}
-                            style={{marginLeft: spacing.medium}}
-                            LeftAccessory={() => (
-                                <Icon
-                                icon='faArrowTurnDown'
-                                // color="white"
-                                size={spacing.medium}              
-                                />
-                            )} 
-                        />
-                    )}
+                  ) : (
                     <Button
-                        preset="secondary"
-                        tx={'common.close'}
-                        onPress={props.gotoWallet}
-                        style={{marginLeft: spacing.small}}
+                        text='Send to contact'
+                        preset='secondary'
+                        onPress={props.gotoContacts}
+                        style={{marginLeft: spacing.medium}}
+                        LeftAccessory={() => (
+                            <Icon
+                            icon='faPaperPlane'
+                            // color="white"
+                            size={spacing.medium}              
+                            />
+                        )} 
                     />
+                  )}                    
+                  {props.paymentOption === ReceiveOption.LNURL_WITHDRAW && (
+                    <Button
+                        text='Withdraw'
+                        preset='secondary'
+                        onPress={props.toggleWithdrawModal}
+                        style={{marginLeft: spacing.medium}}
+                        LeftAccessory={() => (
+                            <Icon
+                            icon='faArrowTurnDown'
+                            // color="white"
+                            size={spacing.medium}              
+                            />
+                        )} 
+                    />
+                  )}
                 </View>
             </View>  
         </View>
     )
 })
 
-const ShareAsQRCodeBlock = observer(function (props: {
-  toggleQRModal: any
+const ShareAsQRCodeBlock = observer(function (props: {  
   invoiceToPay: string
   onShareToApp: any  
   onCopy: any
   onError: any
 }) {
   return (
-    <View style={[$bottomModal, {marginHorizontal: spacing.small}]}>
-      <Text text={'Scan and pay to top-up'} />
-      <View style={$qrCodeContainer}>
-        <QRCode 
-            size={270} 
-            value={props.invoiceToPay}
-            onError={props.onError}
-        />
-      </View>
-      <View style={$buttonContainer}>
-        <Button
-          text="Share"
-          onPress={props.onShareToApp}
-          style={{marginRight: spacing.medium}}
-          LeftAccessory={() => (
-            <Icon
-              icon="faShareFromSquare"
-              color="white"
-              size={spacing.medium}
-              // containerStyle={{marginRight: spacing.small}}
-            />
-          )}
-        />
-        <Button preset="secondary" text="Copy" onPress={props.onCopy} />
-        <Button
-          preset="tertiary"
-          text="Close"
-          onPress={props.toggleQRModal}
-        />
-      </View>
-    </View>
+    <Card
+      heading='Invoice to pay'
+      headingStyle={{textAlign: 'center'}}
+      ContentComponent={
+        <View style={$qrCodeContainer}>
+          <QRCode 
+              size={270} 
+              value={props.invoiceToPay}
+              onError={props.onError}
+          />
+        </View>
+      }
+      FooterComponent={
+        <View style={$buttonContainer}>
+          <Button
+            text="Share"
+            preset="secondary" 
+            onPress={props.onShareToApp}
+            textStyle={{fontSize: 14}}
+            style={{
+              minHeight: moderateVerticalScale(40), 
+              paddingVertical: moderateVerticalScale(spacing.tiny),
+              marginRight: spacing.tiny
+            }}  
+          />
+          <Button 
+            preset="secondary" 
+            text="Copy" 
+            onPress={props.onCopy}
+            textStyle={{fontSize: 14}}
+            style={{
+              minHeight: moderateVerticalScale(40), 
+              paddingVertical: moderateVerticalScale(spacing.tiny),
+              marginRight: spacing.tiny
+            }}  
+          />
+        </View>
+      }
+    />
+      
   )
 })
+
 
 
 const SendAsNostrDMBlock = observer(function (props: {
@@ -1258,8 +1202,9 @@ const $headerContainer: TextStyle = {
   }
 
 const $contentContainer: TextStyle = {
-    flex:1,
+    flex: 1,
     padding: spacing.extraSmall,
+    marginTop: -spacing.large * 2
 }
 
 const $memoCard: ViewStyle = {
@@ -1311,9 +1256,10 @@ const $bottomModal: ViewStyle = {
 }
 
 const $qrCodeContainer: ViewStyle = {
+  alignItems: 'center',
   backgroundColor: 'white',
   padding: spacing.small,
-  margin: spacing.small,
+  margin: spacing.tiny,
   borderRadius: spacing.small
 }
 

@@ -31,9 +31,9 @@ export const PaymentRequestModel = types
         status: types.frozen<PaymentRequestStatus>(),
         mint: types.maybe(types.string),
         mintQuote: types.maybe(types.string),
-        mintUnit: types.frozen<MintUnit>(), // TODO migration to set default unit for existing PRs
+        mintUnit: types.maybe(types.frozen<MintUnit>()), // TODO migration to set default unit for existing PRs
         mintMethod: types.optional(types.frozen<MintMethod>(), MintMethod.BOLT11), 
-        amountToTopup: types.number,  
+        amountToTopup: types.maybe(types.number),  
         encodedInvoice: types.string,
         invoicedAmount: types.number,
         invoicedUnit: types.optional(types.frozen<MintUnit>(), 'sat'), 
@@ -58,10 +58,10 @@ export type PaymentRequest = {
     type: PaymentRequestType
     status: PaymentRequestStatus
     mint?: string
-    mintUnit: MintUnit
+    mintUnit?: MintUnit
     mintQuote?: string
     mintMethod?: MintMethod
-    amountToTopup: number
+    amountToTopup?: number
     encodedInvoice: string
     invoicedAmount: number    
     description?: string    
