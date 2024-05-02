@@ -26,7 +26,7 @@ export const PrivateContacts = observer(function (props: {
     navigation: StackNavigationProp<ContactsStackParamList, "Contacts", undefined>,             
     paymentOption: ReceiveOption | SendOption | undefined},    
 ) { 
-    const {contactsStore, relaysStore} = useStores()
+    const {contactsStore, relaysStore, userSettingsStore} = useStores()
     const {navigation} = props
     const contactNameInputRef = useRef<TextInput>(null)
  
@@ -211,7 +211,7 @@ export const PrivateContacts = observer(function (props: {
                 await IncomingParser.navigateWithIncomingData({
                     type: IncomingDataType.LNURL_ADDRESS,
                     encoded: contact.lud16
-                }, navigation)
+                }, navigation, userSettingsStore.preferredUnit)
 
                 //reset
                 navigation.setParams({

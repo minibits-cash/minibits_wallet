@@ -16,6 +16,7 @@ import {translate} from '../i18n'
 import { log } from '../services'
 import {Env} from '../utils/envtypes'
 import { round } from '../utils/number'
+import { MintUnitCurrencyPairs } from '../services/wallet/currency'
 
 
 interface SettingsScreenProps extends SettingsStackScreenProps<'Settings'> {}
@@ -26,7 +27,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
   function SettingsScreen(_props) {
     const {navigation} = _props
     useHeader({}) // default header component
-    const {mintsStore, relaysStore} = useStores()
+    const {mintsStore, relaysStore, userSettingsStore} = useStores()
 
     const [isUpdateAvailable, setIsUpdateAvailable] = useState<boolean>(false)
     const [updateDescription, setUpdateDescription] = useState<string>('')    
@@ -125,9 +126,26 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                     onPress={gotoMints}
                 />
                 <ListItem
+                    tx='settingsScreen.preferredUnit'
+                    leftIcon='faMoneyBill1'
+                    leftIconColor={userSettingsStore.preferredUnit === 'usd' ? colors.palette.green400 : colors.palette.orange400}
+                    leftIconInverse={true}
+                    style={$item}
+                    RightComponent={
+                      <View style={$rightContainer}>
+                      <Text 
+                          style={$itemRight}
+                          text={MintUnitCurrencyPairs[userSettingsStore.preferredUnit]}
+                      />
+                      </View>
+                   }
+                    bottomSeparator={true}
+                    onPress={gotoBackupRestore}
+                />
+                <ListItem
                     tx='settingsScreen.backupRecovery'
                     leftIcon='faCloudArrowUp'
-                    leftIconColor={colors.palette.success300}
+                    leftIconColor={colors.palette.angry300}
                     leftIconInverse={true}
                     style={$item}
                     bottomSeparator={true}
@@ -171,7 +189,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                 <ListItem
                     tx='settingsScreen.devOptions'
                     leftIcon='faCode'
-                    leftIconColor={colors.palette.accent300}
+                    leftIconColor={colors.palette.neutral600}
                     leftIconInverse={true}
                     style={$item}                  
                     onPress={gotoDevOptions}

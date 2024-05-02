@@ -24,7 +24,7 @@ import {
   Loading,
   BottomModal,
 } from '../components'
-import {WalletStackScreenProps} from '../navigation'
+import {TransactionsStackScreenProps, WalletStackScreenProps} from '../navigation'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import {GroupedByTimeAgo, maxTransactionsInModel} from '../models/TransactionsStore'
@@ -34,10 +34,6 @@ import {TransactionListItem} from './Transactions/TransactionListItem'
 import { Transaction, TransactionStatus } from '../models/Transaction'
 import { height } from '@fortawesome/free-solid-svg-icons/faWallet'
 
-
-interface TranHistoryScreenProps
-  extends WalletStackScreenProps<'TranHistory'> {}
-
 if (Platform.OS === 'android' &&
     UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true)
@@ -45,7 +41,7 @@ if (Platform.OS === 'android' &&
 // Number of transactions held in TransactionsStore model
 const limit = maxTransactionsInModel
 
-export const TranHistoryScreen: FC<TranHistoryScreenProps> = observer(function TranHistoryScreen(_props) {
+export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> = observer(function TranHistoryScreen(_props) {
     const {navigation} = _props
     const {transactionsStore, proofsStore, mintsStore} = useStores()
     useHeader({

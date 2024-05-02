@@ -137,7 +137,7 @@ export const sendTask = async function (
             WalletTask.handleSpentByMint,
             {
                 interval: 6 * 1000,
-                maxPolls: 1, // TODO 10
+                maxPolls: 10,
                 maxErrors: 2
             },
             {mintUrl, isPending: true}

@@ -23,7 +23,6 @@ import AppError, { Err } from '../utils/AppError'
 import { MinibitsClient } from './minibitsService'
 import { rootStoreInstance } from '../models'
 import { WalletTask } from './walletService'
-import { WalletTask } from './walletService'
 
 export {     
     NostrEvent, 
@@ -204,7 +203,6 @@ const decryptNip04 = async function(
 const publish = async function (
     event: NostrUnsignedEvent,
     relays: string[],    
-): Promise<NostrEvent | undefined> {
 ): Promise<NostrEvent | undefined> {
 
     const  keys: KeyPair = await getOrCreateKeyPair()    

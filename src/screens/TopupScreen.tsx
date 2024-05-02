@@ -885,7 +885,8 @@ const ShareAsQRCodeBlock = observer(function (props: {
   return (
     <Card
       heading='Invoice to pay'
-      headingStyle={{textAlign: 'center'}}
+      headingStyle={{textAlign: 'center', color: colors.light.text}}
+      style={{backgroundColor: 'white'}}
       ContentComponent={
         <View style={$qrCodeContainer}>
           <QRCode 

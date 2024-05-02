@@ -105,7 +105,7 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
 
         try {
             const invoiceResult = IncomingParser.findAndExtract(lightningData as string, IncomingDataType.INVOICE)
-            return IncomingParser.navigateWithIncomingData(invoiceResult, navigation, mint && unit && {mintUrl: mint.mintUrl, unit})
+            return IncomingParser.navigateWithIncomingData(invoiceResult, navigation, unit, mint && mint.mintUrl)
             
         } catch (e: any) {
             const maybeLnurlAddress = LnurlUtils.findEncodedLnurlAddress(lightningData as string)
@@ -119,7 +119,7 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                         await IncomingParser.navigateWithIncomingData({
                             type: IncomingDataType.LNURL_ADDRESS,
                             encoded: validAddress,
-                        }, navigation, mint && unit && {mintUrl: mint.mintUrl, unit})    
+                        }, navigation, unit, mint && mint.mintUrl)    
                     }
                     return          
                 } catch (e3: any) {
@@ -139,7 +139,7 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                         await IncomingParser.navigateWithIncomingData({
                             type: IncomingDataType.LNURL,
                             encoded: encodedLnurl
-                        }, navigation, mint && unit && {mintUrl: mint.mintUrl, unit})
+                        }, navigation, unit, mint && mint.mintUrl)
                     }
                     return
                 } catch (e2: any) {

@@ -2,10 +2,12 @@ import {Instance, SnapshotOut, types, flow} from 'mobx-state-tree'
 import {Database} from '../services'
 import {MMKVStorage} from '../services'
 import {LogLevel} from '../services/log/logTypes'
+import { MintUnit } from '../services/wallet/currency'
 
 export type UserSettings = {
   id?: number   
-  walletId: string | null    
+  walletId: string | null
+  preferredUnit: MintUnit | null 
   isOnboarded: boolean | 0 | 1
   isStorageEncrypted: boolean | 0 | 1
   isLocalBackupOn: boolean | 0 | 1
@@ -18,7 +20,8 @@ export type UserSettings = {
 export const UserSettingsStoreModel = types
     .model('UserSettingsStore')
     .props({                
-        walletId: types.maybeNull(types.string),                
+        walletId: types.maybeNull(types.string),
+        preferredUnit: types.optional(types.frozen<MintUnit>(), 'sat'),
         isOnboarded: types.optional(types.boolean, false),
         isStorageEncrypted: types.optional(types.boolean, false),
         isLocalBackupOn: types.optional(types.boolean, true),
@@ -30,7 +33,8 @@ export const UserSettingsStoreModel = types
     .actions(self => ({
         loadUserSettings: () => {
             const {
-                walletId,                                 
+                walletId,   
+                preferredUnit,                              
                 isOnboarded, 
                 isStorageEncrypted, 
                 isLocalBackupOn,
@@ -47,7 +51,8 @@ export const UserSettingsStoreModel = types
             const booleanIsLoggerOn = isLoggerOn === 1            
             const booleanIsStorageMigrated = isStorageMigrated === 1            
             
-            self.walletId = walletId as string                        
+            self.walletId = walletId as string
+            self.preferredUnit = preferredUnit as MintUnit                        
             self.isOnboarded = booleanIsOnboarded as boolean
             self.isStorageEncrypted = booleanIsStorageEncrypted as boolean
             self.isLocalBackupOn = booleanIsLocalBackupOn as boolean
@@ -61,6 +66,12 @@ export const UserSettingsStoreModel = types
             self.walletId = walletId
             
             return walletId
+        },
+        setPreferredUnit: (preferredUnit: MintUnit) => {
+            Database.updateUserSettings({...self, preferredUnit})
+            self.preferredUnit = preferredUnit
+            
+            return preferredUnit
         },
         setIsOnboarded: (isOnboarded: boolean) => {
             Database.updateUserSettings({...self, isOnboarded})

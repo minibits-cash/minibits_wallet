@@ -22,7 +22,7 @@ interface ContactDetailScreenProps extends ContactsStackScreenProps<'ContactDeta
 export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
   function ContactScreen({route, navigation}) {
     const {contact} = route.params
-    const {contactsStore} = useStores()
+    const {contactsStore, userSettingsStore} = useStores()
     const noteInputRef = useRef<TextInput>(null)
 
     useHeader({        
@@ -77,8 +77,11 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
         try {                         
             await IncomingParser.navigateWithIncomingData({
                 type: IncomingDataType.LNURL_ADDRESS,
-                encoded: contact.lud16
-            }, navigation)    
+                encoded: contact.lud16                
+            }, 
+            navigation,
+            userSettingsStore.preferredUnit
+        )    
             
             return          
         } catch (e: any) {

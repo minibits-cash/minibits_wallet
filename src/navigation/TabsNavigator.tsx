@@ -43,10 +43,8 @@ import {
 import { Contact } from "../models/Contact"
 import { colors, useThemeColor, spacing, typography } from "../theme"
 import { AppStackParamList, AppStackScreenProps } from "./AppNavigator"
-import { MintBalance } from "../models/Mint"
 import { PaymentRequest } from "../models/PaymentRequest"
 import { LNURLPayParams, LNURLWithdrawParams } from "js-lnurl"
-import { IncomingDataType } from "../services/incomingParser"
 import { MintUnit } from "../services/wallet/currency"
 
 

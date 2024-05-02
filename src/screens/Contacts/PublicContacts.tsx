@@ -34,7 +34,7 @@ export const PublicContacts = observer(function (props: {
     navigation: StackNavigationProp<ContactsStackParamList, "Contacts", undefined>,    
     paymentOption: ReceiveOption | SendOption |undefined}
 ) { 
-    const {contactsStore, relaysStore} = useStores()
+    const {contactsStore, relaysStore, userSettingsStore} = useStores()
     const {navigation} = props
     
     const npubInputRef = useRef<TextInput>(null)    
@@ -392,7 +392,7 @@ export const PublicContacts = observer(function (props: {
             await IncomingParser.navigateWithIncomingData({
                 type: IncomingDataType.LNURL_ADDRESS,
                 encoded: contact.lud16
-            }, navigation)
+            }, navigation, userSettingsStore.preferredUnit)
             setIsLoading(false)
 
             //reset

@@ -989,7 +989,8 @@ const SendAsQRCodeBlock = observer(function (props: {
   return (
     <Card
       heading='Token to share'
-      headingStyle={{textAlign: 'center'}}
+      headingStyle={qrError ? {textAlign: 'center'} : {textAlign: 'center', color: colors.light.text}}
+      style={!qrError && {backgroundColor: 'white'}}
       ContentComponent={qrError ? (
             <ListItem 
                 text='Could not display QR code, copy token instead.'

@@ -83,9 +83,9 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         transactionsStore, 
         paymentRequestsStore, 
         userSettingsStore, 
-        walletProfileStore
     } = useStores()
     
+    const pagerRef = useRef<PagerView>(null)
     const appState = useRef(AppState.currentState)
     const isInternetReachable = useIsInternetReachable()
     const returnWithNavigationReset = route.params?.returnWithNavigationReset
@@ -158,7 +158,10 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             WalletTask.handleInFlight().catch(e => false)
             // Create websocket subscriptions to receive tokens or payment requests by NOSTR DMs                    
             WalletTask.receiveEventsFromRelays().catch(e => false)
-            // log.trace('[getInitialData]', 'walletProfile', walletProfileStore)            
+            // log.trace('[getInitialData]', 'walletProfile', walletProfileStore) 
+            const preferredUnit: MintUnit = userSettingsStore.preferredUnit
+            const pageIndex = groupedMints.findIndex(m => m.unit === preferredUnit)
+            pagerRef.current && pagerRef.current.setPage(pageIndex)         
         }
         
         Linking.addEventListener('url', handleDeeplink)
@@ -172,7 +175,11 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         try {
 
             const incomingData = IncomingParser.findAndExtract(url)
-            await IncomingParser.navigateWithIncomingData(incomingData, navigation)
+            await IncomingParser.navigateWithIncomingData(
+                incomingData, 
+                navigation,
+                currentUnit
+            )
 
         } catch (e: any) {
             handleError(e)
@@ -335,8 +342,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     
     /* Mints pager */    
     
-    const width = spacing.screenWidth
-    const pagerRef = useRef<PagerView>(null)
+    const width = spacing.screenWidth    
     const scrollOffsetAnimatedValue = React.useRef(new Animated.Value(0)).current
     const positionAnimatedValue = React.useRef(new Animated.Value(0)).current
     const inputRange = [0, groupedMints.length]
@@ -369,10 +375,21 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     )
 
 
-    const onPageSelected = (e: any) => {        
-        const currentUnit = groupedMints[e.nativeEvent.position].unit
+    const onPageSelected = (e: any) => {
+        if(groupedMints.length === 0) {
+            return
+        }
+
+        const currentUnit = groupedMints[e.nativeEvent.position]?.unit
         log.trace('[onPageSelected] currentUnit', currentUnit)
+
         setCurrentUnit(currentUnit)
+
+        const preferredUnit = userSettingsStore.preferredUnit
+
+        if(currentUnit !== preferredUnit) { // prevents db write on first load
+            userSettingsStore.setPreferredUnit(currentUnit)
+        }        
     }
 
     const handleError = function (e: AppError) {
@@ -442,7 +459,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 ref={pagerRef}    
                 style={{flexGrow: 1}}                                                       
                 onPageScroll={onPageScroll}
-                onPageSelected={onPageSelected}
+                onPageSelected={onPageSelected}                
             >
                 {groupedMints.map((mints) => (
                     <View key={mints.unit}>

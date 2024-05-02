@@ -162,7 +162,7 @@ export function Card(props: CardProps) {
   const Wrapper: ComponentType<TouchableOpacityProps> = isPressable ? TouchableOpacity : View
   const HeaderContentWrapper = verticalAlignment === "force-footer-bottom" ? View : Fragment
 
-  const $containerStyle = [$containerPresets[preset], $containerStyleOverride]
+  const $containerStyle = [$containerPresets[preset], { backgroundColor }, $containerStyleOverride]
   const $headingStyle = [
     $headingPresets[preset],
     (isFooterPresent || isContentPresent) && { marginBottom: spacing.micro },
@@ -191,7 +191,7 @@ export function Card(props: CardProps) {
 
   return (
     <Wrapper
-      style={[$containerStyle, { backgroundColor }]}
+      style={$containerStyle}
       activeOpacity={0.8}
       accessibilityRole={isPressable ? "button" : undefined}
       {...WrapperProps}

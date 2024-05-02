@@ -10,7 +10,7 @@ import {
 import Clipboard from '@react-native-clipboard/clipboard'
 import JSONTree from 'react-native-json-tree'
 import {colors, spacing, useThemeColor} from '../theme'
-import {WalletStackScreenProps} from '../navigation'
+import {TransactionsStackScreenProps} from '../navigation'
 import EventEmitter from '../utils/eventEmitter'
 import {
   Button,
@@ -41,12 +41,12 @@ import useColorScheme from '../theme/useThemeColor'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import QRCode from 'react-native-qrcode-svg'
-import { getDecodedToken, getEncodedToken, Token as CashuToken } from '@cashu/cashu-ts'
+import { getDecodedToken, Token as CashuToken } from '@cashu/cashu-ts'
 import { CashuUtils } from '../services/cashu/cashuUtils'
 import { MintStatus } from '../models/Mint'
 import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencySign } from './Wallet/CurrencySign'
-import { CurrencyCode, MintUnit, MintUnitCurrencyPairs, MintUnits } from "../services/wallet/currency"
+import { MintUnit, MintUnitCurrencyPairs, MintUnits } from "../services/wallet/currency"
 import { Token } from '../models/Token'
 import { PaymentRequest } from '../models/PaymentRequest'
 import { pollerExists } from '../utils/poller'
@@ -58,7 +58,7 @@ type ProofsByStatus = {
   isReceived: Proof[]
 }
 
-export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
+export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
   observer(function TranDetailScreen(_props) {
     const {navigation, route} = _props
     const {transactionsStore, userSettingsStore} = useStores()

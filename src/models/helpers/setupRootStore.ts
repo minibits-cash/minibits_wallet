@@ -242,6 +242,8 @@ async function _runMigrations(rootStore: RootStore) {
         if(currentVersion < 12) {
             log.trace(`Starting rootStore migrations from version v${currentVersion} -> v12`)
 
+            userSettingsStore.setPreferredUnit('sat')
+            
             for (const mint of mintsStore.allMints) {
                 try {
                     mint.addUnit('sat')

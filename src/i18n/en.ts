@@ -230,6 +230,7 @@ const en = {
   settingsScreen: {
     title: "Settings", 
     manageMints: "Manage mints",
+    preferredUnit: "Preferred unit",
     mintsCount: {
       one: "{{count}} mint",
       other: "{{count}} mints",

@@ -136,24 +136,24 @@ const navigateWithIncomingData = async function (
         encoded: any
     }, 
     navigation: StackNavigationProp<any>,
-    mintAndUnit?: {
-        mintUrl: string,
-        unit: MintUnit
-    }
+    unit: MintUnit,
+    mintUrl?: string
 ) {
 
     switch (incoming.type) {
         case IncomingDataType.CASHU:
             return navigation.navigate('Receive', {
                 encodedToken: incoming.encoded,
-                ...mintAndUnit
+                unit,
+                mintUrl
             })
 
         case IncomingDataType.INVOICE:
             return navigation.navigate('Transfer', {
                 encodedInvoice: incoming.encoded,
                 paymentOption: SendOption.PASTE_OR_SCAN_INVOICE,
-                ...mintAndUnit
+                unit,
+                mintUrl
             })
 
         case (IncomingDataType.LNURL):
@@ -165,7 +165,8 @@ const navigateWithIncomingData = async function (
                     return navigation.navigate('Topup', {
                         lnurlParams,
                         paymentOption: ReceiveOption.LNURL_WITHDRAW,
-                        ...mintAndUnit
+                        unit,
+                        mintUrl
                     })
                 }
 
@@ -173,7 +174,8 @@ const navigateWithIncomingData = async function (
                     return navigation.navigate('Transfer', {
                         lnurlParams,                    
                         paymentOption: SendOption.LNURL_PAY,
-                        ...mintAndUnit
+                        unit,
+                        mintUrl
                     })
                 }
 
@@ -192,7 +194,8 @@ const navigateWithIncomingData = async function (
                 return navigation.navigate('Transfer', {
                     lnurlParams: addressParamsResult.lnurlParams,                
                     paymentOption: SendOption.LNURL_PAY,
-                    ...mintAndUnit
+                    unit,
+                    mintUrl
                 })
             } catch (e: any) {
                 throw new AppError(Err.SERVER_ERROR, 'Could not get Lightning address details from the server.', {

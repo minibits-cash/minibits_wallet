@@ -19,6 +19,7 @@ import { BottomModal, Button, ErrorModal, Icon, Text } from '../components'
 import { LnurlUtils } from '../services/lnurl/lnurlUtils'
 import { infoMessage } from '../utils/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
+import { useStores } from '../models'
 
 const hasAndroidCameraPermission = async () => {
     const cameraPermission = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA)
@@ -36,6 +37,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
     })
 
     const addressInputRef = useRef<TextInput>(null)
+    const {userSettingsStore} = useStores()
 
     const [shouldLoad, setShouldLoad] = useState<boolean>(false)    
     const [isScanned, setIsScanned] = useState<boolean>(false)
@@ -78,14 +80,16 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
     }
 
 
-    const onIncomingData = async function(incoming: any) {       
+    const onIncomingData = async function(incoming: any) {
+        
+        const {preferredUnit: unit} = userSettingsStore
 
         switch (prevRouteName) {
             case 'ReceiveOptions':  
             log.trace('ReceiveOptions')
                 try {                    
                     const tokenResult = IncomingParser.findAndExtract(incoming, IncomingDataType.CASHU)
-                    return IncomingParser.navigateWithIncomingData(tokenResult, navigation)
+                    return IncomingParser.navigateWithIncomingData(tokenResult, navigation, unit)
                     
                 } catch (e: any) {
                     const maybeLnurl = LnurlUtils.findEncodedLnurl(incoming)
@@ -99,7 +103,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                                 await IncomingParser.navigateWithIncomingData({
                                     type: IncomingDataType.LNURL,
                                     encoded: encodedLnurl
-                                }, navigation)
+                                }, navigation, unit)
                             }
                             return
                         } catch (e2: any) {
@@ -116,7 +120,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
             case 'LightningPay':     
                 try {               
                     const invoiceResult = IncomingParser.findAndExtract(incoming, IncomingDataType.INVOICE)
-                    return IncomingParser.navigateWithIncomingData(invoiceResult, navigation)
+                    return IncomingParser.navigateWithIncomingData(invoiceResult, navigation, unit)
                     
                 } catch (e: any) {
                     const maybeLnurlAddress = LnurlUtils.findEncodedLnurlAddress(incoming)
@@ -130,7 +134,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                                 await IncomingParser.navigateWithIncomingData({
                                     type: IncomingDataType.LNURL_ADDRESS,
                                     encoded: validAddress
-                                }, navigation)    
+                                }, navigation, unit)    
                             }
                             return          
                         } catch (e3: any) {
@@ -150,7 +154,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                                 await IncomingParser.navigateWithIncomingData({
                                     type: IncomingDataType.LNURL,
                                     encoded: encodedLnurl
-                                }, navigation)
+                                }, navigation, unit)
                             }
                             return
                         } catch (e2: any) {
@@ -167,7 +171,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                 try {
                 // generic scan button on wallet screen
                     const incomingData = IncomingParser.findAndExtract(incoming)                    
-                    return IncomingParser.navigateWithIncomingData(incomingData, navigation)   
+                    return IncomingParser.navigateWithIncomingData(incomingData, navigation, unit)   
                 } catch (e: any) {
                     e.name = Err.VALIDATION_ERROR
                     e.params = {caller: 'onIncomingData', clipboard: incoming.slice(0, 100)}
