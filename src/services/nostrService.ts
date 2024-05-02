@@ -23,6 +23,7 @@ import AppError, { Err } from '../utils/AppError'
 import { MinibitsClient } from './minibitsService'
 import { rootStoreInstance } from '../models'
 import { WalletTask } from './walletService'
+import { WalletTask } from './walletService'
 
 export {     
     NostrEvent, 
@@ -80,6 +81,7 @@ const reconnectToRelays = async function () {
 
     // recreate subscriptions if all relays down
     if(relaysStore.connectedCount === 0) {
+        WalletTask.handleSpentFromPending().catch(e => false)   
         WalletTask.handleSpentFromPending().catch(e => false)   
     }
 
@@ -203,17 +205,18 @@ const publish = async function (
     event: NostrUnsignedEvent,
     relays: string[],    
 ): Promise<NostrEvent | undefined> {
+): Promise<NostrEvent | undefined> {
 
     const  keys: KeyPair = await getOrCreateKeyPair()    
     
     const signed = {...event} as NostrEvent
 
     signed.created_at = Math.floor(Date.now() / 1000) 
-    signed.id = getEventHash(event)    
-    signed.sig = getSignature(event, keys.privateKey)    
+    signed.id = getEventHash(signed)    
+    signed.sig = getSignature(signed, keys.privateKey)    
 
-    if(!validateEvent(event)) {
-        throw new AppError(Err.VALIDATION_ERROR, 'Event is invalid and could not be published', event)
+    if(!validateEvent(signed)) {
+        throw new AppError(Err.VALIDATION_ERROR, 'Event is invalid and could not be published', signed)
     }
     
     log.trace('Event to be published', signed, 'publish')

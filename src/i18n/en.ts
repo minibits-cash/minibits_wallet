@@ -7,11 +7,47 @@ const en = {
     paste: "Paste",
     scan: "Scan",
     copy: "Copy",
+		copyFailParam: "Couldn't copy %{param}", 
     confirm: "Confirm",
     save: "Save",
     add: "Add",
+		success: "Success!",
     offline: "Offline",
+		qr: "QR Code",
+		sats: "SATS",
+		notCreated: 'Not yet created',
+		resetDefault: 'Reset to default',
+		share: "Share",
   },
+	paymentCommon: {
+		pay: "Pay",
+		payMe: 'Pay me',
+		paySatsAmountTo: "Pay %{amount} SATS to",
+		payFromWallet: 'Pay from wallet',
+		receiveInPerson: "Receive in person"
+	},
+	transactionCommon: {
+		from: "From %{sender}",
+		receivedFrom: "Received from %{sender}",
+		sentTo: "Sent to %{receiver}",
+		paidTo: "Paid to %{receiver}",
+		youReceived: 'You received',
+		youSent: 'You sent',
+		youPaid: 'You paid',
+		unknown: 'Unknown transaction',
+		status: {
+			completedFee: 'Completed %{fee}',
+			draft: 'Draft',
+			error: 'Error',
+			pending: 'Pending',
+			prepared: 'Prepared',
+			reverted: 'Reverted',
+			blocked: 'Blocked',
+			expired: 'Expired'
+		},
+		tapToRedeem: 'Tap to redeem',
+		redeemOnline: 'Redeem online'
+	},
   welcomeScreen: {
     page1: {
       heading: "Welcome",
@@ -48,6 +84,10 @@ const en = {
     topUpWalletSubText: "Top up your balance by paying Bitcoin lightning invoice from another wallet",
     transferFromWallet: "Transfer from wallet",
     transferFromWalletSubText: "Debit your balance by paying Bitcoin lightning invoice from this wallet",
+		feeBadge: {
+			final: "+ final fee %{fee} SATS",
+			upto: "+ fee up to %{fee} SATS"
+		}
   },
   receiveScreen: {
     title: "Receive", 
@@ -112,8 +152,75 @@ const en = {
   contactsScreen: {    
     new: "New",
     scan: "Scan",
-    newTitle: "Add new contact",    
+    newTitle: "Add new contact",
+		getInvoice: "Get invoice",
+		ownName: {
+			donationSuccess: "Thank you! Donation for %{receiver} has been successfully paid.",  
+			tooShort: 'Write your wallet profile name to the text box, use min 2 characters.',
+			illegalChar: 'Do not use . or - characters at the beginning or the end of name.',
+			profileExists: 'This wallet name is already in use, choose another one.',
+			chooseOwnName: 'Choose your own name',
+			chooseOwnNameFooter: 'Use lowercase letters, numbers and .-_',
+			available: "%{name} is available!",
+			payToGetOwnName: "Pay the following lightning invoice and get your %{name} wallet name.",
+			ctaPay: "Pay from wallet",
+			insufficient: 'Your wallet balance is not enough to pay this invoice amount but you can still pay it from another wallet.',
+			betaWarning: 'Please accept this is an early beta software. Your data can still be lost due to a bug or unexpected data loss.'
+		},
+		privateContacts: {
+			selectSendPaymentRequest: 'Select contact to send your payment request to.',
+			selectSendToken: 'Select contact to send your ecash to.',
+			selectSendLnURL: 'Select contact to send Lightning payment to.',
+			saveNewFormat: "Please enter a wallet address in name@domain.xyz format",
+			profileNotFound: "Profile name %{name} could not be found. Make sure the name is correct.",
+			noLightningAddress: 'This contact does not have a Lightning address, send ecash instead.',
+			explainerText: "Private contacts",
+			explainerSubText: "Add other Minibits users as your private contacts. Every user gets sharable @minibits.cash wallet address. You can pay privately to your contacts anytime even if they are offline.",
+			switchName: "Switch your wallet name and picture?",
+			switchNameSubText: 'Get cooler wallet name or profile picture. Select from an array of random names and images or opt for your own @minibits.cash wallet name.',
+			bottomModal: "Private contacts are unique identifiers of other Minibits wallets. You can use them to send or request ecash and you can safely share your own with others.",
+			domainMinibits: "Use minibits.cash domain",
+			domainExternal: "Use another domain"
+		},
+		publicContacts: {
+			npubPasteError: 'Copy your NPUB key first, then paste',
+			relayurlPasteError: 'Copy your relay URL key first, then paste',
+			relayExists: 'Relay already exists.',
+			missingLightningAddress: 'This contact does not have a Lightning address, send ecash instead.',
+			nostrTip: 'Tip the people you follow',
+			nostrTipSubText: 'Add your NOSTR social network public key (npub) and tip or donate to your favourite people and projects directly from the minibits wallet.',
+			nostrSetPublicKey: 'Set your public key',
+			nostrSetPublicKeySubText: 'Add or change your NOSTR social network public key (npub).',
+			nostrSetRelay: 'Set relay',
+			nostrSetRelaySubText: 'Add or change your own relay if your profile and follows are not hosted on the default relays.',
+			nostrRemovePub: 'Remove your public key',
+			nostrRemovePubSubText: 'Remove your npub key and stop loading public contacts.',
+			addNpub: 'Add your npub key',
+			pasteDemoKey: 'Paste demo key',
+			setOwnRelay: 'Set your own relay'
+		},
+		randomName: {
+			selectOneOfUsernames: 'Select one of the usernames'
+		}
   },
+	paymentRequestScreen: {
+		incoming: {
+			noRequests: 'There are no incoming payment requests to be paid or they have already expired.'
+		},
+		outgoing: {
+			noRequests: 'There are no outgoing payment requests to be paid or they have already expired.',
+			invoiceShared: 'Lightning invoice has been shared, waiting to be paid by receiver.',
+			sharingCancelled: 'Sharing cancelled',
+			scanAndPay: 'Scan and pay to top-up'
+		},
+		// might move this to common later if it gets used in other screens
+		listItem: {
+			expires: "Expires %{datetime}",
+			expired: "Expired %{datetime}",
+			requestPaymentSuccess: 'Request has been paid'
+		}
+	},
+
   profileScreen: {    
     changeAvatar: "Change picture",
     changeAvatarSubtext: "Select one from randomly generated pictures.",

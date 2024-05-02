@@ -14,6 +14,7 @@ import { ResultModalInfo } from '../Wallet/ResultModalInfo'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 import { useFocusEffect } from '@react-navigation/native'
 import { SendOption } from '../SendOptionsScreen'
+import { translate } from '../../i18n'
 
 const DEFAULT_DONATION_AMOUNT = 100
 
@@ -101,7 +102,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
             stopPolling(`checkDonationPaidPoller-${donationInvoice.payment_hash}`)            
             setResultModalInfo({
                 status: TransactionStatus.COMPLETED, 
-                message: `Thank you! Donation for ${ownName+MINIBITS_NIP05_DOMAIN} has been successfully paid.`
+								message: translate("contactsScreen.ownName.donationSuccess", { receiver: ownName+MINIBITS_NIP05_DOMAIN })
             })            
             toggleResultModal()
             resetState()     
@@ -150,12 +151,12 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
     
     const onOwnNameCheck = async function () {
         if(!ownName || ownName.length < 2) {
-            setInfo('Write your wallet profile name to the text box, use min 2 characters.')
+            setInfo(translate('contactsScreen.ownName.tooShort'))
             return
         }
 
         if(!isValidName(ownName)) {
-            setInfo('Do not use . or - characters at the beginning or the end of name.')
+            setInfo(translate('contactsScreen.ownName.illegalChar'))
             return
         }
 
@@ -163,7 +164,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
             const profileExists = await MinibitsClient.getWalletProfileByNip05(ownName + MINIBITS_NIP05_DOMAIN)
 
             if(profileExists) {
-                setInfo('This wallet name is already in use, choose another one.')
+                setInfo(translate("contactsScreen.ownName.profileExists"))
                 return
             }
             setIsChecked(true)
@@ -265,7 +266,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
         <View style={$contentContainer}>            
             <Card
                 style={[$card, {marginTop: spacing.small}]}
-                heading='Choose your own name'
+								headingTx='contactsScreen.ownName.chooseOwnName'
                 headingStyle={{textAlign: 'center'}}
                 ContentComponent={                                
                 <View style={$ownNameContainer}>
@@ -292,7 +293,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                     />                    
                 </View>                
                 }
-                footer={'Use lowercase letters, numbers and .-_' }
+								footerTx='contactsScreen.ownName.chooseOwnNameFooter'
                 footerStyle={{color: hint, textAlign: 'center'}}
             />         
         </View>
@@ -305,13 +306,13 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                 </View>
                 <View style={{alignItems: 'center'}}>
                     <Text
-                        text={`${ownName} is available!`}
+                        text={translate('contactsScreen.ownName.available',{ name: ownName })}
                         style={{fontSize: 18}}   
                     />
                     {donationInvoice ? (
                     <>
                     <Text 
-                        text={`Pay the following lightning invoice and get your ${ownName+MINIBITS_NIP05_DOMAIN} wallet name.`}
+                        text={translate("contactsScreen.ownName.payToGetOwnName", { name: ownName+MINIBITS_NIP05_DOMAIN })}
                         style={[$supportText, {color: hint}]} 
                     />
                     {isQRcodeVisible ? (
@@ -341,12 +342,12 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                             <Button
                                 preset="default"
                                 style={{marginRight: spacing.small}}
-                                text="Pay from wallet"
+                                tx='contactsScreen.ownName.ctaPay'
                                 onPress={onPayDonation}                            
                             />                                                
                             <Button
                                 preset="secondary"                            
-                                text="Cancel"
+                                tx='common.cancel'
                                 onPress={resetState}                            
                             />   
                         </View>
@@ -355,14 +356,14 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                             <Text                                
                                 size='xs'
                                 style={{textAlign: 'center', margin: spacing.medium}}
-                                text='Your wallet balance is not enough to pay this invoice amount but you can still pay it from another wallet.' 
+                                tx="contactsScreen.ownName.insufficient"
                             />
                             <View style={$payButtonContainer}>
                             {isQRcodeVisible ? (
                                 <Button
                                     preset="default"
                                     style={{marginRight: spacing.small, maxHeight: 50}}                                    
-                                    text="Back"
+																		tx='common.back'
                                     onPress={() => setIsQRCodeVisible(false)}                            
                                 />
 
@@ -377,13 +378,13 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                                             size={spacing.small}                                        
                                         />
                                     )}
-                                    text="QR code"
+                                    tx='common.qr'
                                     onPress={() => setIsQRCodeVisible(true)}                            
                                 />
                             )}  
                             <Button
                                 preset="secondary"                            
-                                text="Cancel"
+                                tx='common.cancel'
                                 onPress={resetState}                            
                             />
                             </View>                               
@@ -405,7 +406,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                                 preset='heading'    
                             />
                             <Text
-                                text={`SATS`}
+                                tx='common.sats'
                                 style={{fontSize: 18, marginLeft: spacing.extraSmall}}   
                             />
                         </View>
@@ -444,18 +445,18 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                             <Button
                                 preset="default"
                                 style={{marginRight: spacing.small}}
-                                text="Get invoice"
+                                tx='contactsScreen.getInvoice'
                                 onPress={onCreateDonation}                            
                             /> 
                             <Button
                                 preset="secondary"                            
-                                text="Cancel"
+                                tx='common.cancel'
                                 onPress={resetState}                            
                             />   
                         </View>
                         <View style={{flexDirection: 'row', alignItems: 'center', margin: spacing.medium}}>
                             <Icon icon='faInfoCircle' />
-                            <Text style={{color: hint}} size='xxs' text='Please accept this is an early beta software. Your data can still be lost due to a bug or unexpected data loss.'/>
+                            <Text style={{color: hint}} size='xxs' tx='contactsScreen.ownName.betaWarning'/>
                         </View>
                     </>
                     )}
@@ -474,7 +475,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                 <ResultModalInfo
                     icon="faCheckCircle"
                     iconColor={colors.palette.success200}
-                    title="Success!"
+                    title={translate("common.success")}
                     message={resultModalInfo?.message as string}
                 />
                 <View style={$payButtonContainer}>

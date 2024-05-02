@@ -72,7 +72,7 @@ export const IncomingRequests = observer(function (props: {
             />
           ) : (
             <Card
-                content={'There are no incoming payment requests to be paid or they have already expired.'}
+                contentTx='paymentRequestScreen.incoming.noRequests'
                 contentStyle={{color: hintColor, padding: spacing.small}}
                 style={$card}
             />

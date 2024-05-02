@@ -1,7 +1,6 @@
-
-import { I18nOptions } from "i18n-js"
-import { i18n } from "./i18n"
-import { TxKeyPath } from "./i18n"
+import {I18nOptions} from 'i18n-js'
+import {i18n} from './i18n'
+import {TxKeyPath} from './i18n'
 
 /**
  * Translates text.
@@ -12,21 +11,29 @@ import { TxKeyPath } from "./i18n"
  *
  * @example
  * Translations:
- *
- * ```en.ts
+ * ```ts
+ * // en.ts
  * {
- *  "hello": "Hello, {{name}}!"
+ *  "heading": "Welcome to the app!",
+ *  "buttonText": "Donate",
+ *  "greeting": "Hello, %{name}!" // parameter
  * }
  * ```
- *
  * Usage:
- * ```ts
- * import { translate } from "i18n-js"
+ * ```tsx
+ * import { translate } from "../../i18n";
+ * // or whatever the path is, let it auto-import
  *
- * translate("common.ok", { name: "world" })
- * // => "Hello world!"
+ * translate("heading")			 // => Welcome to the app!
+ * translate("greeting", { name: "world" }) // => Hello world!
+ * <Button tx="buttonText" />		 // => a Donate button
  * ```
+ * You can use nested objects, access them like: `common.payment.success`
  */
-export function translate(key: TxKeyPath, options?: I18nOptions) {
-  return i18n.t(key, options)
+
+export function translate(
+  key: TxKeyPath,
+  options?: Partial<I18nOptions> & {[parameter: string]: any},
+) {
+  return i18n.t(key, options as I18nOptions)
 }

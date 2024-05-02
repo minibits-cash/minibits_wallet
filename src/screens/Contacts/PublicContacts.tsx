@@ -17,6 +17,7 @@ import { ReceiveOption } from '../ReceiveOptionsScreen'
 import { useSafeAreaInsetsStyle } from '../../utils/useSafeAreaInsetsStyle'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { IncomingDataType, IncomingParser } from '../../services/incomingParser'
+import { translate } from '../../i18n'
 import { RouteProp } from '@react-navigation/native'
 
 
@@ -150,8 +151,8 @@ export const PublicContacts = observer(function (props: {
             
             if(event.kind === 3) {
                 const pubkeys = event.tags
-                    .filter((item: [string, string]) => item[0] === "p")
-                    .map((item: [string, string]) => item[1])
+                    .filter((item) => item[0] === "p")
+                    .map((item) => item[1])
                 
                 log.trace('Following pubkeys:', pubkeys.length)
                 setFollowingPubkeys(pubkeys)                
@@ -214,7 +215,7 @@ export const PublicContacts = observer(function (props: {
     const onPastePublicPubkey = async function () {
         const key = await Clipboard.getString()
         if (!key) {
-          setInfo('Copy your NPUB key first, then paste')
+          setInfo(translate("contactsScreen.publicContacts.npubPasteError"))
           return
         }  
         setNewPublicPubkey(key)        
@@ -264,7 +265,7 @@ export const PublicContacts = observer(function (props: {
     const onPastePublicRelay = async function () {
         const url = await Clipboard.getString()
         if (!url) {
-          setInfo('Copy your relay URL key first, then paste')
+          setInfo(translate("contactsScreen.publicContacts.relayurlPasteError"))
           return
         }  
         setNewPublicRelay(url)        
@@ -275,7 +276,7 @@ export const PublicContacts = observer(function (props: {
         try {
             if(newPublicRelay) {                
                 if(relaysStore.alreadyExists(newPublicRelay)) {
-                    setInfo('Relay already exists.')
+                    setInfo(translate("contactsScreen.publicContacts.relayExists"))
                     return
                 }
 
@@ -380,7 +381,7 @@ export const PublicContacts = observer(function (props: {
 
         if(paymentOption && paymentOption === SendOption.LNURL_ADDRESS) {
             if(!contact.lud16) {
-                setInfo('This contact does not have a Lightning address, send ecash instead.')
+                setInfo(translate('contactsScreen.publicContacts.missingLightningAddress'))
                 //reset
                 navigation.setParams({
                     paymentOption: undefined,
@@ -439,8 +440,8 @@ export const PublicContacts = observer(function (props: {
                         leftIcon='faComment'
                         leftIconInverse={true}
                         leftIconColor={colors.palette.iconViolet200}
-                        text='Tip the people you follow'
-                        subText={'Add your NOSTR social network public key (npub) and tip or donate to your favourite people and projects directly from the minibits wallet.'}
+                        tx="contactsScreen.publicContacts.nostrTip"
+                        subTx='contactsScreen.publicContacts.nostrTipSubText'
                         onPress={toggleNpubModal}
                     />                
                 }
@@ -522,22 +523,22 @@ export const PublicContacts = observer(function (props: {
             <>
                 <ListItem
                     leftIcon='faKey'
-                    text='Set your public key'
-                    subText={'Add or change your NOSTR social network public key (npub).'}
+                    tx="contactsScreen.publicContacts.nostrSetPublicKey"
+                    subTx='contactsScreen.publicContacts.nostrSetPublicKeySubText'
                     onPress={toggleNpubModal}
                     bottomSeparator={true}
                 />
                 <ListItem
                     leftIcon='faCircleNodes'
-                    text='Set relay'
-                    subText={'Add or change your own relay if your profile and follows are not hosted on the default relays.'}
+                    tx='contactsScreen.publicContacts.nostrSetRelay'
+                    subTx='contactsScreen.publicContacts.nostrSetRelaySubText'
                     onPress={toggleRelayModal}
                     bottomSeparator={true}
                 />
                 <ListItem
                     leftIcon='faBan'
-                    text='Remove your public key'
-                    subText={'Remove your npub key and stop loading public contacts.'}
+                    tx="contactsScreen.publicContacts.nostrRemovePub"
+                    subTx="contactsScreen.publicContacts.nostrRemovePubSubText"
                     onPress={onRemovePublicPubKey}
                 /> 
             </>
@@ -549,7 +550,7 @@ export const PublicContacts = observer(function (props: {
           isVisible={isNpubModalVisible}          
           ContentComponent={
             <View style={$newContainer}>
-                <Text text='Add your npub key' preset="subheading" />
+                <Text tx="contactsScreen.publicContacts.addNpub" preset="subheading" />
                 <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
                     <TextInput
                         ref={npubInputRef}
@@ -575,8 +576,8 @@ export const PublicContacts = observer(function (props: {
                     />
                 </View>
                 <View style={[$buttonContainer, {marginTop: spacing.medium}]}>
-                    <Button preset='tertiary' onPress={() => setNewPublicPubkey(defaultPublicNpub)} text='Paste demo key'/>
-                    <Button preset='tertiary' onPress={toggleNpubModal} text='Cancel'/>                    
+                    <Button preset='tertiary' onPress={() => setNewPublicPubkey(defaultPublicNpub)} tx="contactsScreen.publicContacts.pasteDemoKey"/>
+                    <Button preset='tertiary' onPress={toggleNpubModal} tx="common.cancel"/>                    
                 </View>                
             </View>
           }
@@ -587,7 +588,7 @@ export const PublicContacts = observer(function (props: {
           isVisible={isRelayModalVisible ? true : false}          
           ContentComponent={
             <View style={$newContainer}>
-                <Text text='Set your own relay' preset="subheading" />
+                <Text tx="contactsScreen.publicContacts.setOwnRelay" preset="subheading" />
                 <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
                     <TextInput
                         ref={relayInputRef}
@@ -614,9 +615,9 @@ export const PublicContacts = observer(function (props: {
                 </View>
                 <View style={[$buttonContainer, {marginTop: spacing.medium}]}> 
                     {newPublicRelay && (                   
-                        <Button preset='tertiary' onPress={onRemovePublicRelay} text='Reset to default'/>                    
+                        <Button preset='tertiary' onPress={onRemovePublicRelay} tx="common.resetDefault"/>                    
                     )}
-                    <Button preset='tertiary' onPress={toggleRelayModal} text='Cancel'/>                    
+                    <Button preset='tertiary' onPress={toggleRelayModal} tx="common.cancel"/>                    
                 </View>                
             </View>
           }

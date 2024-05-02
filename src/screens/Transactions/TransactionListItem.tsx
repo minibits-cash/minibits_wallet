@@ -1,89 +1,112 @@
-import { formatDistance } from 'date-fns'
-import { observer } from "mobx-react-lite"
-import React from "react"
-import { TextStyle, View, ViewStyle } from "react-native"
-import { Icon, ListItem, Text } from "../../components"
-import { Transaction, TransactionStatus, TransactionType } from "../../models/Transaction"
-import { colors, spacing, typography, useThemeColor } from "../../theme"
-import useIsInternetReachable from "../../utils/useIsInternetReachable"
+import formatDistance from 'date-fns/formatDistance'
+import {observer} from 'mobx-react-lite'
+import React from 'react'
+import {ScrollView, TextStyle, View, ViewStyle} from 'react-native'
+import {Button, Icon, ListItem, Screen, Text} from '../../components'
+import {
+  Transaction,
+  TransactionStatus,
+  TransactionType,
+} from '../../models/Transaction'
+import {colors, spacing, typography, useThemeColor} from '../../theme'
+import useIsInternetReachable from '../../utils/useIsInternetReachable'
+import {translate} from '../../i18n'
 import { Currencies, MintUnit, MintUnitCurrencyPairs } from '../../services/wallet/currency'
 import { CurrencyAmount } from '../Wallet/CurrencyAmount'
 
 export interface TransactionListProps {
-  transaction: Transaction,
-  isFirst: boolean,
-  isTimeAgoVisible: boolean,
-  gotoTranDetail: any,
+  transaction: Transaction
+  isFirst: boolean
+  isTimeAgoVisible: boolean
+  gotoTranDetail: any
 }
 
-export const TransactionListItem = observer(function (props: TransactionListProps) {
-  
-    const { transaction: tx, isTimeAgoVisible } = props
-  
-    const txReceiveColor = colors.palette.success300
-    const txSendColor = useThemeColor('amount')
-    const txErrorColor = useThemeColor('textDim')    
-    const txPendingColor = useThemeColor('textDim')
-    const isInternetReachable = useIsInternetReachable()
-  
-    const getText = function(tx: Transaction) {
-      if(tx.noteToSelf) return tx.noteToSelf
-      // if(tx.memo) return tx.memo
-  
-      switch(tx.type) {
-        case TransactionType.RECEIVE || TransactionType.RECEIVE_OFFLINE:
-            if(tx.sentFrom) {
-                if(!tx.memo || tx.memo.includes('Sent from Minibits')) {
-                    return `From ${tx.sentFrom}`
-                }
-            } else {
-                return tx.memo ? tx.memo : 'You received'
-            }          
-        case TransactionType.SEND:
-          return tx.memo ? tx.memo : tx.sentTo ? `Sent to ${tx.sentTo}` : 'You sent'
-        case TransactionType.TOPUP:
-          return tx.memo ? tx.memo : tx.sentFrom ? `Received from ${tx.sentFrom}` : 'You received'
-        case TransactionType.TRANSFER:
-          return tx.memo ? tx.memo : tx.sentTo ? `Paid to ${tx.sentTo}` : 'You paid'
-        default:
-          return 'Unknown transaction'
-      }
+export const TransactionListItem = observer(function (
+  props: TransactionListProps,
+) {
+  const {transaction: tx, isTimeAgoVisible} = props
+
+  const txReceiveColor = colors.palette.success300
+  const txSendColor = useThemeColor('amount')
+  const txErrorColor = useThemeColor('textDim')
+  const txPendingColor = useThemeColor('textDim')
+  const isInternetReachable = useIsInternetReachable()
+
+  const getText = function (tx: Transaction) {
+    if (tx.noteToSelf) return tx.noteToSelf
+    // if(tx.memo) return tx.memo
+
+    switch (tx.type) {
+      case TransactionType.RECEIVE || TransactionType.RECEIVE_OFFLINE:
+        if (tx.sentFrom) {
+          if (!tx.memo || tx.memo.includes('Sent from Minibits')) {
+            return translate('transactionCommon.from', {sender: tx.sentFrom})
+          }
+        } else {
+          return tx.memo ? tx.memo : translate('transactionCommon.youReceived')
+        }
+      case TransactionType.SEND:
+        return tx.memo
+          ? tx.memo
+          : tx.sentTo
+          ? translate('transactionCommon.sentTo', {receiver: tx.sentTo})
+          : translate('transactionCommon.youSent')
+      case TransactionType.TOPUP:
+        return tx.memo
+          ? tx.memo
+          : tx.sentFrom
+          ? translate('transactionCommon.receivedFrom', {sender: tx.sentFrom})
+          : translate('transactionCommon.youReceived')
+      case TransactionType.TRANSFER:
+        return tx.memo
+          ? tx.memo
+          : tx.sentTo
+          ? translate('transactionCommon.paidTo', {receiver: tx.sentTo})
+          : translate('transactionCommon.youPaid')
+      default:
+        return translate('transactionCommon.unknown')
     }
-  
-  
-    const getSubText = function(tx: Transaction) {
-  
-      let distance = formatDistance(tx.createdAt as Date, new Date(), {addSuffix: true})
-      let timeAgo = ''
-      if (isTimeAgoVisible) timeAgo = `${distance} · `
-  
-      switch(tx.status) {
-        case TransactionStatus.COMPLETED:
-          return timeAgo + `Completed ${(tx.fee && tx.fee > 0) ? ' · Fee ' + tx.fee : ''}`
-        case TransactionStatus.DRAFT:
-          return timeAgo + `Draft`
-        case TransactionStatus.ERROR:
-          return timeAgo + `Error`
-        case TransactionStatus.PENDING:
-          return timeAgo + `Pending`
-        case TransactionStatus.PREPARED:
-          return timeAgo + `Prepared`   
-        case TransactionStatus.PREPARED_OFFLINE:
-            if(isInternetReachable) {
-                return timeAgo + `Tap to redeem`  
-            } else {
-                return timeAgo + `Redeem online`  
-            }            
-        case TransactionStatus.REVERTED:
-            return timeAgo + `Reverted` 
-        case TransactionStatus.BLOCKED:
-            return timeAgo + `Blocked` 
-        case TransactionStatus.EXPIRED:
-            return timeAgo + `Expired`       
-        default:
-          return timeAgo
-      }
+  }
+
+  const getSubText = function (tx: Transaction) {
+    let distance = formatDistance(tx.createdAt as Date, new Date(), {
+      addSuffix: true,
+    })
+    let timeAgo = ''
+    if (isTimeAgoVisible) timeAgo = `${distance} · `
+
+    switch (tx.status) {
+      case TransactionStatus.COMPLETED:
+        return (
+          timeAgo +
+          translate('transactionCommon.status.completedFee', {
+            fee: (tx.fee && tx.fee > 0) ? ' · Fee ' + tx.fee : '',
+          })
+        )
+      case TransactionStatus.DRAFT:
+        return timeAgo + translate('transactionCommon.status.draft')
+      case TransactionStatus.ERROR:
+        return timeAgo + translate('transactionCommon.status.error')
+      case TransactionStatus.PENDING:
+        return timeAgo + translate('transactionCommon.status.pending')
+      case TransactionStatus.PREPARED:
+        return timeAgo + translate('transactionCommon.status.prepared')
+      case TransactionStatus.PREPARED_OFFLINE:
+        if (isInternetReachable) {
+          return timeAgo + translate('transactionCommon.tapToRedeem')
+        } else {
+          return timeAgo + translate('transactionCommon.redeemOnline')
+        }
+      case TransactionStatus.REVERTED:
+        return timeAgo + translate('transactionCommon.status.reverted')
+      case TransactionStatus.BLOCKED:
+        return timeAgo + translate('transactionCommon.status.blocked')
+      case TransactionStatus.EXPIRED:
+        return timeAgo + translate('transactionCommon.status.expired')
+      default:
+        return timeAgo
     }
+  }
 
 
     const getLeftIcon = function(tx: Transaction) {
@@ -183,29 +206,27 @@ export const TransactionListItem = observer(function (props: TransactionListProp
 
 })
 
+const $item: ViewStyle = {
+  marginHorizontal: spacing.micro,
+}
 
-  
-  const $item: ViewStyle = {
-    marginHorizontal: spacing.micro,
-  }
-  
-  const $mintText: TextStyle = {
-    overflow: 'hidden', 
-    fontSize: 14,  
-  }
-  
-  const $txContainer: ViewStyle = {
-    justifyContent: 'center',
-    alignSelf: 'center',
-    marginRight: spacing.extraSmall
-  }
-  
-  const $txAmount: TextStyle = {  
-    fontFamily: typography.primary?.medium
-  }
-  
-  const $txIconContainer: ViewStyle = {
-    padding: spacing.extraSmall,
-    alignSelf: "center",
-    marginRight: spacing.medium,
-  }
+const $mintText: TextStyle = {
+  overflow: 'hidden',
+  fontSize: 14,
+}
+
+const $txContainer: ViewStyle = {
+  justifyContent: 'center',
+  alignSelf: 'center',
+  marginRight: spacing.extraSmall,
+}
+
+const $txAmount: TextStyle = {
+  fontFamily: typography.primary?.medium,
+}
+
+const $txIconContainer: ViewStyle = {
+  padding: spacing.extraSmall,
+  alignSelf: 'center',
+  marginRight: spacing.medium,
+}
