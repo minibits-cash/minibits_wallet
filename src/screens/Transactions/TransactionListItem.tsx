@@ -7,6 +7,7 @@ import { Transaction, TransactionStatus, TransactionType } from "../../models/Tr
 import { colors, spacing, typography, useThemeColor } from "../../theme"
 import useIsInternetReachable from "../../utils/useIsInternetReachable"
 import { Currencies, MintUnit, MintUnitCurrencyPairs } from '../../services/wallet/currency'
+import { CurrencyAmount } from '../Wallet/CurrencyAmount'
 
 export interface TransactionListProps {
   transaction: Transaction,
@@ -105,12 +106,6 @@ export const TransactionListItem = observer(function (props: TransactionListProp
       return (<Icon containerStyle={$txIconContainer} icon="faArrowTurnUp" size={spacing.medium} color={txSendColor}/>)
     }
 
-
-    const getAmountWithPrecision = function(tx: Transaction) {
-      const unit: MintUnit = tx.unit
-      const currencyPrecision: number = Currencies[MintUnitCurrencyPairs[unit]]!.precision
-      return (tx.amount / currencyPrecision).toLocaleString()
-    }
     
   
     return (
@@ -125,28 +120,58 @@ export const TransactionListItem = observer(function (props: TransactionListProp
             {([TransactionType.RECEIVE, TransactionType.RECEIVE_OFFLINE].includes(tx.type)) && (
                 <>
                 {[TransactionStatus.COMPLETED].includes(tx.status) && (
-                    <Text style={[$txAmount, {color: txReceiveColor}]}>{getAmountWithPrecision(tx)}</Text>
+                    <CurrencyAmount 
+                          amount={tx.amount}
+                          mintUnit={tx.unit}
+                          size='medium'
+                          amountStyle={{color: txReceiveColor}}
+                    />
                 )}
                 {[TransactionStatus.ERROR, TransactionStatus.BLOCKED, TransactionStatus.PREPARED_OFFLINE].includes(tx.status) && (
-                    <Text style={[$txAmount, {color: txErrorColor}]}>{getAmountWithPrecision(tx)}</Text>
+                    <CurrencyAmount 
+                          amount={tx.amount}
+                          mintUnit={tx.unit}
+                          size='medium'
+                          amountStyle={{color: txErrorColor}}
+                    />                    
                 )}                
                 </>              
             )}
             {([TransactionType.TOPUP].includes(tx.type)) && (
                 <>
                 {[TransactionStatus.PENDING, TransactionStatus.EXPIRED].includes(tx.status) && (
-                    <Text style={[$txAmount, {color: txPendingColor}]}>{getAmountWithPrecision(tx)}</Text>
+                    <CurrencyAmount 
+                          amount={tx.amount}
+                          mintUnit={tx.unit}
+                          size='medium'
+                          amountStyle={{color: txPendingColor}}
+                    />                    
                 )}
                 {tx.status === TransactionStatus.COMPLETED && (
-                    <Text style={[$txAmount, {color: txReceiveColor}]}>{getAmountWithPrecision(tx)}</Text>
+                    <CurrencyAmount 
+                          amount={tx.amount}
+                          mintUnit={tx.unit}
+                          size='medium'
+                          amountStyle={{color: txReceiveColor}}
+                    />
                 )}
                 {tx.status === TransactionStatus.ERROR && (
-                    <Text style={[$txAmount, {color: txErrorColor}]}>{getAmountWithPrecision(tx)}</Text>
+                    <CurrencyAmount 
+                          amount={tx.amount}
+                          mintUnit={tx.unit}
+                          size='medium'
+                          amountStyle={{color: txErrorColor}}
+                    />                    
                 )}                
                 </>
             )}
             {([TransactionType.SEND, TransactionType.TRANSFER].includes(tx.type)) && (
-              <Text style={[$txAmount, {color: (tx.status === TransactionStatus.ERROR) ? txErrorColor : txSendColor}]}>-{getAmountWithPrecision(tx)}</Text>
+                    <CurrencyAmount 
+                          amount={-1 * tx.amount}
+                          mintUnit={tx.unit}
+                          size='medium'
+                          amountStyle={{color: (tx.status === TransactionStatus.ERROR) ? txErrorColor : txSendColor}}
+                    />
             )}
           </View>
         }          

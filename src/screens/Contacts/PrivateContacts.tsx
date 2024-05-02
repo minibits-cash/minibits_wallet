@@ -243,7 +243,9 @@ export const PrivateContacts = observer(function (props: {
     }
     
     const domainText = useThemeColor('textDim')
+    const iconColor = useThemeColor('textDim')
     const inputBg = useThemeColor('background')
+    const iconBottom = useThemeColor('button')
 
     return (
     <Screen contentContainerStyle={$screen}>        
@@ -301,17 +303,17 @@ export const PrivateContacts = observer(function (props: {
         <View style={$bottomContainer}>
             <View style={$buttonContainer}>
                 <Button
-                    tx={'contactsScreen.new'}
                     LeftAccessory={() => (
                         <Icon
-                        icon='faCircleUser'
-                        color='white'
-                        size={spacing.medium}                  
+                            icon='faPlus'
+                            size={spacing.large}
+                            color={iconBottom}
                         />
                     )}
-                    onPress={gotoNew}
+                    onPress={gotoNew}                        
                     style={$buttonNew}
-                    />                
+                    preset='tertiary'
+                />            
             </View>
         </View>       
         <BottomModal
@@ -369,6 +371,7 @@ const $screen: ViewStyle = {
 }
 
 const $contentContainer: TextStyle = {
+    flex: 1,
     padding: spacing.extraSmall,
 }
 
@@ -409,21 +412,22 @@ const $contactDomain: TextStyle = {
 const $buttonContainer: ViewStyle = {
     flexDirection: 'row',
     alignSelf: 'center',
+    marginVertical: spacing.medium,
 }
 
 const $bottomContainer: ViewStyle = {
-    position: 'absolute',
+    /*position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     flex: 1,
     justifyContent: 'flex-end',
-    marginBottom: spacing.medium,
-    alignSelf: 'stretch',
+    marginBottom: spacing.medium,*/
+    alignSelf: 'center',
     // opacity: 0,
   }
   
   const $buttonNew: ViewStyle = {
-    borderRadius: 30,    
-    minWidth: verticalScale(110),    
+    // borderRadius: 30,    
+    minWidth: verticalScale(60), 
   }  

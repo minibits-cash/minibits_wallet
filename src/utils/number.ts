@@ -4,7 +4,7 @@ export const formatNumber = (amount: number | string, mantissa: number) => {
   return numbro(amount).format({
     mantissa,
     thousandSeparated: true,
-    trimMantissa: true,
+    //trimMantissa: true,
   })
 }
 

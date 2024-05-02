@@ -10,8 +10,8 @@ import { observer } from "mobx-react-lite"
 import { StackNavigationProp } from "@react-navigation/stack"
 
 export const MintHeader = observer(function(props: {
-    mint?: Mint,
-    unit?: MintUnit,
+    unit: MintUnit,
+    mint?: Mint,    
     navigation: StackNavigationProp<any>
   }
 ) {
@@ -22,11 +22,11 @@ export const MintHeader = observer(function(props: {
         <Header                
             TitleActionComponent={
                 <>
-                    <Text 
+                    {mint && (<Text 
                         text={mint && mint.shortname} 
                         style={{color: 'white'}}
                         size='xxs'
-                    />
+                    />)}
                     <CurrencySign 
                         mintUnit={unit && unit}
                         textStyle={{color: 'white'}}

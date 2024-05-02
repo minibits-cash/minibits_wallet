@@ -9,7 +9,7 @@ import {useStores} from '../models'
 import AppError, { Err } from '../utils/AppError'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { ContactType } from '../models/Contact'
-import { NostrClient } from '../services'
+import { NostrClient, log } from '../services'
 import { getImageSource } from '../utils/utils'
 import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
 import { ReceiveOption } from './ReceiveOptionsScreen'
@@ -62,9 +62,9 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
 
 
     const gotoSend = () => {
-        
+        log.trace('[gotoSend] start')
         navigation.navigate('WalletNavigator', { 
-            screen: 'Send',
+            screen: 'Send',            
             params: {
                 paymentOption: SendOption.SEND_TOKEN,
                 contact
@@ -276,8 +276,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                                     preset='tertiary'
                                 />
                             ) : undefined}
-                            topSeparator={lud16 ? true : false} 
-                            onPress={gotoTransfer}                   
+                            topSeparator={lud16 ? true : false}                             
                         />                        
                     </>
                 }

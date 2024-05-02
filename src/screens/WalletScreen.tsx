@@ -60,6 +60,7 @@ import { CurrencySign } from './Wallet/CurrencySign'
 import { Currencies, CurrencyCode, MintUnit, MintUnitCurrencyPairs, MintUnits } from "../services/wallet/currency"
 import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import { ReceiveOption } from './ReceiveOptionsScreen'
+import { LeftProfileHeader } from './ContactsScreen'
 
 // refresh
 
@@ -88,7 +89,9 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const appState = useRef(AppState.currentState)
     const isInternetReachable = useIsInternetReachable()
     const returnWithNavigationReset = route.params?.returnWithNavigationReset
-   
+    const groupedMints = mintsStore.groupedByUnit
+
+    const [currentUnit, setCurrentUnit] = useState<MintUnit>(groupedMints.length > 0 ? groupedMints[0].unit : 'sat')
     const [info, setInfo] = useState<string>('')
     const [defaultMintUrl, setDefaultMintUrl] = useState<string>(MINIBITS_MINT_URL)
     const [error, setError] = useState<AppError | undefined>()
@@ -278,12 +281,20 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         }
     }
 
-    const gotoReceiveOptions = function (unit: MintUnit) {
+    /* const gotoReceiveOptions = function (unit: MintUnit) {
         navigation.navigate('ReceiveOptions', {unit})
     }
 
     const gotoSendOptions = function (unit: MintUnit) {
         navigation.navigate('SendOptions', {unit})
+    }*/
+
+    const gotoReceive = function () {
+        navigation.navigate('Receive', {unit: currentUnit})
+    }
+
+    const gotoSend = function () {
+        navigation.navigate('Send', {unit: currentUnit})
     }
 
     const gotoScan = function () {
@@ -299,16 +310,31 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     }
 
     const gotoTranDetail = function (id: number) {
-      navigation.navigate('TranDetail', {id} as any)
+        navigation.navigate('TransactionsNavigator', {screen: 'TranDetail', params: {id}})
     }
 
     const gotoPaymentRequests = function () {
         navigation.navigate('PaymentRequests')
     }
+
+    const gotoLightningPay = async function () {
+        navigation.navigate('LightningPay', {
+            unit: currentUnit            
+        })
+    }
+
+    const gotoTopup = function () {
+        navigation.navigate('Topup', {            
+            unit: currentUnit
+        })
+    }
+
+    const gotoProfile = function () {
+        navigation.navigate('ContactsNavigator', {screen: 'Profile', params: {}})
+    }
     
-    /* Mints pager */
-    const groupedMints = mintsStore.groupedByUnit
-    // log.trace('[WalletScreen]', {groupedByUnit: groupedMints})
+    /* Mints pager */    
+    
     const width = spacing.screenWidth
     const pagerRef = useRef<PagerView>(null)
     const scrollOffsetAnimatedValue = React.useRef(new Animated.Value(0)).current
@@ -343,6 +369,11 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     )
 
 
+    const onPageSelected = (e: any) => {        
+        const currentUnit = groupedMints[e.nativeEvent.position].unit
+        log.trace('[onPageSelected] currentUnit', currentUnit)
+        setCurrentUnit(currentUnit)
+    }
 
     const handleError = function (e: AppError) {
       setIsLoading(false)
@@ -351,15 +382,18 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
     const balances = proofsStore.getBalances()
     const screenBg = useThemeColor('background')
-    const iconInfo = useThemeColor('textDim')
+    const iconInfo = useThemeColor('button')
 
     return (        
       <Screen contentContainerStyle={$screen}>
             <Header 
-                leftIcon='faListUl'
-                leftIconColor={colors.palette.primary100}
-                // style={{borderWidth: 1, borderColor: 'red'}}
-                onLeftPress={gotoTranHistory}
+                LeftActionComponent={<LeftProfileHeader 
+                    gotoProfile={gotoProfile}
+                    isAvatarVisible={false}
+                />}
+                /*leftIcon='faListUl'
+                leftIconColor={colors.palette.primary100}                
+                onLeftPress={gotoTranHistory}*/
                 TitleActionComponent={!isInternetReachable ? (
                         <Text   
                             tx={'common.offline'}
@@ -406,8 +440,9 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             <AnimatedPagerView                            
                 initialPage={0}
                 ref={pagerRef}    
-                style={{flexGrow: 1}}                                                        
+                style={{flexGrow: 1}}                                                       
                 onPageScroll={onPageScroll}
+                onPageSelected={onPageSelected}
             >
                 {groupedMints.map((mints) => (
                     <View key={mints.unit}>
@@ -418,33 +453,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                             <MintsByUnitListItem                                    
                                 mintsByUnit={mints}                                
                                 navigation={navigation}                                     
-                            />
-                            {/*<View style={$buttonContainer}>
-                                <Button
-                                    tx={'walletScreen.receive'}
-                                    LeftAccessory={() => (
-                                        <Icon
-                                        icon='faArrowDown'
-                                        color='white'
-                                        size={spacing.medium}                  
-                                        />
-                                    )}
-                                    onPress={() => gotoReceiveOptions(mints.unit)}
-                                    style={[$buttonReceive, {borderRightColor: screenBg}]}
-                                />
-                                <Button
-                                    tx={'walletScreen.send'}
-                                    RightAccessory={() => (
-                                        <Icon
-                                        icon='faArrowUp'
-                                        color='white'
-                                        size={spacing.medium}                  
-                                        />
-                                    )}
-                                    onPress={() => gotoSendOptions(mints.unit)}
-                                    style={[$buttonSend, {borderLeftColor: screenBg}]}
-                                />
-                                </View>*/}
+                            />                            
                             {transactionsStore.recentByUnit(mints.unit).length > 0 && (
                                 <Card                                    
                                     ContentComponent={                                            
@@ -456,7 +465,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                                     transaction={item}
                                                     isFirst={index === 0}
                                                     isTimeAgoVisible={true}
-                                                    gotoTranDetail={gotoTranDetail}
+                                                    gotoTranDetail={() => gotoTranDetail(item.id!)}
                                                 />)
                                                 }
                                             }
@@ -472,20 +481,47 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                     </View>     
                 ))}                       
             </AnimatedPagerView>
-            <View style={$bottomContainer}>                
-                <Button
-                    RightAccessory={() => (
-                        <SvgXml 
-                            width={spacing.large + 10} 
-                            height={spacing.large + 10} 
-                            xml={ScanIcon}
-                            fill={iconInfo}
-                        />
-                    )}
-                    onPress={gotoScan}
-                    style={$buttonScan}
-                    preset='tertiary'
-                />
+            <View style={$bottomContainer}>
+                <View style={$buttonContainer}>
+                    <Button
+                        LeftAccessory={() => (
+                            <Icon
+                                icon='faPlus'
+                                size={spacing.large}
+                                color={iconInfo}
+                            />
+                        )}
+                        onPress={gotoTopup}                        
+                        style={$buttonTopup}
+                        preset='tertiary'
+                    />             
+                    <Button
+                        RightAccessory={() => (
+                            <SvgXml 
+                                width={spacing.large + 10} 
+                                height={spacing.large + 10} 
+                                xml={ScanIcon}
+                                fill={iconInfo}
+                            />
+                        )}
+                        onPress={gotoScan}
+                        style={$buttonScan}
+                        preset='tertiary'
+                    />
+                    <Button
+                        LeftAccessory={() => (
+                            <Icon
+                                icon='faBolt'
+                                size={spacing.large}
+                                color={iconInfo}
+                            />
+                        )}
+                        onPress={gotoLightningPay}
+                        // text='Send'
+                        style={$buttonPay}
+                        preset='tertiary'
+                    /> 
+                </View>  
             </View>       
         {isLoading && <Loading />}       
         <BottomModal
@@ -620,7 +656,7 @@ const MintsByUnitListItem = observer(function (props: {
     }
 
 
-    const gotoTopup = function (mintUrl: string, unit: MintUnit) {
+    const gotoTopup = function (unit: MintUnit, mintUrl: string) {
         props.navigation.navigate('Topup', {                        
             mintUrl,
             unit
@@ -628,7 +664,7 @@ const MintsByUnitListItem = observer(function (props: {
     }
 
 
-    const gotoLightningPay = async function (mintUrl: string, unit: MintUnit) {
+    const gotoLightningPay = async function (unit: MintUnit, mintUrl: string, ) {
         props.navigation.navigate('LightningPay', {
             mintUrl,
             unit
@@ -636,7 +672,7 @@ const MintsByUnitListItem = observer(function (props: {
     }
 
 
-    const gotoSend = async function (mintUrl: string, unit: MintUnit) {
+    const gotoSend = async function (unit: MintUnit, mintUrl: string) {
         props.navigation.navigate('Send', {
             mintUrl,
             unit
@@ -721,7 +757,7 @@ const MintsByUnitListItem = observer(function (props: {
                                 )}
                                 preset='secondary'
                                 textStyle={{fontSize: 14, color}}
-                                onPress={() => gotoTopup(mint.mintUrl, mintsByUnit.unit)}
+                                onPress={() => gotoTopup(mintsByUnit.unit, mint.mintUrl)}
                                 style={{
                                     minHeight: moderateVerticalScale(40), 
                                     paddingVertical: moderateVerticalScale(spacing.tiny),
@@ -746,14 +782,14 @@ const MintsByUnitListItem = observer(function (props: {
                                 text={'Pay'}
                                 LeftAccessory={() => (
                                     <Icon
-                                    icon='faArrowTurnUp'
+                                    icon='faBolt'
                                     color={color}
                                     size={spacing.small}                  
                                     />
                                 )}
                                 textStyle={{fontSize: 14, color}}
                                 preset='secondary'
-                                onPress={() => gotoLightningPay(mint.mintUrl, mintsByUnit.unit)}
+                                onPress={() => gotoLightningPay(mintsByUnit.unit, mint.mintUrl)}
                                 style={{
                                     minHeight: moderateVerticalScale(40), 
                                     paddingVertical: moderateVerticalScale(spacing.tiny),
@@ -771,7 +807,28 @@ const MintsByUnitListItem = observer(function (props: {
                                 )}
                                 textStyle={{fontSize: 14, color}}
                                 preset='secondary'
-                                onPress={() => gotoSend(mint.mintUrl, mintsByUnit.unit)}
+                                onPress={() => gotoSend(mintsByUnit.unit, mint.mintUrl)}
+                                style={{
+                                    minHeight: moderateVerticalScale(40), 
+                                    paddingVertical: moderateVerticalScale(spacing.tiny),
+                                    marginRight: spacing.tiny
+                                }}                    
+                            />
+                            <Button
+                                text={'Mint'}
+                                LeftAccessory={() => (
+                                    <View style={{marginHorizontal: spacing.extraSmall}}>
+                                        <SvgXml 
+                                            width={spacing.small} 
+                                            height={spacing.small} 
+                                            xml={MintIcon}
+                                            fill={color}
+                                        />
+                                    </View>
+                                )}
+                                textStyle={{fontSize: 14, color}}
+                                preset='secondary'
+                                onPress={() => gotoMintInfo(mint.mintUrl)}
                                 style={{minHeight: moderateVerticalScale(40), paddingVertical: moderateVerticalScale(spacing.tiny)}}                    
                             />
                         </View>
@@ -796,12 +853,6 @@ const $headerContainer: TextStyle = {
     alignItems: 'center',
     // padding: spacing.tiny,  
     height: spacing.screenHeight * 0.20,
-}
-
-const $buttonContainer: ViewStyle = {
-    flexDirection: 'row',
-    alignSelf: 'center',
-    marginVertical: spacing.medium,
 }
 
 const $contentContainer: TextStyle = {
@@ -864,18 +915,24 @@ const $balance: TextStyle = {
 const $bottomContainer: ViewStyle = {  
   // flex: 0.18,
   // justifyContent: 'flex-end',
-  marginBottom: spacing.medium,
+  // marginBottom: spacing.extraSmall,
   alignSelf: 'center',
   // opacity: 0,
 }
 
-const $buttonReceive: ViewStyle = {
-  borderTopLeftRadius: 30,
+const $buttonContainer: ViewStyle = {
+    flexDirection: 'row',
+    alignSelf: 'center',
+    marginVertical: spacing.medium,
+}
+
+const $buttonTopup: ViewStyle = {
+  /*borderTopLeftRadius: 30,
   borderBottomLeftRadius: 30,
   borderTopRightRadius: 0,
-  borderBottomRightRadius: 0,
-  minWidth: verticalScale(130),
-  borderRightWidth: 1,  
+  borderBottomRightRadius: 0,*/
+  minWidth: verticalScale(60),
+  // borderRightWidth: 1,  
 }
 
 const $buttonScan: ViewStyle = {
@@ -883,13 +940,13 @@ const $buttonScan: ViewStyle = {
   minWidth: verticalScale(60),
 }
 
-const $buttonSend: ViewStyle = {
-  borderTopLeftRadius: 0,
+const $buttonPay: ViewStyle = {
+  /*borderTopLeftRadius: 0,
   borderBottomLeftRadius: 0,
   borderTopRightRadius: 30,
-  borderBottomRightRadius: 30,
-  minWidth: verticalScale(130),
-  borderLeftWidth: 1,  
+  borderBottomRightRadius: 30,*/
+  minWidth: verticalScale(60),
+  // borderLeftWidth: 1,  
 }
 
 const $bottomModal: ViewStyle = {    

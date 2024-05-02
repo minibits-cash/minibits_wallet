@@ -8,6 +8,7 @@ import { TextStyle, ViewStyle } from "react-native"
 import { CurrencySign } from "../Wallet/CurrencySign"
 import { CurrencyCode, MintUnit, MintUnitCurrencyPairs, MintUnits } from "../../services/wallet/currency"
 import { log } from "../../services"
+import { CurrencyAmount } from "../Wallet/CurrencyAmount"
 
 export const MintListItem = observer(function(props: {  
     mint: Mint,
@@ -49,7 +50,13 @@ export const MintListItem = observer(function(props: {
               rightIcon={isBlocked ? 'faShieldHalved' : mint.status === MintStatus.OFFLINE ? 'faTriangleExclamation' : undefined}
               rightIconColor={isBlocked ? iconBlockedColor : iconColor as string}          
               onPress={onMintSelect ? () => onMintSelect(mint, mintBalance) : undefined}                    
-              RightComponent={mintBalance && selectedUnit && <Text text={`${mintBalance?.balances[selectedUnit]}`} style={{alignSelf: 'center', marginRight: spacing.medium}}/>}
+              RightComponent={mintBalance && selectedUnit && 
+                <CurrencyAmount 
+                      amount={mintBalance?.balances[selectedUnit] || 0}
+                      mintUnit={selectedUnit}
+                      size='small'                      
+                /> 
+              }
               BottomComponent={isUnitVisible && mint.units ? (<>{mint.units.map(unit => <CurrencySign containerStyle={{paddingLeft: 0, marginRight: spacing.small}} key={unit} currencyCode={MintUnitCurrencyPairs[unit]}/>)}</>) : undefined}              
               containerStyle={{alignSelf: 'stretch'}}
               bottomSeparator={separator === 'bottom' || separator === 'both'}

@@ -305,13 +305,13 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                   style={{paddingHorizontal: spacing.medium}}
                 />
               )}
-              <ListItem
+              {/*<ListItem
                 leftIcon="faPaintbrush"
                 onPress={() => Alert.alert('Not yet implemented')}
                 tx={'mintsScreen.setColor'}
                 bottomSeparator={true}
                 style={{paddingHorizontal: spacing.medium}}
-              />
+              />*/}
               <ListItem
                 leftIcon="faCopy"
                 onPress={onCopyMintUrl}

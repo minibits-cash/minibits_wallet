@@ -123,6 +123,7 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
     const iconColor = useThemeColor('textDim')
     const headerBg = useThemeColor('header')
     const inputBg = useThemeColor('background')
+    const iconBottom = useThemeColor('button')
     
     return (
       <Screen contentContainerStyle={$screen} preset='fixed'>
@@ -176,17 +177,17 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
         <View style={$bottomContainer}>
             <View style={$buttonContainer}>
                 <Button
-                    tx={'contactsScreen.new'}
                     LeftAccessory={() => (
                         <Icon
-                        icon='faCircleNodes'
-                        color='white'
-                        size={spacing.medium}                  
+                            icon='faPlus'
+                            size={spacing.large}
+                            color={iconBottom}
                         />
                     )}
-                    onPress={gotoAdd}
+                    onPress={gotoAdd}                        
                     style={$buttonNew}
-                />                
+                    preset='tertiary'
+                />
             </View>
         </View>
         <BottomModal
@@ -270,7 +271,7 @@ const $headerContainer: TextStyle = {
 }
 
 const $contentContainer: TextStyle = {
-  // flex: 1,
+  flex: 1,
   padding: spacing.extraSmall,
   // alignItems: 'center',
 }
@@ -323,15 +324,15 @@ const $buttonContainer: ViewStyle = {
     alignSelf: 'center',
 }
 
-const $bottomContainer: ViewStyle = {
-    position: 'absolute',
+  const $bottomContainer: ViewStyle = {
+    /*position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     flex: 1,
     justifyContent: 'flex-end',
-    marginBottom: spacing.medium,
-    alignSelf: 'stretch',
+    marginBottom: spacing.medium,*/
+    alignSelf: 'center',
     // opacity: 0,
   }
   

@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
-import {Image, Pressable, ViewStyle} from 'react-native'
+import {Image, Pressable, View, ViewStyle} from 'react-native'
 import { TabBar, TabView, Route } from 'react-native-tab-view'
 import {colors, spacing, typography, useThemeColor} from '../theme'
 import {Header, Icon, Screen} from '../components'
@@ -12,6 +12,7 @@ import { log } from '../services/logService'
 import { getImageSource } from '../utils/utils'
 import { ReceiveOption } from './ReceiveOptionsScreen'
 import { SendOption } from './SendOptionsScreen'
+import { verticalScale } from '@gocodingnow/rn-size-matters'
 
 
 interface ContactsScreenProps extends ContactsStackScreenProps<'Contacts'> {}
@@ -78,7 +79,7 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
 
     const headerBg = useThemeColor('header')
     const activeTabIndicator = colors.palette.accent400
-    const {picture, nip05} = walletProfileStore
+    const {nip05} = walletProfileStore
 
     const renderTabBar = (props: any) => (
         <TabBar
@@ -91,10 +92,10 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
     return (
         <Screen contentContainerStyle={$screen}>
             <Header 
-                LeftActionComponent={<LeftHeader picture={picture} gotoProfile={gotoProfile}/>}
+                LeftActionComponent={<LeftProfileHeader gotoProfile={gotoProfile}/>}
                 title={nip05}
                 titleStyle={{fontFamily: typography.primary?.medium, fontSize: 16}}
-                RightActionComponent={<RightHeader gotoProfile={gotoProfile}/>}
+                RightActionComponent={<RightProfileHeader gotoProfile={gotoProfile}/>}
             />
             <TabView
                 renderTabBar={renderTabBar}
@@ -110,15 +111,15 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
 
 
 
-const LeftHeader = observer(function (props: {
-    picture: string
+export const LeftProfileHeader = observer(function (props: {    
     gotoProfile: any
+    isAvatarVisible?: boolean
 }) {
     const {walletProfileStore} = useStores()
 
     return (        
-        <Pressable style={{marginHorizontal: spacing.medium}} onPress={props.gotoProfile}>                
-            {props.picture ? (                    
+        <Pressable style={{marginHorizontal: spacing.tiny}} onPress={props.gotoProfile}>                
+            {walletProfileStore.picture && props.isAvatarVisible ? (                    
                 <Image 
                     style={
                         {
@@ -127,21 +128,23 @@ const LeftHeader = observer(function (props: {
                             borderRadius: (walletProfileStore.isOwnProfile) ? 20 : 0,                                        
                         }
                     } 
-                    source={{uri: getImageSource(props.picture)}} 
+                    source={{uri: getImageSource(walletProfileStore.picture)}} 
                 />                                    
             ) : (                
-                <Icon
-                    icon='faCircleUser'                                
-                    size={30}                    
-                    color={'white'}                
-                />                
+                <View style={{opacity: 0.5}} >
+                    <Icon
+                        icon='faCircleUser'                                
+                        size={verticalScale(25)}                    
+                        color={'white'}                                                           
+                    />                
+                </View>
             )}                
         </Pressable>        
     )
 })
 
 
-const RightHeader = function (props: {    
+const RightProfileHeader = function (props: {    
     gotoProfile: any
 }) {
 

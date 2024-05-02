@@ -60,9 +60,10 @@ import { NotificationService } from '../services/notificationService'
 import { SendOption } from './SendOptionsScreen'
 import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencySign } from './Wallet/CurrencySign'
-import { CurrencyCode, MintUnit, MintUnits } from "../services/wallet/currency"
+import { Currencies, CurrencyCode, MintUnit, MintUnitCurrencyPairs, MintUnits } from "../services/wallet/currency"
 import { MintHeader } from './Mints/MintHeader'
 import { MintBalanceSelector } from './Mints/MintBalanceSelector'
+import { toNumber } from '../utils/number'
 
 
 if (Platform.OS === 'android' &&
@@ -122,18 +123,28 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     }, [])
 
 
+
     useEffect(() => {
-        const { mintUrl, unit } = route.params
-  
-        const setSelectedMintandUnit = () => {
-            log.trace('[setSelectedMintandUnit]', mintUrl)
-            setUnit(unit)
-            setMintBalanceToSendFrom(proofsStore.getMintBalance(mintUrl!))
+        const setUnitAndMint = () => {
+            try {
+                const {unit, mintUrl} = route.params
+                if(!unit) {
+                    throw new AppError(Err.VALIDATION_ERROR, 'Missing mint unit in route params')
+                }
+
+                setUnit(unit)
+
+                if(mintUrl) {
+                    const mintBalance = proofsStore.getMintBalance(mintUrl)    
+                    setMintBalanceToSendFrom(mintBalance)
+                }
+            } catch (e: any) {
+                handleError(e)
+            }
         }
-  
-        if(mintUrl && unit) {                
-            setSelectedMintandUnit()
-        }
+        
+        setUnitAndMint()
+        return () => {}
     }, [])
 
 
@@ -392,7 +403,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         setIsSendTaskSentToQueue(true)       
         WalletTask.send(
             mintBalanceToSendFrom as MintBalance,
-            parseInt(amountToSend),
+            toNumber(amountToSend) * Currencies[MintUnitCurrencyPairs[unit]]!.precision,
             unit,
             memo,
             selectedProofs

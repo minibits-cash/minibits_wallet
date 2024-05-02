@@ -6,6 +6,7 @@ import { Spacing, colors, spacing, typography, useThemeColor } from "../../theme
 import { CurrencyCode, Currencies, MintUnit, MintUnitCurrencyPairs } from "../../services/wallet/currency"
 import { observer } from "mobx-react-lite"
 import { verticalScale } from "@gocodingnow/rn-size-matters"
+import { formatNumber } from "../../utils/number"
 
 
 export const CurrencyAmount = observer(function (props: {
@@ -21,15 +22,18 @@ export const CurrencyAmount = observer(function (props: {
     const {currencyCode, mintUnit, amount, symbolStyle, amountStyle, containerStyle, size} = props
     let currencySymbol: string = Currencies.SATS!.symbol
     let currencyPrecision: number = Currencies.SATS!.precision
+    let currencyCode2: CurrencyCode = Currencies.SATS!.code
 
     if(!!currencyCode) {
         currencySymbol = Currencies[currencyCode]!.symbol
         currencyPrecision = Currencies[currencyCode]!.precision
+        currencyCode2 = currencyCode
     }
 
     if(!!mintUnit) {
         currencySymbol = Currencies[MintUnitCurrencyPairs[mintUnit]]!.symbol
         currencyPrecision = Currencies[MintUnitCurrencyPairs[mintUnit]]!.precision
+        currencyCode2 = MintUnitCurrencyPairs[mintUnit]
     }
     
     const amountColor = useThemeColor('amount')
@@ -61,7 +65,7 @@ export const CurrencyAmount = observer(function (props: {
                     fontSize: props.size && spacing[props.size] * 1.2 || spacing.small * 1.2,
                     lineHeight: size && spacing[size] * 1.2 || spacing.small * 1.2
                 }, amountStyle || {}]} 
-                text={`${amount / currencyPrecision}`}                
+                text={`${(formatNumber((amount / currencyPrecision).toLocaleString(), Currencies[currencyCode2]!.mantissa))}`}                
             />
         </View>
     )

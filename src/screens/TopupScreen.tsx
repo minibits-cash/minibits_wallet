@@ -119,16 +119,26 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     }, [])
 
     useEffect(() => {
-      const { mintUrl, unit } = route.params
+        const setUnitAndMint = () => {
+            try {
+                const {unit, mintUrl} = route.params
+                if(!unit) {
+                    throw new AppError(Err.VALIDATION_ERROR, 'Missing mint unit in route params')
+                }
 
-      const setSelectedMintandUnit = () => {
-        setUnit(unit)
-        setMintBalanceToTopup(proofsStore.getMintBalance(mintUrl!))
-      }
+                setUnit(unit)
 
-      if(mintUrl && unit) {                
-          setSelectedMintandUnit()
-      }
+                if(mintUrl) {
+                    const mintBalance = proofsStore.getMintBalance(mintUrl)    
+                    setMintBalanceToTopup(mintBalance)
+                }
+            } catch (e: any) {
+                handleError(e)
+            }
+        }
+        
+        setUnitAndMint()
+        return () => {}
     }, [])
 
     // Send to contact and LNURL withdraw topup inititalization

@@ -74,9 +74,10 @@ const PAGES = [
 export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
   function WelcomeScreen(_props) {
     const {navigation} = _props
+    const headerBg = useThemeColor('header')  
 
     useHeader({
-      backgroundColor: colors.palette.primary500,
+      backgroundColor: headerBg,
       //StatusBarProps: {barStyle: 'dark-content'},
     })
 
@@ -146,9 +147,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
         
       // eslint-disable-next-line react-hooks/exhaustive-deps
       []
-    )
-
-    const headerBg = useThemeColor('header')  
+    )    
 
     const renderBullet = ({item}: {item: {id: string; tx: string}}) => (
         <View style={$listItem}>

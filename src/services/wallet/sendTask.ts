@@ -127,7 +127,6 @@ export const sendTask = async function (
         )
 
         const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
-
         await transactionsStore.updateBalanceAfter(transactionId, balanceAfter)
 
         log.trace('[send] totalBalance after', balanceAfter)

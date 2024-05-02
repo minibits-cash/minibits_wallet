@@ -40,11 +40,11 @@ import { PaymentRequestStatus } from '../models/PaymentRequest'
 import { infoMessage } from '../utils/utils'
 import { DecodedLightningInvoice, LightningUtils } from '../services/lightning/lightningUtils'
 import { SendOption } from './SendOptionsScreen'
-import { roundUp } from '../utils/number'
+import { roundUp, toNumber } from '../utils/number'
 import { LnurlClient, LNURLPayParams } from '../services/lnurlService'
 import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencySign } from './Wallet/CurrencySign'
-import { CurrencyCode, MintUnit, MintUnits } from "../services/wallet/currency"
+import { Currencies, CurrencyCode, MintUnit, MintUnitCurrencyPairs, MintUnits } from "../services/wallet/currency"
 import { FeeBadge } from './Wallet/FeeBadge'
 import { MeltQuoteResponse } from '@cashu/cashu-ts'
 import { MintHeader } from './Mints/MintHeader'
@@ -108,18 +108,29 @@ useEffect(() => {
 }, [])
 
 
+
 useEffect(() => {
-    const { mintUrl, unit } = route.params    
+    const setUnitAndMint = () => {
+        try {
+            const {unit, mintUrl} = route.params
+            if(!unit) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing mint unit in route params')
+            }
 
-    const setSelectedUnit = () => {        
-        setUnit(unit)
-        //setMintBalanceToTransferFrom(proofsStore.getMintBalance(mintUrl!))
-    }
+            setUnit(unit)
 
-    if(mintUrl && unit) {                
-        setSelectedUnit()
+            if(mintUrl) {
+                const mintBalance = proofsStore.getMintBalance(mintUrl)    
+                setMintBalanceToTransferFrom(mintBalance)
+            }
+        } catch (e: any) {
+            handleError(e)
+        }
     }
-  }, [])
+    
+    setUnitAndMint()
+    return () => {}
+}, [])
 
 
 useFocusEffect(
@@ -496,7 +507,7 @@ const transfer = async function () {
 
         WalletTask.transfer(
             mintBalanceToTransferFrom as MintBalance,
-            parseInt(amountToTransfer),
+            toNumber(amountToTransfer) * Currencies[MintUnitCurrencyPairs[unit]]!.precision,
             unit,
             meltQuote,        
             memo,

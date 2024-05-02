@@ -1,5 +1,5 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useEffect, useRef, useState} from 'react'
+import React, {FC, useCallback, useEffect, useRef, useState} from 'react'
 import {
   Alert,
   TextInput,
@@ -50,6 +50,7 @@ import { CurrencyCode, MintUnit, MintUnitCurrencyPairs, MintUnits } from "../ser
 import { Token } from '../models/Token'
 import { PaymentRequest } from '../models/PaymentRequest'
 import { pollerExists } from '../utils/poller'
+import { StackActions, useFocusEffect } from '@react-navigation/native'
 
 type ProofsByStatus = {
   isSpent: Proof[]
@@ -77,7 +78,24 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
 
     useHeader({
       leftIcon: 'faArrowLeft',
-      onLeftPress: () => navigation.goBack(),
+      onLeftPress: () => {
+        const routes = navigation.getState()?.routes
+        let prevRouteName: string = ''
+
+        if(routes.length >= 2) {
+            prevRouteName = routes[routes.length - 2].name
+        }
+
+        if(prevRouteName === 'TranHistory') {
+            navigation.navigate('TranHistory')
+        } else {
+            navigation.dispatch(
+                StackActions.replace('TranHistory')                    
+            )
+            navigation.navigate('WalletNavigator', {screen: 'Wallet', params: {}})
+        }  
+ 
+      },
       TitleActionComponent:                     
         <CurrencySign 
             mintUnit={transaction?.unit}
@@ -85,9 +103,9 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
         />
     })
 
-    useEffect(() => {
+    useFocusEffect(useCallback(() => {
       try {
-        const {id} = route.params
+        const {id} = route.params        
         const tx = transactionsStore.findById(id)
 
       if (!tx) {
@@ -108,7 +126,7 @@ export const TranDetailScreen: FC<WalletStackScreenProps<'TranDetail'>> =
       } catch (e: any) {
         handleError(e)
       }
-    }, [])
+    }, [route]))
 
     useEffect(() => {
       try {

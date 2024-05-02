@@ -51,7 +51,8 @@ import { MintUnit } from "../services/wallet/currency"
 
 
 export type TabsParamList = {
-    WalletNavigator: NavigatorScreenParams<WalletStackParamList>  
+    WalletNavigator: NavigatorScreenParams<WalletStackParamList>
+    TransactionsNavigator: NavigatorScreenParams<TransactionsStackParamList>  
     ContactsNavigator: NavigatorScreenParams<ContactsStackParamList>    
     SettingsNavigator: NavigatorScreenParams<SettingsStackParamList>
 }
@@ -96,6 +97,15 @@ export function TabsNavigator() {
         }}
       />
 
+      <Tab.Screen        
+        name="TransactionsNavigator"
+        component={TransactionsNavigator}
+        options={{
+          tabBarLabel: "Transactions",
+          tabBarIcon: ({ focused }) => <Icon icon="faListUl" color={focused ? activeColor : textColor} size={spacing.large} />,      
+        }}
+      />
+
       <Tab.Screen
         name="ContactsNavigator"
         component={ContactsNavigator}
@@ -121,7 +131,7 @@ export function TabsNavigator() {
 export type WalletStackParamList = {  
     Wallet: {scannedMintUrl? : string, returnWithNavigationReset?: boolean}
     ReceiveOptions: {unit: MintUnit}
-    Receive: {encodedToken? : string}
+    Receive: {unit: MintUnit, encodedToken? : string}
     SendOptions: {unit: MintUnit}
     Send: {
       unit: MintUnit,
@@ -154,6 +164,7 @@ export type WalletStackParamList = {
     }
     ContactsNavigator: {screen: string, params: any}
     SettingsNavigator: {screen: string, params: any}
+    TransactionsNavigator: {screen: string, params: any}
 }
 
 export type WalletStackScreenProps<T extends keyof WalletStackParamList> = StackScreenProps<
@@ -186,6 +197,37 @@ const WalletNavigator = function WalletNavigator() {
         <WalletStack.Screen name="Topup" component={TopupScreen} />
     </WalletStack.Navigator>
   )
+}
+
+
+export type TransactionsStackParamList = {    
+  TranDetail: {id: number, refresh: number}
+  TranHistory: undefined
+  WalletNavigator: {screen: string, params: any}
+  ContactsNavigator: {screen: string, params: any}
+  SettingsNavigator: {screen: string, params: any}
+}
+
+export type TransactionsStackScreenProps<T extends keyof TransactionsStackParamList> = StackScreenProps<
+  TransactionsStackParamList,
+  T
+>
+
+const TransactionsStack = createNativeStackNavigator<TransactionsStackParamList>()
+
+const TransactionsNavigator = function TransactionsNavigator() {  
+
+return (
+  <TransactionsStack.Navigator    
+      screenOptions={{ 
+              presentation: 'transparentModal', // prevents white glitch on scren change in dark mode
+              headerShown: false,        
+      }}
+  >   
+      <TransactionsStack.Screen name="TranHistory" component={TranHistoryScreen} />
+      <TransactionsStack.Screen name="TranDetail" component={TranDetailScreen} />            
+  </TransactionsStack.Navigator>
+)
 }
 
 

@@ -74,7 +74,7 @@ export const MintBalanceSelector = observer(function (props: {
                   ListFooterComponent={props.mintBalances.length > 1 ? (
                     <View>
                       <Button 
-                        text={`${allVisible ? 'Hide' : 'Show'} other`} 
+                        text={`${allVisible ? 'Hide' : 'Show'} more`} 
                         onPress={toggleAllVisible}
                         preset='tertiary'
                       />
@@ -105,7 +105,7 @@ export const MintBalanceSelector = observer(function (props: {
 
   const $card: ViewStyle = {
     marginBottom: spacing.small,
-    paddingTop: 0,
+    paddingVertical: 0,
   }
   
   

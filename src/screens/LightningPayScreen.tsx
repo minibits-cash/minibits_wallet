@@ -7,7 +7,6 @@ import {
 } from 'react-native'
 import {WalletStackScreenProps} from '../navigation'
 import {colors, spacing, useThemeColor} from '../theme'
-import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 import AppError, { Err } from '../utils/AppError'
@@ -18,12 +17,10 @@ import Clipboard from '@react-native-clipboard/clipboard'
 import { SvgXml } from 'react-native-svg'
 import { SendOption } from './SendOptionsScreen'
 import { CurrencyCode, MintUnit } from '../services/wallet/currency'
-import { CurrencySign } from './Wallet/CurrencySign'
 import { useStores } from '../models'
-import { setMinutes } from 'date-fns'
 import { Mint } from '../models/Mint'
-import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import { MintHeader } from './Mints/MintHeader'
+import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
 
 
 export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = function LightningPayScreen(_props) {
@@ -45,17 +42,24 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
 
     useEffect(() => {
         const setUnitAndMint = () => {
-            if(route.params && route.params.unit && route.params.mintUrl) {
-                const mint = mintsStore.findByUrl(route.params.mintUrl)
-                const unit = route.params.unit
+            try {
+                const {unit, mintUrl} = route.params
+                if(!unit) {
+                    throw new AppError(Err.VALIDATION_ERROR, 'Missing mint unit in route params')
+                }
 
-                setMint(mint)
                 setUnit(unit)
+
+                if(mintUrl) {
+                    const mint = mintsStore.findByUrl(mintUrl)    
+                    setMint(mint)
+                }
+            } catch (e: any) {
+                handleError(e)
             }
         }
         
         setUnitAndMint()
-
         return () => {}
     }, [])
 
@@ -63,7 +67,7 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
     
     const [prevRouteName, setPrevRouteName] = useState<string>('')
     const [lightningData, setLightningData] = useState<string | undefined>(undefined)
-    const [unit, setUnit] = useState<MintUnit | undefined>(undefined)
+    const [unit, setUnit] = useState<MintUnit>('sat')
     const [mint, setMint] = useState<Mint | undefined>(undefined)    
     const [error, setError] = useState<AppError | undefined>()
 
@@ -149,6 +153,14 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
             return
         }
     }
+
+
+    const gotoSend = async function () {
+        navigation.navigate('Send', {
+            unit,
+            mintUrl: mint?.mintUrl            
+        })
+    }
     
 
     const handleError = function(e: AppError): void {        
@@ -168,7 +180,7 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
         <Screen preset="fixed" contentContainerStyle={$screen}>
             <MintHeader 
                 mint={mint}
-                unit={unit}
+                unit={unit!}
                 navigation={navigation}
             />
             <View style={[$headerContainer, {backgroundColor: headerBg}]}>                
@@ -255,6 +267,26 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                         </View>
                         </>
                     }
+                />
+                <Button
+                    text={'Pay with ecash'}
+                    LeftAccessory={() => (
+                        <Icon
+                        icon='faMoneyBill1'
+                        color={hintText}
+                        size={spacing.medium}                  
+                        />
+                    )}
+                    textStyle={{fontSize: 14, color: hintText}}
+                    preset='secondary'
+                    onPress={gotoSend}
+                    style={{
+                        minHeight: moderateVerticalScale(40), 
+                        paddingVertical: moderateVerticalScale(spacing.tiny),
+                        marginRight: spacing.tiny,
+                        alignSelf: 'center',
+                        marginTop: spacing.medium
+                    }}                    
                 />
                 
             </View>

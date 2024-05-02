@@ -1,5 +1,5 @@
 import {log} from '../logService'
-import {MintClient, MintKeys, MintUnit} from '../cashuMintClient'
+import {MintClient} from '../cashuMintClient'
 import {
   Transaction,
   TransactionData,
@@ -240,7 +240,7 @@ export const receiveTask = async function (
             JSON.stringify(transactionData),
         )
 
-        const balanceAfter = proofsStore.getBalances().totalBalance
+        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
         await transactionsStore.updateBalanceAfter(transactionId, balanceAfter)
 
         if (amountWithErrors > 0) {
@@ -586,7 +586,7 @@ export const receiveOfflineCompleteTask = async function (
             JSON.stringify(transactionData),
         )
 
-        const balanceAfter = proofsStore.getBalances().totalBalance
+        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
         await transactionsStore.updateBalanceAfter(transaction.id as number, balanceAfter)
 
         if (amountWithErrors > 0) {
