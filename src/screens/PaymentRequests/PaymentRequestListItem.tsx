@@ -268,7 +268,7 @@ const $headerContainer: TextStyle = {
   alignItems: 'center',
   paddingHorizontal: spacing.medium,
   // marginBottom: spacing.small,
-  // height: spacing.screenHeight * 0.18,
+  // height: spacing.screenHeight * 0.20,
 }
 
 const $expiry: ViewStyle = {

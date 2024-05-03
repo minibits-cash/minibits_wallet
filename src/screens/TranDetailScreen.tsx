@@ -60,7 +60,7 @@ type ProofsByStatus = {
   isReceived: Proof[]
 }
 
-export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'> | WalletStackScreenProps<'TranDetail'>> =
+export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
   observer(function TranDetailScreen(_props) {
     const {navigation, route} = _props
     const {transactionsStore, userSettingsStore} = useStores()
@@ -1536,13 +1536,8 @@ const TranItem = function (props: {
                 style={[props.labelStyle, {color: labelColor, fontSize: 14}, margin]}
                 tx={props.label}
             />
-            {props.isCurrency ? (
-              <CurrencyAmount 
-                    amount={props.value as number}
-                    mintUnit={props.unit}
-                    size='medium'
-                    amountStyle={props.valueStyle}
-              />              
+            {props.isCurrency && props.unit ? (
+              <Text style={props.valueStyle || {}} text={`${formatCurrency(props.value, getCurrency(props.unit).code)} ${getCurrency(props.unit).code}`} />            
             ) : (
               <Text style={props.valueStyle || {}} text={props.value as string} />
             )}
@@ -1699,7 +1694,7 @@ const $screen: ViewStyle = {}
 const $headerContainer: TextStyle = {
     alignItems: 'center',
     paddingBottom: spacing.medium,
-    height: spacing.screenHeight * 0.18,
+    height: spacing.screenHeight * 0.20,
 }
 
 const $contentContainer: TextStyle = {

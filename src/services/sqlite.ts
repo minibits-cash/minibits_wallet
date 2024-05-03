@@ -19,7 +19,7 @@ import { CashuUtils } from './cashu/cashuUtils'
 
 let _db: QuickSQLiteConnection
 
-const _dbVersion = 9 // Update this if db changes require migrations
+const _dbVersion = 10 // Update this if db changes require migrations
 
 const getInstance = function () {
   if (!_db) {
@@ -138,9 +138,12 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
     let migrationQueries: SQLBatchTuple[] = []
 
     // Database migrations sequence based on local version numbers
-    const walletId = _generateWalletId()
+    
 
     if (currentVersion < 3) {
+      
+        const walletId = _generateWalletId()
+
         migrationQueries.push([
             `ALTER TABLE usersettings
             ADD COLUMN walletId TEXT`,       
@@ -218,6 +221,15 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
 
       log.info(`Prepared database migrations from ${currentVersion} -> 9`)
     }
+
+    if (currentVersion < 10) {
+      migrationQueries.push([
+          `UPDATE transactions
+          SET unit = ?`, ['sat']     
+      ])
+
+      log.info(`Prepared database migrations from ${currentVersion} -> 10`)
+  }
 
     // Update db version as a part of migration sqls
     migrationQueries.push([

@@ -28,7 +28,7 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
     const lightningInputRef = useRef<TextInput>(null)
     const {mintsStore} = useStores()
 
-    useEffect(() => {
+    /* useEffect(() => {
         const focus = () => {
             lightningInputRef && lightningInputRef.current
             ? lightningInputRef.current.focus()
@@ -38,7 +38,7 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
         return () => {
             clearTimeout(timer)
         }
-    }, [])
+    }, []) */
 
     useEffect(() => {
         const setUnitAndMint = () => {
@@ -269,12 +269,12 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                     }
                 />
                 <Button
-                    text={'Pay with ecash'}
+                    text={'Send as ecash'}
                     LeftAccessory={() => (
                         <Icon
                         icon='faMoneyBill1'
                         color={hintText}
-                        size={spacing.medium}                  
+                        size={spacing.large}                  
                         />
                     )}
                     textStyle={{fontSize: 14, color: hintText}}
@@ -309,7 +309,7 @@ const $contentContainer: ViewStyle = {
 const $headerContainer: TextStyle = {
     alignItems: 'center',
     padding: spacing.medium,
-    height: spacing.screenHeight * 0.18,
+    height: spacing.screenHeight * 0.20,
 }
 
 const $buttonContainer: ViewStyle = {

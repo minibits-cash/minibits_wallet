@@ -1,6 +1,7 @@
 import {Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
 import { log } from '../services/logService'
-import { MintUnit } from '../services'
+import { MintUnit } from '../services/wallet/currency'
+
 
 export interface TransactionRecord {
     id?: number
@@ -62,7 +63,11 @@ export const TransactionModel = types
         tags: types.maybe(types.maybeNull(types.array(types.string))),
         status: types.frozen<TransactionStatus>(),
         createdAt: types.optional(types.Date, new Date()),
-    })   
+    }).actions(self => ({
+        setUnit(unit: MintUnit) { // migration
+            self.unit = unit
+        }            
+  }))   
     
 
 export type Transaction = {

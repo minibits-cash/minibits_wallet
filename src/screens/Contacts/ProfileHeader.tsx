@@ -47,6 +47,6 @@ const $headerContainer: TextStyle = {
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.medium,
-    height: spacing.screenHeight * 0.18,
+    height: spacing.screenHeight * 0.20,
 }
   

@@ -506,7 +506,7 @@ const $contentContainer: TextStyle = {
 }
 
 const $iconContainer: ViewStyle = {
-    marginTop: -spacing.large * 2,
+    marginTop: -spacing.extraLarge * 2,
     alignItems: 'center',
 }
 

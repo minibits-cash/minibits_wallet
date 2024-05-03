@@ -24,7 +24,7 @@ import {
   Loading,
   BottomModal,
 } from '../components'
-import {TransactionsStackScreenProps, WalletStackScreenProps} from '../navigation'
+import {TransactionsStackScreenProps} from '../navigation'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import {GroupedByTimeAgo, maxTransactionsInModel} from '../models/TransactionsStore'
@@ -262,7 +262,7 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
                             onPress={() => false}
                         />
                         <ListItem
-                        text={'Pending transactions'}
+                        text={`${transactionsStore.pending.length} Pending transactions`}
                         LeftComponent={
                             <Icon
                             containerStyle={$iconContainer}
@@ -270,9 +270,6 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
                             size={spacing.medium}
                             color={showPendingOnly ? activeIconColor : iconColor}
                             />
-                        }
-                        RightComponent={
-                            <Text style={$txAmount} text={`${transactionsStore.pending.length}`} />
                         }
                         style={$item}
                         // bottomSeparator={true}
@@ -380,7 +377,7 @@ const $screen: ViewStyle = {
 const $headerContainer: TextStyle = {
     alignItems: 'center',
     paddingBottom: spacing.medium,
-    height: spacing.screenHeight * 0.18,
+    height: spacing.screenHeight * 0.20,
 }
 
 const $headerCollapsed: TextStyle = {

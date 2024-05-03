@@ -92,7 +92,7 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
     return (
         <Screen contentContainerStyle={$screen}>
             <Header 
-                LeftActionComponent={<LeftProfileHeader gotoProfile={gotoProfile}/>}
+                LeftActionComponent={<LeftProfileHeader gotoProfile={gotoProfile} isAvatarVisible={true} />}
                 title={nip05}
                 titleStyle={{fontFamily: typography.primary?.medium, fontSize: 16}}
                 RightActionComponent={<RightProfileHeader gotoProfile={gotoProfile}/>}

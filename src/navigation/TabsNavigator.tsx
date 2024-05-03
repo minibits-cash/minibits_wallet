@@ -118,7 +118,7 @@ export function TabsNavigator() {
         component={SettingsNavigator}
         options={{
           tabBarLabel: translate("tabNavigator.settingsLabel"),
-          tabBarIcon: ({ focused }) => <Icon icon="faSliders" color={focused ? activeColor : textColor} size={spacing.large} />,           
+          tabBarIcon: ({ focused }) => <Icon icon="faGears" color={focused ? activeColor : textColor} size={spacing.large} />,           
         }}
       />
     </Tab.Navigator>
@@ -141,8 +141,7 @@ export type WalletStackParamList = {
     LightningPay: {
       unit: MintUnit    
       mintUrl?: string,      
-    }
-    TranDetail: {id: number}    
+    }    
     PaymentRequests: undefined 
     Transfer: {
       unit: MintUnit,
@@ -159,6 +158,7 @@ export type WalletStackParamList = {
       lnurlParams?: LNURLWithdrawParams,
       mintUrl?: string,      
     }
+    TranDetail: {id: number}
     ContactsNavigator: {screen: string, params: any}
     SettingsNavigator: {screen: string, params: any}
     TransactionsNavigator: {screen: string, params: any}
@@ -187,7 +187,7 @@ const WalletNavigator = function WalletNavigator() {
         <WalletStack.Screen name="Send" component={SendScreen} />
         <WalletStack.Screen name="Scan" component={ScanScreen} />
         <WalletStack.Screen name="LightningPay" component={LightningPayScreen} />
-        <WalletStack.Screen name="TranDetail" component={TranDetailScreen} />        
+        <WalletStack.Screen name="TranDetail" component={TranDetailScreen} />
         <WalletStack.Screen name="PaymentRequests" component={PaymentRequestsScreen} />
         <WalletStack.Screen name="Transfer" component={TransferScreen} />
         <WalletStack.Screen name="Topup" component={TopupScreen} />
@@ -221,7 +221,7 @@ return (
       }}
   >   
       <TransactionsStack.Screen name="TranHistory" component={TranHistoryScreen} />
-      <TransactionsStack.Screen name="TranDetail" component={TranDetailScreen} />            
+      <TransactionsStack.Screen name="TranDetail" component={TranDetailScreen}/>            
   </TransactionsStack.Navigator>
 )
 }
@@ -330,7 +330,7 @@ const $tabBarItem: ViewStyle = {
 
 const $tabBarLabel: TextStyle = {
   fontSize: 12,
-  fontFamily: typography.primary?.medium,
+  fontFamily: typography.primary?.light,
   lineHeight: 16,
   flex: 1,
 }

@@ -55,7 +55,8 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
             screen: 'Topup',
             params: {
                 paymentOption: ReceiveOption.SEND_PAYMENT_REQUEST,
-                contact                 
+                contact,
+                unit: userSettingsStore.preferredUnit               
             },
         })
     }
@@ -67,7 +68,8 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
             screen: 'Send',            
             params: {
                 paymentOption: SendOption.SEND_TOKEN,
-                contact
+                contact,
+                unit: userSettingsStore.preferredUnit                
             },
         })
     }
@@ -375,7 +377,7 @@ const $headerContainer: TextStyle = {
     justifyContent: 'space-around',
     alignItems: 'center',
     paddingHorizontal: spacing.medium,
-    height: spacing.screenHeight * 0.18,
+    height: spacing.screenHeight * 0.20,
 }
 
 const $contentContainer: TextStyle = {

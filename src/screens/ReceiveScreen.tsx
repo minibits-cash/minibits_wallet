@@ -430,7 +430,7 @@ const $headerContainer: TextStyle = {
     alignItems: 'center',
     padding: spacing.extraSmall,
     paddingTop: 0,
-    height: spacing.screenHeight * 0.18,
+    height: spacing.screenHeight * 0.20,
 }
 
 const $amountContainer: ViewStyle = {
@@ -449,7 +449,7 @@ const $amountToReceive: TextStyle = {
 const $contentContainer: TextStyle = {
   flex: 1,
   padding: spacing.extraSmall,
-  marginTop: -spacing.large * 2,
+  marginTop: -spacing.extraLarge * 2,
   // alignItems: 'center',
 }
 

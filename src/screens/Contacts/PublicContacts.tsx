@@ -641,7 +641,7 @@ const $headerContainer: TextStyle = {
     justifyContent: 'center',
     flexDirection: 'row',
     paddingBottom: spacing.medium,
-    // height: spacing.screenHeight * 0.18,
+    // height: spacing.screenHeight * 0.20,
 }
 
 const $pasteButton: ViewStyle = {

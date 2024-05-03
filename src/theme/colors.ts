@@ -171,7 +171,7 @@ export const colors = {
     /**
      * The default color of the header and status bar.
      */
-    header: palette.primary700,
+    header: palette.primary600,
     /**
      * The default color of the bottom menu.
      */

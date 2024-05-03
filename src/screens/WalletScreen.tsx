@@ -758,7 +758,7 @@ const MintsByUnitListItem = observer(function (props: {
                         onPress={() => onSelectedMint(mint.mintUrl)}
                     />
                     {selectedMintUrl === mint.mintUrl &&  (
-                        <View style={{flexDirection: 'row', marginBottom: spacing.small}}>
+                        <View style={{flexDirection: 'row', marginBottom: spacing.small, justifyContent: 'space-around'}}>
                             <Button
                                 text={'Topup'}
                                 LeftAccessory={() => (
@@ -879,7 +879,7 @@ const $contentContainer: TextStyle = {
 
 const $card: ViewStyle = {
   marginBottom: spacing.small,
-  paddingTop: 0,
+  //paddingTop: 0,
   marginHorizontal: spacing.extraSmall,
   // alignSelf: 'stretch'
 }
