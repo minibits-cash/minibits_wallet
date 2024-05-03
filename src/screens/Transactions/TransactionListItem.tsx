@@ -1,8 +1,8 @@
 import {formatDistance} from 'date-fns/formatDistance'
 import {observer} from 'mobx-react-lite'
 import React from 'react'
-import {ScrollView, TextStyle, View, ViewStyle} from 'react-native'
-import {Button, Icon, ListItem, Screen, Text} from '../../components'
+import {TextStyle, View, ViewStyle} from 'react-native'
+import {Icon, ListItem} from '../../components'
 import {
   Transaction,
   TransactionStatus,
@@ -11,7 +11,6 @@ import {
 import {colors, spacing, typography, useThemeColor} from '../../theme'
 import useIsInternetReachable from '../../utils/useIsInternetReachable'
 import {translate} from '../../i18n'
-import { Currencies, MintUnit, MintUnitCurrencyPairs } from '../../services/wallet/currency'
 import { CurrencyAmount } from '../Wallet/CurrencyAmount'
 
 export interface TransactionListProps {

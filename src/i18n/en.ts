@@ -128,7 +128,7 @@ const en = {
     showOrShareTokenDescription: "Present or share ecash token for an amount you want to send.",
   },
   tranDetailScreen: {
-    amount: "Amount (in satoshis)",
+    amount: "Amount",
     lightningFee: "Lightning network fee",
     memoFromSender: "Memo from sender",
     sentFrom: "Sent from",

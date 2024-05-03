@@ -30,7 +30,7 @@ import { topupTask } from './wallet/topupTask'
 import { transferTask } from './wallet/transferTask'
 import { WalletUtils } from './wallet/utils'
 import { NotificationService } from './notificationService'
-import { Currencies, CurrencyCode, MintUnit, MintUnitCurrencyPairs, MintUnits } from './wallet/currency'
+import { MintUnit, getCurrency } from './wallet/currency'
 
 
 type WalletTaskService = {
@@ -900,7 +900,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         mintInstance.resetInFlight(transactionId as number )
         stopPolling(`handlePendingTopupTaskPoller-${paymentHash}`)               
 
-        const precision: number = Currencies[MintUnitCurrencyPairs[pr.mintUnit as MintUnit]]!.precision
+        const precision: number = getCurrency(pr.mintUnit!).precision
 
         if (receivedAmount !== amount) {
             throw new AppError(
@@ -976,7 +976,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
 
 const _sendTopupNotification = async function (pr: PaymentRequest) {
 
-    const precision: number = Currencies[MintUnitCurrencyPairs[pr.mintUnit as MintUnit]]!.precision
+    const precision: number = getCurrency(pr.mintUnit!).precision
 
     await NotificationService.createLocalNotification(
         `⚡ ${pr.amountToTopup! / precision} ${pr.mintUnit} received!`,

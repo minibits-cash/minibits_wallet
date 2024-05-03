@@ -1,31 +1,27 @@
 import {MINIBITS_NIP05_DOMAIN, MINIBITS_SERVER_API_HOST} from '@env'
-import differenceInSeconds from 'date-fns/differenceInSeconds'
+import {differenceInSeconds} from 'date-fns/differenceInSeconds'
 import formatDistance from 'date-fns/formatDistance'
 import {observer} from 'mobx-react-lite'
 import React from 'react'
 import {
   Image,
   ImageStyle,
-  ScrollView,
-  StyleSheet,
   TextStyle,
   View,
   ViewStyle,
 } from 'react-native'
 import {Button, Card, Icon, ListItem, Screen, Text} from '../../components'
-import {Contact, ContactType} from '../../models/Contact'
 import {
   PaymentRequest,
   PaymentRequestStatus,
   PaymentRequestType,
 } from '../../models/PaymentRequest'
-import {log, NostrClient} from '../../services'
-import {colors, spacing, typography, useThemeColor} from '../../theme'
+import {log} from '../../services'
+import {colors, spacing, useThemeColor} from '../../theme'
 import {getImageSource} from '../../utils/utils'
-import {ContactListItem} from '../Contacts/ContactListItem'
 import {SendOption} from '../SendOptionsScreen'
 import { CurrencySign } from '../Wallet/CurrencySign'
-import { CurrencyCode, MintUnitCurrencyPairs } from '../../services/wallet/currency'
+import { CurrencyCode } from '../../services/wallet/currency'
 import {translate} from '../../i18n'
 
 export interface PaymentRequestListProps {

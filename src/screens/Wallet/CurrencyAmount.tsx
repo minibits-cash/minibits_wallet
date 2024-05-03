@@ -1,11 +1,9 @@
 import React from "react"
 import { TextStyle, View, ViewStyle } from "react-native"
-import { SvgXml } from "react-native-svg"
 import { Text } from "../../components"
-import { Spacing, colors, spacing, typography, useThemeColor } from "../../theme"
-import { CurrencyCode, Currencies, MintUnit, MintUnitCurrencyPairs } from "../../services/wallet/currency"
+import { Spacing, spacing, typography, useThemeColor } from "../../theme"
+import { CurrencyCode, Currencies, MintUnit, getCurrency } from "../../services/wallet/currency"
 import { observer } from "mobx-react-lite"
-import { verticalScale } from "@gocodingnow/rn-size-matters"
 import { formatNumber } from "../../utils/number"
 
 
@@ -31,9 +29,9 @@ export const CurrencyAmount = observer(function (props: {
     }
 
     if(!!mintUnit) {
-        currencySymbol = Currencies[MintUnitCurrencyPairs[mintUnit]]!.symbol
-        currencyPrecision = Currencies[MintUnitCurrencyPairs[mintUnit]]!.precision
-        currencyCode2 = MintUnitCurrencyPairs[mintUnit]
+        currencySymbol = getCurrency(mintUnit).symbol
+        currencyPrecision = getCurrency(mintUnit).precision
+        currencyCode2 = getCurrency(mintUnit).code
     }
     
     const amountColor = useThemeColor('amount')

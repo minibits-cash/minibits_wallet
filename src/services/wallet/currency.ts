@@ -1,5 +1,6 @@
 import numbro from 'numbro'
 import { BtcIcon, EurIcon, UsdIcon } from '../../components'
+import AppError, { Err } from '../../utils/AppError'
 
 
 export type MintUnit = typeof MintUnits[number]
@@ -116,4 +117,20 @@ export const Currencies: CurrencyList = {
 export const formatCurrency = (amount: number | string, code: CurrencyCode) => {
     const c = Currencies[code]
     return numbro(amount).format({ mantissa: c?.mantissa || 2, thousandSeparated: true })
+}
+
+export const getCurrency = (unit: MintUnit) => {
+    const currencyCode = MintUnitCurrencyPairs[unit]
+
+    if(!currencyCode) {
+        throw new AppError(Err.VALIDATION_ERROR, `Currency unit ${unit} is not yet supported by Minibits. Submit request to support on our Github.`)
+    }
+
+    const currencyData = Currencies[currencyCode]
+
+    if (!currencyData) {
+        throw new AppError(Err.VALIDATION_ERROR, `Currency code ${currencyCode} is not properly configured by Minibits. Submit issue on our Github.`)
+    }
+
+    return currencyData as CurrencyData
 }

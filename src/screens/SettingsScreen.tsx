@@ -16,7 +16,7 @@ import {translate} from '../i18n'
 import { log } from '../services'
 import {Env} from '../utils/envtypes'
 import { round } from '../utils/number'
-import { MintUnitCurrencyPairs } from '../services/wallet/currency'
+import { getCurrency } from '../services/wallet/currency'
 
 
 interface SettingsScreenProps extends SettingsStackScreenProps<'Settings'> {}
@@ -135,7 +135,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                       <View style={$rightContainer}>
                       <Text 
                           style={$itemRight}
-                          text={MintUnitCurrencyPairs[userSettingsStore.preferredUnit]}
+                          text={getCurrency(userSettingsStore.preferredUnit).code}
                       />
                       </View>
                    }

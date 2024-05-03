@@ -38,7 +38,6 @@ import {log} from '../services/logService'
 import AppError, { Err } from '../utils/AppError'
 
 import {MintBalance} from '../models/Mint'
-import {MintListItem} from './Mints/MintListItem'
 import EventEmitter from '../utils/eventEmitter'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import { useFocusEffect } from '@react-navigation/native'
@@ -49,7 +48,7 @@ import { LNURLWithdrawParams } from 'js-lnurl'
 import { roundDown, roundUp, toNumber } from '../utils/number'
 import { LnurlClient, LnurlWithdrawResult } from '../services/lnurlService'
 import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
-import { Currencies, MintUnit, MintUnitCurrencyPairs, MintUnits } from "../services/wallet/currency"
+import { MintUnit, getCurrency } from "../services/wallet/currency"
 import { MintHeader } from './Mints/MintHeader'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { MintBalanceSelector } from './Mints/MintBalanceSelector'
@@ -312,8 +311,8 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
     const onAmountEndEditing = function () {
       try {
-            const precision = Currencies[MintUnitCurrencyPairs[unit]]!.precision
-            const mantissa = Currencies[MintUnitCurrencyPairs[unit]]!.mantissa
+            const precision = getCurrency(unit).precision
+            const mantissa = getCurrency(unit).mantissa
             const amount = toNumber(amountToTopup) * precision
 
             log.trace('[onAmountEndEditing]', amount)
@@ -394,7 +393,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         
         WalletTask.topup(
             mintBalanceToTopup as MintBalance,
-            toNumber(amountToTopup) * Currencies[MintUnitCurrencyPairs[unit]]!.precision,
+            toNumber(amountToTopup) * getCurrency(unit).precision,
             unit,
             memo,            
             contactToSendTo

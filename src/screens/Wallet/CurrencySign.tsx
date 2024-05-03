@@ -3,7 +3,7 @@ import { TextStyle, View, ViewStyle } from "react-native"
 import { SvgXml } from "react-native-svg"
 import { Text } from "../../components"
 import { Spacing, colors, spacing, typography, useThemeColor } from "../../theme"
-import { CurrencyCode, Currencies, MintUnit, MintUnitCurrencyPairs } from "../../services/wallet/currency"
+import { CurrencyCode, Currencies, MintUnit, getCurrency } from "../../services/wallet/currency"
 
 
 export const CurrencySign = function(props: {
@@ -18,7 +18,7 @@ export const CurrencySign = function(props: {
     let code = currencyCode || CurrencyCode.SATS
 
     if(!!mintUnit) {
-        code = Currencies[MintUnitCurrencyPairs[mintUnit]]!.code
+        code = getCurrency(mintUnit).code
     }
   
     const textColor = useThemeColor('amount')

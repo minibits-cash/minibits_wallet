@@ -6,7 +6,7 @@ import { MintBalance } from "../../models/Mint"
 import { colors, spacing, typography, useThemeColor } from "../../theme"
 import { TextStyle, ViewStyle } from "react-native"
 import { CurrencySign } from "../Wallet/CurrencySign"
-import { CurrencyCode, MintUnit, MintUnitCurrencyPairs, MintUnits } from "../../services/wallet/currency"
+import { MintUnit } from "../../services/wallet/currency"
 import { log } from "../../services"
 import { CurrencyAmount } from "../Wallet/CurrencyAmount"
 
@@ -57,7 +57,7 @@ export const MintListItem = observer(function(props: {
                       size='small'                      
                 /> 
               }
-              BottomComponent={isUnitVisible && mint.units ? (<>{mint.units.map(unit => <CurrencySign containerStyle={{paddingLeft: 0, marginRight: spacing.small}} key={unit} currencyCode={MintUnitCurrencyPairs[unit]}/>)}</>) : undefined}              
+              BottomComponent={isUnitVisible && mint.units ? (<>{mint.units.map(unit => <CurrencySign containerStyle={{paddingLeft: 0, marginRight: spacing.small}} key={unit} mintUnit={unit}/>)}</>) : undefined}              
               containerStyle={{alignSelf: 'stretch'}}
               bottomSeparator={separator === 'bottom' || separator === 'both'}
               topSeparator={separator === 'top' || separator === 'both'}

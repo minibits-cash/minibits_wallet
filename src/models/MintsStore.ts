@@ -14,7 +14,7 @@ import {
   import AppError, { Err } from '../utils/AppError'
 import { MintKeyset } from '@cashu/cashu-ts'
 import { getRootStore } from './helpers/getRootStore'
-import { MintUnit } from '../services/wallet/currency'
+import { MintUnit, MintUnits } from '../services/wallet/currency'
   
   export type MintsByHostname = {
       hostname: string
@@ -62,6 +62,12 @@ import { MintUnit } from '../services/wallet/currency'
 
                 for(const keyset of activeKeysets) {
                     if(keyset.active === true) {
+                        // Do not add unit the wallet does not have configured
+                        if (!MintUnits.includes(keyset.unit as MintUnit)) {
+                            log.error(`Unsupported unit provided by the mint: ${keyset.unit}`)
+                            continue
+                        }
+
                         mintInstance.addUnit(keyset.unit as MintUnit) // add supported units by mint
                         mintInstance.getOrCreateProofsCounter(keyset.id, keyset.unit as MintUnit) // create proofsCounters
                     }

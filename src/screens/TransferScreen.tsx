@@ -27,7 +27,6 @@ import {
 import {Mint} from '../models/Mint'
 import {Transaction, TransactionStatus} from '../models/Transaction'
 import {useStores} from '../models'
-import {useHeader} from '../utils/useHeader'
 import {MintClient, TransactionTaskResult, WalletTask} from '../services'
 import EventEmitter from '../utils/eventEmitter'
 import {log} from '../services/logService'
@@ -43,8 +42,7 @@ import { SendOption } from './SendOptionsScreen'
 import { roundUp, toNumber } from '../utils/number'
 import { LnurlClient, LNURLPayParams } from '../services/lnurlService'
 import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
-import { CurrencySign } from './Wallet/CurrencySign'
-import { Currencies, CurrencyCode, MintUnit, MintUnitCurrencyPairs, MintUnits } from "../services/wallet/currency"
+import { CurrencyCode, MintUnit, getCurrency } from "../services/wallet/currency"
 import { FeeBadge } from './Wallet/FeeBadge'
 import { MeltQuoteResponse } from '@cashu/cashu-ts'
 import { MintHeader } from './Mints/MintHeader'
@@ -507,7 +505,7 @@ const transfer = async function () {
 
         WalletTask.transfer(
             mintBalanceToTransferFrom as MintBalance,
-            toNumber(amountToTransfer) * Currencies[MintUnitCurrencyPairs[unit]]!.precision,
+            toNumber(amountToTransfer) * getCurrency(unit).precision,
             unit,
             meltQuote,        
             memo,

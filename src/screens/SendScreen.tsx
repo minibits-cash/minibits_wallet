@@ -59,8 +59,7 @@ import { getImageSource, infoMessage } from '../utils/utils'
 import { NotificationService } from '../services/notificationService'
 import { SendOption } from './SendOptionsScreen'
 import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
-import { CurrencySign } from './Wallet/CurrencySign'
-import { Currencies, CurrencyCode, MintUnit, MintUnitCurrencyPairs, MintUnits } from "../services/wallet/currency"
+import { MintUnit, getCurrency } from "../services/wallet/currency"
 import { MintHeader } from './Mints/MintHeader'
 import { MintBalanceSelector } from './Mints/MintBalanceSelector'
 import { toNumber } from '../utils/number'
@@ -403,7 +402,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         setIsSendTaskSentToQueue(true)       
         WalletTask.send(
             mintBalanceToSendFrom as MintBalance,
-            toNumber(amountToSend) * Currencies[MintUnitCurrencyPairs[unit]]!.precision,
+            toNumber(amountToSend) * getCurrency(unit).precision,
             unit,
             memo,
             selectedProofs

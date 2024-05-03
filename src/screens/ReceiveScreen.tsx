@@ -20,7 +20,6 @@ import {Mint} from '../models/Mint'
 import {Token} from '../models/Token'
 import {Transaction, TransactionStatus} from '../models/Transaction'
 import {useStores} from '../models'
-import {useHeader} from '../utils/useHeader'
 import {TransactionTaskResult, WalletTask} from '../services'
 import {log} from '../services/logService'
 import AppError, { Err } from '../utils/AppError'
@@ -31,9 +30,7 @@ import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {MintListItem} from './Mints/MintListItem'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
-import { CurrencySign } from './Wallet/CurrencySign'
-import { Currencies, CurrencyCode, CurrencyData, MintUnit, MintUnitCurrencyPairs, MintUnits } from "../services/wallet/currency"
-import { toNumber } from '../utils/number'
+import { MintUnit, getCurrency } from "../services/wallet/currency"
 import { MintHeader } from './Mints/MintHeader'
 
 export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
@@ -152,11 +149,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
           throw new AppError(Err.VALIDATION_ERROR, `Currency unit is missing in the received token.`)
         }
 
-        if(!Currencies[MintUnitCurrencyPairs[decoded.unit as MintUnit]]) {
-          throw new AppError(Err.VALIDATION_ERROR, `Unit ${decoded.unit} is not yet supported by Minibits wallet.`)
-        }
-
-        const currency: CurrencyData = Currencies[MintUnitCurrencyPairs[decoded.unit as MintUnit]]!
+        const currency = getCurrency(decoded.unit)
 
         setToken(decoded)
         setAmountToReceive(tokenAmounts.totalAmount / currency.precision)
@@ -181,7 +174,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
 
         WalletTask.receive(
             token as Token,
-            amountToReceive * Currencies[MintUnitCurrencyPairs[unit]]!.precision,
+            amountToReceive * getCurrency(unit).precision,
             memo,
             encodedToken as string,
         )        
@@ -194,7 +187,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
 
         WalletTask.receiveOfflinePrepare(
             token as Token,
-            amountToReceive * Currencies[MintUnitCurrencyPairs[unit]]!.precision,
+            amountToReceive * getCurrency(unit).precision,
             memo,
             encodedToken as string,
         )
