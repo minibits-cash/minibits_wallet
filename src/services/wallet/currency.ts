@@ -1,6 +1,7 @@
 import numbro from 'numbro'
 import { BtcIcon, EurIcon, UsdIcon } from '../../components'
 import AppError, { Err } from '../../utils/AppError'
+import { log } from '../logService'
 
 
 export type MintUnit = typeof MintUnits[number]
@@ -115,8 +116,8 @@ export const Currencies: CurrencyList = {
 } as const
 
 export const formatCurrency = (amount: number | string, code: CurrencyCode) => {
-    const c = Currencies[code]
-    return numbro(amount).format({ mantissa: c?.mantissa || 2, thousandSeparated: true })
+    const c = Currencies[code]    
+    return numbro(amount).format({ mantissa: c?.mantissa, thousandSeparated: true })
 }
 
 export const getCurrency = (unit: MintUnit) => {

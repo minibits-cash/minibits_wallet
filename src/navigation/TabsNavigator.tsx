@@ -142,8 +142,7 @@ export type WalletStackParamList = {
       unit: MintUnit    
       mintUrl?: string,      
     }
-    TranDetail: {id: number}
-    TranHistory: undefined
+    TranDetail: {id: number}    
     PaymentRequests: undefined 
     Transfer: {
       unit: MintUnit,
@@ -188,8 +187,7 @@ const WalletNavigator = function WalletNavigator() {
         <WalletStack.Screen name="Send" component={SendScreen} />
         <WalletStack.Screen name="Scan" component={ScanScreen} />
         <WalletStack.Screen name="LightningPay" component={LightningPayScreen} />
-        <WalletStack.Screen name="TranDetail" component={TranDetailScreen} />
-        <WalletStack.Screen name="TranHistory" component={TranHistoryScreen} />
+        <WalletStack.Screen name="TranDetail" component={TranDetailScreen} />        
         <WalletStack.Screen name="PaymentRequests" component={PaymentRequestsScreen} />
         <WalletStack.Screen name="Transfer" component={TransferScreen} />
         <WalletStack.Screen name="Topup" component={TopupScreen} />
@@ -199,7 +197,7 @@ const WalletNavigator = function WalletNavigator() {
 
 
 export type TransactionsStackParamList = {    
-  TranDetail: {id: number, refresh: number}
+  TranDetail: {id: number}
   TranHistory: undefined
   WalletNavigator: {screen: string, params: any}
   ContactsNavigator: {screen: string, params: any}

@@ -10,7 +10,7 @@ import {
 import Clipboard from '@react-native-clipboard/clipboard'
 import JSONTree from 'react-native-json-tree'
 import {colors, spacing, useThemeColor} from '../theme'
-import {TransactionsStackScreenProps} from '../navigation'
+import {TransactionsStackScreenProps, WalletStackScreenProps} from '../navigation'
 import EventEmitter from '../utils/eventEmitter'
 import {
   Button,
@@ -23,6 +23,7 @@ import {
   BottomModal,
   InfoModal,
   Loading,
+  Header,
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
@@ -46,7 +47,7 @@ import { CashuUtils } from '../services/cashu/cashuUtils'
 import { MintStatus } from '../models/Mint'
 import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencySign } from './Wallet/CurrencySign'
-import { MintUnit, MintUnitCurrencyPairs, getCurrency } from "../services/wallet/currency"
+import { MintUnit, formatCurrency, getCurrency } from "../services/wallet/currency"
 import { Token } from '../models/Token'
 import { PaymentRequest } from '../models/PaymentRequest'
 import { pollerExists } from '../utils/poller'
@@ -59,7 +60,7 @@ type ProofsByStatus = {
   isReceived: Proof[]
 }
 
-export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
+export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'> | WalletStackScreenProps<'TranDetail'>> =
   observer(function TranDetailScreen(_props) {
     const {navigation, route} = _props
     const {transactionsStore, userSettingsStore} = useStores()
@@ -77,37 +78,11 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
     const [note, setNote] = useState<string>('')
     const [savedNote, setSavedNote] = useState<string>('')
 
-    useHeader({
-      leftIcon: 'faArrowLeft',
-      onLeftPress: () => {
-        const routes = navigation.getState()?.routes
-        let prevRouteName: string = ''
-
-        if(routes.length >= 2) {
-            prevRouteName = routes[routes.length - 2].name
-        }
-
-        if(prevRouteName === 'TranHistory') {
-            navigation.navigate('TranHistory')
-        } else {
-            navigation.dispatch(
-                StackActions.replace('TranHistory')                    
-            )
-            navigation.navigate('WalletNavigator', {screen: 'Wallet', params: {}})
-        }  
- 
-      },
-      TitleActionComponent:                     
-        <CurrencySign 
-            mintUnit={transaction?.unit}
-            textStyle={{color: 'white'}}              
-        />
-    })
-
     useFocusEffect(useCallback(() => {
       try {
         const {id} = route.params        
         const tx = transactionsStore.findById(id)
+        log.trace('Transaction loaded', {id: tx?.id, unit: tx?.unit})
 
       if (!tx) {
           throw new AppError(
@@ -245,39 +220,47 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
 
 
 
-  const getFormattedAmount = function(amount: number): string {
+  const getFormattedAmount = function(): string {
       if (!transaction) {
         return ''
       }
 
       switch (transaction?.type) {
         case TransactionType.RECEIVE || TransactionType.RECEIVE_OFFLINE:
-          return `+${transaction.amount.toLocaleString()}`
+          return `+${formatCurrency(transaction.amount / getCurrency(transaction.unit).precision, getCurrency(transaction.unit).code)}`
         case TransactionType.SEND:
-          return `-${transaction.amount.toLocaleString()}`
+          return `-${formatCurrency(transaction.amount / getCurrency(transaction.unit).precision, getCurrency(transaction.unit).code)}`
         case TransactionType.TOPUP:
-          return `+${transaction.amount.toLocaleString()}`
+          return `+${formatCurrency(transaction.amount / getCurrency(transaction.unit).precision, getCurrency(transaction.unit).code)}`
         case TransactionType.TRANSFER:
-          return `-${transaction.amount.toLocaleString()}`
+          return `-${formatCurrency(transaction.amount / getCurrency(transaction.unit).precision, getCurrency(transaction.unit).code)}`
         default:
-          return `${transaction?.amount.toLocaleString()}`
+          return `${formatCurrency(transaction.amount / getCurrency(transaction.unit).precision, getCurrency(transaction.unit).code)}`
       }
     }
     
   const colorScheme = useColorScheme()
 
   return (
-      <Screen contentContainerStyle={$screen} preset="auto">
+      <Screen contentContainerStyle={$screen} preset="auto">        
         {transaction && (
           <>
-            <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-              {transaction && (
-                  <Text
-                      preset="heading"
-                      text={getFormattedAmount(transaction.amount / getCurrency(transaction.unit).precision)}
-                      style={$tranAmount}
-                  />
-              )}
+            <Header 
+                  leftIcon='faArrowLeft'
+                  onLeftPress={() => navigation.goBack()}
+                  TitleActionComponent={
+                      <CurrencySign 
+                        mintUnit={transaction.unit}
+                        textStyle={{color: 'white'}}              
+                      />
+                  }                    
+            />
+            <View style={[$headerContainer, {backgroundColor: headerBg}]}>              
+              <Text
+                  preset="heading"
+                  text={getFormattedAmount()}
+                  style={$tranAmount}
+              />              
             </View>
             <View style={$contentContainer}>
               <Card
@@ -555,6 +538,7 @@ const ReceiveInfoBlock = function (props: {
                     <TranItem
                         label="tranDetailScreen.amount"
                         value={transaction.amount}
+                        unit={transaction.unit}
                         isCurrency={true}
                         isFirst={true}
                     />
@@ -596,6 +580,7 @@ const ReceiveInfoBlock = function (props: {
                     <TranItem
                         label="tranDetailScreen.balanceAfter"
                         value={transaction.balanceAfter}
+                        unit={transaction.unit}
                         isCurrency={true}
                     />
                     )}
@@ -785,6 +770,7 @@ const ReceiveOfflineInfoBlock = function (props: {
                         <TranItem
                             label="tranDetailScreen.amount"
                             value={transaction.amount}
+                            unit={transaction.unit}
                             isCurrency={true}
                             isFirst={true}
                         />
@@ -830,6 +816,7 @@ const ReceiveOfflineInfoBlock = function (props: {
                         <TranItem
                             label="tranDetailScreen.balanceAfter"
                             value={transaction.balanceAfter}
+                            unit={transaction.unit}
                             isCurrency={true}
                         />
                     )}
@@ -957,6 +944,7 @@ const SendInfoBlock = function (props: {
                         <TranItem
                             label="tranDetailScreen.amount"
                             value={transaction.amount}
+                            unit={transaction.unit}
                             isCurrency={true}
                             isFirst={true}
                         />
@@ -1000,6 +988,7 @@ const SendInfoBlock = function (props: {
                             <TranItem
                             label="tranDetailScreen.balanceAfter"
                             value={transaction.balanceAfter}
+                            unit={transaction.unit}
                             isCurrency={true}
                             />
                         )}
@@ -1202,6 +1191,7 @@ const TopupInfoBlock = function (props: {
                     <TranItem
                         label="tranDetailScreen.amount"
                         value={transaction.amount}
+                        unit={transaction.unit}
                         isCurrency={true}
                         isFirst={true}
                     />
@@ -1243,6 +1233,7 @@ const TopupInfoBlock = function (props: {
                         <TranItem
                             label="tranDetailScreen.balanceAfter"
                             value={transaction.balanceAfter}
+                            unit={transaction.unit}
                             isCurrency={true}
                         />
                         )}
@@ -1549,7 +1540,7 @@ const TranItem = function (props: {
               <CurrencyAmount 
                     amount={props.value as number}
                     mintUnit={props.unit}
-                    size='small'
+                    size='medium'
                     amountStyle={props.valueStyle}
               />              
             ) : (
@@ -1712,6 +1703,7 @@ const $headerContainer: TextStyle = {
 }
 
 const $contentContainer: TextStyle = {
+    // flex: 1,
     padding: spacing.extraSmall,
 }
 

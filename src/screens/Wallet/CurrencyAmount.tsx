@@ -2,7 +2,7 @@ import React from "react"
 import { TextStyle, View, ViewStyle } from "react-native"
 import { Text } from "../../components"
 import { Spacing, spacing, typography, useThemeColor } from "../../theme"
-import { CurrencyCode, Currencies, MintUnit, getCurrency } from "../../services/wallet/currency"
+import { CurrencyCode, Currencies, MintUnit, getCurrency, formatCurrency } from "../../services/wallet/currency"
 import { observer } from "mobx-react-lite"
 import { formatNumber } from "../../utils/number"
 
@@ -63,7 +63,7 @@ export const CurrencyAmount = observer(function (props: {
                     fontSize: props.size && spacing[props.size] * 1.2 || spacing.small * 1.2,
                     lineHeight: size && spacing[size] * 1.2 || spacing.small * 1.2
                 }, amountStyle || {}]} 
-                text={`${(formatNumber((amount / currencyPrecision).toLocaleString(), Currencies[currencyCode2]!.mantissa))}`}                
+                text={`${(formatCurrency(amount / currencyPrecision, currencyCode2))}`}               
             />
         </View>
     )

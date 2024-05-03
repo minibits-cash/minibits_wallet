@@ -312,12 +312,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         navigation.navigate('SettingsNavigator', {screen: 'MintInfo', params: {mintUrl}})
     } */
 
-    const gotoTranHistory = function () {
-        navigation.navigate('TranHistory')
-    }
-
     const gotoTranDetail = function (id: number) {
-        navigation.navigate('TransactionsNavigator', {screen: 'TranDetail', params: {id}})
+        navigation.navigate('TranDetail', {id})
     }
 
     const gotoPaymentRequests = function () {
