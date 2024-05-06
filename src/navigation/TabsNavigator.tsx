@@ -181,7 +181,7 @@ const WalletNavigator = function WalletNavigator() {
   return (
     <WalletStack.Navigator    
         screenOptions={{ 
-                // presentation: 'transparentModal', // prevents white glitch on scren change in dark mode
+                // presentation: '', // prevents white glitch on scren change in dark mode
                 headerShown: false,        
         }}
     >        

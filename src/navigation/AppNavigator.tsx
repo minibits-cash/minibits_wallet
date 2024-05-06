@@ -5,8 +5,10 @@
  * and a "main" flow which the user will use once logged in.
  */
 import {
+  DefaultTheme,
   NavigationContainer,
-  NavigatorScreenParams
+  NavigatorScreenParams,
+  useTheme
 } from "@react-navigation/native"
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
 import { StackScreenProps } from "@react-navigation/stack"
@@ -21,6 +23,7 @@ import {
 import { useStores } from "../models"
 import { TabsNavigator, TabsParamList  } from "./TabsNavigator"
 import { navigationRef, useBackButtonHandler } from "./navigationUtilities"
+import { colors, useThemeColor } from "../theme"
 
 /**
  * This type allows TypeScript to know what routes are defined in this navigator
@@ -55,16 +58,16 @@ export type AppStackScreenProps<T extends keyof AppStackParamList> = StackScreen
 
 // Documentation: https://reactnavigation.org/docs/stack-navigator/
 const Stack = createNativeStackNavigator<AppStackParamList>()
-
-
 const AppStack = observer(function AppStack() {
 
+  const bgColor = useThemeColor('background')
   const { userSettingsStore } = useStores()  
 
   return (
     <Stack.Navigator
       screenOptions={{ 
-        headerShown: false, // managed with hook + custom component   
+        headerShown: false, // managed with hook + custom component
+        contentStyle: {backgroundColor: bgColor}   
       }}
     >
         {userSettingsStore.isUserOnboarded ? (
@@ -86,9 +89,18 @@ interface NavigationProps extends Partial<React.ComponentProps<typeof Navigation
 export const AppNavigator = observer(function AppNavigator(props: NavigationProps) {  
 
   useBackButtonHandler((routeName) => exitRoutes.includes(routeName))
+  const bgColor = useThemeColor('background')
+  
 
   return (
-    <NavigationContainer
+    <NavigationContainer  
+      theme={{
+        dark: true,
+        colors: {
+          ...DefaultTheme.colors,
+          background: bgColor as string,          
+        },
+      }}          
       ref={navigationRef}      
       {...props}
     >
