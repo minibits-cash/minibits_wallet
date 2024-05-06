@@ -26,7 +26,7 @@ import { Contact } from './Contact'
 export const maxTransactionsInModel = 10
 export const maxTransactionsByMint = 10
 export const maxTransactionsByHostname = 3
-export const maxTransactionsByUnit = 3
+export const maxTransactionsByUnit = 4
 
 export type GroupedByTimeAgo = {
     [timeAgo: string]: Transaction[];
@@ -88,8 +88,12 @@ export const TransactionsStoreModel = types
         recentByHostname(mintHostname: string) {            
             return this.all.filter(t => getHostname(t.mint as string) === mintHostname).slice(0, maxTransactionsByHostname)
         },
-        recentByUnit(unit: MintUnit) {            
-            return this.all.filter(t => t.unit === unit).slice(0, maxTransactionsByUnit)
+        recentByUnit(unit: MintUnit, count?: number) {
+            if (!count || count > maxTransactionsByUnit) {
+                count = maxTransactionsByUnit
+            }
+                      
+            return this.all.filter(t => t.unit === unit).slice(0, count)
         },
         recentByHostnameGroupedByTimeAgo(mintHostname: string) {
             const recentByHostname = this.recentByHostname(mintHostname)

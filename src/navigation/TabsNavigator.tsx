@@ -85,14 +85,14 @@ export function TabsNavigator() {
         tabBarInactiveTintColor: textColor as string,
         tabBarLabelStyle: [$tabBarLabel, {color: textColor}],
         tabBarItemStyle: $tabBarItem,        
-      }}
+      }}      
     >
       <Tab.Screen        
         name="WalletNavigator"
         component={WalletNavigator}
         options={{
           tabBarLabel: translate("tabNavigator.walletLabel"),
-          tabBarIcon: ({ focused }) => <Icon icon="faWallet" color={focused ? activeColor : textColor} size={spacing.large} />,      
+          tabBarIcon: ({ focused }) => <Icon icon="faWallet" color={focused ? activeColor : textColor} size={spacing.large} />          
         }}
       />
 
@@ -128,7 +128,7 @@ export function TabsNavigator() {
 
 
 export type WalletStackParamList = {  
-    Wallet: {scannedMintUrl? : string, returnWithNavigationReset?: boolean}
+    Wallet: {scannedMintUrl? : string}
     ReceiveOptions: {unit: MintUnit} // to be removed
     TokenReceive: {
       unit: MintUnit    
@@ -185,7 +185,7 @@ const WalletNavigator = function WalletNavigator() {
                 headerShown: false,        
         }}
     >        
-        <WalletStack.Screen name="Wallet" component={WalletScreen} />
+        <WalletStack.Screen name="Wallet" component={WalletScreen} options={{unmountOnBlur:true}} />
         <WalletStack.Screen name="ReceiveOptions" component={ReceiveOptionsScreen} />
         <WalletStack.Screen name="TokenReceive" component={TokenReceiveScreen} />
         <WalletStack.Screen name="Receive" component={ReceiveScreen} />

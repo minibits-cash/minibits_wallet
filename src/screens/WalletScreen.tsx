@@ -18,7 +18,7 @@ import codePush, { RemotePackage } from 'react-native-code-push'
 import {moderateVerticalScale, verticalScale} from '@gocodingnow/rn-size-matters'
 import { SvgXml } from 'react-native-svg'
 import PagerView, { PagerViewOnPageScrollEventData } from 'react-native-pager-view'
-import { ScalingDot, SlidingDot } from 'react-native-animated-pagination-dots'
+import { ScalingDot } from 'react-native-animated-pagination-dots'
 import {useThemeColor, spacing, colors, typography} from '../theme'
 import {
   Button,
@@ -59,10 +59,8 @@ import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { CurrencySign } from './Wallet/CurrencySign'
 import { MintUnit } from "../services/wallet/currency"
 import { CurrencyAmount } from './Wallet/CurrencyAmount'
-import { ReceiveOption } from './ReceiveOptionsScreen'
 import { LeftProfileHeader } from './ContactsScreen'
-
-// refresh
+import { maxTransactionsByUnit } from '../models/TransactionsStore'
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView)
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
@@ -84,11 +82,10 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         paymentRequestsStore, 
         userSettingsStore, 
     } = useStores()
-    
+        
     const pagerRef = useRef<PagerView>(null)
     const appState = useRef(AppState.currentState)
     const isInternetReachable = useIsInternetReachable()
-    const returnWithNavigationReset = route.params?.returnWithNavigationReset
     const groupedMints = mintsStore.groupedByUnit
 
     const [currentUnit, setCurrentUnit] = useState<MintUnit>(groupedMints.length > 0 ? groupedMints[0].unit : 'sat')
@@ -143,10 +140,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         // get deeplink if any
         const getInitialData  = async () => {
             const url = await Linking.getInitialURL()
-            
-            // log.trace('returnWithNavigationReset', returnWithNavigationReset)
-                      
-            if (url && !returnWithNavigationReset) {                            
+                                             
+            if (url) {                            
                 handleDeeplink({url})                
                 return // deeplinks have priority over clipboard
             }
@@ -206,7 +201,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         useCallback(() => {
             if(!isInternetReachable) {
                 return
-            }                
+            }
+
             WalletTask.handleSpentFromPending().catch(e => false)               
             WalletTask.handlePendingTopups().catch(e => false)            
         }, [])
@@ -288,15 +284,11 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         }
     }
 
-    /* const gotoReceiveOptions = function (unit: MintUnit) {
-        navigation.navigate('ReceiveOptions', {unit})
-    }
-
-    const gotoSendOptions = function (unit: MintUnit) {
-        navigation.navigate('SendOptions', {unit})
-    }*/
-
-    const gotoTokenReceive = function () {
+    const gotoTokenReceive = async function () {
+        /* const routes = navigation.getState()?.routes
+        const state = navigation.getState()
+        log.trace('[gotoTokenReceive]', {routes, state}) */
+        
         navigation.navigate('TokenReceive', {unit: currentUnit})
     }
 
@@ -308,10 +300,6 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         navigation.navigate('Scan')
     }
 
-    /* const gotoMintInfo = function (mintUrl: string) {
-        navigation.navigate('SettingsNavigator', {screen: 'MintInfo', params: {mintUrl}})
-    } */
-
     const gotoTranDetail = function (id: number) {
         // navigation.navigate('TranDetail', {id})
         navigation.navigate('TransactionsNavigator', {screen: 'TranDetail', params: {id}, initial: false})
@@ -319,18 +307,6 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
     const gotoPaymentRequests = function () {
         navigation.navigate('PaymentRequests')
-    }
-
-    const gotoLightningPay = async function () {
-        navigation.navigate('LightningPay', {
-            unit: currentUnit            
-        })
-    }
-
-    const gotoTopup = function () {
-        navigation.navigate('Topup', {            
-            unit: currentUnit
-        })
     }
 
     const gotoProfile = function () {
@@ -468,11 +444,11 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                 mintsByUnit={mints}                                
                                 navigation={navigation}                                     
                             />                            
-                            {transactionsStore.recentByUnit(mints.unit).length > 0 && (
+                            {transactionsStore.recentByUnit(mints.unit).length > 0 &&  mints.mints.length  < 4 && (
                                 <Card                                    
                                     ContentComponent={                                            
                                         <FlatList
-                                            data={transactionsStore.recentByUnit(mints.unit) as Transaction[]}
+                                            data={transactionsStore.recentByUnit(mints.unit, maxTransactionsByUnit - mints.mints.length) as Transaction[]}
                                             renderItem={({item, index}) => {
                                                 return (<TransactionListItem
                                                     key={item.id}
@@ -483,9 +459,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                                 />)
                                                 }
                                             }
-                                            // keyExtractor={(item, index) => item.id}
-                                            // contentContainerStyle={{paddingRight: spacing.small}}
-                                            style={{ maxHeight: 300 - (mints.mints.length > 1 ? mints.mints.length * 38 : 0)}}
+                                            // style={{ maxHeight: 300 - (mints.mints.length > 1 ? mints.mints.length * 38 : 0)}}
                                         />                                            
                                     }
                                     style={[$card, {paddingTop: spacing.extraSmall}]}

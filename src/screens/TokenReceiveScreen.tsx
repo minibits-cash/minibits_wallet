@@ -43,6 +43,7 @@ export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = fu
     useEffect(() => {
         const setUnitAndMint = () => {
             try {
+                log.trace('[TokenReceiveScreen.setUnitAndMint]')
                 const {unit, mintUrl} = route.params
                 if(!unit) {
                     throw new AppError(Err.VALIDATION_ERROR, 'Missing mint unit in route params')
