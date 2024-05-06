@@ -489,14 +489,14 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                     <Button
                         RightAccessory={() => (
                             <SvgXml 
-                                width={spacing.large + 10} 
-                                height={spacing.large + 10} 
+                                width={spacing.large} 
+                                height={spacing.large} 
                                 xml={ScanIcon}
                                 fill={mainButtonIcon}
                             />
                         )}
                         onPress={gotoScan}
-                        style={[{backgroundColor: mainButtonColor}, $buttonScan]}
+                        style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonScan]}
                         preset='tertiary'
                     />
                     <Button
@@ -938,12 +938,7 @@ const $buttonScan: ViewStyle = {
   borderRadius: moderateVerticalScale(70 / 2),
   width: moderateVerticalScale(70),
   height: moderateVerticalScale(70),
-  zIndex: 99,
-  shadowColor: colors.palette.neutral600,
-  shadowOffset: { width: 0, height: 10 },
-  shadowOpacity: 0.2,
-  shadowRadius: 8,
-  elevation: 5,
+  zIndex: 99,  
 }
 
 const $buttonPay: ViewStyle = {

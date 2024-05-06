@@ -1010,11 +1010,11 @@ const SendAsQRCodeBlock = observer(function (props: {
       FooterComponent={
         <View style={$buttonContainer}>
             <Button
-                // text="Share"
-                preset="secondary" 
+                text="Share"
+                preset="tertiary" 
                 onPress={props.onShareToApp}
-                LeftAccessory={() => <Icon icon='faShareFromSquare'/>}
-                // textStyle={{fontSize: 14}}
+                LeftAccessory={() => <Icon icon='faShareFromSquare' size={spacing.small} color={colors.light.text} />}
+                textStyle={{color: colors.light.text, fontSize: 14}}
                 style={{
                     minWidth: 60, 
                     minHeight: moderateVerticalScale(40), 
@@ -1023,11 +1023,11 @@ const SendAsQRCodeBlock = observer(function (props: {
                 }}  
             />
             <Button 
-                preset="secondary" 
-                // text="Copy" 
+                preset="tertiary" 
+                text="Copy" 
                 onPress={props.onCopy}
-                LeftAccessory={() => <Icon icon='faCopy'/>}
-                // textStyle={{fontSize: 14}}
+                LeftAccessory={() => <Icon icon='faCopy' size={spacing.small} color={colors.light.text} />}
+                textStyle={{color: colors.light.text, fontSize: 14}}
                 style={{
                     minWidth: 60, 
                     minHeight: moderateVerticalScale(40),                    

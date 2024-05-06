@@ -576,10 +576,10 @@ const ReceiveInfoBlock = function (props: {
                             value={transaction.status as string}
                         />
                     )}
-                    {transaction.status === TransactionStatus.COMPLETED && transaction.balanceAfter && (
+                    {transaction.status === TransactionStatus.COMPLETED && (
                     <TranItem
                         label="tranDetailScreen.balanceAfter"
-                        value={transaction.balanceAfter}
+                        value={transaction.balanceAfter || 0}
                         unit={transaction.unit}
                         isCurrency={true}
                     />
@@ -812,10 +812,10 @@ const ReceiveOfflineInfoBlock = function (props: {
                         label="tranDetailScreen.status"
                         value={transaction.status as string}
                     />
-                    {transaction.status === TransactionStatus.COMPLETED && transaction.balanceAfter && (
+                    {transaction.status === TransactionStatus.COMPLETED && (
                         <TranItem
                             label="tranDetailScreen.balanceAfter"
-                            value={transaction.balanceAfter}
+                            value={transaction.balanceAfter || 0}
                             unit={transaction.unit}
                             isCurrency={true}
                         />
@@ -970,26 +970,26 @@ const SendInfoBlock = function (props: {
                                 value={transaction.status as string}
                             />
                             <Button
-                                style={{maxHeight: 10, marginTop: spacing.medium}}
+                                style={{marginVertical: spacing.small}}
                                 preset="secondary"
                                 tx="tranDetailScreen.revert"
                                 onPress={() =>
-                                Alert.alert('Not yet implemented. Copy the token instead.')
+                                  Alert.alert('Not yet implemented. Copy the token instead.')
                                 }
                             />
                             </View>
                         ) : (
                             <TranItem
-                            label="tranDetailScreen.status"
-                            value={transaction.status as string}
+                              label="tranDetailScreen.status"
+                              value={transaction.status as string}
                             />
                         )}
-                        {transaction.status !== TransactionStatus.ERROR && transaction.balanceAfter && (
+                        {transaction.status !== TransactionStatus.ERROR && (
                             <TranItem
-                            label="tranDetailScreen.balanceAfter"
-                            value={transaction.balanceAfter}
-                            unit={transaction.unit}
-                            isCurrency={true}
+                              label="tranDetailScreen.balanceAfter"
+                              value={transaction.balanceAfter || 0}
+                              unit={transaction.unit}
+                              isCurrency={true}
                             />
                         )}
                         <TranItem
@@ -1002,14 +1002,12 @@ const SendInfoBlock = function (props: {
             />
             <Card
                 style={$dataCard}
-                ContentComponent={
-                    <>                        
+                ContentComponent={                                       
                     <TranItem
                         label="tranDetailScreen.sentFrom"
                         value={transaction.mint as string}
                     />
-                    </>
-                }
+                }                    
             />
             {isDataParsable && (
             <>
@@ -1229,10 +1227,10 @@ const TopupInfoBlock = function (props: {
                             value={transaction.status as string}
                         />
                     )}
-                    {transaction.status === TransactionStatus.COMPLETED && transaction.balanceAfter && (
+                    {transaction.status === TransactionStatus.COMPLETED && (
                         <TranItem
                             label="tranDetailScreen.balanceAfter"
-                            value={transaction.balanceAfter}
+                            value={transaction.balanceAfter || 0}
                             unit={transaction.unit}
                             isCurrency={true}
                         />
@@ -1451,10 +1449,12 @@ const TransferInfoBlock = function (props: {
             />
 
             {transaction.status !== TransactionStatus.ERROR && (
-              <TranItem
-                label="tranDetailScreen.balanceAfter"
-                value={`${transaction.balanceAfter}`}
-              />
+                <TranItem
+                    label="tranDetailScreen.balanceAfter"
+                    value={transaction.balanceAfter || 0}
+                    unit={transaction.unit}
+                    isCurrency={true}
+                />
             )}
 
             <TranItem
@@ -1530,6 +1530,7 @@ const TranItem = function (props: {
 
     const labelColor = useThemeColor('textDim')
     const margin = !props.isFirst ? {marginTop: spacing.small} : null
+
     return (
         <View>
             <Text
@@ -1540,8 +1541,7 @@ const TranItem = function (props: {
               <Text style={props.valueStyle || {}} text={`${formatCurrency(props.value, getCurrency(props.unit).code)} ${getCurrency(props.unit).code}`} />            
             ) : (
               <Text style={props.valueStyle || {}} text={props.value as string} />
-            )}
-            
+            )}            
         </View>
     )
 }
