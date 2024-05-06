@@ -21,7 +21,7 @@ const DEFAULT_DONATION_AMOUNT = 100
 export const OwnName = observer(function (props: {navigation: any, pubkey: string}) { 
     // const navigation = useNavigation() 
     const ownNameInputRef = useRef<TextInput>(null)
-    const {proofsStore, walletProfileStore} = useStores()
+    const {proofsStore, walletProfileStore, userSettingsStore} = useStores()
     const {pubkey, navigation} = props 
     
     const [ownName, setOwnName] = useState<string>('')
@@ -43,9 +43,10 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
 
     useEffect(() => {
         const load = async () => { 
-            const maxBalance = proofsStore.getMintBalanceWithMaxBalance()
-            if(maxBalance && maxBalance.balance > 0) {
-                setAvailableBalance(maxBalance.balance)
+            const unit = userSettingsStore.preferredUnit || 'sat'
+            const maxBalance = proofsStore.getMintBalanceWithMaxBalance(unit)
+            if(maxBalance && maxBalance.balances[unit]! > 0) {
+                setAvailableBalance(maxBalance.balances[unit]!)
             }            
         }
         load()
@@ -102,7 +103,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
             stopPolling(`checkDonationPaidPoller-${donationInvoice.payment_hash}`)            
             setResultModalInfo({
                 status: TransactionStatus.COMPLETED, 
-								message: translate("contactsScreen.ownName.donationSuccess", { receiver: ownName+MINIBITS_NIP05_DOMAIN })
+				message: translate("contactsScreen.ownName.donationSuccess", { receiver: ownName+MINIBITS_NIP05_DOMAIN })
             })            
             toggleResultModal()
             resetState()     
@@ -200,14 +201,18 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
 
     const onPayDonation = async function () {
         try {            
-            return navigation.navigate('WalletNavigator', { 
+            /* return navigation.navigate('WalletNavigator', { 
                 screen: 'Transfer',
                 params: { 
                     encodedInvoice: donationInvoice?.payment_request, 
                     paymentOption: SendOption.DONATION
                 },
+            })*/
+            
+            return navigation.navigate('Transfer', {
+                    encodedInvoice: donationInvoice?.payment_request, 
+                    paymentOption: SendOption.DONATION               
             })
-           
         } catch (e: any) {
             handleError(e)
         }  
