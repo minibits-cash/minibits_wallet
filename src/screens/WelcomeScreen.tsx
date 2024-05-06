@@ -231,7 +231,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
                         data={PAGES}
                         inActiveDotColor={colors.palette.primary300}
                         activeDotColor={colors.palette.primary100}
-                        activeDotScale={1.2}
+                        activeDotScale={1}
                         containerStyle={{bottom: undefined, position: undefined, marginTop: -spacing.small, paddingBottom: spacing.medium}}
                         //@ts-ignore
                         scrollX={scrollX}

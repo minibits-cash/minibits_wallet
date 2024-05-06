@@ -23,9 +23,9 @@ import { MintHeader } from './Mints/MintHeader'
 import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
 
 
-export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = function LightningPayScreen(_props) {
+export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = function TokenReceiveScreen(_props) {
     const {navigation, route} = _props
-    const lightningInputRef = useRef<TextInput>(null)
+    const tokenInputRef = useRef<TextInput>(null)
     const {mintsStore} = useStores()
 
     /* useEffect(() => {
@@ -63,10 +63,8 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
         return () => {}
     }, [])
 
-       
     
-    const [prevRouteName, setPrevRouteName] = useState<string>('')
-    const [lightningData, setLightningData] = useState<string | undefined>(undefined)
+    const [encodedToken, setEncodedToken] = useState<string | undefined>(undefined)
     const [unit, setUnit] = useState<MintUnit>('sat')
     const [mint, setMint] = useState<Mint | undefined>(undefined)    
     const [error, setError] = useState<AppError | undefined>()
@@ -75,96 +73,54 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
     const onPaste = async function() {        
         const clipboard = await Clipboard.getString()
         if (clipboard.length === 0) {
-            infoMessage('First copy Lightning invoice, address or pay code to pay to. Then paste.')
+            infoMessage('First copy ecash token, then paste.')
             return
         }
 
-        setLightningData(clipboard)
-        lightningInputRef.current?.blur()
+        setEncodedToken(clipboard)
+        tokenInputRef.current?.blur()
     }
 
 
     const gotoScan = async function () {
-        lightningInputRef.current?.blur()
+        tokenInputRef.current?.blur()
         navigation.navigate('Scan')
     }
 
 
-    const gotoContacts = function () {
+    /* const gotoContacts = function () {
         navigation.navigate('ContactsNavigator', {
             screen: 'Contacts', 
             params: {paymentOption: SendOption.LNURL_ADDRESS}})
-    }
+    } */
 
 
     const onConfirm = async function() {
-        if(!lightningData) {
-            setError({name: Err.VALIDATION_ERROR, message: 'Missing Lightning invoice, paycode or address.'})
+        if(!encodedToken) {
+            setError({name: Err.VALIDATION_ERROR, message: 'Missing ecash token to receive.'})
             return
         }
 
         try {
-            const invoiceResult = IncomingParser.findAndExtract(lightningData as string, IncomingDataType.INVOICE)
-            return IncomingParser.navigateWithIncomingData(invoiceResult, navigation, unit, mint && mint.mintUrl)
+            const tokenResult = IncomingParser.findAndExtract(encodedToken as string, IncomingDataType.CASHU)
+            return IncomingParser.navigateWithIncomingData(tokenResult, navigation, unit, mint && mint.mintUrl)
             
-        } catch (e: any) {
-            const maybeLnurlAddress = LnurlUtils.findEncodedLnurlAddress(lightningData as string)
-
-            if(maybeLnurlAddress) {
-                try {
-                    log.trace('Found Lightning address instead of an invoice', maybeLnurlAddress, 'onIncomingData')        
-                    const validAddress = LnurlUtils.extractLnurlAddress(maybeLnurlAddress)
-            
-                    if(validAddress) {                            
-                        await IncomingParser.navigateWithIncomingData({
-                            type: IncomingDataType.LNURL_ADDRESS,
-                            encoded: validAddress,
-                        }, navigation, unit, mint && mint.mintUrl)    
-                    }
-                    return          
-                } catch (e3: any) {
-                    handleError(e3)
-                    return
-                }
-            }
-
-            const maybeLnurl = LnurlUtils.findEncodedLnurl(lightningData as string)
-            
-            if(maybeLnurl) {
-                try {
-                    log.trace('Found LNURL link instead of an invoice', maybeLnurl, 'onIncomingData')
-                    const encodedLnurl = LnurlUtils.extractEncodedLnurl(maybeLnurl)
-    
-                    if(encodedLnurl) {                            
-                        await IncomingParser.navigateWithIncomingData({
-                            type: IncomingDataType.LNURL,
-                            encoded: encodedLnurl
-                        }, navigation, unit, mint && mint.mintUrl)
-                    }
-                    return
-                } catch (e2: any) {
-                    handleError(e2)
-                    return
-                }
-            }           
-            
-            e.params = lightningData
+        } catch (e: any) {            
             handleError(e)  
             return
         }
     }
 
 
-    const gotoSend = async function () {
-        navigation.navigate('Send', {
+    const gotoTopup = async function () {
+        navigation.navigate('Topup', {
             unit,
             mintUrl: mint?.mintUrl            
         })
     }
     
 
-    const handleError = function(e: AppError): void {        
-        // lightningInputRef.current?.blur()
+    const handleError = function(e: AppError): void {
         setError(e)
     }
 
@@ -186,20 +142,19 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
             <View style={[$headerContainer, {backgroundColor: headerBg}]}>                
                 <Text
                     preset="heading"
-                    text={'Pay'}
-                    style={{color: 'white'}}
-                    // style={$tranAmount}
+                    text={'Receive ecash'}
+                    style={{color: 'white'}}                    
                 />                
             </View> 
             <View style={$contentContainer}>            
                 <Card                    
                     HeadingComponent={
                         <ListItem
-                            leftIcon='faBolt'
-                            leftIconColor={colors.palette.orange400}
-                            text='Pay with Lightning'
+                            leftIcon='faMoneyBill1'
+                            leftIconColor={colors.palette.iconViolet300}
+                            text='Paste ecash token'
                             bottomSeparator={true}
-                            RightComponent={
+                            /* RightComponent={
                                 <Button
                                     preset='tertiary'                                    
                                     LeftAccessory={() => <Icon color={contactIcon} containerStyle={{paddingVertical: 0}} icon='faAddressBook' />}
@@ -207,7 +162,7 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                                     text='Contacts'
                                     textStyle={{fontSize: 12, color: contactIcon}}
                                 />
-                            }
+                            }*/
                         />
                     }
                     ContentComponent={
@@ -215,23 +170,23 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                         <Text 
                             size='xs' 
                             style={{color: hintText, padding: spacing.extraSmall}} 
-                            text='Enter or paste Lightning address, invoice or LNURL pay code you want to pay to.' 
+                            text='Paste ecash token you want to receive.' 
                         />
                         <View style={{alignItems: 'center', marginTop: spacing.small}}>
                             <TextInput
-                                ref={lightningInputRef}
-                                onChangeText={data => setLightningData(data)}
-                                value={lightningData}
+                                ref={tokenInputRef}
+                                onChangeText={data => setEncodedToken(data)}
+                                value={encodedToken}
                                 autoCapitalize='none'
                                 keyboardType='default'
-                                maxLength={500}
+                                maxLength={5000}
                                 numberOfLines={4}
-                                multiline={true}                         
+                                multiline={true}                                                    
                                 selectTextOnFocus={true}
                                 style={[$addressInput, {backgroundColor: inputBg}]}                        
                             />
                         </View>                        
-                            {!!lightningData && lightningData?.length > 1 ? (
+                            {!!encodedToken && encodedToken?.length > 1 ? (
                                 <View style={$buttonContainer}>
                                     <Button
                                         preset='default'
@@ -274,17 +229,17 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                     }
                 />
                 <Button
-                    text={'Send as ecash'}
+                    text={'Topup with Lightning'}
                     LeftAccessory={() => (
                         <Icon
-                        icon='faMoneyBill1'
+                        icon='faBolt'
                         color={hintText}
-                        size={spacing.large}                  
+                        size={spacing.medium}                  
                         />
                     )}
                     textStyle={{fontSize: 14, color: hintText}}
                     preset='secondary'
-                    onPress={gotoSend}
+                    onPress={gotoTopup}
                     style={{
                         minHeight: moderateVerticalScale(40), 
                         paddingVertical: moderateVerticalScale(spacing.tiny),
@@ -324,7 +279,7 @@ const $buttonContainer: ViewStyle = {
 }
 
 
-const $addressInput: TextStyle = {
+const $addressInput: TextStyle = {     
     textAlignVertical: 'top' ,
     borderRadius: spacing.extraSmall,
     padding: spacing.extraSmall,        

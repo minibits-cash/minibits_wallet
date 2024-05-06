@@ -13,6 +13,7 @@ export * from './PaymentRequestsScreen'
 export * from './TransferScreen'
 export * from './TopupScreen'
 export * from './LightningPayScreen'
+export * from './TokenReceiveScreen'
 
 // ContactsNavigator
 export * from './ContactsScreen'

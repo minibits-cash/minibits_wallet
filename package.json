@@ -6,7 +6,7 @@
     "android:clean": "cd android && ./gradlew clean",
     "android:dev": "npx react-native run-android --active-arch-only",
     "android:test": "npx react-native run-android --mode=release",
-    "android:bundle": "cd android && ./gradlew bundleRelease",
+    "android:bundle": "npx react-native build-android --mode=release",
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "npx react-native start",

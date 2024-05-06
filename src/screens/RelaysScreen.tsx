@@ -187,6 +187,7 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
                     onPress={gotoAdd}                        
                     style={$buttonNew}
                     preset='tertiary'
+                    text='Add'
                 />
             </View>
         </View>

@@ -311,6 +311,7 @@ export const PrivateContacts = observer(function (props: {
                     onPress={gotoNew}                        
                     style={$buttonNew}
                     preset='tertiary'
+                    text='Add'
                 />            
             </View>
         </View>       
@@ -437,7 +438,7 @@ const $contactDomain: TextStyle = {
 const $buttonContainer: ViewStyle = {
     flexDirection: 'row',
     alignSelf: 'center',
-    marginVertical: spacing.medium,
+    //marginVertical: spacing.medium,
 }
 
 const $bottomContainer: ViewStyle = {

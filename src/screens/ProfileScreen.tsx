@@ -11,6 +11,7 @@ import Clipboard from '@react-native-clipboard/clipboard'
 import { log } from '../services/logService'
 import { KeyChain, MinibitsClient, NostrClient, NostrProfile } from '../services'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
+import { StackActions } from '@react-navigation/native'
 
 interface ProfileScreenProps extends ContactsStackScreenProps<'Profile'> {}
 
@@ -173,7 +174,23 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
       <Screen contentContainerStyle={$screen} preset='auto'>
             <Header 
                 leftIcon='faArrowLeft'
-                onLeftPress={navigation.goBack}
+                onLeftPress={() => {
+                    const routes = navigation.getState()?.routes
+                    let prevRouteName: string = ''
+        
+                    if(routes.length >= 2) {
+                        prevRouteName = routes[routes.length - 2].name
+                    }
+        
+                    if(prevRouteName === 'Contacts') {
+                        navigation.navigate('Contacts', {})
+                    } else {
+                        navigation.dispatch(
+                            StackActions.replace('Contacts')                    
+                        )
+                        navigation.navigate('WalletNavigator', {screen: 'Wallet', params: {}})
+                    } 
+                }}
             />        
             <ProfileHeader />        
             <View style={$contentContainer}>

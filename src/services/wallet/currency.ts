@@ -121,6 +121,10 @@ export const formatCurrency = (amount: number | string, code: CurrencyCode) => {
 }
 
 export const getCurrency = (unit: MintUnit) => {
+    if (!unit) {
+        unit = 'sat'
+    }
+
     const currencyCode = MintUnitCurrencyPairs[unit]
 
     if(!currencyCode) {

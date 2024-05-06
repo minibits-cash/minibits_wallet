@@ -296,8 +296,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         navigation.navigate('SendOptions', {unit})
     }*/
 
-    const gotoReceive = function () {
-        navigation.navigate('Receive', {unit: currentUnit})
+    const gotoTokenReceive = function () {
+        navigation.navigate('TokenReceive', {unit: currentUnit})
     }
 
     const gotoSend = function () {
@@ -499,14 +499,15 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                     <Button
                         LeftAccessory={() => (
                             <Icon
-                                icon='faPlus'
+                                icon='faArrowTurnDown'
                                 size={spacing.large}
                                 color={iconInfo}
                             />
                         )}
-                        onPress={gotoTopup}                        
+                        onPress={gotoTokenReceive}                        
                         style={$buttonTopup}
                         preset='tertiary'
+                        text='Receive'
                     />             
                     <Button
                         RightAccessory={() => (
@@ -522,15 +523,15 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                         preset='tertiary'
                     />
                     <Button
-                        LeftAccessory={() => (
+                        RightAccessory={() => (
                             <Icon
-                                icon='faBolt'
+                                icon='faArrowTurnUp'
                                 size={spacing.large}
                                 color={iconInfo}
                             />
                         )}
-                        onPress={gotoLightningPay}
-                        // text='Send'
+                        onPress={gotoSend}
+                        text='Send'
                         style={$buttonPay}
                         preset='tertiary'
                     /> 
@@ -758,7 +759,7 @@ const MintsByUnitListItem = observer(function (props: {
                         onPress={() => onSelectedMint(mint.mintUrl)}
                     />
                     {selectedMintUrl === mint.mintUrl &&  (
-                        <View style={{flexDirection: 'row', marginBottom: spacing.small, justifyContent: 'space-around'}}>
+                        <View style={{flexDirection: 'row', marginBottom: spacing.small, justifyContent: 'flex-start'}}>
                             <Button
                                 text={'Topup'}
                                 LeftAccessory={() => (
@@ -774,7 +775,7 @@ const MintsByUnitListItem = observer(function (props: {
                                 style={{
                                     minHeight: moderateVerticalScale(40), 
                                     paddingVertical: moderateVerticalScale(spacing.tiny),
-                                    marginRight: spacing.tiny
+                                    marginRight: spacing.small
                                 }}                    
                             />
                             {/*<Button
@@ -806,10 +807,10 @@ const MintsByUnitListItem = observer(function (props: {
                                 style={{
                                     minHeight: moderateVerticalScale(40), 
                                     paddingVertical: moderateVerticalScale(spacing.tiny),
-                                    marginRight: spacing.tiny
+                                    marginRight: spacing.small
                                 }}                    
                             />
-                            <Button
+                            {/*<Button
                                 text={'Send'}
                                 LeftAccessory={() => (
                                     <Icon
@@ -826,7 +827,7 @@ const MintsByUnitListItem = observer(function (props: {
                                     paddingVertical: moderateVerticalScale(spacing.tiny),
                                     marginRight: spacing.tiny
                                 }}                    
-                            />
+                            />*/}
                             <Button
                                 text={'Mint'}
                                 LeftAccessory={() => (
@@ -842,7 +843,11 @@ const MintsByUnitListItem = observer(function (props: {
                                 textStyle={{fontSize: 14, color}}
                                 preset='secondary'
                                 onPress={() => gotoMintInfo(mint.mintUrl)}
-                                style={{minHeight: moderateVerticalScale(40), paddingVertical: moderateVerticalScale(spacing.tiny)}}                    
+                                style={{
+                                    minHeight: moderateVerticalScale(40), 
+                                    paddingVertical: moderateVerticalScale(spacing.tiny),
+                                    marginRight: spacing.small
+                                }}                    
                             />
                         </View>
                     )}

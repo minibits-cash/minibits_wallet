@@ -57,7 +57,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                 paymentOption: ReceiveOption.SEND_PAYMENT_REQUEST,
                 contact,
                 unit: userSettingsStore.preferredUnit               
-            },
+            },            
         })
     }
 
@@ -256,8 +256,8 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                     <>
                     {lud16 && (
                         <ListItem                                    
-                            text='Lightning address'
-                            subText={lud16}                            
+                            text={lud16}
+                            subText={'Lightning address'}                            
                             leftIcon='faBolt'
                             leftIconColor={colors.palette.orange200}                          
                         />
@@ -274,7 +274,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                             }
                             RightComponent={lud16 ? (
                                 <Button
-                                    text={`Pay to address`}
+                                    text={`Pay to this address`}
                                     style={{marginLeft: spacing.small, alignSelf: 'center', minHeight: verticalScale(20)}}
                                     textStyle={{fontSize: moderateVerticalScale(14), lineHeight: verticalScale(14)}}
                                     onPress={gotoTransfer}

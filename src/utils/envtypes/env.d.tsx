@@ -10,7 +10,7 @@ declare module '@env' {
     export const MINIBITS_RELAY_URL: string
     export const MINIBITS_MINT_URL: string
     export const JS_BUNDLE_VERSION: string
-    export const COMMIT: string
+    export const COMMIT: string    
 }
 
 

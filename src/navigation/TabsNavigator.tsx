@@ -39,6 +39,7 @@ import {
   OwnKeysScreen,
   ReceiveOption,
   SendOption,
+  TokenReceiveScreen,
 } from "../screens"
 import { Contact } from "../models/Contact"
 import { colors, useThemeColor, spacing, typography } from "../theme"
@@ -128,7 +129,11 @@ export function TabsNavigator() {
 
 export type WalletStackParamList = {  
     Wallet: {scannedMintUrl? : string, returnWithNavigationReset?: boolean}
-    ReceiveOptions: {unit: MintUnit}
+    ReceiveOptions: {unit: MintUnit} // to be removed
+    TokenReceive: {
+      unit: MintUnit    
+      mintUrl?: string,      
+    }    
     Receive: {unit: MintUnit, encodedToken? : string}
     SendOptions: {unit: MintUnit}
     Send: {
@@ -182,6 +187,7 @@ const WalletNavigator = function WalletNavigator() {
     >        
         <WalletStack.Screen name="Wallet" component={WalletScreen} />
         <WalletStack.Screen name="ReceiveOptions" component={ReceiveOptionsScreen} />
+        <WalletStack.Screen name="TokenReceive" component={TokenReceiveScreen} />
         <WalletStack.Screen name="Receive" component={ReceiveScreen} />
         <WalletStack.Screen name="SendOptions" component={SendOptionsScreen} />
         <WalletStack.Screen name="Send" component={SendScreen} />
