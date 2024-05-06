@@ -11,7 +11,7 @@ import {useStores} from '../models'
 import { Relay } from '../models/Relay'
 import AppError, { Err } from '../utils/AppError'
 import { log, WalletTask } from '../services'
-import { verticalScale } from '@gocodingnow/rn-size-matters'
+import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
 
 interface SettingsScreenProps extends SettingsStackScreenProps<'Relays'> {}
 
@@ -124,6 +124,8 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
     const headerBg = useThemeColor('header')
     const inputBg = useThemeColor('background')
     const iconBottom = useThemeColor('button')
+    const mainButtonColor = useThemeColor('card')
+    const mainButtonIcon = useThemeColor('button')
     
     return (
       <Screen contentContainerStyle={$screen} preset='fixed'>
@@ -181,11 +183,11 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
                         <Icon
                             icon='faPlus'
                             size={spacing.large}
-                            color={iconBottom}
+                            color={mainButtonIcon}
                         />
                     )}
                     onPress={gotoAdd}                        
-                    style={$buttonNew}
+                    style={[{backgroundColor: mainButtonColor}, $buttonNew]} 
                     preset='tertiary'
                     text='Add'
                 />
@@ -321,8 +323,10 @@ const $rightContainer: ViewStyle = {
 }
 
 const $buttonContainer: ViewStyle = {
-    flexDirection: 'row',
-    alignSelf: 'center',
+    flexDirection: 'row',    
+    marginVertical: spacing.medium,
+    justifyContent: 'center',
+    alignItems: 'center',    
 }
 
   const $bottomContainer: ViewStyle = {
@@ -333,12 +337,13 @@ const $buttonContainer: ViewStyle = {
     flex: 1,
     justifyContent: 'flex-end',
     marginBottom: spacing.medium,*/
-    alignSelf: 'center',
+    // alignSelf: 'center',
     // opacity: 0,
   }
   
   const $buttonNew: ViewStyle = {
-    borderRadius: 30,    
-    minWidth: verticalScale(110),    
+    borderRadius: moderateVerticalScale(60 / 2),
+    height: moderateVerticalScale(60),
+    minWidth: verticalScale(120),  
   } 
 

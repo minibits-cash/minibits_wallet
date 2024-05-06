@@ -181,19 +181,18 @@ const WalletNavigator = function WalletNavigator() {
   return (
     <WalletStack.Navigator    
         screenOptions={{ 
-                presentation: 'transparentModal', // prevents white glitch on scren change in dark mode
+                // presentation: 'transparentModal', // prevents white glitch on scren change in dark mode
                 headerShown: false,        
         }}
     >        
-        <WalletStack.Screen name="Wallet" component={WalletScreen} options={{unmountOnBlur:true}} />
+        <WalletStack.Screen name="Wallet" component={WalletScreen} />
         <WalletStack.Screen name="ReceiveOptions" component={ReceiveOptionsScreen} />
         <WalletStack.Screen name="TokenReceive" component={TokenReceiveScreen} />
         <WalletStack.Screen name="Receive" component={ReceiveScreen} />
         <WalletStack.Screen name="SendOptions" component={SendOptionsScreen} />
         <WalletStack.Screen name="Send" component={SendScreen} />
         <WalletStack.Screen name="Scan" component={ScanScreen} />
-        <WalletStack.Screen name="LightningPay" component={LightningPayScreen} />
-        {/*<WalletStack.Screen name="TranDetail" component={TranDetailScreen} />*/}
+        <WalletStack.Screen name="LightningPay" component={LightningPayScreen} />        
         <WalletStack.Screen name="PaymentRequests" component={PaymentRequestsScreen} />
         <WalletStack.Screen name="Transfer" component={TransferScreen} />
         <WalletStack.Screen name="Topup" component={TopupScreen} />
@@ -222,7 +221,7 @@ const TransactionsNavigator = function TransactionsNavigator() {
 return (
   <TransactionsStack.Navigator    
       screenOptions={{ 
-              presentation: 'transparentModal', // prevents white glitch on scren change in dark mode
+              // presentation: 'transparentModal', // prevents white glitch on scren change in dark mode
               headerShown: false,        
       }}
   >   
@@ -257,7 +256,7 @@ export type ContactsStackScreenProps<T extends keyof ContactsStackParamList> = S
     return (
       <ContactsStack.Navigator    
         screenOptions={{ 
-          presentation: 'transparentModal', // prevents white glitch on scren change in dark mode
+          // presentation: 'transparentModal', // prevents white glitch on scren change in dark mode
           headerShown: false,        
         }}
       >        
@@ -305,7 +304,7 @@ const SettingsNavigator = function SettingsNavigator() {
   return (
     <SettingsStack.Navigator    
       screenOptions={{ 
-        presentation: 'transparentModal', // prevents white glitch on scren change in dark mode
+        // presentation: 'transparentModal', // prevents white glitch on scren change in dark mode
         headerShown: false,        
       }}
     >        

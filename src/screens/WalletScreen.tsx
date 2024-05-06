@@ -372,7 +372,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
     const balances = proofsStore.getBalances()
     const screenBg = useThemeColor('background')
-    const iconInfo = useThemeColor('button')
+    const mainButtonIcon = useThemeColor('button')
+    const mainButtonColor = useThemeColor('card')
 
     return (        
       <Screen contentContainerStyle={$screen}>
@@ -475,12 +476,13 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                         LeftAccessory={() => (
                             <Icon
                                 icon='faArrowTurnDown'
-                                size={spacing.large}
-                                color={iconInfo}
+                                size={spacing.medium}
+                                color={mainButtonIcon}
+                                //style={{paddingLeft: spacing.medium}}
                             />
                         )}
                         onPress={gotoTokenReceive}                        
-                        style={$buttonTopup}
+                        style={[{backgroundColor: mainButtonColor}, $buttonTopup]}
                         preset='tertiary'
                         text='Receive'
                     />             
@@ -490,24 +492,24 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                 width={spacing.large + 10} 
                                 height={spacing.large + 10} 
                                 xml={ScanIcon}
-                                fill={iconInfo}
+                                fill={mainButtonIcon}
                             />
                         )}
                         onPress={gotoScan}
-                        style={$buttonScan}
+                        style={[{backgroundColor: mainButtonColor}, $buttonScan]}
                         preset='tertiary'
                     />
                     <Button
                         RightAccessory={() => (
                             <Icon
                                 icon='faArrowTurnUp'
-                                size={spacing.large}
-                                color={iconInfo}
+                                size={spacing.medium}
+                                color={mainButtonIcon}
                             />
                         )}
                         onPress={gotoSend}
                         text='Send'
-                        style={$buttonPay}
+                        style={[{backgroundColor: mainButtonColor}, $buttonPay]}
                         preset='tertiary'
                     /> 
                 </View>  
@@ -909,37 +911,51 @@ const $bottomContainer: ViewStyle = {
   // flex: 0.18,
   // justifyContent: 'flex-end',
   // marginBottom: spacing.extraSmall,
-  alignSelf: 'center',
+  // alignItems: 'center',
   // opacity: 0,
 }
 
 const $buttonContainer: ViewStyle = {
-    flexDirection: 'row',
-    alignSelf: 'center',
+    flexDirection: 'row',    
     marginVertical: spacing.medium,
+    justifyContent: 'center',
+    alignItems: 'center',    
 }
 
 const $buttonTopup: ViewStyle = {
-  /*borderTopLeftRadius: 30,
-  borderBottomLeftRadius: 30,
+  borderTopLeftRadius: moderateVerticalScale(60 / 2),
+  borderBottomLeftRadius: moderateVerticalScale(60 / 2),
   borderTopRightRadius: 0,
-  borderBottomRightRadius: 0,*/
-  minWidth: verticalScale(60),
-  // borderRightWidth: 1,  
+  borderBottomRightRadius: 0,  
+  width: moderateVerticalScale(150),
+  height: moderateVerticalScale(60),
+  // borderRightWidth: 1,
+  // paddingLeft: spacing.medium,
+  marginRight: -25,  
 }
 
 const $buttonScan: ViewStyle = {
-  // borderRadius: verticalScale(60 / 2),
-  minWidth: verticalScale(60),
+  borderRadius: moderateVerticalScale(70 / 2),
+  width: moderateVerticalScale(70),
+  height: moderateVerticalScale(70),
+  zIndex: 99,
+  shadowColor: colors.palette.neutral600,
+  shadowOffset: { width: 0, height: 10 },
+  shadowOpacity: 0.2,
+  shadowRadius: 8,
+  elevation: 5,
 }
 
 const $buttonPay: ViewStyle = {
-  /*borderTopLeftRadius: 0,
+  borderTopLeftRadius: 0,
   borderBottomLeftRadius: 0,
-  borderTopRightRadius: 30,
-  borderBottomRightRadius: 30,*/
-  minWidth: verticalScale(60),
+  borderTopRightRadius: moderateVerticalScale(30),
+  borderBottomRightRadius: moderateVerticalScale(30),
+  width: moderateVerticalScale(150),
+  height: moderateVerticalScale(60),
   // borderLeftWidth: 1,  
+  // paddingRight: spacing.medium,
+  marginLeft: -25, 
 }
 
 const $bottomModal: ViewStyle = {    

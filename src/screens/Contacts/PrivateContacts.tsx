@@ -1,7 +1,7 @@
 import {observer} from 'mobx-react-lite'
 import React, {useEffect, useRef, useState} from 'react'
 import {FlatList, TextInput, TextStyle, View, ViewStyle} from 'react-native'
-import {verticalScale} from '@gocodingnow/rn-size-matters'
+import {moderateVerticalScale, verticalScale} from '@gocodingnow/rn-size-matters'
 import {colors, spacing, useThemeColor} from '../../theme'
 import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
 import {useStores} from '../../models'
@@ -245,7 +245,8 @@ export const PrivateContacts = observer(function (props: {
     const domainText = useThemeColor('textDim')
     const iconColor = useThemeColor('textDim')
     const inputBg = useThemeColor('background')
-    const iconBottom = useThemeColor('button')
+    const mainButtonColor = useThemeColor('card')
+    const mainButtonIcon = useThemeColor('button')
 
     return (
       <Screen contentContainerStyle={$screen}>
@@ -305,11 +306,11 @@ export const PrivateContacts = observer(function (props: {
                         <Icon
                             icon='faPlus'
                             size={spacing.large}
-                            color={iconBottom}
+                            color={mainButtonIcon}
                         />
                     )}
                     onPress={gotoNew}                        
-                    style={$buttonNew}
+                    style={[{backgroundColor: mainButtonColor}, $buttonNew]}   
                     preset='tertiary'
                     text='Add'
                 />            
@@ -454,6 +455,7 @@ const $bottomContainer: ViewStyle = {
   }
   
   const $buttonNew: ViewStyle = {
-    // borderRadius: 30,    
-    minWidth: verticalScale(60), 
-  }  
+    borderRadius: moderateVerticalScale(60 / 2),
+    height: moderateVerticalScale(60),
+    minWidth: verticalScale(120),  
+  } 

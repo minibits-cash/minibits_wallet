@@ -26,7 +26,7 @@ import { Contact } from './Contact'
 export const maxTransactionsInModel = 10
 export const maxTransactionsByMint = 10
 export const maxTransactionsByHostname = 3
-export const maxTransactionsByUnit = 4
+export const maxTransactionsByUnit = 5
 
 export type GroupedByTimeAgo = {
     [timeAgo: string]: Transaction[];

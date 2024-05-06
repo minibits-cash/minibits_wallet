@@ -174,7 +174,8 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
     const addressColor = useThemeColor('textDim')
     const headerBg = useThemeColor('header')    
     const screenBg = useThemeColor('background')
-    const cardBg = useThemeColor('card')
+    const mainButtonColor = useThemeColor('card')
+    const mainButtonIcon = useThemeColor('button')
   
 
     const {type, name, display_name, npub, nip05, picture, about, lud16} = contact
@@ -294,13 +295,13 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                         text={`Send ecash`}
                         LeftAccessory={() => (
                             <Icon
-                            icon='faArrowUp'
-                            color='white'
+                            icon='faArrowTurnUp'
+                            color={mainButtonIcon}
                             size={spacing.medium}                  
                             />
                         )}
                         onPress={gotoSend} 
-                        style={$buttonSend}                        
+                        style={[{backgroundColor: mainButtonColor}, $buttonSend]}                        
                     />
                 ) : (
                     <Text 
@@ -381,7 +382,7 @@ const $headerContainer: TextStyle = {
 }
 
 const $contentContainer: TextStyle = {
-    // flex: 1,
+    flex: 1,
     padding: spacing.extraSmall,
     // alignItems: 'center',
 }
@@ -409,19 +410,20 @@ const $noteButton: ViewStyle = {
 
 
 const $bottomContainer: ViewStyle = {
-    position: 'absolute',
+    /* position: 'absolute',
     bottom: 20,
     left: 0,
     right: 0,
     flex: 1,
     justifyContent: 'flex-end',    
-    alignSelf: 'stretch',    
+    alignSelf: 'stretch', */   
 }
 
 const $buttonContainer: ViewStyle = {
-    flexDirection: 'row',
-    alignSelf: 'center',
-    alignItems: 'center',
+    flexDirection: 'row',    
+    marginVertical: spacing.medium,
+    justifyContent: 'center',
+    alignItems: 'center',    
 }
 
 const $qrCodeContainer: ViewStyle = {
@@ -469,10 +471,8 @@ const $buttonScan: ViewStyle = {
 }
 
 const $buttonSend: ViewStyle = {
-  // borderTopLeftRadius: 0,
-  // borderBottomLeftRadius: 0,
-  borderRadius: 30,
-  // borderBottomRightRadius: 30,
-  minWidth: verticalScale(160),  
+  borderRadius: moderateVerticalScale(60 / 2),
+  height: moderateVerticalScale(60),
+  minWidth: verticalScale(140),  
 }
 

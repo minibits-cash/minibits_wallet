@@ -383,7 +383,7 @@ const $headerContainer: TextStyle = {
 const $headerCollapsed: TextStyle = {
     alignItems: 'center',
     paddingBottom: spacing.medium,
-    height: spacing.screenHeight * 0.07,
+    height: spacing.screenHeight * 0.08,
 }
 
 const $contentContainer: TextStyle = {
