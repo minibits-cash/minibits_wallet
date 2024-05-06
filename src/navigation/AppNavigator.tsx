@@ -38,7 +38,7 @@ import { navigationRef, useBackButtonHandler } from "./navigationUtilities"
 export type AppStackParamList = {
   Welcome: undefined
   RemoteRecovery: undefined
-  Mints: undefined
+  Mints: {}
   Tabs: NavigatorScreenParams<TabsParamList>  
 }
 

@@ -830,7 +830,7 @@ const InvoiceOptionsBlock = observer(function (props: {
                         text={`Send to ${props.contactToSendTo.nip05}`}
                         preset='secondary'
                         onPress={props.toggleNostrDMModal}
-                        style={{marginLeft: spacing.medium}}
+                        style={{maxHeight: 50}}
                         LeftAccessory={() => (
                             <Icon
                             icon='faPaperPlane'
@@ -844,7 +844,7 @@ const InvoiceOptionsBlock = observer(function (props: {
                         text='Send to contact'
                         preset='secondary'
                         onPress={props.gotoContacts}
-                        style={{marginLeft: spacing.medium}}
+                        style={{maxHeight: 50}}
                         LeftAccessory={() => (
                             <Icon
                             icon='faPaperPlane'
@@ -898,28 +898,32 @@ const ShareAsQRCodeBlock = observer(function (props: {
       FooterComponent={
         <View style={$buttonContainer}>
           <Button
-            text="Share"
-            preset="secondary" 
-            onPress={props.onShareToApp}
-            textStyle={{fontSize: 14}}
-            style={{
-              minHeight: moderateVerticalScale(40), 
-              paddingVertical: moderateVerticalScale(spacing.tiny),
-              marginRight: spacing.tiny
-            }}  
+              // text="Share"
+              preset="secondary" 
+              onPress={props.onShareToApp}
+              LeftAccessory={() => <Icon icon='faShareFromSquare'/>}
+              // textStyle={{fontSize: 14}}
+              style={{
+                  minWidth: 60, 
+                  minHeight: moderateVerticalScale(40), 
+                  paddingVertical: moderateVerticalScale(spacing.tiny),
+                  marginRight: spacing.small
+              }}  
           />
           <Button 
-            preset="secondary" 
-            text="Copy" 
-            onPress={props.onCopy}
-            textStyle={{fontSize: 14}}
-            style={{
-              minHeight: moderateVerticalScale(40), 
-              paddingVertical: moderateVerticalScale(spacing.tiny),
-              marginRight: spacing.tiny
-            }}  
-          />
-        </View>
+              preset="secondary" 
+              // text="Copy" 
+              onPress={props.onCopy}
+              LeftAccessory={() => <Icon icon='faCopy'/>}
+              // textStyle={{fontSize: 14}}
+              style={{
+                  minWidth: 60, 
+                  minHeight: moderateVerticalScale(40),                    
+                  paddingVertical: moderateVerticalScale(spacing.tiny),
+                  marginRight: spacing.small
+              }}  
+          />            
+    </View>
       }
     />
       
@@ -1247,16 +1251,17 @@ const $item: ViewStyle = {
 }
 
 const $bottomModal: ViewStyle = {  
-  alignItems: 'center',
-  paddingVertical: spacing.large,  
+    alignItems: 'center',
+    paddingVertical: spacing.large,  
 }
 
 const $qrCodeContainer: ViewStyle = {
-  alignItems: 'center',
-  backgroundColor: 'white',
-  padding: spacing.small,
-  margin: spacing.tiny,
-  borderRadius: spacing.small
+    alignItems: 'center',
+    backgroundColor: 'white',
+    paddingHorizontal: spacing.small,    
+    marginHorizontal: spacing.small,
+    marginBottom: spacing.small,
+    borderRadius: spacing.small
 }
 
 const $buttonContainer: ViewStyle = {

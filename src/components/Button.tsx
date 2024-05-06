@@ -101,7 +101,7 @@ export function Button(props: ButtonProps) {
       { backgroundColor: defaultBg },
       preset === "secondary" && { backgroundColor: secondaryBg },
       preset === "tertiary" && { backgroundColor: tertiaryBg },
-      !!LeftAccessory && {paddingLeft: spacing.tiny},
+      !!LeftAccessory && (text || tx) && {paddingLeft: spacing.tiny},
       $viewStyleOverride,
       !!pressed && [$pressedViewPresets[preset], $pressedViewStyleOverride],
     ]

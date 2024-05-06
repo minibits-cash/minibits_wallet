@@ -942,7 +942,7 @@ const SelectProofsBlock = observer(function (props: {
                         text={`Send to ${props.contactToSendTo.nip05}`}
                         preset='secondary'
                         onPress={props.toggleNostrDMModal}
-                        style={{marginLeft: spacing.medium}}
+                        style={{maxHeight: 50}}
                         LeftAccessory={() => (
                             <Icon
                             icon='faPaperPlane'
@@ -956,7 +956,7 @@ const SelectProofsBlock = observer(function (props: {
                         text='Send to contact'
                         preset='secondary'
                         onPress={props.gotoContacts}
-                        style={{marginLeft: spacing.medium}}
+                        style={{maxHeight: 50}}
                         LeftAccessory={() => (
                             <Icon
                             icon='faPaperPlane'
@@ -1009,28 +1009,32 @@ const SendAsQRCodeBlock = observer(function (props: {
       }
       FooterComponent={
         <View style={$buttonContainer}>
-          <Button
-            text="Share"
-            preset="secondary" 
-            onPress={props.onShareToApp}
-            textStyle={{fontSize: 14}}
-            style={{
-              minHeight: moderateVerticalScale(40), 
-              paddingVertical: moderateVerticalScale(spacing.tiny),
-              marginRight: spacing.tiny
-            }}  
-          />
-          <Button 
-            preset="secondary" 
-            text="Copy" 
-            onPress={props.onCopy}
-            textStyle={{fontSize: 14}}
-            style={{
-              minHeight: moderateVerticalScale(40), 
-              paddingVertical: moderateVerticalScale(spacing.tiny),
-              marginRight: spacing.tiny
-            }}  
-          />
+            <Button
+                // text="Share"
+                preset="secondary" 
+                onPress={props.onShareToApp}
+                LeftAccessory={() => <Icon icon='faShareFromSquare'/>}
+                // textStyle={{fontSize: 14}}
+                style={{
+                    minWidth: 60, 
+                    minHeight: moderateVerticalScale(40), 
+                    paddingVertical: moderateVerticalScale(spacing.tiny),
+                    marginRight: spacing.small
+                }}  
+            />
+            <Button 
+                preset="secondary" 
+                // text="Copy" 
+                onPress={props.onCopy}
+                LeftAccessory={() => <Icon icon='faCopy'/>}
+                // textStyle={{fontSize: 14}}
+                style={{
+                    minWidth: 60, 
+                    minHeight: moderateVerticalScale(40),                    
+                    paddingVertical: moderateVerticalScale(spacing.tiny),
+                    marginRight: spacing.small
+                }}  
+            />            
         </View>
       }
     />    
@@ -1277,8 +1281,9 @@ const $bottomModal: ViewStyle = {
 
 const $qrCodeContainer: ViewStyle = {
     backgroundColor: 'white',
-    padding: spacing.small,
-    margin: spacing.small,
+    paddingHorizontal: spacing.small,    
+    marginHorizontal: spacing.small,
+    marginBottom: spacing.small,
     borderRadius: spacing.small,
     alignItems: 'center',
 }
