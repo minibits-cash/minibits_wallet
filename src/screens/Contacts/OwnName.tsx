@@ -201,17 +201,12 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
 
     const onPayDonation = async function () {
         try {            
-            /* return navigation.navigate('WalletNavigator', { 
+            return navigation.navigate('WalletNavigator', { 
                 screen: 'Transfer',
                 params: { 
                     encodedInvoice: donationInvoice?.payment_request, 
                     paymentOption: SendOption.DONATION
                 },
-            })*/
-            
-            return navigation.navigate('Transfer', {
-                    encodedInvoice: donationInvoice?.payment_request, 
-                    paymentOption: SendOption.DONATION               
             })
         } catch (e: any) {
             handleError(e)
