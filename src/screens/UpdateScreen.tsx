@@ -49,7 +49,7 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
             navigation.setParams({isNativeUpdateAvailable: undefined})
             navigation.setParams({updateDescription: undefined})
             navigation.setParams({updateSize: undefined})
-            const routes = navigation.getState()?.routes
+            /* const routes = navigation.getState()?.routes
             let prevRouteName: string = ''
 
             if(routes.length >= 2) {
@@ -63,7 +63,8 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
                     StackActions.replace('Settings')                    
                 )
                 navigation.navigate('WalletNavigator', {screen: 'Wallet'})
-            }   
+            }*/
+            navigation.goBack()   
         },
     })
 

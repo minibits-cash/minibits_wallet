@@ -163,7 +163,7 @@ export type WalletStackParamList = {
       lnurlParams?: LNURLWithdrawParams,
       mintUrl?: string,      
     }
-    TranDetail: {id: number}
+    // TranDetail: {id: number}
     ContactsNavigator: {screen: string, params: any}
     SettingsNavigator: {screen: string, params: any}
     TransactionsNavigator: {screen: string, params: any}
@@ -193,7 +193,7 @@ const WalletNavigator = function WalletNavigator() {
         <WalletStack.Screen name="Send" component={SendScreen} />
         <WalletStack.Screen name="Scan" component={ScanScreen} />
         <WalletStack.Screen name="LightningPay" component={LightningPayScreen} />
-        <WalletStack.Screen name="TranDetail" component={TranDetailScreen} />
+        {/*<WalletStack.Screen name="TranDetail" component={TranDetailScreen} />*/}
         <WalletStack.Screen name="PaymentRequests" component={PaymentRequestsScreen} />
         <WalletStack.Screen name="Transfer" component={TransferScreen} />
         <WalletStack.Screen name="Topup" component={TopupScreen} />

@@ -175,7 +175,7 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
             <Header 
                 leftIcon='faArrowLeft'
                 onLeftPress={() => {
-                    const routes = navigation.getState()?.routes
+                    /* const routes = navigation.getState()?.routes
                     let prevRouteName: string = ''
         
                     if(routes.length >= 2) {
@@ -189,7 +189,8 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                             StackActions.replace('Contacts')                    
                         )
                         navigation.navigate('WalletNavigator', {screen: 'Wallet', params: {}})
-                    } 
+                    } */
+                    navigation.goBack()
                 }}
             />        
             <ProfileHeader />        

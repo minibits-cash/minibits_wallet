@@ -198,7 +198,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             isUpdateAvailable, 
             updateDescription,
             updateSize
-        }})
+        }, initial: false})
     }   
     
 
@@ -313,7 +313,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     } */
 
     const gotoTranDetail = function (id: number) {
-        navigation.navigate('TranDetail', {id})
+        // navigation.navigate('TranDetail', {id})
+        navigation.navigate('TransactionsNavigator', {screen: 'TranDetail', params: {id}, initial: false})
     }
 
     const gotoPaymentRequests = function () {
@@ -333,7 +334,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     }
 
     const gotoProfile = function () {
-        navigation.navigate('ContactsNavigator', {screen: 'Profile', params: {}})
+        navigation.navigate('ContactsNavigator', {screen: 'Profile', params: {}, initial: false})
     }
     
     /* Mints pager */    
@@ -666,7 +667,7 @@ const MintsByUnitListItem = observer(function (props: {
     }
 
     const gotoMintInfo = function (mintUrl: string) {
-        props.navigation.navigate('SettingsNavigator', {screen: 'MintInfo', params: {mintUrl}})
+        props.navigation.navigate('SettingsNavigator', {screen: 'MintInfo', params: {mintUrl}, initial: false})
     }
 
 
