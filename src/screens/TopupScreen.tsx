@@ -911,7 +911,7 @@ const ShareAsQRCodeBlock = observer(function (props: {
               }}  
           />
           <Button 
-              preset="secondary" 
+              preset="tertiary" 
               text="Copy" 
               onPress={props.onCopy}
               LeftAccessory={() => <Icon icon='faCopy' size={spacing.small} color={colors.light.text} />}

@@ -77,6 +77,40 @@ import { MintUnit, MintUnits } from '../services/wallet/currency'
     
                 self.mints.push(mintInstance)
           }),
+          updateMint: flow(function* updateMint(mintUrl: string) {
+            
+            const mintInstance = self.findByUrl(mintUrl)
+
+            if(!mintInstance) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Could not find mint to update', {mintUrl})
+            }
+            // refresh up to date mint keys
+            const activeKeysets: MintKeyset[] = yield MintClient.getMintKeysets(mintUrl)
+
+            if(!activeKeysets || activeKeysets.length === 0) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Mint has no active keysets and is not operational', {mintUrl})
+            }            
+          
+            const newMint: Mint = {
+                mintUrl,                    
+            }            
+
+            for(const keyset of activeKeysets) {
+                if(keyset.active === true) {
+                    // Do not add unit the wallet does not have configured
+                    if (!MintUnits.includes(keyset.unit as MintUnit)) {
+                        log.error(`Unsupported unit provided by the mint: ${keyset.unit}`)
+                        continue
+                    }
+
+                    mintInstance.addUnit(keyset.unit as MintUnit) // add supported units by mint if not yet exist
+                    mintInstance.getOrCreateProofsCounter(keyset.id, keyset.unit as MintUnit) // create proofsCounters if not yet exist
+                }
+            }
+            
+            yield mintInstance.setShortname()
+            
+          }),
           removeMint(mintToBeRemoved: Mint) {
               if (self.blockedMintUrls.some(m => m === mintToBeRemoved.mintUrl)) {
                   self.blockedMintUrls.remove(mintToBeRemoved.mintUrl)

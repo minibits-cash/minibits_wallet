@@ -85,7 +85,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
 
         if(mintUrl.includes('.onion')) {
             if(!userSettingsStore.isTorDaemonOn) {
-                setInfo('Tor support has been discontinued in version v0.1.7-beta-beta. Minibits needs help to get Tor support back. Visit our Github for more info.')
+                setInfo('Tor support has been discontinued in version v0.1.7-beta. Minibits needs help to get Tor support back. Visit our Github for more info.')
                 return
             }
         }
@@ -109,6 +109,22 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
             setIsLoading(false)
         }
     }
+
+
+    const updateMint = async function () {
+      if (!selectedMint) {return}
+
+      try {          
+          setIsLoading(true)
+          await mintsStore.updateMint(selectedMint.mintUrl)
+          setInfo('Mint settings have been updated')
+      } catch (e: any) {          
+          handleError(e)
+      } finally {
+               
+          setIsLoading(false)
+      }
+  }
 
 
     const addDefaultMint = async function () {
@@ -285,6 +301,13 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                 leftIcon="faInfoCircle"
                 onPress={gotoInfo}
                 tx={'mintsScreen.mintInfo'}
+                bottomSeparator={true}
+                style={{paddingHorizontal: spacing.medium}}
+              />
+              <ListItem
+                leftIcon='faRotate'
+                onPress={updateMint}
+                text={'Refresh mint settings'}
                 bottomSeparator={true}
                 style={{paddingHorizontal: spacing.medium}}
               />
