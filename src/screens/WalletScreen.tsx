@@ -482,7 +482,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                             />
                         )}
                         onPress={gotoTokenReceive}                        
-                        style={[{backgroundColor: mainButtonColor}, $buttonTopup]}
+                        style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonTopup]}
                         preset='tertiary'
                         text='Receive'
                     />             
@@ -509,7 +509,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                         )}
                         onPress={gotoSend}
                         text='Send'
-                        style={[{backgroundColor: mainButtonColor}, $buttonPay]}
+                        style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonPay]}
                         preset='tertiary'
                     /> 
                 </View>  
@@ -917,7 +917,7 @@ const $bottomContainer: ViewStyle = {
 
 const $buttonContainer: ViewStyle = {
     flexDirection: 'row',    
-    marginVertical: spacing.medium,
+    marginBottom: spacing.tiny,
     justifyContent: 'center',
     alignItems: 'center',    
 }
@@ -929,8 +929,6 @@ const $buttonTopup: ViewStyle = {
   borderBottomRightRadius: 0,  
   width: moderateVerticalScale(150),
   height: moderateVerticalScale(60),
-  // borderRightWidth: 1,
-  // paddingLeft: spacing.medium,
   marginRight: -25,  
 }
 
@@ -948,8 +946,6 @@ const $buttonPay: ViewStyle = {
   borderBottomRightRadius: moderateVerticalScale(30),
   width: moderateVerticalScale(150),
   height: moderateVerticalScale(60),
-  // borderLeftWidth: 1,  
-  // paddingRight: spacing.medium,
   marginLeft: -25, 
 }
 

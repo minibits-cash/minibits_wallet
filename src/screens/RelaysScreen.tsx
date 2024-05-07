@@ -125,6 +125,7 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
     const inputBg = useThemeColor('background')
     const iconBottom = useThemeColor('button')
     const mainButtonColor = useThemeColor('card')
+    const screenBg = useThemeColor('background')
     const mainButtonIcon = useThemeColor('button')
     
     return (
@@ -187,7 +188,7 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
                         />
                     )}
                     onPress={gotoAdd}                        
-                    style={[{backgroundColor: mainButtonColor}, $buttonNew]} 
+                    style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonNew]}
                     preset='tertiary'
                     text='Add'
                 />
@@ -323,8 +324,8 @@ const $rightContainer: ViewStyle = {
 }
 
 const $buttonContainer: ViewStyle = {
-    flexDirection: 'row',    
-    marginVertical: spacing.medium,
+    flexDirection: 'row',
+    marginBottom: spacing.tiny,
     justifyContent: 'center',
     alignItems: 'center',    
 }

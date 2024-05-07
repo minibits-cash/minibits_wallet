@@ -247,6 +247,7 @@ export const PrivateContacts = observer(function (props: {
     const inputBg = useThemeColor('background')
     const mainButtonColor = useThemeColor('card')
     const mainButtonIcon = useThemeColor('button')
+    const screenBg = useThemeColor('background')
 
     return (
       <Screen contentContainerStyle={$screen}>
@@ -310,7 +311,7 @@ export const PrivateContacts = observer(function (props: {
                         />
                     )}
                     onPress={gotoNew}                        
-                    style={[{backgroundColor: mainButtonColor}, $buttonNew]}   
+                    style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonNew]}
                     preset='tertiary'
                     text='Add'
                 />            
@@ -437,9 +438,10 @@ const $contactDomain: TextStyle = {
 }
 
 const $buttonContainer: ViewStyle = {
-    flexDirection: 'row',
-    alignSelf: 'center',
-    //marginVertical: spacing.medium,
+  flexDirection: 'row',
+  marginBottom: spacing.tiny,
+  justifyContent: 'center',
+  alignItems: 'center',   
 }
 
 const $bottomContainer: ViewStyle = {
