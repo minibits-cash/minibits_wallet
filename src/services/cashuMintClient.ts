@@ -555,9 +555,8 @@ const restore = async function (
         return {
             proofs: proofs || []            
         }
-    } catch (e: any) {
-        log.error(e)
-        throw new AppError(Err.MINT_ERROR, e.message, {mintUrl})
+    } catch (e: any) {        
+        throw new AppError(Err.MINT_ERROR, e.message.toString(), {mintUrl})
     }
 }
 

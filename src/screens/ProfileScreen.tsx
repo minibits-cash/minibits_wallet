@@ -99,6 +99,14 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
         }
     }
 
+    const onCopyNip05 = function () {        
+        try {
+            Clipboard.setString(nip05)
+        } catch (e: any) {
+            setInfo(`Could not copy: ${e.message}`)
+        }
+    }
+
 
     const onSyncOwnProfile = async function () {
         try {
@@ -192,6 +200,8 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                     } */
                     navigation.goBack()
                 }}
+                rightIcon='faCopy'
+                onRightPress={onCopyNip05}
             />        
             <ProfileHeader />        
             <View style={$contentContainer}>

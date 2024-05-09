@@ -9,28 +9,32 @@ import AppError, { Err } from '../../utils/AppError'
 import {log} from '../../services/logService'
 import { TransactionStatus } from '../../models/Transaction'
 import { poller, stopPolling } from '../../utils/poller'
-import QRCode from 'react-native-qrcode-svg'
 import { ResultModalInfo } from '../Wallet/ResultModalInfo'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
-import { useFocusEffect } from '@react-navigation/native'
 import { SendOption } from '../SendOptionsScreen'
 import { translate } from '../../i18n'
+import { CurrencyAmount } from '../Wallet/CurrencyAmount'
+import { CurrencyCode } from '../../services/wallet/currency'
+import { QRCodeBlock } from '../Wallet/QRCode'
+import { MintBalance } from '../../models/Mint'
+import { MintListItem } from '../Mints/MintListItem'
+import Clipboard from '@react-native-clipboard/clipboard'
+import { round, roundUp } from '../../utils/number'
 
-const DEFAULT_DONATION_AMOUNT = 100
+const DEFAULT_DONATION_AMOUNT = 500
 
 export const OwnName = observer(function (props: {navigation: any, pubkey: string}) { 
     // const navigation = useNavigation() 
     const ownNameInputRef = useRef<TextInput>(null)
-    const {proofsStore, walletProfileStore, userSettingsStore} = useStores()
+    const {proofsStore, walletProfileStore, userSettingsStore, mintsStore} = useStores()
     const {pubkey, navigation} = props 
     
     const [ownName, setOwnName] = useState<string>('')
     const [info, setInfo] = useState('')        
-    const [availableBalance, setAvailableBalance] = useState(0)
+    const [selectedBalance, setSelectedBalance] = useState<MintBalance | undefined>(undefined)
     const [donationAmount, setDonationAmount] = useState(DEFAULT_DONATION_AMOUNT)
     const [donationInvoice, setDonationInvoice] = useState<{payment_hash: string, payment_request: string} | undefined>(undefined)
-    const [isLoading, setIsLoading] = useState(false)
-    const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false)
+    const [isLoading, setIsLoading] = useState(false)    
     const [isQRcodeVisible, setIsQRCodeVisible] = useState(false)
     const [isChecked, setIsChecked] = useState(false)
     // const [isNameInputEnabled, setIsNameInputEnabled] = useState(true)
@@ -42,11 +46,11 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
     const [error, setError] = useState<AppError | undefined>()
 
     useEffect(() => {
-        const load = async () => { 
-            const unit = userSettingsStore.preferredUnit || 'sat'
-            const maxBalance = proofsStore.getMintBalanceWithMaxBalance(unit)
-            if(maxBalance && maxBalance.balances[unit]! > 0) {
-                setAvailableBalance(maxBalance.balances[unit]!)
+        const load = async () => {
+            const maxBalance = proofsStore.getMintBalanceWithMaxBalance('sat')            
+
+            if(maxBalance && maxBalance.balances['sat']! > 0) {
+                setSelectedBalance(maxBalance)                
             }            
         }
         load()
@@ -75,7 +79,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
             poller(`checkDonationPaidPoller-${donationInvoice.payment_hash}`, 
             checkDonationPaid,
             {
-                interval: 2 * 1000, // every 2s to make it responsive. Total 4 min
+                interval: 2 * 1000, // every 2s to make it responsive.
                 maxPolls: 120,
                 maxErrors: 10
             })            
@@ -106,27 +110,21 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
 				message: translate("contactsScreen.ownName.donationSuccess", { receiver: ownName+MINIBITS_NIP05_DOMAIN })
             })            
             toggleResultModal()
-            resetState()     
+            //resetState()     
         }
         handleIsInvoicePaid()
         return () => {        
         }        
     }, [isInvoicePaid])
 
-
-
-    const togglePaymentModal = () =>
-        setIsPaymentModalVisible(previousState => !previousState)
     const toggleResultModal = () =>
         setIsResultModalVisible(previousState => !previousState)
-
 
     const resetState = function () {          
         setIsChecked(false)
         setOwnName('')        
         setInfo('')
-        setIsLoading(false)        
-        setIsPaymentModalVisible(false)
+        setIsLoading(false)                
         setDonationInvoice(undefined)
         setDonationAmount(DEFAULT_DONATION_AMOUNT)        
         setIsQRCodeVisible(false)
@@ -168,9 +166,10 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                 setInfo(translate("contactsScreen.ownName.profileExists"))
                 return
             }
+
             setIsChecked(true)
             // setIsNameInputEnabled(false)
-            setIsPaymentModalVisible(true)
+            // setIsPaymentModalVisible(true)
         } catch (e: any) {
             handleError(e)
         }  
@@ -179,6 +178,10 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
 
     const onCreateDonation = async function () {
         try {
+            if(!selectedBalance) {
+                return
+            }
+
             setIsLoading(true)
             const memo = `Donation for ${ownName+MINIBITS_NIP05_DOMAIN}`
             const invoice = await MinibitsClient.createDonation(
@@ -189,6 +192,11 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
 
             if(invoice) {
                 setDonationInvoice(invoice)
+                const feeReserve = roundUp(donationAmount / 100, 0)
+
+                if(donationAmount >= selectedBalance.balances['sat']! + feeReserve) {
+                    setIsQRCodeVisible(true)
+                }
             }
 
             setIsLoading(false)
@@ -199,12 +207,22 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
     }
 
 
+    const onCopyInvoice = function () {
+        try {
+          Clipboard.setString(donationInvoice?.payment_request as string)
+        } catch (e: any) {
+          setError(e)
+        }
+      }
+
+
     const onPayDonation = async function () {
         try {            
             return navigation.navigate('WalletNavigator', { 
                 screen: 'Transfer',
                 params: { 
-                    encodedInvoice: donationInvoice?.payment_request, 
+                    encodedInvoice: donationInvoice?.payment_request,
+                    unit:  userSettingsStore.preferredUnit || 'sat',
                     paymentOption: SendOption.DONATION
                 },
             })
@@ -254,220 +272,206 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
     const hint = useThemeColor('textDim')
     const currentNameColor = colors.palette.primary200
     const inputBg = useThemeColor('background')
-    const two = 200
-    const five = 500
-    const ten = 1000
+    const small = 1000
+    const medium = 1500
+    const large = 2000
     const invoiceBg = useThemeColor('background')
     const invoiceTextColor = useThemeColor('textDim')
     const domainText = useThemeColor('textDim')
     
     return (
-      <Screen style={$screen} preset='auto'>
-        <View style={$contentContainer}>            
-            <Card
-                style={[$card, {marginTop: spacing.small}]}
-								headingTx='contactsScreen.ownName.chooseOwnName'
-                headingStyle={{textAlign: 'center'}}
-                ContentComponent={                                
-                <View style={$ownNameContainer}>
-                    <TextInput
-                        ref={ownNameInputRef}
-                        onChangeText={(name) => onOwnNameChange(name)}                        
-                        value={`${ownName}`}
-                        style={[$ownNameInput, {backgroundColor: inputBg}]}
-                        maxLength={16}
-                        keyboardType="default"
-                        selectTextOnFocus={true}                        
-                        autoCapitalize="none"
-                        // editable={isNameInputEnabled}
-                    />
-                    <View style={[$ownNameDomain, { backgroundColor: inputBg}]}>
-                        <Text size='xxs' style={{color: domainText}} text={MINIBITS_NIP05_DOMAIN}/>
-                    </View>                 
-                    <Button
-                        preset="default"
-                        style={$ownNameButton}
-                        text="Check"
-                        onPress={onOwnNameCheck}
-                        // disabled={!isNameInputEnabled}
-                    />                    
-                </View>                
-                }
-								footerTx='contactsScreen.ownName.chooseOwnNameFooter'
-                footerStyle={{color: hint, textAlign: 'center'}}
-            />         
-        </View>
-        <BottomModal
-          isVisible={isPaymentModalVisible}          
-          ContentComponent={
-            <View style={$bottomModal}>
-                <View style={$iconContainer}>
-                    <Icon icon='faBurst' size={50} color={colors.palette.accent400} />
-                </View>
-                <View style={{alignItems: 'center'}}>
-                    <Text
-                        text={translate('contactsScreen.ownName.available',{ name: ownName })}
-                        style={{fontSize: 18}}   
-                    />
-                    {donationInvoice ? (
-                    <>
-                    <Text 
-                        text={translate("contactsScreen.ownName.payToGetOwnName", { name: ownName+MINIBITS_NIP05_DOMAIN })}
-                        style={[$supportText, {color: hint}]} 
-                    />
-                    {isQRcodeVisible ? (
-                        <View style={{borderWidth: spacing.medium, borderColor: 'white'}}>
-                            <QRCode 
-                                size={spacing.screenWidth - spacing.huge * 3} 
-                                value={donationInvoice.payment_request} 
+      <Screen contentContainerStyle={$screen} preset='auto'>
+        <View style={$contentContainer}>
+            {!isChecked ? (
+                <Card
+                    style={[$card, {marginTop: spacing.small}]}
+                                    headingTx='contactsScreen.ownName.chooseOwnName'
+                    headingStyle={{textAlign: 'center'}}
+                    ContentComponent={                                
+                        <View style={$ownNameContainer}>
+                            <TextInput
+                                ref={ownNameInputRef}
+                                onChangeText={(name) => onOwnNameChange(name)}                        
+                                value={`${ownName}`}
+                                style={[$ownNameInput, {backgroundColor: inputBg}]}
+                                maxLength={16}
+                                keyboardType="default"
+                                selectTextOnFocus={true}                        
+                                autoCapitalize="none"
+                                // editable={isNameInputEnabled}
                             />
-                        </View>
-                    ) : (
-                        <ScrollView
-                            style={[
-                            $invoiceContainer,
-                            {backgroundColor: invoiceBg, marginHorizontal: spacing.small},
-                            ]}>
-                            <Text
-                            selectable
-                            text={donationInvoice.payment_request}
-                            style={{color: invoiceTextColor, paddingBottom: spacing.medium}}
-                            size="xxs"
-                            />
-                        </ScrollView>
-                    )}
-
-                    {(availableBalance > donationAmount) ? (
-                        <View style={$payButtonContainer}>                            
+                            <View style={[$ownNameDomain, { backgroundColor: inputBg}]}>
+                                <Text size='xxs' style={{color: domainText}} text={MINIBITS_NIP05_DOMAIN}/>
+                            </View>                 
                             <Button
                                 preset="default"
-                                style={{marginRight: spacing.small}}
-                                tx='contactsScreen.ownName.ctaPay'
-                                onPress={onPayDonation}                            
-                            />                                                
-                            <Button
-                                preset="secondary"                            
-                                tx='common.cancel'
-                                onPress={resetState}                            
-                            />   
-                        </View>
-                    ) : (
-                        <View>
-                            <Text                                
-                                size='xs'
-                                style={{textAlign: 'center', margin: spacing.medium}}
-                                tx="contactsScreen.ownName.insufficient"
+                                style={$ownNameButton}
+                                text="Check"
+                                onPress={onOwnNameCheck}
+                                // disabled={!isNameInputEnabled}
+                            />                    
+                        </View>                
+                    }
+                    footerTx='contactsScreen.ownName.chooseOwnNameFooter'
+                    footerStyle={{color: hint, textAlign: 'center'}}                
+                />
+            ) : (
+                <Card
+                    style={[$card, {marginTop: spacing.small}]}
+                    HeadingComponent={                    
+                        <View style={$iconContainer}>
+                            <Icon icon='faCheckCircle' size={50} color={colors.palette.success200} />
+                            <Text
+                                text={translate('contactsScreen.ownName.available',{ name: ownName })}
+                                style={{fontSize: 18}}   
                             />
-                            <View style={$payButtonContainer}>
-                            {isQRcodeVisible ? (
-                                <Button
-                                    preset="default"
-                                    style={{marginRight: spacing.small, maxHeight: 50}}                                    
-																		tx='common.back'
-                                    onPress={() => setIsQRCodeVisible(false)}                            
-                                />
-
-                            ) : (
-                                <Button
-                                    preset="default"
-                                    style={{marginRight: spacing.small, maxHeight: 50}}
-                                    LeftAccessory={() => (
-                                        <Icon
-                                            icon='faQrcode'
-                                            color='white'
-                                            size={spacing.small}                                        
+                        </View>
+                    }      
+                    ContentComponent={       
+                        <View>
+                            {donationInvoice ? (
+                                <>
+                                    <Text 
+                                        text={translate("contactsScreen.ownName.payToGetOwnName", { name: ownName+MINIBITS_NIP05_DOMAIN })}
+                                        style={[$supportText, {color: hint}]} 
+                                    />
+                                    {isQRcodeVisible && (                                        
+                                        <QRCodeBlock 
+                                            qrCodeData={donationInvoice.payment_request}
+                                            title='Lightning invoice to pay'
+                                            size={270}
                                         />
                                     )}
-                                    tx='common.qr'
-                                    onPress={() => setIsQRCodeVisible(true)}                            
-                                />
-                            )}  
-                            <Button
-                                preset="secondary"                            
-                                tx='common.cancel'
-                                onPress={resetState}                            
-                            />
-                            </View>                               
+                                    {(!!selectedBalance && selectedBalance.balances['sat']! > donationAmount) ? (
+                                        <>                                        
+                                        <ListItem 
+                                            text='Invoice'
+                                            subText={donationInvoice.payment_request.slice(0, 20) + '...'}
+                                            RightComponent={
+                                                <CurrencyAmount
+                                                    amount={donationAmount}
+                                                    currencyCode={CurrencyCode.SATS}
+                                                    size='medium'                                                    
+                                                /> 
+                                            }
+                                            topSeparator={true}
+                                            bottomSeparator={true}
+                                            leftIcon='faBolt'
+                                            onPress={onCopyInvoice}
+                                        />
+                                        <Text style={[$supportText, {color: hint}]}  text={`Pay from`} />                                        
+                                        <MintListItem                             
+                                            mint={mintsStore.findByUrl(selectedBalance.mintUrl)!}
+                                            mintBalance={selectedBalance}
+                                            selectedUnit='sat'
+                                            isSelectable={true}
+                                            isSelected={true}
+                                            separator='both'                                            
+                                        />
+                                        <View style={$buttonContainer}>                            
+                                            <Button
+                                                preset="default"
+                                                style={{marginRight: spacing.small}}
+                                                tx='contactsScreen.ownName.ctaPay'
+                                                onPress={onPayDonation}                            
+                                            />                                                
+                                            <Button
+                                                preset="secondary"                            
+                                                tx='common.cancel'
+                                                onPress={resetState}                            
+                                            />   
+                                        </View>
+                                        </>
+                                    ) : (
+                                        <View>
+                                            <Text                                
+                                                size='xs'
+                                                style={{textAlign: 'center', margin: spacing.medium}}
+                                                tx="contactsScreen.ownName.insufficient"
+                                            />
+                                            <View style={$buttonContainer}>                                            
+                                                <Button
+                                                    preset="secondary"                            
+                                                    tx='common.cancel'
+                                                    onPress={resetState}                            
+                                                />
+                                            </View>                               
+                                        </View>
+                                    )}
+                                </>
+                            ) : (
+                                <>
+                                    <RNText style={$supportText}>                            
+                                        <Text
+                                            text='Minibits'
+                                            style={{fontFamily: 'Gluten-Regular', fontSize: 18}}
+                                        />{' '}
+                                        kindly asks you for a small donation for your {ownName+MINIBITS_NIP05_DOMAIN} wallet address.
+                                    </RNText>                                    
+                                    <CurrencyAmount
+                                        amount={DEFAULT_DONATION_AMOUNT}
+                                        currencyCode={CurrencyCode.SATS}
+                                        size='extraLarge'
+                                        containerStyle={{alignSelf: 'center', marginTop: spacing.medium}}
+                                    />                                    
+                                    <RNText style={$supportText}>
+                                        Ready to donate more?
+                                    </RNText>
+                                    <View style={$buttonContainer}>
+                                        <Button
+                                            preset="secondary"
+                                            style={{marginRight: spacing.small}}
+                                            text={`${small.toLocaleString()}`}
+                                            onPress={() => setDonationAmount(1000)}                            
+                                        />
+                                        <Button
+                                            preset="secondary"
+                                            style={{marginRight: spacing.small}}
+                                            text={`${medium.toLocaleString()}`}
+                                            onPress={() => setDonationAmount(1500)}                            
+                                        />
+                                        <Button
+                                            preset="secondary"                            
+                                            text={`${large.toLocaleString()}`}
+                                            onPress={() => setDonationAmount(2000)}                            
+                                        />   
+                                    </View>
+                                    <View style={$buttonContainer}>
+                                        {(donationAmount === 1000) && (                        
+                                            <Text text={`♥`}  size='lg' />
+                                        )}
+                                        {(donationAmount === 1500) && (                        
+                                            <Text text={`♥ ♥`}  size='lg' />
+                                        )}
+                                        {(donationAmount === 2000) && (                        
+                                            <Text text={`♥ ♥ ♥`}  size='lg' />
+                                        )}
+                                    </View>
+                                    <View style={$buttonContainer}>
+                                        <Button
+                                            preset="default"
+                                            style={{marginRight: spacing.small}}
+                                            tx='contactsScreen.getInvoice'
+                                            onPress={onCreateDonation}                            
+                                        /> 
+                                        <Button
+                                            preset="secondary"                            
+                                            tx='common.cancel'
+                                            onPress={resetState}                            
+                                        />   
+                                    </View>
+                                    <View style={{flexDirection: 'row', alignItems: 'center', margin: spacing.medium}}>
+                                        <Icon icon='faInfoCircle' />
+                                        <Text style={{color: hint}} size='xxs' tx='contactsScreen.ownName.betaWarning'/>
+                                    </View>
+                                </>
+                            )}
                         </View>
-                    )}
-                    </>
-                    ) : (
-                    <>
-                        <RNText style={$supportText}>                            
-                            <Text
-                                text='Minibits'
-                                style={{fontFamily: 'Gluten-Regular', fontSize: 18}}
-                            />{' '}
-                            kindly asks you for a small donation for your {ownName+MINIBITS_NIP05_DOMAIN} wallet address.
-                        </RNText>
-                        <View style={{flexDirection: 'row', justifyContent: 'center'}}>
-                            <Text
-                                text={`${donationAmount.toLocaleString()}`}
-                                preset='heading'    
-                            />
-                            <Text
-                                tx='common.sats'
-                                style={{fontSize: 18, marginLeft: spacing.extraSmall}}   
-                            />
-                        </View>
-                        <RNText style={$supportText}>
-                            Ready to donate more?
-                        </RNText>
-                        <View style={$buttonContainer}>
-                            <Button
-                                preset="secondary"
-                                style={{marginRight: spacing.small}}
-                                text={`${two.toLocaleString()}`}
-                                onPress={() => setDonationAmount(200)}                            
-                            />
-                            <Button
-                                preset="secondary"
-                                style={{marginRight: spacing.small}}
-                                text={`${five.toLocaleString()}`}
-                                onPress={() => setDonationAmount(500)}                            
-                            />
-                            <Button
-                                preset="secondary"                            
-                                text={`${ten.toLocaleString()}`}
-                                onPress={() => setDonationAmount(1000)}                            
-                            />   
-                        </View>
-                        {(donationAmount === 200) && (                        
-                            <Text text={`♥`}  size='lg' />
-                        )}
-                        {(donationAmount === 500) && (                        
-                            <Text text={`♥ ♥`}  size='lg' />
-                        )}
-                        {(donationAmount === 1000) && (                        
-                            <Text text={`♥ ♥ ♥`}  size='lg' />
-                        )}
-                        <View style={[$payButtonContainer, {marginTop: spacing.large}]}>
-                            <Button
-                                preset="default"
-                                style={{marginRight: spacing.small}}
-                                tx='contactsScreen.getInvoice'
-                                onPress={onCreateDonation}                            
-                            /> 
-                            <Button
-                                preset="secondary"                            
-                                tx='common.cancel'
-                                onPress={resetState}                            
-                            />   
-                        </View>
-                        <View style={{flexDirection: 'row', alignItems: 'center', margin: spacing.medium}}>
-                            <Icon icon='faInfoCircle' />
-                            <Text style={{color: hint}} size='xxs' tx='contactsScreen.ownName.betaWarning'/>
-                        </View>
-                    </>
-                    )}
-
-                </View>
-                {isLoading && <Loading />}
-            </View>
-          }
-          onBackButtonPress={togglePaymentModal}
-          onBackdropPress={togglePaymentModal}
-        />
+                    }
+                />
+            )}
+            {isLoading && <Loading />}        
+        </View>
         <BottomModal
           isVisible={isResultModalVisible ? true : false}
           ContentComponent={            
@@ -496,23 +500,25 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
     )
   })
 
-
-
-const $screen: ViewStyle = {}
+  
+const $screen: ViewStyle = {
+    // flex: 1
+}
 
 
 const $contentContainer: TextStyle = {    
-    padding: spacing.extraSmall,  
+    // flex:1,
+    padding: spacing.extraSmall,
 }
 
 const $iconContainer: ViewStyle = {
-    marginTop: -spacing.extraLarge * 2,
+    // marginTop: -spacing.extraLarge * 2,
     alignItems: 'center',
 }
 
 const $supportText: TextStyle = {
     padding: spacing.small,
-    textAlign: 'center',
+    // textAlign: 'center',
     fontSize: 16,
 }
 
@@ -530,18 +536,18 @@ const $payButtonContainer: ViewStyle = {
     // borderColor: 'red'
 }
 
-const $ownNameContainer: ViewStyle = {
-    flex: 1,
+const $ownNameContainer: ViewStyle = {    
     flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    // justifyContent: 'center',
+    // alignItems: 'center',
+    // alignSelf: 'stretch',
     padding: spacing.extraSmall,
 }
 
-const $ownNameInput: TextStyle = {
+const $ownNameInput: TextStyle = {  
     flex: 1,    
-    borderTopLeftRadius: spacing.small,
-    borderBottomLeftRadius: spacing.small,
+    borderTopLeftRadius: spacing.extraSmall,
+    borderBottomLeftRadius: spacing.extraSmall,
     fontSize: 16,
     padding: spacing.small,
     alignSelf: 'stretch',
@@ -550,19 +556,18 @@ const $ownNameInput: TextStyle = {
 
 const $ownNameDomain: TextStyle = {    
     marginRight: spacing.small,
-    borderTopRightRadius: spacing.small,
-    borderBottomRightRadius: spacing.small,    
+    borderTopRightRadius: spacing.extraSmall,
+    borderBottomRightRadius: spacing.extraSmall,    
     padding: spacing.extraSmall,
     alignSelf: 'stretch',
     justifyContent: 'center'
-    // textAlignVertical: 'center',
 }
   
 const $buttonContainer: ViewStyle = {
     flexDirection: 'row',
-    alignSelf: 'center',
-    marginTop: spacing.medium,
-    marginBottom: spacing.large,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: spacing.small,    
 }
 
 const $ownNameButton: ViewStyle = {
@@ -578,6 +583,15 @@ const $invoiceContainer: ViewStyle = {
     marginTop: spacing.small,
     marginBottom: spacing.large,
   }
+
+  const $qrCodeContainer: ViewStyle = {
+    alignItems: 'center',
+    backgroundColor: 'white',
+    paddingHorizontal: spacing.small,    
+    marginHorizontal: spacing.small,
+    marginBottom: spacing.small,
+    borderRadius: spacing.small
+}
 
 const $bottomModal: ViewStyle = {    
     alignItems: 'center',

@@ -18,6 +18,7 @@ import {
   ListItem,
   BottomModal,
   Text,
+  MintIcon,
 } from '../components'
 import {Mint} from '../models/Mint'
 import {useStores} from '../models'
@@ -26,6 +27,7 @@ import {log} from '../services/logService'
 import AppError from '../utils/AppError'
 import {translate} from '../i18n'
 import {MintListItem} from './Mints/MintListItem'
+import { SvgXml } from 'react-native-svg'
 
 
 
@@ -254,11 +256,12 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                     {!mintsStore.alreadyExists(defaultMintUrl) && (
                     <ListItem
                         text={'Add Minibits mint'}
-                        LeftComponent={<Icon
-                            containerStyle={$iconContainer}
-                            icon="faCoins"
-                            size={spacing.medium}
-                            color={iconColor}                  
+                        LeftComponent={<SvgXml 
+                            width={spacing.medium} 
+                            height={spacing.medium} 
+                            xml={MintIcon}
+                            fill={iconColor}
+                            style={{marginLeft: spacing.extraSmall, marginRight: spacing.large}}
                         />
                         }                
                         style={$actionItem}

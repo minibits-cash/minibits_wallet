@@ -24,40 +24,40 @@ Platform support
 - [ ] Other then EN languange support
 
 Mints
+- [x] Multiple currency units issued by mints [✨ New!]
 - [x] Add multiple mints
-- [x] Remove mint with zero balance
+- [x] Remove mints
 - [x] Block receiving from mint
-- [x] Show mint balances grouped by hostname
+- [x] Show mint balances grouped by currency units [✨ New!]
 - [x] Handle mint keys rotation (not tested)
 - [x] Mint status and information screen
-- [ ] Change mint's short name and color
 
 Receive ecash
 - [x] Scan QR code of a ecash token
 - [x] Paste ecash token from the clipboard
 - [x] Notification on received payment (app needs to be in foreground)
-- [x] Receive Nostr zaps or payments to minibits.cash Lightning address
+- [x] Receive Nostr zaps or Lightning payments to minibits.cash address
+- [x] Receive ecash from another wallet over NOSTR message sent to minibits.cash address
 - [x] Receive ecash in person while being offline, redeem later (MVP version)
 
 Send ecash
 - [x] Share ecash token to send through another app
 - [x] Show ecash token as a QR code
 - [x] Notification on payment received by the payee (app needs to come to foreground)
-- [x] Send ecash to contact (NOSTR address)
+- [x] Send ecash to contact (minibits.cash or another NOSTR address)
 - [ ] Lock ecash sent offline to the receiver wallet key
 
 Top up wallet
-- [x] Show QR code with bitcoin lightning invoice to pay
-- [x] Share encoded bitcoin lightning invoice to pay
-- [x] Share payment request with contact
-- [x] Top up balance by LNURL Withdraw
+- [x] Show QR code with bitcoin Lightning invoice to pay
+- [x] Share encoded bitcoin Lightning invoice to pay
+- [x] Share payment request with contact over NOSTR message
+- [x] Top up balance with LNURL Withdraw
 
-Transfer / Cash out from wallet
-- [x] Paste and settle bitcoin lightning invoice with your ecash
-- [x] Scan and settle bitcoin lightning invoice with your ecash
+Pay / Cash out from wallet
+- [x] One click ZAPS - tip users of NOSTR social network
+- [x] Paste or scan and settle bitcoin Lightning invoice with your ecash
 - [x] Pay payment request received from another contact
 - [x] Pay to LNURL Pay static links / codes
-- [x] One click zaps - tips on NOSTR social network
 - [x] Pay to Lightning address
 - [ ] Transfer (swap) ecash to another mint
 
@@ -65,9 +65,10 @@ Transaction history
 - [x] Unified transaction history for all kinds of transactions
 - [x] Audit trail of transaction events
 - [x] Filter pending transactions
+- [x] Retry after recoverable transaction errors [✨ New!]
 - [ ] Revert pending transaction in 1 click (get back tokens not claimed by receiver)
 - [ ] Tags and related filtering of transactions
-- [x] Delete incomplete and failed transactions from history [✨ New!]
+- [x] Delete incomplete and failed transactions from history
 
 Contacts
 - [x] Private contacts address book for payments
@@ -78,19 +79,20 @@ Contacts
 - [x] Wallet addresses usable as Lightning addresses to receive payments from many Lightning wallets
 - [x] Private contacts with other than minibits.cash NOSTR adresses and relays
 
+
 Backup and recovery
 - [x] Local append-only backup of all ecash in a database separate from wallet storage
 - [x] Recovery tool to recover ecash from local backup
 - [x] Recover wallet in case spent ecash remain in the wallet due to an exception during a transaction
 - [x] Off-device backup and recovery using 12 words based seed 
-- [x] Retry after receive transaction failed due to mint being offline [✨ New!]
-- [x] Auto-recover funds if wallet failed to receive ecash issued by mint due to network or device failure [✨ New!]
+- [x] Retry transaction after recoverable errors [✨ New!]
+- [x] Auto-recover funds if wallet failed to receive ecash issued by mint due to network or device failure
 - [ ] Smooth migration to another device
 
 Security and Privacy
 - [x] Optional AES encryption of wallet storage using a key stored in the device secure key storage
 - [x] Use device biometry to login (if storage encryption is on)
-- [x] Tor daemon to connect to mints with .onion addresses
+- [-] Tor daemon to connect to mints with .onion addresses [discontinued from v0.1.7-beta]
 
 
 Self-funding
@@ -160,10 +162,14 @@ There are post-install patches to some of the libraries that should run automati
 After the dependecies are installed, continue to create the following .env file in the root folder:
 
 ```bash
-APP_ENV = 'DEV'
-LOG_LEVEL='DEBUG'
+APP_ENV='DEV'
+MINIBITS_SERVER_API_KEY='mockkey'
+MINIBITS_SERVER_API_HOST='http://localhost/api' 
+MINIBITS_NIP05_DOMAIN='@localhost'
+MINIBITS_RELAY_URL='ws://localhost/relay'
+MINIBITS_MINT_URL='http://localhost/mint' 
 ```
-
+Local NOSTR address and Lighnting brigde server are not necessary to run the wallet.
 Then make sure you have the Android device connected by running:
 
 ```bash

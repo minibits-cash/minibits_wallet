@@ -63,6 +63,7 @@ import { MintUnit, getCurrency } from "../services/wallet/currency"
 import { MintHeader } from './Mints/MintHeader'
 import { MintBalanceSelector } from './Mints/MintBalanceSelector'
 import { toNumber } from '../utils/number'
+import { QRCodeBlock } from './Wallet/QRCode'
 
 
 if (Platform.OS === 'android' &&
@@ -697,10 +698,9 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             )}
             {transactionStatus === TransactionStatus.PENDING && encodedTokenToSend && paymentOption && (
                 <>
-                    <SendAsQRCodeBlock                        
-                        encodedTokenToSend={encodedTokenToSend as string}
-                        onShareToApp={onShareToApp}      
-                        onCopy={onCopy}                                          
+                    <QRCodeBlock                  
+                        qrCodeData={encodedTokenToSend as string}
+                        title='Ecash token to send'                        
                     />
                     <TokenOptionsBlock                    
                         toggleNostrDMModal={toggleNostrDMModal}
@@ -970,75 +970,6 @@ const SelectProofsBlock = observer(function (props: {
             </View>  
         </View>
     )
-})
-
-
-const SendAsQRCodeBlock = observer(function (props: {  
-  encodedTokenToSend: string
-  onCopy: any
-  onShareToApp: any
-}) {
-
-    const [qrError, setQrError] = useState<Error | undefined>()
-
-    const handleQrError = function (error: Error) {
-        setQrError(error)
-    }
-
-  return (
-    <Card
-      heading='Token to share'
-      headingStyle={qrError ? {textAlign: 'center'} : {textAlign: 'center', color: colors.light.text}}
-      style={!qrError && {backgroundColor: 'white'}}
-      ContentComponent={qrError ? (
-            <ListItem 
-                text='Could not display QR code, copy token instead.'
-                subText={qrError ? qrError.message : ''}
-                leftIcon='faTriangleExclamation'
-                containerStyle={{marginVertical: spacing.large}}
-                leftIconColor={colors.palette.angry500}
-            />
-        ) : (
-            <View style={$qrCodeContainer}>
-                <QRCode 
-                    size={spacing.screenWidth - spacing.large * 2} value={props.encodedTokenToSend} 
-                    onError={(error: any) => handleQrError(error)}
-                />
-            </View>              
-        )
-      }
-      FooterComponent={
-        <View style={$buttonContainer}>
-            <Button
-                text="Share"
-                preset="tertiary" 
-                onPress={props.onShareToApp}
-                LeftAccessory={() => <Icon icon='faShareFromSquare' size={spacing.small} color={colors.light.text} />}
-                textStyle={{color: colors.light.text, fontSize: 14}}
-                style={{
-                    minWidth: 60, 
-                    minHeight: moderateVerticalScale(40), 
-                    paddingVertical: moderateVerticalScale(spacing.tiny),
-                    marginRight: spacing.small
-                }}  
-            />
-            <Button 
-                preset="tertiary" 
-                text="Copy" 
-                onPress={props.onCopy}
-                LeftAccessory={() => <Icon icon='faCopy' size={spacing.small} color={colors.light.text} />}
-                textStyle={{color: colors.light.text, fontSize: 14}}
-                style={{
-                    minWidth: 60, 
-                    minHeight: moderateVerticalScale(40),                    
-                    paddingVertical: moderateVerticalScale(spacing.tiny),
-                    marginRight: spacing.small
-                }}  
-            />            
-        </View>
-      }
-    />    
-  )
 })
 
 

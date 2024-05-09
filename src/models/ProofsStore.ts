@@ -324,7 +324,9 @@ export const ProofsStoreModel = types
         getMintBalanceWithMaxBalance: (unit: MintUnit) => {
             const balances = self.getBalances().mintBalances
 
-            const maxBalance = balances.reduce((maxBalance, currentBalance) => {
+            log.debug('[getMintBalanceWithMaxBalance]', {balances})
+
+            /*const maxBalance = balances.reduce((maxBalance, currentBalance) => {
                 if(currentBalance.balances[unit] === undefined) {
                     return maxBalance
                 }
@@ -333,10 +335,21 @@ export const ProofsStoreModel = types
                   return currentBalance
                 }
                 return maxBalance
-              }, balances[0])
+              })*/
 
-            log.debug('[getMintBalanceWithMaxBalance]', maxBalance)
-            return maxBalance
+              let maxBalance = null;
+              let maxAmount = -Infinity;
+          
+              for (const balance of balances) {
+                  const amount = balance.balances[unit];
+                  if (amount !== undefined && amount > maxAmount) {
+                        maxAmount = amount;
+                        maxBalance = balance;
+                  }
+              }
+
+              log.debug('[getMintBalanceWithMaxBalance]', {maxBalance})
+              return maxBalance;
         },
         getUnitBalance: (unit: MintUnit) => {
             const balances = self.getBalances().unitBalances

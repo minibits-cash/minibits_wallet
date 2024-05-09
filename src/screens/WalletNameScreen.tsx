@@ -24,9 +24,9 @@ export const WalletNameScreen: FC<WalletNameScreenProps> = observer(function Wal
     const renderScene = ({route}: {route: Route}) => {
         switch (route.key) {
           case 'first':
-            return <RandomName navigation={navigation} pubkey={pubkey as string} />
-          case 'second':
             return <OwnName navigation={navigation} pubkey={pubkey as string} />
+          case 'second':
+            return <RandomName navigation={navigation} pubkey={pubkey as string} />
           default:
             return null
         }
@@ -34,8 +34,8 @@ export const WalletNameScreen: FC<WalletNameScreenProps> = observer(function Wal
     
     const [index, setIndex] = useState(0)
     const [routes] = useState([
-        { key: 'first', title: 'Random name' },
-        { key: 'second', title: 'Own name' },
+        { key: 'first', title: 'Own name' },
+        { key: 'second', title: 'Random name' },
     ])
 
     const headerBg = useThemeColor('header')
@@ -59,7 +59,9 @@ export const WalletNameScreen: FC<WalletNameScreenProps> = observer(function Wal
                 navigationState={{ index, routes }}
                 renderScene={renderScene}
                 onIndexChange={setIndex}
-                initialLayout={{ width: spacing.screenWidth }}
+                initialLayout={{ width: spacing.screenWidth}}
+                sceneContainerStyle={{flex: 1}}
+                style={{flex: 1}}
             />
         </>
     )

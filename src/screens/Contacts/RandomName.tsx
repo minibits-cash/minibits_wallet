@@ -123,10 +123,12 @@ export const RandomName = observer(function (props: {
   )
 })
 
-const $screen: ViewStyle = {}
+const $screen: ViewStyle = {
+  flex: 1
+}
 
 const $contentContainer: TextStyle = {
-  padding: spacing.extraSmall,
+  flex: 1,  
 }
 
 const $buttonContainer: ViewStyle = {
@@ -147,5 +149,6 @@ const $bottomContainer: ViewStyle = {
 }
 
 const $card: ViewStyle = {
+  margin: spacing.extraSmall,
   marginBottom: 0,
 }

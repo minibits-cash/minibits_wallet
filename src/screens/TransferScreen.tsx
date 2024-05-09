@@ -133,7 +133,8 @@ useEffect(() => {
 
 useFocusEffect(
     useCallback(() => {
-        const { paymentOption } = route.params
+        const {paymentOption} = route.params
+        log.trace('[useFocusEffect]', {paymentOption})
 
         const handleInvoice = () => {
             try {
@@ -143,7 +144,7 @@ useFocusEffect(
                     throw new AppError(Err.VALIDATION_ERROR, 'Missing invoice.')
                 }
 
-                log.trace('Invoice', encodedInvoice, 'useFocusEffect')        
+                log.trace('[handleInvoice] Invoice', {encodedInvoice})        
                 
                 onEncodedInvoice(encodedInvoice)
             } catch (e: any) {
@@ -159,7 +160,7 @@ useFocusEffect(
                     throw new AppError(Err.VALIDATION_ERROR, 'Missing paymentRequest.')
                 }
 
-                log.trace('Payment request', paymentRequest, 'useFocusEffect')
+                log.trace('[handlePaymentRequest] Payment request', {paymentRequest})
         
                 const {encodedInvoice, description, paymentHash} = paymentRequest       
         
@@ -210,6 +211,8 @@ useFocusEffect(
 
                 const amountSats = roundUp(lnurlParams.minSendable / 1000, 0)
 
+                log.trace('[handleLnurlPay]', {lnurlParams})
+
                 setAmountToTransfer(`${amountSats}`)        
                 setLnurlPayParams(lnurlParams)                
             } catch (e: any) {
@@ -224,6 +227,8 @@ useFocusEffect(
                 if (!encodedInvoice) {                    
                     throw new AppError(Err.VALIDATION_ERROR, 'Missing donation invoice.')
                 }
+
+                log.trace('[handleDonation]', {encodedInvoice})
                 
                 setIsInvoiceDonation(true)
                 onEncodedInvoice(encodedInvoice)
@@ -256,7 +261,7 @@ useFocusEffect(
 useEffect(() => {
     const getEstimatedFee = async function () {
         try {
-            log.trace('[getEstimatedFee]', 'mintBalanceToTransferFrom', mintBalanceToTransferFrom)  
+            log.trace('[getEstimatedFee]', {mintBalanceToTransferFrom})  
             if (!mintBalanceToTransferFrom || !mintBalanceToTransferFrom.balances[unit] || !encodedInvoice) {
                 log.trace('[getEstimatedFee]', 'Not ready... exiting')  
                 return
@@ -286,12 +291,10 @@ useEffect(() => {
 
 useEffect(() => {
     const handleTransferTaskResult = async (result: TransactionTaskResult) => {
-        log.trace('handleTransferTaskResult event handler triggered')
+        log.trace('handleTransferTaskResult event handler triggered', {isInvoiceDonation})
         
         setIsLoading(false)
-        const {transaction, message, error, finalFee} = result
-
-        log.trace('[transfer]', 'Transfer result', {transaction, message, error, finalFee})
+        const {transaction, message, error, finalFee} = result        
 
         // handle errors before transaction is created
         if (!transaction && error) {    
@@ -331,7 +334,7 @@ useEffect(() => {
             }        
     
         } else {
-            if(!isInvoiceDonation) {  // Donation polling triggers own ResultModal on paid invoice
+            if(!isInvoiceDonation) {  // Donation has own polling to avoid paying with test ecash and triggers own ResultModal on paid invoice
                 setResultModalInfo({
                     status,
                     message,
@@ -357,10 +360,10 @@ useEffect(() => {
         }
     }
 
-    // Subscribe to the 'sendCompleted' event
+    // Subscribe to the task result event
     EventEmitter.on('ev_transferTask_result', handleTransferTaskResult)        
 
-    // Unsubscribe from the 'sendCompleted' event on component unmount
+    // Unsubscribe from the task result event on component unmount
     return () => {
         EventEmitter.off('ev_transferTask_result', handleTransferTaskResult)        
     }
@@ -388,7 +391,6 @@ const resetState = function () {
     setResultModalInfo(undefined)
 }
 
-const togglePasteInvoiceModal = () => setIsPasteInvoiceModalVisible(previousState => !previousState)
 const toggleResultModal = () => setIsResultModalVisible(previousState => !previousState)
 
 const onMintBalanceSelect = function (balance: MintBalance) {
@@ -452,7 +454,7 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
         const {amount, expiry, description, timestamp} = LightningUtils.getInvoiceData(invoice)
 
         // log.trace('Decoded invoice', invoice, 'onEncodedInvoice')
-        log.trace('Invoice data', {amount, expiry, description}, 'onEncodedInvoice')
+        log.trace('[onEncodedInvoice] Invoice data', {amount, expiry, description})
 
         if (!amount || amount === 0) {
             infoMessage('Invoice amount should be positive number')            
@@ -496,15 +498,23 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
 }
 
 const transfer = async function () {
-    setIsLoading(true)
-
     try {
         if(!meltQuote) {
             throw new AppError(Err.VALIDATION_ERROR, 'Missing quote to initiate transfer transaction')
         }
 
+        if (!mintBalanceToTransferFrom) {
+            setInfo('Select mint balance to transfer from')
+            return
+        }
+
+        setIsLoading(true)
+        setIsTransferTaskSentToQueue(true)
+
+        log.trace('[transfer]', {isInvoiceDonation})
+
         WalletTask.transfer(
-            mintBalanceToTransferFrom as MintBalance,
+            mintBalanceToTransferFrom,
             toNumber(amountToTransfer) * getCurrency(unit).precision,
             unit,
             meltQuote,        

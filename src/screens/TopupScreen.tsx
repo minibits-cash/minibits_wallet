@@ -52,6 +52,7 @@ import { MintUnit, getCurrency } from "../services/wallet/currency"
 import { MintHeader } from './Mints/MintHeader'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { MintBalanceSelector } from './Mints/MintBalanceSelector'
+import { QRCodeBlock } from './Wallet/QRCode'
 
 if (
   Platform.OS === 'android' &&
@@ -472,36 +473,6 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         }
     }
 
-    
-    const onShareToApp = async () => {
-      try {
-        const result = await Share.share({
-          message: invoiceToPay as string,
-        })
-
-        if (result.action === Share.sharedAction) {          
-          setTimeout(
-            () => infoMessage('Lightning invoice has been shared, waiting to be paid by receiver.'),              
-            500,
-          )
-        } else if (result.action === Share.dismissedAction) {
-            infoMessage('Sharing cancelled')          
-        }
-      } catch (e: any) {
-        handleError(e)
-      }
-    }
-
-
-    const onCopy = function () {
-      try {
-        Clipboard.setString(invoiceToPay as string)
-      } catch (e: any) {
-        setInfo(`Could not copy: ${e.message}`)
-      }
-    }
-
-
     const gotoContacts = function () {
       navigation.navigate('ContactsNavigator', {
           screen: 'Contacts', 
@@ -676,11 +647,10 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         )}
         {transactionStatus === TransactionStatus.PENDING && invoiceToPay && paymentOption && (
             <>
-              <ShareAsQRCodeBlock                  
-                  invoiceToPay={invoiceToPay as string}
-                  onShareToApp={onShareToApp}
-                  onCopy={onCopy}
-                  onError={handleError}
+              <QRCodeBlock                  
+                  qrCodeData={invoiceToPay as string}
+                  title='Invoice to pay'
+                  size={270}                 
               />
               <InvoiceOptionsBlock                    
                   toggleNostrDMModal={toggleNostrDMModal}                  
@@ -873,61 +843,6 @@ const InvoiceOptionsBlock = observer(function (props: {
             </View>  
         </View>
     )
-})
-
-const ShareAsQRCodeBlock = observer(function (props: {  
-  invoiceToPay: string
-  onShareToApp: any  
-  onCopy: any
-  onError: any
-}) {
-  return (
-    <Card
-      heading='Invoice to pay'
-      headingStyle={{textAlign: 'center', color: colors.light.text}}
-      style={{backgroundColor: 'white'}}
-      ContentComponent={
-        <View style={$qrCodeContainer}>
-          <QRCode 
-              size={270} 
-              value={props.invoiceToPay}
-              onError={props.onError}
-          />
-        </View>
-      }
-      FooterComponent={
-        <View style={$buttonContainer}>
-          <Button
-              text="Share"
-              preset="tertiary" 
-              onPress={props.onShareToApp}
-              LeftAccessory={() => <Icon icon='faShareFromSquare' size={spacing.small} color={colors.light.text} />}
-              textStyle={{color: colors.light.text, fontSize: 14}}
-              style={{
-                  minWidth: 60, 
-                  minHeight: moderateVerticalScale(40), 
-                  paddingVertical: moderateVerticalScale(spacing.tiny),
-                  marginRight: spacing.small
-              }}  
-          />
-          <Button 
-              preset="tertiary" 
-              text="Copy" 
-              onPress={props.onCopy}
-              LeftAccessory={() => <Icon icon='faCopy' size={spacing.small} color={colors.light.text} />}
-              textStyle={{color: colors.light.text, fontSize: 14}}
-              style={{
-                  minWidth: 60, 
-                  minHeight: moderateVerticalScale(40),                    
-                  paddingVertical: moderateVerticalScale(spacing.tiny),
-                  marginRight: spacing.small
-              }}  
-          />            
-    </View>
-      }
-    />
-      
-  )
 })
 
 
@@ -1255,14 +1170,6 @@ const $bottomModal: ViewStyle = {
     paddingVertical: spacing.large,  
 }
 
-const $qrCodeContainer: ViewStyle = {
-    alignItems: 'center',
-    backgroundColor: 'white',
-    paddingHorizontal: spacing.small,    
-    marginHorizontal: spacing.small,
-    marginBottom: spacing.small,
-    borderRadius: spacing.small
-}
 
 const $buttonContainer: ViewStyle = {
   flexDirection: 'row',

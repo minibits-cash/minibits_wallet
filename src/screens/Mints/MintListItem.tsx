@@ -54,7 +54,7 @@ export const MintListItem = observer(function(props: {
                 <CurrencyAmount 
                       amount={mintBalance?.balances[selectedUnit] || 0}
                       mintUnit={selectedUnit}
-                      size='small'                      
+                      size='medium'                      
                 /> 
               }
               BottomComponent={isUnitVisible && mint.units ? (<>{mint.units.map(unit => <CurrencySign containerStyle={{paddingLeft: 0, marginRight: spacing.small}} key={unit} mintUnit={unit}/>)}</>) : undefined}              

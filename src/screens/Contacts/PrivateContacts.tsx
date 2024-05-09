@@ -419,8 +419,8 @@ const $newContainer: TextStyle = {
 
 const $contactInput: TextStyle = {
     flex: 1,    
-    borderTopLeftRadius: spacing.small,
-    borderBottomLeftRadius: spacing.small,
+    borderTopLeftRadius: spacing.extraSmall,
+    borderBottomLeftRadius: spacing.extraSmall,
     fontSize: 16,
     padding: spacing.small,
     alignSelf: 'stretch',
@@ -429,8 +429,8 @@ const $contactInput: TextStyle = {
 
 const $contactDomain: TextStyle = {    
     marginRight: spacing.small,
-    borderTopRightRadius: spacing.small,
-    borderBottomRightRadius: spacing.small,    
+    borderTopRightRadius: spacing.extraSmall,
+    borderBottomRightRadius: spacing.extraSmall,    
     padding: spacing.extraSmall,
     alignSelf: 'stretch',
     justifyContent: 'center'

@@ -1,6 +1,6 @@
 import {MINIBITS_NIP05_DOMAIN, MINIBITS_SERVER_API_HOST} from '@env'
 import {differenceInSeconds} from 'date-fns/differenceInSeconds'
-import formatDistance from 'date-fns/formatDistance'
+import {formatDistance} from 'date-fns/formatDistance'
 import {observer} from 'mobx-react-lite'
 import React from 'react'
 import {
@@ -21,8 +21,9 @@ import {colors, spacing, useThemeColor} from '../../theme'
 import {getImageSource} from '../../utils/utils'
 import {SendOption} from '../SendOptionsScreen'
 import { CurrencySign } from '../Wallet/CurrencySign'
-import { CurrencyCode } from '../../services/wallet/currency'
+import { CurrencyCode, formatCurrency, getCurrency } from '../../services/wallet/currency'
 import {translate} from '../../i18n'
+import { CurrencyAmount } from '../Wallet/CurrencyAmount'
 
 export interface PaymentRequestListProps {
   pr: PaymentRequest
@@ -81,18 +82,34 @@ export const PaymentRequestListItem = observer(function (
             $headerContainer,
             {borderBottomColor: separatorColor, borderBottomWidth: 1},
           ]}>
-          <Text
-            tx={
-              pr.type === PaymentRequestType.INCOMING
-                ? 'paymentCommon.pay'
-                : 'paymentCommon.payMe'
-            }
-          />
-          <Text preset="heading" text={pr.amount.toLocaleString()} />
-          <CurrencySign
-            currencyCode={CurrencyCode.SATS}
-            containerStyle={{marginBottom: spacing.small}}
-          />
+
+          {pr.type === PaymentRequestType.INCOMING ? (
+            <>
+              <Text
+                tx={'paymentCommon.pay'} 
+                style={{marginBottom: spacing.small}}               
+              />
+              <CurrencyAmount
+                amount={pr.invoicedAmount}
+                mintUnit={pr.invoicedUnit!}
+                size='large'
+                containerStyle={{marginLeft: -spacing.extraLarge}}                
+              />
+            </>
+          ) : (
+            <>
+              <Text
+                tx={'paymentCommon.payMe'}  
+                style={{marginBottom: spacing.small}}                
+              />
+              <CurrencyAmount
+                amount={pr.amountToTopup!}
+                mintUnit={pr.mintUnit!}
+                size='large' 
+                containerStyle={{marginLeft: -spacing.extraLarge}}                  
+              />
+            </>
+          )}
         </View>
       }
       ContentComponent={
@@ -145,9 +162,7 @@ export const PaymentRequestListItem = observer(function (
                 <Text
                   size="xxs"
                   style={{color: dim, marginBottom: -10}}
-                  text={translate('paymentCommon.paySatsAmountTo', {
-                    amount: pr.amount,
-                  })}
+                  text={translate('paymentCommon.pay')}
                 />
               </View>
               <Text
