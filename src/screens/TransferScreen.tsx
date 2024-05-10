@@ -228,6 +228,10 @@ useFocusEffect(
                     throw new AppError(Err.VALIDATION_ERROR, 'Missing donation invoice.')
                 }
 
+                if(unit !== 'sat') {
+                    throw new AppError(Err.VALIDATION_ERROR, 'Donations can currently be paid only with SATS balances.')
+                }
+
                 log.trace('[handleDonation]', {encodedInvoice})
                 
                 setIsInvoiceDonation(true)
@@ -259,33 +263,43 @@ useFocusEffect(
 
 
 useEffect(() => {
-    const getEstimatedFee = async function () {
+    const getMeltQuote = async function () {
         try {
             log.trace('[getEstimatedFee]', {mintBalanceToTransferFrom})  
             if (!mintBalanceToTransferFrom || !mintBalanceToTransferFrom.balances[unit] || !encodedInvoice) {
                 log.trace('[getEstimatedFee]', 'Not ready... exiting')  
                 return
-            }            
+            }           
+            
             setIsLoading(true)
             const meltQuote = await MintClient.getLightningMeltQuote(
                 mintBalanceToTransferFrom.mintUrl,
                 unit,
                 encodedInvoice,
             )
-            setIsLoading(false)
             
-            if (parseInt(amountToTransfer) + meltQuote.fee_reserve > mintBalanceToTransferFrom.balances[unit]!) {
-                setInfo(
-                    'There are not enough funds to cover expected lightning network fee. Try selecting another mint with a higher balance.',
-                )
-            }
-
+            setIsLoading(false)
             setMeltQuote(meltQuote)
+            setAmountToTransfer(`${meltQuote.amount / getCurrency(unit).precision}`)
+    
+            const totalAmount = meltQuote.amount + meltQuote.fee_reserve
+    
+            let availableBalances = proofsStore.getMintBalancesWithEnoughBalance(totalAmount, unit)
+    
+            if (availableBalances.length === 0) {
+                infoMessage(`There is not enough balance in ${getCurrency(unit).code} to pay the invoice amount and expected fees: ${amountToTransfer} ${getCurrency(unit).code}`)
+                return
+            }
+            
+            setAvailableMintBalances(availableBalances)
+            
         } catch (e: any) { 
             handleError(e)
         }
     }
-    getEstimatedFee()
+
+    getMeltQuote()
+
 }, [mintBalanceToTransferFrom])
 
 
@@ -446,49 +460,43 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
         navigation.setParams({encodedInvoice: undefined})
         navigation.setParams({paymentRequest: undefined})
         navigation.setParams({lnurlParams: undefined})
-        navigation.setParams({paymentOption: undefined})
-
-        setEncodedInvoice(encoded)        
+        navigation.setParams({paymentOption: undefined})             
 
         const invoice = LightningUtils.decodeInvoice(encoded)
         const {amount, expiry, description, timestamp} = LightningUtils.getInvoiceData(invoice)
+        const expiresAt = addSeconds(new Date(timestamp as number * 1000), expiry as number)
 
         // log.trace('Decoded invoice', invoice, 'onEncodedInvoice')
-        log.trace('[onEncodedInvoice] Invoice data', {amount, expiry, description})
+        log.trace('[onEncodedInvoice] Invoice data', {amount, expiresAt, description})
 
         if (!amount || amount === 0) {
             infoMessage('Invoice amount should be positive number')            
             return
-        }        
-
-        // all with enough balance
-        let availableBalances = proofsStore.getMintBalancesWithEnoughBalance(amount, unit)
-
-        if (availableBalances.length === 0) {
-            infoMessage('There are not enough funds to pay this amount')
-            return
         }
-
-        const expiresAt = addSeconds(new Date(timestamp as number * 1000), expiry as number)
         
-        setAvailableMintBalances(availableBalances)        
-        setInvoice(invoice)
-        setAmountToTransfer(`${amount}`)
+        setEncodedInvoice(encoded)
+        setInvoice(invoice)        
         setInvoiceExpiry(expiresAt)
-
-        const { mintUrl } = route.params
-
-        if (mintUrl) {
-            setMintBalanceToTransferFrom(proofsStore.getMintBalance(mintUrl))
-        } else {
-            setMintBalanceToTransferFrom(availableBalances[0])
-        }
         
         if (paymentRequestDesc) {
             setMemo(paymentRequestDesc)
         } else if(description) {
             setMemo(description)
         }
+        
+        // We need to retrieve the quote first to know how much is needed to settle invoice in selected currency unit
+        const { mintUrl } = route.params
+        const balanceToTransferFrom  = mintUrl ? 
+            proofsStore.getMintBalance(mintUrl) : 
+            proofsStore.getMintBalancesWithUnit(unit)[0]
+
+        if (!balanceToTransferFrom) {
+            infoMessage(`There is no mint with ${unit} balance from which payment can be made.`)
+            return
+        }        
+   
+        setMintBalanceToTransferFrom(balanceToTransferFrom)
+        // continues in hook that handles other mint selection by user
             
     } catch (e: any) {
         resetState()
@@ -569,7 +577,7 @@ const satsColor = colors.palette.primary200
 
                     {encodedInvoice && (meltQuote?.fee_reserve || finalFee) ? (
                         <FeeBadge
-                            currencyCode={CurrencyCode.SATS}
+                            currencyCode={getCurrency(unit).code}
                             estimatedFee={meltQuote?.fee_reserve || 0}
                             finalFee={finalFee}              
                         />    

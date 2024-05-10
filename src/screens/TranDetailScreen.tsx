@@ -53,6 +53,7 @@ import { PaymentRequest } from '../models/PaymentRequest'
 import { pollerExists } from '../utils/poller'
 import { StackActions, useFocusEffect } from '@react-navigation/native'
 import { CurrencyAmount } from './Wallet/CurrencyAmount'
+import { toNumber } from '../utils/number'
 
 type ProofsByStatus = {
   isSpent: Proof[]
@@ -227,15 +228,15 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
 
       switch (transaction?.type) {
         case TransactionType.RECEIVE || TransactionType.RECEIVE_OFFLINE:
-          return `+${formatCurrency(transaction.amount / getCurrency(transaction.unit).precision, getCurrency(transaction.unit).code)}`
+          return `+${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
         case TransactionType.SEND:
-          return `-${formatCurrency(transaction.amount / getCurrency(transaction.unit).precision, getCurrency(transaction.unit).code)}`
+          return `-${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
         case TransactionType.TOPUP:
-          return `+${formatCurrency(transaction.amount / getCurrency(transaction.unit).precision, getCurrency(transaction.unit).code)}`
+          return `+${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
         case TransactionType.TRANSFER:
-          return `-${formatCurrency(transaction.amount / getCurrency(transaction.unit).precision, getCurrency(transaction.unit).code)}`
+          return `-${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
         default:
-          return `${formatCurrency(transaction.amount / getCurrency(transaction.unit).precision, getCurrency(transaction.unit).code)}`
+          return `${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
       }
     }
     
@@ -1420,6 +1421,7 @@ const TransferInfoBlock = function (props: {
             <TranItem
               label="tranDetailScreen.amount"
               value={transaction.amount}
+              unit={transaction.unit}
               isCurrency={true}
               isFirst={true}
             />
@@ -1538,7 +1540,7 @@ const TranItem = function (props: {
                 tx={props.label}
             />
             {props.isCurrency && props.unit ? (
-              <Text style={props.valueStyle || {}} text={`${formatCurrency(props.value, getCurrency(props.unit).code)} ${getCurrency(props.unit).code}`} />            
+              <Text style={props.valueStyle || {}} text={`${formatCurrency(props.value as number, getCurrency(props.unit).code)} ${getCurrency(props.unit).code}`} />            
             ) : (
               <Text style={props.valueStyle || {}} text={props.value as string} />
             )}            

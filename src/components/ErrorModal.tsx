@@ -1,10 +1,11 @@
 import React, { FC, useState, useEffect } from 'react'
-import { View, ScrollView, LayoutAnimation, Platform, UIManager } from 'react-native'
+import { View, ScrollView, LayoutAnimation, Platform, UIManager, ViewStyle } from 'react-native'
 import { BottomModal, Button, Icon, ListItem, Text } from '../components'
 import AppError from '../utils/AppError'
 import { spacing, useThemeColor, colors } from '../theme'
 import { isObj } from '@cashu/cashu-ts/src/utils'
 import JSONTree from 'react-native-json-tree'
+import Clipboard from '@react-native-clipboard/clipboard'
 
 if (Platform.OS === 'android' &&
     UIManager.setLayoutAnimationEnabledExperimental) {
@@ -35,6 +36,14 @@ export const ErrorModal: FC<ErrorModalProps> = function ({ error }) {
         setIsErrorVisible(false)
     }
 
+    const onCopy = function () {
+        try {
+          Clipboard.setString(JSON.stringify(error.params))
+        } catch (e: any) {
+          return false
+        }
+    }
+
     const backgroundColor = useThemeColor('error')
 
     return (
@@ -53,10 +62,17 @@ export const ErrorModal: FC<ErrorModalProps> = function ({ error }) {
                     <Text style={{ color: 'white', marginBottom: spacing.small }}>{error.message}</Text>
                 </View>
                 {error.params && isObj(error.params) && (
-                    <View>
+                    <>
                         {isParamsVisible ? (
                             <>
-                                <View style={{borderRadius: spacing.small, backgroundColor: '#fff', padding: spacing.tiny}}>
+                                <ScrollView style={{
+                                        alignSelf: 'stretch',
+                                        borderRadius: spacing.small, 
+                                        backgroundColor: '#fff', 
+                                        padding: spacing.tiny, 
+                                        maxHeight: spacing.screenHeight * 0.3, 
+                                        maxWidth: spacing.screenWidth * 0.9
+                                    }}>
                                     <JSONTree
                                         hideRoot
                                         data={error.params}                                        
@@ -81,12 +97,19 @@ export const ErrorModal: FC<ErrorModalProps> = function ({ error }) {
                                             base0F: '#b15928'
                                         }}                  
                                     />
+                                </ScrollView>
+                                <View style={$buttonContainer}>
+                                    <Button
+                                        onPress={toggleParams}
+                                        text='Hide details'
+                                        preset='tertiary'
+                                    />
+                                    <Button
+                                        onPress={onCopy}
+                                        text='Copy'
+                                        preset='tertiary'
+                                    />
                                 </View>
-                                <Button
-                                    onPress={toggleParams}
-                                    text='Hide details'
-                                    preset='tertiary'
-                                />
                             </>
                         ) : (
                             <Button
@@ -95,10 +118,15 @@ export const ErrorModal: FC<ErrorModalProps> = function ({ error }) {
                                 preset='tertiary'
                             />
                         )}
-                    </View>                      
+                    </>                      
                 )}
             </>
             }
         />
     )
+}
+
+const $buttonContainer: ViewStyle = {
+    flexDirection: 'row',    
+    marginTop: spacing.small,
 }

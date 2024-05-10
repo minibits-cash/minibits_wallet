@@ -115,9 +115,10 @@ export const Currencies: CurrencyList = {
     },
 } as const
 
-export const formatCurrency = (amount: number | string, code: CurrencyCode) => {
+
+export const formatCurrency = (amount: number, code: CurrencyCode) => {
     const c = Currencies[code]    
-    return numbro(amount).format({ mantissa: c?.mantissa, thousandSeparated: true })
+    return numbro(amount / c?.precision!).format({ mantissa: c?.mantissa, thousandSeparated: true })
 }
 
 export const getCurrency = (unit: MintUnit) => {

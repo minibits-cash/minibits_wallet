@@ -19,18 +19,16 @@ export const CurrencyAmount = observer(function (props: {
 {
     const {currencyCode, mintUnit, amount, symbolStyle, amountStyle, containerStyle, size} = props
     let currencySymbol: string = Currencies.SATS!.symbol
-    let currencyPrecision: number = Currencies.SATS!.precision
+    
     let currencyCode2: CurrencyCode = Currencies.SATS!.code
 
     if(!!currencyCode) {
-        currencySymbol = Currencies[currencyCode]!.symbol
-        currencyPrecision = Currencies[currencyCode]!.precision
+        currencySymbol = Currencies[currencyCode]!.symbol    
         currencyCode2 = currencyCode
     }
 
     if(!!mintUnit) {
-        currencySymbol = getCurrency(mintUnit).symbol
-        currencyPrecision = getCurrency(mintUnit).precision
+        currencySymbol = getCurrency(mintUnit).symbol        
         currencyCode2 = getCurrency(mintUnit).code
     }
     
@@ -63,7 +61,7 @@ export const CurrencyAmount = observer(function (props: {
                     fontSize: props.size && spacing[props.size] * 1.2 || spacing.small * 1.2,
                     lineHeight: size && spacing[size] * 1.2 || spacing.small * 1.2
                 }, amountStyle || {}]} 
-                text={`${(formatCurrency(amount / currencyPrecision, currencyCode2))}`}               
+                text={`${(formatCurrency(amount, currencyCode2))}`}               
             />
         </View>
     )

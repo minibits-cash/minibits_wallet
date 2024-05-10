@@ -341,7 +341,7 @@ const getLightningMeltQuote = async function (
       request: encodedInvoice 
     })
 
-    log.info('[getLightningMeltQuote]', {lightningQuote})
+    log.info('[getLightningMeltQuote]', {mintUrl, unit, encodedInvoice}, {lightningQuote})
 
     return lightningQuote
 
@@ -352,7 +352,7 @@ const getLightningMeltQuote = async function (
         {
             message: e.message,
             caller: 'getLightningMeltQuote', 
-            mintUrl,            
+            request: {mintUrl, unit, encodedInvoice},            
         }
     )
   }

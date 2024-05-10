@@ -3,7 +3,7 @@ import {TextStyle, View, ViewStyle} from 'react-native'
 import {Button, Icon, IconTypes, ListItem, Screen, Text} from '../../components'
 import {colors, spacing, typography, useThemeColor} from '../../theme'
 import {translate} from '../../i18n'
-import { CurrencyCode } from '../../services/wallet/currency'
+import { Currencies, CurrencyCode, formatCurrency, getCurrency } from '../../services/wallet/currency'
 
 
 
@@ -32,8 +32,8 @@ export const FeeBadge = function (props: {
       <Text
         text={
           props.finalFee
-            ? translate('walletScreen.feeBadge.final', {fee: props.finalFee})
-            : translate('walletScreen.feeBadge.upto', {fee: props.estimatedFee})
+            ? translate('walletScreen.feeBadge.final', {fee: formatCurrency(props.finalFee, props.currencyCode), code: props.currencyCode})
+            : translate('walletScreen.feeBadge.upto', {fee: formatCurrency(props.estimatedFee, props.currencyCode), code: props.currencyCode})
         }
         style={[
           {

@@ -20,8 +20,6 @@ import {log} from '../../services'
 import {colors, spacing, useThemeColor} from '../../theme'
 import {getImageSource} from '../../utils/utils'
 import {SendOption} from '../SendOptionsScreen'
-import { CurrencySign } from '../Wallet/CurrencySign'
-import { CurrencyCode, formatCurrency, getCurrency } from '../../services/wallet/currency'
 import {translate} from '../../i18n'
 import { CurrencyAmount } from '../Wallet/CurrencyAmount'
 
