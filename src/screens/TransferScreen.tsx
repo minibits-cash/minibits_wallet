@@ -39,14 +39,15 @@ import { PaymentRequestStatus } from '../models/PaymentRequest'
 import { infoMessage } from '../utils/utils'
 import { DecodedLightningInvoice, LightningUtils } from '../services/lightning/lightningUtils'
 import { SendOption } from './SendOptionsScreen'
-import { roundUp, toNumber } from '../utils/number'
+import { round, roundDown, roundUp, toNumber } from '../utils/number'
 import { LnurlClient, LNURLPayParams } from '../services/lnurlService'
 import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
-import { CurrencyCode, MintUnit, getCurrency } from "../services/wallet/currency"
+import { Currencies, CurrencyCode, MintUnit, getCurrency } from "../services/wallet/currency"
 import { FeeBadge } from './Wallet/FeeBadge'
 import { MeltQuoteResponse } from '@cashu/cashu-ts'
 import { MintHeader } from './Mints/MintHeader'
 import { MintBalanceSelector } from './Mints/MintBalanceSelector'
+import numbro from 'numbro'
 
 
 if (
@@ -213,7 +214,7 @@ useFocusEffect(
 
                 log.trace('[handleLnurlPay]', {lnurlParams})
 
-                setAmountToTransfer(`${amountSats}`)        
+                setAmountToTransfer(`${numbro(amountSats).format({thousandSeparated: true, mantissa: 0})}`)        
                 setLnurlPayParams(lnurlParams)                
             } catch (e: any) {
                 handleError(e)
@@ -229,7 +230,7 @@ useFocusEffect(
                 }
 
                 if(unit !== 'sat') {
-                    throw new AppError(Err.VALIDATION_ERROR, 'Donations can currently be paid only with SATS balances.')
+                    throw new AppError(Err.VALIDATION_ERROR, `Donations can currently be paid only with ${CurrencyCode.SATS} balances.`)
                 }
 
                 log.trace('[handleDonation]', {encodedInvoice})
@@ -280,7 +281,7 @@ useEffect(() => {
             
             setIsLoading(false)
             setMeltQuote(meltQuote)
-            setAmountToTransfer(`${meltQuote.amount / getCurrency(unit).precision}`)
+            setAmountToTransfer(`${numbro(meltQuote.amount / getCurrency(unit).precision).format({thousandSeparated: true, mantissa: getCurrency(unit).mantissa})}`)
     
             const totalAmount = meltQuote.amount + meltQuote.fee_reserve
     
@@ -414,7 +415,9 @@ const onMintBalanceSelect = function (balance: MintBalance) {
 // Amount is editable only in case of LNURL Pay, while invoice is not yet retrieved
 const onAmountEndEditing = async function () {
     try {
-        const amount = parseInt(amountToTransfer)
+        const precision = getCurrency(unit).precision
+        const mantissa = getCurrency(unit).mantissa
+        const amount = round(toNumber(amountToTransfer) * precision, 0)
 
         if (!amount || amount === 0) {
             infoMessage('Amount should be positive number.')          
@@ -426,18 +429,20 @@ const onAmountEndEditing = async function () {
         }
 
         if (lnurlPayParams.minSendable && amount < lnurlPayParams.minSendable / 1000 ) {
-            infoMessage(`Minimal amount to pay is ${lnurlPayParams.minSendable / 1000} SATS.`)          
+            infoMessage(`Minimal amount to pay is ${roundUp(lnurlPayParams.minSendable / 1000, 0)} ${CurrencyCode.SATS}.`)          
             return
         }
 
         if (lnurlPayParams.maxSendable && amount > lnurlPayParams.maxSendable / 1000 ) {
-            infoMessage(`Maximal amount to pay is ${lnurlPayParams.maxSendable / 1000} SATS.`)          
+            infoMessage(`Maximal amount to pay is ${roundDown(lnurlPayParams.maxSendable / 1000, 0)} ${CurrencyCode.SATS}.`)          
             return
         }
 
         if (lnurlPayParams.payerData) {
             infoMessage(`Minibits does not yet support entering of payer identity data (LUD18).`)   
-        }
+        }        
+            
+        setAmountToTransfer(`${numbro(amountToTransfer).format({thousandSeparated: true, mantissa: getCurrency(unit).mantissa})}`)
 
         setIsLoading(true)
         const encoded = await LnurlClient.getInvoice(lnurlPayParams, amount * 1000)
@@ -518,12 +523,15 @@ const transfer = async function () {
 
         setIsLoading(true)
         setIsTransferTaskSentToQueue(true)
+        
 
         log.trace('[transfer]', {isInvoiceDonation})
 
+        const amountToTransferInt = round(toNumber(amountToTransfer) * getCurrency(unit).precision, 0)
+
         WalletTask.transfer(
             mintBalanceToTransferFrom,
-            toNumber(amountToTransfer) * getCurrency(unit).precision,
+            amountToTransferInt,
             unit,
             meltQuote,        
             memo,

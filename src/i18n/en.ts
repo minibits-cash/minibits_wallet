@@ -21,8 +21,7 @@ const en = {
   },
 	paymentCommon: {
 		pay: "Pay",
-		payMe: 'Pay me',
-		paySatsAmountTo: "Pay %{amount} SATS to",
+		payMe: 'Pay me',		
 		payFromWallet: 'Pay from wallet',
 		receiveInPerson: "Receive in person"
 	},

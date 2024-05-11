@@ -59,11 +59,12 @@ import { getImageSource, infoMessage } from '../utils/utils'
 import { NotificationService } from '../services/notificationService'
 import { SendOption } from './SendOptionsScreen'
 import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
-import { MintUnit, getCurrency } from "../services/wallet/currency"
+import { MintUnit, formatCurrency, getCurrency } from "../services/wallet/currency"
 import { MintHeader } from './Mints/MintHeader'
 import { MintBalanceSelector } from './Mints/MintBalanceSelector'
-import { toNumber } from '../utils/number'
+import { round, toNumber } from '../utils/number'
 import { QRCodeBlock } from './Wallet/QRCode'
+import numbro from 'numbro'
 
 
 if (Platform.OS === 'android' &&
@@ -300,9 +301,11 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 const receiver = (contactToSendTo?.nip05) ? contactToSendTo?.nip05 : 'unknown wallet'
 
                 try {
+                    const amountSentInt = round(toNumber(amountToSend) * getCurrency(unit).precision, 0)
+
                     await NotificationService.createLocalNotification(
                         '🚀 That was fast!',
-                        `<b>${amountToSend} SATS</b> were received by <b>${receiver}</b>.`,
+                        `<b>${formatCurrency(amountSentInt, getCurrency(unit).code)} ${getCurrency(unit).code}</b> were received by <b>${receiver}</b>.`,
                          contactToSendTo?.picture             
                     )
 
@@ -331,13 +334,18 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
     const onAmountEndEditing = function () {
         try {        
-            const amount = parseInt(amountToSend)
+            const precision = getCurrency(unit).precision
+            const mantissa = getCurrency(unit).mantissa
+            const amount = round(toNumber(amountToSend) * precision, 0)
+            //const amount = parseInt(amountToSend)
+
+            log.trace('[onAmountEndEditing]', amount)
 
             if (!amount || amount === 0) {
                 infoMessage('Amount should be positive number.')
                 return
             }
-
+            
             const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(amount, unit)
 
             if (availableBalances.length === 0) {
@@ -345,13 +353,15 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 return
             }
 
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+            
+            setAmountToSend(`${numbro(amountToSend).format({thousandSeparated: true, mantissa: getCurrency(unit).mantissa})}`)
             setAvailableMintBalances(availableBalances)
 
             // Default mint if not set from route params is with the one with highest balance
             if(!mintBalanceToSendFrom) {setMintBalanceToSendFrom(availableBalances[0])}
             setIsAmountEndEditing(true)
-            // We do not make memo focus mandatory
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+            // We do not make memo focus mandatory            
             // Show mint selector        
             setIsMintSelectorVisible(true)
 
@@ -397,13 +407,16 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     const onMintBalanceConfirm = async function () {
         if (!mintBalanceToSendFrom) {
             return
-        }
+        }       
 
         setIsLoading(true)       
         setIsSendTaskSentToQueue(true)       
+
+        const amountToSendInt = round(toNumber(amountToSend) * getCurrency(unit).precision, 0)
+
         WalletTask.send(
             mintBalanceToSendFrom as MintBalance,
-            toNumber(amountToSend) * getCurrency(unit).precision,
+            amountToSendInt,
             unit,
             memo,
             selectedProofs
@@ -429,7 +442,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             const receiverPubkey = contactToSendTo?.pubkey
 
             // log.trace('', {senderPrivkey, senderPubkey, receiverPubkey}, 'sendAsNostrDM')
-            const message = `nostr:${walletProfileStore.npub} sent you ${amountToSend} SATS from Minibits wallet!`
+            const message = `nostr:${walletProfileStore.npub} sent you ${amountToSend} ${getCurrency(unit).code} from Minibits wallet!`
             const content = message + ' \n' + encodedTokenToSend
 
             const encryptedContent = await NostrClient.encryptNip04(                
@@ -759,6 +772,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 contactToSendTo={contactToSendTo as Contact}
                 relaysToShareTo={relaysToShareTo}
                 amountToSend={amountToSend}
+                unit={unit}
                 sendAsNostrDM={sendAsNostrDM}
                 isNostrDMSending={isNostrDMSending}                
             />
@@ -980,6 +994,7 @@ const SendAsNostrDMBlock = observer(function (props: {
     contactToSendTo: Contact
     relaysToShareTo: string[]
     amountToSend: string
+    unit: MintUnit
     sendAsNostrDM: any 
     isNostrDMSending: boolean   
   }) {
@@ -992,6 +1007,7 @@ const SendAsNostrDMBlock = observer(function (props: {
         <NostDMInfoBlock
             contactToSendFrom={props.contactToSendFrom}
             amountToSend={props.amountToSend}
+            unit={props.unit}
             contactToSendTo={props.contactToSendTo}
         />
         <ScrollView
@@ -1072,11 +1088,15 @@ const SendAsNostrDMBlock = observer(function (props: {
 const NostDMInfoBlock = observer(function (props: {
     contactToSendFrom: Contact
     amountToSend: string
+    unit: MintUnit
     contactToSendTo: Contact
 }) {
 
     const {walletProfileStore} = useStores()
     const tokenTextColor = useThemeColor('textDim')
+    const amountToSendInt = round(toNumber(props.amountToSend) * getCurrency(props.unit).precision, 0)
+    const amountToSendDisplay = formatCurrency(amountToSendInt, getCurrency(props.unit).code)
+    
 
     return(
         <View style={{flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', marginBottom: spacing.medium}}>
@@ -1100,7 +1120,7 @@ const NostDMInfoBlock = observer(function (props: {
                         size={spacing.medium}                    
                         color={tokenTextColor}                
                 />
-                <Text size='xxs' style={{color: tokenTextColor, marginBottom: -10}} text={`${props.amountToSend} SATS`} />
+                <Text size='xxs' style={{color: tokenTextColor, marginBottom: -10}} text={`${amountToSendDisplay} ${getCurrency(props.unit).code}`} />
             </View>
             <Text size='xxs' style={{color: tokenTextColor, textAlign: 'center', marginRight: 30, marginBottom: 20}} text='...........' />
             <View style={{flexDirection: 'column', alignItems: 'center', width: 100}}>

@@ -11,7 +11,6 @@ import {
 import {rootStoreInstance} from '../../models'
 import {CashuUtils} from '../cashu/cashuUtils'
 import AppError, {Err} from '../../utils/AppError'
-import {Token} from '../../models/Token'
 import {
     type Token as CashuToken,
     type TokenEntry as CashuTokenEntry,
@@ -200,7 +199,7 @@ export const sendFromMint = async function (
 
         const proofsFromMint = proofsStore.getByMint(mintUrl, {isPending: false, unit}) as Proof[]
 
-        log.debug('[sendFromMint]', 'proofsFromMint count', proofsFromMint.length)
+        log.debug('[sendFromMint]', 'proofsFromMint count', {proofsCount: proofsFromMint.length, amountToSend})
 
         if (proofsFromMint.length < 1) {
             throw new AppError(

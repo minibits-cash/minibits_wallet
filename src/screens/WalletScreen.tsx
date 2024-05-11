@@ -131,8 +131,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     
     const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {
         log.info('[handleBinaryVersionMismatchCallback] triggered', NATIVE_VERSION_ANDROID, update)
-        // setIsNativeUpdateAvailable(true)
-        // toggleUpdateModal()
+        setIsNativeUpdateAvailable(true)
+        toggleUpdateModal()
     }
 
     

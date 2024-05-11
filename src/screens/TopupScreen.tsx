@@ -14,6 +14,7 @@ import {
   Image,
   ImageStyle,
   FlatList,
+  Keyboard,
 } from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
 import QRCode from 'react-native-qrcode-svg'
@@ -45,14 +46,15 @@ import { Contact, ContactType } from '../models/Contact'
 import { getImageSource, infoMessage } from '../utils/utils'
 import { ReceiveOption } from './ReceiveOptionsScreen'
 import { LNURLWithdrawParams } from 'js-lnurl'
-import { roundDown, roundUp, toNumber } from '../utils/number'
+import { round, roundDown, roundUp, toNumber } from '../utils/number'
 import { LnurlClient, LnurlWithdrawResult } from '../services/lnurlService'
 import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
-import { MintUnit, getCurrency } from "../services/wallet/currency"
+import { CurrencyCode, MintUnit, formatCurrency, getCurrency } from "../services/wallet/currency"
 import { MintHeader } from './Mints/MintHeader'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { MintBalanceSelector } from './Mints/MintBalanceSelector'
 import { QRCodeBlock } from './Wallet/QRCode'
+import numbro from 'numbro'
 
 if (
   Platform.OS === 'android' &&
@@ -93,8 +95,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
     const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus; title?: string, message: string} | undefined>()
 
-    const [isLoading, setIsLoading] = useState(false)
-
+    const [isLoading, setIsLoading] = useState(false)       
     const [isMintSelectorVisible, setIsMintSelectorVisible] = useState(false)
     const [isQRModalVisible, setIsQRModalVisible] = useState(false)
     const [isNostrDMModalVisible, setIsNostrDMModalVisible] = useState(false)
@@ -314,7 +315,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
       try {
             const precision = getCurrency(unit).precision
             const mantissa = getCurrency(unit).mantissa
-            const amount = toNumber(amountToTopup) * precision
+            const amount = round(toNumber(amountToTopup) * precision, 0)
 
             log.trace('[onAmountEndEditing]', amount)
 
@@ -323,8 +324,8 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                 return
             }
 
-            if (lnurlWithdrawParams && amount < lnurlWithdrawParams?.minWithdrawable / 1000 ) {
-                infoMessage(`Minimal withdraw amount is ${lnurlWithdrawParams?.minWithdrawable / 1000} SATS.`)          
+            if (lnurlWithdrawParams && amount < roundUp(lnurlWithdrawParams?.minWithdrawable / 1000, 0)) {
+                infoMessage(`Minimal withdraw amount is ${roundUp(lnurlWithdrawParams?.minWithdrawable / 1000, 0)} ${CurrencyCode.SATS}.`)          
                 return
             }
 
@@ -335,7 +336,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                 return
             }
 
-            setAmountToTopup(`${roundUp(toNumber(amountToTopup), mantissa)}`) // round amount based on currency format
+            setAmountToTopup(`${numbro(amountToTopup).format({thousandSeparated: true, mantissa: getCurrency(unit).mantissa})}`) // round amount based on currency format
             setAvailableMintBalances(availableBalances)
 
             // Default mint if not set from route params is the one with the highest balance to topup
@@ -391,10 +392,12 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
         setIsLoading(true)
         setIsTopupTaskSentToQueue(true)
+
+        const amountToTopupInt = round(toNumber(amountToTopup) * getCurrency(unit).precision, 0)
         
         WalletTask.topup(
             mintBalanceToTopup as MintBalance,
-            toNumber(amountToTopup) * getCurrency(unit).precision,
+            amountToTopupInt,
             unit,
             memo,            
             contactToSendTo
@@ -414,7 +417,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
             const receiverPubkey = contactToSendTo?.pubkey
 
             // redable message
-            let message = `nostr:${walletProfileStore.npub} sent you Lightning invoice for ${amountToTopup} SATS from Minibits wallet!`
+            let message = `nostr:${walletProfileStore.npub} sent you Lightning invoice for ${amountToTopup} ${getCurrency(unit).code} from Minibits wallet!`
             // invoice
             let content = message + ' \n' + invoiceToPay + ' \n'
             // parsable memo that overrides static default mint invoice description
@@ -477,7 +480,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
       navigation.navigate('ContactsNavigator', {
           screen: 'Contacts', 
           params: {            
-            paymentOption: ReceiveOption.SEND_PAYMENT_REQUEST
+            paymentOption: ReceiveOption.SEND_PAYMENT_REQUEST,            
           }})
     }
 
@@ -693,6 +696,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                 contactToSendTo={contactToSendTo as Contact}
                 relaysToShareTo={relaysToShareTo}
                 amountToTopup={amountToTopup}
+                unit={unit}
                 sendAsNostrDM={sendAsNostrDM}
                 isNostrDMSending={isNostrDMSending}                
             />
@@ -854,6 +858,7 @@ const SendAsNostrDMBlock = observer(function (props: {
     contactToSendTo: Contact
     relaysToShareTo: string[]
     amountToTopup: string
+    unit: MintUnit
     sendAsNostrDM: any 
     isNostrDMSending: boolean   
   }) {
@@ -865,6 +870,7 @@ const SendAsNostrDMBlock = observer(function (props: {
         <NostrDMInfoBlock
             contactToSendFrom={props.contactToSendFrom as NostrProfile}
             amountToTopup={props.amountToTopup}
+            unit={props.unit}
             contactToSendTo={props.contactToSendTo as NostrProfile}
         />
         <ScrollView
@@ -947,6 +953,7 @@ const SendAsNostrDMBlock = observer(function (props: {
 const NostrDMInfoBlock = observer(function (props: {
     contactToSendFrom: NostrProfile
     amountToTopup: string
+    unit: MintUnit
     contactToSendTo: NostrProfile
 }) {
 
@@ -976,7 +983,7 @@ const NostrDMInfoBlock = observer(function (props: {
                         size={spacing.medium}                    
                         color={tokenTextColor}                
                 />
-                <Text size='xxs' style={{color: tokenTextColor, marginBottom: -10}} text={`${props.amountToTopup} SATS`} />
+                <Text size='xxs' style={{color: tokenTextColor, marginBottom: -10}} text={`${props.amountToTopup} ${getCurrency(props.unit).code}`} />
             </View>
             <Text size='xxs' style={{color: tokenTextColor, textAlign: 'center', marginRight: 30, marginBottom: 20}} text='...........' />
             <View style={{flexDirection: 'column', alignItems: 'center', width: 100}}>
@@ -1023,13 +1030,13 @@ const LnurlWithdrawBlock = observer(function (props: {
             leftIcon='faCheckCircle'
             leftIconColor={colors.palette.success200}
             text={`Withdrawal is available`}
-            subText={`Up to ${props.lnurlWithdrawParams.maxWithdrawable / 1000} SATS are available to withdraw`}
+            subText={`Up to ${roundDown(props.lnurlWithdrawParams.maxWithdrawable / 1000, 0)} ${CurrencyCode.SATS} are available to withdraw`}
             topSeparator={true}
         />
         <ListItem 
             leftIcon='faCheckCircle'
             leftIconColor={colors.palette.success200}
-            text={`Invoice for ${props.amountToTopup} SATS created`}
+            text={`Invoice for ${props.amountToTopup} ${CurrencyCode.SATS} created`}
             subText={`Your selected mint balance to top up is ${props.mintBalanceToTopup.mintUrl}`}
             bottomSeparator={true}
         />

@@ -117,8 +117,12 @@ export const Currencies: CurrencyList = {
 
 
 export const formatCurrency = (amount: number, code: CurrencyCode) => {
-    const c = Currencies[code]    
-    return numbro(amount / c?.precision!).format({ mantissa: c?.mantissa, thousandSeparated: true })
+    const c = Currencies[code] 
+    if(!c || !c.precision) {
+        throw new AppError(Err.VALIDATION_ERROR, `Currency code ${code} is not yet supported by Minibits. Submit request to add it on our Github.`)
+    }
+
+    return numbro(amount / c.precision).format({ mantissa: c.mantissa, thousandSeparated: true })
 }
 
 export const getCurrency = (unit: MintUnit) => {
@@ -129,7 +133,7 @@ export const getCurrency = (unit: MintUnit) => {
     const currencyCode = MintUnitCurrencyPairs[unit]
 
     if(!currencyCode) {
-        throw new AppError(Err.VALIDATION_ERROR, `Currency unit ${unit} is not yet supported by Minibits. Submit request to support on our Github.`)
+        throw new AppError(Err.VALIDATION_ERROR, `Currency unit ${unit} is not yet supported by Minibits. Submit request to add it on our Github.`)
     }
 
     const currencyData = Currencies[currencyCode]

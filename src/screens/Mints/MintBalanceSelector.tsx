@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react"
-import { FlatList, LayoutAnimation, View, ViewStyle } from "react-native"
+import { FlatList, Keyboard, LayoutAnimation, View, ViewStyle } from "react-native"
 import { observer } from "mobx-react-lite"
 import { Button, Card} from "../../components"
 import { spacing } from "../../theme"
@@ -22,16 +22,39 @@ export const MintBalanceSelector = observer(function (props: {
   }) {
   
     const {mintsStore} = useStores()
+    const [isKeyboardVisible, setIsKeyboardVisible] = useState(false)
+    const [allVisible, setAllVisible] = useState<boolean>(false)
     // log.trace('[MintBalanceSelector]', props.selectedMintBalance.mintUrl)
   
+    useEffect(() => {
+      const keyboardDidShowListener = Keyboard.addListener(
+        'keyboardDidShow',
+        () => {
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+          setIsKeyboardVisible(true);
+        }
+      );
+      const keyboardDidHideListener = Keyboard.addListener(
+        'keyboardDidHide',
+        () => {
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+          setIsKeyboardVisible(false);
+        }
+      );
+  
+      // Clean up listeners
+      return () => {
+        keyboardDidShowListener.remove();
+        keyboardDidHideListener.remove();
+      };
+    }, [])
+
     useEffect(() => {    
       if(!props.selectedMintBalance) {
-        LayoutAnimation.Presets.easeInEaseOut                
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)        
         setAllVisible(true)
       }
     }, [])
-  
-    const [allVisible, setAllVisible] = useState<boolean>(false)
   
     const toggleAllVisible = function () {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
@@ -85,6 +108,7 @@ export const MintBalanceSelector = observer(function (props: {
           }
         />
         <View style={$bottomContainer}>
+          {!isKeyboardVisible && (
           <View style={[$buttonContainer, {marginTop: spacing.large}]}>
               <Button
                 text={props.confirmTitle}
@@ -97,6 +121,7 @@ export const MintBalanceSelector = observer(function (props: {
                 onPress={props.onCancel}
               />
           </View>
+          )}
         </View>
       </View>
     )

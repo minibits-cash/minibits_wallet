@@ -30,7 +30,7 @@ import { topupTask } from './wallet/topupTask'
 import { transferTask } from './wallet/transferTask'
 import { WalletUtils } from './wallet/utils'
 import { NotificationService } from './notificationService'
-import { MintUnit, getCurrency } from './wallet/currency'
+import { CurrencyCode, MintUnit, formatCurrency, getCurrency } from './wallet/currency'
 
 
 type WalletTaskService = {
@@ -1137,7 +1137,7 @@ const _handleReceivedEventTask = async function (event: NostrEvent): Promise<Wal
     if(incoming.type === IncomingDataType.CASHU) {
 
         const decoded: Token = CashuUtils.decodeToken(incoming.encoded)
-        const amountToReceive = CashuUtils.getTokenAmounts(decoded).totalAmount
+        const amountToReceive = CashuUtils.getTokenAmounts(decoded).totalAmount        
         const memo = decoded.memo || 'Received over Nostr'
 
         const {transaction, receivedAmount} = await receiveTask(
@@ -1291,9 +1291,10 @@ const _sendReceiveNotification = async function (
     //
     // Send notification event
     //
+    const currencyCode = getCurrency(transaction.unit).code
     if(receivedAmount && receivedAmount > 0) {
         await NotificationService.createLocalNotification(
-            `⚡${receivedAmount} SATS received!`,
+            `<b>⚡${formatCurrency(receivedAmount, currencyCode)} ${currencyCode}</b> received!`,
             `${zapRequest ? 'Zap' : 'Ecash'} from <b>${sentFrom || 'unknown payer'}</b> is now in your wallet.`,
             sentFromPicture       
         ) 
@@ -1305,7 +1306,7 @@ const _sendReceiveNotification = async function (
 
 const _sendPaymentRequestNotification = async function (pr: PaymentRequest) {    
     await NotificationService.createLocalNotification(
-        `⚡ Please pay ${pr.invoicedAmount} ${pr.invoicedUnit}!`,
+        `⚡ Please pay <b>${formatCurrency(pr.invoicedAmount, getCurrency(pr.invoicedUnit!).code)} ${getCurrency(pr.invoicedUnit!).code}</b>!`,
         `${pr.contactFrom.nip05 || 'Unknown'} has sent you a request to pay an invoice.`,
         pr.contactFrom.picture,
     )

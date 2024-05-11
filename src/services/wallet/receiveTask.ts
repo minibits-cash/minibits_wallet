@@ -17,6 +17,7 @@ import {
 import { getDefaultAmountPreference } from '@cashu/cashu-ts/src/utils'
 import { TransactionTaskResult } from '../walletService'
 import { WalletUtils } from './utils'
+import { formatCurrency, getCurrency } from './currency'
 
 const {
     mintsStore,
@@ -594,7 +595,7 @@ export const receiveOfflineCompleteTask = async function (
                 taskFunction: RECEIVE_OFFLINE_COMPLETE,
                 mintUrl: mintToReceive,
                 transaction: completedTransaction,
-                message: `You received ${receivedAmount} SATS to your minibits wallet. ${amountWithErrors} could not be redeemed from the mint`,
+                message: `You received ${formatCurrency(receivedAmount, getCurrency(unit).code)} ${getCurrency(unit).code} to your Minibits wallet. ${formatCurrency(amountWithErrors, getCurrency(unit).code)} could not be redeemed from the mint`,
                 receivedAmount,
             } as TransactionTaskResult
         }
@@ -603,7 +604,7 @@ export const receiveOfflineCompleteTask = async function (
             taskFunction: RECEIVE_OFFLINE_COMPLETE,
             mintUrl: mintToReceive,
             transaction: completedTransaction,
-            message: `You received ${receivedAmount} SATS to your minibits wallet.`,
+            message: `You received ${formatCurrency(receivedAmount, getCurrency(unit).code)} to your Minibits wallet.`,
             receivedAmount,
         } as TransactionTaskResult
     } catch (e: any) {

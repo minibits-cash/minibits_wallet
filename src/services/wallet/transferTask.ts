@@ -11,7 +11,7 @@ import { MintClient } from '../cashuMintClient'
 import { WalletUtils } from './utils'
 import {isBefore} from 'date-fns'
 import { sendFromMint } from './sendTask'
-import { MintUnit } from './currency'
+import { MintUnit, formatCurrency, getCurrency } from './currency'
 
 const {
     transactionsStore,
@@ -224,7 +224,7 @@ export const transferTask = async function (
             taskFunction: TRANSFER,
             mintUrl,
             transaction: completedTransaction,
-            message: `Lightning invoice has been successfully paid and settled with your Minibits ecash. Final network fee has been ${finalFee} SATS.`,
+            message: `Lightning invoice has been successfully paid and settled with your Minibits ecash. Final network fee has been ${formatCurrency(finalFee, getCurrency(unit).code)} ${getCurrency(unit).code}.`,
             finalFee,
         } as TransactionTaskResult
     } catch (e: any) {        

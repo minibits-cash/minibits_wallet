@@ -53,22 +53,19 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
             setIsLoading(false)            
             // runs per each mint
             if (result && result.spentAmount > 0) {
-                setTotalSpentAmount(totalSpentAmount + result.spentAmount)
-                setTotalSpentCount(totalSpentCount + result.spentCount)
+                setTotalSpentAmount(prev => prev + result.spentAmount)
+                setTotalSpentCount(prev => prev + result.spentCount)
                 setInfo(
-                    `${totalSpentCount} ecash proofs, ${totalSpentAmount} SATS in total were removed from the wallet.`,
+                    `${totalSpentCount} ecash proofs, ${totalSpentAmount} in total were removed from the wallet.`,
                 )
                 return
             }
         
             setInfo('No spent ecash found in your wallet')            
         }
-
-        // Subscribe to the 'sendCompleted' event
+        
         EventEmitter.on('ev__handleSpentByMintTask_result', handleSpentByMintTaskResult)
         
-
-        // Unsubscribe from the 'sendCompleted' event on component unmount
         return () => {
             EventEmitter.off('ev__handleSpentByMintTask_result', handleSpentByMintTaskResult)            
         }

@@ -164,9 +164,9 @@ export type WalletStackParamList = {
       mintUrl?: string,      
     }
     // TranDetail: {id: number}
-    ContactsNavigator: {screen: string, params: any}
-    SettingsNavigator: {screen: string, params: any}
-    TransactionsNavigator: {screen: string, params: any}
+    ContactsNavigator: {screen: string, params: any, initial?: boolean}
+    SettingsNavigator: {screen: string, params: any, initial?: boolean}
+    TransactionsNavigator: {screen: string, params: any, initial?: boolean}
 }
 
 export type WalletStackScreenProps<T extends keyof WalletStackParamList> = StackScreenProps<

@@ -30,8 +30,10 @@ import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {MintListItem} from './Mints/MintListItem'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
-import { MintUnit, getCurrency } from "../services/wallet/currency"
+import { CurrencyCode, MintUnit, getCurrency } from "../services/wallet/currency"
 import { MintHeader } from './Mints/MintHeader'
+import { round, toNumber } from '../utils/number'
+import numbro from 'numbro'
 
 export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
   function ReceiveScreen({route, navigation}) {
@@ -40,9 +42,9 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
 
     const [token, setToken] = useState<Token | undefined>()
     const [encodedToken, setEncodedToken] = useState<string | undefined>()
-    const [amountToReceive, setAmountToReceive] = useState<number>(0)
+    const [amountToReceive, setAmountToReceive] = useState<string>('0')
     const [unit, setUnit] = useState<MintUnit>('sat')
-    const [receivedAmount, setReceivedAmount] = useState<number>(0)
+    const [receivedAmount, setReceivedAmount] = useState<string>('0')
     const [transactionStatus, setTransactionStatus] = useState<
       TransactionStatus | undefined
     >()
@@ -116,8 +118,8 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
     const resetState = function () {
         setToken(undefined)
         setEncodedToken(undefined)
-        setAmountToReceive(0)
-        setReceivedAmount(0)
+        setAmountToReceive('0')
+        setReceivedAmount('0')
         setTransactionStatus(undefined)
         setMemo('')
         setInfo('')
@@ -146,13 +148,13 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         
 
         if(!decoded.unit) {
-          setInfo(`Currency unit is missing in the received token. Wallet will assume token amount is in Bitcoin SATS. Do not continue if your are not sure this is correct.`)
+          setInfo(`Currency unit is missing in the received token. Wallet will assume token amount is in Bitcoin ${CurrencyCode.SATS}. Do not continue if your are not sure this is correct.`)
         }
 
         const currency = getCurrency(decoded.unit)
 
         setToken(decoded)
-        setAmountToReceive(tokenAmounts.totalAmount / currency.precision)
+        setAmountToReceive(numbro(tokenAmounts.totalAmount / currency.precision).format({thousandSeparated: true, mantissa: currency.mantissa}))
         
         if(decoded.unit) {
           log.trace('Token unit', decoded.unit)
@@ -172,9 +174,11 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         setIsLoading(true)       
         setIsReceiveTaskSentToQueue(true) 
 
+        const amountToReceiveInt = round(toNumber(amountToReceive) * getCurrency(unit).precision, 0)
+
         WalletTask.receive(
             token as Token,
-            amountToReceive * getCurrency(unit).precision,
+            amountToReceiveInt,
             memo,
             encodedToken as string,
         )        
@@ -185,9 +189,11 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         setIsLoading(true)
         setIsReceiveTaskSentToQueue(true) 
 
+        const amountToReceiveInt = round(toNumber(amountToReceive) * getCurrency(unit).precision, 0)
+        
         WalletTask.receiveOfflinePrepare(
             token as Token,
-            amountToReceive * getCurrency(unit).precision,
+            amountToReceiveInt,
             memo,
             encodedToken as string,
         )
@@ -219,10 +225,10 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                 navigation={navigation}
             />
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-            {receivedAmount > 0 ? (
+            {toNumber(receivedAmount) > 0 ? (
             <View style={$amountContainer}>
                 <TextInput                                        
-                    value={receivedAmount.toLocaleString()}
+                    value={receivedAmount}
                     style={$amountToReceive}
                     maxLength={9}                    
                     editable={false}
@@ -231,7 +237,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
             ) : (
             <View style={$amountContainer}>
                 <TextInput                                        
-                    value={amountToReceive.toLocaleString()}
+                    value={amountToReceive}
                     style={$amountToReceive}
                     maxLength={9}                    
                     editable={false}
@@ -240,12 +246,12 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
            )}
             <Text
                 size='sm'
-                tx={receivedAmount > 0 ? "receiveScreen.received" : "receiveScreen.toReceive"}
+                tx={toNumber(receivedAmount) > 0 ? "receiveScreen.received" : "receiveScreen.toReceive"}
                 style={{color: 'white', textAlign: 'center'}}
             />
         </View>
         <View style={$contentContainer}>          
-          {token && amountToReceive > 0 && (
+          {token && toNumber(amountToReceive) > 0 && (
             <>
               {memo && (
                 <Card
