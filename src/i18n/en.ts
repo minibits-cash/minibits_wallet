@@ -45,7 +45,8 @@ const en = {
 			expired: 'Expired'
 		},
 		tapToRedeem: 'Tap to redeem',
-		redeemOnline: 'Redeem online'
+		redeemOnline: 'Redeem online',
+    feePaid: 'Paid fee'
 	},
   welcomeScreen: {
     page1: {
@@ -144,6 +145,7 @@ const en = {
     paidFrom: "Paid from",
     receivedTo: "Received to",
     topupTo: "Topup to",
+    trasferredTo: "Paid to",
     invoice: "Lightning invoice to pay",
     receiveOfflineComplete: "Redeem to wallet",
     isOffline: "Redeem online"

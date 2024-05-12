@@ -30,10 +30,11 @@ import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {MintListItem} from './Mints/MintListItem'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
-import { CurrencyCode, MintUnit, getCurrency } from "../services/wallet/currency"
+import { CurrencyCode, MintUnit, formatCurrency, getCurrency } from "../services/wallet/currency"
 import { MintHeader } from './Mints/MintHeader'
 import { round, toNumber } from '../utils/number'
 import numbro from 'numbro'
+import { TranItem } from './TranDetailScreen'
 
 export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
   function ReceiveScreen({route, navigation}) {
@@ -48,6 +49,9 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
     const [transactionStatus, setTransactionStatus] = useState<
       TransactionStatus | undefined
     >()
+    const [transaction, setTransaction] = useState<
+    Transaction | undefined
+  >()
     const [memo, setMemo] = useState('')
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
@@ -83,6 +87,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
             const {status} = transaction as Transaction
 
             setTransactionStatus(status)
+            setTransaction(transaction)
     
             if (error) {
                 setResultModalInfo({
@@ -97,8 +102,9 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                 })
             }
     
-            if (receivedAmount) {
-                setReceivedAmount(receivedAmount)
+            if (receivedAmount && receivedAmount > 0) {
+                const currency = getCurrency(unit)
+                setReceivedAmount(`${numbro(receivedAmount / currency.precision).format({thousandSeparated: true, mantissa: currency.mantissa})}`)                
             }    
             
             setIsResultModalVisible(true)            
@@ -253,9 +259,9 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         <View style={$contentContainer}>          
           {token && toNumber(amountToReceive) > 0 && (
             <>
-              {memo && (
+              {memo && transactionStatus !== TransactionStatus.COMPLETED && (
                 <Card
-                  style={[$card, {minHeight: 0, paddingBottom: 0}]}
+                  style={[$card]}
                   ContentComponent={
                     <ListItem
                       text={memo}
@@ -267,18 +273,15 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                           color={iconColor}
                         />
                       }
-                      style={$item}
+                      style={[$item, {marginTop: spacing.small}]}
                     />
                   }
                 />
               )}
-              <Card
+              {transactionStatus !== TransactionStatus.COMPLETED && (
+                <Card
                 style={$card}
-                heading={
-                  transactionStatus === TransactionStatus.COMPLETED
-                    ? 'Received to'
-                    : 'Receive to'
-                }
+                heading={'Receive to'}
                 headingStyle={{textAlign: 'center', padding: spacing.small}}
                 ContentComponent={
                   <>
@@ -308,6 +311,37 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                   </>
                 }
               />
+              )}              
+              {transaction && transactionStatus === TransactionStatus.COMPLETED && (
+                <Card
+                    style={{padding: spacing.medium}}
+                    ContentComponent={
+                    <>
+                        <TranItem 
+                            label="tranDetailScreen.receivedTo"
+                            isFirst={true}
+                            value={mintsStore.findByUrl(transaction.mint)?.shortname as string}
+                        />
+                        {transaction?.memo && (
+                        <TranItem
+                            label="tranDetailScreen.memoFromSender"
+                            value={transaction.memo as string}
+                        />
+                        )}
+                        <TranItem
+                          label="transactionCommon.feePaid"
+                          value={transaction.fee || 0}
+                          unit={unit}
+                          isCurrency={true}
+                        />
+                        <TranItem
+                            label="tranDetailScreen.status"
+                            value={transaction.status as string}
+                        />
+                    </>
+                    }
+                />
+              )}
               {transactionStatus === TransactionStatus.COMPLETED ? (
                 <View style={$bottomContainer}>
                     <View style={$buttonContainer}>

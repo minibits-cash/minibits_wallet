@@ -65,6 +65,7 @@ import { MintBalanceSelector } from './Mints/MintBalanceSelector'
 import { round, toNumber } from '../utils/number'
 import { QRCodeBlock } from './Wallet/QRCode'
 import numbro from 'numbro'
+import { TranItem } from './TranDetailScreen'
 
 
 if (Platform.OS === 'android' &&
@@ -93,6 +94,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     const [mintBalanceToSendFrom, setMintBalanceToSendFrom] = useState<MintBalance | undefined>()
     const [selectedProofs, setSelectedProofs] = useState<Proof[]>([])
     const [transactionStatus, setTransactionStatus] = useState<TransactionStatus | undefined>()
+    const [transaction, setTransaction] = useState<Transaction | undefined>()
     const [transactionId, setTransactionId] = useState<number | undefined>()
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
@@ -243,9 +245,11 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             
             setIsLoading(false)
 
-            const {status, id} = result.transaction as Transaction
-            setTransactionStatus(status)
-            setTransactionId(id)
+            const {transaction} = result
+
+            setTransactionStatus(transaction?.status)
+            setTransaction(transaction)
+            setTransactionId(transaction?.id)
     
             if (result.encodedTokenToSend) {
                 setEncodedTokenToSend(result.encodedTokenToSend)
@@ -721,6 +725,36 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                         gotoContacts={gotoContacts}                    
                     />
                 </>
+            )}
+            {transaction && transactionStatus === TransactionStatus.COMPLETED && (
+                <Card
+                    style={{padding: spacing.medium}}
+                    ContentComponent={
+                    <>
+                        <TranItem 
+                            label="tranDetailScreen.sentTo"
+                            isFirst={true}
+                            value={mintsStore.findByUrl(transaction.mint)?.shortname as string}
+                        />
+                        {transaction?.memo && (
+                        <TranItem
+                            label="tranDetailScreen.memoToReceiver"
+                            value={transaction.memo as string}
+                        />
+                        )}
+                        <TranItem
+                        label="transactionCommon.feePaid"
+                        value={transaction.fee || 0}
+                        unit={unit}
+                        isCurrency={true}
+                        />
+                        <TranItem
+                            label="tranDetailScreen.status"
+                            value={transaction.status as string}
+                        />
+                    </>
+                    }
+                />
             )}
             {(transactionStatus === TransactionStatus.COMPLETED)  && (
                 <View style={$bottomContainer}>

@@ -249,7 +249,7 @@ export const receiveTask = async function (
                 taskFunction: RECEIVE,
                 mintUrl: mintInstance.mintUrl,
                 transaction: completedTransaction,
-                message: `You've received ${receivedAmount} ${unit} to your Minibits wallet. ${amountWithErrors} ${unit} could not be redeemed from the mint`,
+                message: `You've received ${formatCurrency(receivedAmount, getCurrency(unit).code)} ${getCurrency(unit).code} to your Minibits wallet. ${formatCurrency(amountWithErrors, getCurrency(unit).code)} ${getCurrency(unit).code} could not be redeemed from the mint`,
                 receivedAmount,
 
             } as TransactionTaskResult
@@ -259,7 +259,7 @@ export const receiveTask = async function (
             taskFunction: RECEIVE,
             mintUrl: mintInstance.mintUrl,
             transaction: completedTransaction,
-            message: `You've received ${receivedAmount} ${unit} to your Minibits wallet.`,
+            message: `You've received ${formatCurrency(receivedAmount, getCurrency(unit).code)} ${getCurrency(unit).code} to your Minibits wallet.`,
             receivedAmount,
         } as TransactionTaskResult
         
@@ -402,7 +402,7 @@ export const receiveOfflinePrepareTask = async function (
             taskFunction: RECEIVE_OFFLINE_PREPARE,
             mintUrl: mintToReceive,
             transaction: preparedTransaction,
-            message: `You received ${amountToReceive} ${unit} while offline. You need to redeem them to your wallet when you will be online again.`,            
+            message: `You received ${formatCurrency(amountToReceive, getCurrency(unit).code)} ${getCurrency(unit).code} while offline. You need to redeem them to your wallet when you will be online again.`,            
         } as TransactionTaskResult
 
     } catch (e: any) {

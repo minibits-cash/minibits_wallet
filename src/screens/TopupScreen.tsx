@@ -38,7 +38,7 @@ import {NostrClient, NostrProfile, NostrUnsignedEvent, TransactionTaskResult, Wa
 import {log} from '../services/logService'
 import AppError, { Err } from '../utils/AppError'
 
-import {MintBalance} from '../models/Mint'
+import {Mint, MintBalance} from '../models/Mint'
 import EventEmitter from '../utils/eventEmitter'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import { useFocusEffect } from '@react-navigation/native'
@@ -55,6 +55,8 @@ import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { MintBalanceSelector } from './Mints/MintBalanceSelector'
 import { QRCodeBlock } from './Wallet/QRCode'
 import numbro from 'numbro'
+import { MintListItem } from './Mints/MintListItem'
+import { TranItem } from './TranDetailScreen'
 
 if (
   Platform.OS === 'android' &&
@@ -85,6 +87,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     const [mintBalanceToTopup, setMintBalanceToTopup] = useState<MintBalance | undefined>(undefined)
     const [transactionStatus, setTransactionStatus] = useState<TransactionStatus | undefined>()
     const [transactionId, setTransactionId] = useState<number | undefined>()
+    const [transaction, setTransaction] = useState<Transaction | undefined>()
     const [invoiceToPay, setInvoiceToPay] = useState<string>('')
     const [lnurlWithdrawResult, setLnurlWithdrawResult] = useState<LnurlWithdrawResult | undefined>()
     
@@ -293,6 +296,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
           })
 
           setTransactionStatus(TransactionStatus.COMPLETED)
+          setTransaction(result.transaction)
           setIsQRModalVisible(false)
           setIsNostrDMModalVisible(false)
           setIsWithdrawModalVisible(false)
@@ -663,6 +667,36 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                   gotoContacts={gotoContacts}                  
               />
             </>
+        )}
+        {transaction && transactionStatus === TransactionStatus.COMPLETED && (
+            <Card
+                style={{padding: spacing.medium}}
+                ContentComponent={
+                  <>
+                    <TranItem 
+                        label="tranDetailScreen.topupTo"
+                        isFirst={true}
+                        value={mintsStore.findByUrl(transaction.mint)?.shortname as string}
+                    />
+                    {transaction.memo && (
+                      <TranItem
+                          label="tranDetailScreen.memoToReceiver"
+                          value={transaction?.memo as string}
+                      />
+                    )}
+                    <TranItem
+                      label="transactionCommon.feePaid"
+                      value={transaction.fee || 0}
+                      unit={unit}
+                      isCurrency={true}
+                    />
+                    <TranItem
+                        label="tranDetailScreen.status"
+                        value={transaction.status as string}
+                    />
+                  </>
+                }
+            />
         )}
         {(transactionStatus === TransactionStatus.COMPLETED)  && (
             <View style={$bottomContainer}>

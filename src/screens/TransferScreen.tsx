@@ -48,6 +48,7 @@ import { MeltQuoteResponse } from '@cashu/cashu-ts'
 import { MintHeader } from './Mints/MintHeader'
 import { MintBalanceSelector } from './Mints/MintBalanceSelector'
 import numbro from 'numbro'
+import { TranItem } from './TranDetailScreen'
 
 
 if (
@@ -77,9 +78,8 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     const [lnurlDescription, setLnurlDescription] = useState('')
     const [availableMintBalances, setAvailableMintBalances] = useState<MintBalance[]>([])
     const [mintBalanceToTransferFrom, setMintBalanceToTransferFrom] = useState<MintBalance | undefined>()
-    const [transactionStatus, setTransactionStatus] = useState<
-      TransactionStatus | undefined
-    >()
+    const [transactionStatus, setTransactionStatus] = useState<TransactionStatus | undefined>()
+    const [transaction, setTransaction] = useState<Transaction | undefined>()
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState(false)
@@ -326,6 +326,7 @@ useEffect(() => {
         
         const { status } = transaction as Transaction
         setTransactionStatus(status)
+        setTransaction(transaction)
     
         if(transaction && lnurlPayParams && lnurlPayParams.address) {
             await transactionsStore.updateSentTo( // set ln address to send to to the tx, could be elsewhere //
@@ -599,7 +600,7 @@ const satsColor = colors.palette.primary200
                 </View>
             </View>
             <View style={$contentContainer}>
-                <>                    
+                {transactionStatus !== TransactionStatus.COMPLETED && (                                    
                     <Card
                         style={[$card, {minHeight: 50}]}
                         ContentComponent={
@@ -618,42 +619,47 @@ const satsColor = colors.palette.primary200
                             />
                         }
                     />
-                    {availableMintBalances.length > 0 &&
-                    transactionStatus !== TransactionStatus.COMPLETED && (
-                        <MintBalanceSelector
-                            mintBalances={availableMintBalances}
-                            selectedMintBalance={mintBalanceToTransferFrom}
-                            unit={unit}
-                            title='Pay from'
-                            confirmTitle='Pay now'
-                            onMintBalanceSelect={onMintBalanceSelect}
-                            onCancel={onClose}              
-                            onMintBalanceConfirm={transfer}
-                        />
-                    )}
-                </>                
-                {transactionStatus === TransactionStatus.COMPLETED && (
+                )}
+                {availableMintBalances.length > 0 &&
+                transactionStatus !== TransactionStatus.COMPLETED && (
+                    <MintBalanceSelector
+                        mintBalances={availableMintBalances}
+                        selectedMintBalance={mintBalanceToTransferFrom}
+                        unit={unit}
+                        title='Pay from'
+                        confirmTitle='Pay now'
+                        onMintBalanceSelect={onMintBalanceSelect}
+                        onCancel={onClose}              
+                        onMintBalanceConfirm={transfer}
+                    />
+                )}                                
+                {transaction && transactionStatus === TransactionStatus.COMPLETED && (
                     <Card
-                        style={$card}
-                        heading={'Transferred from'}
-                        headingStyle={{textAlign: 'center', padding: spacing.small}}
+                        style={{padding: spacing.medium}}
                         ContentComponent={
-                        <MintListItem
-                            mint={
-                            mintsStore.findByUrl(
-                                mintBalanceToTransferFrom?.mintUrl as string,
-                            ) as Mint
-                            }
-                            selectedUnit={unit}
-                            isSelectable={false}
-                            mintBalance={proofsStore
-                            .getBalances()
-                            .mintBalances.find(
-                                balance =>
-                                balance.mintUrl === mintBalanceToTransferFrom?.mintUrl,
+                        <>
+                            <TranItem 
+                                label="tranDetailScreen.trasferredTo"
+                                isFirst={true}
+                                value={mintsStore.findByUrl(transaction.mint)?.shortname as string}
+                            />
+                            {transaction?.memo && (
+                            <TranItem
+                                label="tranDetailScreen.memoFromInvoice"
+                                value={transaction.memo as string}
+                            />
                             )}
-                            separator={'top'}
-                        />
+                            <TranItem
+                            label="transactionCommon.feePaid"
+                            value={transaction.fee || 0}
+                            unit={unit}
+                            isCurrency={true}
+                            />
+                            <TranItem
+                                label="tranDetailScreen.status"
+                                value={transaction.status as string}
+                            />
+                        </>
                         }
                     />
                 )}

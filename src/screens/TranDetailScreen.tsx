@@ -1437,7 +1437,7 @@ const TransferInfoBlock = function (props: {
             )}
             {transaction.sentTo && (
                 <TranItem
-                    label="tranDetailScreen.sentTo"
+                    label="tranDetailScreen.trasferredTo"
                     value={transaction.sentTo as string}
                 />
             )}
@@ -1519,7 +1519,7 @@ const TransferInfoBlock = function (props: {
   )
 }
 
-const TranItem = function (props: {
+export const TranItem = function (props: {
     label: TxKeyPath
     value: string | number
     unit?: MintUnit
