@@ -25,7 +25,7 @@ export const TransactionListItem = observer(function (
 ) {
   const {transaction: tx, isTimeAgoVisible} = props
 
-  const txReceiveColor = colors.palette.success300
+  const txReceiveColor = useThemeColor('receivedAmount')
   const txSendColor = useThemeColor('amount')
   const txErrorColor = useThemeColor('textDim')
   const txPendingColor = useThemeColor('textDim')

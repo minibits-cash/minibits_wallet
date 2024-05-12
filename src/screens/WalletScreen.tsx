@@ -475,16 +475,16 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                     <Button
                         LeftAccessory={() => (
                             <Icon
-                                icon='faArrowTurnDown'
+                                icon='faArrowTurnUp'
                                 size={spacing.medium}
                                 color={mainButtonIcon}
                                 //style={{paddingLeft: spacing.medium}}
                             />
                         )}
-                        onPress={gotoTokenReceive}                        
+                        onPress={gotoSend}                        
                         style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonTopup]}
                         preset='tertiary'
-                        text='Receive'
+                        text='Send'
                     />             
                     <Button
                         RightAccessory={() => (
@@ -502,13 +502,13 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                     <Button
                         RightAccessory={() => (
                             <Icon
-                                icon='faArrowTurnUp'
+                                icon='faArrowTurnDown'
                                 size={spacing.medium}
                                 color={mainButtonIcon}
                             />
                         )}
-                        onPress={gotoSend}
-                        text='Send'
+                        onPress={gotoTokenReceive}
+                        text='Receive'
                         style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonPay]}
                         preset='tertiary'
                     /> 
@@ -548,9 +548,11 @@ const UnitBalanceBlock = observer(function (props: {
     unitBalance: UnitBalance
 }) {
     const headerBg = useThemeColor('header')
+    
     const balanceColor = 'white'
     const currencyColor = colors.palette.primary200
     const {unitBalance} = props
+    // const headerBg = getMintColor(unitBalance.unit)
     
     // log.trace('[UnitBalanceBlock]', {unitBalance})
 
@@ -675,19 +677,7 @@ const MintsByUnitListItem = observer(function (props: {
     const balanceColor = useThemeColor('amount')
     const {mintsByUnit} = props
 
-    const getMintColor = function (unit: MintUnit) {
-        if (unit === 'sat' || unit === 'msat' || unit === 'btc') {
-            return colors.palette.orange400
-        }
 
-        if (unit === 'eur') {
-            return colors.palette.blue400
-        }
-
-        if (unit === 'usd') {
-            return colors.palette.green400
-        }
-    }
 
     /* const isSingleMint: boolean = mintsByUnit.mints.length === 1 || false
     const singleMint: Mint = mintsByUnit.mints[0] */
@@ -837,6 +827,21 @@ const MintsByUnitListItem = observer(function (props: {
         />
     )
 })
+
+
+const getMintColor = function (unit: MintUnit) {
+    if (unit === 'sat' || unit === 'msat' || unit === 'btc') {
+        return colors.palette.orange600
+    }
+
+    if (unit === 'eur') {
+        return colors.palette.blue600
+    }
+
+    if (unit === 'usd') {
+        return colors.palette.green400
+    }
+}
 
 
 
