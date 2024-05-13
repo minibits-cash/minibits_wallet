@@ -22,6 +22,8 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
     useHeader({
         leftIcon: 'faArrowLeft',
         onLeftPress: () => navigation.goBack(),
+        rightIcon: 'faRotate',
+        onRightPress: () => onConnect()
     })
 
     const newRelayInputRef = useRef<TextInput>(null)
