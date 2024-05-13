@@ -128,7 +128,7 @@ jobs:
           files minibits_wallet_android@${{ env.CURRENT_JS_VERSION }} \
           upload-sourcemaps \
           --strip-prefix /build \
-          --dist ${{ env.NATIVE_VERSION }} \
+          --dist ${{ env.ANDROID_VERSION_NAME }} \
           --org ${{ secrets.SENTRY_ORG }} \
           --project minibits-wallet \
           ./build/index.android.bundle.map ./build/Codepush/index.android.bundle
