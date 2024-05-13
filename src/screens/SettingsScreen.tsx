@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useCallback, useEffect, useState} from 'react'
-import {FlatList, TextStyle, View, ViewStyle} from 'react-native'
+import {Alert, FlatList, TextStyle, View, ViewStyle} from 'react-native'
 import {
     APP_ENV,      
     CODEPUSH_STAGING_DEPLOYMENT_KEY,
@@ -17,6 +17,7 @@ import { log } from '../services'
 import {Env} from '../utils/envtypes'
 import { round } from '../utils/number'
 import { getCurrency } from '../services/wallet/currency'
+import { getMintColor } from './WalletScreen'
 
 
 interface SettingsScreenProps extends SettingsStackScreenProps<'Settings'> {}
@@ -54,8 +55,8 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
 
 
     const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {            
-        // silent
-        // setIsNativeUpdateAvailable(true)
+      // silent
+      setIsNativeUpdateAvailable(true)
     }
 
     const gotoMints = function() {
@@ -89,6 +90,10 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
             updateDescription,
             updateSize
         })
+    }
+
+    const gotoPreferredUnit = function() {
+      Alert.alert('Preferred unit is set based on your Wallet screen.') 
     }
 
     const $itemRight = {color: useThemeColor('textDim')}
@@ -128,7 +133,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                 <ListItem
                     tx='settingsScreen.preferredUnit'
                     leftIcon='faMoneyBill1'
-                    leftIconColor={userSettingsStore.preferredUnit === 'usd' ? colors.palette.green400 : colors.palette.orange400}
+                    leftIconColor={getMintColor(userSettingsStore.preferredUnit)}
                     leftIconInverse={true}
                     style={$item}
                     RightComponent={
@@ -140,7 +145,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                       </View>
                    }
                     bottomSeparator={true}
-                    onPress={gotoBackupRestore}
+                    onPress={gotoPreferredUnit}
                 />
                 <ListItem
                     tx='settingsScreen.backupRecovery'

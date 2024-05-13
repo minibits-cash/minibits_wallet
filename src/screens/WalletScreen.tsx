@@ -829,7 +829,7 @@ const MintsByUnitListItem = observer(function (props: {
 })
 
 
-const getMintColor = function (unit: MintUnit) {
+export const getMintColor = function (unit: MintUnit) {
     if (unit === 'sat' || unit === 'msat' || unit === 'btc') {
         return colors.palette.orange600
     }
