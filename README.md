@@ -1,4 +1,5 @@
-<img src="https://www.minibits.cash/img/minibits_preview.png">
+![feature_sharp](https://github.com/minibits-cash/minibits_wallet/assets/138401554/2c615363-fbf6-4a9e-ac89-9228ae159cda)
+
 
 # Disclaimer
 
