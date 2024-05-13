@@ -102,15 +102,15 @@ android {
         applicationId "com.minibits_wallet"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 50
+        versionCode 51
         versionName "0.1.7"
     }
 
     splits {
         abi {
             reset()
-            enable enableSeparateBuildPerCPUArchitecture
-            universalApk false  // If true, also generate a universal APK
+            enable true
+            universalApk true  // If true, also generate a universal APK
             include (*reactNativeArchitectures())
         }
     }
