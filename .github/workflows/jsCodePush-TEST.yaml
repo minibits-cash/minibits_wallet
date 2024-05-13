@@ -96,7 +96,7 @@ jobs:
       # Install dependecies from package.json
       - name: Install app dependencies
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
-        uses: bahmutov/npm-install@v1.6.0
+        uses: bahmutov/npm-install@v1.10.2
 
 
       - name: Install Sentry CLI
