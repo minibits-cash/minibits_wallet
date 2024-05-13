@@ -475,7 +475,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                     <Button
                         LeftAccessory={() => (
                             <Icon
-                                icon='faArrowTurnUp'
+                                icon='faArrowUp'
                                 size={spacing.medium}
                                 color={mainButtonIcon}
                                 //style={{paddingLeft: spacing.medium}}
@@ -502,7 +502,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                     <Button
                         RightAccessory={() => (
                             <Icon
-                                icon='faArrowTurnDown'
+                                icon='faArrowDown'
                                 size={spacing.medium}
                                 color={mainButtonIcon}
                             />

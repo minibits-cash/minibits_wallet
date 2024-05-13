@@ -295,7 +295,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                         text={`Send ecash`}
                         LeftAccessory={() => (
                             <Icon
-                            icon='faArrowTurnUp'
+                            icon='faArrowUp'
                             color={mainButtonIcon}
                             size={spacing.medium}                  
                             />
