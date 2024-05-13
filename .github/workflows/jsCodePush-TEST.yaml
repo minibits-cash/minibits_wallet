@@ -49,9 +49,10 @@ jobs:
       - name: Get Android native version        
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
         id: version-reader-android        
-        uses: ltDino/android-get-version-action@v1.0
+        uses: michpohl/android-expose-version-name-action@v1.0.0
         with:
-          gradlePath: android/app/build.gradle
+          path: android/app/build.gradle
+          expose-version-name: 'true' # sets ANDROID_VERSION_NAME to env
       
       # Get commit hash
       - name: Get commit hash
@@ -61,8 +62,7 @@ jobs:
         
       - name: Set commit hash and native version information
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
-        run: |-
-          echo "NATIVE_VERSION=${{steps.version-reader-android.outputs.versionName }}" >> $GITHUB_ENV
+        run: |-          
           echo "COMMIT_HASH=${{steps.commit-hash.outputs.short }}" >> $GITHUB_ENV
 
       # Get commit message
@@ -88,7 +88,7 @@ jobs:
           echo APP_ENV='TEST' >> .env                
           echo SENTRY_DSN='${{ secrets.SENTRY_DSN }}' >> .env          
           echo CODEPUSH_STAGING_DEPLOYMENT_KEY='${{ secrets.CODEPUSH_STAGING_DEPLOYMENT_KEY }}' >> .env
-          echo NATIVE_VERSION_ANDROID='${{ env.NATIVE_VERSION }}' >> .env
+          echo NATIVE_VERSION_ANDROID='${{ env.ANDROID_VERSION_NAME }}' >> .env
           echo JS_BUNDLE_VERSION='${{ env.CURRENT_JS_VERSION }}' >> .env
           echo MINIBITS_SERVER_API_KEY='${{ secrets.MINIBITS_SERVER_API_KEY }}' >> .env
           echo MINIBITS_SERVER_API_HOST='https://api.minibits.cash' >> .env
