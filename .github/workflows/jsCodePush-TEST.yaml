@@ -101,8 +101,8 @@ jobs:
       - name: Install app dependencies
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
         uses: bahmutov/npm-install@v1.10.2
-        with:
-          install-command: 'yarn install'
+        # with:
+        #   install-command: 'yarn install'
 
       - name: Install Sentry CLI
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
