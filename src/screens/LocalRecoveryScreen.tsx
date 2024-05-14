@@ -26,12 +26,17 @@ import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
 import {Database} from '../services'
 import AppError from '../utils/AppError'
-import {BackupProof} from '../models/Proof'
+import {BackupProof, Proof} from '../models/Proof'
 import { useStores } from '../models'
 import { CashuUtils } from '../services/cashu/cashuUtils'
 import JSONTree from 'react-native-json-tree'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { getEncodedToken } from '@cashu/cashu-ts'
+import { Transaction, TransactionData, TransactionRecord, TransactionStatus, TransactionType } from '../models/Transaction'
+import { WalletUtils } from '../services/wallet/utils'
+import { MintUnit } from '../services/wallet/currency'
+import { ScrollView } from 'react-native-gesture-handler'
+import { CurrencyAmount } from './Wallet/CurrencyAmount'
 
 interface LocalRecoveryScreenProps
   extends SettingsStackScreenProps<'LocalRecovery'> {}
@@ -43,7 +48,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
   function LocalRecoveryScreen(_props) {
 
   const { navigation } = _props
-  const { mintsStore } = useStores()
+  const { mintsStore, proofsStore, transactionsStore } = useStores()
 
   useHeader({
       leftIcon: 'faArrowLeft',
@@ -115,7 +120,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
     })
 
 
-    const copyBackupProofs = function (proofs: BackupProof[]) {
+    const copyBackupProofs = function () {
         try {               
             Clipboard.setString(JSON.stringify(proofs))  
         } catch (e: any) {
@@ -124,11 +129,14 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
     }
 
 
-    const copyEncodedTokens = function (proofs: BackupProof[]) {
+    const copyEncodedTokens = function () {
         try {
             setIsLoading(true)
             const encodedTokens: string[] = []
-            // TODO group by mints
+
+            if(mintsStore.allMints.length === 0) {
+              setInfo('Please add all mints your proofs belong to the wallet. Then try again.')
+            }
 
             for (const mint of mintsStore.allMints) {
                 
@@ -136,8 +144,9 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
 
                 for (const proof of proofs) {
 
-                    const proofMint = CashuUtils.getMintFromProof(proof, mintsStore.allMints)
-                    const { tId, isPending, isSpent, updatedAt, ...cleanedProof } = proof
+                    const proofMint = CashuUtils.getMintFromProof(proof, mintsStore.allMints)                    
+                    
+                    const { tId, unit, isPending, isSpent, updatedAt, ...cleanedProof } = proof
 
                     if (!proofMint) { continue }                
 
@@ -170,6 +179,127 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
             setInfo(`Could not copy: ${e.message}`)
         }
     }
+
+
+    const recoverProofs = async function () {
+      try {
+          if(proofsStore.proofsCount > 0) {
+            setInfo('Your wallet contains unspent ecash, recovery is not safe.')
+            return
+          }
+
+          if(showSpentOnly) {
+            setInfo('Can not recover proofs that were already spent.')
+            return
+          }
+
+          if(mintsStore.allMints.length === 0) {
+            setInfo('Please add all mints your proofs belong to the wallet. Then try again.')
+          }
+        
+          setIsLoading(true)
+          
+          for (const mint of mintsStore.allMints) {
+              
+              let proofsByMint: CashuProof[] = []
+              let transactionData: TransactionData[] = []                
+
+              for (const proof of proofs) {
+
+                  const proofMint = CashuUtils.getMintFromProof(proof, mintsStore.allMints)                    
+                  
+                  const { tId, isPending, isSpent, updatedAt, ...cleanedProof } = proof
+
+                  if (!proofMint) { continue }                
+
+                  if(mint.mintUrl === proofMint.mintUrl) {                        
+                      proofsByMint.push(cleanedProof)
+                  }                    
+              }
+
+              if (proofsByMint.length > 0) {
+
+                const groupedByUnit: Record<string, Proof[]> = proofsByMint.reduce((acc, proof) => {
+                  // Check if there's already an array for this unit, if not, create one
+                  if (!acc[proof.unit]) {
+                    acc[proof.unit] = []
+                  }
+                  // Push the object into the array corresponding to its unit
+                  acc[proof.unit].push(proof)
+                  return acc;
+                }, {})
+
+                //log.trace('[groupedByMint]', groupedByUnit)
+
+                for (const unit in groupedByUnit) {
+
+                  if (Object.prototype.hasOwnProperty.call(groupedByUnit, unit)) {
+                    const proofsToAdd = groupedByUnit[unit]
+                    const amount = CashuUtils.getProofsAmount(proofsToAdd as Proof[])
+
+                    log.trace({mint: mint.mintUrl, unit, amount})
+
+                    transactionData.push({
+                      status: TransactionStatus.PREPARED,
+                      amount,
+                      createdAt: new Date(),
+                    })
+
+                    const newTransaction: Transaction = {
+                      type: TransactionType.RECEIVE,
+                      amount,
+                      fee: 0,
+                      unit: unit as MintUnit,
+                      data: JSON.stringify(transactionData),
+                      memo: 'Wallet recovery from backup',
+                      mint: mint.mintUrl,
+                      status: TransactionStatus.PREPARED,
+                    }
+
+
+                    const draftTransaction: TransactionRecord = await transactionsStore.addTransaction(newTransaction)
+                    const transactionId = draftTransaction.id as number
+      
+                    const { amountToAdd, addedAmount } = WalletUtils.addCashuProofs(
+                        mint.mintUrl,
+                        proofsToAdd,
+                        {
+                            unit: unit as MintUnit,
+                            transactionId,
+                            isPending: false
+                        }            
+                    )                 
+      
+                    if (amountToAdd !== addedAmount) {
+                        await transactionsStore.updateReceivedAmount(
+                            transactionId as number,
+                            addedAmount,
+                        )                       
+                    }
+      
+                    // Finally, update completed transaction
+                    transactionData.push({
+                        status: TransactionStatus.COMPLETED,
+                        addedAmount,                       
+                        createdAt: new Date(),
+                    })
+      
+                    await transactionsStore.updateStatus(
+                        transactionId,
+                        TransactionStatus.COMPLETED,
+                        JSON.stringify(transactionData),
+                    )
+                  }
+                }
+              }
+          }
+
+          setIsLoading(false)
+
+      } catch (e: any) {
+          setInfo(`Could not copy: ${e.message}`)
+      }
+  }
 
 
     const handleError = function (e: AppError): void {
@@ -244,30 +374,79 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
               </>
             }
           />
-          {(proofs && proofs.length) > 0 && (
+          {proofs && (
             <Card
               ContentComponent={
                 <>
-                <Text
-                    style={{textAlign: 'center', marginVertical: spacing.small}}
-                    text="Backed up proofs"
+                <ListItem
+                  text={'Number of proofs'}
+                  RightComponent={
+                    <Text text={`${proofs.length}`} />
+                  }                            
                 />
-                <JSONTree
-                    hideRoot
-                    data={proofs || []}
-                    theme={{
-                    scheme: 'default',
-                    base00: '#eee',
-                    }}
-                    invertTheme={colorScheme === 'light' ? false : true}
-                />                  
+                {proofs.some(p => p.unit === 'sat') && (
+                  <ListItem
+                    text={'SAT'}
+                    RightComponent={
+                      <CurrencyAmount 
+                        amount={CashuUtils.getProofsAmount(proofs.filter(p => p.unit === 'sat'))} 
+                        mintUnit='sat'  
+                      />
+                    }                            
+                  />
+                )}
+                {proofs.some(p => p.unit === 'msat') && (
+                  <ListItem
+                    text={'mSAT'}
+                    RightComponent={
+                      <CurrencyAmount 
+                        amount={CashuUtils.getProofsAmount(proofs.filter(p => p.unit === 'msat'))} 
+                        mintUnit='msat'  
+                      />
+                    }                            
+                  />
+                )}
+                {proofs.some(p => p.unit === 'btc') && (
+                  <ListItem
+                    text={'BTC'}
+                    RightComponent={
+                      <CurrencyAmount 
+                        amount={CashuUtils.getProofsAmount(proofs.filter(p => p.unit === 'btc'))} 
+                        mintUnit='btc'  
+                      />
+                    }                            
+                  />
+                )}
+                {proofs.some(p => p.unit === 'usd') && (
+                  <ListItem
+                    text={'USD'}
+                    RightComponent={
+                      <CurrencyAmount 
+                        amount={CashuUtils.getProofsAmount(proofs.filter(p => p.unit === 'usd'))} 
+                        mintUnit='usd'  
+                      />
+                    }                            
+                  />
+                )}
+                {proofs.some(p => p.unit === 'eur') && (
+                  <ListItem
+                    text={'EUR'}
+                    RightComponent={
+                      <CurrencyAmount 
+                        amount={CashuUtils.getProofsAmount(proofs.filter(p => p.unit === 'eur'))} 
+                        mintUnit='eur'  
+                      />
+                    }                            
+                  />
+                )}
+             
                 </>
               }
               FooterComponent={
                 <View style={$buttonContainer}>
                     <Button
                         preset="tertiary"
-                        onPress={() => copyBackupProofs(proofs)}
+                        onPress={copyBackupProofs}
                         text="Copy proofs"
                         style={{
                             minHeight: 25,
@@ -279,7 +458,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
                     />
                     <Button
                         preset="tertiary"
-                        onPress={() => copyEncodedTokens(proofs)}
+                        onPress={copyEncodedTokens}
                         text="Copy as encoded tokens"
                         style={{
                             minHeight: 25,
@@ -290,9 +469,17 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
                     />
                 </View>  
               }
-              style={$card}
+              style={[$card]}
             />
-          )}          
+          )}
+          <View style={$bottomContainer}>
+            <View style={$buttonContainer}>
+              <Button 
+                onPress={recoverProofs}
+                text={`Recover to wallet`}
+              />  
+            </View>  
+          </View>          
           {isLoading && <Loading />}
         </View>
         {error && <ErrorModal error={error} />}
@@ -348,45 +535,9 @@ const $item: ViewStyle = {
   marginHorizontal: spacing.micro,
 }
 
-const $proofText: TextStyle = {
-  overflow: 'hidden',
-  fontSize: 14,
-}
 
-const $txContainer: ViewStyle = {
-  justifyContent: 'center',
-  alignSelf: 'center',
-  marginRight: spacing.extraSmall,
-}
 
-const $txAmount: TextStyle = {
-  fontFamily: typography.primary?.medium,
-  alignSelf: 'center',
-  marginRight: spacing.small,
-}
-
-const $txIconContainer: ViewStyle = {
-  padding: spacing.extraSmall,
-  alignSelf: 'center',
-  marginRight: spacing.medium,
-}
-
-const $bottomContainer: ViewStyle = {
-  position: 'absolute',
-  bottom: 0,
-  left: 0,
-  right: 0,
-  flex: 1,
-  justifyContent: 'flex-end',
+const $bottomContainer: ViewStyle = { 
   marginBottom: spacing.medium,
-  alignSelf: 'stretch',
-  // opacity: 0,
-}
-
-const $buttonReceive: ViewStyle = {
-  borderTopLeftRadius: 30,
-  borderBottomLeftRadius: 30,
-  borderTopRightRadius: 0,
-  borderBottomRightRadius: 0,
-  minWidth: 130,
+  
 }

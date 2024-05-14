@@ -900,12 +900,12 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         mintInstance.resetInFlight(transactionId as number )
         stopPolling(`handlePendingTopupTaskPoller-${paymentHash}`)               
 
-        const precision: number = getCurrency(pr.mintUnit!).precision
+        const currencyCode = getCurrency(pr.mintUnit!).code  
 
         if (receivedAmount !== amount) {
             throw new AppError(
                 Err.VALIDATION_ERROR,
-                `Received amount ${receivedAmount / precision} ${unit} is not equal to the requested amount ${amount / precision} ${unit}.`,
+                `Received amount ${formatCurrency(amount, currencyCode)} ${currencyCode} is not equal to the requested amount ${formatCurrency(amount, currencyCode)} ${currencyCode}.`,
             )
         }
 
@@ -940,9 +940,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
     
         _sendTopupNotification(pr)
         paymentRequestsStore.removePaymentRequest(pr)        
-
         
-
         return {
             taskFunction: '_handlePendingTopupTask',
             mintUrl: mint,
@@ -950,7 +948,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
             amount,
             paymentHash,
             transaction: transactionsStore.findById(transactionId as number),
-            message: `Your invoice has been paid and your wallet balance credited with ${amount / precision} ${unit}.`,
+            message: `Your invoice has been paid and your wallet balance credited with ${formatCurrency(amount, currencyCode)} ${currencyCode}.`,
         } as TransactionTaskResult
 
     } catch (e: any) {
@@ -975,12 +973,12 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
 
 
 const _sendTopupNotification = async function (pr: PaymentRequest) {
-
-    const precision: number = getCurrency(pr.mintUnit!).precision
+    
+    const currencyCode = getCurrency(pr.mintUnit!).code
 
     await NotificationService.createLocalNotification(
-        `⚡ ${pr.amountToTopup! / precision} ${pr.mintUnit} received!`,
-        `Your invoice has been paid and your wallet balance credited with ${pr.amountToTopup! / precision} ${pr.mintUnit}.`,           
+        `⚡ ${formatCurrency(pr.amountToTopup!, currencyCode)} ${currencyCode} received!`,
+        `Your invoice has been paid and your wallet balance credited with ${formatCurrency(pr.amountToTopup!, currencyCode)} ${currencyCode}.`,           
     ) 
 }
 

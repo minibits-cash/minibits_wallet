@@ -12,7 +12,8 @@ import {
   FlatList,
   Pressable,
   Linking,
-  LayoutAnimation
+  LayoutAnimation,
+  ScrollView
 } from 'react-native'
 import codePush, { RemotePackage } from 'react-native-code-push'
 import {moderateVerticalScale, verticalScale} from '@gocodingnow/rn-size-matters'
@@ -687,143 +688,143 @@ const MintsByUnitListItem = observer(function (props: {
         <Card
             verticalAlignment='force-footer-bottom'            
             ContentComponent={
-            <>                
-                {mintsByUnit.mints.map((mint: Mint) => (
-                    <View key={mint.mintUrl}>
-                    <ListItem                        
-                        text={mint.shortname}
-                        subText={mint.hostname}                    
-                        // leftIcon={mint.status === MintStatus.OFFLINE ? 'faTriangleExclamation' : 'faMoneyBill1'}              
-                        // leftIconInverse={true}
-                        // leftIconColor={mint.color}
-                        LeftComponent={
-                            <View
-                                style={{
-                                    marginEnd: spacing.small,
-                                    flex: 0,
-                                    borderRadius: spacing.small,
-                                    padding: spacing.extraSmall,
-                                    backgroundColor: getMintColor(mintsByUnit.unit)
-                                }}
-                            >
-                                <SvgXml 
-                                    width={spacing.medium} 
-                                    height={spacing.medium} 
-                                    xml={MintIcon}
-                                    fill='white'
+                <ScrollView>
+                    {mintsByUnit.mints.map((mint: Mint) => (
+                        <View key={mint.mintUrl}>
+                        <ListItem                        
+                            text={mint.shortname}
+                            subText={mint.hostname}                    
+                            // leftIcon={mint.status === MintStatus.OFFLINE ? 'faTriangleExclamation' : 'faMoneyBill1'}              
+                            // leftIconInverse={true}
+                            // leftIconColor={mint.color}
+                            LeftComponent={
+                                <View
+                                    style={{
+                                        marginEnd: spacing.small,
+                                        flex: 0,
+                                        borderRadius: spacing.small,
+                                        padding: spacing.extraSmall,
+                                        backgroundColor: getMintColor(mintsByUnit.unit)
+                                    }}
+                                >
+                                    <SvgXml 
+                                        width={spacing.medium} 
+                                        height={spacing.medium} 
+                                        xml={MintIcon}
+                                        fill='white'
+                                    />
+                                </View>
+                            }
+                            RightComponent={
+                                <CurrencyAmount 
+                                    amount={mint.balances?.balances[mintsByUnit.unit as MintUnit] || 0}
+                                    mintUnit={mintsByUnit.unit}
+                                    size='medium'
+                                />                    
+                            }
+                            //topSeparator={true}
+                            style={$item}
+                            onPress={() => onSelectedMint(mint.mintUrl)}
+                        />
+                        {selectedMintUrl === mint.mintUrl &&  (
+                            <View style={{flexDirection: 'row', marginBottom: spacing.small, justifyContent: 'flex-start'}}>
+                                <Button
+                                    text={'Topup'}
+                                    LeftAccessory={() => (
+                                        <Icon
+                                        icon='faPlus'
+                                        color={color}
+                                        size={spacing.small}                  
+                                        />
+                                    )}
+                                    preset='secondary'
+                                    textStyle={{fontSize: 14, color}}
+                                    onPress={() => gotoTopup(mintsByUnit.unit, mint.mintUrl)}
+                                    style={{
+                                        minHeight: moderateVerticalScale(40), 
+                                        paddingVertical: moderateVerticalScale(spacing.tiny),
+                                        marginRight: spacing.small
+                                    }}                    
+                                />
+                                {/*<Button
+                                    text={'Exchange'}
+                                    LeftAccessory={() => (
+                                        <Icon
+                                        icon='faRotate'
+                                        color={color}
+                                        size={spacing.medium}                  
+                                        />
+                                    )}
+                                    textStyle={{fontSize: 14, color}}
+                                    preset='tertiary'
+                                    onPress={props.gotoMintInfo}
+                                    style={{minHeight: moderateVerticalScale(40), paddingVertical: moderateVerticalScale(spacing.tiny)}}                    
+                                />*/}
+                                <Button
+                                    text={'Pay'}
+                                    LeftAccessory={() => (
+                                        <Icon
+                                        icon='faBolt'
+                                        color={color}
+                                        size={spacing.small}                  
+                                        />
+                                    )}
+                                    textStyle={{fontSize: 14, color}}
+                                    preset='secondary'
+                                    onPress={() => gotoLightningPay(mintsByUnit.unit, mint.mintUrl)}
+                                    style={{
+                                        minHeight: moderateVerticalScale(40), 
+                                        paddingVertical: moderateVerticalScale(spacing.tiny),
+                                        marginRight: spacing.small
+                                    }}                    
+                                />
+                                {/*<Button
+                                    text={'Send'}
+                                    LeftAccessory={() => (
+                                        <Icon
+                                        icon='faMoneyBill1'
+                                        color={color}
+                                        size={spacing.medium}                  
+                                        />
+                                    )}
+                                    textStyle={{fontSize: 14, color}}
+                                    preset='secondary'
+                                    onPress={() => gotoSend(mintsByUnit.unit, mint.mintUrl)}
+                                    style={{
+                                        minHeight: moderateVerticalScale(40), 
+                                        paddingVertical: moderateVerticalScale(spacing.tiny),
+                                        marginRight: spacing.tiny
+                                    }}                    
+                                />*/}
+                                <Button
+                                    text={'Mint'}
+                                    LeftAccessory={() => (
+                                        <View style={{marginHorizontal: spacing.extraSmall}}>
+                                            <SvgXml 
+                                                width={spacing.small} 
+                                                height={spacing.small} 
+                                                xml={MintIcon}
+                                                fill={color}
+                                            />
+                                        </View>
+                                    )}
+                                    textStyle={{fontSize: 14, color}}
+                                    preset='secondary'
+                                    onPress={() => gotoMintInfo(mint.mintUrl)}
+                                    style={{
+                                        minHeight: moderateVerticalScale(40), 
+                                        paddingVertical: moderateVerticalScale(spacing.tiny),
+                                        marginRight: spacing.small
+                                    }}                    
                                 />
                             </View>
-                        }
-                        RightComponent={
-                            <CurrencyAmount 
-                                amount={mint.balances?.balances[mintsByUnit.unit as MintUnit] || 0}
-                                mintUnit={mintsByUnit.unit}
-                                size='medium'
-                            />                    
-                        }
-                        //topSeparator={true}
-                        style={$item}
-                        onPress={() => onSelectedMint(mint.mintUrl)}
-                    />
-                    {selectedMintUrl === mint.mintUrl &&  (
-                        <View style={{flexDirection: 'row', marginBottom: spacing.small, justifyContent: 'flex-start'}}>
-                            <Button
-                                text={'Topup'}
-                                LeftAccessory={() => (
-                                    <Icon
-                                    icon='faPlus'
-                                    color={color}
-                                    size={spacing.small}                  
-                                    />
-                                )}
-                                preset='secondary'
-                                textStyle={{fontSize: 14, color}}
-                                onPress={() => gotoTopup(mintsByUnit.unit, mint.mintUrl)}
-                                style={{
-                                    minHeight: moderateVerticalScale(40), 
-                                    paddingVertical: moderateVerticalScale(spacing.tiny),
-                                    marginRight: spacing.small
-                                }}                    
-                            />
-                            {/*<Button
-                                text={'Exchange'}
-                                LeftAccessory={() => (
-                                    <Icon
-                                    icon='faRotate'
-                                    color={color}
-                                    size={spacing.medium}                  
-                                    />
-                                )}
-                                textStyle={{fontSize: 14, color}}
-                                preset='tertiary'
-                                onPress={props.gotoMintInfo}
-                                style={{minHeight: moderateVerticalScale(40), paddingVertical: moderateVerticalScale(spacing.tiny)}}                    
-                            />*/}
-                            <Button
-                                text={'Pay'}
-                                LeftAccessory={() => (
-                                    <Icon
-                                    icon='faBolt'
-                                    color={color}
-                                    size={spacing.small}                  
-                                    />
-                                )}
-                                textStyle={{fontSize: 14, color}}
-                                preset='secondary'
-                                onPress={() => gotoLightningPay(mintsByUnit.unit, mint.mintUrl)}
-                                style={{
-                                    minHeight: moderateVerticalScale(40), 
-                                    paddingVertical: moderateVerticalScale(spacing.tiny),
-                                    marginRight: spacing.small
-                                }}                    
-                            />
-                            {/*<Button
-                                text={'Send'}
-                                LeftAccessory={() => (
-                                    <Icon
-                                    icon='faMoneyBill1'
-                                    color={color}
-                                    size={spacing.medium}                  
-                                    />
-                                )}
-                                textStyle={{fontSize: 14, color}}
-                                preset='secondary'
-                                onPress={() => gotoSend(mintsByUnit.unit, mint.mintUrl)}
-                                style={{
-                                    minHeight: moderateVerticalScale(40), 
-                                    paddingVertical: moderateVerticalScale(spacing.tiny),
-                                    marginRight: spacing.tiny
-                                }}                    
-                            />*/}
-                            <Button
-                                text={'Mint'}
-                                LeftAccessory={() => (
-                                    <View style={{marginHorizontal: spacing.extraSmall}}>
-                                        <SvgXml 
-                                            width={spacing.small} 
-                                            height={spacing.small} 
-                                            xml={MintIcon}
-                                            fill={color}
-                                        />
-                                    </View>
-                                )}
-                                textStyle={{fontSize: 14, color}}
-                                preset='secondary'
-                                onPress={() => gotoMintInfo(mint.mintUrl)}
-                                style={{
-                                    minHeight: moderateVerticalScale(40), 
-                                    paddingVertical: moderateVerticalScale(spacing.tiny),
-                                    marginRight: spacing.small
-                                }}                    
-                            />
+                        )}
                         </View>
-                    )}
-                    </View>
-                ))}
-            </>
+                    ))}
+                </ScrollView>
             }            
             contentStyle={{color}}            
-            style={$card}
+            style={[$card, {maxHeight: spacing.screenHeight * 0.6}]}
         />
     )
 })

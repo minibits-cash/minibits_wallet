@@ -240,7 +240,10 @@ export const MintModel = types
             const mintBalance: MintBalance | undefined = getRootStore(self).proofsStore.getMintBalance(self.mintUrl)
             return mintBalance
         },
-    }))
+        get keysets(): string[] {
+            return self.proofsCounters.map(c => c.keyset)
+        }
+     }))
     
     
 

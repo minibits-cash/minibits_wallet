@@ -281,7 +281,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                         fee: 0,
                         unit: selectedKeyset?.unit as MintUnit,
                         data: JSON.stringify(transactionData),
-                        memo: 'Wallet recovery',
+                        memo: 'Wallet recovery from seed',
                         mint: recoveredMint.mintUrl,
                         status: TransactionStatus.PREPARED,
                     }
