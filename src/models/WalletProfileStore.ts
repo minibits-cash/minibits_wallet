@@ -112,26 +112,20 @@ export const WalletProfileStoreModel = types
             log.trace('[create]', {seedHash, publicKey})
 
             try {
+                // creates new profile. If all params equal existing one, it is returned
                 profileRecord = yield MinibitsClient.createWalletProfile(publicKey, walletId, seedHash)        
             } catch (e: any) {
-                // Unlikely we might hit the same walletId or loose walletProfile state while keeping keys in the Keychain. 
-                // In such cases we do full reset.
+                // Unlikely we might hit the same walletId so we retry with another one
                 if(e.name === Err.ALREADY_EXISTS_ERROR) {
-                    
-                    // clean and recreate Nostr keys
-                    yield KeyChain.removeNostrKeypair()                    
-                    const {publicKey} = yield NostrClient.getOrCreateKeyPair()
                     // recreate walletId + default name
                     const name = getRandomUsername()
                     const userSettingsStore = getRootStore(self).userSettingsStore
                     userSettingsStore.setWalletId(name)
-                    // attempt to create new unique profile again
-                    // this removes abandoned profile with the same seedHash if any
+                    // attempt to create new unique profile again                    
                     profileRecord = yield MinibitsClient.createWalletProfile(publicKey, name, seedHash) 
                     
-                    log.error('[create]', 'Profile reset executed to resolve duplicate profile on the server.', {caller: 'create', walletId, newWalletId: name})
+                    log.error('[create]', 'Profile reset executed to resolve duplicate walletId on the server.', {caller: 'create', walletId, newWalletId: name})
                     self.hydrate(profileRecord)
-
                     return
                 }
 
