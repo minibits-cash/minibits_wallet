@@ -49,6 +49,10 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
     useEffect(() => {
         const handleSpentByMintTaskResult = async (result: WalletTaskResult) => {
             log.warn('handleSpentByMintTaskResult event handler triggered')
+
+            if(!isHandleSpentFromSpendableSentToQueue) {
+              return false
+            }
             
             setIsLoading(false)            
             // runs per each mint
