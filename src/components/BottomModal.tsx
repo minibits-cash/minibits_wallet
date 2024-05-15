@@ -226,8 +226,8 @@ const $outerContainerBase: ViewStyle = {
 const $innerContainerBase: ViewStyle = {
     width: '100%',    
     alignItems: 'center',
-    borderTopLeftRadius: spacing.large,
-    borderTopRightRadius: spacing.large,
+    borderTopLeftRadius: spacing.small,
+    borderTopRightRadius: spacing.small,
     padding: spacing.small,
 }
 

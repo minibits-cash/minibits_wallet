@@ -393,6 +393,8 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
             </>
           )}
           {isLoading && <Loading />}
+          {error && <ErrorModal error={error} />}
+          {info && <InfoModal message={info} />}
         </View>
         <BottomModal
           isVisible={isResultModalVisible ? true : false}          
@@ -455,8 +457,6 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
           onBackButtonPress={toggleResultModal}
           onBackdropPress={toggleResultModal}
         />
-        {error && <ErrorModal error={error} />}
-        {info && <InfoModal message={info} />}
       </Screen>
     )
   },

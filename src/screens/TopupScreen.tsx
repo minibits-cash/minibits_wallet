@@ -117,6 +117,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
             : false
         }        
         const timer = setTimeout(() => focus(), 100)
+
         return () => {
             clearTimeout(timer)
         }
@@ -322,6 +323,10 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
             const amount = round(toNumber(amountToTopup) * precision, 0)
 
             log.trace('[onAmountEndEditing]', amount)
+
+            if(!isInternetReachable) {
+              setInfo('Your device is currently offline.')
+            }
 
             if (!amount || amount === 0) {
                 infoMessage('Amount should be positive number.')          
@@ -571,6 +576,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     }
     // const inputBg = useThemeColor('background')
     const satsColor = colors.palette.primary200
+    const warningColor = useThemeColor('warn')
 
     return (
       <Screen preset="fixed" contentContainerStyle={$screen}>        
@@ -591,7 +597,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                     keyboardType="numeric"
                     selectTextOnFocus={true}
                     editable={
-                      (transactionStatus === TransactionStatus.PENDING || !isInternetReachable)
+                      (transactionStatus === TransactionStatus.PENDING)
                       ? false 
                       : true
                     }
@@ -639,7 +645,8 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
               </View>
             }
           /> 
-        )}                   
+        )}
+                  
         {isMintSelectorVisible && (
           <MintBalanceSelector
               mintBalances={availableMintBalances}
@@ -710,6 +717,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
             </View>
         )}
         {isLoading && <Loading />}
+        {info && <InfoModal message={info} />}
         </View>        
         <BottomModal
           isVisible={isNostrDMModalVisible ? true : false}

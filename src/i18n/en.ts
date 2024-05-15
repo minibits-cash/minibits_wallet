@@ -216,8 +216,8 @@ const en = {
 		},
 		// might move this to common later if it gets used in other screens
 		listItem: {
-			expires: "Expires %{datetime}",
-			expired: "Expired %{datetime}",
+			expires: "Expires",
+			expired: "Expired",
 			requestPaymentSuccess: 'Request has been paid'
 		}
 	},

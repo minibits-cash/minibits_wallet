@@ -489,9 +489,9 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
             </View>  
           </View>          
           {isLoading && <Loading />}
+          {error && <ErrorModal error={error} />}
+          {info && <InfoModal message={info} />}
         </View>
-        {error && <ErrorModal error={error} />}
-        {info && <InfoModal message={info} />}
       </Screen>
     )
   }

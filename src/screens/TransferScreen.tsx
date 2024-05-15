@@ -49,6 +49,7 @@ import { MintHeader } from './Mints/MintHeader'
 import { MintBalanceSelector } from './Mints/MintBalanceSelector'
 import numbro from 'numbro'
 import { TranItem } from './TranDetailScreen'
+import useIsInternetReachable from '../utils/useIsInternetReachable'
 
 
 if (
@@ -63,6 +64,8 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
 
     const amountInputRef = useRef<TextInput>(null)
     const {proofsStore, mintsStore, paymentRequestsStore, transactionsStore} = useStores()
+
+    const isInternetReachable = useIsInternetReachable()
 
     const [encodedInvoice, setEncodedInvoice] = useState<string>('')
     const [invoice, setInvoice] = useState<DecodedLightningInvoice | undefined>()
@@ -479,6 +482,11 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
             infoMessage('Invoice amount should be positive number')            
             return
         }
+
+
+        if(!isInternetReachable) {
+            setInfo('Your device is currently offline.')
+        }
         
         setEncodedInvoice(encoded)
         setInvoice(invoice)        
@@ -675,6 +683,8 @@ const satsColor = colors.palette.primary200
                     </View>
                 )}
                 {isLoading && <Loading />}
+                {error && <ErrorModal error={error} />}
+                {info && <InfoModal message={info} />}
             </View>
             <BottomModal
                 isVisible={isResultModalVisible}
@@ -766,8 +776,6 @@ const satsColor = colors.palette.primary200
                 onBackButtonPress={toggleResultModal}
                 onBackdropPress={toggleResultModal}
             />
-            {error && <ErrorModal error={error} />}
-            {info && <InfoModal message={info} />}
         </Screen>
     )
   }

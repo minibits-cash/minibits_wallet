@@ -130,18 +130,21 @@ export const sendTask = async function (
 
         log.trace('[send] totalBalance after', balanceAfter)
 
-        // Start polling for accepted payment        
-        poller(
-            `handleSpentByMintPoller-${mintUrl}`,
-            WalletTask.handleSpentByMint,
-            {
-                interval: 6 * 1000,
-                maxPolls: 10,
-                maxErrors: 2
-            },
-            {mintUrl, isPending: true}
-        )
-        .then(() => log.trace('[handleSpentByMintPoller]', 'polling completed', {mintUrl}))        
+        // Start polling for accepted payment is it is not offline send
+        if(selectedProofs.length === 0) {
+            poller(
+                `handleSpentByMintPoller-${mintUrl}`,
+                WalletTask.handleSpentByMint,
+                {
+                    interval: 6 * 1000,
+                    maxPolls: 10,
+                    maxErrors: 2
+                },
+                {mintUrl, isPending: true}
+            )
+            .then(() => log.trace('[handleSpentByMintPoller]', 'polling completed', {mintUrl}))  
+        }      
+      
 
         return {
             taskFunction: 'sendTask',

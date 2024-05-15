@@ -42,14 +42,12 @@ import {
 } from '../components'
 import {TransactionStatus, Transaction} from '../models/Transaction'
 import {useStores} from '../models'
-import {useHeader} from '../utils/useHeader'
 import {NostrClient, NostrUnsignedEvent, TransactionTaskResult, WalletTask} from '../services'
 import {log} from '../services/logService'
 import AppError, {Err} from '../utils/AppError'
 import {translate} from '../i18n'
 
-import {Mint, MintBalance} from '../models/Mint'
-import {MintListItem} from './Mints/MintListItem'
+import {MintBalance} from '../models/Mint'
 import EventEmitter from '../utils/eventEmitter'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
@@ -105,7 +103,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     const [isLoading, setIsLoading] = useState(false)
 
     const [isMintSelectorVisible, setIsMintSelectorVisible] = useState(false)
-    const [isQRModalVisible, setIsQRModalVisible] = useState(false)     
+    const [isOfflineSend, setIsOfflineSend] = useState(false)     
     const [isNostrDMModalVisible, setIsNostrDMModalVisible] = useState(false)
     const [isProofSelectorModalVisible, setIsProofSelectorModalVisible] = useState(false) // offline mode
     const [isSendTaskSentToQueue, setIsSendTaskSentToQueue] = useState(false)
@@ -119,7 +117,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             ? amountInputRef.current.focus()
             : false
         }        
-        const timer = setTimeout(() => focus(), 100)
+        const timer = setTimeout(() => focus(), 100)        
         return () => {
             clearTimeout(timer)
         }
@@ -217,7 +215,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     // Offline send
     useEffect(() => {        
         if(isInternetReachable) return
-        log.trace('Offline send effect')
+        log.trace('[Offline send]')
 
         // if offline we set all non-zero mint balances as available to allow ecash selection
         const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(1, unit)
@@ -229,13 +227,10 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         
         log.trace('Setting availableBalances')
 
+        setIsOfflineSend(true)
         setAvailableMintBalances(availableBalances)
-        if (availableBalances.length === 1) {
-            log.trace('Setting mintBalanceToSendFrom')
-            setMintBalanceToSendFrom(availableBalances[0])
-        }
-
-        setIsProofSelectorModalVisible(true)        
+        setMintBalanceToSendFrom(availableBalances[0])        
+        setIsMintSelectorVisible(true)      
     }, [isInternetReachable])
 
 
@@ -265,11 +260,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 return
             }
     
-            setIsMintSelectorVisible(false)
-    
-            if (paymentOption === SendOption.SHOW_TOKEN) {
-                toggleQRModal()
-            }
+            setIsMintSelectorVisible(false)   
     
             if (paymentOption === SendOption.SEND_TOKEN) {
                 toggleNostrDMModal()
@@ -298,8 +289,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                     transactionId,
                 )
 
-                setTransactionStatus(TransactionStatus.COMPLETED)
-                setIsQRModalVisible(false) // needed ??                
+                setTransactionStatus(TransactionStatus.COMPLETED)                
                 setIsProofSelectorModalVisible(false)
 
                 const receiver = (contactToSendTo?.nip05) ? contactToSendTo?.nip05 : 'unknown wallet'
@@ -328,13 +318,10 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             EventEmitter.off('ev_sendCompleted', handleSendCompleted)
         }
     }, [transactionId])
-
-    
-    const toggleQRModal = () => setIsQRModalVisible(previousState => !previousState)
+       
     const toggleNostrDMModal = () => setIsNostrDMModalVisible(previousState => !previousState)
     const toggleProofSelectorModal = () => setIsProofSelectorModalVisible(previousState => !previousState)
     const toggleResultModal = () => setIsResultModalVisible(previousState => !previousState)
-
 
     const onAmountEndEditing = function () {
         try {        
@@ -428,6 +415,15 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     }
 
 
+    const onSelectProofsOffline = async function () {
+        if (!mintBalanceToSendFrom) {
+            return
+        }       
+
+        setIsProofSelectorModalVisible(true)
+    }
+
+
 
     const onMintBalanceCancel = async function () {
         setIsMintSelectorVisible(false)
@@ -511,34 +507,6 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         }
     }
 
-    const onShareToApp = async () => {
-        try {
-          const result = await Share.share({
-            message: encodedTokenToSend as string,
-          })
-  
-          if (result.action === Share.sharedAction) {          
-            setTimeout(
-              () => infoMessage('Ecash has been shared, waiting to be claimed by receiver'),              
-              500,
-            )
-          } else if (result.action === Share.dismissedAction) {
-            infoMessage('Sharing cancelled')          
-          }
-        } catch (e: any) {
-          handleError(e)
-        }
-      }
-
-
-    const onCopy = function () {
-        try {
-            Clipboard.setString(encodedTokenToSend as string)
-        } catch (e: any) {
-            setInfo(`Could not copy: ${e.message}`)
-        }
-    }
-
 
     const toggleSelectedProof = function (proof: Proof) {
         setSelectedProofs(prevSelectedProofs => {
@@ -564,16 +532,9 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     }
 
 
-    const onSelectProofsConfirm = function () {
-        setIsAmountEndEditing(true)
+    const onOfflineSendConfirm = function () {
         toggleProofSelectorModal() // close
-
-        const focus = () => {
-            memoInputRef && memoInputRef.current
-            ? memoInputRef.current.focus()
-            : false
-        }        
-        const timer = setTimeout(() => focus(), 500)
+        onMintBalanceConfirm()
     }
 
 
@@ -596,8 +557,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         setIsNostrDMModalVisible(false)
         setIsSharedAsNostrDirectMessage(false)
         setIsNostrDMSending(false)
-        setIsNostrDMModalVisible(false)       
-        setIsQRModalVisible(false)
+        setIsNostrDMModalVisible(false)
         setIsProofSelectorModalVisible(false)
         setIsLoading(false)
 
@@ -607,8 +567,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
     const handleError = function(e: AppError): void {
         // TODO resetState() on all tx data on error? Or save txId to state and allow retry / recovery?
-        setIsNostrDMSending(false)        
-        setIsQRModalVisible(false)
+        setIsNostrDMSending(false)
         setIsProofSelectorModalVisible(false)
         setIsNostrDMModalVisible(false)
         setIsLoading(false)
@@ -638,7 +597,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                     keyboardType="numeric"
                     selectTextOnFocus={true}
                     editable={
-                        (transactionStatus === TransactionStatus.PENDING || !isInternetReachable)
+                        (transactionStatus === TransactionStatus.PENDING || isOfflineSend)
                             ? false 
                             : true
                     }
@@ -687,30 +646,17 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 }
             />
             )} 
-            {!isInternetReachable && !isMemoEndEditing && (
-                <Button
-                    preset="secondary"                    
-                    text="Select ecash to send"
-                    style={{alignSelf: 'center'}}
-                    onPress={toggleProofSelectorModal}
-                    disabled={
-                        transactionStatus === TransactionStatus.PENDING
-                        ? true
-                        : false
-                    }
-                />
-            )}
-          
+         
             {isMintSelectorVisible && (
                 <MintBalanceSelector
                     mintBalances={availableMintBalances}
                     selectedMintBalance={mintBalanceToSendFrom as MintBalance}
                     unit={unit}
                     title='Send from mint'
-                    confirmTitle='Create token'
+                    confirmTitle={isOfflineSend ? 'Send offline' : 'Create token'}
                     onMintBalanceSelect={onMintBalanceSelect}
                     onCancel={onMintBalanceCancel}              
-                    onMintBalanceConfirm={onMintBalanceConfirm}
+                    onMintBalanceConfirm={isOfflineSend ? onSelectProofsOffline : onMintBalanceConfirm}
                 />
             )}
             {transactionStatus === TransactionStatus.PENDING && encodedTokenToSend && paymentOption && (
@@ -768,20 +714,20 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 </View>
             )}
             {isLoading && <Loading />}
+            {error && <ErrorModal error={error} />}
+            {info && <InfoModal message={info} />}
         </View>
         <BottomModal
           isVisible={isProofSelectorModalVisible}
           ContentComponent={
             <SelectProofsBlock
-                availableMintBalances={availableMintBalances}
                 mintBalanceToSendFrom={mintBalanceToSendFrom as MintBalance}
-                unit={unit}                
-                onMintBalanceSelect={onMintBalanceSelect}
+                unit={unit}
                 selectedProofs={selectedProofs}               
                 toggleProofSelectorModal={toggleProofSelectorModal}
                 toggleSelectedProof={toggleSelectedProof} 
                 resetSelectedProofs={resetSelectedProofs}           
-                onSelectProofsConfirm={onSelectProofsConfirm}                
+                onOfflineSendConfirm={onOfflineSendConfirm}                
             />
           }
           onBackButtonPress={toggleProofSelectorModal}
@@ -861,117 +807,75 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
           onBackButtonPress={toggleResultModal}
           onBackdropPress={toggleResultModal}
         />
-        {error && <ErrorModal error={error} />}
-        {info && <InfoModal message={info} />}
       </Screen>
     )
   }
 )
 
 
-const SelectProofsBlock = observer(function (props: {
-    availableMintBalances: MintBalance[]
+const SelectProofsBlock = observer(function (props: {    
     mintBalanceToSendFrom: MintBalance
-    unit: MintUnit    
-    onMintBalanceSelect: any
+    unit: MintUnit
     selectedProofs: Proof[]
     toggleProofSelectorModal: any                    
     toggleSelectedProof: any
     resetSelectedProofs: any
-    onSelectProofsConfirm: any
+    onOfflineSendConfirm: any
   }) {
 
-    const {proofsStore, mintsStore} = useStores()
+    const {proofsStore} = useStores()
     const hintColor = useThemeColor('textDim')
 
-    const onMintSelect = function (balance: MintBalance) {
-        log.info('onMintBalanceSelect', balance.mintUrl)
-        return props.onMintBalanceSelect(balance)
+    
+    const onCancel = function () {        
+        props.resetSelectedProofs()
+        props.toggleProofSelectorModal()        
     }
     
-    const onBack = function () {        
-        props.resetSelectedProofs()
-        props.onMintBalanceSelect(undefined)
-    }
+    return (
+        <View style={$bottomModal}>
+            <Text text='Select ecash to send' />
+            <Text
+                text='You can send only exact ecash denominations while you are offline.'
+                style={{color: hintColor, paddingHorizontal: spacing.small, textAlign: 'center', marginBottom: spacing.small}}
+                size='xs'
+            />
+            <View style={{maxHeight: spacing.screenHeight * 0.45}}>
+                <FlatList<Proof>
+                    data={proofsStore.getByMint(props.mintBalanceToSendFrom.mintUrl, {isPending: false, unit: props.unit})}
+                    renderItem={({ item }) => {
+                        const isSelected = props.selectedProofs.some(
+                            p => p.secret === item.secret
+                        )
 
-    if(!props.mintBalanceToSendFrom) {
-        return (
-            <View style={$bottomModal}>
-                <Text text='Select mint to send from' />
-                <Text
-                    text='You can send only exact ecash denominations while you are offline.'
-                    style={{color: hintColor, paddingHorizontal: spacing.small, textAlign: 'center', marginBottom: spacing.small}}
-                    size='xs'
-                />
-                <ScrollView style={{maxHeight: spacing.screenHeight * 0.5, alignSelf: 'stretch'}}>
-                    {props.availableMintBalances.map(
-                        (balance: MintBalance, index: number) => (
-                            <MintListItem
-                                key={balance.mintUrl}
-                                mint={mintsStore.findByUrl(balance.mintUrl) as Mint}
-                                mintBalance={balance}
-                                onMintSelect={() => onMintSelect(balance)}
-                                isSelectable={true}
-                                isSelected={props.mintBalanceToSendFrom ? props.mintBalanceToSendFrom.mintUrl === balance.mintUrl : false}
-                                separator={'top'}
+                        return (
+                            <Button
+                                preset={isSelected ? 'default' : 'secondary'}
+                                onPress={() => props.toggleSelectedProof(item)}
+                                text={`${item.amount}`}
+                                style={{minWidth: 80, margin: spacing.small}}
                             />
                         )
-                    )}
-                </ScrollView>
-                <View style={$buttonContainer}>
-                    <Button 
-                        preset="secondary" 
-                        text="Cancel" 
-                        onPress={props.toggleProofSelectorModal} 
-                    />        
-                </View>
-            </View>
-        )
-    } else {
-        return (
-            <View style={$bottomModal}>
-                <Text text='Select ecash to send' />
-                <Text
-                    text='You can send only exact ecash denominations while you are offline.'
-                    style={{color: hintColor, paddingHorizontal: spacing.small, textAlign: 'center', marginBottom: spacing.small}}
-                    size='xs'
+                    }}
+                    numColumns={3}
+                    keyExtractor={(item) => item.secret}
                 />
-                <View style={{maxHeight: spacing.screenHeight * 0.5}}>
-                    <FlatList<Proof>
-                        data={proofsStore.getByMint(props.mintBalanceToSendFrom.mintUrl, {isPending: false, unit: props.unit})}
-                        renderItem={({ item }) => {
-                            const isSelected = props.selectedProofs.some(
-                                p => p.secret === item.secret
-                            )
-    
-                            return (
-                                <Button
-                                    preset={isSelected ? 'default' : 'secondary'}
-                                    onPress={() => props.toggleSelectedProof(item)}
-                                    text={`${item.amount}`}
-                                    style={{minWidth: 80, margin: spacing.small}}
-                                />
-                            )
-                        }}
-                        numColumns={3}
-                        keyExtractor={(item) => item.secret}
-                    />
-                </View>
-                <View style={$buttonContainer}>
-                    <Button
-                        text="Confirm selection"
-                        onPress={props.onSelectProofsConfirm}
-                        style={{marginRight: spacing.medium}}          
-                    />
-                    <Button 
-                        preset="secondary" 
-                        text="Back" 
-                        onPress={onBack} 
-                    />        
-                </View>
             </View>
-        )
-    }    
+            <View style={[$buttonContainer, {marginTop: spacing.extraLarge}]}>
+                <Button
+                    text="Create token"
+                    onPress={props.onOfflineSendConfirm}
+                    style={{marginRight: spacing.medium}}          
+                />
+                <Button 
+                    preset="secondary" 
+                    text="Cancel" 
+                    onPress={onCancel} 
+                />        
+            </View>
+        </View>
+    )
+    
   })
 
 

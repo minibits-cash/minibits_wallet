@@ -53,10 +53,15 @@ export const ProofsStoreModel = types
             const proofs = options.isPending ? self.pendingProofs : self.proofs
             
             if (options.unit) {
-                return proofs.filter(proof => proof.mintUrl === mintUrl && proof.unit === options.unit)    
+                return proofs.filter(proof => proof.mintUrl === mintUrl && proof.unit === options.unit)
+                .slice()
+                .sort((a, b) => b.amount - a.amount)   
             }
 
             return proofs.filter(proof => proof.mintUrl === mintUrl)
+                .slice()
+                .sort((a, b) => b.amount - a.amount)
+
         },
         getProofInstance(proof: Proof, isPending: boolean = false) {
             let proofInstance: Proof | undefined

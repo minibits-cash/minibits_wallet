@@ -470,7 +470,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                         </View>                        
                     </View>     
                 ))}                       
-            </AnimatedPagerView>
+            </AnimatedPagerView>   
             <View style={$bottomContainer}>
                 <View style={$buttonContainer}>
                     <Button
@@ -514,8 +514,10 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                         preset='tertiary'
                     /> 
                 </View>  
-            </View>       
-        {isLoading && <Loading />}       
+            </View>
+            {info && <InfoModal message={info} />}
+            {error && <ErrorModal error={error} />}
+            {isLoading && <Loading />}
         <BottomModal
           isVisible={isUpdateModalVisible ? true : false}
           style={{alignItems: 'stretch'}}
@@ -536,9 +538,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
           }
           onBackButtonPress={toggleUpdateModal}
           onBackdropPress={toggleUpdateModal}
-        />        
-        {info && <InfoModal message={info} />}
-        {error && <ErrorModal error={error} />}
+        />       
+
       </Screen>
     )
   },

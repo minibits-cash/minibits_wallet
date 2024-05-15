@@ -10,7 +10,7 @@ import {colors, spacing, useThemeColor} from '../theme'
 import {log} from '../services/logService'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 import AppError, { Err } from '../utils/AppError'
-import { Button, Card, ErrorModal, Header, Icon, ListItem, ScanIcon, Screen, Text } from '../components'
+import { Button, Card, ErrorModal, Header, Icon, InfoModal, ListItem, ScanIcon, Screen, Text } from '../components'
 import { LnurlUtils } from '../services/lnurl/lnurlUtils'
 import { infoMessage } from '../utils/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
@@ -21,12 +21,14 @@ import { useStores } from '../models'
 import { Mint } from '../models/Mint'
 import { MintHeader } from './Mints/MintHeader'
 import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
+import useIsInternetReachable from '../utils/useIsInternetReachable'
 
 
 export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = function LightningPayScreen(_props) {
     const {navigation, route} = _props
     const lightningInputRef = useRef<TextInput>(null)
     const {mintsStore} = useStores()
+    const isInternetReachable = useIsInternetReachable()
 
     /* useEffect(() => {
         const focus = () => {
@@ -54,6 +56,10 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                     const mint = mintsStore.findByUrl(mintUrl)    
                     setMint(mint)
                 }
+
+                if(!isInternetReachable) {
+                    setInfo('Your device is currently offline.')
+                }
             } catch (e: any) {
                 handleError(e)
             }
@@ -70,6 +76,7 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
     const [unit, setUnit] = useState<MintUnit>('sat')
     const [mint, setMint] = useState<Mint | undefined>(undefined)    
     const [error, setError] = useState<AppError | undefined>()
+    const [info, setInfo] = useState('')
 
 
     const onPaste = async function() {        
@@ -293,9 +300,9 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                         marginTop: spacing.medium
                     }}                    
                 />
-                
-            </View>
+            {info && <InfoModal message={info} />}
             {error && <ErrorModal error={error} />}
+            </View>
         </Screen>    
     )
 }

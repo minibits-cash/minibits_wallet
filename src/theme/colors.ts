@@ -140,6 +140,11 @@ export const colors = {
      */
     info: palette.success100,
     /**
+     * Warning Background.
+     *
+     */
+    warn: palette.accent400,
+    /**
      * The default card color.
      */
     card: palette.neutral100,
@@ -213,6 +218,11 @@ export const colors = {
      *
      */
     info: palette.success200,
+    /**
+     * Warning Background.
+     *
+     */
+    warn: palette.accent500,
     /**
      * The default card color.
      */
