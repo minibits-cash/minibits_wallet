@@ -224,6 +224,12 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
 
         try {
             if(!recoveredMint) {                
+                setInfo('Please select the mint.')
+                return
+            }
+
+            if(!selectedKeyset) {                
+                setInfo('Please select keyset.')
                 return
             }
             
@@ -236,7 +242,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                 {
                     indexFrom: startIndex, 
                     indexTo: endIndex,                    
-                    keysetId: selectedKeyset?.id as string
+                    keysetId: selectedKeyset.id as string
                 }                
             )
 
@@ -245,7 +251,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
             
             if (proofs.length > 0) {
                 // need to move counter by whole interval to avoid duplicate _B!!!
-                recoveredMint.increaseProofsCounter(selectedKeyset?.id as string, Math.abs(endIndex - startIndex))
+                recoveredMint.increaseProofsCounter(selectedKeyset.id as string, Math.abs(endIndex - startIndex))
                 
                 const {spent, pending} = await MintClient.getSpentOrPendingProofsFromMint(
                     recoveredMint.mintUrl,
@@ -279,7 +285,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                         type: TransactionType.RECEIVE,
                         amount,
                         fee: 0,
-                        unit: selectedKeyset?.unit as MintUnit,
+                        unit: selectedKeyset.unit as MintUnit,
                         data: JSON.stringify(transactionData),
                         memo: 'Wallet recovery from seed',
                         mint: recoveredMint.mintUrl,
@@ -293,7 +299,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                         recoveredMint.mintUrl,
                         unspent,
                         {
-                            unit: selectedKeyset?.unit as MintUnit,
+                            unit: selectedKeyset.unit as MintUnit,
                             transactionId: pendingTransactionId as number,
                             isPending: false
                         }            
@@ -321,8 +327,8 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                         JSON.stringify(transactionData),
                     )
 
-                    const balanceAfter = proofsStore.getBalances().mintBalances[recoveredMint.mintUrl as any].balances[selectedKeyset?.unit as MintUnit]
-                    await transactionsStore.updateBalanceAfter(transactionId, balanceAfter as number)
+                    const balanceAfter = proofsStore.getUnitBalance(selectedKeyset.unit as MintUnit)?.unitBalance
+                    await transactionsStore.updateBalanceAfter(transactionId, balanceAfter || 0)
                 }
             
                 if(pending && pending.length > 0) {

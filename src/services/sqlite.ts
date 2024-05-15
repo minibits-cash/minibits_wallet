@@ -226,10 +226,13 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
       migrationQueries.push([
           `UPDATE transactions
           SET unit = ?`, ['sat']     
+      ], [
+          `UPDATE proofs
+          SET unit = ?`, ['sat']     
       ])
 
       log.info(`Prepared database migrations from ${currentVersion} -> 10`)
-  }
+    }
 
     // Update db version as a part of migration sqls
     migrationQueries.push([
@@ -1051,6 +1054,27 @@ const getProofsByTransaction = function (transactionId: number): BackupProof[] {
   }
 }
 
+
+const updateProofsToDefaultUnit = async function () {
+  try {   
+
+    const query = `
+      UPDATE proofs
+      SET unit = ?
+      WHERE unit IS NULL OR unit = ''     
+    `
+    const params = ['sat']
+
+    const _db = getInstance()
+    const result = await _db.executeAsync(query, params)
+
+    log.info('[migrateProofsToDefaultUnit] executed in the database', {result})
+
+  } catch (e: any) {
+    throw new AppError(Err.DATABASE_ERROR, 'Could not migrateProofsToDefaultUnit  in database', e.message)
+  }
+}
+
 export const Database = {
   getInstance,
   getDatabaseVersion,
@@ -1077,4 +1101,5 @@ export const Database = {
   getProofById,
   getProofs,
   getProofsByTransaction,
+  updateProofsToDefaultUnit
 }

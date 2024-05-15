@@ -5,6 +5,7 @@ import {
   ViewStyle,
   View,
   useColorScheme,
+  Alert,
 } from 'react-native'
 import {
     type Proof as CashuProof,
@@ -34,7 +35,7 @@ import Clipboard from '@react-native-clipboard/clipboard'
 import { getEncodedToken } from '@cashu/cashu-ts'
 import { Transaction, TransactionData, TransactionRecord, TransactionStatus, TransactionType } from '../models/Transaction'
 import { WalletUtils } from '../services/wallet/utils'
-import { MintUnit } from '../services/wallet/currency'
+import { MintUnit, MintUnits, getCurrency } from '../services/wallet/currency'
 import { ScrollView } from 'react-native-gesture-handler'
 import { CurrencyAmount } from './Wallet/CurrencyAmount'
 
@@ -77,7 +78,10 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
     ) {
       try {
             setIsLoading(true)
-            const proofs = await Database.getProofs(isUnspent, isPending, isDeleted)
+            // update empty unit fields to resolve v0.1.7 upgrade issue of backed up proofs not having unit migrated
+            const update = await Database.updateProofsToDefaultUnit()
+            const proofs = await Database.getProofs(isUnspent, isPending, isDeleted)           
+
             setProofs(proofs)
             setIsLoading(false)
            
@@ -181,34 +185,74 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
     }
 
 
-    const recoverProofs = async function () {
-      try {
-          if(proofsStore.proofsCount > 0) {
-            setInfo('Your wallet contains unspent ecash, recovery is not safe.')
-            return
-          }
+    const onRecovery = async function () {
+      if(!showUnspentOnly) {
+        setInfo('Can not recover other then unspent proofs.')
+        return
+      }
 
-          if(showSpentOnly) {
-            setInfo('Can not recover proofs that were already spent.')
+      const balances = proofsStore.getBalances()
+      let message: string = ''
+
+      const nonZeroBalances = balances.mintBalances.filter(b => Object.values(b.balances).some(b => b && b > 0))        
+      
+      log.trace('[onRecovery]', nonZeroBalances)
+
+      if (nonZeroBalances && nonZeroBalances.length > 0) {
+          message = `Your wallet has non zero balance. If you continue, existing Ecash will be deleted and replaced by backup.\n\n`            
+      }
+
+      message += `Do you really want to recover Ecash from the backup?`
+
+      Alert.alert(
+      'Attention!',
+      message,
+          [
+          {
+              text: 'Cancel',
+              style: 'cancel',
+              onPress: () => {
+              // Action canceled
+              },
+          },
+          {
+              text: 'Start recovery',
+              onPress: () => {
+                try {
+                    doLocalRecovery()                  
+                } catch (e: any) {
+                    handleError(e)
+                }
+              },
+          },
+          ],
+      )
+    }
+
+
+    const doLocalRecovery = async function () {
+      try {
+          if(!showUnspentOnly) {
+            setInfo('Can not recover other then unspent proofs.')
             return
           }
 
           if(mintsStore.allMints.length === 0) {
-            setInfo('Please add all mints your proofs belong to the wallet. Then try again.')
+            setInfo('Please add all your mints to the wallet before recovery. Then try again.')
           }
         
           setIsLoading(true)
           
           for (const mint of mintsStore.allMints) {
               
-              let proofsByMint: CashuProof[] = []
+              let proofsByMint: Proof[] = []
               let transactionData: TransactionData[] = []                
 
               for (const proof of proofs) {
 
                   const proofMint = CashuUtils.getMintFromProof(proof, mintsStore.allMints)                    
                   
-                  const { tId, isPending, isSpent, updatedAt, ...cleanedProof } = proof
+                  const { isPending, isSpent, updatedAt, ...cleanedProof } = proof
 
                   if (!proofMint) { continue }                
 
@@ -219,9 +263,12 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
 
               if (proofsByMint.length > 0) {
 
-                const groupedByUnit: Record<string, Proof[]> = proofsByMint.reduce((acc, proof) => {
+                // delete from wallet storage
+                proofsStore.removeOnLocalRecovery(proofsByMint, false)
+
+                const groupedByUnit = proofsByMint.reduce((acc: Record<string, Proof[]>, proof) => {
                   // Check if there's already an array for this unit, if not, create one
-                  if (!acc[proof.unit]) {
+                  if (!acc[proof.unit as MintUnit]) {
                     acc[proof.unit] = []
                   }
                   // Push the object into the array corresponding to its unit
@@ -276,6 +323,9 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
                             addedAmount,
                         )                       
                     }
+
+                    const balanceAfter = proofsStore.getUnitBalance(unit as MintUnit)?.unitBalance || 0
+                    await transactionsStore.updateBalanceAfter(transactionId, balanceAfter)
       
                     // Finally, update completed transaction
                     transactionData.push({
@@ -381,65 +431,23 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
                 <ListItem
                   text={'Number of proofs'}
                   RightComponent={
-                    <Text text={`${proofs.length}`} />
+                    <Text text={`${proofs.length}`} style={{marginRight: spacing.small}} />
                   }                            
                 />
-                {proofs.some(p => p.unit === 'sat') && (
-                  <ListItem
-                    text={'SAT'}
-                    RightComponent={
-                      <CurrencyAmount 
-                        amount={CashuUtils.getProofsAmount(proofs.filter(p => p.unit === 'sat'))} 
-                        mintUnit='sat'  
-                      />
-                    }                            
-                  />
-                )}
-                {proofs.some(p => p.unit === 'msat') && (
-                  <ListItem
-                    text={'mSAT'}
-                    RightComponent={
-                      <CurrencyAmount 
-                        amount={CashuUtils.getProofsAmount(proofs.filter(p => p.unit === 'msat'))} 
-                        mintUnit='msat'  
-                      />
-                    }                            
-                  />
-                )}
-                {proofs.some(p => p.unit === 'btc') && (
-                  <ListItem
-                    text={'BTC'}
-                    RightComponent={
-                      <CurrencyAmount 
-                        amount={CashuUtils.getProofsAmount(proofs.filter(p => p.unit === 'btc'))} 
-                        mintUnit='btc'  
-                      />
-                    }                            
-                  />
-                )}
-                {proofs.some(p => p.unit === 'usd') && (
-                  <ListItem
-                    text={'USD'}
-                    RightComponent={
-                      <CurrencyAmount 
-                        amount={CashuUtils.getProofsAmount(proofs.filter(p => p.unit === 'usd'))} 
-                        mintUnit='usd'  
-                      />
-                    }                            
-                  />
-                )}
-                {proofs.some(p => p.unit === 'eur') && (
-                  <ListItem
-                    text={'EUR'}
-                    RightComponent={
-                      <CurrencyAmount 
-                        amount={CashuUtils.getProofsAmount(proofs.filter(p => p.unit === 'eur'))} 
-                        mintUnit='eur'  
-                      />
-                    }                            
-                  />
-                )}
-             
+                {Object.values(MintUnits).map(unit => 
+                  proofs.some(p => p.unit === unit) && (
+                    <ListItem
+                      key={unit}
+                      text={getCurrency(unit).code}
+                      RightComponent={
+                        <CurrencyAmount 
+                          amount={CashuUtils.getProofsAmount(proofs.filter(p => p.unit === unit))} 
+                          mintUnit='sat'
+                          containerStyle={{marginRight: spacing.extraSmall}} 
+                        />
+                      }                            
+                    />
+                ))}
                 </>
               }
               FooterComponent={
@@ -475,7 +483,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
           <View style={$bottomContainer}>
             <View style={$buttonContainer}>
               <Button 
-                onPress={recoverProofs}
+                onPress={onRecovery}
                 text={`Recover to wallet`}
               />  
             </View>  

@@ -177,6 +177,20 @@ export const ProofsStoreModel = types
             self.pendingByMintSecrets.remove(proof.secret)
             log.trace('[removeFromPendingByMint]', 'Proof removed from pending by mint, secret', proof.secret)
         },
+        removeOnLocalRecovery(proofsToRemove: Proof[], isPending: boolean = false) {
+            const proofs = isPending ? self.pendingProofs : self.proofs
+
+            proofsToRemove.map((proof) => {
+                if (isStateTreeNode(proof)) {                    
+                    detach(proof) // vital
+                } else {
+                    const proofInstance = self.getProofInstance(proof, isPending)                    
+                    detach(proofInstance) // vital
+                }                    
+            }) 
+
+            proofs.replace(proofs.filter(proof => !proofsToRemove.some(removed => removed.secret === proof.secret)))
+        },
     }))
     .views(self => ({
         get proofsCount() {

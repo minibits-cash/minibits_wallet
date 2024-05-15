@@ -556,7 +556,7 @@ const restore = async function (
             proofs: proofs || []            
         }
     } catch (e: any) {        
-        throw new AppError(Err.MINT_ERROR, e.message.toString(), {mintUrl})
+        throw new AppError(Err.MINT_ERROR, isObj(e.message) ? JSON.stringify(e.message) : e.message, {mintUrl})
     }
 }
 
