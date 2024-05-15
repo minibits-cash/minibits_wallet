@@ -445,7 +445,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
                       RightComponent={
                         <CurrencyAmount 
                           amount={CashuUtils.getProofsAmount(proofs.filter(p => p.unit === unit))} 
-                          mintUnit='sat'
+                          mintUnit={unit}
                           containerStyle={{marginRight: spacing.extraSmall}} 
                         />
                       }                            
