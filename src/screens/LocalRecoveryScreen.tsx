@@ -429,16 +429,19 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
               ContentComponent={
                 <>
                 <ListItem
-                  text={'Number of proofs'}
+                  text={'Number of backed up proofs'}
                   RightComponent={
                     <Text text={`${proofs.length}`} style={{marginRight: spacing.small}} />
-                  }                            
+                  }   
+                  textStyle={{marginLeft: spacing.extraSmall}}  
+                  bottomSeparator                       
                 />
                 {Object.values(MintUnits).map(unit => 
                   proofs.some(p => p.unit === unit) && (
                     <ListItem
                       key={unit}
                       text={getCurrency(unit).code}
+                      textStyle={{marginLeft: spacing.extraSmall}}
                       RightComponent={
                         <CurrencyAmount 
                           amount={CashuUtils.getProofsAmount(proofs.filter(p => p.unit === unit))} 
@@ -508,7 +511,7 @@ const $headerContainer: TextStyle = {
 }
 
 const $contentContainer: TextStyle = {
-  minHeight: spacing.screenHeight * 0.5,
+  // minHeight: spacing.screenHeight * 0.5,
   padding: spacing.extraSmall,
 }
 
