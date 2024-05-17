@@ -157,7 +157,9 @@ export const ProofsStoreModel = types
                     } else {
                         const proofInstance = self.getProofInstance(proof, isPending)
                         // proofInstances?.push(proofInstance as Proof)
-                        detach(proofInstance) // vital
+                        if(proofInstance) {
+                            detach(proofInstance) // vital
+                        }
                     }                    
                 }) 
 

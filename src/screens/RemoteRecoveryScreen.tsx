@@ -40,7 +40,8 @@ import { isStateTreeNode } from 'mobx-state-tree'
 import { scale } from '@gocodingnow/rn-size-matters'
 import { WalletUtils } from '../services/wallet/utils'
 import { WalletScreen } from './WalletScreen'
-import { MintUnit } from '../services/wallet/currency'
+import { MintUnit, formatCurrency, getCurrency } from '../services/wallet/currency'
+import { isObj } from '@cashu/cashu-ts/src/utils'
 
 if (Platform.OS === 'android' &&
     UIManager.setLayoutAnimationEnabledExperimental) {
@@ -172,9 +173,11 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
     const onMintSelect = async function (mint: Mint) {
         try {
             setSelectedMintUrl(mint.mintUrl)
-            const allActiveKeysets = await MintClient.getMintKeysets(mint.mintUrl)
+            const allActiveKeysets = await MintClient.getMintKeysets(mint.mintUrl) // mint api call
             
-            setSelectedKeyset(allActiveKeysets[0])
+            // Default is the last one as it seems to be the newest one
+            const lastKeyset = allActiveKeysets.slice(-1)[0]            
+            setSelectedKeyset(lastKeyset)
             setSelectedMintKeysets(allActiveKeysets)
             setStartIndex(0)
             setEndIndex(RESTORE_INDEX_INTERVAL)
@@ -396,8 +399,8 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                 e.params = {mintUrl: selectedMintUrl}
             }
 
-            log.error(e)
-            errors.push(e) // TODO this could now be single error as we do not loop anymore
+            log.error('[doRecovery]', {name: e.name, message: isObj(e.message) ? JSON.stringify(e.message) : e.message, params: e.params})
+            errors.push({name: e.name, message: e.message}) // TODO this could now be single error as we do not loop anymore
 
             if (transactionId > 0) {
                 transactionData.push({
@@ -438,9 +441,10 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
         setIsLoading(false)
 
         if(recoveredAmount > 0) {
+            const currency = getCurrency(selectedKeyset?.unit as MintUnit)
             setResultModalInfo({
                 status: TransactionStatus.COMPLETED, 
-                message: `${recoveredAmount} sats were recovered into your wallet.`
+                message: `${formatCurrency(recoveredAmount, currency.code)} ${currency.code} were recovered into your wallet.`
             })
         } else {
             if(errors.length > 0) {
@@ -453,7 +457,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                 if(alreadySpentAmount > 0) {
                     setResultModalInfo({
                         status: TransactionStatus.EXPIRED, 
-                        message: `Good news is that already spent ecash has been found. Continue with next recovery interval.`
+                        message: `Good news is that already spent Ecash has been found. Continue with next recovery interval.`
                     }) 
                 } else {
                     setResultModalInfo({
