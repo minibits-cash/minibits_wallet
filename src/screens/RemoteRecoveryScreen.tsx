@@ -573,32 +573,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
         </View>
 
         <View style={$contentContainer}>
-            {mnemonicExists ? (
-            <Card
-                style={$card}
-                ContentComponent={
-                    <ListItem
-                        text='Mnemonic exists'
-                        subText='Your wallet already has another mnemonic in its secure storage. Recovery process works only with freshly installed wallet to avoid loss of your funds.'
-                        leftIcon='faTriangleExclamation'
-                        // leftIconColor='red'                  
-                        style={$item}                    
-                        bottomSeparator={true}
-                    /> 
-                }
-                FooterComponent={
-                    <View style={$buttonContainer}>               
-                        <Button
-                            onPress={onBack}
-                            text='Back'  
-                            preset='secondary'                      
-                        />                        
-                    </View>                    
-                }          
-            />
-            ) : (
-                <>
-                {isValidMnemonic ? (
+               {isValidMnemonic ? (
                     <>
                     <Card
                         style={$card}
@@ -661,7 +636,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                                 {mintsStore.mintCount > 0 && selectedMintUrl && (
                                 <>
                                     <View style={$buttonContainer}> 
-                                        {(startIndex > 0 || totalRecoveredAmount) > 0 && (
+                                        {(startIndex > 0 || totalRecoveredAmount > 0) && (
                                             <Button
                                                 onPress={onComplete}
                                                 text={'Complete'}
@@ -762,10 +737,8 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                         </>
                     }           
                 />
-                )}                
-            </>
-            )}
-        </View>
+                )}
+            </View>
         <BottomModal
           isVisible={isIndexModalVisible}
           ContentComponent={
