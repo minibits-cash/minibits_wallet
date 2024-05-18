@@ -888,7 +888,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
         />             
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
-        {isLoading && <Loading statusMessage={statusMessage} style={{backgroundColor: headerBg, opacity: 1}}/>}    
+        {isLoading && <Loading statusMessage={statusMessage} textStyle={{color: 'white'}} style={{backgroundColor: headerBg, opacity: 1}}/>}    
       </Screen>
     )
 })

@@ -536,7 +536,7 @@ const restore = async function (
         const cashuMint = getMint(mintUrl)
         
         const seedWallet = new CashuWallet(cashuMint, {
-          unit: 'sats', // just use default unit as we restore by keyset        
+          unit: 'sat', // just use default unit as we restore by keyset        
           mnemonicOrSeed: seed
         })
 
