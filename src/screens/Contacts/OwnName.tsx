@@ -178,10 +178,6 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
 
     const onCreateDonation = async function () {
         try {
-            if(!selectedBalance) {
-                return
-            }
-
             setIsLoading(true)
             const memo = `Donation for ${ownName+MINIBITS_NIP05_DOMAIN}`
             const invoice = await MinibitsClient.createDonation(
@@ -194,7 +190,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                 setDonationInvoice(invoice)
                 const feeReserve = roundUp(donationAmount / 100, 0)
 
-                if(donationAmount >= selectedBalance.balances['sat']! + feeReserve) {
+                if(!selectedBalance || donationAmount >= selectedBalance.balances['sat']! + feeReserve) {
                     setIsQRCodeVisible(true)
                 }
             }
