@@ -87,8 +87,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
 
         if(mintUrl.includes('.onion')) {
             if(!userSettingsStore.isTorDaemonOn) {
-                setInfo('Tor support has been discontinued in version v0.1.7-beta. Minibits needs help to get Tor support back. Visit our Github for more info.')
-                return
+                setInfo('To connect to Onion mint, You will need to have Orbot running as VPN.')
             }
         }
 
