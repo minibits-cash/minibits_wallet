@@ -23,7 +23,7 @@ index 78f8fc1..a392065 100644
  		"buffer": "^6.0.3"
  	}
  }
- diff --git a/node_modules/@cashu/cashu-ts/src/CashuMint.ts b/node_modules/@cashu/cashu-ts/src/CashuMint.ts
+diff --git a/node_modules/@cashu/cashu-ts/src/CashuMint.ts b/node_modules/@cashu/cashu-ts/src/CashuMint.ts
 index f6bc3b1..3b1ca62 100644
 --- a/node_modules/@cashu/cashu-ts/src/CashuMint.ts
 +++ b/node_modules/@cashu/cashu-ts/src/CashuMint.ts
