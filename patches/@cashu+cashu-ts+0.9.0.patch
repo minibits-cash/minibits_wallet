@@ -23,7 +23,7 @@ index 78f8fc1..a392065 100644
  		"buffer": "^6.0.3"
  	}
  }
-diff --git a/node_modules/@cashu/cashu-ts/src/CashuMint.ts b/node_modules/@cashu/cashu-ts/src/CashuMint.ts
+ diff --git a/node_modules/@cashu/cashu-ts/src/CashuMint.ts b/node_modules/@cashu/cashu-ts/src/CashuMint.ts
 index f6bc3b1..3b1ca62 100644
 --- a/node_modules/@cashu/cashu-ts/src/CashuMint.ts
 +++ b/node_modules/@cashu/cashu-ts/src/CashuMint.ts
@@ -274,7 +274,7 @@ index f6bc3b1..3b1ca62 100644
  }
  
 diff --git a/node_modules/@cashu/cashu-ts/src/CashuWallet.ts b/node_modules/@cashu/cashu-ts/src/CashuWallet.ts
-index 8953ab8..2676204 100644
+index 8953ab8..8fc4217 100644
 --- a/node_modules/@cashu/cashu-ts/src/CashuWallet.ts
 +++ b/node_modules/@cashu/cashu-ts/src/CashuWallet.ts
 @@ -1,7 +1,7 @@
@@ -424,6 +424,15 @@ index 8953ab8..2676204 100644
  			if (this._seed && counter != undefined) {
  				secret = deriveSecret(this._seed, keysetId ?? this.keysetId, counter + i);
  				deterministicR = bytesToNumber(
+@@ -551,7 +563,7 @@ class CashuWallet {
+ 			secrets.push(secret);
+ 			const { B_, r } = dhke.blindMessage(secret, deterministicR);
+ 			rs.push(r);
+-			const blindedMessage = new BlindedMessage(amounts[i], B_);
++			const blindedMessage = new BlindedMessage(amounts[i], B_, keysetId?? this.keysetId);
+ 			blindedMessages.push(blindedMessage.getSerializedBlindedMessage());
+ 		}
+ 		return { blindedMessages, secrets, rs, amounts };
 diff --git a/node_modules/@cashu/cashu-ts/src/DHKE.ts b/node_modules/@cashu/cashu-ts/src/DHKE.ts
 index ca37559..02843b5 100644
 --- a/node_modules/@cashu/cashu-ts/src/DHKE.ts
@@ -463,15 +472,30 @@ index a321c04..200d96a 100644
  /**
   * @deprecated use decodeInvoice instead
 diff --git a/node_modules/@cashu/cashu-ts/src/model/BlindedMessage.ts b/node_modules/@cashu/cashu-ts/src/model/BlindedMessage.ts
-index 5a39883..5e71ff8 100644
+index 5a39883..f24d9e8 100644
 --- a/node_modules/@cashu/cashu-ts/src/model/BlindedMessage.ts
 +++ b/node_modules/@cashu/cashu-ts/src/model/BlindedMessage.ts
-@@ -1,4 +1,4 @@
+@@ -1,15 +1,17 @@
 -import { SerializedBlindedMessage } from './types/index.js';
 +import { SerializedBlindedMessage } from './types/index';
  import { ProjPointType } from '@noble/curves/abstract/weierstrass';
  
  class BlindedMessage {
+ 	amount: number;
+ 	B_: ProjPointType<bigint>;
+-	constructor(amount: number, B_: ProjPointType<bigint>) {
++	id: string;
++	constructor(amount: number, B_: ProjPointType<bigint>, id: string,) {
+ 		this.amount = amount;
+ 		this.B_ = B_;
++		this.id = id
+ 	}
+ 	getSerializedBlindedMessage(): SerializedBlindedMessage {
+-		return { amount: this.amount, B_: this.B_.toHex(true) };
++		return { amount: this.amount, B_: this.B_.toHex(true), id: this.id };
+ 	}
+ }
+ export { BlindedMessage };
 diff --git a/node_modules/@cashu/cashu-ts/src/model/BlindedSignature.ts b/node_modules/@cashu/cashu-ts/src/model/BlindedSignature.ts
 index e998f32..16c4488 100644
 --- a/node_modules/@cashu/cashu-ts/src/model/BlindedSignature.ts
@@ -496,7 +520,7 @@ index dab9010..ea21a04 100644
  class Split {
  	proofs: Array<Proof>;
 diff --git a/node_modules/@cashu/cashu-ts/src/model/types/index.ts b/node_modules/@cashu/cashu-ts/src/model/types/index.ts
-index 9a649c9..0e7f707 100644
+index 9a649c9..dec86b8 100644
 --- a/node_modules/@cashu/cashu-ts/src/model/types/index.ts
 +++ b/node_modules/@cashu/cashu-ts/src/model/types/index.ts
 @@ -41,6 +41,8 @@ export type ReceiveTokenEntryResponse = {
@@ -525,8 +549,16 @@ index 9a649c9..0e7f707 100644
  } & ApiError;
  /**
   * blinded message for sending to the mint
+@@ -228,6 +233,7 @@ export type SerializedBlindedMessage = {
+ 	 * Blinded message
+ 	 */
+ 	B_: string;
++	id: string;
+ };
+ /**
+  * Blinded signature as it is received from the mint
 diff --git a/node_modules/@cashu/cashu-ts/src/request.ts b/node_modules/@cashu/cashu-ts/src/request.ts
-index 4bd636b..87b14d0 100644
+index 4bd636b..1c3ad74 100644
 --- a/node_modules/@cashu/cashu-ts/src/request.ts
 +++ b/node_modules/@cashu/cashu-ts/src/request.ts
 @@ -1,4 +1,4 @@
@@ -538,7 +570,7 @@ index 4bd636b..87b14d0 100644
 @@ -34,8 +34,9 @@ async function _request({
  	const response = await fetch(endpoint, { body, headers, ...options });
  
- 	if (!response.ok) {        
+ 	if (!response.ok) {
 -		const { error, detail } = await response.json();
 -		const message = error || detail || 'bad response';
 +		const responseJson = await response.json();        
