@@ -1,6 +1,6 @@
 {
   "name": "minibits_wallet",
-  "version": "0.1.7-beta.14",
+  "version": "0.1.8-beta",
   "private": true,
   "scripts": {
     "android:clean": "cd android && ./gradlew clean",
@@ -26,6 +26,8 @@
     "@notifee/react-native": "^7.8.2",
     "@react-native-clipboard/clipboard": "^1.13.2",
     "@react-native-community/netinfo": "^11.3.1",
+    "@react-native-firebase/app": "^20.0.0",
+    "@react-native-firebase/messaging": "^20.0.0",
     "@react-navigation/bottom-tabs": "^6.5.20",
     "@react-navigation/native": "^6.1.17",
     "@react-navigation/native-stack": "^6.9.26",

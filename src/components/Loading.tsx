@@ -3,7 +3,7 @@ import { StyleSheet, View, ActivityIndicator, ViewProps, TextStyle } from 'react
 import { useThemeColor } from '../theme'
 import { Text } from './Text'
 
-export function Loading(props: ViewProps & {statusMessage?: string, textStyle: TextStyle}) {
+export function Loading(props: ViewProps & {statusMessage?: string, textStyle?: TextStyle}) {
     return (
         <View style={[{
             flex: 1,            

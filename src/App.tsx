@@ -9,6 +9,7 @@ import {
     CODEPUSH_PRODUCTION_DEPLOYMENT_KEY,    
 } from '@env'
 import codePush from 'react-native-code-push'
+import messaging from '@react-native-firebase/messaging';
 import FlashMessage from "react-native-flash-message"
 import {
   initialWindowMetrics,
@@ -20,12 +21,13 @@ import {
 } from '@gocodingnow/rn-size-matters'
 import {AppNavigator} from './navigation'
 import {useInitialRootStore, useStores} from './models'
-import {Database} from './services'
+import {Database, MinibitsClient} from './services'
 import {ErrorBoundary} from './screens/ErrorScreen/ErrorBoundary'
 import Config from './config'
 import {log} from './services'
 import {Env} from './utils/envtypes'
 import AppError from './utils/AppError'
+import { NotificationService } from './services/notificationService';
 // RN 0.73 screen rendering issue
 //import { enableFreeze, enableScreens  } from 'react-native-screens';
 // enableScreens(false)
@@ -55,10 +57,9 @@ interface AppProps {
 }
 
 function App(props: AppProps) {
-    const {userSettingsStore, relaysStore} = useStores()
-    const {rehydrated} = useInitialRootStore(() => {
+    const {userSettingsStore, relaysStore, walletProfileStore} = useStores()
+    const {rehydrated} = useInitialRootStore(async() => {
         // This runs after the root store has been initialized and rehydrated from storage.
-        
 
         // Creates and opens a sqlite database that stores transactions history and user settings.
         // It triggers db migrations if database version has changed.
@@ -73,6 +74,19 @@ function App(props: AppProps) {
         for (const relay of relaysStore.allRelays) {
             relay.setStatus(WebSocket.CLOSED)
         }
+
+        // FCM push notifications - set or refresh token on app start                
+        await messaging().registerDeviceForRemoteMessages()        
+        const deviceToken = await messaging().getToken()
+
+        log.trace('[useInitialRootStore]', {deviceToken})
+
+        // Save the token
+        await MinibitsClient.updateDeviceToken(walletProfileStore.pubkey, {deviceToken})
+
+        // Setup notification listeners and handlers
+        messaging().onMessage(NotificationService.onForegroundReceiveNotification)
+        messaging().setBackgroundMessageHandler(NotificationService.onBackgroundReceiveNotification)
     })
 
     if (!rehydrated) {    

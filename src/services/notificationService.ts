@@ -1,8 +1,31 @@
 import notifee, { AndroidImportance, AuthorizationStatus } from '@notifee/react-native'
 import { colors } from '../theme';
 import { log } from './logService';
+import messaging, { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
+import { MintUnit } from './wallet/currency';
+
+export type RemoteMessageReceiveData = {
+  type: 'RemoteMessageReceiveData',
+  data: {
+      amount: number,
+      unit: 'sat',
+      comment?: string | null,
+      sentFrom?: string,
+      sentFromPicture?: string
+  }    
+}
+
+// Remote notification receive handler
+const onForegroundReceiveNotification = async function(remoteMessage: FirebaseMessagingTypes.RemoteMessage) {
+  log.warn('[onForegroundReceiveNotification]', {remoteMessage})
+}
 
 
+const onBackgroundReceiveNotification = async function(remoteMessage: FirebaseMessagingTypes.RemoteMessage) {
+  log.warn('[onBackgroundReceiveNotification]', {remoteMessage})
+}
+
+// Local notification creation
 const createLocalNotification = async function (title: string, body: string, largeIcon?: string) {
     log.trace('Start', {title, body, largeIcon}, 'createLocalNotification')
     // Request permissions (required for iOS)
@@ -10,8 +33,8 @@ const createLocalNotification = async function (title: string, body: string, lar
 
     // Create a channel (required for Android)
     const channelId = await notifee.createChannel({
-      id: 'important',
-      name: 'Minibits payment notifications',
+      id: 'default',
+      name: 'Minibits notifications',
       vibration: true,
       importance: AndroidImportance.HIGH,
     })
@@ -51,7 +74,7 @@ const updateLocalNotification = async function (id: string, update: { title: str
     // Create a channel (required for Android)
     const channelId = await notifee.createChannel({
       id: 'default',
-      name: 'Default Channel',
+      name: 'Minibits notifications',      
     })
 
     const {title, body} = update
@@ -90,6 +113,8 @@ const areNotificationsEnabled = async function (): Promise<boolean> {
 }
 
 export const NotificationService = {
+    onForegroundReceiveNotification,
+    onBackgroundReceiveNotification,
     createLocalNotification,
     updateLocalNotification,
     cancelNotification,

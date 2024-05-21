@@ -18,6 +18,7 @@ import {
 import codePush, { RemotePackage } from 'react-native-code-push'
 import {moderateVerticalScale, verticalScale} from '@gocodingnow/rn-size-matters'
 import { SvgXml } from 'react-native-svg'
+import {getUnixTime} from 'date-fns'
 import PagerView, { PagerViewOnPageScrollEventData } from 'react-native-pager-view'
 import { ScalingDot } from 'react-native-animated-pagination-dots'
 import {useThemeColor, spacing, colors, typography} from '../theme'
@@ -92,6 +93,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const [currentUnit, setCurrentUnit] = useState<MintUnit>(groupedMints.length > 0 ? groupedMints[0].unit : 'sat')
     const [info, setInfo] = useState<string>('')
     const [defaultMintUrl, setDefaultMintUrl] = useState<string>(MINIBITS_MINT_URL)
+    const [lastClaimCheck, setLastClaimCheck] = useState<number | undefined>()
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState<boolean>(false)
     
@@ -205,7 +207,16 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             }
 
             WalletTask.handleSpentFromPending().catch(e => false)               
-            WalletTask.handlePendingTopups().catch(e => false)            
+            WalletTask.handlePendingTopups().catch(e => false) 
+            
+            // check lnaddress claims max once per minute to decrease server load
+            const nowInSec = getUnixTime(new Date())
+
+            //if(lastClaimCheck && nowInSec - lastClaimCheck > 60) {                
+                WalletTask.handleClaim().catch(e => false)
+                setLastClaimCheck(nowInSec)            
+            //}
+            
         }, [])
     )
 
