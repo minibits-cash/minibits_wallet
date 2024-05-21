@@ -17,7 +17,7 @@ import {MeltQuoteResponse, type Proof as CashuProof} from '@cashu/cashu-ts'
 import {Mint} from '../models/Mint'
 import {pollerExists, stopPolling} from '../utils/poller'
 import EventEmitter from '../utils/eventEmitter'
-import { NostrClient, NostrEvent, NostrFilter } from './nostrService'
+import { NostrClient, NostrEvent, NostrProfile } from './nostrService'
 import { MINIBITS_NIP05_DOMAIN, MINIBITS_SERVER_API_HOST } from '@env'
 import { PaymentRequest, PaymentRequestStatus, PaymentRequestType } from '../models/PaymentRequest'
 import { IncomingDataType, IncomingParser } from './incomingParser'
@@ -1317,35 +1317,27 @@ const _sendReceiveNotification = async function (
         return
     }
 
-    // TODO move to the server?
-    const maybeZapRequestString = NostrClient.findZapRequest(decrypted)
-    let zapRequest: NostrEvent | undefined = undefined
+    const maybeZapSenderString = _extractZapSenderData(decrypted)
 
-    if(maybeZapRequestString) {
+    if(maybeZapSenderString) {
         try {
-            zapRequest = JSON.parse(maybeZapRequestString)
+            const zapSenderProfile: NostrProfile = JSON.parse(maybeZapSenderString)
             
-            if(zapRequest) {
-                sentFromPubkey = zapRequest.pubkey // zap sender pubkey
-                const relays = NostrClient.getTagsByName(zapRequest.tags, 'relays')
-    
-                if(relays && relays.length > 0) {
-                    const senderProfile = await NostrClient.getProfileFromRelays(sentFromPubkey, relays) // returns undefined if not found
-    
-                    if(senderProfile) {
-                        sentFrom = senderProfile.nip05 || senderProfile.name
-                        sentFromPicture = senderProfile.picture
+            if(zapSenderProfile) {
+                sentFromPubkey = zapSenderProfile.pubkey // zap sender pubkey                
+                sentFrom = zapSenderProfile.nip05 || zapSenderProfile.name                
+                sentFromPicture = zapSenderProfile.picture
+                const sentFromLud16 = zapSenderProfile.lud16
                         
-                        // if we have such contact, set or update its lightning address by the one from profile
-                        const contactInstance = contactsStore.findByPubkey(sentFromPubkey)
-                        if(contactInstance && senderProfile.lud16) {                                        
-                            contactInstance.setLud16(senderProfile.lud16)
-                        }
-                    }
-                }
+                // if we have such contact, set or update its lightning address by the one from profile
+                const contactInstance = contactsStore.findByPubkey(sentFromPubkey)
+                if(contactInstance && sentFromLud16) {                                        
+                    contactInstance.setLud16(sentFromLud16)
+                }                    
+                
             }            
         } catch (e: any) {
-            log.warn('[_handleReceivedEventTask]', 'Could not get sender from zapRequest', {message: e.message, maybeZapRequestString})
+            log.warn('[_handleReceivedEventTask]', 'Could not get sender from zapRequest', {message: e.message, maybeZapSenderString})
         }
     }
 
@@ -1356,7 +1348,7 @@ const _sendReceiveNotification = async function (
     if(receivedAmount && receivedAmount > 0) {
         await NotificationService.createLocalNotification(
             `<b>⚡${formatCurrency(receivedAmount, currencyCode)} ${currencyCode}</b> received!`,
-            `${zapRequest ? 'Zap' : 'Ecash'} from <b>${sentFrom || 'unknown payer'}</b> is now in your wallet.`,
+            `${maybeZapSenderString ? 'Zap' : 'Ecash'} from <b>${sentFrom || 'unknown payer'}</b> is now in your wallet.`,
             sentFromPicture       
         ) 
     }
@@ -1374,6 +1366,10 @@ const _sendPaymentRequestNotification = async function (pr: PaymentRequest) {
 }
 
 
+const _extractZapSenderData = function (str: string) {
+    const match = str.match(/\{[^}]*\}/);
+    return match ? match[0] : null;
+}
 
 
 export const WalletTask: WalletTaskService = {
