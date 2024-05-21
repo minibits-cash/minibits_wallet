@@ -1,6 +1,7 @@
 # App specific
 .env
 .vscode/
+google-services.json
 # OSX
 #
 .DS_Store
