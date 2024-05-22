@@ -53,7 +53,7 @@ export type Nip05VerificationRecord = {
 
 // TODO cleanup
 const _defaultPublicRelays: string[] = ['wss://relay.damus.io', 'wss://nostr.mom']
-const _minibitsRelays: string[] = [MINIBITS_RELAY_URL]
+const _minibitsRelays: string[] = [MINIBITS_RELAY_URL, 'wss://relay.minibits.cash/new']
 let _pool: any = undefined
 const {relaysStore} = rootStoreInstance
 

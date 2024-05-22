@@ -8,6 +8,8 @@ import * as Sentry from '@sentry/react-native'
 import {rootStoreInstance} from '../models'
 import {LogLevel} from './log/logTypes'
 
+// refresh
+
 const {    
     userSettingsStore
 } = rootStoreInstance

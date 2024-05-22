@@ -81,12 +81,14 @@ function App(props: AppProps) {
 
         log.trace('[useInitialRootStore]', {deviceToken})
 
-        // Save the token
-        await MinibitsClient.updateDeviceToken(walletProfileStore.pubkey, {deviceToken})
+        // Save new or refreshed token to local and server profile        
+        if (deviceToken !== walletProfileStore.device) {
+            walletProfileStore.setDevice(deviceToken)
+        }        
 
         // Setup notification listeners and handlers
-        messaging().onMessage(NotificationService.onForegroundReceiveNotification)
-        messaging().setBackgroundMessageHandler(NotificationService.onBackgroundReceiveNotification)
+        messaging().onMessage(NotificationService.onReceiveRemoteNotification)
+        messaging().setBackgroundMessageHandler(NotificationService.onReceiveRemoteNotification)
     })
 
     if (!rehydrated) {    

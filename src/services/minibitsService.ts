@@ -276,7 +276,7 @@ const createClaim = async function (walletId: string, seedHash: string, pubkey: 
 
 
 const fetchApi = async (url: string, options: MinibitsRequestOptions, timeout = 10000) => { //ms
-    log.trace('[fetchApi]', {url})
+    log.trace('[fetchApi] start', url)
     
     const controller = new AbortController()
     const body = options.body ? JSON.stringify(options.body) : undefined
