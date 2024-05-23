@@ -85,10 +85,6 @@ function App(props: AppProps) {
         if (deviceToken !== walletProfileStore.device) {
             walletProfileStore.setDevice(deviceToken)
         }        
-
-        // Setup notification listeners and handlers
-        messaging().onMessage(NotificationService.onReceiveRemoteNotification)
-        messaging().setBackgroundMessageHandler(NotificationService.onReceiveRemoteNotification)
     })
 
     if (!rehydrated) {    

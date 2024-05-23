@@ -11,4 +11,9 @@ function BootstrapApp() {
   return <App appName={appName} />
 }
 
+
+// Setup notification listeners and handlers
+messaging().onMessage(NotificationService.onReceiveRemoteNotification)
+messaging().setBackgroundMessageHandler(NotificationService.onReceiveRemoteNotification)
+
 AppRegistry.registerComponent(appName, () => BootstrapApp)
