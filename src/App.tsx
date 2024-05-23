@@ -27,7 +27,7 @@ import Config from './config'
 import {log} from './services'
 import {Env} from './utils/envtypes'
 import AppError from './utils/AppError'
-import { NotificationService } from './services/notificationService';
+
 // RN 0.73 screen rendering issue
 //import { enableFreeze, enableScreens  } from 'react-native-screens';
 // enableScreens(false)
