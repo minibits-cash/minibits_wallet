@@ -152,6 +152,11 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             
             if(!isInternetReachable) { return }
 
+            // check lnaddress claims on app start and set timestamp to trigger focus updates      
+            const nowInSec = getUnixTime(new Date())
+            WalletTask.handleClaim().catch(e => false)
+            setLastClaimCheck(nowInSec)
+
             // Auto-recover inflight proofs - do only on startup and before checkPendingReceived to prevent conflicts            
             WalletTask.handleInFlight().catch(e => false)
             // Create websocket subscriptions to receive tokens or payment requests by NOSTR DMs                    
@@ -209,9 +214,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             WalletTask.handleSpentFromPending().catch(e => false)               
             WalletTask.handlePendingTopups().catch(e => false) 
             
-            // check lnaddress claims max once per minute to decrease server load            
+            // check lnaddress claims max once per minute to decrease server load      
             const nowInSec = getUnixTime(new Date())
-
             if(lastClaimCheck && nowInSec - lastClaimCheck > 60) {                
                 WalletTask.handleClaim().catch(e => false)
                 setLastClaimCheck(nowInSec)            
