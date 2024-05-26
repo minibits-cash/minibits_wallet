@@ -103,6 +103,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const [updateSize, setUpdateSize] = useState<string>('')
     const [isNativeUpdateAvailable, setIsNativeUpdateAvailable] = useState<boolean>(false)
 
+    // On app start
     useEffect(() => {
         const checkForUpdate = async () => {            
             try {
@@ -138,21 +139,20 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         toggleUpdateModal()
     }
 
-    
+    // On app start
     useEffect(() => {
         // get deeplink if any
-        const getInitialData  = async () => {
+        const getInitialData  = async () => {            
             const url = await Linking.getInitialURL()
                                              
             if (url) {                            
                 handleDeeplink({url})                
-                return // deeplinks have priority over clipboard
+                return // skip further processing so that it does not slow down or clash deep link
             }
             
             if(!isInternetReachable) { return }
 
-            // Auto-recover inflight proofs - do only on startup and before checkPendingReceived to prevent conflicts
-            // TODO add manual option to recovery settings
+            // Auto-recover inflight proofs - do only on startup and before checkPendingReceived to prevent conflicts            
             WalletTask.handleInFlight().catch(e => false)
             // Create websocket subscriptions to receive tokens or payment requests by NOSTR DMs                    
             WalletTask.receiveEventsFromRelays().catch(e => false)
@@ -199,7 +199,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         }, initial: false})
     }   
     
-
+    
     useFocusEffect(        
         useCallback(() => {
             if(!isInternetReachable) {
@@ -209,13 +209,13 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             WalletTask.handleSpentFromPending().catch(e => false)               
             WalletTask.handlePendingTopups().catch(e => false) 
             
-            // check lnaddress claims max once per minute to decrease server load
+            // check lnaddress claims max once per minute to decrease server load            
             const nowInSec = getUnixTime(new Date())
 
-            //if(lastClaimCheck && nowInSec - lastClaimCheck > 60) {                
+            if(lastClaimCheck && nowInSec - lastClaimCheck > 60) {                
                 WalletTask.handleClaim().catch(e => false)
                 setLastClaimCheck(nowInSec)            
-            //}
+            }
             
         }, [])
     )
@@ -246,6 +246,15 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
                     WalletTask.handleSpentFromPending().catch(e => false) 
                     WalletTask.handlePendingTopups().catch(e => false)
+
+                    // check lnaddress claims max once per minute to decrease server load            
+                    const nowInSec = getUnixTime(new Date())
+
+                    if(lastClaimCheck && nowInSec - lastClaimCheck > 60) {                
+                        WalletTask.handleClaim().catch(e => false)
+                        setLastClaimCheck(nowInSec)            
+                    }
+
                     // calls checkPendingReceived if re-connects
                     NostrClient.reconnectToRelays().catch(e => false)           
             }

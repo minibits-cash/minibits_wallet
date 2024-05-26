@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import * as Sentry from '@sentry/react-native'
 import {
     APP_ENV,
@@ -9,7 +9,7 @@ import {
     CODEPUSH_PRODUCTION_DEPLOYMENT_KEY,    
 } from '@env'
 import codePush from 'react-native-code-push'
-import messaging from '@react-native-firebase/messaging';
+import messaging from '@react-native-firebase/messaging'
 import FlashMessage from "react-native-flash-message"
 import {
   initialWindowMetrics,
@@ -58,6 +58,7 @@ interface AppProps {
 
 function App(props: AppProps) {
     const {userSettingsStore, relaysStore, walletProfileStore} = useStores()
+
     const {rehydrated} = useInitialRootStore(async() => {
         // This runs after the root store has been initialized and rehydrated from storage.
 
@@ -84,8 +85,11 @@ function App(props: AppProps) {
         // Save new or refreshed token to local and server profile        
         if (deviceToken !== walletProfileStore.device) {
             walletProfileStore.setDevice(deviceToken)
-        }        
+        }
+        
     })
+
+    
 
     if (!rehydrated) {    
         return null

@@ -4,8 +4,7 @@ import { log } from './logService';
 import {
     MINIBIT_SERVER_NOSTR_PUBKEY,    
 } from '@env'
-import messaging, { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
-import { getPublicKey } from 'nostr-tools'
+import { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
 import { MintUnit, formatCurrency, getCurrency } from './wallet/currency';
 import { NostrClient, NostrProfile } from './nostrService';
 import AppError, { Err } from '../utils/AppError';
@@ -22,7 +21,7 @@ export type RemoteMessageReceiveToLnurl = {
 
 // Remote notification receive handler
 const onReceiveRemoteNotification = async function(remoteMessage: FirebaseMessagingTypes.RemoteMessage) {
-    log.info('[onForegroundReceiveNotification]', {remoteMessage})
+    log.debug('[onReceiveRemoteNotification]', {remoteMessage})
     try {
 
         const {encrypted} = remoteMessage.data!
@@ -43,7 +42,7 @@ const onReceiveRemoteNotification = async function(remoteMessage: FirebaseMessag
 
             await createLocalNotification(
                 `<b>⚡${formatCurrency(amount, currencyCode)} ${currencyCode}</b> incoming!`,
-                `<b>${zapSenderProfile?.nip05 || 'unknown payer'}</b> has sent you ${zapSenderProfile ? 'a zap' : 'an ecash'}.${comment ? ' Message from sender: ' + comment : ''}`,
+                `${zapSenderProfile ? 'Zap' : 'Payment'} from <b>${zapSenderProfile?.nip05 || 'unknown payer'}</b> is ready to be received.${comment ? ' Message from sender: ' + comment : ''}`,
                 zapSenderProfile?.picture       
             ) 
         }
@@ -53,10 +52,6 @@ const onReceiveRemoteNotification = async function(remoteMessage: FirebaseMessag
   
 }
 
-
-/* const onBackgroundReceiveNotification = async function(remoteMessage: FirebaseMessagingTypes.RemoteMessage) {
-    log.warn('[onBackgroundReceiveNotification]', {remoteMessage})
-}*/
 
 // Local notification creation
 const createLocalNotification = async function (title: string, body: string, largeIcon?: string) {
@@ -122,9 +117,9 @@ const updateLocalNotification = async function (id: string, update: { title: str
         color: colors.palette.success200,
         // smallIcon: 'name-of-a-small-icon', // optional, defaults to 'ic_launcher'.
         // pressAction is needed if you want the notification to open the app when pressed
-        /* pressAction: {
+        pressAction: {
           id: 'default',
-        },*/
+        },
       },
     });
 }
