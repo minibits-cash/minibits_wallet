@@ -6,7 +6,7 @@ import {AppRegistry} from 'react-native'
 import messaging from '@react-native-firebase/messaging';
 import App from './src/App'
 import {name as appName} from './app.json'
-import { NotificationService } from './services/notificationService';
+import { NotificationService } from './src/services/notificationService';
 
 
 function BootstrapApp() {
