@@ -99,6 +99,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     
     const [isUpdateAvailable, setIsUpdateAvailable] = useState<boolean>(false)
     const [isUpdateModalVisible, setIsUpdateModalVisible] = useState<boolean>(false)
+    const [isSendModalVisible, setIsSendModalVisible] = useState<boolean>(false)
+    const [isReceiveModalVisible, setIsReceiveModalVisible] = useState<boolean>(false)
     const [updateDescription, setUpdateDescription] = useState<string>('')
     const [updateSize, setUpdateSize] = useState<string>('')
     const [isNativeUpdateAvailable, setIsNativeUpdateAvailable] = useState<boolean>(false)
@@ -279,6 +281,15 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     }
 
 
+    const toggleSendModal = () => {
+        setIsSendModalVisible(previousState => !previousState)
+    }
+
+
+    const toggleReceiveModal = () => {
+        setIsReceiveModalVisible(previousState => !previousState)
+    }
+
     const addMint = async function ({scannedMintUrl = ''} = {}) {
         // necessary
         navigation.setParams({scannedMintUrl: undefined})       
@@ -311,20 +322,28 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         }
     }
 
-    const gotoTokenReceive = async function () {
-        /* const routes = navigation.getState()?.routes
-        const state = navigation.getState()
-        log.trace('[gotoTokenReceive]', {routes, state}) */
-        
-        navigation.navigate('TokenReceive', {unit: currentUnit})
+    const gotoSend = function () {
+        toggleSendModal()
+        navigation.navigate('Send', {unit: currentUnit})
     }
 
-    const gotoSend = function () {
-        navigation.navigate('Send', {unit: currentUnit})
+    const gotoLightningPay = async function () {
+        toggleSendModal()
+        navigation.navigate('LightningPay', {unit: currentUnit})
     }
 
     const gotoScan = function () {
         navigation.navigate('Scan')
+    }
+
+    const gotoTokenReceive = async function () {
+        toggleReceiveModal()
+        navigation.navigate('TokenReceive', {unit: currentUnit})
+    }
+
+    const gotoTopup = function () {
+        toggleReceiveModal()
+        navigation.navigate('Topup', {unit: currentUnit})
     }
 
     const gotoTranDetail = function (id: number) {
@@ -508,7 +527,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                 //style={{paddingLeft: spacing.medium}}
                             />
                         )}
-                        onPress={gotoSend}                        
+                        onPress={toggleSendModal}                        
                         style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonTopup]}
                         preset='tertiary'
                         text='Send'
@@ -534,7 +553,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                 color={mainButtonIcon}
                             />
                         )}
-                        onPress={gotoTokenReceive}
+                        onPress={toggleReceiveModal}
                         text='Receive'
                         style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonPay]}
                         preset='tertiary'
@@ -564,6 +583,50 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
           }
           onBackButtonPress={toggleUpdateModal}
           onBackdropPress={toggleUpdateModal}
+        />
+        <BottomModal
+          isVisible={isSendModalVisible ? true : false}
+          style={{alignItems: 'stretch'}}
+          ContentComponent={  
+            <>
+            <ListItem   
+                leftIcon='faMoneyBill1'                          
+                text='Send Ecash'
+                subText='Share Ecash or send it to one of your contacts'
+                onPress={gotoSend}
+            />
+            <ListItem   
+                leftIcon='faBolt'             
+                text='Pay with Lightning'
+                subText='Pay invoice or to a Lightning address'
+                onPress={gotoLightningPay}
+            />
+            </>      
+          }
+          onBackButtonPress={toggleSendModal}
+          onBackdropPress={toggleSendModal}
+        /> 
+        <BottomModal
+          isVisible={isReceiveModalVisible ? true : false}
+          style={{alignItems: 'stretch'}}
+          ContentComponent={  
+            <>
+            <ListItem   
+                leftIcon='faMoneyBill1'             
+                text='Receive Ecash'
+                subText='Paste or scan Ecash token'
+                onPress={gotoTokenReceive}
+            />
+            <ListItem      
+                leftIcon='faBolt'          
+                text='Topup with Lightning'
+                subText='Create Lightning invoice to topup your balance'
+                onPress={gotoTopup}
+            />
+            </>      
+          }
+          onBackButtonPress={toggleReceiveModal}
+          onBackdropPress={toggleReceiveModal}
         />       
 
       </Screen>
