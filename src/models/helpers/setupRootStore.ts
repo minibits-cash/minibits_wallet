@@ -22,7 +22,7 @@ import {Database} from '../../services'
 import { log } from  '../../services/logService'
 import { rootStoreModelVersion } from '../RootStore'
 import AppError, { Err } from '../../utils/AppError'
-import { MINIBITS_NIP05_DOMAIN } from '@env'
+import { MINIBITS_NIP05_DOMAIN, MINIBITS_RELAY_URL } from '@env'
 import { LogLevel } from '../../services/log/logTypes'
 import { MintStatus } from '../Mint'
 
@@ -133,41 +133,6 @@ async function _runMigrations(rootStore: RootStore) {
     let currentVersion = rootStore.version
 
     try {
-        if(currentVersion < 3) {
-            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v3`)
-            if(walletProfileStore.pubkey) {
-                walletProfileStore.setNip05(walletProfileStore.name+MINIBITS_NIP05_DOMAIN)
-                log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
-                rootStore.setVersion(rootStoreModelVersion)
-            }
-        }
-
-
-        if(currentVersion < 4) {
-            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v4`)
-            if(walletProfileStore.pubkey) {
-                walletProfileStore.setWalletId(userSettingsStore.walletId as string)
-
-                // publish profile to relays
-                await walletProfileStore.publishToRelays()
-                log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
-                rootStore.setVersion(rootStoreModelVersion)
-            }
-        }
-
-
-        if(currentVersion < 5) {
-            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v5`)
-            if(contactsStore.publicRelay) {
-                relaysStore.addRelay({
-                    url: contactsStore.publicRelay,
-                    status: WebSocket.CLOSED
-                })
-            }
-            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
-            rootStore.setVersion(rootStoreModelVersion)
-        }
-
 
         if(currentVersion < 6) {
             log.trace(`Starting rootStore migrations from version v${currentVersion} -> v6`)
@@ -284,7 +249,17 @@ async function _runMigrations(rootStore: RootStore) {
 
             rootStore.setVersion(rootStoreModelVersion)
             log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
-        } 
+        }
+        
+        if(currentVersion < 14) {
+            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v14`)
+            relaysStore.addRelay({
+                url: MINIBITS_RELAY_URL,
+                status: WebSocket.CLOSED
+            })
+            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+            rootStore.setVersion(rootStoreModelVersion)
+        }        
 
     } catch (e: any) {
         throw new AppError(

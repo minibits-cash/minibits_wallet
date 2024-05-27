@@ -214,10 +214,9 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             // check lnaddress claims max once per minute to decrease server load      
             const nowInSec = getUnixTime(new Date())
 
-            log.warn('[useFocusEffect]', {nowInSec, lastClaimCheck, delay: lastClaimCheck ? nowInSec - lastClaimCheck : undefined})
+            log.trace('[useFocusEffect]', {nowInSec, lastClaimCheck, delay: lastClaimCheck ? nowInSec - lastClaimCheck : undefined})
 
-            if(lastClaimCheck && nowInSec - lastClaimCheck > 60) {
-                log.warn('[useFocusEffect]', 'Starting claim')                
+            if(lastClaimCheck && nowInSec - lastClaimCheck > 60) {                
                 WalletTask.handleClaim().catch(e => false)
                 setLastClaimCheck(nowInSec)            
             }
@@ -255,10 +254,9 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                     // check lnaddress claims max once per minute to decrease server load            
                     const nowInSec = getUnixTime(new Date())
 
-                    log.warn('[appState change]', {nowInSec, lastClaimCheck, delay: lastClaimCheck ? nowInSec - lastClaimCheck : undefined})
+                    log.trace('[appState change]', {nowInSec, lastClaimCheck, delay: lastClaimCheck ? nowInSec - lastClaimCheck : undefined})
 
-                    if(lastClaimCheck && nowInSec - lastClaimCheck > 60) {
-                        log.warn('[useFocusEffect]', 'Starting claim')                   
+                    if(lastClaimCheck && nowInSec - lastClaimCheck > 60) {                        
                         WalletTask.handleClaim().catch(e => false)
                         setLastClaimCheck(nowInSec)            
                     }
