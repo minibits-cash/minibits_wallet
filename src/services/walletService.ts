@@ -18,7 +18,7 @@ import {Mint} from '../models/Mint'
 import {pollerExists, stopPolling} from '../utils/poller'
 import EventEmitter from '../utils/eventEmitter'
 import { NostrClient, NostrEvent, NostrProfile } from './nostrService'
-import { MINIBITS_NIP05_DOMAIN, MINIBITS_SERVER_API_HOST } from '@env'
+import { MINIBITS_NIP05_DOMAIN, MINIBITS_SERVER_API_HOST, MINIBIT_SERVER_NOSTR_PUBKEY } from '@env'
 import { PaymentRequest, PaymentRequestStatus, PaymentRequestType } from '../models/PaymentRequest'
 import { IncomingDataType, IncomingParser } from './incomingParser'
 import { Contact } from '../models/Contact'
@@ -985,7 +985,7 @@ const handleClaim = async function (): Promise<void> {
 
     const claimedInvoices = await MinibitsClient.createClaim(walletId, seedHash, pubkey)
 
-    log.info(claimedInvoices)
+    log.debug(claimedInvoices)
 
     if(claimedInvoices.length === 0) {
         log.info('[handleClaim] No claimed invoices returned from server...')
@@ -997,7 +997,7 @@ const handleClaim = async function (): Promise<void> {
 
         SyncQueue.addTask( 
             `_handleClaimTask-${now}`,               
-            async () => await _handleClaimTask({encodedToken: claimedInvoice.token})               
+            async () => await _handleClaimTask({encryptedToken: claimedInvoice.token})               
         )               
     }
     
@@ -1005,12 +1005,16 @@ const handleClaim = async function (): Promise<void> {
 }
 
 
-const _handleClaimTask = async function (params: {encodedToken: string}) {
-    const {encodedToken} = params
+const _handleClaimTask = async function (params: {encryptedToken: string}) {
+    const {encryptedToken} = params
 
-    if(!encodedToken) {
+    if(!encryptedToken) {
         throw new AppError(Err.VALIDATION_ERROR, '[_handleClaimTask] Missing encodedToken to receive.')
     }
+
+    const encodedToken = await NostrClient.decryptNip04(MINIBIT_SERVER_NOSTR_PUBKEY, encryptedToken)
+
+    log.debug('[_handleClaimTask] decrypted token', {encodedToken})
 
     const decoded: Token = CashuUtils.decodeToken(encodedToken)
     const amountToReceive = CashuUtils.getTokenAmounts(decoded).totalAmount
