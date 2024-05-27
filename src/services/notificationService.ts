@@ -75,7 +75,10 @@ const createLocalNotification = async function (title: string, body: string, lar
             android: {
               channelId,
               color: colors.palette.success200,
-              largeIcon
+              largeIcon,
+              pressAction: {
+                id: 'default',
+              },
             },
         })
         
@@ -86,7 +89,10 @@ const createLocalNotification = async function (title: string, body: string, lar
             body,
             android: {
               channelId,
-              color: colors.palette.success200,              
+              color: colors.palette.success200,
+              pressAction: {
+                id: 'default',
+              },         
             },
         })
         
@@ -95,9 +101,7 @@ const createLocalNotification = async function (title: string, body: string, lar
 }
 
 
-const updateLocalNotification = async function (id: string, update: { title: string, body: string}) {
-    // Request permissions (required for iOS)
-    // await notifee.requestPermission()
+/*const updateLocalNotification = async function (id: string, update: { title: string, body: string}) {
 
     // Create a channel (required for Android)
     const channelId = await notifee.createChannel({
@@ -115,8 +119,6 @@ const updateLocalNotification = async function (id: string, update: { title: str
       android: {
         channelId,
         color: colors.palette.success200,
-        // smallIcon: 'name-of-a-small-icon', // optional, defaults to 'ic_launcher'.
-        // pressAction is needed if you want the notification to open the app when pressed
         pressAction: {
           id: 'default',
         },
@@ -127,7 +129,7 @@ const updateLocalNotification = async function (id: string, update: { title: str
 
 const cancelNotification = async function (id: string) {
     await notifee.cancelNotification(id)
-}
+}*/
 
 
 const areNotificationsEnabled = async function (): Promise<boolean> {
@@ -143,7 +145,7 @@ const areNotificationsEnabled = async function (): Promise<boolean> {
 export const NotificationService = {
     onReceiveRemoteNotification,    
     createLocalNotification,
-    updateLocalNotification,
-    cancelNotification,
+    // updateLocalNotification,
+    // cancelNotification,
     areNotificationsEnabled
 }
