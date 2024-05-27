@@ -85,6 +85,41 @@ export const WalletProfileStoreModel = types
                 return false // silent
             }                    
         }),
+        migrateToNewRelay: flow(function* migrateToNewRelay() {
+            try {
+                const {pubkey, name, picture, nip05, lud16} = self
+
+                // announce to minibits relay + default public relays with replaceable event           
+                const profileEvent: NostrUnsignedEvent = {
+                    kind: 0,
+                    pubkey,
+                    tags: [],                        
+                    content: JSON.stringify({
+                        name,                            
+                        picture,
+                        nip05,
+                        lud16,                       
+                    }),
+                    created_at: Math.floor(Date.now() / 1000)                              
+                }
+
+                const rootStore = getRootStore(self)
+                const relaysToPublish: string[]  = NostrClient.getMinibitsRelays()
+
+                log.debug('[publishToRelays]', 'Migrate profile to new relay', {profileEvent, relaysToPublish})
+
+                const publishedEvent: Event | undefined = yield NostrClient.publish(
+                    profileEvent,
+                    relaysToPublish                    
+                )
+                
+                return publishedEvent
+                
+            } catch (e: any) {       
+                log.error(e.name, e.message)         
+                return false // silent
+            }                    
+        }),
     }))
     .actions(self => ({        
         hydrate: flow(function* hydrate(profileRecord: WalletProfileRecord) {
