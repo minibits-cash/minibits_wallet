@@ -8,6 +8,7 @@ import { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
 import { MintUnit, formatCurrency, getCurrency } from './wallet/currency';
 import { NostrClient, NostrProfile } from './nostrService';
 import AppError, { Err } from '../utils/AppError';
+import { Platform } from 'react-native';
 
 export type RemoteMessageReceiveToLnurl = {
     type: 'RemoteMessageReceiveToLnurl',
@@ -57,7 +58,9 @@ const onReceiveRemoteNotification = async function(remoteMessage: FirebaseMessag
 const createLocalNotification = async function (title: string, body: string, largeIcon?: string) {
     log.trace('Start', {title, body, largeIcon}, 'createLocalNotification')
     // Request permissions (required for iOS)
-    await notifee.requestPermission()
+    if(Platform.OS === 'ios') {
+      await notifee.requestPermission()
+    }    
 
     // Create a channel (required for Android)
     const channelId = await notifee.createChannel({

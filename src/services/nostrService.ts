@@ -53,7 +53,7 @@ export type Nip05VerificationRecord = {
 
 // TODO cleanup
 const _defaultPublicRelays: string[] = ['wss://relay.damus.io', 'wss://nostr.mom']
-const _minibitsRelays: string[] = [MINIBITS_RELAY_URL, 'wss://relay.minibits.cash/new']
+const _minibitsRelays: string[] = [MINIBITS_RELAY_URL]
 let _pool: any = undefined
 const {relaysStore} = rootStoreInstance
 
@@ -80,8 +80,7 @@ const reconnectToRelays = async function () {
 
     // recreate subscriptions if all relays down
     if(relaysStore.connectedCount === 0) {
-        WalletTask.handleSpentFromPending().catch(e => false)   
-        WalletTask.handleSpentFromPending().catch(e => false)   
+        WalletTask.handleSpentFromPending().catch(e => false)
     }
 
     const pool = getRelayPool()    
