@@ -253,17 +253,9 @@ async function _runMigrations(rootStore: RootStore) {
         
         if(currentVersion < 14) {
             log.trace(`Starting rootStore migrations from version v${currentVersion} -> v14`)
-            try {
-                relaysStore.addRelay({
-                    url: MINIBITS_RELAY_URL,
-                    status: WebSocket.CLOSED
-                })
+            try {                
 
-                relaysStore.removeRelay(
-                    'wss://relay.minibits.cash'
-                )
-
-                walletProfileStore.migrateToNewRelay()
+                await walletProfileStore.migrateToNewRelay()
 
                 log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
                 rootStore.setVersion(rootStoreModelVersion)
