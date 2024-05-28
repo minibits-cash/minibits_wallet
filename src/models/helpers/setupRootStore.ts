@@ -284,7 +284,18 @@ async function _runMigrations(rootStore: RootStore) {
 
             rootStore.setVersion(rootStoreModelVersion)
             log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
-        } 
+        }
+        
+        if(currentVersion < 14) {
+            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v14`)
+            try {
+                await walletProfileStore.migrateToNewRelay()
+            } catch (e: any) {
+                log.warn('[setupRootStore]', e.message)
+            }
+            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+            rootStore.setVersion(rootStoreModelVersion)
+        }
 
     } catch (e: any) {
         throw new AppError(
