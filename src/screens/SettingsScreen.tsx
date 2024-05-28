@@ -1,6 +1,7 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useCallback, useEffect, useState} from 'react'
-import {Alert, FlatList, TextStyle, View, ViewStyle} from 'react-native'
+import React, {FC, useCallback, useEffect, useRef, useState} from 'react'
+import {Alert, AppState, FlatList, Switch, TextStyle, View, ViewStyle} from 'react-native'
+import notifee from '@notifee/react-native'
 import {
     APP_ENV,      
     CODEPUSH_STAGING_DEPLOYMENT_KEY,
@@ -18,6 +19,7 @@ import {Env} from '../utils/envtypes'
 import { round } from '../utils/number'
 import { getCurrency } from '../services/wallet/currency'
 import { getMintColor } from './WalletScreen'
+import { NotificationService } from '../services/notificationService'
 
 
 interface SettingsScreenProps extends SettingsStackScreenProps<'Settings'> {}
@@ -28,12 +30,14 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
   function SettingsScreen(_props) {
     const {navigation} = _props
     useHeader({}) // default header component
+    const appState = useRef(AppState.currentState)
     const {mintsStore, relaysStore, userSettingsStore} = useStores()
 
     const [isUpdateAvailable, setIsUpdateAvailable] = useState<boolean>(false)
     const [updateDescription, setUpdateDescription] = useState<string>('')    
     const [updateSize, setUpdateSize] = useState<string>('')
     const [isNativeUpdateAvailable, setIsNativeUpdateAvailable] = useState<boolean>(false)
+    const [areNotificationsEnabled, setAreNotificationsEnabled] = useState<boolean>(false)
 
     useEffect(() => {
         const checkForUpdate = async () => {
@@ -52,6 +56,43 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
         } 
         checkForUpdate()
     }, [])
+
+
+    useEffect(() => {
+      const getNotificationPermission = async () => {
+          try {
+              const enabled = await NotificationService.areNotificationsEnabled()
+              setAreNotificationsEnabled(enabled)              
+          } catch (e: any) {
+              log.info(e.name, e.message)
+              return false // silent
+          }
+      } 
+      getNotificationPermission()
+  }, [])
+
+
+  useEffect(() => {        
+    const subscription = AppState.addEventListener('change', async(nextAppState) => {
+        if (
+            appState.current.match(/inactive|background/) &&
+            nextAppState === 'active') {
+              try {
+                const enabled = await NotificationService.areNotificationsEnabled()
+                setAreNotificationsEnabled(enabled)              
+              } catch (e: any) {
+                  log.info(e.name, e.message)
+                  return false // silent
+              }
+            }
+
+        appState.current = nextAppState         
+    })        
+
+    return () => {
+      subscription.remove()          
+    }
+  }, [])
 
 
     const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {            
@@ -92,6 +133,10 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
         })
     }
 
+    const openNotificationSettings = async function() {
+        await notifee.openNotificationSettings()        
+    }
+
     const gotoPreferredUnit = function() {
       Alert.alert('Preferred unit is set based on your Wallet screen.') 
     }
@@ -129,6 +174,23 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                     style={$item}
                     bottomSeparator={true}
                     onPress={gotoMints}
+                />
+                <ListItem
+                    text='Push notifications'
+                    leftIcon='faPaperPlane'
+                    leftIconColor={colors.palette.green400}
+                    leftIconInverse={true}
+                    style={$item}
+                    RightComponent={
+                      <View style={$rightContainer}>
+                      <Text 
+                          style={$itemRight}
+                          text={areNotificationsEnabled ? 'Enabled' : 'Disabled'}
+                      />
+                      </View>
+                   }
+                    bottomSeparator={true}
+                    onPress={openNotificationSettings}
                 />
                 <ListItem
                     tx='settingsScreen.preferredUnit'
@@ -223,7 +285,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                     onPress={gotoRelays}
                 />
             }
-        />
+          />
         </View>
       </Screen>
     )
