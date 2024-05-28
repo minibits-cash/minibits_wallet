@@ -176,6 +176,30 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                     onPress={gotoMints}
                 />
                 <ListItem
+                    tx='settingsScreen.preferredUnit'
+                    leftIcon='faMoneyBill1'
+                    leftIconColor={getMintColor(userSettingsStore.preferredUnit)}
+                    leftIconInverse={true}
+                    style={$item}
+                    RightComponent={
+                      <View style={$rightContainer}>
+                      <Text 
+                          style={$itemRight}
+                          text={getCurrency(userSettingsStore.preferredUnit).code}
+                      />
+                      </View>
+                    }
+                    bottomSeparator={false}
+                    onPress={gotoPreferredUnit}
+                />
+              </>
+            }
+          />
+          <Card
+            style={[$card, {marginTop: spacing.large}]}
+            ContentComponent={
+              <>
+                <ListItem
                     text='Push notifications'
                     leftIcon='faPaperPlane'
                     leftIconColor={colors.palette.green400}
@@ -193,22 +217,29 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                     onPress={openNotificationSettings}
                 />
                 <ListItem
-                    tx='settingsScreen.preferredUnit'
-                    leftIcon='faMoneyBill1'
-                    leftIconColor={getMintColor(userSettingsStore.preferredUnit)}
+                    text={'Nostr relays'}
+                    subText={`Connected: ${relaysStore.connectedCount}`}
+                    leftIcon='faCircleNodes'
+                    leftIconColor={colors.palette.iconViolet200}
                     leftIconInverse={true}
-                    style={$item}
                     RightComponent={
-                      <View style={$rightContainer}>
-                      <Text 
-                          style={$itemRight}
-                          text={getCurrency(userSettingsStore.preferredUnit).code}
-                      />
-                      </View>
-                   }
-                    bottomSeparator={true}
-                    onPress={gotoPreferredUnit}
+                        <View style={$rightContainer}>
+                        <Text
+                            style={$itemRight}                         
+                            text={`${relaysStore.allRelays.length} relays`}
+                        />
+                        </View>
+                    }
+                    style={$item}                  
+                    onPress={gotoRelays}
                 />
+              </>
+            }
+          />
+          <Card
+            style={[$card, {marginTop: spacing.large}]}
+            ContentComponent={
+              <>
                 <ListItem
                     tx='settingsScreen.backupRecovery'
                     leftIcon='faCloudArrowUp'
@@ -264,28 +295,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
               </>
             }
           />
-          <Card
-            style={[$card, {marginTop: spacing.large}]}
-            ContentComponent={
-                <ListItem
-                    text={'Nostr relays'}
-                    subText={`Connected: ${relaysStore.connectedCount}`}
-                    leftIcon='faCircleNodes'
-                    leftIconColor={colors.palette.iconViolet200}
-                    leftIconInverse={true}
-                    RightComponent={
-                        <View style={$rightContainer}>
-                        <Text
-                            style={$itemRight}                         
-                            text={`${relaysStore.allRelays.length} relays`}
-                        />
-                        </View>
-                    }
-                    style={$item}                  
-                    onPress={gotoRelays}
-                />
-            }
-          />
+          
         </View>
       </Screen>
     )
@@ -293,7 +303,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
 )
 
 const $screen: ViewStyle = {
-  flex: 1,
+  // flex: 1,
 }
 
 const $headerContainer: TextStyle = {

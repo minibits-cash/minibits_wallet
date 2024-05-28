@@ -265,9 +265,9 @@ const en = {
   backupScreen: {
     localBackup: "Local backup",
     localBackupDescription: "Local backup stores a copy of all your ecash in the local database. Ecash is never deleted unless you switch off the backup. Please note that this backup is not encrypted.",
-    remoteBackup: "Off-device backup",
-    remoteBackupDescription: "Seed phrase allows you to recover your ecash balance in case of device loss.",
-    recoveryTool: "Recovery tool",
+    remoteBackup: "Seed backup",
+    remoteBackupDescription: "Mnemonic phrase encodes your seed and allows you to recover your ecash balance in case of device loss.",
+    recoveryTool: "Local recovery tool",
     recoveryToolDescription: "Show ecash backed up in the local database and attempt to recover unspent ones into the wallet in case the wallet storage gets corrupted or a transaction fails due to an unexpected error.",
     removeSpentCoins: "Remove spent ecash",
     removeSpentCoinsDescription: "In case of a SEND or TRANSFER transaction error, spent ecash may remain in your wallet. This blocks further transactions with the mint, making the wallet unusable. This tool removes spent ecash from the wallet."

@@ -2,6 +2,7 @@ import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useRef, useState} from 'react'
 import {FlatList, LayoutAnimation, Platform, Pressable, Switch, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
 import {validateMnemonic} from '@scure/bip39'
+import QuickCrypto from 'react-native-quick-crypto'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import {colors, spacing, useThemeColor} from '../theme'
 import {AppStackScreenProps} from '../navigation' // @demo remove-current-line
@@ -42,6 +43,7 @@ import { WalletUtils } from '../services/wallet/utils'
 import { WalletScreen } from './WalletScreen'
 import { MintUnit, formatCurrency, getCurrency } from '../services/wallet/currency'
 import { isObj } from '@cashu/cashu-ts/src/utils'
+import { WalletProfileRecord } from '../models/WalletProfileStore'
 
 if (Platform.OS === 'android' &&
     UIManager.setLayoutAnimationEnabledExperimental) {
@@ -64,10 +66,12 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
     const indexInputRef = useRef<TextInput>(null)
 
     const [info, setInfo] = useState('')
+    const [isAddressOnlyRecovery, setIsAddressOnlyRecovery] = useState(route.params.isAddressOnlyRecovery ? true : false)
     const [mnemonic, setMnemonic] = useState<string>('')        
     const [mnemonicExists, setMnemonicExists] = useState(false)
     const [isValidMnemonic, setIsValidMnemonic] = useState(false)
     const [seed, setSeed] = useState<Uint8Array>()
+    const [profileToRecover, setProfileToRecover] = useState<WalletProfileRecord | undefined>(undefined)
     const [selectedMintUrl, setSelectedMintUrl] = useState<string | undefined>()
     const [selectedKeyset, setSelectedKeyset] = useState<MintKeyset | undefined>()
     const [selectedMintKeysets, setSelectedMintKeysets] = useState<MintKeyset[]>([])
@@ -166,7 +170,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
 
 
     const onAddMints = function (): void {
-        return navigation.navigate('Mints')
+        return navigation.navigate('Mints', {})
     }
 
 
@@ -473,6 +477,75 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
 
     }
 
+    const onFindWalletAddress = async () => {
+        try {
+            if(!seed || !mnemonic) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing mnemonic or seed.')
+            }
+
+            const seedHash = QuickCrypto.createHash('sha256')
+            .update(seed)
+            .digest('hex')
+
+            const currentSeedHash = await KeyChain.loadSeedHash()
+
+            if(currentSeedHash === seedHash) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Can not use seed from this device.')
+            }
+            
+            const profile = await MinibitsClient.getWalletProfileBySeedHash(seedHash as string)            
+
+            // Skip external profiles beacause we do not control keys
+            if(profile) {
+                log.info('[onCheckWalletAddress] profileToRecover', {profile})                
+
+                if(profile.nip05.includes(MINIBITS_NIP05_DOMAIN)) {                                    
+                    setProfileToRecover(profile)
+                } else {
+                    setInfo(`You used wallet address ${profile.nip05} with your own keys, import it again.`)
+                    await delay(5000)
+                }
+            } else {
+                setInfo('Could not find wallet address linked to your seed on the server.')
+            }     
+        } catch (e: any) {
+            handleError(e)
+        }
+    }
+
+
+    const onCompleteAddress = async () => {
+        try {
+            if(!seed || !mnemonic || !profileToRecover) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing mnemonic or seed or profile to recover.')
+            }
+
+            setStatusMessage('Recovering wallet address...')
+            setIsLoading(true)
+            
+            await KeyChain.saveMnemonic(mnemonic)
+            await KeyChain.saveSeed(seed as Uint8Array)
+            const seedHash = await KeyChain.loadSeedHash()
+
+            const {publicKey: newPublicKey} = await NostrClient.getOrCreateKeyPair()
+            // Updates pubkey and imports wallet profile
+            await walletProfileStore.recover(seedHash as string, newPublicKey)
+            // Align walletId in userSettings with recovered profile
+            userSettingsStore.setWalletId(walletProfileStore.walletId)                    
+            await delay(1000)
+            setStatusMessage(`Recovery completed`)
+            await delay(2000)
+            
+
+            userSettingsStore.setIsOnboarded(true)
+            setStatusMessage('')
+            setIsLoading(false)
+            navigation.navigate('Tabs')        
+        } catch (e: any) {
+            handleError(e)
+        }
+    }
+
 
     const onComplete = async () => {
         try {
@@ -539,7 +612,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
         </View>
 
         <View style={$contentContainer}>
-            {mnemonicExists ? (
+            {mnemonicExists && !isAddressOnlyRecovery ? (
             <Card
                 style={$card}
                 ContentComponent={
@@ -565,7 +638,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
             ) : (
                 <>
                 {isValidMnemonic ? (
-                    <>
+                <>
                     <Card
                         style={$card}
                         ContentComponent={
@@ -577,121 +650,158 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                             /> 
                         }        
                     />
-                    <Card
-                        style={$card}
-                        HeadingComponent={
-                            <>
-                            <ListItem
-                                text='Recovery from mints'
-                                subText='Identify mints to recover your ecash from and add them to the list.'
-                                LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='2'/></View>} 
-                                RightComponent={mintsStore.mintCount > 0 ? (
-                                    <View style={$rightContainer}>
+                    {isAddressOnlyRecovery ? (
+                        <>                            
+                            {profileToRecover ? (
+                                <>
+                                    <Card
+                                        style={$card}
+                                        ContentComponent={
+                                            <ListItem
+                                                text={profileToRecover.nip05}
+                                                subText={'This is the wallet address linked to your seed. If you press Complete, your wallet profile will reset to above seed and address.'}
+                                                LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='2'/></View>}                  
+                                                style={$item}                            
+                                            /> 
+                                        }        
+                                    />
+                                    <View style={$buttonContainer}>
                                         <Button
-                                            onPress={onAddMints}
-                                            text='Mints'
-                                            preset='secondary'                                           
-                                        /> 
+                                            onPress={onCompleteAddress}
+                                            text={'Complete recovery'}
+                                            style={{marginRight: spacing.small}}                                        
+                                        />
                                     </View>
-                                    ) : (undefined)        
-                                }                        
-                                style={$item}                            
-                            />
-                            {mintsStore.mintCount === 0 && (
+                                </>
+                            ) : (
                                 <View style={$buttonContainer}>
                                     <Button
-                                        onPress={onAddMints}
-                                        text='Add mints'                                            
-                                    /> 
+                                        onPress={onFindWalletAddress}
+                                        text={'Find wallet address'}
+                                        style={{marginRight: spacing.small}}                                        
+                                    />
                                 </View>
                             )}
-                            </>
-                        }
-                        ContentComponent={
-                            <>
-                            {mintsStore.mints.map((mint: Mint, index: number) => (
-                                <MintListItem
-                                  key={mint.mintUrl}
-                                  mint={mint}
-                                  mintBalance={proofsStore.getMintBalance(mint.mintUrl)}
-                                  onMintSelect={() => onMintSelect(mint)}
-                                  isSelectable={true}
-                                  isSelected={selectedMintUrl === mint.mintUrl}                                  
-                                  separator={index === 0 ? 'both' : 'bottom'}
-                                />
-                              ))}
-                            </>
-                        }
-                        FooterComponent={
-                            <>
-                                {mintsStore.mintCount > 0 && selectedMintUrl && (
-                                <>
-                                    <View style={$buttonContainer}> 
-                                        {(startIndex > 0 || totalRecoveredAmount > 0) && (
+                        </>
+                    ) : (
+                        <>                            
+                            <Card
+                                style={$card}
+                                HeadingComponent={
+                                    <>
+                                    <ListItem
+                                        text='Recovery from mints'
+                                        subText='Identify mints to recover your ecash from and add them to the list.'
+                                        LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='2'/></View>} 
+                                        RightComponent={mintsStore.mintCount > 0 ? (
+                                            <View style={$rightContainer}>
+                                                <Button
+                                                    onPress={onAddMints}
+                                                    text='Mints'
+                                                    preset='secondary'                                           
+                                                /> 
+                                            </View>
+                                            ) : (undefined)        
+                                        }                        
+                                        style={$item}                            
+                                    />
+                                    {mintsStore.mintCount === 0 && (
+                                        <View style={$buttonContainer}>
                                             <Button
-                                                onPress={onComplete}
-                                                text={'Complete'}
-                                                style={{marginRight: spacing.small}}                                        
-                                            />
-                                        )}               
-                                        <Button
-                                            onPress={startRecovery}
-                                            text={startIndex === 0 ? 'Start recovery' : 'Next interval'}
-                                            preset={(startIndex === 0 ||  totalRecoveredAmount > 0) ? 'default' : 'secondary'}
-                                            disabled={selectedMintUrl ? false : true}    
-                                        />                        
-                                    </View>
+                                                onPress={onAddMints}
+                                                text='Add mints'                                            
+                                            /> 
+                                        </View>
+                                    )}
+                                    </>
+                                }
+                                ContentComponent={
+                                    <>
+                                    {mintsStore.mints.map((mint: Mint, index: number) => (
+                                        <MintListItem
+                                        key={mint.mintUrl}
+                                        mint={mint}
+                                        mintBalance={proofsStore.getMintBalance(mint.mintUrl)}
+                                        onMintSelect={() => onMintSelect(mint)}
+                                        isSelectable={true}
+                                        isSelected={selectedMintUrl === mint.mintUrl}                                  
+                                        separator={index === 0 ? 'both' : 'bottom'}
+                                        />
+                                    ))}
+                                    </>
+                                }
+                                FooterComponent={
+                                    <>
+                                        {mintsStore.mintCount > 0 && selectedMintUrl && (
+                                        <>
+                                            <View style={$buttonContainer}> 
+                                                {(startIndex > 0 || totalRecoveredAmount > 0) && (
+                                                    <Button
+                                                        onPress={onComplete}
+                                                        text={'Complete'}
+                                                        style={{marginRight: spacing.small}}                                        
+                                                    />
+                                                )}               
+                                                <Button
+                                                    onPress={startRecovery}
+                                                    text={startIndex === 0 ? 'Start recovery' : 'Next interval'}
+                                                    preset={(startIndex === 0 ||  totalRecoveredAmount > 0) ? 'default' : 'secondary'}
+                                                    disabled={selectedMintUrl ? false : true}    
+                                                />                        
+                                            </View>
 
-                                    <View style={$buttonContainer}>
-                                    <Text 
-                                        text={`Recovery interval ${startIndex} - ${endIndex} · `} 
-                                        size='xxs' 
-                                        style={{color: textHint, alignSelf: 'center', marginTop: spacing.small}}
-                                    />
-                                    <Pressable onPress={toggleIndexModal}>
-                                        <Text 
-                                            text={`Set manually`} 
-                                            size='xxs' 
-                                            style={{color: textHint, alignSelf: 'center', marginTop: spacing.small}}
-                                        />  
-                                    </Pressable>                                    
-                                    </View>
-                                    <View style={[$buttonContainer,{marginTop: 0}]}>
-                                    <Text 
-                                        text={`Keyset ID ${selectedKeyset?.id} (${selectedKeyset?.unit})`}
-                                        size='xxs' 
-                                        style={{color: textHint, alignSelf: 'center', marginTop: spacing.extraSmall}}
-                                    />
-                                    {selectedMintKeysets.length > 1 && (
-                                        <Pressable onPress={toggleKeysetModal}>
+                                            <View style={$buttonContainer}>
                                             <Text 
-                                                text={` · Select another`} 
+                                                text={`Recovery interval ${startIndex} - ${endIndex} · `} 
+                                                size='xxs' 
+                                                style={{color: textHint, alignSelf: 'center', marginTop: spacing.small}}
+                                            />
+                                            <Pressable onPress={toggleIndexModal}>
+                                                <Text 
+                                                    text={`Set manually`} 
+                                                    size='xxs' 
+                                                    style={{color: textHint, alignSelf: 'center', marginTop: spacing.small}}
+                                                />  
+                                            </Pressable>                                    
+                                            </View>
+                                            <View style={[$buttonContainer,{marginTop: 0}]}>
+                                            <Text 
+                                                text={`Keyset ID ${selectedKeyset?.id} (${selectedKeyset?.unit})`}
                                                 size='xxs' 
                                                 style={{color: textHint, alignSelf: 'center', marginTop: spacing.extraSmall}}
-                                            />  
-                                        </Pressable> 
-                                    )}                                                                       
-                                    </View>
-                                </>  
-                                )}
-                                {mintsStore.mintCount > 0 && !selectedMintUrl && (
-                                    <Text 
-                                        text={`Select mint to recover from`} 
-                                        size='xxs' 
-                                        style={{color: textHint, alignSelf: 'center', margin: spacing.large}}
-                                    />
-                                )}
-                            </>   
-                        }         
-                    />
-                    </>
+                                            />
+                                            {selectedMintKeysets.length > 1 && (
+                                                <Pressable onPress={toggleKeysetModal}>
+                                                    <Text 
+                                                        text={` · Select another`} 
+                                                        size='xxs' 
+                                                        style={{color: textHint, alignSelf: 'center', marginTop: spacing.extraSmall}}
+                                                    />  
+                                                </Pressable> 
+                                            )}                                                                       
+                                            </View>
+                                        </>  
+                                        )}
+                                        {mintsStore.mintCount > 0 && !selectedMintUrl && (
+                                            <Text 
+                                                text={`Select mint to recover from`} 
+                                                size='xxs' 
+                                                style={{color: textHint, alignSelf: 'center', margin: spacing.large}}
+                                            />
+                                        )}
+                                    </>   
+                                }         
+                            />
+                        </>
+                    )}                    
+                </>
                 ) : (
                 <Card
                     style={$card}
                     ContentComponent={
                         <ListItem
-                            text='Insert backup mnemonic phrase'
-                            subText='Paste or rewrite 12 word phrase to recover your ecash balance on this device. Separate words by blank spaces.'
+                            text='Insert mnemonic phrase'
+                            subText={`Paste or rewrite 12 word phrase to recover your ${isAddressOnlyRecovery ? 'wallet address' : 'ecash balance and wallet address'} on this device. Separate words by blank spaces.`}
                             LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='1'/></View>}                  
                             style={$item}                            
                         /> 
