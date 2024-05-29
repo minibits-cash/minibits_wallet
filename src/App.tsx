@@ -80,10 +80,10 @@ function App(props: AppProps) {
         await messaging().registerDeviceForRemoteMessages()        
         const deviceToken = await messaging().getToken()
 
-        log.trace('[useInitialRootStore]', {deviceToken})
+        log.debug('[useInitialRootStore]', {deviceToken})
 
         // Save new or refreshed token to local and server profile        
-        if (deviceToken !== walletProfileStore.device) {
+        if (deviceToken && deviceToken !== walletProfileStore.device) {
             walletProfileStore.setDevice(deviceToken)
         }
         
