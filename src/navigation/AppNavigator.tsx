@@ -40,7 +40,7 @@ import { colors, useThemeColor } from "../theme"
  */
 export type AppStackParamList = {
   Welcome: undefined
-  RemoteRecovery: undefined
+  RemoteRecovery: {isAddressOnlyRecovery: boolean}
   Mints: {}
   Tabs: NavigatorScreenParams<TabsParamList>  
 }

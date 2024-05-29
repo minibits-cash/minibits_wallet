@@ -17,12 +17,12 @@ import {MeltQuoteResponse, type Proof as CashuProof} from '@cashu/cashu-ts'
 import {Mint} from '../models/Mint'
 import {pollerExists, stopPolling} from '../utils/poller'
 import EventEmitter from '../utils/eventEmitter'
-import { NostrClient, NostrEvent, NostrFilter, NostrProfile } from './nostrService'
-import { MINIBITS_NIP05_DOMAIN, MINIBITS_SERVER_API_HOST } from '@env'
+import { NostrClient, NostrEvent, NostrProfile } from './nostrService'
+import { MINIBITS_NIP05_DOMAIN, MINIBITS_SERVER_API_HOST, MINIBIT_SERVER_NOSTR_PUBKEY } from '@env'
 import { PaymentRequest, PaymentRequestStatus, PaymentRequestType } from '../models/PaymentRequest'
 import { IncomingDataType, IncomingParser } from './incomingParser'
 import { Contact } from '../models/Contact'
-import { getDefaultAmountPreference } from '@cashu/cashu-ts/src/utils'
+import { getDecodedToken, getDefaultAmountPreference } from '@cashu/cashu-ts/src/utils'
 import { SyncQueue } from './syncQueueService'
 import { receiveTask, receiveOfflinePrepareTask, receiveOfflineCompleteTask} from './wallet/receiveTask'
 import { sendTask } from './wallet/sendTask'
@@ -31,6 +31,7 @@ import { transferTask } from './wallet/transferTask'
 import { WalletUtils } from './wallet/utils'
 import { NotificationService } from './notificationService'
 import { CurrencyCode, MintUnit, formatCurrency, getCurrency } from './wallet/currency'
+import { MinibitsClient } from './minibitsService'
 
 
 type WalletTaskService = {
@@ -42,11 +43,12 @@ type WalletTaskService = {
             isPending: boolean
         }
     ) => Promise<void>
-    handleInFlight: ()       => Promise<void>
+    handleInFlight: ()        => Promise<void>
     handlePendingTopups: ()   => Promise<void>
     handlePendingTopup: (params: {
         paymentRequest: PaymentRequest
     })   => Promise<void>
+    handleClaim: ()   => Promise<void>
     receiveEventsFromRelays: () => Promise<void>
     transfer: (
         mintBalanceToTransferFrom: MintBalance,
@@ -971,6 +973,70 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
 }
 
 
+const handleClaim = async function (): Promise<void> {
+    
+    log.info('[handleClaim] start')
+    const {walletId, seedHash, pubkey} = walletProfileStore
+
+    if(!walletId || !seedHash || !pubkey) {
+        log.warn('[handleClaim] Missing or incomplete walletProfile, skipping claim request...')
+        return
+    }
+
+    const claimedInvoices = await MinibitsClient.createClaim(walletId, seedHash, pubkey)
+
+    log.debug(claimedInvoices)
+
+    if(claimedInvoices.length === 0) {
+        log.info('[handleClaim] No claimed invoices returned from server...')
+        return
+    }
+
+    for(const claimedInvoice of claimedInvoices) {
+        const now = new Date().getTime()
+
+        SyncQueue.addTask( 
+            `_handleClaimTask-${now}`,               
+            async () => await _handleClaimTask({encryptedToken: claimedInvoice.token})               
+        )               
+    }
+    
+    return
+}
+
+
+const _handleClaimTask = async function (params: {encryptedToken: string}) {
+    const {encryptedToken} = params
+
+    if(!encryptedToken) {
+        throw new AppError(Err.VALIDATION_ERROR, '[_handleClaimTask] Missing encodedToken to receive.')
+    }
+
+    const encodedToken = await NostrClient.decryptNip04(MINIBIT_SERVER_NOSTR_PUBKEY, encryptedToken)
+
+    log.debug('[_handleClaimTask] decrypted token', {encodedToken})
+
+    const decoded: Token = CashuUtils.decodeToken(encodedToken)
+    const amountToReceive = CashuUtils.getTokenAmounts(decoded).totalAmount
+    const memo = decoded.memo || 'Received to Lightning address'
+
+    const result: TransactionTaskResult = await receiveTask(
+        decoded,
+        amountToReceive,
+        memo,
+        encodedToken,
+    )
+
+    return { 
+        mintUrl: decoded.token[0].mint,
+        taskFunction: '_handleClaimTask',
+        message: 'Ecash sent to your lightning address has been received.',
+        proofsCount: decoded.token[0].proofs.length,
+        proofsAmount: result.transaction?.amount,
+    } as WalletTaskResult 
+}
+
+
 
 const _sendTopupNotification = async function (pr: PaymentRequest) {
     
@@ -1261,6 +1327,7 @@ const _sendReceiveNotification = async function (
         try {
             const zapSenderProfile: NostrProfile = JSON.parse(maybeZapSenderString)
             
+
             if(zapSenderProfile) {
                 sentFromPubkey = zapSenderProfile.pubkey // zap sender pubkey                
                 sentFrom = zapSenderProfile.nip05 || zapSenderProfile.name                
@@ -1271,7 +1338,7 @@ const _sendReceiveNotification = async function (
                 const contactInstance = contactsStore.findByPubkey(sentFromPubkey)
                 if(contactInstance && sentFromLud16) {                                        
                     contactInstance.setLud16(sentFromLud16)
-                }                    
+                }                                      
                 
             }            
         } catch (e: any) {
@@ -1310,7 +1377,6 @@ const _extractZapSenderData = function (str: string) {
 
 
 
-
 export const WalletTask: WalletTaskService = {
     handleSpentFromPending,
     handleSpentFromSpendable,
@@ -1318,6 +1384,7 @@ export const WalletTask: WalletTaskService = {
     handleInFlight,    
     handlePendingTopups,
     handlePendingTopup,
+    handleClaim,
     receiveEventsFromRelays,
     receive,
     receiveOfflinePrepare,

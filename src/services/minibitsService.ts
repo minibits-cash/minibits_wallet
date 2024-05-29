@@ -99,6 +99,27 @@ const updateWalletProfileNip05 = async function (pubkey: string, update: {newPub
 }
 
 
+
+const updateDeviceToken = async function (pubkey: string, update: {deviceToken: string} ) {    
+    const url = MINIBITS_SERVER_API_HOST + '/profile' 
+    const method = 'PUT'    
+    const { deviceToken } = update
+    
+    const body = {            
+        deviceToken
+    }        
+
+    const walletProfile: WalletProfile = await fetchApi(url + `/deviceToken/${pubkey}`, {
+        method,        
+        body,
+    })
+
+    log.info('[updateDeviceToken]', `Updated wallet deviceToken`, walletProfile.device)
+
+    return walletProfile
+}
+
+
 const recoverProfile = async function (seedHash: string, update: {newPubkey: string}) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'PUT'    
@@ -213,7 +234,7 @@ const createDonation = async function (amount: number, memo: string, pubkey: str
         body
     })
 
-    log.info(`Created new donation invoice`, invoice, 'createDonation')
+    log.info(`[createDonation] Created new donation invoice`, {invoice})
 
     return invoice
 }
@@ -227,14 +248,35 @@ const checkDonationPaid = async function (paymentHash: string, pubkey: string) {
         method,            
     })
 
-    log.info(`Got response`, donationPaid, 'checkDonationPaid')
+    log.info(`[checkDonationPaid] Got response`, donationPaid)
 
     return donationPaid
 }
 
 
+const createClaim = async function (walletId: string, seedHash: string, pubkey: string,) {    
+    const url = MINIBITS_SERVER_API_HOST + '/claim' 
+    const method = 'POST'    
+    
+    const body = {
+        walletId,
+        seedHash,
+        pubkey
+    }        
+
+    const claimedInvoices: Array<{token: string, }> = await fetchApi(url, {
+        method,        
+        body
+    })
+
+    log.info(`[createClaim] Created new claim and got invoices`, {claimedInvoices})
+
+    return claimedInvoices
+}
+
+
 const fetchApi = async (url: string, options: MinibitsRequestOptions, timeout = 10000) => { //ms
-    log.trace('[fetchApi]', {url})
+    log.trace('[fetchApi] start', url)
     
     const controller = new AbortController()
     const body = options.body ? JSON.stringify(options.body) : undefined
@@ -290,6 +332,7 @@ export const MinibitsClient = {
     createWalletProfile,
     updateWalletProfile,
     updateWalletProfileNip05,
+    updateDeviceToken,
     recoverProfile,
     migrateSeedHash,
     getRandomPictures,
@@ -298,6 +341,7 @@ export const MinibitsClient = {
     getWalletProfileBySeedHash,
     createDonation,
     checkDonationPaid,
+    createClaim,
     getPublicHeaders,
     fetchApi,
 }

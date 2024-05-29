@@ -18,6 +18,7 @@ import {
 import codePush, { RemotePackage } from 'react-native-code-push'
 import {moderateVerticalScale, verticalScale} from '@gocodingnow/rn-size-matters'
 import { SvgXml } from 'react-native-svg'
+import {getUnixTime} from 'date-fns'
 import PagerView, { PagerViewOnPageScrollEventData } from 'react-native-pager-view'
 import { ScalingDot } from 'react-native-animated-pagination-dots'
 import {useThemeColor, spacing, colors, typography} from '../theme'
@@ -92,15 +93,19 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const [currentUnit, setCurrentUnit] = useState<MintUnit>(groupedMints.length > 0 ? groupedMints[0].unit : 'sat')
     const [info, setInfo] = useState<string>('')
     const [defaultMintUrl, setDefaultMintUrl] = useState<string>(MINIBITS_MINT_URL)
+    const [lastClaimCheck, setLastClaimCheck] = useState<number>(getUnixTime(new Date()))
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState<boolean>(false)
     
     const [isUpdateAvailable, setIsUpdateAvailable] = useState<boolean>(false)
     const [isUpdateModalVisible, setIsUpdateModalVisible] = useState<boolean>(false)
+    const [isSendModalVisible, setIsSendModalVisible] = useState<boolean>(false)
+    const [isReceiveModalVisible, setIsReceiveModalVisible] = useState<boolean>(false)
     const [updateDescription, setUpdateDescription] = useState<string>('')
     const [updateSize, setUpdateSize] = useState<string>('')
     const [isNativeUpdateAvailable, setIsNativeUpdateAvailable] = useState<boolean>(false)
 
+    // On app start
     useEffect(() => {
         const checkForUpdate = async () => {            
             try {
@@ -136,21 +141,22 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         // toggleUpdateModal()
     }
 
-    
+    // On app start
     useEffect(() => {
         // get deeplink if any
-        const getInitialData  = async () => {
+        const getInitialData  = async () => {            
             const url = await Linking.getInitialURL()
                                              
             if (url) {                            
                 handleDeeplink({url})                
-                return // deeplinks have priority over clipboard
+                return // skip further processing so that it does not slow down or clash deep link
             }
             
             if(!isInternetReachable) { return }
 
-            // Auto-recover inflight proofs - do only on startup and before checkPendingReceived to prevent conflicts
-            // TODO add manual option to recovery settings
+            // check lnaddress claims on app start and set timestamp to trigger focus updates
+            WalletTask.handleClaim().catch(e => false)
+            // Auto-recover inflight proofs - do only on startup and before checkPendingReceived to prevent conflicts            
             WalletTask.handleInFlight().catch(e => false)
             // Create websocket subscriptions to receive tokens or payment requests by NOSTR DMs                    
             WalletTask.receiveEventsFromRelays().catch(e => false)
@@ -197,7 +203,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         }, initial: false})
     }   
     
-
+    
     useFocusEffect(        
         useCallback(() => {
             if(!isInternetReachable) {
@@ -205,7 +211,18 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             }
 
             WalletTask.handleSpentFromPending().catch(e => false)               
-            WalletTask.handlePendingTopups().catch(e => false)            
+            WalletTask.handlePendingTopups().catch(e => false) 
+            
+            // check lnaddress claims max once per minute to decrease server load      
+            const nowInSec = getUnixTime(new Date())
+
+            log.trace('[useFocusEffect]', {nowInSec, lastClaimCheck, delay: lastClaimCheck ? nowInSec - lastClaimCheck : undefined})
+
+            if(lastClaimCheck && nowInSec - lastClaimCheck > 60) {                
+                WalletTask.handleClaim().catch(e => false)
+                setLastClaimCheck(nowInSec)            
+            }
+            
         }, [])
     )
 
@@ -235,6 +252,17 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
                     WalletTask.handleSpentFromPending().catch(e => false) 
                     WalletTask.handlePendingTopups().catch(e => false)
+
+                    // check lnaddress claims max once per minute to decrease server load            
+                    const nowInSec = getUnixTime(new Date())
+
+                    log.trace('[appState change]', {nowInSec, lastClaimCheck, delay: lastClaimCheck ? nowInSec - lastClaimCheck : undefined})
+
+                    if(lastClaimCheck && nowInSec - lastClaimCheck > 60) {                        
+                        WalletTask.handleClaim().catch(e => false)
+                        setLastClaimCheck(nowInSec)            
+                    }
+
                     // calls checkPendingReceived if re-connects
                     NostrClient.reconnectToRelays().catch(e => false)           
             }
@@ -252,6 +280,15 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         setIsUpdateModalVisible(previousState => !previousState)
     }
 
+
+    const toggleSendModal = () => {
+        setIsSendModalVisible(previousState => !previousState)
+    }
+
+
+    const toggleReceiveModal = () => {
+        setIsReceiveModalVisible(previousState => !previousState)
+    }
 
     const addMint = async function ({scannedMintUrl = ''} = {}) {
         // necessary
@@ -285,20 +322,28 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         }
     }
 
-    const gotoTokenReceive = async function () {
-        /* const routes = navigation.getState()?.routes
-        const state = navigation.getState()
-        log.trace('[gotoTokenReceive]', {routes, state}) */
-        
-        navigation.navigate('TokenReceive', {unit: currentUnit})
+    const gotoSend = function () {
+        toggleSendModal()
+        navigation.navigate('Send', {unit: currentUnit})
     }
 
-    const gotoSend = function () {
-        navigation.navigate('Send', {unit: currentUnit})
+    const gotoLightningPay = async function () {
+        toggleSendModal()
+        navigation.navigate('LightningPay', {unit: currentUnit})
     }
 
     const gotoScan = function () {
         navigation.navigate('Scan')
+    }
+
+    const gotoTokenReceive = async function () {
+        toggleReceiveModal()
+        navigation.navigate('TokenReceive', {unit: currentUnit})
+    }
+
+    const gotoTopup = function () {
+        toggleReceiveModal()
+        navigation.navigate('Topup', {unit: currentUnit})
     }
 
     const gotoTranDetail = function (id: number) {
@@ -482,7 +527,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                 //style={{paddingLeft: spacing.medium}}
                             />
                         )}
-                        onPress={gotoSend}                        
+                        onPress={toggleSendModal}                        
                         style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonTopup]}
                         preset='tertiary'
                         text='Send'
@@ -508,7 +553,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                 color={mainButtonIcon}
                             />
                         )}
-                        onPress={gotoTokenReceive}
+                        onPress={toggleReceiveModal}
                         text='Receive'
                         style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonPay]}
                         preset='tertiary'
@@ -538,6 +583,50 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
           }
           onBackButtonPress={toggleUpdateModal}
           onBackdropPress={toggleUpdateModal}
+        />
+        <BottomModal
+          isVisible={isSendModalVisible ? true : false}
+          style={{alignItems: 'stretch'}}
+          ContentComponent={  
+            <>
+            <ListItem   
+                leftIcon='faMoneyBill1'                          
+                text='Send Ecash'
+                subText='Share Ecash or send it to one of your contacts'
+                onPress={gotoSend}
+            />
+            <ListItem   
+                leftIcon='faBolt'             
+                text='Pay with Lightning'
+                subText='Pay invoice or to a Lightning address'
+                onPress={gotoLightningPay}
+            />
+            </>      
+          }
+          onBackButtonPress={toggleSendModal}
+          onBackdropPress={toggleSendModal}
+        /> 
+        <BottomModal
+          isVisible={isReceiveModalVisible ? true : false}
+          style={{alignItems: 'stretch'}}
+          ContentComponent={  
+            <>
+            <ListItem   
+                leftIcon='faMoneyBill1'             
+                text='Receive Ecash'
+                subText='Paste or scan Ecash token'
+                onPress={gotoTokenReceive}
+            />
+            <ListItem      
+                leftIcon='faBolt'          
+                text='Topup with Lightning'
+                subText='Create Lightning invoice to topup your balance'
+                onPress={gotoTopup}
+            />
+            </>      
+          }
+          onBackButtonPress={toggleReceiveModal}
+          onBackdropPress={toggleReceiveModal}
         />       
 
       </Screen>

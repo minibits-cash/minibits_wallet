@@ -256,6 +256,10 @@ export const WalletProfileStoreModel = types
             log.info('[recover]', 'Wallet profile recovered in WalletProfileStore', {self, publishedEvent})
             return self         
         }),
+        setDevice: flow(function* setDevice(device: string) {  
+            self.device = device
+            yield MinibitsClient.updateDeviceToken(self.pubkey, {deviceToken: device})           
+        }),
         setNip05(nip05: string) {   // used in migration to v3 model         
             self.nip05 = nip05             
         },
@@ -264,7 +268,8 @@ export const WalletProfileStoreModel = types
         },
         setSeedHash(seedHash: string) {   // used in migration to v8 model         
             self.seedHash = seedHash             
-        }
+        },
+
         /* setPicture(picture: string) {            
             self.picture = picture             
         }*/

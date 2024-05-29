@@ -104,7 +104,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
 
     const gotoRecovery = async function () {
         try {            
-            navigation.navigate('RemoteRecovery')
+            navigation.navigate('RemoteRecovery', {isAddressOnlyRecovery: false})
         } catch (e: any) {
             handleError(e)
         }      

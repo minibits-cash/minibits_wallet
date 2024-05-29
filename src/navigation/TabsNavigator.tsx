@@ -40,6 +40,7 @@ import {
   ReceiveOption,
   SendOption,
   TokenReceiveScreen,
+  RemoteRecoveryScreen,
 } from "../screens"
 import { Contact } from "../models/Contact"
 import { colors, useThemeColor, spacing, typography } from "../theme"
@@ -288,6 +289,7 @@ export type SettingsStackParamList = {
   LocalRecovery: undefined
   Developer: undefined
   Relays: undefined
+  RemoteRecovery: {isAddressOnlyRecovery: boolean}
   WalletNavigator: {screen: string} 
   ContactsNavigator: {screen: string}  
 }
@@ -319,6 +321,7 @@ const SettingsNavigator = function SettingsNavigator() {
       <SettingsStack.Screen name="LocalRecovery" component={LocalRecoveryScreen} />
       <SettingsStack.Screen name="Developer" component={DeveloperScreen} />
       <SettingsStack.Screen name="Relays" component={RelaysScreen} />
+      <SettingsStack.Screen name="RemoteRecovery" component={RemoteRecoveryScreen} />
     </SettingsStack.Navigator>
   )
 }
