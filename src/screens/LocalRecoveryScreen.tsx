@@ -347,7 +347,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
           setIsLoading(false)
 
       } catch (e: any) {
-          setInfo(`Could not copy: ${e.message}`)
+          handleError(e)
       }
   }
 

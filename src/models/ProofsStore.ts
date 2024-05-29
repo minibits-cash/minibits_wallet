@@ -157,7 +157,9 @@ export const ProofsStoreModel = types
                     } else {
                         const proofInstance = self.getProofInstance(proof, isPending)
                         // proofInstances?.push(proofInstance as Proof)
-                        detach(proofInstance) // vital
+                        if(proofInstance) {
+                            detach(proofInstance) // vital
+                        }
                     }                    
                 }) 
 
@@ -189,8 +191,10 @@ export const ProofsStoreModel = types
                 if (isStateTreeNode(proof)) {                    
                     detach(proof) // vital
                 } else {
-                    const proofInstance = self.getProofInstance(proof, isPending)                    
-                    detach(proofInstance) // vital
+                    const proofInstance = self.getProofInstance(proof, isPending)
+                    if(proofInstance) {
+                        detach(proofInstance) // vital
+                    }                    
                 }                    
             }) 
 

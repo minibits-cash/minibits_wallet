@@ -1,9 +1,9 @@
 import * as React from 'react'
-import { StyleSheet, View, ActivityIndicator, ViewProps } from 'react-native'
+import { StyleSheet, View, ActivityIndicator, ViewProps, TextStyle } from 'react-native'
 import { useThemeColor } from '../theme'
 import { Text } from './Text'
 
-export function Loading(props: ViewProps & {statusMessage?: string}) {
+export function Loading(props: ViewProps & {statusMessage?: string, textStyle?: TextStyle}) {
     return (
         <View style={[{
             flex: 1,            

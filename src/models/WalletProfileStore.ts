@@ -85,6 +85,41 @@ export const WalletProfileStoreModel = types
                 return false // silent
             }                    
         }),
+        migrateToNewRelay: flow(function* migrateToNewRelay() {
+            try {
+                const {pubkey, name, picture, nip05, lud16} = self
+
+                // announce to new minibits relay
+                const profileEvent: NostrUnsignedEvent = {
+                    kind: 0,
+                    pubkey,
+                    tags: [],                        
+                    content: JSON.stringify({
+                        name,                            
+                        picture,
+                        nip05,
+                        lud16,                       
+                    }),
+                    created_at: Math.floor(Date.now() / 1000)                              
+                }
+
+                const rootStore = getRootStore(self)
+                const relaysToPublish: string[]  = NostrClient.getMinibitsRelays()
+
+                log.debug('[publishToRelays]', 'Migrate profile to new relay', {profileEvent, relaysToPublish})
+
+                const publishedEvent: Event | undefined = yield NostrClient.publish(
+                    profileEvent,
+                    relaysToPublish                    
+                )
+                
+                return publishedEvent
+                
+            } catch (e: any) {       
+                log.error(e.name, e.message)         
+                return false // silent
+            }                    
+        }),
     }))
     .actions(self => ({        
         hydrate: flow(function* hydrate(profileRecord: WalletProfileRecord) {
@@ -112,26 +147,20 @@ export const WalletProfileStoreModel = types
             log.trace('[create]', {seedHash, publicKey})
 
             try {
+                // creates new profile. If all params equal existing one, it is returned
                 profileRecord = yield MinibitsClient.createWalletProfile(publicKey, walletId, seedHash)        
             } catch (e: any) {
-                // Unlikely we might hit the same walletId or loose walletProfile state while keeping keys in the Keychain. 
-                // In such cases we do full reset.
+                // Unlikely we might hit the same walletId so we retry with another one
                 if(e.name === Err.ALREADY_EXISTS_ERROR) {
-                    
-                    // clean and recreate Nostr keys
-                    yield KeyChain.removeNostrKeypair()                    
-                    const {publicKey} = yield NostrClient.getOrCreateKeyPair()
                     // recreate walletId + default name
                     const name = getRandomUsername()
                     const userSettingsStore = getRootStore(self).userSettingsStore
                     userSettingsStore.setWalletId(name)
-                    // attempt to create new unique profile again
-                    // this removes abandoned profile with the same seedHash if any
+                    // attempt to create new unique profile again                    
                     profileRecord = yield MinibitsClient.createWalletProfile(publicKey, name, seedHash) 
                     
-                    log.error('[create]', 'Profile reset executed to resolve duplicate profile on the server.', {caller: 'create', walletId, newWalletId: name})
+                    log.error('[create]', 'Profile reset executed to resolve duplicate walletId on the server.', {caller: 'create', walletId, newWalletId: name})
                     self.hydrate(profileRecord)
-
                     return
                 }
 
@@ -227,6 +256,10 @@ export const WalletProfileStoreModel = types
             log.info('[recover]', 'Wallet profile recovered in WalletProfileStore', {self, publishedEvent})
             return self         
         }),
+        setDevice: flow(function* setDevice(device: string) {  
+            self.device = device
+            yield MinibitsClient.updateDeviceToken(self.pubkey, {deviceToken: device})           
+        }),
         setNip05(nip05: string) {   // used in migration to v3 model         
             self.nip05 = nip05             
         },
@@ -235,7 +268,8 @@ export const WalletProfileStoreModel = types
         },
         setSeedHash(seedHash: string) {   // used in migration to v8 model         
             self.seedHash = seedHash             
-        }
+        },
+
         /* setPicture(picture: string) {            
             self.picture = picture             
         }*/

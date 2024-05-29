@@ -56,11 +56,12 @@ export const QRCodeBlock = function (props: {
         style={{backgroundColor: 'white', paddingBottom: 0}}
         ContentComponent={qrError ? (
           <ListItem 
-              text='Could not display QR code, copy and share the data.'
+              text='Could not display QR code, copy or share the Ecash token instead.'
               subText={qrError ? qrError.message : ''}
               leftIcon='faTriangleExclamation'
               containerStyle={{marginVertical: spacing.large}}
               leftIconColor={colors.palette.angry500}
+              textStyle={{color: colors.light.text}}
           />
         ) : (
           <View style={$qrCodeContainer}>

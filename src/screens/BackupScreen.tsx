@@ -121,7 +121,11 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
 
     const gotoRemoteBackup = function () {
         navigation.navigate('RemoteBackup')
-      }
+    }
+
+    const gotoRemoteRecovery = function () {
+      navigation.navigate('RemoteRecovery', {isAddressOnlyRecovery: true})
+    }
 
     const checkSpent = async function () {
       setIsLoading(true)
@@ -157,7 +161,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
                 style={$card}
                 HeadingComponent={
                 <>                
-                    <ListItem
+                  <ListItem
                     tx="backupScreen.remoteBackup"
                     subTx="backupScreen.remoteBackupDescription"
                     leftIcon='faUpRightFromSquare'
@@ -165,7 +169,17 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
                     leftIconInverse={true}
                     style={$item}
                     onPress={gotoRemoteBackup}
-                    />
+                    bottomSeparator={true}
+                  />
+                  <ListItem
+                    text="Wallet address recovery"
+                    subText="Use your mnemonic phrase from another device to get your original wallet address on this device. This will not recover balances."
+                    leftIcon='faCircleUser'
+                    leftIconColor={colors.palette.iconGreyBlue400}
+                    leftIconInverse={true}
+                    style={$item}
+                    onPress={gotoRemoteRecovery}
+                  />
                 </>
                 }
             />
@@ -238,7 +252,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
                 <>                
                     <ListItem
                         text="Increase recovery indexes"
-                        subText={`After migration from old wallet to the wallet that can be recovered with seed phrase, you may in rare cases encounter 'duplicate outputs' error when trying to send. This resets your recovery indexes to higher value in order to resolve the issue.`}
+                        subText={`After incomplete recovery from seed or other rare issue, you may encounter 'duplicate outputs' error when trying to send. This resets your recovery indexes to higher value in order to resolve the issue.`}
                         leftIcon='faArrowUp'
                         leftIconColor={colors.palette.success300}
                         leftIconInverse={true}

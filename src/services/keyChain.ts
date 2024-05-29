@@ -146,7 +146,7 @@ const saveSeed = async function (
   }
   
   /**
-   * Loads mnemonic from the KeyChain/KeyStore
+   * Loads seed from the KeyChain/KeyStore
    *
    */
   const loadSeed = async function (): Promise<Uint8Array | undefined> {    

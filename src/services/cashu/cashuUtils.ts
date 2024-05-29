@@ -243,12 +243,7 @@ const validateMintKeys = function (keys: object): boolean {
   }
 
 
-/**
- * get a set of tokens from another set of tokens, and returns the remaining.
- * @param proofs
- * @param proofsToRemove
- * @returns
- */
+
 const getMintFromProof = function (
   proof: Proof,
   mints: Array<Mint>,
