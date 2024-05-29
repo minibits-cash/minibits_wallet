@@ -997,7 +997,7 @@ const handleClaim = async function (): Promise<void> {
 
         SyncQueue.addTask( 
             `_handleClaimTask-${now}`,               
-            async () => await _handleClaimTask({encryptedToken: claimedInvoice.token})               
+            async () => await _handleClaimTask({claimedInvoice})               
         )               
     }
     
@@ -1005,10 +1005,11 @@ const handleClaim = async function (): Promise<void> {
 }
 
 
-const _handleClaimTask = async function (params: {encryptedToken: string}) {
-    const {encryptedToken} = params
+const _handleClaimTask = async function (params: {claimedInvoice: {token: string, zapSenderProfile?: string}}) {
+    const {claimedInvoice} = params
+    const encryptedToken = claimedInvoice.token
 
-    if(!encryptedToken) {
+    if(!claimedInvoice.token) {
         throw new AppError(Err.VALIDATION_ERROR, '[_handleClaimTask] Missing encodedToken to receive.')
     }
 
@@ -1026,6 +1027,18 @@ const _handleClaimTask = async function (params: {encryptedToken: string}) {
         memo,
         encodedToken,
     )
+
+    if(result && result.transaction && claimedInvoice.zapSenderProfile) {
+
+        const {zapSenderProfile} = claimedInvoice
+        const zapSenderProfileData: NostrProfile = JSON.parse(zapSenderProfile)
+        const sentFrom = zapSenderProfileData.nip05 || zapSenderProfileData.name
+        
+        await transactionsStore.updateSentFrom(
+            result.transaction.id as number,
+            sentFrom as string
+        )
+    }
 
     return { 
         mintUrl: decoded.token[0].mint,
@@ -1315,7 +1328,7 @@ const _sendReceiveNotification = async function (
         ) 
     }
 
-    // Do not spent time to connect to relays if user has not allowed notifications
+    // return if user has not allowed notifications
     const enabled = await NotificationService.areNotificationsEnabled()
     if(!enabled) {
         return

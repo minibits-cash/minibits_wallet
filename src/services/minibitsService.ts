@@ -264,7 +264,7 @@ const createClaim = async function (walletId: string, seedHash: string, pubkey: 
         pubkey
     }        
 
-    const claimedInvoices: Array<{token: string, }> = await fetchApi(url, {
+    const claimedInvoices: Array<{token: string, zapSenderProfile?: string}> = await fetchApi(url, {
         method,        
         body
     })
@@ -275,7 +275,7 @@ const createClaim = async function (walletId: string, seedHash: string, pubkey: 
 }
 
 
-const fetchApi = async (url: string, options: MinibitsRequestOptions, timeout = 10000) => { //ms
+const fetchApi = async (url: string, options: MinibitsRequestOptions, timeout = 60000) => { //ms
     log.trace('[fetchApi] start', url)
     
     const controller = new AbortController()
