@@ -592,7 +592,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             <ListItem   
                 leftIcon='faMoneyBill1'                          
                 text='Send Ecash'
-                subText='Share Ecash or send it to one of your contacts'
+                subText='Share ecash or send it to one of your contacts'
                 onPress={gotoSend}
             />
             <ListItem   
@@ -614,7 +614,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             <ListItem   
                 leftIcon='faMoneyBill1'             
                 text='Receive Ecash'
-                subText='Paste or scan Ecash token'
+                subText='Paste or scan ecash token'
                 onPress={gotoTokenReceive}
             />
             <ListItem      
