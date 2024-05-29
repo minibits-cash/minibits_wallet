@@ -83,7 +83,7 @@ function App(props: AppProps) {
         log.debug('[useInitialRootStore]', {deviceToken})
 
         // Save new or refreshed token to local and server profile        
-        if (deviceToken && deviceToken !== walletProfileStore.device) {
+        if (deviceToken.length > 0 && deviceToken !== walletProfileStore.device) {
             walletProfileStore.setDevice(deviceToken)
         }
         
