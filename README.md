@@ -40,6 +40,7 @@ Receive ecash
 - [x] Receive Nostr zaps or Lightning payments to minibits.cash address
 - [x] Receive ecash from another wallet over NOSTR message sent to minibits.cash address
 - [x] Receive ecash in person while being offline, redeem later (MVP version)
+- [x] Realtime and encrypted push notifications on receive to minibits.cash lightning address [✨ New!]
 
 Send ecash
 - [x] Share ecash token to send through another app
@@ -85,15 +86,16 @@ Backup and recovery
 - [x] Local append-only backup of all ecash in a database separate from wallet storage
 - [x] Recovery tool to recover ecash from local backup
 - [x] Recover wallet in case spent ecash remain in the wallet due to an exception during a transaction
-- [x] Off-device backup and recovery using 12 words based seed 
+- [x] Off-device backup and recovery using 12 words menmonic phrase 
 - [x] Retry transaction after recoverable errors [✨ New!]
 - [x] Auto-recover funds if wallet failed to receive ecash issued by mint due to network or device failure
-- [ ] Smooth migration to another device
+- [x] Smooth migration to another device - recovery of wallet address without balances using mnemonic phrase [✨ New!]
 
 Security and Privacy
 - [x] Optional AES encryption of wallet storage using a key stored in the device secure key storage
 - [x] Use device biometry to login (if storage encryption is on)
 - [-] Tor daemon to connect to mints with .onion addresses [discontinued from v0.1.7-beta]
+- [ ] Connection to external Tor daemon such as Orbot using SOCKS proxy
 
 
 Self-funding
@@ -125,7 +127,7 @@ Open architectural concepts that were still open for discussion when the wallet 
 - [x] Contacts management - identities, sharing contacts, send ecash with the UX of tradfi instant payment while keeping privacy towards mints - Implemented as NOSTR keypairs and NIP05 public sharable names that ecash can be sent to
 - [x] Off-device backup strategy - Implemented using @gandlafbtc concept of deterministic secrets
 - [ ] UX and naming conventions - ecash is not always intuitive. UX for new users heavily depends on using the right abstractions or terms to describe what is going on. This wallet wants to serve as a means to test what could work. One of the first ideas is to avoid terms such as token or proof and propose the term --coin ++ecash instead.
-- [ ] Suitable Tor daemon available to replace not maintained react-native-tor.
+- [ ] Suitable Tor daemon available to replace not maintained react-native-tor or SOCKS proxy connection to external on device daemon such as Orbot.
 
 
 ## Download and test
