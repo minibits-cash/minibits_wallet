@@ -213,6 +213,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
               <>
                 <ListItem
                     text='Push notifications'
+                    subText={`Token: ${walletProfileStore.device?.slice(0, 10)}...`}
                     leftIcon='faPaperPlane'
                     leftIconColor={colors.palette.green400}
                     leftIconInverse={true}
