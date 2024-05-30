@@ -2,6 +2,7 @@ import {observer} from 'mobx-react-lite'
 import React, {FC, useCallback, useEffect, useRef, useState} from 'react'
 import {Alert, AppState, FlatList, Switch, TextStyle, View, ViewStyle} from 'react-native'
 import notifee from '@notifee/react-native'
+import messaging from '@react-native-firebase/messaging'
 import {
     APP_ENV,      
     CODEPUSH_STAGING_DEPLOYMENT_KEY,
@@ -31,7 +32,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
     const {navigation} = _props
     useHeader({}) // default header component
     const appState = useRef(AppState.currentState)
-    const {mintsStore, relaysStore, userSettingsStore} = useStores()
+    const {mintsStore, relaysStore, userSettingsStore, walletProfileStore} = useStores()
 
     const [isUpdateAvailable, setIsUpdateAvailable] = useState<boolean>(false)
     const [updateDescription, setUpdateDescription] = useState<string>('')    
@@ -79,7 +80,18 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
             nextAppState === 'active') {
               try {
                 const enabled = await NotificationService.areNotificationsEnabled()
-                setAreNotificationsEnabled(enabled)              
+                setAreNotificationsEnabled(enabled)
+                
+                // FCM push notifications - set or refresh device token                
+                await messaging().registerDeviceForRemoteMessages()        
+                const deviceToken = await messaging().getToken()
+
+                log.debug('[SettingsScreen.useEffect]', {deviceToken})
+
+                // Save new or refreshed token to local and server profile        
+                if (deviceToken.length > 0 && deviceToken !== walletProfileStore.device) {
+                    walletProfileStore.setDevice(deviceToken)
+                }
               } catch (e: any) {
                   log.info(e.name, e.message)
                   return false // silent

@@ -81,24 +81,30 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
       //StatusBarProps: {barStyle: 'dark-content'},
     })
 
-    const {userSettingsStore, relaysStore} = useStores()
+    const {userSettingsStore, relaysStore, walletProfileStore} = useStores()
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState<boolean>(false)    
 
     
     const gotoWallet = async function () {
-        try {
-            // do not overwrite if one was set during recovery
-            setIsLoading(true)
-            const mnemonic = await MintClient.getOrCreateMnemonic()
-            userSettingsStore.setIsOnboarded(true)
-            // add default relays - issue #54
-            relaysStore.addDefaultRelays()
-            navigation.navigate('Tabs')
-            setIsLoading(false)
-        } catch (e: any) {
-            handleError(e)
-        }      
+      try {
+          // do not overwrite if one was set during recovery
+          setIsLoading(true)
+          const mnemonic = await MintClient.getOrCreateMnemonic()
+
+          // move new profile creation to the app start so that device token can register
+          if(!walletProfileStore.pubkey || !walletProfileStore.picture) {            
+            const walletId = userSettingsStore.walletId
+            await walletProfileStore.create(walletId as string)                    
+          }
+
+          userSettingsStore.setIsOnboarded(true)            
+          relaysStore.addDefaultRelays()
+          navigation.navigate('Tabs')
+          setIsLoading(false)
+      } catch (e: any) {
+          handleError(e)
+      }      
     }
 
 

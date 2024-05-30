@@ -71,12 +71,7 @@ function App(props: AppProps) {
         userSettingsStore.loadUserSettings()        
         log.trace('[useInitialRootStore]', 'Root store rehydrated')
 
-        // Set initial websocket to close as it might have remained open on last app close
-        for (const relay of relaysStore.allRelays) {
-            relay.setStatus(WebSocket.CLOSED)
-        }
-
-        // FCM push notifications - set or refresh token on app start                
+        // FCM push notifications - set or refresh device token on app start                
         await messaging().registerDeviceForRemoteMessages()        
         const deviceToken = await messaging().getToken()
 
@@ -86,7 +81,11 @@ function App(props: AppProps) {
         if (deviceToken.length > 0 && deviceToken !== walletProfileStore.device) {
             walletProfileStore.setDevice(deviceToken)
         }
-        
+
+        // Set initial websocket to close as it might have remained open on last app close
+        for (const relay of relaysStore.allRelays) {
+            relay.setStatus(WebSocket.CLOSED)
+        }
     })
 
     
