@@ -76,10 +76,13 @@ function App(props: AppProps) {
         const deviceToken = await messaging().getToken()
 
         log.debug('[useInitialRootStore]', {deviceToken})
-
-        // Save new or refreshed token to local and server profile        
-        if (deviceToken.length > 0) {
-            await walletProfileStore.setDevice(deviceToken)
+        
+        // Make sure profile has already been created (i.e. this is not first run)
+        if(walletProfileStore.pubkey && deviceToken) {
+            // if device token changed, update the server
+            if(deviceToken !== walletProfileStore.device) {
+                await walletProfileStore.setDevice(deviceToken)
+            }
         }
 
         // Set initial websocket to close as it might have remained open on last app close

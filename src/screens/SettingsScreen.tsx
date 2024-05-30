@@ -80,17 +80,24 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
             nextAppState === 'active') {
               try {
                 const enabled = await NotificationService.areNotificationsEnabled()
-                setAreNotificationsEnabled(enabled)
+                setAreNotificationsEnabled(enabled)                
                 
-                // FCM push notifications - set or refresh device token                
+                if(!enabled) {
+                  return
+                }
+
+                // FCM push notifications - set or refresh device token
                 await messaging().registerDeviceForRemoteMessages()        
                 const deviceToken = await messaging().getToken()
-
-                log.debug('[SettingsScreen.useEffect]', {deviceToken})
-
-                // Save new or refreshed token to local and server profile        
-                if (deviceToken.length) {
-                    walletProfileStore.setDevice(deviceToken)
+        
+                log.debug('[useInitialRootStore]', {deviceToken})
+                
+                // Make sure profile has already been created (i.e. this is not first run)
+                if(walletProfileStore.pubkey && deviceToken) {
+                    // if device token changed, update the server
+                    if(deviceToken !== walletProfileStore.device) {
+                        await walletProfileStore.setDevice(deviceToken)
+                    }
                 }
               } catch (e: any) {
                   log.info(e.name, e.message)
