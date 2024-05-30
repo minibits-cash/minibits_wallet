@@ -89,7 +89,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                 log.debug('[SettingsScreen.useEffect]', {deviceToken})
 
                 // Save new or refreshed token to local and server profile        
-                if (deviceToken.length > 0 && deviceToken !== walletProfileStore.device) {
+                if (deviceToken.length) {
                     walletProfileStore.setDevice(deviceToken)
                 }
               } catch (e: any) {

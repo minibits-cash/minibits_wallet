@@ -257,8 +257,12 @@ export const WalletProfileStoreModel = types
             return self         
         }),
         setDevice: flow(function* setDevice(device: string) {  
-            self.device = device
-            yield MinibitsClient.updateDeviceToken(self.pubkey, {deviceToken: device})           
+            try {
+                yield MinibitsClient.updateDeviceToken(self.pubkey, {deviceToken: device}) 
+                self.device = device          
+            } catch (e: any) {
+                log.error('[setDevice]', e.message)
+            }
         }),
         setNip05(nip05: string) {   // used in migration to v3 model         
             self.nip05 = nip05             
