@@ -228,8 +228,8 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
                         <View style={$nip05Container}>                    
                             <ListItem
                                 LeftComponent={<View style={[$numIcon, {backgroundColor: iconNip05}]}><Text text='1'/></View>}
-                                text='Enter your NOSTR address'
-                                subText={'Minibits uses NOSTR address (nip05) as a sharable contact to send and receive ecash.'}                        
+                                text='Enter your Nostr address'
+                                subText={'Minibits uses Nostr address (nip05) as a sharable contact to send and receive ecash.'}                        
                                 bottomSeparator={true}
                                 style={{}}
                             />                    
