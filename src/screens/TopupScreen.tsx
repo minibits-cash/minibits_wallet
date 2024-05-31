@@ -560,9 +560,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
             )
           }
         } else {
-          setInfo(
-            'Relay could not confirm that the message has been published.',
-          )
+          setInfo(translate('topupScreen.relayMissingSentEvent'))
         }
       } catch (e: any) {
         handleError(e)
@@ -714,7 +712,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                     maxLength={200}
                     keyboardType="default"
                     selectTextOnFocus={true}
-                    placeholder="Memo for the payer"
+                    placeholder={translate('topupScreen.payerMemoPlaceholder')}
                     editable={
                       transactionStatus === TransactionStatus.PENDING
                         ? false

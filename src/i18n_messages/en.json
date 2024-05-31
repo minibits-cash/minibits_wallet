@@ -118,7 +118,9 @@
 	"topupScreen": {
 		"missingMintAddFirst": "Add the mint first.",
 		"missingMintAddFirstDesc": "There is no mint connected to your wallet that you would receive your ecash to.",
-		"nostrDMreceived": "nostr:%{npub} sent you Lightning invoice for ${amount} ${currency} from Minibits wallet!"
+		"nostrDMreceived": "nostr:%{npub} sent you Lightning invoice for ${amount} ${currency} from Minibits wallet!",
+		"relayMissingSentEvent": "Relay could not confirm that the message has been published.",
+		"payerMemoPlaceholder": "Memo for the payer"
 	},
 	"sendScreen": {
 		"title": "Send",
