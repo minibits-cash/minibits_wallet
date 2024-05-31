@@ -50,6 +50,7 @@ import { MintBalanceSelector } from './Mints/MintBalanceSelector'
 import numbro from 'numbro'
 import { TranItem } from './TranDetailScreen'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
+import { translate } from '../i18n'
 
 
 if (
@@ -291,7 +292,10 @@ useEffect(() => {
             let availableBalances = proofsStore.getMintBalancesWithEnoughBalance(totalAmount, unit)
     
             if (availableBalances.length === 0) {
-                infoMessage(`There is not enough balance in ${getCurrency(unit).code} to pay the invoice amount and expected fees: ${amountToTransfer} ${getCurrency(unit).code}`)
+                infoMessage(translate("transferScreen.insufficientFunds", {
+									currency: getCurrency(unit).code,
+									amount: amountToTransfer
+								}))
                 return
             }
             

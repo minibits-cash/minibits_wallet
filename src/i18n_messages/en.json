@@ -18,7 +18,8 @@
 		"sats": "SATS",
 		"notCreated": "Not yet created",
 		"resetDefault": "Reset to default",
-		"share": "Share"
+		"share": "Share",
+		"confirmCreateInvoice": "Create invoice"
 	},
 	"paymentCommon": {
 		"pay": "Pay",
@@ -330,5 +331,8 @@
 	},
 	"tokenReceiveScreen": {
 		"onPasteEmptyClipboard": "First copy ecash token, then paste."
+	},
+	"transferScreen": {
+		"insufficientFunds": "There is not enough balance in %{currency} to pay the invoice amount and expected fees: %{amount} %{currency}"
 	}
 }
