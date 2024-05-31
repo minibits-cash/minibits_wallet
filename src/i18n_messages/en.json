@@ -315,7 +315,8 @@
 	},
 	"transferScreen": {
 		"insufficientFunds": "There is not enough balance in %{currency} to pay the invoice amount and expected fees: %{amount} %{currency}",
-		"noMintWithBalance": "There is no mint with %{unit} balance from which payment can be made."
+		"noMintWithBalance": "There is no mint with %{unit} balance from which payment can be made.",
+		"selectMintFrom": "Select mint balance to transfer from"
 	},
 	"payCommon": {
 		"pay": "Pay",

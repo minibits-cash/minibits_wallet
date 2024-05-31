@@ -528,7 +528,7 @@ const transfer = async function () {
         }
 
         if (!mintBalanceToTransferFrom) {
-            setInfo('Select mint balance to transfer from')
+            setInfo(translate("transferScreen.selectMintFrom"))
             return
         }
 
