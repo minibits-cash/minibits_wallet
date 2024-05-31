@@ -357,7 +357,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                     <View style={$buttonContainer}>
                         {isInternetReachable ? (
                             <Button
-                                tx={'receiveScreen.receive'}
+                                tx={'payCommon.receive'}
                                 onPress={receiveToken}
                                 style={{marginRight: spacing.medium}}
                                 LeftAccessory={() => (
@@ -370,7 +370,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                             />
                         ) : (
                             <Button
-                                tx={'receiveScreen.receiveOffline'}
+                                tx={'payCommon.receiveOffline'}
                                 onPress={receiveOfflineToken}
                                 style={{marginRight: spacing.medium}}
                                 LeftAccessory={() => (

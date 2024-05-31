@@ -293,9 +293,9 @@ useEffect(() => {
     
             if (availableBalances.length === 0) {
                 infoMessage(translate("transferScreen.insufficientFunds", {
-									currency: getCurrency(unit).code,
-									amount: amountToTransfer
-								}))
+                  currency: getCurrency(unit).code,
+                  amount: amountToTransfer
+                }))
                 return
             }
             
@@ -422,50 +422,51 @@ const onMintBalanceSelect = function (balance: MintBalance) {
 
 // Amount is editable only in case of LNURL Pay, while invoice is not yet retrieved
 const onAmountEndEditing = async function () {
-    try {
-        const precision = getCurrency(unit).precision
-        const mantissa = getCurrency(unit).mantissa
-        const amount = round(toNumber(amountToTransfer) * precision, 0)
+  try {
+    const precision = getCurrency(unit).precision
+    const mantissa = getCurrency(unit).mantissa
+    const amount = round(toNumber(amountToTransfer) * precision, 0)
 
-        if (!amount || amount === 0) {
-            infoMessage('Amount should be positive number.')          
-            return
-        }
-
-        if(!lnurlPayParams) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Missing LNURL pay parameters', {caller: 'onAmountEndEditing'})
-        }
-
-        if (lnurlPayParams.minSendable && amount < lnurlPayParams.minSendable / 1000 ) {
-            infoMessage(`Minimal amount to pay is ${roundUp(lnurlPayParams.minSendable / 1000, 0)} ${CurrencyCode.SATS}.`)          
-            return
-        }
-
-        if (lnurlPayParams.maxSendable && amount > lnurlPayParams.maxSendable / 1000 ) {
-            infoMessage(`Maximal amount to pay is ${roundDown(lnurlPayParams.maxSendable / 1000, 0)} ${CurrencyCode.SATS}.`)          
-            return
-        }
-
-        if (lnurlPayParams.payerData) {
-            infoMessage(`Minibits does not yet support entering of payer identity data (LUD18).`)   
-        }        
-            
-        setAmountToTransfer(`${numbro(amountToTransfer).format({thousandSeparated: true, mantissa: getCurrency(unit).mantissa})}`)
-
-        setIsLoading(true)
-        const encoded = await LnurlClient.getInvoice(lnurlPayParams, amount * 1000)
-        setIsLoading(false)
-
-        if(encoded) {
-            return onEncodedInvoice(encoded)
-        }        
-
-        throw new AppError(Err.NOTFOUND_ERROR, `Could not get lightning invoice from ${lnurlPayParams.domain}`)
-
-    } catch (e: any) {
-      handleError(e)
+    if (!amount || amount === 0) {
+      infoMessage(translate('payCommon.amountZeroOrNegative'))          
+      return;
     }
-  }
+
+    if(!lnurlPayParams) {
+      throw new AppError(Err.VALIDATION_ERROR, 'Missing LNURL pay parameters', {caller: 'onAmountEndEditing'})
+    }
+
+    if (lnurlPayParams.minSendable && amount < lnurlPayParams.minSendable / 1000) {
+      infoMessage(translate('payCommon.minimumWithdraw', { 
+        amount: roundUp(lnurlPayParams.minSendable / 1000, 0), 
+        currency: CurrencyCode.SATS 
+      }))        
+      return;
+    }
+
+    if (lnurlPayParams.maxSendable && amount > lnurlPayParams.maxSendable / 1000 ) {       
+      infoMessage(translate("payCommon.maximumPay", { 
+        amount: roundDown(lnurlPayParams.maxSendable / 1000, 0),
+        currency: CurrencyCode.SATS
+      }))          
+      return;
+    }
+
+    if (lnurlPayParams.payerData) {
+        infoMessage(`Minibits does not yet support entering of payer identity data (LUD18).`)   
+    }        
+        
+    setAmountToTransfer(`${numbro(amountToTransfer).format({thousandSeparated: true, mantissa: getCurrency(unit).mantissa})}`)
+
+    setIsLoading(true)
+    const encoded = await LnurlClient.getInvoice(lnurlPayParams, amount * 1000)
+    setIsLoading(false)
+
+    if (encoded) return onEncodedInvoice(encoded);
+
+    throw new AppError(Err.NOTFOUND_ERROR, `Could not get lightning invoice from ${lnurlPayParams.domain}`)
+  } catch (e: any) { handleError(e) }
+}
 
 
 const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: string = '') {

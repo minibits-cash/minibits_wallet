@@ -386,7 +386,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         }
 
         if (!amount || amount === 0) {
-          infoMessage(translate('paymentCommon.amountZeroOrNegative'))
+          infoMessage(translate('payCommon.amountZeroOrNegative'))
           return
         }
 
@@ -395,7 +395,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
           amount < roundUp(lnurlWithdrawParams?.minWithdrawable / 1000, 0)
         ) {
           infoMessage(
-            translate('paymentCommon.minimumWithdraw', {
+            translate('payCommon.minimumWithdraw', {
               amount: roundUp(lnurlWithdrawParams?.minWithdrawable / 1000, 0),
               currency: CurrencyCode.SATS,
             }),
