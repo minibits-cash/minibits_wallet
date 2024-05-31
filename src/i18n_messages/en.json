@@ -21,7 +21,11 @@
 		"share": "Share",
 		"confirmCreateInvoice": "Create invoice",
 		"pasteEcash": "Paste ecash",
-		"noDescPlaceholder": "No description"
+		"noDescPlaceholder": "No description",
+		"showMore": "Show more",
+		"hideMore": "Collapse",
+		"on": "on",
+		"off": "off"
 	},
 	"transactionCommon": {
 		"from": "From %{sender}",
@@ -200,7 +204,6 @@
 		},
 		"outgoing": {
 			"noRequests": "There are no outgoing payment requests to be paid or they have already expired.",
-			"sharingCancelled": "Sharing cancelled",
 			"scanAndPay": "Scan and pay to top-up"
 		},
 		"listItem": {
@@ -257,7 +260,10 @@
 		"recoveryTool": "Local recovery tool",
 		"recoveryToolDescription": "Show ecash backed up in the local database and attempt to recover unspent ones into the wallet in case the wallet storage gets corrupted or a transaction fails due to an unexpected error.",
 		"removeSpentCoins": "Remove spent ecash",
-		"removeSpentCoinsDescription": "In case of a SEND or TRANSFER transaction error, spent ecash may remain in your wallet. This blocks further transactions with the mint, making the wallet unusable. This tool removes spent ecash from the wallet."
+		"removeSpentCoinsDescription": "In case of a SEND or TRANSFER transaction error, spent ecash may remain in your wallet. This blocks further transactions with the mint, making the wallet unusable. This tool removes spent ecash from the wallet.",
+		"result": "%{proofCount} ecash proofs, %{amount} in total were removed from the wallet.",
+		"success": "Your minibits tokens were backed up to local database. New tokens will be backed up automatically.",
+		"deletedSuccess": "Your backup of minibits tokens has been deleted. New tokens will NOT be backed up."
 	},
 	"securityScreen": {
 		"encryptStorage": "Encrypt storage",
@@ -343,5 +349,16 @@
 	"lightningInvoiceSharedWaiting": "Lightning invoice has been shared, waiting to be paid by receiver.",
 	"qr": {
 		"fail": "Could not display QR code, copy or share the Ecash token instead."
-	}
+	},
+	"share": {
+		"cancelled": "Sharing cancelled"
+	},
+	"noSpentEcashFound": "No spent ecash found in your wallet",
+	"recoveryIndexesIncSuccess": "Recovery indexes increased by %{indCount}",
+	"walletAddressRecovery": "Wallet address recovery",
+	"walletAddressRecoveryDesc": "Use your mnemonic phrase from another device to get your original wallet address on this device. This will not recover balances.",
+	"increaseRecoveryIndexes": "Increase recovery indexes",
+	"increaseRecoveryIndexesDesc": "After incomplete recovery from seed or other rare issue, you may encounter 'duplicate outputs' error when trying to send. This resets your recovery indexes to higher value in order to resolve the issue.",
+	"localBackupEnabled": "Local backup is on",
+	"localBackupDisabled": "Local backup is off"
 }

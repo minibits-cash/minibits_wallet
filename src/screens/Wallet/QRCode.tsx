@@ -34,7 +34,7 @@ export const QRCodeBlock = function (props: {
             500,
           )
         } else if (result.action === Share.dismissedAction) {
-            infoMessage('Sharing cancelled')          
+            infoMessage(translate('share.cancelled'))          
         }
       } catch (e: any) {
         setQrError(e)

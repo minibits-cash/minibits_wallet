@@ -97,7 +97,7 @@ export const MintBalanceSelector = observer(function (props: {
                   ListFooterComponent={props.mintBalances.length > 1 ? (
                     <View>
                       <Button 
-                        text={`${allVisible ? 'Hide' : 'Show'} more`} 
+                        tx={allVisible ? 'common.hideMore' : 'common.showMore'}
                         onPress={toggleAllVisible}
                         preset='tertiary'
                       />

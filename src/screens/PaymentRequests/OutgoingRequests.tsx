@@ -78,7 +78,7 @@ export const OutgoingRequests = observer(function (props: {
               500,
             )
           } else if (result.action === Share.dismissedAction) {
-              infoMessage(translate("paymentRequestScreen.outgoing.sharingCancelled"))          
+              infoMessage(translate("share.cancelled"))          
           }
         } catch (e: any) {
           handleError(e)
