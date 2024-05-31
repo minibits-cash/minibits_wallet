@@ -13,6 +13,10 @@
     "https://cdn.jsdelivr.net/npm/@inlang/plugin-json@latest/dist/index.js"
   ],
   "plugin.inlang.json": {
-    "pathPattern": "../src/i18n_messages/{languageTag}.json"
+    "pathPattern": "./src/i18n_messages/{languageTag}.json",
+    "variableReferencePattern": [
+      "%{",
+      "}"
+    ]
   }
 }
