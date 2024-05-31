@@ -154,7 +154,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         
 
         if(!decoded.unit) {
-          setInfo(`Currency unit is missing in the received token. Wallet will assume token amount is in Bitcoin ${CurrencyCode.SATS}. Do not continue if your are not sure this is correct.`)
+          setInfo(`Currency unit is missing in the received token. Wallet will assume token amount is in bitcoin ${CurrencyCode.SATS}. Do not continue if you are not sure this is correct.`)
         }
 
         const currency = getCurrency(decoded.unit)

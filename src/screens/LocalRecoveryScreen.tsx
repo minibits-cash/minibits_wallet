@@ -199,10 +199,10 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
       log.trace('[onRecovery]', nonZeroBalances)
 
       if (nonZeroBalances && nonZeroBalances.length > 0) {
-          message = `Your wallet has non zero balance. If you continue, existing Ecash will be deleted and replaced by backup.\n\n`            
+          message = `Your wallet has non zero balance. If you continue, existing ecash will be deleted and replaced by backup.\n\n`            
       }
 
-      message += `Do you really want to recover Ecash from the backup?`
+      message += `Do you really want to recover ecash from the backup?`
 
       Alert.alert(
       'Attention!',
