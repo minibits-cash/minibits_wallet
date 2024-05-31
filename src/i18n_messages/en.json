@@ -49,7 +49,9 @@
 			"prepared": "Prepared",
 			"reverted": "Reverted",
 			"blocked": "Blocked",
-			"expired": "Expired"
+			"expired": "Expired",
+			"unspent": "Unspent",
+			"spent": "Spent"
 		},
 		"tapToRedeem": "Tap to redeem",
 		"redeemOnline": "Redeem online",
@@ -390,5 +392,16 @@
 	"loglevelDebugDesc": "Log details, set only if testing or on request by support.",
 	"userErrorMissingLightningData": "Missing Lightning invoice, paycode or address.",
 	"contacts": "Contacts",
-	"payWithLightningDesc": "Enter or paste Lightning address, invoice or LNURL pay code you want to pay to."
+	"payWithLightningDesc": "Enter or paste Lightning address, invoice or LNURL pay code you want to pay to.",
+	"missingMintsForProofsUserMessage": "Please add all mints belonging to your proofs to the wallet and try again.",
+	"uspentOnlyRecoverable": "Only unspent proofs are recoverable.",
+	"backupWillOverwriteBalanceWarning": "Your wallet has non zero balance. If you continue, existing ecash will be deleted and replaced by backup.",
+	"confirmBackupRecovery": "Do you really want to recover ecash from the backup?",
+	"attention": "Attention!",
+	"startRecovery": "Start recovery",
+	"recoveryTool": "Recovery tool",
+	"numberOfBackedupProofs": "Number of backed up proofs",
+	"copyProofs": "text=\"Copy proofs\"",
+	"copyAsEncodedTokens": "Copy as encoded tokens",
+	"recoverToWallet": "Recover to wallet"
 }

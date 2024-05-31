@@ -38,6 +38,7 @@ import { WalletUtils } from '../services/wallet/utils'
 import { MintUnit, MintUnits, getCurrency } from '../services/wallet/currency'
 import { ScrollView } from 'react-native-gesture-handler'
 import { CurrencyAmount } from './Wallet/CurrencyAmount'
+import { translate } from '../i18n'
 
 interface LocalRecoveryScreenProps
   extends SettingsStackScreenProps<'LocalRecovery'> {}
@@ -138,8 +139,8 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
             setIsLoading(true)
             const encodedTokens: string[] = []
 
-            if(mintsStore.allMints.length === 0) {
-              setInfo('Please add all mints your proofs belong to the wallet. Then try again.')
+            if (mintsStore.allMints.length === 0) {
+              setInfo(translate("missingMintsForProofsUserMessage"))
             }
 
             for (const mint of mintsStore.allMints) {
@@ -180,14 +181,14 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
             setIsLoading(false)
 
         } catch (e: any) {
-            setInfo(`Could not copy: ${e.message}`)
+            setInfo(translate('common.copyFailParam', { param: e.message }))
         }
     }
 
 
     const onRecovery = async function () {
-      if(!showUnspentOnly) {
-        setInfo('Can not recover other then unspent proofs.')
+      if (!showUnspentOnly) {
+        setInfo(translate("uspentOnlyRecoverable"))
         return
       }
 
@@ -199,33 +200,34 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
       log.trace('[onRecovery]', nonZeroBalances)
 
       if (nonZeroBalances && nonZeroBalances.length > 0) {
-          message = `Your wallet has non zero balance. If you continue, existing ecash will be deleted and replaced by backup.\n\n`            
+          message = translate("backupWillOverwriteBalanceWarning")
+          message += "\n\n"
       }
 
-      message += `Do you really want to recover ecash from the backup?`
+      message += translate("confirmBackupRecovery")
 
       Alert.alert(
-      'Attention!',
-      message,
-          [
+        translate("attention"),
+        message,
+        [
           {
-              text: 'Cancel',
-              style: 'cancel',
-              onPress: () => {
+            text: translate('common.cancel'),
+            style: 'cancel',
+            onPress: () => {
               // Action canceled
-              },
+            },
           },
           {
-              text: 'Start recovery',
-              onPress: () => {
-                try {
-                    doLocalRecovery()                  
-                } catch (e: any) {
-                    handleError(e)
-                }
-              },
+            text: translate("startRecovery"),
+            onPress: () => {
+              try {
+                doLocalRecovery()
+              } catch (e: any) {
+                handleError(e)
+              }
+            },
           },
-          ],
+        ],
       )
     }
 
@@ -233,12 +235,12 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
     const doLocalRecovery = async function () {
       try {
           if(!showUnspentOnly) {
-            setInfo('Can not recover other then unspent proofs.')
+            setInfo(translate('uspentOnlyRecoverable'))
             return
           }
 
           if(mintsStore.allMints.length === 0) {
-            setInfo('Please add all your mints to the wallet before recovery. Then try again.')
+            setInfo(translate('missingMintsForProofsUserMessage'))
           }
         
           setIsLoading(true)
@@ -249,16 +251,14 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
               let transactionData: TransactionData[] = []                
 
               for (const proof of proofs) {
+                const proofMint = CashuUtils.getMintFromProof(proof, mintsStore.allMints)                    
+                const { isPending, isSpent, updatedAt, ...cleanedProof } = proof
 
-                  const proofMint = CashuUtils.getMintFromProof(proof, mintsStore.allMints)                    
-                  
-                  const { isPending, isSpent, updatedAt, ...cleanedProof } = proof
+                if (!proofMint) { continue }                
 
-                  if (!proofMint) { continue }                
-
-                  if(mint.mintUrl === proofMint.mintUrl) {                        
-                      proofsByMint.push(cleanedProof)
-                  }                    
+                if (mint.mintUrl === proofMint.mintUrl) {                        
+                  proofsByMint.push(cleanedProof)
+                }                    
               }
 
               if (proofsByMint.length > 0) {
@@ -371,7 +371,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text
             preset="heading"
-            text="Recovery tool"
+            tx="recoveryTool"
             style={{color: 'white'}}
           />
         </View>
@@ -381,7 +381,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
             ContentComponent={
               <>
                 <ListItem
-                  text={'Unspent'}
+                  tx="transactionCommon.status.unspent"
                   LeftComponent={
                     <Icon
                       containerStyle={$iconContainer}
@@ -395,7 +395,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
                   // bottomSeparator={true}
                 />
                 <ListItem
-                  text={'Pending'}
+                  tx="transactionCommon.status.pending"
                   LeftComponent={
                     <Icon
                       containerStyle={$iconContainer}
@@ -409,7 +409,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
                   // bottomSeparator={true}
                 />
                 <ListItem
-                  text={'Spent'}
+                  tx="transactionCommon.status.spent"
                   LeftComponent={
                     <Icon
                       containerStyle={$iconContainer}
@@ -429,7 +429,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
               ContentComponent={
                 <>
                 <ListItem
-                  text={'Number of backed up proofs'}
+                  tx="numberOfBackedupProofs"
                   RightComponent={
                     <Text text={`${proofs.length}`} style={{marginRight: spacing.small}} />
                   }   
@@ -458,7 +458,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
                     <Button
                         preset="tertiary"
                         onPress={copyBackupProofs}
-                        text="Copy proofs"
+                        tx="copyProofs"
                         style={{
                             minHeight: 25,
                             paddingVertical: spacing.extraSmall,
@@ -470,7 +470,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
                     <Button
                         preset="tertiary"
                         onPress={copyEncodedTokens}
-                        text="Copy as encoded tokens"
+                        tx="copyAsEncodedTokens"
                         style={{
                             minHeight: 25,
                             paddingVertical: spacing.extraSmall,
@@ -487,7 +487,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
             <View style={$buttonContainer}>
               <Button 
                 onPress={onRecovery}
-                text={`Recover to wallet`}
+                tx="recoverToWallet"
               />  
             </View>  
           </View>          
