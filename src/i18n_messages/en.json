@@ -44,7 +44,8 @@
 		},
 		"tapToRedeem": "Tap to redeem",
 		"redeemOnline": "Redeem online",
-		"feePaid": "Paid fee"
+		"feePaid": "Paid fee",
+		"reverted": "Transaction reverted"
 	},
 	"welcomeScreen": {
 		"page1": {
@@ -317,20 +318,27 @@
 	"transferScreen": {
 		"insufficientFunds": "There is not enough balance in %{currency} to pay the invoice amount and expected fees: %{amount} %{currency}",
 		"noMintWithBalance": "There is no mint with %{unit} balance from which payment can be made.",
-		"selectMintFrom": "Select mint balance to transfer from"
+		"selectMintFrom": "Select mint balance to transfer from",
+		"LUD18unsupported": "Minibits does not yet support entering of payer identity data (LUD18)."
 	},
 	"payCommon": {
-		"pay": "Pay",
-		"payMe": "Pay me",
-		"payFromWallet": "Pay from wallet",
-		"receiveInPerson": "Receive in person",
+		"amountLabel": "{'Amount to pay'}",
 		"amountZeroOrNegative": "Amount should be positive number.",
+		"completed": "Payment completed",
+		"failed": "Payment failed",
 		"insufficientFunds": "There are not enough funds to send this amount.",
+		"isPending": "Payment is pending",
+		"maximumPay": "Maximum amount to pay is %{amount} %{currency}.",
 		"minimumWithdraw": "Minimal withdraw amount is %{amount} %{currency}.",
-		"withdraw": "Withdraw",
-		"send": "Send",
+		"pay": "Pay",
+		"payFrom": "Pay from",
+		"payFromWallet": "Pay from wallet",
+		"payMe": "Pay me",
+		"payNow": "Pay now",
 		"receive": "Receive",
+		"receiveInPerson": "Receive in person",
 		"receiveOffline": "Receive offline",
-		"maximumPay": "Maximum amount to pay is %{amount} %{currency}."
+		"send": "Send",
+		"withdraw": "Withdraw"
 	}
 }

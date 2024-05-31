@@ -351,7 +351,7 @@ useEffect(() => {
             } else {
                 setResultModalInfo({
                     status,
-                    title: error.params?.message ? error.message : 'Payment failed',
+                    title: error.params?.message ? error.message : translate('payCommon.failed'),
                     message: error.params?.message || error.message,
                 })
             }        
@@ -453,7 +453,7 @@ const onAmountEndEditing = async function () {
     }
 
     if (lnurlPayParams.payerData) {
-        infoMessage(`Minibits does not yet support entering of payer identity data (LUD18).`)   
+        infoMessage(translate("transferScreen.LUD18unsupported"))   
     }        
         
     setAmountToTransfer(`${numbro(amountToTransfer).format({thousandSeparated: true, mantissa: getCurrency(unit).mantissa})}`)
@@ -603,7 +603,7 @@ const satsColor = colors.palette.primary200
                     ) : (
                         <Text
                             size='sm'
-                            text={'Amount to pay'}
+                            text={translate("payCommon.amountToPayLabel")}
                             style={{color: 'white', textAlign: 'center'}}
                         />
                     )}
@@ -636,8 +636,8 @@ const satsColor = colors.palette.primary200
                         mintBalances={availableMintBalances}
                         selectedMintBalance={mintBalanceToTransferFrom}
                         unit={unit}
-                        title='Pay from'
-                        confirmTitle='Pay now'
+                        title={translate("payCommon.payFrom")}
+                        confirmTitle={translate("payCommon.payNow")}
                         onMintBalanceSelect={onMintBalanceSelect}
                         onCancel={onClose}              
                         onMintBalanceConfirm={transfer}
@@ -698,7 +698,7 @@ const satsColor = colors.palette.primary200
                                 <ResultModalInfo
                                     icon="faCheckCircle"
                                     iconColor={colors.palette.success200}
-                                    title="Payment completed"
+                                    title={translate('payCommon.completed')}
                                     message={resultModalInfo?.message}
                                 />
                                 <View style={$buttonContainer}>
@@ -707,9 +707,9 @@ const satsColor = colors.palette.primary200
                                     tx={'common.close'}
                                     onPress={() => {
                                         if(isInvoiceDonation) {
-                                            navigation.navigate('ContactsNavigator', {screen: 'Contacts', params: {}})
+                                          navigation.navigate('ContactsNavigator', {screen: 'Contacts', params: {}})
                                         } else {
-                                            navigation.navigate('Wallet', {})
+                                          navigation.navigate('Wallet', {})
                                         }
                                     }}
                                 />
@@ -722,7 +722,7 @@ const satsColor = colors.palette.primary200
                                 <ResultModalInfo
                                     icon="faRotate"
                                     iconColor={colors.palette.accent300}
-                                    title="Transfer reverted"
+                                    title={translate('transactionCommon.reverted')}
                                     message={resultModalInfo?.message}
                                 />
                                 <View style={$buttonContainer}>
@@ -740,7 +740,7 @@ const satsColor = colors.palette.primary200
                                 <ResultModalInfo
                                     icon="faTriangleExclamation"
                                     iconColor={colors.palette.angry500}
-                                    title={resultModalInfo?.title || 'Payment failed'}
+                                    title={resultModalInfo?.title || translate('payCommon.failed')}
                                     message={resultModalInfo?.message}
                                 />
                                 <View style={$buttonContainer}>
@@ -758,7 +758,7 @@ const satsColor = colors.palette.primary200
                                 <ResultModalInfo
                                     icon="faTriangleExclamation"
                                     iconColor={colors.palette.iconYellow300}
-                                    title="Payment is pending"
+                                    title={translate('payCommon.isPending')}
                                     message={resultModalInfo?.message}
                                 />
                                 <View style={$buttonContainer}>
