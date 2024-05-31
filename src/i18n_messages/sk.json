@@ -1,7 +1,13 @@
 {
 	"common": {
 		"close": "Zavrieť",
-		"copyFailParam": "Nepodarilo sa skopírovať %{param}"
+		"copyFailParam": "Nepodarilo sa skopírovať %{param}",
+		"offlinePretty": "Vaše zariadenie je momentálne offline.",
+		"qr": "QR kód",
+		"sats": "SATS",
+		"notCreated": "Ešte nevytvorené",
+		"resetDefault": "Obnoviť pôvodné nastavenia",
+		"share": "Zdieľať"
 	},
 	"transferScreen": {
 		"noMintWithBalance": "Neexistuje žiaden mint so zostatkom %{unit} z ktorého je možné uskutočniť platbu."

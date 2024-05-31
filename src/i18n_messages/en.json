@@ -20,7 +20,8 @@
 		"resetDefault": "Reset to default",
 		"share": "Share",
 		"confirmCreateInvoice": "Create invoice",
-		"pasteEcash": "Paste ecash"
+		"pasteEcash": "Paste ecash",
+		"noDescPlaceholder": "No description"
 	},
 	"transactionCommon": {
 		"from": "From %{sender}",

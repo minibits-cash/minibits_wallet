@@ -515,21 +515,21 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
         // continues in hook that handles other mint selection by user
             
     } catch (e: any) {
-        resetState()
-        handleError(e)
-        navigation.popToTop()
+      resetState()
+      handleError(e)
+      navigation.popToTop()
     }
 }
 
 const transfer = async function () {
     try {
         if(!meltQuote) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Missing quote to initiate transfer transaction')
+          throw new AppError(Err.VALIDATION_ERROR, 'Missing quote to initiate transfer transaction')
         }
 
         if (!mintBalanceToTransferFrom) {
-            setInfo(translate("transferScreen.selectMintFrom"))
-            return
+          setInfo(translate("transferScreen.selectMintFrom"))
+          return;
         }
 
         setIsLoading(true)
@@ -615,7 +615,7 @@ const satsColor = colors.palette.primary200
                         style={[$card, {minHeight: 50}]}
                         ContentComponent={
                             <ListItem
-                                text={lnurlPayParams?.address || memo || lnurlPayParams?.domain || 'No description'}
+                                text={lnurlPayParams?.address || memo || lnurlPayParams?.domain || translate("common.noDescPlaceholder")}
                                 subText={lnurlDescription}
                                 LeftComponent={
                                     <Icon
