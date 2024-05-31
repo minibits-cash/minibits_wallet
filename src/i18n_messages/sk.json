@@ -1,5 +1,9 @@
 {
 	"common": {
-		"close": "Zavrieť"
+		"close": "Zavrieť",
+		"copyFailParam": "Nepodarilo sa skopírovať %{param}"
+	},
+	"transferScreen": {
+		"noMintWithBalance": "Neexistuje žiaden mint so zostatkom %{unit} z ktorého je možné uskutočniť platbu."
 	}
 }

@@ -484,23 +484,20 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
         log.trace('[onEncodedInvoice] Invoice data', {amount, expiresAt, description})
 
         if (!amount || amount === 0) {
-            infoMessage('Invoice amount should be positive number')            
-            return
+          infoMessage(translate('payCommon.amountZeroOrNegative'))            
+          return;
         }
 
-
-        if(!isInternetReachable) {
-            setInfo('Your device is currently offline.')
-        }
+        if(!isInternetReachable) setInfo(translate('common.offlinePretty'));
         
         setEncodedInvoice(encoded)
         setInvoice(invoice)        
         setInvoiceExpiry(expiresAt)
         
         if (paymentRequestDesc) {
-            setMemo(paymentRequestDesc)
+          setMemo(paymentRequestDesc)
         } else if(description) {
-            setMemo(description)
+          setMemo(description)
         }
         
         // We need to retrieve the quote first to know how much is needed to settle invoice in selected currency unit
@@ -510,8 +507,8 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
             proofsStore.getMintBalancesWithUnit(unit)[0]
 
         if (!balanceToTransferFrom) {
-            infoMessage(`There is no mint with ${unit} balance from which payment can be made.`)
-            return
+          infoMessage(translate("transferScreen.noMintWithBalance", { unit }))
+          return
         }        
    
         setMintBalanceToTransferFrom(balanceToTransferFrom)
