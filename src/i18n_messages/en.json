@@ -26,7 +26,8 @@
 		"payFromWallet": "Pay from wallet",
 		"receiveInPerson": "Receive in person",
 		"amountZeroOrNegative": "Amount should be positive number.",
-		"insufficientFunds": "There are not enough funds to send this amount."
+		"insufficientFunds": "There are not enough funds to send this amount.",
+		"minimumWithdraw": "Minimal withdraw amount is %{amount} %{currency}."
 	},
 	"transactionCommon": {
 		"from": "From %{sender}",
@@ -114,7 +115,11 @@
 		"scanWithdrawalLink": "Scan withdrawal link"
 	},
 	"transferScreen": {},
-	"topupScreen": {},
+	"topupScreen": {
+		"missingMintAddFirst": "Add the mint first.",
+		"missingMintAddFirstDesc": "There is no mint connected to your wallet that you would receive your ecash to.",
+		"nostrDMreceived": "nostr:%{npub} sent you Lightning invoice for ${amount} ${currency} from Minibits wallet!"
+	},
 	"sendScreen": {
 		"title": "Send",
 		"sendToContact": "Send to contact",
@@ -124,7 +129,7 @@
 		"pasteToSend": "Paste",
 		"pasteToSendDescription": "Paste lightning invoice from clipboard to pay it from your wallet.",
 		"showOrShareToken": "Share ecash",
-		"showOrShareTokenDescription": "Present or share ecash token for an amount you want to send.",
+		"showOrShareTokenDescription": "Present or share ecash token for an amount you want to send."
 	},
 	"tranDetailScreen": {
 		"amount": "Amount",
