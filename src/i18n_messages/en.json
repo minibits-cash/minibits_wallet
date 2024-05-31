@@ -26,7 +26,8 @@
 		"hideMore": "Collapse",
 		"on": "on",
 		"off": "off",
-		"saveFailParam": "Failed to save %{param}"
+		"saveFailParam": "Failed to save %{param}",
+		"confirmAlertTitle": "Confirmation"
 	},
 	"transactionCommon": {
 		"from": "From %{sender}",
@@ -375,5 +376,14 @@
 	"deleteContact": "Delete contact",
 	"deleteContactDesc": "Remove this contact from your wallet.",
 	"setContactPrivate": "Save as private contact",
-	"setContactPrivateDesc": "Save %{nip05} to your Private contacts so you can pay faster"
+	"setContactPrivateDesc": "Save %{nip05} to your Private contacts so you can pay faster",
+	"resetCompletedDetail": "Reset completed. %{transCount} recent transactions were loaded from database.",
+	"resetAborted": "Reset aborted, there are no transactions in local database.",
+	"factoryResetUserConfirmDesc": "All application data will be deleted. Are you sure you want to perform a factory reset?",
+	"factoryResetSuccess": "Factory reset completed, please restart immediately.",
+	"showOnboarding": "Show onboarding again",
+	"showOnboardingDesc": "Go through onboarding screens again next time you restart Minibits.",
+	"loglevelErrorDesc": "Log errors and crashes only, without private data.",
+	"loglevelInfoDesc": "Log anonymous usage, without private data.",
+	"loglevelDebugDesc": "Log details, set only if testing or on request by support."
 }
