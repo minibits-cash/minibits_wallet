@@ -25,7 +25,8 @@
 		"showMore": "Show more",
 		"hideMore": "Collapse",
 		"on": "on",
-		"off": "off"
+		"off": "off",
+		"saveFailParam": "Failed to save %{param}"
 	},
 	"transactionCommon": {
 		"from": "From %{sender}",
@@ -344,14 +345,17 @@
 		"isPending": "Payment is pending",
 		"payFrom": "Pay from",
 		"payNow": "Pay now",
-		"amountToPayLabel": "Amount to pay"
+		"amountToPayLabel": "Amount to pay",
+		"requestPayment": "Request payment",
+		"payToAddress": "Pay to this address"
 	},
 	"lightningInvoiceSharedWaiting": "Lightning invoice has been shared, waiting to be paid by receiver.",
 	"qr": {
 		"fail": "Could not display QR code, copy or share the Ecash token instead."
 	},
 	"share": {
-		"cancelled": "Sharing cancelled"
+		"cancelled": "Sharing cancelled",
+		"contactAddress": "Share contact address"
 	},
 	"noSpentEcashFound": "No spent ecash found in your wallet",
 	"recoveryIndexesIncSuccess": "Recovery indexes increased by %{indCount}",
@@ -360,5 +364,16 @@
 	"increaseRecoveryIndexes": "Increase recovery indexes",
 	"increaseRecoveryIndexesDesc": "After incomplete recovery from seed or other rare issue, you may encounter 'duplicate outputs' error when trying to send. This resets your recovery indexes to higher value in order to resolve the issue.",
 	"localBackupEnabled": "Local backup is on",
-	"localBackupDisabled": "Local backup is off"
+	"localBackupDisabled": "Local backup is off",
+	"syncCompleted": "Sync completed.",
+	"privateNotePlaceholder": "Your private note",
+	"lightningAddress": "Lightning address",
+	"profileMissingNostrAddress": "This profile does not have nostr address to send ecash to.",
+	"copyContactPublicKey": "Copy contact's public key",
+	"checkAndSync": "Check and sync",
+	"checkAndSyncDesc": "Checks that contact name is still linked to the same pubkey and updates picture if it was changed.",
+	"deleteContact": "Delete contact",
+	"deleteContactDesc": "Remove this contact from your wallet.",
+	"setContactPrivate": "Save as private contact",
+	"setContactPrivateDesc": "Save %{nip05} to your Private contacts so you can pay faster"
 }
