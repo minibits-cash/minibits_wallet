@@ -27,7 +27,8 @@
 		"on": "on",
 		"off": "off",
 		"saveFailParam": "Failed to save %{param}",
-		"confirmAlertTitle": "Confirmation"
+		"confirmAlertTitle": "Confirmation",
+		"sendAsEcash": "Send as ecash"
 	},
 	"transactionCommon": {
 		"from": "From %{sender}",
@@ -99,7 +100,7 @@
 		"sharePaymentRequest": "Send payment request",
 		"sharePaymentRequestDescription": "Send payment request to one of your contacts, so that the payer can pay you exact amount.",
 		"scanToReceive": "Scan or paste to receive",
-		"scanToReceiveDescription": "Scan or paste ecash token or lnurl withdraw link to receive into your wallet.",
+		"scanToReceiveDescription": "Scan or paste ecash token or LNURL withdraw link to receive into your wallet.",
 		"pasteToReceive": "Paste",
 		"pasteoReceiveDescription": "Paste ecash token to receive it into your wallet.",
 		"showOrShareInvoice": "Share lightning invoice",
@@ -348,7 +349,8 @@
 		"payNow": "Pay now",
 		"amountToPayLabel": "Amount to pay",
 		"requestPayment": "Request payment",
-		"payToAddress": "Pay to this address"
+		"payToAddress": "Pay to this address",
+		"payWithLightning": "Pay with Lightning"
 	},
 	"lightningInvoiceSharedWaiting": "Lightning invoice has been shared, waiting to be paid by receiver.",
 	"qr": {
@@ -385,5 +387,8 @@
 	"showOnboardingDesc": "Go through onboarding screens again next time you restart Minibits.",
 	"loglevelErrorDesc": "Log errors and crashes only, without private data.",
 	"loglevelInfoDesc": "Log anonymous usage, without private data.",
-	"loglevelDebugDesc": "Log details, set only if testing or on request by support."
+	"loglevelDebugDesc": "Log details, set only if testing or on request by support.",
+	"userErrorMissingLightningData": "Missing Lightning invoice, paycode or address.",
+	"contacts": "Contacts",
+	"payWithLightningDesc": "Enter or paste Lightning address, invoice or LNURL pay code you want to pay to."
 }
