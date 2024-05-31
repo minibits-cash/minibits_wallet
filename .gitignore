@@ -1,6 +1,7 @@
 # App specific
 .env
 .vscode/
+!.vscode/extensions.json
 google-services.json
 # OSX
 #

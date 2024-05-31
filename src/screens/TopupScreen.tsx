@@ -330,7 +330,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
             }
 
             if (!amount || amount === 0) {
-                infoMessage(translate('paymentCommon.amountZeroOrNegative'))          
+                infoMessage(translate('paymentCommon.amountZeroOrNegative'))         
                 return
             }
 
