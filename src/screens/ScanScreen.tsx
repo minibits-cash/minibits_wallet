@@ -20,6 +20,7 @@ import { LnurlUtils } from '../services/lnurl/lnurlUtils'
 import { infoMessage } from '../utils/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { useStores } from '../models'
+import { translate } from '../i18n'
 
 const hasAndroidCameraPermission = async () => {
     const cameraPermission = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA)
@@ -184,7 +185,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
     const onPaste = async function() {        
         const clipboard = await Clipboard.getString()
         if (clipboard.length === 0) {
-            infoMessage('First copy ecash token, invoice, LNURL link or lightning address. Then paste.')
+            infoMessage(translate("scanScreen.onPasteEmptyClipboard"))
             return
         }
 

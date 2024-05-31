@@ -22,6 +22,7 @@ import { Mint } from '../models/Mint'
 import { MintHeader } from './Mints/MintHeader'
 import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
+import { translate } from '../i18n'
 
 
 export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = function LightningPayScreen(_props) {
@@ -82,7 +83,7 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
     const onPaste = async function() {        
         const clipboard = await Clipboard.getString()
         if (clipboard.length === 0) {
-            infoMessage('First copy Lightning invoice, address or pay code to pay to. Then paste.')
+            infoMessage(translate('lightningPayScreen.onPasteEmptyClipboard'))
             return
         }
 

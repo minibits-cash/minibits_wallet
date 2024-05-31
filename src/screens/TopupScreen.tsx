@@ -57,6 +57,7 @@ import { QRCodeBlock } from './Wallet/QRCode'
 import numbro from 'numbro'
 import { MintListItem } from './Mints/MintListItem'
 import { TranItem } from './TranDetailScreen'
+import { translate } from '../i18n'
 
 if (
   Platform.OS === 'android' &&
@@ -325,11 +326,11 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
             log.trace('[onAmountEndEditing]', amount)
 
             if(!isInternetReachable) {
-              setInfo('Your device is currently offline.')
+              setInfo(translate('common.offlinePretty'))
             }
 
             if (!amount || amount === 0) {
-                infoMessage('Amount should be positive number.')          
+                infoMessage(translate('paymentCommon.amountZeroOrNegative'))          
                 return
             }
 

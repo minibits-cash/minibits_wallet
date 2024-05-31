@@ -13,6 +13,7 @@
 		"add": "Add",
 		"success": "Success!",
 		"offline": "Offline",
+		"offlinePretty": "Your device is currently offline.",
 		"qr": "QR Code",
 		"sats": "SATS",
 		"notCreated": "Not yet created",
@@ -23,7 +24,9 @@
 		"pay": "Pay",
 		"payMe": "Pay me",
 		"payFromWallet": "Pay from wallet",
-		"receiveInPerson": "Receive in person"
+		"receiveInPerson": "Receive in person",
+		"amountZeroOrNegative": "Amount should be positive number.",
+		"insufficientFunds": "There are not enough funds to send this amount."
 	},
 	"transactionCommon": {
 		"from": "From %{sender}",
@@ -121,7 +124,7 @@
 		"pasteToSend": "Paste",
 		"pasteToSendDescription": "Paste lightning invoice from clipboard to pay it from your wallet.",
 		"showOrShareToken": "Share ecash",
-		"showOrShareTokenDescription": "Present or share ecash token for an amount you want to send."
+		"showOrShareTokenDescription": "Present or share ecash token for an amount you want to send.",
 	},
 	"tranDetailScreen": {
 		"amount": "Amount",
@@ -311,5 +314,14 @@
 		"walletLabel": "Wallet",
 		"contactsLabel": "Contacts",
 		"settingsLabel": "Settings"
+	},
+	"lightningPayScreen": {
+		"onPasteEmptyClipboard": "First copy Lightning invoice, address or pay code to pay to. Then paste."
+	},
+	"scanScreen": {
+		"onPasteEmptyClipboard": "First copy ecash token, invoice, LNURL link or lightning address. Then paste."
+	},
+	"tokenReceiveScreen": {
+		"onPasteEmptyClipboard": "First copy ecash token, then paste."
 	}
 }

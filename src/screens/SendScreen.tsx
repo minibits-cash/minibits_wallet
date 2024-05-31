@@ -333,14 +333,14 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             log.trace('[onAmountEndEditing]', amount)
 
             if (!amount || amount === 0) {
-                infoMessage('Amount should be positive number.')
+                infoMessage(translate('paymentCommon.amountZeroOrNegative'))
                 return
             }
             
             const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(amount, unit)
 
             if (availableBalances.length === 0) {
-                infoMessage('There are not enough funds to send this amount.')
+                infoMessage(translate('paymentCommon.insufficientFunds'))
                 return
             }
 

@@ -21,6 +21,7 @@ import { useStores } from '../models'
 import { Mint } from '../models/Mint'
 import { MintHeader } from './Mints/MintHeader'
 import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
+import { translate } from '../i18n'
 
 
 export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = function TokenReceiveScreen(_props) {
@@ -74,7 +75,7 @@ export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = fu
     const onPaste = async function() {        
         const clipboard = await Clipboard.getString()
         if (clipboard.length === 0) {
-            infoMessage('First copy ecash token, then paste.')
+            infoMessage(translate('tokenReceiveScreen.onPasteEmptyClipboard'))
             return
         }
 
