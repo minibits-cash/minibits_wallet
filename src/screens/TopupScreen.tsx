@@ -407,8 +407,8 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
         if (availableBalances.length === 0) {
           infoMessage(
-            translate("topupScreen.missingMintAddFirst"),
-            translate("topupScreen.missingMintAddFirstDesc"),
+            translate("topup.missingMintAddFirst"),
+            translate("topup.missingMintAddFirstDesc"),
           )
           return
         }
@@ -498,7 +498,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         const receiverPubkey = contactToSendTo?.pubkey
 
         // redable message
-        const message = translate('topupScreen.nostrDMreceived', {
+        const message = translate('topup.nostrDMreceived', {
           npub: walletProfileStore.npub,
           amount: amountToTopup,
           currency: getCurrency(unit).code
@@ -560,7 +560,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
             )
           }
         } else {
-          setInfo(translate('topupScreen.relayMissingSentEvent'))
+          setInfo(translate('topup.relayMissingSentEvent'))
         }
       } catch (e: any) {
         handleError(e)
@@ -712,7 +712,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                     maxLength={200}
                     keyboardType="default"
                     selectTextOnFocus={true}
-                    placeholder={translate('topupScreen.payerMemoPlaceholder')}
+                    placeholder={translate('payerMemo')}
                     editable={
                       transactionStatus === TransactionStatus.PENDING
                         ? false
@@ -740,7 +740,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
               mintBalances={availableMintBalances}
               selectedMintBalance={mintBalanceToTopup as MintBalance}
               unit={unit}
-              title={translate("topupScreen.topupMint")}
+              title={translate("topup.mint")}
               confirmTitle={translate("common.confirmCreateInvoice")}
               onMintBalanceSelect={onMintBalanceSelect}
               onCancel={onMintBalanceCancel}
@@ -771,7 +771,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
               ContentComponent={
                 <>
                   <TranItem
-                    label="tranDetailScreen.topupTo"
+                    label="topup.to"
                     isFirst={true}
                     value={
                       mintsStore.findByUrl(transaction.mint)
@@ -780,7 +780,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                   />
                   {transaction.memo && (
                     <TranItem
-                      label="tranDetailScreen.memoToReceiver"
+                      label="receiverMemo"
                       value={transaction?.memo as string}
                     />
                   )}

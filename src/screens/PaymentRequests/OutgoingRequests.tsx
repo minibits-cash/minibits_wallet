@@ -74,7 +74,7 @@ export const OutgoingRequests = observer(function (props: {
   
           if (result.action === Share.sharedAction) {          
             setTimeout(
-              () => infoMessage(translate("paymentRequestScreen.outgoing.invoiceShared")),              
+              () => infoMessage(translate("lightningInvoiceSharedWaiting")),              
               500,
             )
           } else if (result.action === Share.dismissedAction) {

@@ -684,7 +684,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                         />
                         {transaction?.memo && (
                         <TranItem
-                            label="tranDetailScreen.memoToReceiver"
+                            label="receiverMemo"
                             value={transaction.memo as string}
                         />
                         )}

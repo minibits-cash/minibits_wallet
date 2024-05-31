@@ -597,7 +597,7 @@ const ReceiveInfoBlock = function (props: {
             style={$dataCard}
             ContentComponent={
                 <TranItem
-                    label="tranDetailScreen.receivedTo"
+                    label="transactionCommon.receivedTo"
                     value={transaction.mint as string}
                 />
             }
@@ -833,7 +833,7 @@ const ReceiveOfflineInfoBlock = function (props: {
             style={$dataCard}
             ContentComponent={                        
                 <TranItem
-                    label="tranDetailScreen.receivedTo"
+                    label="transactionCommon.receivedTo"
                     value={transaction.mint as string}
                 />
             }
@@ -950,7 +950,7 @@ const SendInfoBlock = function (props: {
                             isFirst={true}
                         />
                         <TranItem
-                            label="tranDetailScreen.memoToReceiver"
+                            label="receiverMemo"
                             value={transaction.memo as string}
                         />
                         {transaction.sentTo && (
@@ -1195,7 +1195,7 @@ const TopupInfoBlock = function (props: {
                         isFirst={true}
                     />
                     <TranItem
-                        label="tranDetailScreen.memoToReceiver"
+                        label="receiverMemo"
                         value={transaction.memo as string}
                     />
                     {transaction.sentFrom && (
@@ -1249,7 +1249,7 @@ const TopupInfoBlock = function (props: {
             ContentComponent={                        
                 <>
                 <TranItem
-                    label="tranDetailScreen.topupTo"
+                    label="topup.to"
                     value={transaction.mint as string}
                 />
                 {transaction.status === TransactionStatus.PENDING && paymentRequest && (
@@ -1471,8 +1471,8 @@ const TransferInfoBlock = function (props: {
             style={$dataCard}
             ContentComponent={
                 <TranItem
-                    label="tranDetailScreen.paidFrom"
-                    value={transaction.mint as string}
+                  label="transactionCommon.paidFrom"
+                  value={transaction.mint as string}
                 />
             }
         />

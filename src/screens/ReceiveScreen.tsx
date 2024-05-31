@@ -318,7 +318,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                     ContentComponent={
                     <>
                         <TranItem 
-                            label="tranDetailScreen.receivedTo"
+                            label="transactionCommon.receivedTo"
                             isFirst={true}
                             value={mintsStore.findByUrl(transaction.mint)?.shortname as string}
                         />
