@@ -403,5 +403,8 @@
 	"numberOfBackedupProofs": "Number of backed up proofs",
 	"copyProofs": "text=\"Copy proofs\"",
 	"copyAsEncodedTokens": "Copy as encoded tokens",
-	"recoverToWallet": "Recover to wallet"
+	"recoverToWallet": "Recover to wallet",
+	"mintInfoHeading": "Mint info",
+	"loadingPublicInfo": "Loading public info",
+	"onDeviceInfo": "On device information"
 }

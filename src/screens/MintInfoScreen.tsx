@@ -122,7 +122,7 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text
             preset="heading"
-            text="Mint info"
+            tx="mintInfoHeading"
             style={{color: 'white'}}
           />
         </View>
@@ -147,7 +147,7 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
                                 ))                  
                             )}
 
-                            {isLoading && <Loading style={{backgroundColor: 'transparent'}} statusMessage='Loading public info' />}                            
+                            {isLoading && <Loading style={{backgroundColor: 'transparent'}} statusMessage={translate("loadingPublicInfo")} />}                            
                             </>
                         }                            
                         style={$card}
@@ -157,15 +157,15 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
                         ContentComponent={
                         <>
                             <ListItem
-                                text={'On device information'}
-                                RightComponent={<View style={$rightContainer}>
-                                        <Button
-                                            onPress={toggleLocalInfo}
-                                            text={isLocalInfoVisible ? 'Hide' : 'Show'}
-                                            preset='secondary'                                           
-                                        /> 
-                                    </View> 
-                                }
+                              tx="onDeviceInfo"
+                              RightComponent={<View style={$rightContainer}>
+                                <Button
+                                  onPress={toggleLocalInfo}
+                                  text={isLocalInfoVisible ? 'Hide' : 'Show'}
+                                  preset='secondary'
+                                />
+                              </View>
+                              }
                             />
                             {isLocalInfoVisible && (
                                 <JSONTree
