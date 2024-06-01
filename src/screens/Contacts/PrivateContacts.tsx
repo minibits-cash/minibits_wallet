@@ -206,7 +206,7 @@ export const PrivateContacts = observer(function (props: {
 
             if(paymentOption && paymentOption === SendOption.LNURL_ADDRESS) {
                 if(!contact.lud16) {
-                    setInfo(translate("contactsScreen.privateContacts.noLightningAddress"))
+                    setInfo(translate("contactsScreen.noLightningUseEcash"))
                     return
                 }
 

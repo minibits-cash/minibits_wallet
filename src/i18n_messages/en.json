@@ -13,7 +13,7 @@
 		"add": "Add",
 		"success": "Success!",
 		"offline": "Offline",
-		"offlinePretty": "Your device is currently offline.",
+		"offlinePretty": "Your device is currently offline",
 		"qr": "QR Code",
 		"sats": "SATS",
 		"notCreated": "Not yet created",
@@ -110,8 +110,8 @@
 		"scanWithdrawalLink": "Scan withdrawal link"
 	},
 	"topup": {
-		"missingMintAddFirst": "Add the mint first.",
-		"missingMintAddFirstDesc": "There is no mint connected to your wallet that you would receive your ecash to.",
+		"missingMintAddFirst": "Please add the mint first",
+		"missingMintAddFirstDesc": "There is no mint connected to your wallet eligible for receiving ecash.",
 		"nostrDMreceived": "nostr:%{npub} sent you Lightning invoice for ${amount} ${currency} from Minibits wallet!",
 		"relayMissingSentEvent": "Relay could not confirm that the message has been published.",
 		"mint": "Topup mint",
@@ -156,7 +156,7 @@
 		"getInvoice": "Get invoice",
 		"ownName": {
 			"donationSuccess": "Thank you! Donation for %{receiver} has been successfully paid.",
-			"tooShort": "Write your wallet profile name to the text box, use min 2 characters.",
+			"tooShort": "Please use at least 2 characters for your name",
 			"illegalChar": "Do not use . or - characters at the beginning or the end of name.",
 			"profileExists": "This wallet name is already in use, choose another one.",
 			"chooseOwnName": "Choose your own name",
@@ -173,7 +173,6 @@
 			"selectSendLnURL": "Select contact to send Lightning payment to.",
 			"saveNewFormat": "Please enter a wallet address in name@domain.xyz format",
 			"profileNotFound": "Profile name %{name} could not be found. Make sure the name is correct.",
-			"noLightningAddress": "This contact does not have a Lightning address, send ecash instead.",
 			"explainerText": "Private contacts",
 			"explainerSubText": "Add other Minibits users as your private contacts. Every user gets sharable @minibits.cash wallet address. You can pay privately to your contacts anytime even if they are offline.",
 			"switchName": "Switch your wallet name and picture?",
@@ -183,10 +182,9 @@
 			"domainExternal": "Use another domain"
 		},
 		"publicContacts": {
-			"npubPasteError": "Copy your NPUB key first, then paste",
-			"relayurlPasteError": "Copy your relay URL key first, then paste",
-			"relayExists": "Relay already exists.",
-			"missingLightningAddress": "This contact does not have a Lightning address, send ecash instead.",
+			"npubPasteError": "Copy your NPUB key before pasting",
+			"relayurlPasteError": "Copy your relay URL key before pasting",
+			"relayExists": "Relay already exists",
 			"nostrTip": "Tip the people you follow",
 			"nostrTipSubText": "Add your NOSTR social network public key (npub) and tip or donate to your favourite people and projects directly from the minibits wallet.",
 			"nostrSetPublicKey": "Set your public key",
@@ -203,6 +201,7 @@
 			"selectOneOfUsernames": "Select one of the usernames"
 		}
 	},
+	"noLightningUseEcash": "This contact does not have a Lightning address, send ecash instead.",
 	"paymentRequestScreen": {
 		"incoming": {
 			"noRequests": "There are no incoming payment requests to be paid or they have already expired."
