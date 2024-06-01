@@ -406,5 +406,6 @@
 	"recoverToWallet": "Recover to wallet",
 	"mintInfoHeading": "Mint info",
 	"loadingPublicInfo": "Loading public info",
-	"onDeviceInfo": "On device information"
+	"onDeviceInfo": "On device information",
+	"mintSettingsUpdated": "Updated mint settings"
 }
