@@ -30,9 +30,8 @@ import { CommonActions } from '@react-navigation/native'
 import { StackActions } from '@react-navigation/native';
 import { isObj } from '@cashu/cashu-ts/src/utils'
 
-if (Platform.OS === 'android' &&
-    UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true)
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
 export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer(function MintInfoScreen(_props) {
