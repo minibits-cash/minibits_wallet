@@ -810,7 +810,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                     style={$card}
                     ContentComponent={
                         <ListItem
-                            text='Insert mnemonic phrase'
+                            tx="recoveryInsertMnemonic"
                             subText={`Paste or rewrite 12 word phrase to recover your ${isAddressOnlyRecovery ? 'wallet address' : 'ecash balance and wallet address'} on this device. Separate words by blank spaces.`}
                             LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='1'/></View>}                  
                             style={$item}                            
