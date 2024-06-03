@@ -23,6 +23,7 @@ import AppError, { Err } from '../utils/AppError'
 import { KeyChain, log, MintClient } from '../services'
 import { scale } from '@gocodingnow/rn-size-matters'
 import Clipboard from '@react-native-clipboard/clipboard'
+import { translate } from '../i18n'
 
 
 export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = observer(function RemoteBackupScreen(_props) {
@@ -59,7 +60,10 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
                 }
 
                 if (!validateMnemonic(mnemonic, wordlist)) {
-                    throw new AppError(Err.VALIDATION_ERROR, 'Corrupted or invalid mnemonic. Please move funds and reinstall this wallet.')
+                  throw new AppError(
+                    Err.VALIDATION_ERROR, 
+                    translate("backupScreen.invalidMnemonicError")
+                  )
                 }
 
                 setMnemonic(mnemonic)
@@ -79,14 +83,17 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
                 Clipboard.setString(mnemonic)
 
                 if(isNewMnemonic) {
-                    setInfo('To apply backup to your existing funds, send your entire balance to yourself. Otherwise, only funds from this point onward can be restored.')
+                  setInfo(translate("copyMnemonicBackupWorkaround"))
                 }
 
                 return
             }
-            throw new AppError(Err.VALIDATION_ERROR, 'Missing mnemonic.')          
+            throw new AppError(
+              Err.VALIDATION_ERROR, 
+              translate("backupScreen.missingMnemonicError")
+            )          
         } catch (e: any) {
-            setInfo(`Could not copy: ${e.message}`)
+          setInfo(translate('common.copyFailParam', { param: e.message }))
         }
     }
 
@@ -100,15 +107,15 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
     return (
       <Screen style={$screen}>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text preset="heading" text="Seed backup" style={{color: 'white'}} />
+          <Text preset="heading" tx='backupScreen.seedBackup' style={{color: 'white'}} />
         </View>
         <View style={$contentContainer}>
           <Card
             style={$card}
             ContentComponent={
                 <ListItem
-                    text='Your mnemonic phrase'
-                    subText='This 12 word sequence represents your seed and allows you to recover your ecash balance in case of device loss. Keep them in safe place.'
+                    tx="backupScreen.mnemonicTitle"
+                    subTx="backupScreen.mnemonicDesc"
                     leftIcon='faInfoCircle'
                     leftIconColor={colors.palette.iconYellow300}
                     leftIconInverse={true}                  
@@ -147,7 +154,7 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
                     <Button
                         preset="default"
                         style={{margin: spacing.small}}
-                        text="Copy"
+                        tx='common.copy'
                         onPress={onCopy}                            
                     />       
                 </View>

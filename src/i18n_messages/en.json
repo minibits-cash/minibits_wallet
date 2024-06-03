@@ -256,7 +256,6 @@
 	"backupScreen": {
 		"localBackup": "Local backup",
 		"localBackupDescription": "Local backup stores a copy of all your ecash in the local database. Ecash is never deleted unless you switch off the backup. Please note that this backup is not encrypted.",
-		"remoteBackup": "Seed backup",
 		"remoteBackupDescription": "Mnemonic phrase encodes your seed and allows you to recover your ecash balance in case of device loss.",
 		"recoveryTool": "Local recovery tool",
 		"recoveryToolDescription": "Show ecash backed up in the local database and attempt to recover unspent ones into the wallet in case the wallet storage gets corrupted or a transaction fails due to an unexpected error.",
@@ -264,7 +263,12 @@
 		"removeSpentCoinsDescription": "In case of a SEND or TRANSFER transaction error, spent ecash may remain in your wallet. This blocks further transactions with the mint, making the wallet unusable. This tool removes spent ecash from the wallet.",
 		"result": "%{proofCount} ecash proofs, %{amount} in total were removed from the wallet.",
 		"success": "Your minibits tokens were backed up to local database. New tokens will be backed up automatically.",
-		"deletedSuccess": "Your backup of minibits tokens has been deleted. New tokens will NOT be backed up."
+		"deletedSuccess": "Your backup of minibits tokens has been deleted. New tokens will NOT be backed up.",
+		"invalidMnemonicError": "Corrupted or invalid mnemonic. Please move funds and reinstall this wallet.",
+		"missingMnemonicError": "Missing mnemonic.",
+		"seedBackup": "Seed backup",
+		"mnemonicTitle": "Your mnemonic phrase",
+		"mnemonicDesc": "This 12 word sequence represents your seed and allows you to recover your ecash balance in case of device loss. Keep them in safe place."
 	},
 	"securityScreen": {
 		"encryptStorage": "Encrypt storage",
@@ -468,5 +472,6 @@
 	"relayurlPasteError": "Copy your relay URL key before pasting",
 	"relayExists": "Relay already exists",
 	"invalidRelayUrl": "Invalid relay URL.",
-	"removeRelay": "Remove relay"
+	"removeRelay": "Remove relay",
+	"copyMnemonicBackupWorkaround": "To apply backup to your existing funds, send your entire balance to yourself. Otherwise, only funds from this point onward can be restored."
 }
