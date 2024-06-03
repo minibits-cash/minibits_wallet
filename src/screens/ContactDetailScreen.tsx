@@ -259,7 +259,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                     {lud16 && (
                         <ListItem                                    
                             text={lud16}
-                            subText={translate("lightningAddress")}                   
+                            subTx='lightningAddress'                  
                             leftIcon='faBolt'
                             leftIconColor={colors.palette.orange200}                          
                         />
