@@ -50,7 +50,7 @@ export const PaymentRequestsScreen: FC<PaymentRequestsScreenProps> = observer(fu
     return (
         <Screen contentContainerStyle={$screen}>
             <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-                <Text preset="heading" text="Payment requests" style={{color: 'white'}} />
+                <Text preset="heading" tx="payCommon.paymentRequests" style={{color: 'white'}} />
             </View>
             <TabView
                 renderTabBar={renderTabBar}

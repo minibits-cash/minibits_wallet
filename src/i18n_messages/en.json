@@ -344,7 +344,8 @@
 		"amountToPayLabel": "Amount to pay",
 		"requestPayment": "Request payment",
 		"payToAddress": "Pay to this address",
-		"payWithLightning": "Pay with Lightning"
+		"payWithLightning": "Pay with Lightning",
+		"paymentRequests": "Payment requests"
 	},
 	"lightningInvoiceSharedWaiting": "Lightning invoice has been shared, waiting to be paid by receiver.",
 	"qr": {
