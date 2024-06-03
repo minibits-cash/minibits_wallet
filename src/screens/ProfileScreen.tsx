@@ -12,6 +12,7 @@ import { log } from '../services/logService'
 import { KeyChain, MinibitsClient, NostrClient, NostrProfile } from '../services'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 import { StackActions } from '@react-navigation/native'
+import { translate } from '../i18n'
 
 interface ProfileScreenProps extends ContactsStackScreenProps<'Profile'> {}
 
@@ -93,17 +94,17 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
 
     const onCopyNpub = function () {        
         try {
-            Clipboard.setString(npub)
+          Clipboard.setString(npub)
         } catch (e: any) {
-            setInfo(`Could not copy: ${e.message}`)
+          setInfo(translate('common.copyFailParam', { param: e.message }))
         }
     }
 
     const onCopyNip05 = function () {        
         try {
-            Clipboard.setString(nip05)
+          Clipboard.setString(nip05)
         } catch (e: any) {
-            setInfo(`Could not copy: ${e.message}`)
+          setInfo(translate('common.copyFailParam', { param: e.message }))
         }
     }
 
@@ -114,13 +115,21 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
             toggleUpdateModal()
             
             if(!walletProfileStore.nip05) {                
-                throw new AppError(Err.VALIDATION_ERROR, 'Missing address', {caller: 'onSyncOwnProfile'})
+                throw new AppError(
+                  Err.VALIDATION_ERROR, 
+                  translate("profileMissingAddressError"), 
+                  { caller: 'onSyncOwnProfile' }
+                )
             }
             
             const profile: NostrProfile = await NostrClient.getNormalizedNostrProfile(walletProfileStore.nip05, relaysStore.allUrls)
             
             if(profile.pubkey !== walletProfileStore.pubkey) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Profile from relays public key differs from yor wallet pubkey. Reset this profile in Privacy settings and import again with new keys.', {caller: 'onSyncOwnProfile', profile, pubkey: walletProfileStore.pubkey})
+              throw new AppError(
+                Err.VALIDATION_ERROR, 
+                translate("profilePublicKeyMismatchError"),
+                {caller: 'onSyncOwnProfile', profile, pubkey: walletProfileStore.pubkey}
+              )
             }
 
             log.trace('[onSyncOwnProfile]', {profile})
@@ -133,7 +142,7 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
             })            
                  
             setIsLoading(false)
-            setInfo('Sync completed')
+            setInfo(translate('syncCompleted'))
             return
         } catch (e: any) {                 
             handleError(e)

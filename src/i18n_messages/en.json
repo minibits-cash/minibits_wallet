@@ -28,7 +28,9 @@
 		"off": "off",
 		"saveFailParam": "Failed to save %{param}",
 		"confirmAlertTitle": "Confirmation",
-		"sendAsEcash": "Send as ecash"
+		"sendAsEcash": "Send as ecash",
+		"reset": "Reset",
+		"import": "Import"
 	},
 	"transactionCommon": {
 		"from": "From %{sender}",
@@ -429,6 +431,10 @@
 			"confirm": "Apply Change",
 			"cancel": "Cancel",
 			"complete": "Profile change is complete."
+		},
+		"useOwnProfile": {
+			"title": "Use own Nostr profile",
+			"desc": "Import your own Nostr address and keys. Your wallet will stop communicating with minibits.cash Nostr and LNURL address servers, disabling Lightning address features for receiving zaps and payments. Only for hardcore ecash-ers!"
 		}
 	},
 	"nsecPasteError": "Copy your nsec key first, then paste.",
@@ -437,5 +443,8 @@
 	"relays": "Relays",
 	"privateKey": "Private key",
 	"nsecEnterPrivateKey": "Enter your private key",
-	"nsecEnterPrivateKeyDesc": "Minibits needs your private key in nsec format in order to decrypt messages containing incoming payments. Your key will be stored in your device secure key vault."
+	"nsecEnterPrivateKeyDesc": "Minibits needs your private key in nsec format in order to decrypt messages containing incoming payments. Your key will be stored in your device secure key vault.",
+	"pictureRetrieveFail": "Could not retrieve pictures from the server, try again later.",
+	"profileMissingAddressError": "Missing address",
+	"profilePublicKeyMismatchError": "Profile from relays public key differs from yor wallet pubkey. Reset this profile in Privacy settings and import again with new keys."
 }

@@ -24,6 +24,7 @@ import { log } from '../services/logService'
 import { OwnKeysScreen } from './OwnKeysScreen'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 import { CommonActions, StackActions } from '@react-navigation/native'
+import { translate } from '../i18n'
 
 enum TorStatus {
     NOTINIT = 'NOTINIT',
@@ -305,8 +306,11 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
                 ContentComponent={
                 <>                    
                     <ListItem
-                        text="Use own Nostr profile"
-                        subText={walletProfileStore.isOwnProfile ? walletProfileStore.nip05 : "Import your own Nostr address and keys. Your wallet will stop communicating with minibits.cash Nostr and LNURL address servers, disabling Lightning address features for receiving zaps and payments. Only for hardcore ecash-ers!"}
+                        tx="nostr.useOwnProfile.title"
+                        subText={walletProfileStore.isOwnProfile 
+                          ? walletProfileStore.nip05 
+                          : translate("nostr.useOwnProfile.desc")
+                        }
                         leftIcon={'faShareNodes'}
                         leftIconColor={
                             walletProfileStore.isOwnProfile
@@ -320,14 +324,14 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
                                 <Button
                                     style={{maxHeight: 10, marginTop: spacing.medium}}
                                     preset="secondary"
-                                    text="Reset"
+                                    tx="common.reset"
                                     onPress={resetProfile}
                                 />
                             ) : (
                                 <Button
                                     style={{maxHeight: 10, marginTop: spacing.medium}}
                                     preset="secondary"
-                                    text="Import"
+                                    tx="common.import"
                                     onPress={gotoOwnKeys}
                                 />
                             )}
