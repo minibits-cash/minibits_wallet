@@ -33,7 +33,8 @@
 		"import": "Import",
 		"create": "Create",
 		"change": "Change",
-		"reconnect": "Reconnect"
+		"reconnect": "Reconnect",
+		"complete": "Complete"
 	},
 	"transactionCommon": {
 		"from": "From %{sender}",
@@ -265,10 +266,11 @@
 		"success": "Your minibits tokens were backed up to local database. New tokens will be backed up automatically.",
 		"deletedSuccess": "Your backup of minibits tokens has been deleted. New tokens will NOT be backed up.",
 		"invalidMnemonicError": "Corrupted or invalid mnemonic. Please move funds and reinstall this wallet.",
-		"missingMnemonicError": "Missing mnemonic.",
+		"missingMnemonicError": "Missing mnemonic phrase.",
 		"seedBackup": "Seed backup",
 		"mnemonicTitle": "Your mnemonic phrase",
-		"mnemonicDesc": "This 12 word sequence represents your seed and allows you to recover your ecash balance in case of device loss. Keep them in safe place."
+		"mnemonicDesc": "This 12 word sequence represents your seed and allows you to recover your ecash balance in case of device loss. Keep them in safe place.",
+		"missingMnemonicOrSeedError": "Missing mnemonic or seed."
 	},
 	"securityScreen": {
 		"encryptStorage": "Encrypt storage",
@@ -473,5 +475,42 @@
 	"relayExists": "Relay already exists",
 	"invalidRelayUrl": "Invalid relay URL.",
 	"removeRelay": "Remove relay",
-	"copyMnemonicBackupWorkaround": "To apply backup to your existing funds, send your entire balance to yourself. Otherwise, only funds from this point onward can be restored."
+	"copyMnemonicBackupWorkaround": "To apply backup to your existing funds, send your entire balance to yourself. Otherwise, only funds from this point onward can be restored.",
+	"derivingSeedStatus": "Deriving seed, this takes a while...",
+	"recoveryInvalidMnemonicError": "Invalid mnemonic phrase. Provide 12 word sequence separated by blank spaces.",
+	"recovery": {
+		"selectMintFrom": "Select mint to recover from.",
+		"starting": "Starting recovery...",
+		"noMintSelected": "Please select the mint.",
+		"noKeysetSelected": "Please select keyset.",
+		"restoringFromParam": "Restoring from %{hostname}...",
+		"foundProofsAmount": "Found %{amount} proofs...",
+		"spentProofsAmount": "%{amount} proofs were already spent...",
+		"completing": "Completing recovery...",
+		"foundPendingProofsAmount": "Found %{amount} pending proofs...",
+		"recoveredResult": "${formattedCurrency} ${code} were recovered into your wallet.",
+		"resultErrors": "Recovery ended with errors.",
+		"resultSpent": "Good news is that already spent Ecash has been found. Continue with next recovery interval.",
+		"resultExpired": "Nothing has been found in this recovery interval.",
+		"seedFromCurrentDeviceError": "Can not use seed from this device.",
+		"ownKeysImportAgain": "You used wallet address %{addr} with your own keys, import it again.",
+		"noWalletForSeedError": "Could not find wallet address linked to your seed on the server.",
+		"missingMnemonicSeedProfileError": "Missing mnemonic or seed or profile to recover.",
+		"recoveringAddress": "Recovering wallet address...",
+		"completed": "Recovery completed",
+		"foundAddrParam": "Found ${addr}",
+		"mnemonicCollision": "Mnemonic exists",
+		"mnemonicCollisionDesc": "Your wallet already has another mnemonic in its secure storage. Recovery process works only with freshly installed wallet to avoid loss of your funds.",
+		"completeCTA": "Complete recovery",
+		"findAddressCTA": "Find wallet address",
+		"intervalParam": "Recovery interval %{startIndex} - %{endIndex} · ",
+		"setManually": "Set manually",
+		"keysetID": "Keyset ID %{id} (%{unit})",
+		"selectAnotherKeyset": " · Select another"
+	},
+	"profileToRecoverDesc": "This is the wallet address linked to your seed. If you press Complete, your wallet profile will reset to above seed and address.",
+	"recoveryFromMints": "Recovery from mints",
+	"recoveryFromMintsDesc": "Identify mints to recover your ecash from and add them to the list.",
+	"addMints": "Add mints",
+	"nextInterval": "Next interval"
 }

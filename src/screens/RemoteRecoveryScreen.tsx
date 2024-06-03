@@ -44,10 +44,10 @@ import { WalletScreen } from './WalletScreen'
 import { MintUnit, formatCurrency, getCurrency } from '../services/wallet/currency'
 import { isObj } from '@cashu/cashu-ts/src/utils'
 import { WalletProfileRecord } from '../models/WalletProfileStore'
+import { translate } from '../i18n'
 
-if (Platform.OS === 'android' &&
-    UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true)
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
 const RESTORE_INDEX_INTERVAL = 50
@@ -126,7 +126,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
             const maybeMnemonic = await Clipboard.getString()
 
             if(!maybeMnemonic) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Missing mnemonic phrase.')
+              throw new AppError(Err.VALIDATION_ERROR, translate('backupScreen.missingMnemonicError'))
             }
 
             const cleanedMnemonic = maybeMnemonic.replace(/\s+/g, ' ').trim()
@@ -140,16 +140,16 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
 
     const onConfirm = async function () {
         try {
-            setStatusMessage('Deriving seed, this takes a while...')
+            setStatusMessage(translate("derivingSeedStatus"))
             
             if(!mnemonic) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Missing mnemonic.')
+              throw new AppError(Err.VALIDATION_ERROR, translate('backupScreen.missingMnemonicError'))
             }
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
             setIsLoading(true)
 
             if (!validateMnemonic(mnemonic, wordlist)) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Invalid mnemonic phrase. Provide 12 word sequence separated by blank spaces.')
+              throw new AppError(Err.VALIDATION_ERROR, translate("recoveryInvalidMnemonicError"))
             }          
 
             setTimeout(() => {                                
@@ -160,7 +160,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                 setIsLoading(false)
             }, 200)
         } catch (e: any) {
-            handleError(e)
+          handleError(e)
         }
     }
 
@@ -209,10 +209,10 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
     
     const startRecovery = async function () {
         if(!selectedMintUrl) {
-            setInfo('Select mint to recover from.')
-            return
+          setInfo(translate("recovery.selectMintFrom"))
+          return
         }
-        setStatusMessage('Starting recovery...')
+        setStatusMessage(translate("recovery.starting"))
         setIsLoading(true)        
         setTimeout(() => doRecovery(), 100)        
     }
@@ -231,16 +231,16 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
 
         try {
             if(!recoveredMint) {                
-                setInfo('Please select the mint.')
-                return
+              setInfo(translate("recovery.noMintSelected"))
+              return
             }
 
             if(!selectedKeyset) {                
-                setInfo('Please select keyset.')
-                return
+              setInfo(translate("recovery.noKeysetSelected"))
+              return
             }
             
-            setStatusMessage(`Restoring from ${recoveredMint.hostname}...`)
+            setStatusMessage(translate("recovery.restoringFromParam", { hostname: recoveredMint.hostname }))
             log.info('[restore]', `Restoring from ${recoveredMint.hostname}...`)
             
             const { proofs } = await MintClient.restore(
@@ -254,7 +254,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
             )
 
             log.debug('[restore]', `Restored proofs`, proofs.length)                
-            setStatusMessage(`Found ${proofs.length} proofs...`)
+            setStatusMessage(translate("recovery.foundProofsAmount", { amount: proofs.length }))
             
             if (proofs.length > 0) {
                 // need to move counter by whole interval to avoid duplicate _B!!!
@@ -267,7 +267,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
 
                 log.debug('[restore]', `Spent and pending proofs`, {spent: spent.length, pending: pending.length})
 
-                setStatusMessage(`${spent.length} proofs were already spent...`)
+                setStatusMessage(translate("recovery.spentProofsAmount", { amount: spent.length }))
 
                 const spentAmount = CashuUtils.getProofsAmount(spent as Proof[])
                 alreadySpentAmount += spentAmount
@@ -276,7 +276,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                 
                 if(unspent && unspent.length > 0) {
                     
-                    setStatusMessage(`Completing recovery...`)
+                    setStatusMessage(translate("recovery.completing"))
 
                     const amount = CashuUtils.getProofsAmount(unspent as Proof[])
                     recoveredAmount = amount                 
@@ -340,7 +340,8 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
             
                 if(pending && pending.length > 0) {
 
-                    setStatusMessage(`Found ${pending.length} pending proofs...`)
+                    // setStatusMessage(`Found ${pending.length} pending proofs...`)
+                    setStatusMessage(translate("recovery.foundPendingProofsAmount", { amount: pending.length }))
                     log.debug(`Found pending ecash with ${recoveredMint.hostname}...`)
 
                     const amount = CashuUtils.getProofsAmount(pending as Proof[])
@@ -448,25 +449,28 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
             const currency = getCurrency(selectedKeyset?.unit as MintUnit)
             setResultModalInfo({
                 status: TransactionStatus.COMPLETED, 
-                message: `${formatCurrency(recoveredAmount, currency.code)} ${currency.code} were recovered into your wallet.`
+                message: translate("recovery.recoveredResult", { 
+                  formattedCurrency: formatCurrency(recoveredAmount, currency.code),
+                  code: currency.code
+                })
             })
         } else {
             if(errors.length > 0) {
                 setResultModalInfo({
                     status: TransactionStatus.ERROR, 
-                    message: `Recovery ended with errors.`
+                    message: translate("recovery.resultErrors")
                 })            
                 setRecoveryErrors(errors)
             } else {
                 if(alreadySpentAmount > 0) {
                     setResultModalInfo({
                         status: TransactionStatus.EXPIRED, 
-                        message: `Good news is that already spent Ecash has been found. Continue with next recovery interval.`
+                        message: translate("recovery.resultSpent")
                     }) 
                 } else {
                     setResultModalInfo({
                         status: TransactionStatus.EXPIRED, 
-                        message: `Nothing has been found in this recovery interval.`
+                        message: translate("recovery.resultExpired")
                     }) 
                 }
 
@@ -480,7 +484,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
     const onFindWalletAddress = async () => {
         try {
             if(!seed || !mnemonic) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Missing mnemonic or seed.')
+              throw new AppError(Err.VALIDATION_ERROR, translate("backupScreen.missingMnemonicOrSeedError"))
             }
 
             const seedHash = QuickCrypto.createHash('sha256')
@@ -490,7 +494,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
             const currentSeedHash = await KeyChain.loadSeedHash()
 
             if(currentSeedHash === seedHash) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Can not use seed from this device.')
+              throw new AppError(Err.VALIDATION_ERROR, translate("recovery.seedFromCurrentDeviceError"))
             }
             
             const profile = await MinibitsClient.getWalletProfileBySeedHash(seedHash as string)            
@@ -502,11 +506,11 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                 if(profile.nip05.includes(MINIBITS_NIP05_DOMAIN)) {                                    
                     setProfileToRecover(profile)
                 } else {
-                    setInfo(`You used wallet address ${profile.nip05} with your own keys, import it again.`)
+                    setInfo(translate("recovery.ownKeysImportAgain", { addr: profile.nip05 }))
                     await delay(5000)
                 }
             } else {
-                setInfo('Could not find wallet address linked to your seed on the server.')
+              setInfo(translate("recovery.noWalletForSeedError"))
             }     
         } catch (e: any) {
             handleError(e)
@@ -517,10 +521,10 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
     const onCompleteAddress = async () => {
         try {
             if(!seed || !mnemonic || !profileToRecover) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Missing mnemonic or seed or profile to recover.')
+                throw new AppError(Err.VALIDATION_ERROR, translate("recovery.missingMnemonicSeedProfileError"))
             }
 
-            setStatusMessage('Recovering wallet address...')
+            setStatusMessage(translate("recovery.recoveringAddress"))
             setIsLoading(true)
             
             await KeyChain.saveMnemonic(mnemonic)
@@ -533,7 +537,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
             // Align walletId in userSettings with recovered profile
             userSettingsStore.setWalletId(walletProfileStore.walletId)                    
             await delay(1000)
-            setStatusMessage(`Recovery completed`)
+            setStatusMessage(translate("recovery.completed"))
             await delay(2000)
             
 
@@ -550,10 +554,10 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
     const onComplete = async () => {
         try {
             if(!seed || !mnemonic) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Missing mnemonic or seed.')
+                throw new AppError(Err.VALIDATION_ERROR, translate('backupScreen.missingMnemonicOrSeedError'))
             }
 
-            setStatusMessage('Recovering wallet address...')
+            setStatusMessage(translate('recovery.recoveringAddress'))
             setIsLoading(true)
             
             await KeyChain.saveMnemonic(mnemonic)
@@ -568,7 +572,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
             // Skip external profiles beacause we do not control keys
             if(profileToRecover) {
                 log.info('[onComplete] recovery', {profileToRecover})
-                setStatusMessage(`Found ${profileToRecover.nip05}`)
+                setStatusMessage(translate("recovery.foundAddrParam", { addr: profileToRecover.nip05 }))
 
                 if(profileToRecover.nip05.includes(MINIBITS_NIP05_DOMAIN)) {                                    
                     const {publicKey: newPublicKey} = await NostrClient.getOrCreateKeyPair()
@@ -577,11 +581,11 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                     // Align walletId in userSettings with recovered profile
                     userSettingsStore.setWalletId(walletProfileStore.walletId)                    
                     await delay(1000)
-                    setStatusMessage(`Recovery completed`)
+                    setStatusMessage(translate('recovery.completed'))
                     await delay(2000)
                 } else {
-                    setInfo(`You used wallet address ${profileToRecover.nip05} with your own keys, import it again.`)
-                    await delay(5000)
+                  setInfo(translate("recovery.ownKeysImportAgain", { addr: profileToRecover.nip05 }))
+                  await delay(5000)
                 }
             }
 
@@ -617,8 +621,8 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                 style={$card}
                 ContentComponent={
                     <ListItem
-                        text='Mnemonic exists'
-                        subText='Your wallet already has another mnemonic in its secure storage. Recovery process works only with freshly installed wallet to avoid loss of your funds.'
+                        tx="recovery.mnemonicCollision"
+                        subTx="recovery.mnemonicCollisionDesc"
                         leftIcon='faTriangleExclamation'
                         // leftIconColor='red'                  
                         style={$item}                    
@@ -629,7 +633,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                     <View style={$buttonContainer}>               
                         <Button
                             onPress={onBack}
-                            text='Back'  
+                            tx='common.back'
                             preset='secondary'                      
                         />                        
                     </View>                    
@@ -643,7 +647,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                         style={$card}
                         ContentComponent={
                             <ListItem
-                                text='Your mnemonic phrase'
+                                tx='backupScreen.mnemonicTitle'
                                 subText={mnemonic}
                                 LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='1'/></View>}                  
                                 style={$item}                            
@@ -659,7 +663,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                                         ContentComponent={
                                             <ListItem
                                                 text={profileToRecover.nip05}
-                                                subText={'This is the wallet address linked to your seed. If you press Complete, your wallet profile will reset to above seed and address.'}
+                                                subTx="profileToRecoverDesc"
                                                 LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='2'/></View>}                  
                                                 style={$item}                            
                                             /> 
@@ -668,7 +672,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                                     <View style={$buttonContainer}>
                                         <Button
                                             onPress={onCompleteAddress}
-                                            text={'Complete recovery'}
+                                            tx="recovery.completeCTA"
                                             style={{marginRight: spacing.small}}                                        
                                         />
                                     </View>
@@ -677,7 +681,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                                 <View style={$buttonContainer}>
                                     <Button
                                         onPress={onFindWalletAddress}
-                                        text={'Find wallet address'}
+                                        tx="recovery.findAddressCTA"
                                         style={{marginRight: spacing.small}}                                        
                                     />
                                 </View>
@@ -690,8 +694,8 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                                 HeadingComponent={
                                     <>
                                     <ListItem
-                                        text='Recovery from mints'
-                                        subText='Identify mints to recover your ecash from and add them to the list.'
+                                        tx="recoveryFromMints"
+                                        subTx="recoveryFromMintsDesc"
                                         LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='2'/></View>} 
                                         RightComponent={mintsStore.mintCount > 0 ? (
                                             <View style={$rightContainer}>
@@ -709,7 +713,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                                         <View style={$buttonContainer}>
                                             <Button
                                                 onPress={onAddMints}
-                                                text='Add mints'                                            
+                                                tx="addMints"
                                             /> 
                                         </View>
                                     )}
@@ -738,13 +742,13 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                                                 {(startIndex > 0 || totalRecoveredAmount > 0) && (
                                                     <Button
                                                         onPress={onComplete}
-                                                        text={'Complete'}
+                                                        tx="common.complete"
                                                         style={{marginRight: spacing.small}}                                        
                                                     />
                                                 )}               
                                                 <Button
                                                     onPress={startRecovery}
-                                                    text={startIndex === 0 ? 'Start recovery' : 'Next interval'}
+                                                    tx={startIndex === 0 ? 'startRecovery' : 'nextInterval'}
                                                     preset={(startIndex === 0 ||  totalRecoveredAmount > 0) ? 'default' : 'secondary'}
                                                     disabled={selectedMintUrl ? false : true}    
                                                 />                        
@@ -752,13 +756,16 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
 
                                             <View style={$buttonContainer}>
                                             <Text 
-                                                text={`Recovery interval ${startIndex} - ${endIndex} · `} 
+                                                text={translate("recovery.intervalParam", { 
+                                                  startIndex: startIndex,
+                                                  endIndex: endIndex
+                                                })} 
                                                 size='xxs' 
                                                 style={{color: textHint, alignSelf: 'center', marginTop: spacing.small}}
                                             />
                                             <Pressable onPress={toggleIndexModal}>
                                                 <Text 
-                                                    text={`Set manually`} 
+                                                    tx="recovery.setManually"
                                                     size='xxs' 
                                                     style={{color: textHint, alignSelf: 'center', marginTop: spacing.small}}
                                                 />  
@@ -766,14 +773,17 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                                             </View>
                                             <View style={[$buttonContainer,{marginTop: 0}]}>
                                             <Text 
-                                                text={`Keyset ID ${selectedKeyset?.id} (${selectedKeyset?.unit})`}
+                                                text={translate("recovery.keysetID", { 
+                                                  id: selectedKeyset?.id,
+                                                  unit: selectedKeyset?.unit  
+                                                })}
                                                 size='xxs' 
                                                 style={{color: textHint, alignSelf: 'center', marginTop: spacing.extraSmall}}
                                             />
                                             {selectedMintKeysets.length > 1 && (
                                                 <Pressable onPress={toggleKeysetModal}>
                                                     <Text 
-                                                        text={` · Select another`} 
+                                                        tx="recovery.selectAnotherKeyset"
                                                         size='xxs' 
                                                         style={{color: textHint, alignSelf: 'center', marginTop: spacing.extraSmall}}
                                                     />  
@@ -784,7 +794,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                                         )}
                                         {mintsStore.mintCount > 0 && !selectedMintUrl && (
                                             <Text 
-                                                text={`Select mint to recover from`} 
+                                                tx='recovery.selectMintFrom'
                                                 size='xxs' 
                                                 style={{color: textHint, alignSelf: 'center', margin: spacing.large}}
                                             />
