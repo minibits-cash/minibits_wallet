@@ -60,7 +60,8 @@
 		"tapToRedeem": "Tap to redeem",
 		"redeemOnline": "Redeem online",
 		"feePaid": "Paid fee",
-		"reverted": "Transaction reverted"
+		"reverted": "Transaction reverted",
+		"receiveFailed": "Receive failed"
 	},
 	"welcomeScreen": {
 		"page1": {
@@ -462,5 +463,7 @@
 	"syncOwnProfileDesc": "Synchronize your profile name and picture with up to date information from Nostr relays.",
 	"resetOwnProfile": "Reset own profile",
 	"resetOwnProfileDesc": "Stop using your own NOSTR address and re-create Minibits wallet profile.",
-	"shareWalletAddress": "Share wallet address"
+	"shareWalletAddress": "Share wallet address",
+	"decodedMissingCurrencyUnit": "Currency unit is missing in the received token. Wallet will assume token amount is in bitcoin $%{unit}. Do not continue if you are not sure this is correct.",
+	"newMint": "New mint"
 }

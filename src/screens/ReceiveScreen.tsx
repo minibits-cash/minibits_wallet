@@ -35,6 +35,7 @@ import { MintHeader } from './Mints/MintHeader'
 import { round, toNumber } from '../utils/number'
 import numbro from 'numbro'
 import { TranItem } from './TranDetailScreen'
+import { translate } from '../i18n'
 
 export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
   function ReceiveScreen({route, navigation}) {
@@ -91,14 +92,14 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
     
             if (error) {
                 setResultModalInfo({
-                    status,
-                    title: error.params?.message ? error.message : 'Receive failed',
-                    message: error.params?.message || error.message,
+                  status,
+                  title: error.params?.message ? error.message : translate("transactionCommon.receiveFailed"),
+                  message: error.params?.message || error.message,
                 })
             } else {
                 setResultModalInfo({
-                    status,
-                    message,
+                  status,
+                  message,
                 })
             }
     
@@ -151,10 +152,8 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         log.trace('decoded token', {decoded})
         log.trace('tokenAmounts', {tokenAmounts})
 
-        
-
         if(!decoded.unit) {
-          setInfo(`Currency unit is missing in the received token. Wallet will assume token amount is in bitcoin ${CurrencyCode.SATS}. Do not continue if you are not sure this is correct.`)
+          setInfo(translate("decodedMissingCurrencyUnit", { unit: CurrencyCode.SATS }))
         }
 
         const currency = getCurrency(decoded.unit)
@@ -203,8 +202,6 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
             memo,
             encodedToken as string,
         )
-  
-
     }
 
 
@@ -293,7 +290,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                             key={mintUrl}
                             text={new URL(mintUrl).hostname}
                             topSeparator={true}
-                            RightComponent={<Text size='xs' text='New mint' style={$newBadge}/>}
+                            RightComponent={<Text size='xs' tx="newMint" style={$newBadge}/>}
                           />
                         )
                       } else {
@@ -357,7 +354,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                     <View style={$buttonContainer}>
                         {isInternetReachable ? (
                             <Button
-                                tx={'payCommon.receive'}
+                                tx='payCommon.receive'
                                 onPress={receiveToken}
                                 style={{marginRight: spacing.medium}}
                                 LeftAccessory={() => (
@@ -370,7 +367,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                             />
                         ) : (
                             <Button
-                                tx={'payCommon.receiveOffline'}
+                                tx='payCommon.receiveOffline'
                                 onPress={receiveOfflineToken}
                                 style={{marginRight: spacing.medium}}
                                 LeftAccessory={() => (
@@ -384,7 +381,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                         )}                  
                     <Button
                         preset="secondary"
-                        tx={'common.cancel'}
+                        tx='common.cancel'
                         onPress={gotoWallet}
                     />
                     </View>
@@ -405,13 +402,13 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                   <ResultModalInfo
                     icon={'faCheckCircle'}
                     iconColor={colors.palette.success200}
-                    title="Success!"
+                    title={translate('common.success')}
                     message={resultModalInfo?.message}
                   />
                   <View style={$buttonContainer}>
                     <Button
                       preset="secondary"
-                      tx={'common.close'}
+                      tx='common.close'
                       onPress={gotoWallet}
                     />
                   </View>
@@ -422,13 +419,13 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                   <ResultModalInfo
                     icon={'faTriangleExclamation'}
                     iconColor={colors.palette.accent400}
-                    title="Attention!"
+                    title={translate('attention')}
                     message={resultModalInfo?.message}
                   />
                   <View style={$buttonContainer}>
                     <Button
                       preset="secondary"
-                      tx={'common.close'}
+                      tx='common.close'
                       onPress={gotoWallet}
                     />
                   </View>
@@ -440,13 +437,13 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                   <ResultModalInfo
                     icon="faTriangleExclamation"
                     iconColor={colors.palette.angry500}
-                    title={resultModalInfo?.title as string || 'Receive failed'}
+                    title={resultModalInfo?.title as string || translate('transactionCommon.receiveFailed')}
                     message={resultModalInfo?.message as string}
                   />
                   <View style={$buttonContainer}>
                     <Button
                       preset="secondary"
-                      tx={'common.close'}
+                      tx='common.close'
                       onPress={toggleResultModal}
                     />
                   </View>
