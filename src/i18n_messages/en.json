@@ -506,12 +506,22 @@
 		"intervalParam": "Recovery interval %{startIndex} - %{endIndex} · ",
 		"setManually": "Set manually",
 		"keysetID": "Keyset ID %{id} (%{unit})",
-		"selectAnotherKeyset": " · Select another"
+		"selectAnotherKeyset": " · Select another",
+		"startIndexDesc": "Use to increase starting index of recovery interval e.g. in case of repeated recovery. You need to know at what index you completed your previous recovery or you'll miss ecash to recover.",
+		"selectKeyset": "Select keyset to be used for recovery",
+		"success": "Recovery success!",
+		"failed": "Recovery failed"
 	},
 	"profileToRecoverDesc": "This is the wallet address linked to your seed. If you press Complete, your wallet profile will reset to above seed and address.",
 	"recoveryFromMints": "Recovery from mints",
 	"recoveryFromMintsDesc": "Identify mints to recover your ecash from and add them to the list.",
 	"addMints": "Add mints",
 	"nextInterval": "Next interval",
-	"recoveryInsertMnemonic": "Insert mnemonic phrase"
+	"recoveryInsertMnemonic": "Insert mnemonic phrase",
+	"recoveryInsertMnemonicDesc": "Paste or rewrite 12 word phrase to recover your ecash balance and wallet address on this device. Separate words by blank spaces.",
+	"recoveryInsertMnemonicDescAddrOnly": "Paste or rewrite 12 word phrase to recover your wallet address on this device. Separate words by blank spaces.",
+	"mnemonicPhrasePlaceholder": "Mnemonic phrase...",
+	"setStartIndex": "Set start index",
+	"showErrors": "Show errors",
+	"noEcashRecovered": "No ecash recovered"
 }

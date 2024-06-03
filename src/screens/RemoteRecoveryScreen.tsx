@@ -811,7 +811,10 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                     ContentComponent={
                         <ListItem
                             tx="recoveryInsertMnemonic"
-                            subText={`Paste or rewrite 12 word phrase to recover your ${isAddressOnlyRecovery ? 'wallet address' : 'ecash balance and wallet address'} on this device. Separate words by blank spaces.`}
+                            subTx={isAddressOnlyRecovery 
+                              ? 'recoveryInsertMnemonicDescAddrOnly' 
+                              : 'recoveryInsertMnemonicDesc'
+                            }
                             LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='1'/></View>}                  
                             style={$item}                            
                         /> 
@@ -827,7 +830,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                             autoCapitalize='none'
                             keyboardType='default'
                             maxLength={150}
-                            placeholder='Mnemonic phrase...'
+                            placeholder={translate("mnemonicPhrasePlaceholder")}
                             selectTextOnFocus={true}                    
                             style={[$mnemonicInput, {backgroundColor: inputBg, flexWrap: 'wrap'}]}
                         />
@@ -835,12 +838,12 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                             {mnemonic ? (
                                 <Button
                                     onPress={onConfirm}
-                                    text='Confirm'                        
+                                    tx='common.confirm'                        
                                 />
                             ) : (
                                 <Button
                                     onPress={onPaste}
-                                    text='Paste'                        
+                                    tx='common.paste'                        
                                 />
                             )
                         }                    
@@ -856,7 +859,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
           isVisible={isIndexModalVisible}
           ContentComponent={
             <View style={$indexContainer}>
-                <Text text="Set start index" preset="subheading" />
+                <Text tx="setStartIndex" preset="subheading" />
                 <View style={{flexDirection: 'row', alignItems: 'center'}}>
                     <TextInput
                         ref={indexInputRef}
@@ -869,12 +872,12 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                         textAlign='right'
                     />
                     <Button
-                        text="Save"
+                        tx='common.save'
                         onPress={onResetStartIndex}
                     />
                 </View>
                 <Text 
-                    text={`Use to increase starting index of recovery interval e.g. in case of repeated recovery. You need to know at what index you completed your previous recovery or you'll miss ecash to recover.`} 
+                    tx="recovery.startIndexDesc"
                     size='xxs' 
                     style={{color: textHint, margin: spacing.small}}
                 />
@@ -886,7 +889,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
         <BottomModal
           isVisible={isKeysetModalVisible}
           // style={{alignItems: 'stretch'}} 
-          HeadingComponent={<Text text="Select keyset to be used for recovery" style={{textAlign: 'center', margin: spacing.small}}/>}
+          HeadingComponent={<Text tx="recovery.selectKeyset" style={{textAlign: 'center', margin: spacing.small}}/>}
           ContentComponent={
             <FlatList
                 data={selectedMintKeysets}
@@ -915,7 +918,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
             <Button                
                 preset={'secondary'}
                 onPress={toggleKeysetModal}
-                text={`Close`}
+                tx='common.close'
                 style={{marginTop: spacing.small}}
             />}
           onBackButtonPress={toggleKeysetModal}
@@ -953,13 +956,13 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                     <ResultModalInfo
                       icon="faCheckCircle"
                       iconColor={colors.palette.success200}
-                      title="Recovery success!"
+                      title={translate("recovery.success")}
                       message={resultModalInfo?.message}
                     />
                     <View style={$buttonContainer}>
                       <Button
                         preset="secondary"
-                        tx={'common.close'}
+                        tx='common.close'
                         onPress={toggleResultModal}
                       />
                     </View>
@@ -971,13 +974,13 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                     <ResultModalInfo
                       icon="faTriangleExclamation"
                       iconColor={colors.palette.angry500}
-                      title="Recovery failed"
+                      title={translate("recovery.failed")}
                       message={resultModalInfo?.message}
                     />
                     <View style={$buttonContainer}>
                       <Button
                         preset="secondary"
-                        text={'Show errors'}
+                        tx="showErrors"
                         onPress={toggleErrorsModal}
                       />
                     </View>
@@ -989,13 +992,13 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                     <ResultModalInfo
                       icon='faInfoCircle'
                       iconColor={colors.palette.neutral400}
-                      title="No ecash recovered"
+                      title={translate("noEcashRecovered")}
                       message={resultModalInfo?.message}
                     />
                     <View style={$buttonContainer}>
                       <Button
                         preset="secondary"
-                        tx={'common.close'}
+                        tx='common.close'
                         onPress={toggleResultModal}
                       />
                     </View>
