@@ -142,24 +142,23 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
         let message: string = ''
 
         if (proofsByMint && proofsByMint.length > 0) {
-            message = `Your wallet has non-zero balance with this mint. If removed, your ecash will be lost!\n\n`            
+          message = translate("removingMintLostBalanceWarning") + `\n\n`
         }
-
-        message += `Do you really want to remove ${selectedMint.hostname} - ${selectedMint.shortname} from the wallet?`
+        message += translate("confirmMintRemoval", { hostname: selectedMint.hostname, shortname: selectedMint.shortname })
 
         Alert.alert(
-        'Warning',
+        translate("warning"),
         message,
             [
             {
-                text: 'Cancel',
+                text: translate('common.cancel'),
                 style: 'cancel',
                 onPress: () => {
                 // Action canceled
                 },
             },
             {
-                text: 'Confirm',
+                text: translate('common.confirm'),
                 onPress: () => {
                 try {
                     onMintUnselect()
@@ -233,7 +232,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
     return (
       <Screen preset="auto" contentContainerStyle={$screen}>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text preset="heading" text="Manage mints" style={{color: 'white'}} />
+          <Text preset="heading" tx="manageMints" style={{color: 'white'}} />
         </View>
         <View style={$contentContainer}>
             <Card
@@ -241,7 +240,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                 ContentComponent={
                     <>
                     <ListItem
-                        text={'Add mint'}
+                        tx='mintsScreen.addMint'
                         LeftComponent={<Icon
                             containerStyle={$iconContainer}
                             icon="faPlus"
@@ -254,7 +253,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                     />
                     {!mintsStore.alreadyExists(defaultMintUrl) && (
                     <ListItem
-                        text={'Add Minibits mint'}
+                        tx="mintsScreen.addMintMinibits"
                         LeftComponent={<SvgXml 
                             width={spacing.medium} 
                             height={spacing.medium} 
@@ -302,14 +301,14 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
               <ListItem
                 leftIcon="faInfoCircle"
                 onPress={gotoInfo}
-                tx={'mintsScreen.mintInfo'}
+                tx='mintsScreen.mintInfo'
                 bottomSeparator={true}
                 style={{paddingHorizontal: spacing.medium}}
               />
               <ListItem
                 leftIcon='faRotate'
                 onPress={updateMint}
-                text={'Refresh mint settings'}
+                tx="mintsScreen.refreshMintSettings"
                 bottomSeparator={true}
                 style={{paddingHorizontal: spacing.medium}}
               />
@@ -317,7 +316,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                 <ListItem
                   leftIcon="faShieldHalved"
                   onPress={unblockMint}
-                  tx={'mintsScreen.unblockMint'}
+                  tx='mintsScreen.unblockMint'
                   bottomSeparator={true}
                   style={{paddingHorizontal: spacing.medium}}
                 />
@@ -325,7 +324,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                 <ListItem
                   leftIcon="faShieldHalved"
                   onPress={blockMint}
-                  tx={'mintsScreen.blockMint'}
+                  tx='mintsScreen.blockMint'
                   bottomSeparator={true}
                   style={{paddingHorizontal: spacing.medium}}
                 />
@@ -340,14 +339,14 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
               <ListItem
                 leftIcon="faCopy"
                 onPress={onCopyMintUrl}
-                tx={'mintsScreen.copy'}
+                tx='mintsScreen.copy'
                 bottomSeparator={true}
                 style={{paddingHorizontal: spacing.medium}}
               />
               <ListItem
                 leftIcon="faXmark"
                 onPress={removeMint}
-                tx={'mintsScreen.removeMint'}
+                tx='mintsScreen.removeMint'
                 bottomSeparator={true}
                 style={{paddingHorizontal: spacing.medium}}
               />              
@@ -362,7 +361,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
             <View style={$bottomModal}>            
                 <Text
                     preset="subheading"
-                    tx={'mintsScreen.addMintUrl'}
+                    tx='mintsScreen.addMintUrl'
                     // style={{marginBottom: spacing.medium, textAlign: 'center'}}
                 />
                 <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
@@ -379,7 +378,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                         />
                         <Button
                             preset='secondary'
-                            text="Paste"
+                            tx='common.paste'
                             style={{
                                 borderRadius: 0,                                
                                 marginLeft: 1,                                
@@ -388,7 +387,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                         />
                         <Button
                             preset='secondary'
-                            text="Scan"
+                            tx="common.scan"
                             style={{
                                 borderTopLeftRadius: 0,
                                 borderBottomLeftRadius: 0,  
@@ -399,7 +398,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                 </View>
                 <View style={$buttonContainer}>
                     <Button
-                        text="Save"
+                        tx='common.save'
                         style={{
                             // borderTopLeftRadius: 0,
                             // borderBottomLeftRadius: 0,                                
@@ -409,7 +408,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                         onPress={addMint}
                     />                    
                     <Button
-                        tx={'common.cancel'}
+                        tx='common.cancel'
                         onPress={toggleAddMintModal}
                         preset="secondary"
                     />

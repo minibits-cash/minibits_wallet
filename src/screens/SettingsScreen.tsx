@@ -178,7 +178,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
             ContentComponent={
               <>
                 <ListItem
-                    tx='settingsScreen.manageMints'
+                    tx='manageMints'
                     leftIcon='faCoins'
                     leftIconColor={colors.palette.iconBlue300}
                     leftIconInverse={true}

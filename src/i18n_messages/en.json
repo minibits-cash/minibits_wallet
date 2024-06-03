@@ -224,7 +224,6 @@
 	},
 	"settingsScreen": {
 		"title": "Settings",
-		"manageMints": "Manage mints",
 		"preferredUnit": "Preferred unit",
 		"mintsCount": {
 			"one": "{{count}} mint",
@@ -254,7 +253,9 @@
 		"unblockMint": "Unblock receiving from this mint",
 		"mintRemoved": "The mint has been removed",
 		"mintBlocked": "The mint has been blocked. The app will not receive ecash from this mint.",
-		"mintUnblocked": "The mint has been unblocked. You can now receive ecash from this mint."
+		"mintUnblocked": "The mint has been unblocked. You can now receive ecash from this mint.",
+		"addMintMinibits": "Add Minibits mint",
+		"refreshMintSettings": "Refresh mint settings"
 	},
 	"backupScreen": {
 		"localBackup": "Local backup",
@@ -394,7 +395,7 @@
 	"payWithLightningDesc": "Enter or paste Lightning address, invoice or LNURL pay code you want to pay to.",
 	"missingMintsForProofsUserMessage": "Please add all mints belonging to your proofs to the wallet and try again.",
 	"uspentOnlyRecoverable": "Only unspent proofs are recoverable.",
-	"backupWillOverwriteBalanceWarning": "Your wallet has non zero balance. If you continue, existing ecash will be deleted and replaced by backup.",
+	"backupWillOverwriteBalanceWarning": "Your wallet has non zero-balance. If you continue, existing ecash will be deleted and replaced by backup.",
 	"confirmBackupRecovery": "Do you really want to recover ecash from the backup?",
 	"attention": "Attention!",
 	"startRecovery": "Start recovery",
@@ -406,5 +407,9 @@
 	"mintInfoHeading": "Mint info",
 	"loadingPublicInfo": "Loading public info",
 	"onDeviceInfo": "On device information",
-	"mintSettingsUpdated": "Updated mint settings"
+	"mintSettingsUpdated": "Updated mint settings",
+	"removingMintLostBalanceWarning": "Your wallet has non-zero balance with this mint. If removed, your ecash will be lost!",
+	"confirmMintRemoval": "Do you really want to remove %{hostname} - %{shortname} from the wallet?",
+	"warning": "Warning",
+	"manageMints": "Manage mints"
 }
