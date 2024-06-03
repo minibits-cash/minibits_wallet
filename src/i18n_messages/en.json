@@ -32,7 +32,8 @@
 		"reset": "Reset",
 		"import": "Import",
 		"create": "Create",
-		"change": "Change"
+		"change": "Change",
+		"reconnect": "Reconnect"
 	},
 	"transactionCommon": {
 		"from": "From %{sender}",
@@ -188,8 +189,6 @@
 		},
 		"publicContacts": {
 			"npubPasteError": "Copy your NPUB key before pasting",
-			"relayurlPasteError": "Copy your relay URL key before pasting",
-			"relayExists": "Relay already exists",
 			"addNpub": "Add your npub key",
 			"pasteDemoKey": "Paste demo key",
 			"setOwnRelay": "Set your own relay"
@@ -465,5 +464,9 @@
 	"resetOwnProfileDesc": "Stop using your own NOSTR address and re-create Minibits wallet profile.",
 	"shareWalletAddress": "Share wallet address",
 	"decodedMissingCurrencyUnit": "Currency unit is missing in the received token. Wallet will assume token amount is in bitcoin $%{unit}. Do not continue if you are not sure this is correct.",
-	"newMint": "New mint"
+	"newMint": "New mint",
+	"relayurlPasteError": "Copy your relay URL key before pasting",
+	"relayExists": "Relay already exists",
+	"invalidRelayUrl": "Invalid relay URL.",
+	"removeRelay": "Remove relay"
 }

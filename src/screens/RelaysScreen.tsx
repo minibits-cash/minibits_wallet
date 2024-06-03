@@ -12,6 +12,7 @@ import { Relay } from '../models/Relay'
 import AppError, { Err } from '../utils/AppError'
 import { log, WalletTask } from '../services'
 import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
+import { translate } from '../i18n'
 
 interface SettingsScreenProps extends SettingsStackScreenProps<'Relays'> {}
 
@@ -70,7 +71,7 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
     const onPastePublicRelay = async function () {
         const url = await Clipboard.getString()
         if (!url) {
-          setInfo('Copy your relay URL key first, then paste')
+          setInfo(translate('relayurlPasteError'))
           return
         }  
         setNewPublicRelay(url)        
@@ -81,22 +82,26 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
         try {
             if(newPublicRelay && newPublicRelay.startsWith('wss://')) {
                 if(relaysStore.alreadyExists(newPublicRelay)) {
-                    setInfo('Relay already exists.')
-                    return
+                  setInfo(translate('relayExists'))
+                  return
                 }
 
                 relaysStore.addRelay({
-                    url: newPublicRelay,
-                    status: WebSocket.CLOSED
+                  url: newPublicRelay,
+                  status: WebSocket.CLOSED
                 })
                 
                 toggleAddRelayModal()
                 onConnect()
             } else {
-                throw new AppError(Err.VALIDATION_ERROR, 'Invalid relay URL.', newPublicRelay)
+                throw new AppError(
+                  Err.VALIDATION_ERROR, 
+                  translate("invalidRelayUrl"), 
+                  newPublicRelay
+                )
             }
         } catch(e: any) {
-            handleError(e)
+          handleError(e)
         }
     }
 
@@ -104,7 +109,7 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
     const resetDefaultRelays = function () {
         try {
             for (const relay of relaysStore.allPublicRelays) {
-                relaysStore.removeRelay(relay.url)
+              relaysStore.removeRelay(relay.url)
             }
 
             relaysStore.addDefaultRelays()
@@ -205,7 +210,7 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
                     <ListItem
                         leftIcon="faCloudArrowUp"
                         onPress={onConnect}
-                        text={'Reconnect'}
+                        tx="common.reconnect"
                         bottomSeparator={true}
                         style={{paddingHorizontal: spacing.medium}}
                     />    
@@ -213,7 +218,7 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
                 <ListItem
                 leftIcon="faXmark"
                     onPress={removeRelay}
-                    text={'Remove relay'}                    
+                    tx="removeRelay"
                     style={{paddingHorizontal: spacing.medium}}
                 />
             </View>
@@ -236,7 +241,7 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
                         maxLength={64}
                         placeholder='wss://...'
                         selectTextOnFocus={true}
-                        style={[$relayInput, {backgroundColor: inputBg}]}                        
+                        style={[$relayInput, {backgroundColor: inputBg}]}
                     />
                     <Button
                         tx={'common.paste'}
@@ -251,7 +256,7 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
                     />
                 </View>
                 <View style={[$buttonContainer, {marginTop: spacing.medium}]}> 
-                    <Button preset='tertiary' onPress={resetDefaultRelays} text='Reset default'/>
+                    <Button preset='tertiary' onPress={resetDefaultRelays} tx='common.resetDefault' />
                     <Button preset='tertiary' onPress={toggleAddRelayModal} style={{marginLeft: spacing.small}} text='Cancel'/>
                 </View>                
             </View>

@@ -265,7 +265,7 @@ export const PublicContacts = observer(function (props: {
     const onPastePublicRelay = async function () {
         const url = await Clipboard.getString()
         if (!url) {
-          setInfo(translate("contactsScreen.publicContacts.relayurlPasteError"))
+          setInfo(translate("relayurlPasteError"))
           return
         }  
         setNewPublicRelay(url)        
@@ -276,7 +276,7 @@ export const PublicContacts = observer(function (props: {
         try {
             if(newPublicRelay) {                
                 if(relaysStore.alreadyExists(newPublicRelay)) {
-                    setInfo(translate("contactsScreen.publicContacts.relayExists"))
+                    setInfo(translate("relayExists"))
                     return
                 }
 
