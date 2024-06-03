@@ -440,8 +440,8 @@ export const PublicContacts = observer(function (props: {
                         leftIcon='faComment'
                         leftIconInverse={true}
                         leftIconColor={colors.palette.iconViolet200}
-                        tx="contactsScreen.publicContacts.nostrTip"
-                        subTx='contactsScreen.publicContacts.nostrTipSubText'
+                        tx="nostr.tip"
+                        subTx='nostr.tipSubText'
                         onPress={toggleNpubModal}
                     />                
                 }
@@ -523,22 +523,22 @@ export const PublicContacts = observer(function (props: {
             <>
                 <ListItem
                     leftIcon='faKey'
-                    tx="contactsScreen.publicContacts.nostrSetPublicKey"
-                    subTx='contactsScreen.publicContacts.nostrSetPublicKeySubText'
+                    tx="nostr.setPublicKey"
+                    subTx='nostr.setPublicKeySubText'
                     onPress={toggleNpubModal}
                     bottomSeparator={true}
                 />
                 <ListItem
                     leftIcon='faCircleNodes'
-                    tx='contactsScreen.publicContacts.nostrSetRelay'
-                    subTx='contactsScreen.publicContacts.nostrSetRelaySubText'
+                    tx='nostr.setRelay'
+                    subTx='nostr.setRelaySubText'
                     onPress={toggleRelayModal}
                     bottomSeparator={true}
                 />
                 <ListItem
                     leftIcon='faBan'
-                    tx="contactsScreen.publicContacts.nostrRemovePub"
-                    subTx="contactsScreen.publicContacts.nostrRemovePubSubText"
+                    tx="nostr.removePub"
+                    subTx="nostr.removePubSubText"
                     onPress={onRemovePublicPubKey}
                 /> 
             </>
