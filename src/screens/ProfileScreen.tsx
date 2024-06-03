@@ -220,13 +220,13 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                         {!walletProfileStore.pubkey || !walletProfileStore.picture ? (
                             <>
                             <ListItem 
-                                text='Create wallet address'
-                                subText='Your minibits.cash wallet address allows you to receive encrypted ecash over Nostr. Simultaneously, it serves as your Lightning address, enabling you to receive payments from any Lightning wallet or zaps on the Nostr social network.'
+                                tx="profileOnboarding.title"
+                                subTx="profileOnboarding.desc"
                             />
                             <View style={$buttonContainer}> 
                                 <Button
                                     preset='secondary'                                
-                                    text={'Create'}                                    
+                                    tx="common.create"
                                     LeftAccessory={() => <Icon icon='faCircleUser'/>}
                                     onPress={createProfileIfNotExists}
                                 />                                                            
@@ -236,16 +236,16 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                             <>
                                 {walletProfileStore.isOwnProfile ? (
                                     <ListItem
-                                        text='Your own wallet address'
-                                        subText={`You are using your own Nostr address to send and receive ecash. Please note that this setup does not allow you to receive Nostr zaps or Lightning payments to this address.`}
+                                        tx="profileOnboarding.ownAddrTitle"
+                                        subTx="profileOnboarding.ownAddrDesc"
                                         leftIcon='faCircleUser'
                                         bottomSeparator={true}
                                         style={{paddingRight: spacing.small}}
                                     />
                                 ) : (
                                     <ListItem
-                                        text='Your Minibits wallet address'
-                                        subText={`Share your wallet address to receive encrypted ecash over Nostr. This also serves as your Lightning address, enabling you to receive payments from any Lightning wallet or zaps on the Nostr social network.`}
+                                        tx="profileOnboarding.minibitsTitle"
+                                        subTx="profileOnboarding.minibitsDesc"
                                         leftIcon='faCircleUser'
                                         bottomSeparator={true}
                                         style={{paddingRight: spacing.small}}
@@ -254,13 +254,13 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                                 <View style={$buttonContainer}>                            
                                     <Button
                                         preset='secondary'                                
-                                        text={'Share'}
+                                        tx='common.share'
                                         LeftAccessory={() => <Icon icon='faShareNodes'/>}
                                         onPress={toggleShareModal}
                                     />
                                     <Button
                                         preset='secondary'                                
-                                        text={'Change'}
+                                        tx="common.change"
                                         style={{marginLeft: spacing.small}}
                                         LeftAccessory={() => <Icon icon='faRotate'/>}
                                         onPress={toggleUpdateModal}
@@ -286,15 +286,15 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                         {walletProfileStore.isOwnProfile && (
                             <>
                             <ListItem
-                                text='Sync own profile'
-                                subText='Synchronize your profile name and picture with up to date information from Nostr relays.'
+                                tx="syncOwnProfile"
+                                subTx="syncOwnProfileDesc"
                                 leftIcon='faRotate'
                                 onPress={onSyncOwnProfile}
                                 bottomSeparator={true}
                             />
                             <ListItem
-                                text='Reset own profile'
-                                subText='Stop using your own NOSTR address and re-create Minibits wallet profile.'
+                                tx="resetOwnProfile"
+                                subTx="resetOwnProfileDesc"
                                 leftIcon='faXmark'
                                 onPress={gotoPrivacy}
                             />
@@ -311,14 +311,14 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                 ContentComponent={
                     <>   
                         <ListItem
-                            text='Share wallet address'
+                            tx="shareWalletAddress"
                             subText={nip05}
                             leftIcon='faShareNodes'
                             onPress={onShareContact}
                             bottomSeparator={true}
                         />    
                         <ListItem
-                            text='Copy Nostr public key'
+                            tx="nostr.copyPubKey"
                             subText={npub}
                             leftIcon='faCopy'
                             onPress={onCopyNpub}

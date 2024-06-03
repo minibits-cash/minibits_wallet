@@ -30,7 +30,9 @@
 		"confirmAlertTitle": "Confirmation",
 		"sendAsEcash": "Send as ecash",
 		"reset": "Reset",
-		"import": "Import"
+		"import": "Import",
+		"create": "Create",
+		"change": "Change"
 	},
 	"transactionCommon": {
 		"from": "From %{sender}",
@@ -435,7 +437,8 @@
 		"useOwnProfile": {
 			"title": "Use own Nostr profile",
 			"desc": "Import your own Nostr address and keys. Your wallet will stop communicating with minibits.cash Nostr and LNURL address servers, disabling Lightning address features for receiving zaps and payments. Only for hardcore ecash-ers!"
-		}
+		},
+		"copyPubKey": "Copy Nostr public key"
 	},
 	"nsecPasteError": "Copy your nsec key first, then paste.",
 	"nsecMissingProfileError": "Missing profile to update",
@@ -446,5 +449,18 @@
 	"nsecEnterPrivateKeyDesc": "Minibits needs your private key in nsec format in order to decrypt messages containing incoming payments. Your key will be stored in your device secure key vault.",
 	"pictureRetrieveFail": "Could not retrieve pictures from the server, try again later.",
 	"profileMissingAddressError": "Missing address",
-	"profilePublicKeyMismatchError": "Profile from relays public key differs from yor wallet pubkey. Reset this profile in Privacy settings and import again with new keys."
+	"profilePublicKeyMismatchError": "Profile from relays public key differs from yor wallet pubkey. Reset this profile in Privacy settings and import again with new keys.",
+	"profileOnboarding": {
+		"title": "Create wallet address",
+		"desc": "Your minibits.cash wallet address allows you to receive encrypted ecash over Nostr. Simultaneously, it serves as your Lightning address, enabling you to receive payments from any Lightning wallet or zaps on the Nostr social network.",
+		"ownAddrTitle": "Your own wallet address",
+		"ownAddrDesc": "You are using your own Nostr address to send and receive ecash. Please note that this setup does not allow you to receive Nostr zaps or Lightning payments to this address.",
+		"minibitsTitle": "Your Minibits wallet address",
+		"minibitsDesc": "Share your wallet address to receive encrypted ecash over Nostr. This also serves as your Lightning address, enabling you to receive payments from any Lightning wallet or zaps on the Nostr social network."
+	},
+	"syncOwnProfile": "Sync own profile",
+	"syncOwnProfileDesc": "Synchronize your profile name and picture with up to date information from Nostr relays.",
+	"resetOwnProfile": "Reset own profile",
+	"resetOwnProfileDesc": "Stop using your own NOSTR address and re-create Minibits wallet profile.",
+	"shareWalletAddress": "Share wallet address"
 }
