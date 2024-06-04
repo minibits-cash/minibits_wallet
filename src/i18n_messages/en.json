@@ -34,7 +34,10 @@
 		"create": "Create",
 		"change": "Change",
 		"reconnect": "Reconnect",
-		"complete": "Complete"
+		"complete": "Complete",
+		"enabled": "Enabled",
+		"disabled": "Disabled",
+		"connectedParam": "Connected: %{param}"
 	},
 	"transactionCommon": {
 		"from": "From %{sender}",
@@ -444,7 +447,8 @@
 			"title": "Use own Nostr profile",
 			"desc": "Import your own Nostr address and keys. Your wallet will stop communicating with minibits.cash Nostr and LNURL address servers, disabling Lightning address features for receiving zaps and payments. Only for hardcore ecash-ers!"
 		},
-		"copyPubKey": "Copy Nostr public key"
+		"copyPubKey": "Copy Nostr public key",
+		"relaysTitle": "Nostr relays"
 	},
 	"nsecPasteError": "Copy your nsec key first, then paste.",
 	"nsecMissingProfileError": "Missing profile to update",
@@ -524,5 +528,6 @@
 	"setStartIndex": "Set start index",
 	"showErrors": "Show errors",
 	"noEcashRecovered": "No ecash recovered",
-	"scanReceiveExtractFail": "Could not extract ecash token nor LNURL withdraw link to receive."
+	"scanReceiveExtractFail": "Could not extract ecash token nor LNURL withdraw link to receive.",
+	"pushNotifications": "Push notifications"
 }
