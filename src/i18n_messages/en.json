@@ -570,5 +570,17 @@
 			"intro": "Both the Cashu protocol and the Minibits wallet are still experimental, and by using them, you accept known and unknown risks."
 		}
 	},
-	"contactHasNoLightningAddrUseEcash": "This contact does not have a Lightning address, send ecash instead."
+	"contactHasNoLightningAddrUseEcash": "This contact does not have a Lightning address, send ecash instead.",
+	"tranHistory": {
+		"showingPaginationPending": "Showing %{amount} of %{total} pending",
+		"showingPaginationTotal": "Showing %{amount} of %{total} total",
+		"pendingParam": "%{param} Pending transactions",
+		"listIsComplete": "List is complete",
+		"viewMore": "View more",
+		"noTransToShow": "No transactions to show.",
+		"deleteExpired": "Delete expired",
+		"deleteExpiredDesc": "This will delete %{count} expired transactions",
+		"deleteErrored": "Delete transactions with errors",
+		"deleteErroredDesc": "This will delete %{count} transactions with errors"
+	}
 }
