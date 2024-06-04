@@ -1213,7 +1213,9 @@ const LnurlWithdrawBlock = observer(function (props: {
           amount: props.amountToTopup,
           code: CurrencyCode.SATS
         })}
-        subText={`Your selected mint balance to top up is ${props.mintBalanceToTopup.mintUrl}`}
+        subText={translate("topup.invoiceCreatedDescParam", {
+          mintUrl: props.mintBalanceToTopup.mintUrl
+        })}
         bottomSeparator={true}
       />
       {props.isWithdrawRequestSending ? (
@@ -1223,7 +1225,7 @@ const LnurlWithdrawBlock = observer(function (props: {
       ) : (
         <View style={[$buttonContainer, {marginTop: spacing.medium}]}>
           <Button
-            text="Withdraw"
+            tx="topup.withdraw"
             onPress={props.onLnurlWithdraw}
             style={{marginRight: spacing.medium}}
             LeftAccessory={() => (
@@ -1237,7 +1239,7 @@ const LnurlWithdrawBlock = observer(function (props: {
           />
           <Button
             preset="tertiary"
-            text="Cancel"
+            tx='common.cancel'
             onPress={props.toggleWithdrawModal}
           />
         </View>
@@ -1258,13 +1260,13 @@ const LnurlWithdrawSuccessBlock = observer(function (props: {
       <ResultModalInfo
         icon="faCheckCircle"
         iconColor={colors.palette.success200}
-        title="Success!"
+        title={translate("common.success")}
         message={`Withdrawal request has been received by ${props.lnurlWithdrawParams.domain}.`}
       />
       <View style={$buttonContainer}>
         <Button
           preset="secondary"
-          tx={'common.close'}
+          tx='common.close'
           onPress={props.onClose}
         />
       </View>
