@@ -26,6 +26,7 @@ import AppError from '../utils/AppError'
 import { log } from '../services'
 import {Env} from '../utils/envtypes'
 import { CommonActions, StackActions } from '@react-navigation/native'
+import { translate } from '../i18n'
 
 
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
@@ -90,11 +91,11 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
                 switch (status) {
                     case codePush.SyncStatus.DOWNLOADING_PACKAGE:
                         log.trace('Downloading update...')
-                        setInfo('Downloading update...')
+                        setInfo(translate("updateScreen.downloading"))
                         break
                     case codePush.SyncStatus.INSTALLING_UPDATE:
                         log.trace('Installing update...')
-                        setInfo('Installing update...')
+                        setInfo(translate("updateScreen.installing"))
                         break
                 }
             })
@@ -134,7 +135,7 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
     return (
       <Screen style={$screen}>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text preset="heading" text="Update manager" style={{color: 'white'}} />
+          <Text preset="heading" tx="updateScreen.updateManagerTitle" style={{color: 'white'}} />
         </View>
         <View style={$contentContainer}>
           <Card
@@ -145,7 +146,7 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
                     <>
                     <ListItem
                         tx='updateScreen.updateAvailable'
-                        subTx={'updateScreen.updateAvailableDesc'}
+                        subTx='updateScreen.updateAvailableDesc'
                         leftIcon='faWandMagicSparkles'
                         leftIconColor={colors.palette.iconMagenta200}
                         leftIconInverse={true}                  
@@ -153,7 +154,7 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
                     />                    
                     <ListItem
                         tx='updateScreen.updateNew'
-                        subText={updateDescription || 'UX and performance improvements'}
+                        subText={updateDescription || translate("updateScreen.defaultUpdateDesc")}
                         leftIcon='faInfoCircle'
                         leftIconColor={colors.palette.neutral500}
                         topSeparator={true}                   
@@ -207,7 +208,7 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
                     />
                     <Button
                         onPress={gotoGithub}
-                        text='APK on Github'
+                        tx="updateScreen.apkOnGithub"
                         preset='secondary'
                         style={{marginTop: spacing.medium}}
                     />

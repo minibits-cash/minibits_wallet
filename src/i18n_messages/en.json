@@ -528,7 +528,12 @@
 		"updateNotAvailable": "Nothing to update",
 		"updateNotAvailableDesc": "Good, you are running the latest version of the app.",
 		"updateNow": "Update and restart",
-		"updateSize": "Download size"
+		"updateSize": "Download size",
+		"downloading": "Downloading update...",
+		"installing": "Installing update...",
+		"updateManagerTitle": "Update manager",
+		"defaultUpdateDesc": "UX and performance improvements",
+		"apkOnGithub": "APK on Github"
 	},
 	"userErrorMissingLightningData": "Missing Lightning invoice, paycode or address.",
 	"uspentOnlyRecoverable": "Only unspent proofs are recoverable.",
