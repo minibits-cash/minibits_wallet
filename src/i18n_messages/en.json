@@ -469,7 +469,20 @@
 		"status": "Status",
 		"topupTo": "Topup to",
 		"trasferredTo": "Paid to",
-		"type": "Type"
+		"type": "Type",
+		"addYourNote": "Add your note",
+		"addTags": "Add tags",
+		"backedUpEcash": "Backed up ecash",
+		"successRetrieveEcashAfterRetry": "Ecash has been successfully received after retry. New transaction has been created.",
+		"retryToReceive": "Retry to receive",
+		"auditTrail": "Audit trail",
+		"modalSuccess": "Success!",
+		"pendingToken": "Pending token",
+		"retryToComplete": "Retry to complete",
+		"invoiceToPay": "Invoice to pay",
+		"invoiceNotPaid": "Invoice not paid",
+		"invoiceExpired": "Invoice expired",
+		"topupError": "Topup error"
 	},
 	"transactionCommon": {
 		"feePaid": "Paid fee",

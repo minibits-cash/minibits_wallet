@@ -90,7 +90,7 @@ export const OutgoingRequests = observer(function (props: {
         try {
             Clipboard.setString(selectedRequest?.encodedInvoice as string)
         } catch (e: any) {
-            setInfo(translate("common.copyFailParam", { param: e.message }))
+            setInfo(translate('common.copyFailParam', { param: e.message }))
         }
     }
 

@@ -175,25 +175,25 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
       try {
         Clipboard.setString(JSON.stringify(getAuditTrail(transaction)))
       } catch (e: any) {
-        setInfo(`Could not copy: ${e.message}`)
+        setInfo(translate("common.copyFailParam", { param: e.message }))
       }
     }
 
     const copyToken = function (transaction: Transaction) {
       try {
-            const encoded = getEncodedTokenToSend(transaction)
+          const encoded = getEncodedTokenToSend(transaction)
 
-            if (!encoded) {
+          if (!encoded) {
             throw new AppError(
-                Err.VALIDATION_ERROR,
-                'Could not get encoded ecash token from transaction',
+              Err.VALIDATION_ERROR,
+              'Could not get encoded ecash token from transaction',
             )
-            }
+          }
 
-            Clipboard.setString(encoded)
+          Clipboard.setString(encoded)
 
         } catch (e: any) {
-            setInfo(`Could not copy: ${e.message}`)
+          setInfo(translate("common.copyFailParam", { param: e.message }))
         }
     }
 
@@ -202,7 +202,7 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
         try {               
             Clipboard.setString(JSON.stringify(proofsByStatus))  
         } catch (e: any) {
-            setInfo(`Could not copy: ${e.message}`)
+          setInfo(translate("common.copyFailParam", { param: e.message }))
         }
     }
  
@@ -222,9 +222,7 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
 
 
   const getFormattedAmount = function(): string {
-      if (!transaction) {
-        return ''
-      }
+      if (!transaction) { return '' }
 
       switch (transaction?.type) {
         case TransactionType.RECEIVE || TransactionType.RECEIVE_OFFLINE:
@@ -274,7 +272,7 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
                           ? transaction.noteToSelf
                           : savedNote
                           ? savedNote
-                          : 'Add your note'
+                          : translate("tranDetailScreen.addYourNote")
                       }
                       LeftComponent={
                         <Icon
@@ -289,7 +287,7 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
                       onPress={toggleNoteModal}
                     />
                     <ListItem
-                      text="Add tags"
+                      tx="tranDetailScreen.addTags"
                       LeftComponent={
                         <Icon
                           containerStyle={$iconContainer}
@@ -357,7 +355,7 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
                     <>
                       <Text
                         style={{color: labelColor, fontSize: 14}}
-                        text="Backed up ecash"
+                        tx="tranDetailScreen.backedUpEcash"
                       />
                       <JSONTree
                         hideRoot
@@ -374,7 +372,7 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
                     <Button
                         preset="tertiary"
                         onPress={() => copyBackupProofs(proofsByStatus)}
-                        text="Copy"
+                        tx="common.copy"
                         style={{
                             minHeight: 25,
                             paddingVertical: spacing.extraSmall,
@@ -393,7 +391,7 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
           isVisible={isNoteModalVisible}
           ContentComponent={
             <View style={$noteContainer}>
-              <Text text="Add your note" preset="subheading" />
+              <Text tx="tranDetailScreen.addYourNote" preset="subheading" />
               <View style={{flexDirection: 'row', alignItems: 'center'}}>
                 <TextInput
                   ref={noteInputRef}
@@ -403,7 +401,7 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
                   maxLength={200}
                 />
                 <Button
-                  text="Save"
+                  tx="common.save"
                   onPress={saveNote}
                 />
               </View>
@@ -459,7 +457,7 @@ const ReceiveInfoBlock = function (props: {
 
                 const transactionDataUpdate = {
                     status: TransactionStatus.EXPIRED,                    
-                    message: 'Ecash has been successfully received after retry. New transaction has been created.',
+                    message: translate("tranDetailScreen.successRetrieveEcashAfterRetry"),
                     createdAt: new Date(),
                 }
         
@@ -567,7 +565,7 @@ const ReceiveInfoBlock = function (props: {
                         <Button
                             style={{marginTop: spacing.medium}}
                             // preset="secondary"
-                            text="Retry to receive"
+                            tx="tranDetailScreen.retryToReceive"
                             onPress={onRetryToReceive}
                         />
                         </View>
@@ -610,7 +608,7 @@ const ReceiveInfoBlock = function (props: {
                         <>
                             <Text
                                 style={{color: labelColor, fontSize: 14}}
-                                text="Audit trail"
+                                tx="tranDetailScreen.auditTrail"
                             />
                             <JSONTree
                                 hideRoot
@@ -649,7 +647,7 @@ const ReceiveInfoBlock = function (props: {
                   <ResultModalInfo
                     icon="faCheckCircle"
                     iconColor={colors.palette.success200}
-                    title="Success!"
+                    title={translate("tranDetailScreen.modalSuccess")}
                     message={resultModalInfo?.message}
                   />
                   <View style={$buttonContainer}>
@@ -667,13 +665,13 @@ const ReceiveInfoBlock = function (props: {
                   <ResultModalInfo
                     icon="faTriangleExclamation"
                     iconColor={colors.palette.angry500}
-                    title="Receive failed"
+                    title={translate('transactionCommon.receiveFailed')}
                     message={resultModalInfo?.message as string}
                   />
                   <View style={$buttonContainer}>
                     <Button
                       preset="secondary"
-                      tx={'common.close'}
+                      tx='common.close'
                       onPress={toggleResultModal}
                     />
                   </View>
@@ -793,7 +791,7 @@ const ReceiveOfflineInfoBlock = function (props: {
                     ) : (
                         <TranItem
                             label="tranDetailScreen.amount"
-                            value={`${transaction.amount}`}
+                            value={transaction.amount}
                             isFirst={true}
                         />
                     )}                    
@@ -846,7 +844,7 @@ const ReceiveOfflineInfoBlock = function (props: {
                         <>
                             <Text
                                 style={{color: labelColor, fontSize: 14}}
-                                text="Audit trail"
+                                tx='tranDetailScreen.auditTrail'
                             />
                             <JSONTree
                                 hideRoot
@@ -886,13 +884,13 @@ const ReceiveOfflineInfoBlock = function (props: {
                   <ResultModalInfo
                     icon="faCheckCircle"
                     iconColor={colors.palette.success200}
-                    title="Success!"
+                    title={translate('common.success')}
                     message={resultModalInfo?.message}
                   />
                   <View style={$buttonContainer}>
                     <Button
                       preset="secondary"
-                      tx={'common.close'}
+                      tx='common.close'
                       onPress={onGoBack}
                     />
                   </View>
@@ -904,13 +902,13 @@ const ReceiveOfflineInfoBlock = function (props: {
                   <ResultModalInfo
                     icon="faTriangleExclamation"
                     iconColor={colors.palette.angry500}
-                    title="Receive failed"
+                    title={translate('transactionCommon.receiveFailed')}
                     message={resultModalInfo?.message as string}
                   />
                   <View style={$buttonContainer}>
                     <Button
                       preset="secondary"
-                      tx={'common.close'}
+                      tx='common.close'
                       onPress={onGoBack}
                     />
                   </View>
@@ -1025,7 +1023,7 @@ const SendInfoBlock = function (props: {
                                         fontSize: 14,
                                         marginTop: spacing.small,
                                         }}
-                                        text="Pending token"
+                                        tx="tranDetailScreen.pendingToken"
                                     />
                                     <Text
                                         text={getEncodedTokenToSend(transaction) as string}
@@ -1041,7 +1039,7 @@ const SendInfoBlock = function (props: {
                             <Button
                                 preset="tertiary"
                                 onPress={() => copyToken(transaction)}
-                                text="Copy"
+                                tx='common.copy'
                                 style={{
                                     minHeight: 25,
                                     paddingVertical: spacing.extraSmall,
@@ -1060,7 +1058,7 @@ const SendInfoBlock = function (props: {
                         <>
                             <Text
                                 style={{color: labelColor, fontSize: 14}}
-                                text="Audit trail"
+                                tx='tranDetailScreen.auditTrail'
                             />
                             <JSONTree
                                 hideRoot
@@ -1078,7 +1076,7 @@ const SendInfoBlock = function (props: {
                         <Button
                         preset="tertiary"
                         onPress={() => copyAuditTrail(transaction)}
-                        text="Copy"
+                        tx='common.copy'
                         style={{
                             minHeight: 25,
                             paddingVertical: spacing.extraSmall,
@@ -1218,7 +1216,7 @@ const TopupInfoBlock = function (props: {
                         <Button
                             style={{marginTop: spacing.medium}}
                             preset="secondary"
-                            text="Retry to complete"
+                            tx="tranDetailScreen.retryToComplete"
                             onPress={onRetryToHandlePendingTopup}
                         />
                         </View>
@@ -1254,10 +1252,10 @@ const TopupInfoBlock = function (props: {
                 />
                 {transaction.status === TransactionStatus.PENDING && paymentRequest && (
                     <>
-                        <Text style={{color: labelColor, marginTop: spacing.medium}} text='Invoice to pay'/>
-                        <View style={$qrCodeContainer}>
-                            <QRCode size={270} value={paymentRequest.encodedInvoice} />
-                        </View>
+                      <Text style={{ color: labelColor, marginTop: spacing.medium }} tx="tranDetailScreen.invoiceToPay" />
+                      <View style={$qrCodeContainer}>
+                          <QRCode size={270} value={paymentRequest.encodedInvoice} />
+                      </View>
                     </>
                 )}
                 </>
@@ -1266,16 +1264,16 @@ const TopupInfoBlock = function (props: {
                 <>
                 {transaction.status === TransactionStatus.PENDING && paymentRequest && (
                 <Button
-                        preset="tertiary"
-                        onPress={() => copyInvoice()}
-                        text="Copy"
-                        style={{
-                            minHeight: 25,
-                            paddingVertical: spacing.extraSmall,
-                            marginTop: spacing.small,
-                            alignSelf: 'center',
-                        }}
-                        textStyle={{fontSize: 14}}
+                    preset="tertiary"
+                    onPress={() => copyInvoice()}
+                    tx='common.copy'
+                    style={{
+                        minHeight: 25,
+                        paddingVertical: spacing.extraSmall,
+                        marginTop: spacing.small,
+                        alignSelf: 'center',
+                    }}
+                    textStyle={{fontSize: 14}}
                 />
                 )}
                 </>
@@ -1289,7 +1287,7 @@ const TopupInfoBlock = function (props: {
                         <>
                             <Text
                             style={{color: labelColor, fontSize: 14}}
-                            text="Audit trail"
+                            tx="tranDetailScreen.auditTrail"
                             />
                             <JSONTree
                                 hideRoot
@@ -1306,7 +1304,7 @@ const TopupInfoBlock = function (props: {
                     <Button
                         preset="tertiary"
                         onPress={() => copyAuditTrail(transaction)}
-                        text="Copy"
+                        tx="common.copy"
                         style={{
                             minHeight: 25,
                             paddingVertical: spacing.extraSmall,
@@ -1328,13 +1326,13 @@ const TopupInfoBlock = function (props: {
                   <ResultModalInfo
                     icon="faCheckCircle"
                     iconColor={colors.palette.success200}
-                    title="Success!"
+                    title={translate("tranDetailScreen.modalSuccess")}
                     message={resultModalInfo?.message}
                   />
                   <View style={$buttonContainer}>
                     <Button
                       preset="secondary"
-                      tx={'common.close'}
+                      tx='common.close'
                       onPress={onGoBack}
                     />
                   </View>
@@ -1345,7 +1343,7 @@ const TopupInfoBlock = function (props: {
                   <ResultModalInfo
                     icon="faTriangleExclamation"
                     iconColor={colors.palette.accent400}
-                    title="Invoice not paid"
+                    title={translate("tranDetailScreen.invoiceNotPaid")}
                     message={resultModalInfo?.message}
                   />
                   <View style={$buttonContainer}>
@@ -1362,13 +1360,13 @@ const TopupInfoBlock = function (props: {
                   <ResultModalInfo
                     icon="faTriangleExclamation"
                     iconColor={colors.palette.accent400}
-                    title="Invoice expired"
+                    title={translate("tranDetailScreen.invoiceExpired")}
                     message={resultModalInfo?.message}
                   />
                   <View style={$buttonContainer}>
                     <Button
                       preset="secondary"
-                      tx={'common.close'}
+                      tx='common.close'
                       onPress={toggleResultModal}
                     />
                   </View>
@@ -1379,13 +1377,13 @@ const TopupInfoBlock = function (props: {
                   <ResultModalInfo
                     icon="faTriangleExclamation"
                     iconColor={colors.palette.angry500}
-                    title="Topup error"
+                    title={translate("tranDetailScreen.topupError")}
                     message={resultModalInfo?.message}
                   />
                   <View style={$buttonContainer}>
                     <Button
                       preset="secondary"
-                      tx={'common.close'}
+                      tx='common.close'
                       onPress={toggleResultModal}
                     />
                   </View>
@@ -1484,7 +1482,7 @@ const TransferInfoBlock = function (props: {
               <>
                 <Text
                   style={{color: labelColor, fontSize: 14}}
-                  text="Audit trail"
+                  tx="tranDetailScreen.auditTrail"
                 />
                 <JSONTree
                   hideRoot
@@ -1502,7 +1500,7 @@ const TransferInfoBlock = function (props: {
               <Button
                 preset="tertiary"
                 onPress={() => copyAuditTrail(transaction)}
-                text="Copy"
+                tx="common.copy"
                 style={{
                   minHeight: 25,
                   paddingVertical: spacing.extraSmall,
