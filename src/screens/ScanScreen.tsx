@@ -114,7 +114,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                     }
 
                     e.params = incoming
-                    e.message = 'Could not extract ecash token nor LNURL withdraw link to receive.'
+                    e.message = translate("scanReceiveExtractFail")
                     handleError(e)
                     break
                 }   
@@ -171,12 +171,12 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
             default:
                 try {
                 // generic scan button on wallet screen
-                    const incomingData = IncomingParser.findAndExtract(incoming)                    
-                    return IncomingParser.navigateWithIncomingData(incomingData, navigation, unit)   
+                  const incomingData = IncomingParser.findAndExtract(incoming)                    
+                  return IncomingParser.navigateWithIncomingData(incomingData, navigation, unit)   
                 } catch (e: any) {
-                    e.name = Err.VALIDATION_ERROR
-                    e.params = {caller: 'onIncomingData', clipboard: incoming.slice(0, 100)}
-                    handleError(e)
+                  e.name = Err.VALIDATION_ERROR
+                  e.params = {caller: 'onIncomingData', clipboard: incoming.slice(0, 100)}
+                  handleError(e)
                 }
         }
 
@@ -216,7 +216,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                             LeftAccessory={() => (
                                 <Icon icon='faPaste'/>
                             )}
-                            text={'Paste'}
+                            tx='common.paste'
                             preset='secondary'
                             style={{marginTop: spacing.medium, minWidth: 120}}                        
                         />

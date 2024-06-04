@@ -523,5 +523,6 @@
 	"mnemonicPhrasePlaceholder": "Mnemonic phrase...",
 	"setStartIndex": "Set start index",
 	"showErrors": "Show errors",
-	"noEcashRecovered": "No ecash recovered"
+	"noEcashRecovered": "No ecash recovered",
+	"scanReceiveExtractFail": "Could not extract ecash token nor LNURL withdraw link to receive."
 }
