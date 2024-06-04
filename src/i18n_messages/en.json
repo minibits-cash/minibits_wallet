@@ -545,7 +545,18 @@
 			"upto": "+ fee up to %{fee} %{code}"
 		},
 		"mintExists": "This mint already exists",
-		"paymentSentSuccess": "Payment request has been successfully sent."
+		"paymentSentSuccess": "Payment request has been successfully sent.",
+		"sendEcash": "Send Ecash",
+		"sendEcashDesc": "Share ecash or send it to one of your contacts",
+		"payWithLightning": "Pay with Lightning",
+		"payWithLightningDesc": "Pay invoice or to a Lightning address",
+		"receiveEcash": "Receive Ecash",
+		"topupWithLightning": "Topup with Lightning",
+		"topupWithLightningDesc": "Create Lightning invoice to topup your balance",
+		"receiveEcashDesc": "Paste or scan ecash token",
+		"addFirstMint": "Add your first mint",
+		"topup": "Topup",
+		"pay": "Pay"
 	},
 	"warning": "Warning",
 	"welcomeScreen": {
@@ -587,5 +598,12 @@
 		"deleteExpiredDesc": "This will delete %{count} expired transactions",
 		"deleteErrored": "Delete transactions with errors",
 		"deleteErroredDesc": "This will delete %{count} transactions with errors"
+	},
+	"updateModal": {
+		"title": "New Minibits version is available",
+		"desc": "Updates provide new functionalities and important bug fixes. View details in the Update manager."
+	},
+	"wallerScreen": {
+		"mintButton": "Mint"
 	}
 }

@@ -530,7 +530,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                         onPress={toggleSendModal}                        
                         style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonTopup]}
                         preset='tertiary'
-                        text='Send'
+                        tx='payCommon.send'
                     />             
                     <Button
                         RightAccessory={() => (
@@ -554,7 +554,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                             />
                         )}
                         onPress={toggleReceiveModal}
-                        text='Receive'
+                        tx='payCommon.receive'
                         style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonPay]}
                         preset='tertiary'
                     /> 
@@ -576,8 +576,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                         />
                     </View>
                 }
-                text='New Minibits version is available'
-                subText='Updates provide new functionalities and important bug fixes. View details in the Update manager.'
+                tx="updateModal.title"
+                subTx="updateModal.desc"
                 onPress={gotoUpdate}
             />
           }
@@ -591,14 +591,14 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             <>
             <ListItem   
                 leftIcon='faMoneyBill1'                          
-                text='Send Ecash'
-                subText='Share ecash or send it to one of your contacts'
+                tx="walletScreen.sendEcash"
+                subTx="walletScreen.sendEcashDesc"
                 onPress={gotoSend}
             />
             <ListItem   
                 leftIcon='faBolt'             
-                text='Pay with Lightning'
-                subText='Pay invoice or to a Lightning address'
+                tx="walletScreen.payWithLightning"
+                subTx="walletScreen.payWithLightningDesc"
                 onPress={gotoLightningPay}
             />
             </>      
@@ -613,14 +613,14 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             <>
             <ListItem   
                 leftIcon='faMoneyBill1'             
-                text='Receive Ecash'
-                subText='Paste or scan ecash token'
+                tx="walletScreen.receiveEcash"
+                subTx="walletScreen.receiveEcashDesc"
                 onPress={gotoTokenReceive}
             />
             <ListItem      
                 leftIcon='faBolt'          
-                text='Topup with Lightning'
-                subText='Create Lightning invoice to topup your balance'
+                tx='walletScreen.topupWithLightning'
+                subTx="walletScreen.topupWithLightningDesc"
                 onPress={gotoTopup}
             />
             </>      
@@ -708,7 +708,7 @@ const PromoBlock = function (props: {addMint: any}) {
                 <Button
                     preset='default'
                     onPress={props.addMint}
-                    text='Add your first mint'
+                    tx="walletScreen.addFirstMint"
                 />
             </View>
             }            
@@ -819,7 +819,7 @@ const MintsByUnitListItem = observer(function (props: {
                         {selectedMintUrl === mint.mintUrl &&  (
                             <View style={{flexDirection: 'row', marginBottom: spacing.small, justifyContent: 'flex-start'}}>
                                 <Button
-                                    text={'Topup'}
+                                    tx="walletScreen.topup"
                                     LeftAccessory={() => (
                                         <Icon
                                         icon='faPlus'
@@ -851,7 +851,7 @@ const MintsByUnitListItem = observer(function (props: {
                                     style={{minHeight: moderateVerticalScale(40), paddingVertical: moderateVerticalScale(spacing.tiny)}}                    
                                 />*/}
                                 <Button
-                                    text={'Pay'}
+                                    tx="walletScreen.pay"
                                     LeftAccessory={() => (
                                         <Icon
                                         icon='faBolt'
@@ -887,7 +887,7 @@ const MintsByUnitListItem = observer(function (props: {
                                     }}                    
                                 />*/}
                                 <Button
-                                    text={'Mint'}
+                                    tx="wallerScreen.mintButton"
                                     LeftAccessory={() => (
                                         <View style={{marginHorizontal: spacing.extraSmall}}>
                                             <SvgXml 
