@@ -47,7 +47,7 @@ export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = fu
                 log.trace('[TokenReceiveScreen.setUnitAndMint]')
                 const {unit, mintUrl} = route.params
                 if(!unit) {
-                    throw new AppError(Err.VALIDATION_ERROR, 'Missing mint unit in route params')
+                    throw new AppError(Err.VALIDATION_ERROR, translate("missingMintUnitRouteParamsError"))
                 }
 
                 setUnit(unit)
@@ -99,7 +99,7 @@ export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = fu
 
     const onConfirm = async function() {
         if(!encodedToken) {
-            setError({name: Err.VALIDATION_ERROR, message: 'Missing ecash token to receive.'})
+            setError({name: Err.VALIDATION_ERROR, message: translate("missingEcashTokenToReceiveError")})
             return
         }
 
@@ -144,7 +144,7 @@ export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = fu
             <View style={[$headerContainer, {backgroundColor: headerBg}]}>                
                 <Text
                     preset="heading"
-                    text={'Receive ecash'}
+                    tx="payCommon.receiveEcash"
                     style={{color: 'white'}}                    
                 />                
             </View> 
@@ -154,7 +154,7 @@ export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = fu
                         <ListItem
                             leftIcon='faMoneyBill1'
                             leftIconColor={colors.palette.iconViolet300}
-                            text='Paste ecash token'
+                            tx="common.pasteEcashToken"
                             bottomSeparator={true}
                             /* RightComponent={
                                 <Button
@@ -172,7 +172,7 @@ export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = fu
                         <Text 
                             size='xs' 
                             style={{color: hintText, padding: spacing.extraSmall}} 
-                            text='Paste ecash token you want to receive.' 
+                            tx="pasteEcashTokenDesc"
                         />
                         <View style={{alignItems: 'center', marginTop: spacing.small}}>
                             <TextInput
@@ -192,7 +192,7 @@ export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = fu
                                 <View style={$buttonContainer}>
                                     <Button
                                         preset='default'
-                                        tx={'common.confirm'}
+                                        tx='common.confirm'
                                         onPress={onConfirm}
                                         style={{marginLeft: spacing.small}}
                                         LeftAccessory={() => <Icon icon='faCheckCircle' color='white'/>}
@@ -210,7 +210,7 @@ export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = fu
                                     />
                                     <Button
                                         preset='secondary'
-                                        tx={'common.scan'}
+                                        tx='common.scan'
                                         onPress={gotoScan}
                                         style={{marginLeft: spacing.small}}
                                         LeftAccessory={() => {
@@ -231,7 +231,7 @@ export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = fu
                     }
                 />
                 <Button
-                    text={'Topup with Lightning'}
+                    tx="topup.withLightning"
                     LeftAccessory={() => (
                         <Icon
                         icon='faBolt'

@@ -37,7 +37,8 @@
 		"complete": "Complete",
 		"enabled": "Enabled",
 		"disabled": "Disabled",
-		"connectedParam": "Connected: %{param}"
+		"connectedParam": "Connected: %{param}",
+		"pasteEcashToken": "Paste ecash token"
 	},
 	"transactionCommon": {
 		"from": "From %{sender}",
@@ -125,7 +126,8 @@
 		"nostrDMreceived": "nostr:%{npub} sent you Lightning invoice for ${amount} ${currency} from Minibits wallet!",
 		"relayMissingSentEvent": "Relay could not confirm that the message has been published.",
 		"mint": "Topup mint",
-		"to": "Topup to"
+		"to": "Topup to",
+		"withLightning": "Topup with Lightning"
 	},
 	"payerMemo": "Memo for the payer",
 	"receiverMemo": "Memo for the receiver",
@@ -358,7 +360,8 @@
 		"requestPayment": "Request payment",
 		"payToAddress": "Pay to this address",
 		"payWithLightning": "Pay with Lightning",
-		"paymentRequests": "Payment requests"
+		"paymentRequests": "Payment requests",
+		"receiveEcash": "Receive ecash"
 	},
 	"lightningInvoiceSharedWaiting": "Lightning invoice has been shared, waiting to be paid by receiver.",
 	"qr": {
@@ -529,5 +532,8 @@
 	"showErrors": "Show errors",
 	"noEcashRecovered": "No ecash recovered",
 	"scanReceiveExtractFail": "Could not extract ecash token nor LNURL withdraw link to receive.",
-	"pushNotifications": "Push notifications"
+	"pushNotifications": "Push notifications",
+	"missingMintUnitRouteParamsError": "Missing mint unit in route params",
+	"missingEcashTokenToReceiveError": "Missing ecash token to receive.",
+	"pasteEcashTokenDesc": "Paste ecash token you want to receive."
 }
