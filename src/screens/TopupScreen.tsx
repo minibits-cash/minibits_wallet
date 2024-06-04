@@ -1199,17 +1199,20 @@ const LnurlWithdrawBlock = observer(function (props: {
       <ListItem
         leftIcon="faCheckCircle"
         leftIconColor={colors.palette.success200}
-        text={`Withdrawal is available`}
-        subText={`Up to ${roundDown(
-          props.lnurlWithdrawParams.maxWithdrawable / 1000,
-          0,
-        )} ${CurrencyCode.SATS} are available to withdraw`}
+        tx="topup.withdrawalAvailable"
+        subText={translate("topup.withdrawAvailableDesc", {
+          amount: roundDown( props.lnurlWithdrawParams.maxWithdrawable / 1000, 0),
+          code: CurrencyCode.SATS
+        })}
         topSeparator={true}
       />
       <ListItem
         leftIcon="faCheckCircle"
         leftIconColor={colors.palette.success200}
-        text={`Invoice for ${props.amountToTopup} ${CurrencyCode.SATS} created`}
+        text={translate("topup.invoiceCreatedParam", {
+          amount: props.amountToTopup,
+          code: CurrencyCode.SATS
+        })}
         subText={`Your selected mint balance to top up is ${props.mintBalanceToTopup.mintUrl}`}
         bottomSeparator={true}
       />

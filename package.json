@@ -13,6 +13,7 @@
     "start": "npx react-native start",
     "test": "jest",
     "adb": "adb devices && adb reverse tcp:9090 tcp:9090 && adb reverse tcp:3000 tcp:3000 && adb reverse tcp:9001 tcp:9001 && adb reverse tcp:8081 tcp:8081",
+	"i18n:missing": "node __tests__/missingTranslations.js", 
     "postinstall": "patch-package --exclude 'nothing'"
   },
   "dependencies": {

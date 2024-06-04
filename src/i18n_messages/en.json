@@ -17,6 +17,7 @@
 		"mnemonicTitle": "Your mnemonic phrase",
 		"recoveryTool": "Local recovery tool",
 		"recoveryToolDescription": "Show ecash backed up in the local database and attempt to recover unspent ones into the wallet in case the wallet storage gets corrupted or a transaction fails due to an unexpected error.",
+		"remoteBackup": "Seed backup",
 		"remoteBackupDescription": "Mnemonic phrase encodes your seed and allows you to recover your ecash balance in case of device loss.",
 		"removeSpentCoins": "Remove spent ecash",
 		"removeSpentCoinsDescription": "In case of a SEND or TRANSFER transaction error, spent ecash may remain in your wallet. This blocks further transactions with the mint, making the wallet unusable. This tool removes spent ecash from the wallet.",
@@ -430,7 +431,8 @@
 		"walletLabel": "Wallet"
 	},
 	"tokenReceiveScreen": {
-		"onPasteEmptyClipboard": "First copy ecash token, then paste."
+		"onPasteEmptyClipboard": "First copy ecash token, then paste.",
+		"topupWithLightning": "Topup with Lightning"
 	},
 	"topup": {
 		"failed": "Topup failed",
@@ -442,7 +444,10 @@
 		"sendToNip": "Send to %{sendTonip05}",
 		"to": "Topup to",
 		"withLightning": "Topup with Lightning",
-		"sendToContact": "Send to contact"
+		"sendToContact": "Send to contact",
+		"withdrawalAvailable": "Withdrawal is available",
+		"withdrawAvailableDesc": "Up to %{amount} %{code} are available to withdraw",
+		"invoiceCreatedParam": "Invoice for %%{amount} %%{code} created"
 	},
 	"tranDetailScreen": {
 		"amount": "Amount",
