@@ -395,8 +395,8 @@
 		"showOrShareTokenDescription": "Present or share ecash token for an amount you want to send.",
 		"title": "Send"
 	},
-	"setContactPrivate": "Save as private contact",
-	"setContactPrivateDesc": "Save %{nip05} to your Private contacts so you can pay faster",
+	"saveContactPrivate": "Save as private contact",
+	"saveContactPrivateDesc": "Save %{nip05} to your Private contacts so you can pay faster",
 	"setStartIndex": "Set start index",
 	"settingsScreen": {
 		"backupRecovery": "Backup and recovery",
@@ -536,7 +536,7 @@
 		"apkOnGithub": "APK on Github"
 	},
 	"userErrorMissingLightningData": "Missing Lightning invoice, paycode or address.",
-	"uspentOnlyRecoverable": "Only unspent proofs are recoverable.",
+	"unspentOnlyRecoverable": "Only unspent proofs are recoverable.",
 	"walletAddressRecovery": "Wallet address recovery",
 	"walletAddressRecoveryDesc": "Use your mnemonic phrase from another device to get your original wallet address on this device. This will not recover balances.",
 	"walletScreen": {

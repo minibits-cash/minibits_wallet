@@ -351,8 +351,8 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
             )}
             {type === ContactType.PUBLIC && (                
                 <ListItem
-                    tx="setContactPrivate"
-                    subText={translate('setContactPrivateDesc', { nip05: contact.nip05 })}
+                    tx="saveContactPrivate"
+                    subText={translate('saveContactPrivateDesc', { nip05: contact.nip05 })}
                     leftIcon='faClipboard'                            
                     onPress={saveToPrivateContacts}
                     topSeparator={true}                    

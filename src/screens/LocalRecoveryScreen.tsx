@@ -188,7 +188,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
 
     const onRecovery = async function () {
       if (!showUnspentOnly) {
-        setInfo(translate("uspentOnlyRecoverable"))
+        setInfo(translate("unspentOnlyRecoverable"))
         return
       }
 
@@ -235,7 +235,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
     const doLocalRecovery = async function () {
       try {
           if(!showUnspentOnly) {
-            setInfo(translate('uspentOnlyRecoverable'))
+            setInfo(translate('unspentOnlyRecoverable'))
             return
           }
 
