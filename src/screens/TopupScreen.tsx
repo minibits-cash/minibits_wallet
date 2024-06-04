@@ -653,11 +653,11 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     const getAmountTitle = function () {
       switch (paymentOption) {
         case ReceiveOption.SEND_PAYMENT_REQUEST:
-          return 'Requested amount'
+          return translate("amount.requested")
         case ReceiveOption.LNURL_WITHDRAW:
-          return 'Withdraw amount'
+          return translate("amount.withdraw")
         default:
-          return 'Topup amount'
+          return translate("amount.topup")
       }
     }
     // const inputBg = useThemeColor('background')
@@ -895,13 +895,13 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                     <ResultModalInfo
                       icon="faTriangleExclamation"
                       iconColor={colors.palette.angry500}
-                      title={resultModalInfo?.title || 'Topup failed'}
+                      title={resultModalInfo?.title || translate('topup.failed')}
                       message={resultModalInfo?.message}
                     />
                     <View style={$buttonContainer}>
                       <Button
                         preset="secondary"
-                        tx={'common.close'}
+                        tx='common.close'
                         onPress={toggleResultModal}
                       />
                     </View>

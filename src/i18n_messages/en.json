@@ -434,7 +434,6 @@
 		"pasteError": "Copy your NOSTR address first, then paste.",
 		"invalidAddressFormat": "Invalid NOSTR address, please check that it follows name@domain.com format",
 		"minibitsNameKeyReuseError": "%{domain} names and keys can't be used with multiple wallets.",
-		"profileRetrieveError": "Could not retrieve profile from relays",
 		"profileRelayMismatchedIdentifierError": "Profile from the relay does not match the given nip05 identifier",
 		"enterAddress": "Enter your Nostr address",
 		"enterAddressDesc": "Minibits uses Nostr address (nip05) as a sharable contact to send and receive ecash.",
@@ -538,5 +537,10 @@
 	"missingMintUnitRouteParamsError": "Missing mint unit in route params",
 	"missingEcashTokenToReceiveError": "Missing ecash token to receive.",
 	"pasteEcashTokenDesc": "Paste ecash token you want to receive.",
-	"missingLNURLParamsError": "Missing LNURL params."
+	"missingLNURLParamsError": "Missing LNURL params.",
+	"amount": {
+		"requested": "Requested amount",
+		"withdraw": "Withdraw amount",
+		"topup": "Topup amount"
+	}
 }

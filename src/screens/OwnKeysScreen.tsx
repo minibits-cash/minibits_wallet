@@ -110,7 +110,7 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
             const profile: NostrProfile | undefined = await NostrClient.getProfileFromRelays(nip05Pubkey, relaysToConnect)
             
             if(!profile) {
-              throw new AppError(Err.VALIDATION_ERROR, translate("nostr.profileRetrieveError"), {
+              throw new AppError(Err.VALIDATION_ERROR, "Could not retrieve profile from relays", {
                 nip05Pubkey, relaysToConnect
               })
             }
