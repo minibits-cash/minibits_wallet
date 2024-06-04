@@ -13,11 +13,7 @@ import {
   Share,
   Image,
   ImageStyle,
-  FlatList,
-  Keyboard,
 } from 'react-native'
-import Clipboard from '@react-native-clipboard/clipboard'
-import QRCode from 'react-native-qrcode-svg'
 import {spacing, useThemeColor, colors, typography} from '../theme'
 import {WalletStackScreenProps} from '../navigation'
 import {
@@ -151,12 +147,12 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
       useState(false)
 
     useEffect(() => {
-      const focus = () => {
-        amountInputRef && amountInputRef.current
-          ? amountInputRef.current.focus()
-          : false
-      }
-      const timer = setTimeout(() => focus(), 100)
+        const focus = () => {
+            amountInputRef && amountInputRef.current
+            ? amountInputRef.current.focus()
+            : false
+        }        
+        const timer = setTimeout(() => focus(), 400)
 
       return () => {
         clearTimeout(timer)

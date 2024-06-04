@@ -4,14 +4,14 @@ import { log } from './logService';
 import {
     MINIBIT_SERVER_NOSTR_PUBKEY,    
 } from '@env'
-import { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
-import { MintUnit, formatCurrency, getCurrency } from './wallet/currency';
-import { NostrClient, NostrProfile } from './nostrService';
-import AppError, { Err } from '../utils/AppError';
-import { Platform } from 'react-native';
+import { FirebaseMessagingTypes } from '@react-native-firebase/messaging'
+import { MintUnit, formatCurrency, getCurrency } from './wallet/currency'
+import { NostrClient, NostrProfile } from './nostrService'
+import AppError, { Err } from '../utils/AppError'
+import { Platform } from 'react-native'
 
-export type RemoteMessageReceiveToLnurl = {
-    type: 'RemoteMessageReceiveToLnurl',
+export type NotifyReceiveToLnurlData = {
+    type: 'NotifyReceiveToLnurlData',
     data: {
         amount: number,
         unit: 'sat',
@@ -32,21 +32,30 @@ const onReceiveRemoteNotification = async function(remoteMessage: FirebaseMessag
         }
 
         const serverPubkey = MINIBIT_SERVER_NOSTR_PUBKEY
-
         const decrypted = await NostrClient.decryptNip04(serverPubkey, encrypted as string)
 
-        if (decrypted) {
-            const remoteData: RemoteMessageReceiveToLnurl = JSON.parse(decrypted)
-            const {amount, unit, comment, zapSenderProfile} = remoteData.data
-
-            const currencyCode = getCurrency(unit as MintUnit).code
-
-            await createLocalNotification(
-                `<b>⚡${formatCurrency(amount, currencyCode)} ${currencyCode}</b> incoming!`,
-                `${zapSenderProfile ? 'Zap' : 'Payment'} from <b>${zapSenderProfile?.nip05 || 'unknown payer'}</b> is ready to be received.${comment ? ' Message from sender: ' + comment : ''}`,
-                zapSenderProfile?.picture       
-            ) 
+        if (!decrypted) {
+          throw new AppError(Err.VALIDATION_ERROR, 'Unknown remote message data received', {data: remoteMessage.data})
         }
+        
+        const remoteData = JSON.parse(decrypted)
+
+        // Remote notification building and showing per remoteData.type
+        if(remoteData.type === 'NotifyReceiveToLnurlData' || remoteData.type === 'RemoteMessageReceiveToLnurl') {
+          const {amount, unit, comment, zapSenderProfile} = remoteData.data
+          const currencyCode = getCurrency(unit as MintUnit).code
+
+          await createLocalNotification(
+              `<b>⚡${formatCurrency(amount, currencyCode)} ${currencyCode}</b> incoming!`,
+              `${zapSenderProfile ? 'Zap' : 'Payment'} from <b>${zapSenderProfile?.nip05 || 'unknown payer'}</b> is ready to be received.${comment ? ' Message from sender: ' + comment : ''}`,
+              zapSenderProfile?.picture       
+          )
+
+          return
+        }
+
+        throw new AppError(Err.VALIDATION_ERROR, 'Unknown remoteData.type', {remoteData})       
+        
     } catch (e: any) {
         log.error(e.name, e.message)
     }

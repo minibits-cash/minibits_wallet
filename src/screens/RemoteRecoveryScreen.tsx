@@ -526,16 +526,22 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
 
             setStatusMessage(translate("recovery.recoveringAddress"))
             setIsLoading(true)
+
+            const seedHash = QuickCrypto.createHash('sha256')
+            .update(seed)
+            .digest('hex')
+
+            // get nostr key from current on device profile
+            const {publicKey: newPublicKey} = await NostrClient.getOrCreateKeyPair()
             
+            // delete orphaned server profile then update server profile with seedHash with pubkey + update on device wallet name and address
+            await walletProfileStore.recover(seedHash as string, newPublicKey)
+
+            // align walletId in userSettings with recovered profile
+            userSettingsStore.setWalletId(walletProfileStore.walletId)
             await KeyChain.saveMnemonic(mnemonic)
             await KeyChain.saveSeed(seed as Uint8Array)
-            const seedHash = await KeyChain.loadSeedHash()
-
-            const {publicKey: newPublicKey} = await NostrClient.getOrCreateKeyPair()
-            // Updates pubkey and imports wallet profile
-            await walletProfileStore.recover(seedHash as string, newPublicKey)
-            // Align walletId in userSettings with recovered profile
-            userSettingsStore.setWalletId(walletProfileStore.walletId)                    
+            
             await delay(1000)
             setStatusMessage(translate("recovery.completed"))
             await delay(2000)
