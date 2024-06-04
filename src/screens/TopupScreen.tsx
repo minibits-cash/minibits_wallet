@@ -948,7 +948,7 @@ const InvoiceOptionsBlock = observer(function (props: {
             />
           ) : (
             <Button
-              text="topup.sendToContact"
+              tx="topup.sendToContact"
               preset="secondary"
               onPress={props.gotoContacts}
               style={{maxHeight: 50}}
@@ -963,7 +963,7 @@ const InvoiceOptionsBlock = observer(function (props: {
           )}
           {props.paymentOption === ReceiveOption.LNURL_WITHDRAW && (
             <Button
-              text="Withdraw"
+              tx="topup.withdraw"
               preset="secondary"
               onPress={props.toggleWithdrawModal}
               style={{marginLeft: spacing.medium}}
@@ -1023,7 +1023,7 @@ const SendAsNostrDMBlock = observer(function (props: {
       ) : (
         <View style={$buttonContainer}>
           <Button
-            text="Send request"
+            tx="topup.sendRequest"
             onPress={props.sendAsNostrDM}
             style={{marginRight: spacing.medium}}
             LeftAccessory={() => (
@@ -1037,7 +1037,7 @@ const SendAsNostrDMBlock = observer(function (props: {
           />
           <Button
             preset="tertiary"
-            text="Close"
+            tx="common.close"
             onPress={props.toggleNostrDMModal}
           />
         </View>
@@ -1063,7 +1063,7 @@ const NostrDMSuccessBlock = observer(function (props: {
       <ResultModalInfo
         icon="faCheckCircle"
         iconColor={colors.palette.success200}
-        title="Success!"
+        title={translate('common.success')}
         message={translate("walletScreen.paymentSentSuccess")}
       />
       <View style={$buttonContainer}>

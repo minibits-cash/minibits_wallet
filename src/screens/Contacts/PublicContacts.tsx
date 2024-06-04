@@ -381,7 +381,7 @@ export const PublicContacts = observer(function (props: {
 
         if(paymentOption && paymentOption === SendOption.LNURL_ADDRESS) {
             if(!contact.lud16) {
-                setInfo(translate('contactsScreen.noLightningUseEcash'))
+                setInfo(translate('contactHasNoLightningAddrUseEcash'))
                 //reset
                 navigation.setParams({
                     paymentOption: undefined,

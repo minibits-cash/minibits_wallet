@@ -11,5 +11,6 @@
 	},
 	"transferScreen": {
 		"noMintWithBalance": "Neexistuje žiaden mint so zostatkom %{unit} z ktorého je možné uskutočniť platbu."
-	}
+	},
+	"contactHasNoLightningAddrUseEcash": "Tento kontakt nemá Lightning adresu, namiesto toho pošlite ecash."
 }

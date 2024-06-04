@@ -17,13 +17,13 @@
 		"mnemonicTitle": "Your mnemonic phrase",
 		"recoveryTool": "Local recovery tool",
 		"recoveryToolDescription": "Show ecash backed up in the local database and attempt to recover unspent ones into the wallet in case the wallet storage gets corrupted or a transaction fails due to an unexpected error.",
-		"remoteBackup": "Seed backup",
 		"remoteBackupDescription": "Mnemonic phrase encodes your seed and allows you to recover your ecash balance in case of device loss.",
 		"removeSpentCoins": "Remove spent ecash",
 		"removeSpentCoinsDescription": "In case of a SEND or TRANSFER transaction error, spent ecash may remain in your wallet. This blocks further transactions with the mint, making the wallet unusable. This tool removes spent ecash from the wallet.",
 		"result": "%{proofCount} ecash proofs, %{amount} in total were removed from the wallet.",
 		"seedBackup": "Seed backup",
-		"success": "Your minibits tokens were backed up to local database. New tokens will be backed up automatically."
+		"success": "Your minibits tokens were backed up to local database. New tokens will be backed up automatically.",
+		"remoteBackup": "Seed backup"
 	},
 	"backupWillOverwriteBalanceWarning": "Your wallet has non zero-balance. If you continue, existing ecash will be deleted and replaced by backup.",
 	"checkAndSync": "Check and sync",
@@ -186,7 +186,6 @@
 	"newMint": "New mint",
 	"nextInterval": "Next interval",
 	"noEcashRecovered": "No ecash recovered",
-	"noLightningUseEcash": "This contact does not have a Lightning address, send ecash instead.",
 	"noSpentEcashFound": "No spent ecash found in your wallet",
 	"nostr": {
 		"copyPubKey": "Copy Nostr public key",
@@ -447,7 +446,9 @@
 		"sendToContact": "Send to contact",
 		"withdrawalAvailable": "Withdrawal is available",
 		"withdrawAvailableDesc": "Up to %{amount} %{code} are available to withdraw",
-		"invoiceCreatedParam": "Invoice for %%{amount} %%{code} created"
+		"invoiceCreatedParam": "Invoice for %%{amount} %%{code} created",
+		"withdraw": "Withdraw",
+		"sendRequest": "Send request"
 	},
 	"tranDetailScreen": {
 		"amount": "Amount",
@@ -554,5 +555,6 @@
 			"heading": "Do not forget",
 			"intro": "Both the Cashu protocol and the Minibits wallet are still experimental, and by using them, you accept known and unknown risks."
 		}
-	}
+	},
+	"contactHasNoLightningAddrUseEcash": "This contact does not have a Lightning address, send ecash instead."
 }
