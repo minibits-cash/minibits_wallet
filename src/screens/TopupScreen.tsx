@@ -933,6 +933,7 @@ const InvoiceOptionsBlock = observer(function (props: {
           {props.contactToSendTo ? (
             <Button
               text={`Send to ${props.contactToSendTo.nip05}`}
+              tx="topup.sendToNip"
               preset="secondary"
               onPress={props.toggleNostrDMModal}
               style={{maxHeight: 50}}

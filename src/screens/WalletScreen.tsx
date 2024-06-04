@@ -306,7 +306,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         }
         
         if (mintsStore.alreadyExists(newMintUrl)) {
-            const msg = translate('mintsScreen.mintExists')
+            const msg = translate('walletScreen.mintExists')
             log.info(msg)
             setInfo(msg)
             return

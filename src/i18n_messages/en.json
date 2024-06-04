@@ -317,6 +317,7 @@
 		"sharePaymentRequestDescription": "Send payment request to one of your contacts, so that the payer can pay you exact amount.",
 		"showOrShareInvoice": "Share lightning invoice",
 		"showOrShareInvoiceDescription": "Present or share lightning invoice for an amount you want to receive.",
+		"status": "Status",
 		"title": "Receive",
 		"toReceive": "Amount to receive"
 	},
@@ -429,8 +430,7 @@
 		"walletLabel": "Wallet"
 	},
 	"tokenReceiveScreen": {
-		"onPasteEmptyClipboard": "First copy ecash token, then paste.",
-		"topupWithLightning": ""
+		"onPasteEmptyClipboard": "First copy ecash token, then paste."
 	},
 	"topup": {
 		"failed": "Topup failed",
@@ -439,6 +439,7 @@
 		"missingMintAddFirstDesc": "There is no mint connected to your wallet eligible for receiving ecash.",
 		"nostrDMreceived": "nostr:%{npub} sent you Lightning invoice for ${amount} ${currency} from Minibits wallet!",
 		"relayMissingSentEvent": "Relay could not confirm that the message has been published.",
+		"sendToNip": "Send to %{sendTonip05}",
 		"to": "Topup to",
 		"withLightning": "Topup with Lightning"
 	},
@@ -516,7 +517,8 @@
 		"feeBadge": {
 			"final": "+ final fee %{fee} %{code}",
 			"upto": "+ fee up to %{fee} %{code}"
-		}
+		},
+		"mintExists": "This mint already exists"
 	},
 	"warning": "Warning",
 	"welcomeScreen": {

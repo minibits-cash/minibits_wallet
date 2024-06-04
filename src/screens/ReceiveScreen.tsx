@@ -332,7 +332,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                           isCurrency={true}
                         />
                         <TranItem
-                            label="tranDetailScreen.status"
+                            label="receiveScreen.status"
                             value={transaction.status as string}
                         />
                     </>
