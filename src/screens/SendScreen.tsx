@@ -117,7 +117,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             ? amountInputRef.current.focus()
             : false
         }        
-        const timer = setTimeout(() => focus(), 100)        
+        const timer = setTimeout(() => focus(), 400)        
         return () => {
             clearTimeout(timer)
         }

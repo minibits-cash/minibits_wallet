@@ -13,11 +13,7 @@ import {
   Share,
   Image,
   ImageStyle,
-  FlatList,
-  Keyboard,
 } from 'react-native'
-import Clipboard from '@react-native-clipboard/clipboard'
-import QRCode from 'react-native-qrcode-svg'
 import {spacing, useThemeColor, colors, typography} from '../theme'
 import {WalletStackScreenProps} from '../navigation'
 import {
@@ -55,7 +51,6 @@ import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { MintBalanceSelector } from './Mints/MintBalanceSelector'
 import { QRCodeBlock } from './Wallet/QRCode'
 import numbro from 'numbro'
-import { MintListItem } from './Mints/MintListItem'
 import { TranItem } from './TranDetailScreen'
 
 if (
@@ -116,7 +111,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
             ? amountInputRef.current.focus()
             : false
         }        
-        const timer = setTimeout(() => focus(), 100)
+        const timer = setTimeout(() => focus(), 400)
 
         return () => {
             clearTimeout(timer)
