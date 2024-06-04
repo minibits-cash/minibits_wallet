@@ -584,7 +584,10 @@
 			"go": "Let's go!",
 			"heading": "Do not forget",
 			"intro": "Both the Cashu protocol and the Minibits wallet are still experimental, and by using them, you accept known and unknown risks."
-		}
+		},
+		"lastPageConfirmButton": "Got it, take me to the wallet",
+		"lastPageRecoverLostWalletButton": "Recover lost wallet",
+		"generatingWalletSeedStatusMessage": "Creating wallet seed, this takes a while..."
 	},
 	"contactHasNoLightningAddrUseEcash": "This contact does not have a Lightning address, send ecash instead.",
 	"tranHistory": {
