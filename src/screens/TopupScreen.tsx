@@ -154,9 +154,9 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         }        
         const timer = setTimeout(() => focus(), 400)
 
-      return () => {
-        clearTimeout(timer)
-      }
+        return () => {
+            clearTimeout(timer)
+        }
     }, [])
 
     useEffect(() => {
