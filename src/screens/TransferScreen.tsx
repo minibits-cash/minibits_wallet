@@ -117,7 +117,7 @@ useEffect(() => {
         try {
             const {unit, mintUrl} = route.params
             if(!unit) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Missing mint unit in route params')
+                throw new AppError(Err.VALIDATION_ERROR, translate('missingMintUnitRouteParamsError'))
             }
 
             setUnit(unit)
@@ -181,7 +181,7 @@ useFocusEffect(
                 const {lnurlParams} = route.params
 
                 if (!lnurlParams) {                    
-                    throw new AppError(Err.VALIDATION_ERROR, 'Missing LNURL params.')
+                    throw new AppError(Err.VALIDATION_ERROR, translate('missingLNURLParamsError'))
                 }
 
                 const metadata = lnurlParams.decodedMetadata
@@ -603,7 +603,7 @@ const satsColor = colors.palette.primary200
                     ) : (
                         <Text
                             size='sm'
-                            text={translate("payCommon.amountToPayLabel")}
+                            tx="payCommon.amountToPayLabel"
                             style={{color: 'white', textAlign: 'center'}}
                         />
                     )}
