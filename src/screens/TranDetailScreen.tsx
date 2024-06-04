@@ -1249,7 +1249,7 @@ const TopupInfoBlock = function (props: {
             ContentComponent={                        
                 <>
                 <TranItem
-                    label="topup.to"
+                    label="tranDetailScreen.topupTo"
                     value={transaction.mint as string}
                 />
                 {transaction.status === TransactionStatus.PENDING && paymentRequest && (

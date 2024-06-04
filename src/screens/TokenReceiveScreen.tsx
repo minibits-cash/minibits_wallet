@@ -231,7 +231,7 @@ export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = fu
                     }
                 />
                 <Button
-                    tx="topup.withLightning"
+                    tx="tokenReceiveScreen.topupWithLightning"
                     LeftAccessory={() => (
                         <Icon
                         icon='faBolt'

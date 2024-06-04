@@ -321,7 +321,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                         />
                         {transaction?.memo && (
                         <TranItem
-                            label="tranDetailScreen.memoFromSender"
+                            label="receiveScreen.memoFromSender"
                             value={transaction.memo as string}
                         />
                         )}

@@ -803,7 +803,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
               <View style={$buttonContainer}>
                 <Button
                   preset="secondary"
-                  tx={'common.close'}
+                  tx='common.close'
                   onPress={resetState}
                 />
               </View>
@@ -877,13 +877,13 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                     <ResultModalInfo
                       icon="faCheckCircle"
                       iconColor={colors.palette.success200}
-                      title="Success!"
+                      title={translate('common.success')}
                       message={resultModalInfo?.message}
                     />
                     <View style={$buttonContainer}>
                       <Button
                         preset="secondary"
-                        tx={'common.close'}
+                        tx='common.close'
                         onPress={() => navigation.navigate('Wallet', {})}
                       />
                     </View>
