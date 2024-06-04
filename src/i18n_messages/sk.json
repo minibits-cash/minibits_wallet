@@ -2,11 +2,11 @@
 	"common": {
 		"close": "Zavrieť",
 		"copyFailParam": "Nepodarilo sa skopírovať %{param}",
+		"notCreated": "Ešte nevytvorené",
 		"offlinePretty": "Vaše zariadenie je momentálne offline.",
 		"qr": "QR kód",
-		"sats": "SATS",
-		"notCreated": "Ešte nevytvorené",
 		"resetDefault": "Obnoviť pôvodné nastavenia",
+		"sats": "SATS",
 		"share": "Zdieľať"
 	},
 	"transferScreen": {

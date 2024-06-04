@@ -948,7 +948,7 @@ const InvoiceOptionsBlock = observer(function (props: {
             />
           ) : (
             <Button
-              text="Send to contact"
+              text="topup.sendToContact"
               preset="secondary"
               onPress={props.gotoContacts}
               style={{maxHeight: 50}}
@@ -1064,7 +1064,7 @@ const NostrDMSuccessBlock = observer(function (props: {
         icon="faCheckCircle"
         iconColor={colors.palette.success200}
         title="Success!"
-        message="Payment request has been successfully sent."
+        message={translate("walletScreen.paymentSentSuccess")}
       />
       <View style={$buttonContainer}>
         <Button

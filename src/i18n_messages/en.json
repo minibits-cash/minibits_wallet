@@ -441,7 +441,8 @@
 		"relayMissingSentEvent": "Relay could not confirm that the message has been published.",
 		"sendToNip": "Send to %{sendTonip05}",
 		"to": "Topup to",
-		"withLightning": "Topup with Lightning"
+		"withLightning": "Topup with Lightning",
+		"sendToContact": "Send to contact"
 	},
 	"tranDetailScreen": {
 		"amount": "Amount",
@@ -518,7 +519,8 @@
 			"final": "+ final fee %{fee} %{code}",
 			"upto": "+ fee up to %{fee} %{code}"
 		},
-		"mintExists": "This mint already exists"
+		"mintExists": "This mint already exists",
+		"paymentSentSuccess": "Payment request has been successfully sent."
 	},
 	"warning": "Warning",
 	"welcomeScreen": {
