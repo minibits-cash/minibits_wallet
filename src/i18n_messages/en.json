@@ -127,7 +127,8 @@
 		"relayMissingSentEvent": "Relay could not confirm that the message has been published.",
 		"mint": "Topup mint",
 		"to": "Topup to",
-		"withLightning": "Topup with Lightning"
+		"withLightning": "Topup with Lightning",
+		"failed": "Topup failed"
 	},
 	"payerMemo": "Memo for the payer",
 	"receiverMemo": "Memo for the receiver",
@@ -451,7 +452,8 @@
 			"desc": "Import your own Nostr address and keys. Your wallet will stop communicating with minibits.cash Nostr and LNURL address servers, disabling Lightning address features for receiving zaps and payments. Only for hardcore ecash-ers!"
 		},
 		"copyPubKey": "Copy Nostr public key",
-		"relaysTitle": "Nostr relays"
+		"relaysTitle": "Nostr relays",
+		"missingRelaysError": "Missing NOSTR relays"
 	},
 	"nsecPasteError": "Copy your nsec key first, then paste.",
 	"nsecMissingProfileError": "Missing profile to update",
@@ -535,5 +537,6 @@
 	"pushNotifications": "Push notifications",
 	"missingMintUnitRouteParamsError": "Missing mint unit in route params",
 	"missingEcashTokenToReceiveError": "Missing ecash token to receive.",
-	"pasteEcashTokenDesc": "Paste ecash token you want to receive."
+	"pasteEcashTokenDesc": "Paste ecash token you want to receive.",
+	"missingLNURLParamsError": "Missing LNURL params."
 }

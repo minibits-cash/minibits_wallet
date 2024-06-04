@@ -170,7 +170,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
           if (!unit) {
             throw new AppError(
               Err.VALIDATION_ERROR,
-              'Missing mint unit in route params',
+              translate('missingMintUnitRouteParamsError')
             )
           }
 
@@ -210,7 +210,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
             }
 
             if (!relays) {
-              throw new AppError(Err.VALIDATION_ERROR, 'Missing NOSTR relays')
+              throw new AppError(Err.VALIDATION_ERROR, translate("nostr.missingRelaysError"))
             }
 
             const {pubkey, npub, name, picture} = walletProfileStore
@@ -245,7 +245,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
           try {
             const {lnurlParams} = route.params
             if (!lnurlParams) {
-              throw new AppError(Err.VALIDATION_ERROR, 'Missing LNURL params.')
+              throw new AppError(Err.VALIDATION_ERROR, translate("missingLNURLParamsError"))
             }
 
             const amountSats = roundDown(lnurlParams.maxWithdrawable / 1000, 0)
@@ -292,7 +292,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
             status: result.transaction?.status as TransactionStatus,
             title: result.error.params?.message
               ? result.error.message
-              : 'Topup failed',
+              : translate("topup.failed"),
             message: result.error.params?.message || result.error.message,
           })
           setIsResultModalVisible(true)
