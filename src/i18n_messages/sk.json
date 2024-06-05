@@ -15,6 +15,7 @@
 		"addMintMinibits": "Pridať Minibits mint"
 	},
 	"payCommon": {
+		"amountToPayLabel": "Suma na zaplatenie",
 		"send": "Poslať"
 	},
 	"sendScreen": {
@@ -34,7 +35,9 @@
 		"update": "Správca aktualizácií"
 	},
 	"tabNavigator": {
-		"settingsLabel": "Nastavenia"
+		"contactsLabel": "Kontakty",
+		"settingsLabel": "Nastavenia",
+		"walletLabel": "Peňaženka"
 	},
 	"transferScreen": {
 		"noMintWithBalance": "Neexistuje žiaden mint so zostatkom %{unit} z ktorého je možné uskutočniť platbu."
