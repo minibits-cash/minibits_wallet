@@ -1,23 +1,33 @@
 // import * as Localization from "expo-localization"
-// import { I18nManager } from "react-native"
 import { I18n } from "i18n-js"
+import { NativeModules, Platform } from "react-native"
 
 // if English isn't your default language, move Translations to the appropriate language file.
 import en from "../i18n_messages/en.json"
+import sk from "../i18n_messages/sk.json"
 
 type Translations = typeof en;
-export const i18n = new I18n({'en-US': en})
+export const i18n = new I18n({ 'en-US': en })
 
-// i18n.fallbacks = true
 /**
  * we need always include "*-US" for some valid language codes because when you change the system language,
  * the language code is the suffixed with "-US". i.e. if a device is set to English ("en"),
  * if you change to another language and then return to English language code is now "en-US".
  */
-i18n.translations = { en, "en-US": en }
+i18n.translations = { 
+  en, "en-US": en, 
+  sk, 'sk_SK': sk 
+}
 
-// TODO get current system locale
-i18n.locale = "en-US"
+// important!
+i18n.defaultLocale = 'en'
+i18n.enableFallback = true;
+
+i18n.locale = Platform.OS === 'ios'
+  ? NativeModules.SettingsManager.settings.AppleLocale
+  : NativeModules.I18nManager.localeIdentifier
+
+console.log(i18n.locale)
 
 /**
  * Builds up valid keypaths for translations.
