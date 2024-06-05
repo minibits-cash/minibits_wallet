@@ -16,6 +16,9 @@
 	},
 	"payCommon": {
 		"amountToPayLabel": "Suma na zaplatenie",
+		"receive": "Prijať",
+		"receiveEcash": "Prijať ecash",
+		"receiveOffline": "Prijať offline",
 		"send": "Poslať"
 	},
 	"sendScreen": {

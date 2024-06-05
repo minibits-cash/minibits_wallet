@@ -16,18 +16,29 @@ export const i18n = new I18n({ 'en-US': en })
  */
 i18n.translations = { 
   en, "en-US": en, 
-  sk, 'sk_SK': sk 
+  sk
 }
 
 // important!
 i18n.defaultLocale = 'en'
 i18n.enableFallback = true;
 
-i18n.locale = Platform.OS === 'ios'
+// i wanted to use Intl.Locale to parse this and get the base language
+// however, seems like Intl.Locale is either not implemented in hermes or not workiking for this version
+// also, react native provides locales in the en_US format, whereas js expect them in en-US format
+// this is smaller than a full intl polyfill and does what we need
+
+const fullLocaleRN: string = (Platform.OS === 'ios'
   ? NativeModules.SettingsManager.settings.AppleLocale
   : NativeModules.I18nManager.localeIdentifier
+).toString().replaceAll('_', '-')
 
-console.log(i18n.locale)
+const localeJSFormat = fullLocaleRN.includes("-") 
+  ? fullLocaleRN.split("-")[0]
+  : fullLocaleRN.slice(0, 2)
+
+i18n.locale = localeJSFormat
+
 
 /**
  * Builds up valid keypaths for translations.
