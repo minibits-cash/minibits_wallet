@@ -178,7 +178,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
             ContentComponent={
               <>
                 <ListItem
-                    tx='settingsScreen.manageMints'
+                    tx='manageMints'
                     leftIcon='faCoins'
                     leftIconColor={colors.palette.iconBlue300}
                     leftIconInverse={true}
@@ -219,7 +219,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
             ContentComponent={
               <>
                 <ListItem
-                    text='Push notifications'
+                    tx="pushNotifications"
                     subText={`Token: ${walletProfileStore.device?.slice(0, 10)}...`}
                     leftIcon='faPaperPlane'
                     leftIconColor={colors.palette.green400}
@@ -229,7 +229,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                       <View style={$rightContainer}>
                       <Text 
                           style={$itemRight}
-                          text={areNotificationsEnabled ? 'Enabled' : 'Disabled'}
+                          tx={areNotificationsEnabled ? 'common.enabled' : 'common.disabled'}
                       />
                       </View>
                    }
@@ -237,8 +237,8 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                     onPress={openNotificationSettings}
                 />
                 <ListItem
-                    text={'Nostr relays'}
-                    subText={`Connected: ${relaysStore.connectedCount}`}
+                    tx="nostr.relaysTitle"
+                    subText={translate("common.connectedParam", { param: relaysStore.connectedCount })}
                     leftIcon='faCircleNodes'
                     leftIconColor={colors.palette.iconViolet200}
                     leftIconInverse={true}

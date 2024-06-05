@@ -22,6 +22,7 @@ import { Mint } from '../models/Mint'
 import { MintHeader } from './Mints/MintHeader'
 import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
+import { translate } from '../i18n'
 
 
 export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = function LightningPayScreen(_props) {
@@ -46,20 +47,16 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
         const setUnitAndMint = () => {
             try {
                 const {unit, mintUrl} = route.params
-                if(!unit) {
-                    throw new AppError(Err.VALIDATION_ERROR, 'Missing mint unit in route params')
-                }
+                if (!unit) throw new AppError(Err.VALIDATION_ERROR, 'Missing mint unit in route params');
 
                 setUnit(unit)
 
-                if(mintUrl) {
-                    const mint = mintsStore.findByUrl(mintUrl)    
-                    setMint(mint)
+                if (mintUrl) {
+                  const mint = mintsStore.findByUrl(mintUrl)    
+                  setMint(mint)
                 }
 
-                if(!isInternetReachable) {
-                    setInfo('Your device is currently offline.')
-                }
+              if (!isInternetReachable) setInfo(translate('common.offlinePretty'))
             } catch (e: any) {
                 handleError(e)
             }
@@ -82,7 +79,7 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
     const onPaste = async function() {        
         const clipboard = await Clipboard.getString()
         if (clipboard.length === 0) {
-            infoMessage('First copy Lightning invoice, address or pay code to pay to. Then paste.')
+            infoMessage(translate('lightningPayScreen.onPasteEmptyClipboard'))
             return
         }
 
@@ -105,15 +102,14 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
 
 
     const onConfirm = async function() {
-        if(!lightningData) {
-            setError({name: Err.VALIDATION_ERROR, message: 'Missing Lightning invoice, paycode or address.'})
-            return
+        if (!lightningData) {
+          setError({ name: Err.VALIDATION_ERROR, message: translate("userErrorMissingLightningData")})
+          return;
         }
 
         try {
-            const invoiceResult = IncomingParser.findAndExtract(lightningData as string, IncomingDataType.INVOICE)
-            return IncomingParser.navigateWithIncomingData(invoiceResult, navigation, unit, mint && mint.mintUrl)
-            
+          const invoiceResult = IncomingParser.findAndExtract(lightningData as string, IncomingDataType.INVOICE)
+          return IncomingParser.navigateWithIncomingData(invoiceResult, navigation, unit, mint && mint.mintUrl)
         } catch (e: any) {
             const maybeLnurlAddress = LnurlUtils.findEncodedLnurlAddress(lightningData as string)
 
@@ -204,14 +200,14 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                         <ListItem
                             leftIcon='faBolt'
                             leftIconColor={colors.palette.orange400}
-                            text='Pay with Lightning'
+                            tx="payCommon.payWithLightning"
                             bottomSeparator={true}
                             RightComponent={
                                 <Button
                                     preset='tertiary'                                    
                                     LeftAccessory={() => <Icon color={contactIcon} containerStyle={{paddingVertical: 0}} icon='faAddressBook' />}
                                     onPress={gotoContacts}
-                                    text='Contacts'
+                                    tx="contacts"
                                     textStyle={{fontSize: 12, color: contactIcon}}
                                 />
                             }
@@ -222,7 +218,7 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                         <Text 
                             size='xs' 
                             style={{color: hintText, padding: spacing.extraSmall}} 
-                            text='Enter or paste Lightning address, invoice or LNURL pay code you want to pay to.' 
+                            tx="payWithLightningDesc"
                         />
                         <View style={{alignItems: 'center', marginTop: spacing.small}}>
                             <TextInput
@@ -242,7 +238,7 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                                 <View style={$buttonContainer}>
                                     <Button
                                         preset='default'
-                                        tx={'common.confirm'}
+                                        tx='common.confirm'
                                         onPress={onConfirm}
                                         style={{marginLeft: spacing.small}}
                                         LeftAccessory={() => <Icon icon='faCheckCircle' color='white'/>}
@@ -252,11 +248,9 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                                 <View style={$buttonContainer}>
                                     <Button
                                         preset='secondary'
-                                        tx={'common.paste'}       
+                                        tx='common.paste'
                                         onPress={onPaste}
-                                        LeftAccessory={() => (
-                                            <Icon icon='faPaste'/>
-                                        )}
+                                        LeftAccessory={() => <Icon icon='faPaste'/> }
                                     />
                                     <Button
                                         preset='secondary'
@@ -281,7 +275,7 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                     }
                 />
                 <Button
-                    text={'Send as ecash'}
+                    tx="common.sendAsEcash"
                     LeftAccessory={() => (
                         <Icon
                         icon='faMoneyBill1'

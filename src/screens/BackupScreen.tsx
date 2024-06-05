@@ -22,6 +22,7 @@ import EventEmitter from '../utils/eventEmitter'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {Database, log, WalletTask, WalletTaskResult} from '../services'
 import { getSnapshot } from 'mobx-state-tree'
+import { translate } from '../i18n'
 
 export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(function BackupScreen(_props) {
     const {navigation} = _props
@@ -50,9 +51,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
         const handleSpentByMintTaskResult = async (result: WalletTaskResult) => {
             log.warn('handleSpentByMintTaskResult event handler triggered')
 
-            if(!isHandleSpentFromSpendableSentToQueue) {
-              return false
-            }
+            if (!isHandleSpentFromSpendableSentToQueue) { return false }
             
             setIsLoading(false)            
             // runs per each mint
@@ -60,12 +59,11 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
                 setTotalSpentAmount(prev => prev + result.spentAmount)
                 setTotalSpentCount(prev => prev + result.spentCount)
                 setInfo(
-                    `${totalSpentCount} ecash proofs, ${totalSpentAmount} in total were removed from the wallet.`,
+                  translate("backupScreen.result", { proofCount: totalSpentCount, amount: totalSpentAmount })
                 )
                 return
             }
-        
-            setInfo('No spent ecash found in your wallet')            
+          setInfo(translate("noSpentEcashFound"))            
         }
         
         EventEmitter.on('ev__handleSpentByMintTask_result', handleSpentByMintTaskResult)
@@ -93,9 +91,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
             Database.addOrUpdateProofs(proofsStore.allPendingProofs, true)
           }
 
-          setBackupResultMessage(
-            'Your minibits tokens were backed up to local database. New tokens will be backed up automatically.',
-          )
+          setBackupResultMessage(translate("backupScreen.success"))
           toggleBackupModal()
           setIsLoading(false)
           return
@@ -103,9 +99,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
 
         Database.removeAllProofs()
         setIsLoading(false)
-        setBackupResultMessage(
-          'Your backup of minibits tokens has been deleted. New tokens will NOT be backed up.',
-        )
+        setBackupResultMessage(translate("backupScreen.deletedSuccess"))
         toggleBackupModal()
       } catch (e: any) {
         handleError(e)
@@ -135,12 +129,13 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
 
 
     const increaseCounters = async function () {
-        for (const mint of mintsStore.allMints) {
-          for(const counter of mint.proofsCounters) {
-            mint.increaseProofsCounter(counter.keyset, 50)
-          }            
-        }  
-        setInfo('Recovery indexes increased by 50')
+      const increaseAmount = 50
+      for (const mint of mintsStore.allMints) {
+        for(const counter of mint.proofsCounters) {
+          mint.increaseProofsCounter(counter.keyset, increaseAmount)
+        }            
+      }  
+      setInfo(translate("recoveryIndexesIncSuccess", { indCount: increaseAmount }))
     }
 
 
@@ -172,8 +167,8 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
                     bottomSeparator={true}
                   />
                   <ListItem
-                    text="Wallet address recovery"
-                    subText="Use your mnemonic phrase from another device to get your original wallet address on this device. This will not recover balances."
+                    tx="walletAddressRecovery"
+                    subTx="walletAddressRecoveryDesc"
                     leftIcon='faCircleUser'
                     leftIconColor={colors.palette.iconGreyBlue400}
                     leftIconInverse={true}
@@ -251,8 +246,8 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
                 HeadingComponent={
                 <>                
                     <ListItem
-                        text="Increase recovery indexes"
-                        subText={`After incomplete recovery from seed or other rare issue, you may encounter 'duplicate outputs' error when trying to send. This resets your recovery indexes to higher value in order to resolve the issue.`}
+                        tx="increaseRecoveryIndexes"
+                        subTx="increaseRecoveryIndexesDesc"
                         leftIcon='faArrowUp'
                         leftIconColor={colors.palette.success300}
                         leftIconInverse={true}
@@ -283,9 +278,10 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
                   ? colors.palette.success200
                   : colors.palette.neutral400
               }
-              title={
-                isLocalBackupOn ? 'Local backup is on' : 'Local backup is off'
-              }
+              // title={
+              //   isLocalBackupOn ? 'Local backup is on' : 'Local backup is off'
+              // }
+              title={translate(isLocalBackupOn ? 'localBackupEnabled' : 'localBackupDisabled')}
               message={backupResultMessage as string}
             />
           }

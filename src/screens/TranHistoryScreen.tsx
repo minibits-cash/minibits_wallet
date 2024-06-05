@@ -33,10 +33,11 @@ import AppError from '../utils/AppError'
 import {TransactionListItem} from './Transactions/TransactionListItem'
 import { Transaction, TransactionStatus } from '../models/Transaction'
 import { height } from '@fortawesome/free-solid-svg-icons/faWallet'
+import { translate } from '../i18n'
 
 if (Platform.OS === 'android' &&
-    UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true)
+  UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 // Number of transactions held in TransactionsStore model
 const limit = maxTransactionsInModel
@@ -248,7 +249,16 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
                 ContentComponent={
                     <>
                         <ListItem
-                            text={showPendingOnly ? `Showing ${transactionsStore.pending.length} of ${pendingDbCount} pending` : `Showing ${transactionsStore.count} of ${dbCount} total`}
+                            text={showPendingOnly 
+                              ? translate("tranHistory.showingPaginationPending", {
+                                amount: transactionsStore.pending.length,
+                                total: pendingDbCount
+                              }) 
+                              : translate("tranHistory.showingPaginationTotal", {
+                                amount: transactionsStore.count,
+                                total: dbCount
+                              })
+                            }
                             LeftComponent={
                                 <Icon
                                 containerStyle={$iconContainer}
@@ -262,7 +272,9 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
                             onPress={() => false}
                         />
                         <ListItem
-                        text={`${transactionsStore.pending.length} Pending transactions`}
+                        text={translate("tranHistory.pendingParam", {
+                          param: transactionsStore.pending.length
+                        })}
                         LeftComponent={
                             <Icon
                             containerStyle={$iconContainer}
@@ -308,12 +320,12 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
                     {sections.length > 0 && (
                         <View style={{alignItems: 'center', marginTop: spacing.small}}>
                             {!showPendingOnly && isAll || showPendingOnly && pendingIsAll ? (
-                                <Text text="List is complete" size="xs" />
+                                <Text tx="tranHistory.listIsComplete" size="xs" />
                             ) : (
                                 <Button
                                     preset="secondary"
                                     onPress={getTransactionsList}
-                                    text="View more"
+                                    tx="tranHistory.viewMore"
                                     style={{minHeight: 25, paddingVertical: spacing.tiny}}
                                     textStyle={{fontSize: 14}}
                                 />
@@ -329,8 +341,8 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
                     <Card
                         ContentComponent={
                             <ListItem
-                                leftIcon='faBan'
-                                text={"No transactions to show."}
+                              leftIcon='faBan'
+                              tx={"tranHistory.noTransToShow"}
                             />
                         }
                         style={$card}                
@@ -346,15 +358,19 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
           ContentComponent={
             <>
                 <ListItem
-                    text='Delete expired'
-                    subText={`This will delete ${expiredDbCount} expired transactions`}
+                    tx="tranHistory.deleteExpired"
+                    subText={translate("tranHistory.deleteExpiredDesc", {
+                      count: expiredDbCount
+                    })}
                     leftIcon='faRotate'
                     onPress={onDeleteExpired}
                     bottomSeparator={true}
                 /> 
                 <ListItem
-                    text="Delete with errors"
-                    subText={`This will delete ${erroredDbCount} transactions with errors`}
+                    tx="tranHistory.deleteErrored"
+                    subText={translate("tranHistory.deleteErroredDesc", {
+                      count: erroredDbCount
+                    })}
                     leftIcon='faBug'                            
                     onPress={onDeleteErrored}                                      
                 />

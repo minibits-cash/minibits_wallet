@@ -5,6 +5,8 @@
         "typeRoots": ["./src/utils/envtypes"],
         "paths": {
             "nostr-tools/*": ["./node_modules/nostr-tools/lib/types/*"]
-        }
+        },
+        "resolveJsonModule": true,
+        "esModuleInterop": true,
     }
 }

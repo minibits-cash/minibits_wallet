@@ -6,6 +6,7 @@ import Clipboard from "@react-native-clipboard/clipboard"
 import { moderateVerticalScale } from "@gocodingnow/rn-size-matters"
 import { colors, spacing } from "../../theme"
 import { useState } from "react"
+import { translate } from "../../i18n"
 
 export const QRCodeBlock = function (props: {  
     qrCodeData: string
@@ -29,11 +30,11 @@ export const QRCodeBlock = function (props: {
   
         if (result.action === Share.sharedAction) {          
           setTimeout(
-            () => infoMessage('Lightning invoice has been shared, waiting to be paid by receiver.'),              
+            () => infoMessage(translate('lightningInvoiceSharedWaiting')),              
             500,
           )
         } else if (result.action === Share.dismissedAction) {
-            infoMessage('Sharing cancelled')          
+            infoMessage(translate('share.cancelled'))          
         }
       } catch (e: any) {
         setQrError(e)
@@ -56,7 +57,7 @@ export const QRCodeBlock = function (props: {
         style={{backgroundColor: 'white', paddingBottom: 0}}
         ContentComponent={qrError ? (
           <ListItem 
-              text='Could not display QR code, copy or share the Ecash token instead.'
+              text={translate("qr.fail")}
               subText={qrError ? qrError.message : ''}
               leftIcon='faTriangleExclamation'
               containerStyle={{marginVertical: spacing.large}}

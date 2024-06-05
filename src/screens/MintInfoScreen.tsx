@@ -30,9 +30,8 @@ import { CommonActions } from '@react-navigation/native'
 import { StackActions } from '@react-navigation/native';
 import { isObj } from '@cashu/cashu-ts/src/utils'
 
-if (Platform.OS === 'android' &&
-    UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true)
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
 export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer(function MintInfoScreen(_props) {
@@ -122,7 +121,7 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text
             preset="heading"
-            text="Mint info"
+            tx="mintInfoHeading"
             style={{color: 'white'}}
           />
         </View>
@@ -147,7 +146,7 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
                                 ))                  
                             )}
 
-                            {isLoading && <Loading style={{backgroundColor: 'transparent'}} statusMessage='Loading public info' />}                            
+                            {isLoading && <Loading style={{backgroundColor: 'transparent'}} statusMessage={translate("loadingPublicInfo")} />}                            
                             </>
                         }                            
                         style={$card}
@@ -157,15 +156,15 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
                         ContentComponent={
                         <>
                             <ListItem
-                                text={'On device information'}
-                                RightComponent={<View style={$rightContainer}>
-                                        <Button
-                                            onPress={toggleLocalInfo}
-                                            text={isLocalInfoVisible ? 'Hide' : 'Show'}
-                                            preset='secondary'                                           
-                                        /> 
-                                    </View> 
-                                }
+                              tx="onDeviceInfo"
+                              RightComponent={<View style={$rightContainer}>
+                                <Button
+                                  onPress={toggleLocalInfo}
+                                  text={isLocalInfoVisible ? 'Hide' : 'Show'}
+                                  preset='secondary'
+                                />
+                              </View>
+                              }
                             />
                             {isLocalInfoVisible && (
                                 <JSONTree

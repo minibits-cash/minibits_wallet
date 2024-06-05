@@ -13,6 +13,7 @@ import { log } from '../services/logService'
 import { KeyChain, KeyPair, NostrClient, NostrProfile } from '../services'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 import { ProfileHeader } from './Contacts/ProfileHeader'
+import { translate } from '../i18n'
 
 
 if (Platform.OS === 'android' &&
@@ -63,7 +64,7 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
     const onPasteOwnNip05 = async function () {
         const nip = await Clipboard.getString()
         if (!nip) {
-          setInfo('Copy your NOSTR address first, then paste.')
+          setInfo(translate("nostr.pasteError"))
           return
         }  
         setOwnNip05(nip)        
@@ -76,12 +77,12 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
             const nip05Domain = NostrClient.getDomainFromNip05(ownNip05)
 
             if(!nip05Name || !nip05Domain) {
-                setInfo(`Invalid NOSTR address, please check that it follows name@domain.com format`)
+              setInfo(translate("nostr.invalidAddressFormat"))
             }
 
             if(MINIBITS_NIP05_DOMAIN.includes(nip05Domain as string)) {
-                setInfo(`${MINIBITS_NIP05_DOMAIN} names and keys can't be used with multiple wallets.`)
-                return
+              setInfo(translate("nostr.minibitsNameKeyReuseError", { domain: MINIBITS_NIP05_DOMAIN }))
+              return
             }
 
             setIsLoading(true)
@@ -109,24 +110,34 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
             const profile: NostrProfile | undefined = await NostrClient.getProfileFromRelays(nip05Pubkey, relaysToConnect)
             
             if(!profile) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Could not retrieve profile from relays', {nip05Pubkey, relaysToConnect})
+              throw new AppError(Err.VALIDATION_ERROR, "Could not retrieve profile from relays", {
+                nip05Pubkey, relaysToConnect
+              })
             }
             
             // check that the profile's nip05 matches the one given by user and living on nip05 .well-known server
             if(!profile.nip05) {
                 if(profile.name && profile.name.toLowerCase() === nip05Name) {
-                    profile.nip05 = ownNip05
+                  profile.nip05 = ownNip05
                 } else {
-                    throw new AppError(Err.VALIDATION_ERROR, 'Profile from the relay does not match the given nip05 identifier', {ownNip05, profile})
+                  throw new AppError(
+                    Err.VALIDATION_ERROR, 
+                    translate("nostr.profileRelayMismatchedIdentifierError"), 
+                    { ownNip05, profile }
+                  )
                 }
             }
 
             if(profile.nip05 !== ownNip05) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Profile from the relay does not match the given nip05 identifier', {ownNip05, profile})
+              throw new AppError(
+                Err.VALIDATION_ERROR, 
+                translate("nostr.profileRelayMismatchedIdentifierError"), 
+                { ownNip05, profile }
+              )
             }
 
             if(!profile.name) {
-                profile.name = nip05Name as string
+              profile.name = nip05Name as string
             }
 
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
@@ -144,7 +155,7 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
     const onPasteOwnNsec = async function () {
         const key = await Clipboard.getString()
         if (!key) {
-          setInfo('Copy your nsec key first, then paste.')
+          setInfo(translate("nsecPasteError"))
           return
         }  
         setOwnNsec(key)        
@@ -154,14 +165,14 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
     const onConfirmOwnNsec = async function () {
         try {
             if(!ownProfile) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Missing profile to update')
+                throw new AppError(Err.VALIDATION_ERROR, translate("nsecMissingProfileError"))
             }
             // validate that nsec matches profile pubkey
             const privateKey = NostrClient.getHexkey(ownNsec)
             const publicKey = getPublicKey(privateKey)
 
             if(publicKey !== ownProfile.pubkey) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Provided private key does not match your new profile public key.', {publicKey})
+                throw new AppError(Err.VALIDATION_ERROR, translate("nsecPrivatePublicKeyMismatchError"), {publicKey})
             }
 
             setOwnKeyPair({publicKey, privateKey})
@@ -175,7 +186,7 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
     const onConfirmChange = async function () {
         try {
             if(!ownProfile || !ownKeyPair) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Missing profile to update')
+              throw new AppError(Err.VALIDATION_ERROR, translate('nsecMissingProfileError'))
             }
 
             setIsLoading(true)
@@ -227,36 +238,40 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
                     {!ownProfile ? (
                         <View style={$nip05Container}>                    
                             <ListItem
-                                LeftComponent={<View style={[$numIcon, {backgroundColor: iconNip05}]}><Text text='1'/></View>}
-                                text='Enter your Nostr address'
-                                subText={'Minibits uses Nostr address (nip05) as a sharable contact to send and receive ecash.'}                        
-                                bottomSeparator={true}
-                                style={{}}
+                              LeftComponent={<View style={[$numIcon, {backgroundColor: iconNip05}]}><Text text='1'/></View>}
+                              tx="nostr.enterAddress"
+                              subTx="nostr.enterAddressDesc"
+                              bottomSeparator={true}
+                              style={{}}
                             />                    
-                            <View style={{flexDirection: 'row', alignItems: 'center', marginVertical: spacing.medium}}>                            
+                            <View style={{
+                              flexDirection: 'row', 
+                              alignItems: 'center', 
+                              marginVertical: spacing.medium
+                            }}>                            
                                 <TextInput
-                                    ref={ownNip05InputRef}
-                                    onChangeText={(name) => setOwnNip05(name.trim())}
-                                    value={ownNip05}
-                                    autoCapitalize='none'
-                                    keyboardType='default'
-                                    maxLength={30}
-                                    placeholder='name@domain.com'
-                                    selectTextOnFocus={true}
-                                    style={[$nip05Input, {backgroundColor: inputBg}]}                                                   
+                                  ref={ownNip05InputRef}
+                                  onChangeText={(name) => setOwnNip05(name.trim())}
+                                  value={ownNip05}
+                                  autoCapitalize='none'
+                                  keyboardType='default'
+                                  maxLength={30}
+                                  placeholder='name@domain.com'
+                                  selectTextOnFocus={true}
+                                  style={[$nip05Input, {backgroundColor: inputBg}]}                                                   
                                 />
                                 <Button
-                                    tx={'common.paste'}
-                                    preset='secondary'
-                                    style={$pasteButton}                                
-                                    onPress={onPasteOwnNip05}
+                                  tx='common.paste'
+                                  preset='secondary'
+                                  style={$pasteButton}                                
+                                  onPress={onPasteOwnNip05}
                                 />
                                 <Button
-                                    tx={'common.confirm'}
-                                    style={$saveButton}
-                                    onPress={onConfirmOwnNip05}                                
+                                  tx='common.confirm'
+                                  style={$saveButton}
+                                  onPress={onConfirmOwnNip05}                                
                                 />                        
-                            </View>     
+                              </View>     
                         </View>
                     ) : (
                         <>
@@ -278,7 +293,7 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
                             {ownProfileRelays.length > 0 && (
                                 <ListItem
                                     leftIcon='faCircleNodes'
-                                    text='Relays'
+                                    tx='relays'
                                     subText={ownProfileRelays.toString()}                        
                                     topSeparator={true}
                                     style={{}}
@@ -287,7 +302,7 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
                             {isSetupCompleted && (
                                 <ListItem
                                     leftIcon='faKey'
-                                    text='Private key'
+                                    tx='privateKey'
                                     subText={ownNsec}                        
                                     topSeparator={true}
                                     style={{}}
@@ -305,8 +320,8 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
                         <View style={$nip05Container}>                       
                             <ListItem
                                 LeftComponent={<View style={[$numIcon, {backgroundColor: iconNip05}]}><Text text='2'/></View>}
-                                text='Enter your private key'
-                                subText={'Minibits needs your private key in nsec format in order to decrypt messages containing incoming payments. Your key will be stored in your device secure key vault.'}                        
+                                tx="nsecEnterPrivateKey"
+                                subTx="nsecEnterPrivateKeyDesc"
                                 bottomSeparator={true}
                                 style={{}}
                             />
@@ -324,13 +339,13 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
                                 style={[$nip05Input, {backgroundColor: inputBg}]}                                                
                             />
                             <Button
-                                tx={'common.paste'}
+                                tx='common.paste'
                                 preset='secondary'
                                 style={$pasteButton}                            
                                 onPress={onPasteOwnNsec}
                             />
                             <Button
-                                tx={'common.confirm'}
+                                tx='common.confirm'
                                 style={$saveButton}
                                 onPress={onConfirmOwnNsec}                            
                             />                        
@@ -348,14 +363,14 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
                     <>
                         <ListItem
                             leftIcon='faTriangleExclamation'
-                            text='Consider before change'
-                            subText={'Using your own Nostr address will disable Lightning address features unique to minibits.cash address.'}                        
+                            tx="nostr.lastStandDialog.title"
+                            subTx="nostr.lastStandDialog.desc"
                         />
                         <ListItem
                             leftIcon='faCheckCircle'
                             leftIconColor={colors.palette.success200}
-                            text='Profile change is ready'
-                            subText='Wallet needs to restart to apply this change.'                      
+                            tx="nostr.lastStandDialog.readyTitle"
+                            subText="nostr.lastStandDialog.readyDesc"
                             style={{}}
                         />
                     </>
@@ -364,12 +379,12 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
                     <View style={$buttonContainer}>
                         <Button
                             preset="default"
-                            text={'Apply change'}
+                            tx='nostr.lastStandDialog.confirm'
                             onPress={onConfirmChange}
                         />
                         <Button
                             preset="secondary"
-                            text={'Save my soul'}
+                            tx='nostr.lastStandDialog.cancel'
                             onPress={onCancelChange}
                         />
                     </View>
@@ -385,12 +400,12 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
                     <ProfileHeader headerBg='transparent' />
                     <Text 
                         style={{color: textResult, textAlign: 'center', marginTop: spacing.small}} 
-                        text={'Profile change is complete.'} 
+                        tx="nostr.lastStandDialog.complete"
                     />
                     <View style={$buttonContainer}>
                     <Button
                         preset="secondary"
-                        tx={'common.close'}
+                        tx='common.close'
                         onPress={() => {
                             navigation.navigate('Contacts', {})
                         }}

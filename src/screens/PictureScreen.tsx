@@ -92,7 +92,7 @@ export const PictureScreen: FC<PictureScreenProps> = observer(function PictureSc
                     <Card
                         ContentComponent={<ListItem
                             leftIcon='faXmark'
-                            text='Could not retrieve pictures from the server, try again later.'
+                            tx="pictureRetrieveFail"
                         />}
                     />
                 )}
@@ -101,12 +101,12 @@ export const PictureScreen: FC<PictureScreenProps> = observer(function PictureSc
                 <View style={$buttonContainer}>
                     <Button
                         preset="default"
-                        tx={'common.confirm'}
+                        tx='common.confirm'
                         onPress={onPictureConfirm}
                     />
                     <Button
                         preset="secondary"
-                        tx={'common.cancel'}
+                        tx='common.cancel'
                         onPress={() => setSelectedPicture('')}
                     />
                 </View>

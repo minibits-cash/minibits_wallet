@@ -84,7 +84,7 @@ export const PaymentRequestListItem = observer(function (
           {pr.type === PaymentRequestType.INCOMING ? (
             <>
               <Text
-                tx={'paymentCommon.pay'} 
+                tx={'payCommon.pay'} 
                 style={{marginBottom: spacing.small}}               
               />
               <CurrencyAmount
@@ -97,7 +97,7 @@ export const PaymentRequestListItem = observer(function (
           ) : (
             <>
               <Text
-                tx={'paymentCommon.payMe'}  
+                tx={'payCommon.payMe'}  
                 style={{marginBottom: spacing.small}}                
               />
               <CurrencyAmount
@@ -160,7 +160,7 @@ export const PaymentRequestListItem = observer(function (
                 <Text
                   size="xxs"
                   style={{color: dim, marginBottom: -10}}
-                  text={translate('paymentCommon.pay')}
+                  text={translate('payCommon.pay')}
                 />
               </View>
               <Text
@@ -259,8 +259,8 @@ export const PaymentRequestListItem = observer(function (
               preset="secondary"
               tx={
                 pr.type === PaymentRequestType.INCOMING
-                  ? "paymentCommon.payFromWallet"
-                  : 'paymentCommon.receiveInPerson'
+                  ? "payCommon.payFromWallet"
+                  : 'payCommon.receiveInPerson'
               }
               onPress={onPressPaymentRequest}
             />

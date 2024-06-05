@@ -50,14 +50,12 @@ export const ReceiveOptionsScreen: FC<WalletStackScreenProps<'ReceiveOptions'>> 
 
 
     const gotoTopup = function () {
-        navigation.navigate('Topup', {            
-            paymentOption: ReceiveOption.SHOW_INVOICE}
-        )
+      navigation.navigate('Topup', { paymentOption: ReceiveOption.SHOW_INVOICE })
     }
 
 
     const onScan = async function () {
-        navigation.navigate('Scan')
+      navigation.navigate('Scan')
     }
 
 

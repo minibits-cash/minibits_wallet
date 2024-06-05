@@ -265,7 +265,7 @@ export const PublicContacts = observer(function (props: {
     const onPastePublicRelay = async function () {
         const url = await Clipboard.getString()
         if (!url) {
-          setInfo(translate("contactsScreen.publicContacts.relayurlPasteError"))
+          setInfo(translate("relayurlPasteError"))
           return
         }  
         setNewPublicRelay(url)        
@@ -276,7 +276,7 @@ export const PublicContacts = observer(function (props: {
         try {
             if(newPublicRelay) {                
                 if(relaysStore.alreadyExists(newPublicRelay)) {
-                    setInfo(translate("contactsScreen.publicContacts.relayExists"))
+                    setInfo(translate("relayExists"))
                     return
                 }
 
@@ -381,7 +381,7 @@ export const PublicContacts = observer(function (props: {
 
         if(paymentOption && paymentOption === SendOption.LNURL_ADDRESS) {
             if(!contact.lud16) {
-                setInfo(translate('contactsScreen.publicContacts.missingLightningAddress'))
+                setInfo(translate('contactHasNoLightningAddrUseEcash'))
                 //reset
                 navigation.setParams({
                     paymentOption: undefined,
@@ -440,8 +440,8 @@ export const PublicContacts = observer(function (props: {
                         leftIcon='faComment'
                         leftIconInverse={true}
                         leftIconColor={colors.palette.iconViolet200}
-                        tx="contactsScreen.publicContacts.nostrTip"
-                        subTx='contactsScreen.publicContacts.nostrTipSubText'
+                        tx="nostr.tip"
+                        subTx='nostr.tipSubText'
                         onPress={toggleNpubModal}
                     />                
                 }
@@ -523,22 +523,22 @@ export const PublicContacts = observer(function (props: {
             <>
                 <ListItem
                     leftIcon='faKey'
-                    tx="contactsScreen.publicContacts.nostrSetPublicKey"
-                    subTx='contactsScreen.publicContacts.nostrSetPublicKeySubText'
+                    tx="nostr.setPublicKey"
+                    subTx='nostr.setPublicKeySubText'
                     onPress={toggleNpubModal}
                     bottomSeparator={true}
                 />
                 <ListItem
                     leftIcon='faCircleNodes'
-                    tx='contactsScreen.publicContacts.nostrSetRelay'
-                    subTx='contactsScreen.publicContacts.nostrSetRelaySubText'
+                    tx='nostr.setRelay'
+                    subTx='nostr.setRelaySubText'
                     onPress={toggleRelayModal}
                     bottomSeparator={true}
                 />
                 <ListItem
                     leftIcon='faBan'
-                    tx="contactsScreen.publicContacts.nostrRemovePub"
-                    subTx="contactsScreen.publicContacts.nostrRemovePubSubText"
+                    tx="nostr.removePub"
+                    subTx="nostr.removePubSubText"
                     onPress={onRemovePublicPubKey}
                 /> 
             </>
