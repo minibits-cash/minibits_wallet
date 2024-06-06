@@ -78,13 +78,11 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
             transactionsStore.addTransactionsToModel(result._array)
 
             setIsLoading(false)
-            setInfo(
-                `Reset completed. ${result.length} recent transactions were loaded from database.`,
-            )
+            setInfo(translate('resetCompletedDetail', { transCount: result.length }))
             return true
         }
 
-        setInfo('Reset aborted, there are no transactions in local database.')
+        setInfo(translate("resetAborted"))
         setIsLoading(false)
         return false
       } catch (e: any) {
@@ -104,45 +102,42 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
         } catch (e: any) {
             handleError(e)
         }
-        
     }
     
 
     const factoryReset = async function () {
       Alert.alert(
-        'Confirmation',
-        'All application data will be deleted. Are you sure you want to perform a factory reset?',
+        translate("common.confirmAlertTitle"),
+        translate("factoryResetUserConfirmDesc"),
         [
           {
-            text: 'Cancel',
+            text: translate('common.cancel'),
             style: 'cancel',
-            onPress: () => {
-              // Action canceled
-            },
+            onPress: () => { /* Action canceled */ },
           },
           {
-            text: 'Confirm',
+            text: translate('common.confirm'),
             onPress: async () => {
                 setIsLoading(true)
                 try {
-                    // Delete database
-                    Database.cleanAll()                
-                    // Delete Nostr keys
-                    await KeyChain.removeNostrKeypair()
-                    // Delete Encryption key
-                    await KeyChain.removeMmkvEncryptionKey()
-                    // Delete mnemonic
-                    await KeyChain.removeMnemonic()
-                    // Delete seed
-                    await KeyChain.removeSeed()
-                    // Clean mobx storage
-                    MMKVStorage.clearAll()
-                    // recreate db schema
-                    Database.getInstance()
-                    setIsLoading(false)
-                    setInfo('Factory reset completed, please restart immediately.')
+                  // Delete database
+                  Database.cleanAll()                
+                  // Delete Nostr keys
+                  await KeyChain.removeNostrKeypair()
+                  // Delete Encryption key
+                  await KeyChain.removeMmkvEncryptionKey()
+                  // Delete mnemonic
+                  await KeyChain.removeMnemonic()
+                  // Delete seed
+                  await KeyChain.removeSeed()
+                  // Clean mobx storage
+                  MMKVStorage.clearAll()
+                  // recreate db schema
+                  Database.getInstance()
+                  setIsLoading(false)
+                  setInfo(translate("factoryResetSuccess"))
                 } catch (e: any) {
-                    handleError(e)
+                  handleError(e)
                 }
             },
           },
@@ -199,8 +194,8 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
                   onPress={syncTransactionsFromDb}
                 />
                 <ListItem
-                  text="Show onboarding again"
-                  subText="Go through onboarding screens again next time you restart Minibits."
+                  tx="showOnboarding"
+                  subTx="showOnboardingDesc"
                   leftIcon='faRotate'
                   leftIconColor={colors.light.tint}
                   leftIconInverse={true}
@@ -255,7 +250,7 @@ Sentry id: ${userSettingsStore.userSettings.walletId}
             <>
                 <ListItem                    
                     text={LogLevel.ERROR.toUpperCase()}
-                    subText={'Log errors and crashes only, without private data.'}
+                    subTx="loglevelErrorDesc"
                     leftIcon={selectedLogLevel === LogLevel.ERROR ? 'faCheckCircle' : 'faCircle'}          
                     leftIconColor={selectedLogLevel === LogLevel.ERROR ? iconSelectedColor as string : iconColor as string}                    
                     onPress={() => onLogLevelSelect(LogLevel.ERROR)}
@@ -264,7 +259,7 @@ Sentry id: ${userSettingsStore.userSettings.walletId}
                 />
                 <ListItem                    
                     text={LogLevel.INFO.toUpperCase()}
-                    subText={'Log anonymous usage, without private data.'}
+                    subTx="loglevelInfoDesc"
                     leftIcon={selectedLogLevel === LogLevel.INFO ? 'faCheckCircle' : 'faCircle'}          
                     leftIconColor={selectedLogLevel === LogLevel.INFO ? iconSelectedColor as string : iconColor as string}                    
                     onPress={() => onLogLevelSelect(LogLevel.INFO)}
@@ -273,7 +268,7 @@ Sentry id: ${userSettingsStore.userSettings.walletId}
                 />
                 <ListItem                    
                     text={LogLevel.DEBUG.toUpperCase()}
-                    subText={'Log details, set only if testing or on request by support.'}
+                    subTx="loglevelDebugDesc"
                     leftIcon={selectedLogLevel === LogLevel.DEBUG ? 'faCheckCircle' : 'faCircle'}          
                     leftIconColor={selectedLogLevel === LogLevel.DEBUG ? iconSelectedColor as string : iconColor as string}                    
                     onPress={() => onLogLevelSelect(LogLevel.DEBUG)}
@@ -283,7 +278,7 @@ Sentry id: ${userSettingsStore.userSettings.walletId}
                 <View style={$buttonContainer}>
                     <Button
                         preset="secondary"
-                        text={'Close'}
+                        tx='common.close'
                         onPress={toggleLogLevelSelector}
                     />
                 </View>

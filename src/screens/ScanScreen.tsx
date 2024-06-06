@@ -20,6 +20,7 @@ import { LnurlUtils } from '../services/lnurl/lnurlUtils'
 import { infoMessage } from '../utils/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { useStores } from '../models'
+import { translate } from '../i18n'
 
 const hasAndroidCameraPermission = async () => {
     const cameraPermission = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA)
@@ -113,7 +114,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                     }
 
                     e.params = incoming
-                    e.message = 'Could not extract ecash token nor LNURL withdraw link to receive.'
+                    e.message = translate("scanReceiveExtractFail")
                     handleError(e)
                     break
                 }   
@@ -170,12 +171,12 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
             default:
                 try {
                 // generic scan button on wallet screen
-                    const incomingData = IncomingParser.findAndExtract(incoming)                    
-                    return IncomingParser.navigateWithIncomingData(incomingData, navigation, unit)   
+                  const incomingData = IncomingParser.findAndExtract(incoming)                    
+                  return IncomingParser.navigateWithIncomingData(incomingData, navigation, unit)   
                 } catch (e: any) {
-                    e.name = Err.VALIDATION_ERROR
-                    e.params = {caller: 'onIncomingData', clipboard: incoming.slice(0, 100)}
-                    handleError(e)
+                  e.name = Err.VALIDATION_ERROR
+                  e.params = {caller: 'onIncomingData', clipboard: incoming.slice(0, 100)}
+                  handleError(e)
                 }
         }
 
@@ -184,7 +185,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
     const onPaste = async function() {        
         const clipboard = await Clipboard.getString()
         if (clipboard.length === 0) {
-            infoMessage('First copy ecash token, invoice, LNURL link or lightning address. Then paste.')
+            infoMessage(translate("scanScreen.onPasteEmptyClipboard"))
             return
         }
 
@@ -215,7 +216,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                             LeftAccessory={() => (
                                 <Icon icon='faPaste'/>
                             )}
-                            text={'Paste'}
+                            tx='common.paste'
                             preset='secondary'
                             style={{marginTop: spacing.medium, minWidth: 120}}                        
                         />

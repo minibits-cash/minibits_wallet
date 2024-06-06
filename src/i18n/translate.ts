@@ -12,7 +12,7 @@ import {TxKeyPath} from './i18n'
  * @example
  * Translations:
  * ```ts
- * // en.ts
+ * // en.json
  * {
  *  "heading": "Welcome to the app!",
  *  "buttonText": "Donate",

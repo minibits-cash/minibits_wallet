@@ -98,23 +98,23 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
     }, [donationInvoice])
 
 
-    useEffect(() => {        
-        const handleIsInvoicePaid = async () => { 
-            if(!isInvoicePaid || !donationInvoice) {
-                return
-            }
-
-            stopPolling(`checkDonationPaidPoller-${donationInvoice.payment_hash}`)            
-            setResultModalInfo({
-                status: TransactionStatus.COMPLETED, 
-				message: translate("contactsScreen.ownName.donationSuccess", { receiver: ownName+MINIBITS_NIP05_DOMAIN })
-            })            
-            toggleResultModal()
-            //resetState()     
+    useEffect(() => {
+      const handleIsInvoicePaid = async () => {
+        if (!isInvoicePaid || !donationInvoice) {
+          return
         }
-        handleIsInvoicePaid()
-        return () => {        
-        }        
+
+        stopPolling(`checkDonationPaidPoller-${donationInvoice.payment_hash}`)
+        setResultModalInfo({
+          status: TransactionStatus.COMPLETED,
+          message: translate("contactsScreen.ownName.donationSuccess", { receiver: ownName + MINIBITS_NIP05_DOMAIN })
+        })
+        toggleResultModal()
+        //resetState()     
+      }
+      handleIsInvoicePaid()
+      return () => {
+      }
     }, [isInvoicePaid])
 
     const toggleResultModal = () =>

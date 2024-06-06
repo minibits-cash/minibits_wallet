@@ -118,7 +118,9 @@ export const PrivateContacts = observer(function (props: {
                 const profileRecord = await MinibitsClient.getWalletProfileByNip05(newContactName + MINIBITS_NIP05_DOMAIN)
 
                 if(!profileRecord) {
-                    warningMessage(translate("contactsScreen.privateContacts.profileNotFound", { name: newContactName + MINIBITS_NIP05_DOMAIN }))
+                    warningMessage(translate("contactsScreen.privateContacts.profileNotFound", { 
+                      name: newContactName + MINIBITS_NIP05_DOMAIN 
+                    }))
                     setIsLoading(false)
                     return
                 }
@@ -204,7 +206,7 @@ export const PrivateContacts = observer(function (props: {
 
             if(paymentOption && paymentOption === SendOption.LNURL_ADDRESS) {
                 if(!contact.lud16) {
-                    setInfo(translate("contactsScreen.privateContacts.noLightningAddress"))
+                    setInfo(translate("contactHasNoLightningAddrUseEcash"))
                     return
                 }
 

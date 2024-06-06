@@ -74,11 +74,11 @@ export const OutgoingRequests = observer(function (props: {
   
           if (result.action === Share.sharedAction) {          
             setTimeout(
-              () => infoMessage(translate("paymentRequestScreen.outgoing.invoiceShared")),              
+              () => infoMessage(translate("lightningInvoiceSharedWaiting")),              
               500,
             )
           } else if (result.action === Share.dismissedAction) {
-              infoMessage(translate("paymentRequestScreen.outgoing.sharingCancelled"))          
+              infoMessage(translate("share.cancelled"))          
           }
         } catch (e: any) {
           handleError(e)
@@ -90,7 +90,7 @@ export const OutgoingRequests = observer(function (props: {
         try {
             Clipboard.setString(selectedRequest?.encodedInvoice as string)
         } catch (e: any) {
-            setInfo(translate("common.copyFailParam", { param: e.message }))
+            setInfo(translate('common.copyFailParam', { param: e.message }))
         }
     }
 

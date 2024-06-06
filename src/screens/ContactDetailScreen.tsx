@@ -15,6 +15,7 @@ import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matte
 import { ReceiveOption } from './ReceiveOptionsScreen'
 import { SendOption } from './SendOptionsScreen'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
+import { translate } from '../i18n'
 
 
 interface ContactDetailScreenProps extends ContactsStackScreenProps<'ContactDetail'> {}
@@ -94,10 +95,10 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
 
     const onNoteSave = function () {        
         try {
-            contactsStore.saveNote(contact.pubkey, note || '')
-            setIsNoteEditing(false)           
+          contactsStore.saveNote(contact.pubkey, note || '')
+          setIsNoteEditing(false)           
         } catch (e: any) {
-            setInfo(`Could not save note: ${e.message}`)
+          setInfo(translate('common.saveFailParam', { param: e.message }))
         }
     }
 
@@ -115,9 +116,9 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
 
     const onCopyNpub = function () {        
         try {
-            Clipboard.setString(contact.npub)
+          Clipboard.setString(contact.npub)
         } catch (e: any) {
-            setInfo(`Could not copy: ${e.message}`)
+          setInfo(translate('common.copyFailParam', { param: e.message }))
         }
     }
 
@@ -143,7 +144,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
             contactsStore.refreshPicture(contact.pubkey)
 
             toggleContactModal()            
-            setInfo('Sync completed.')
+            setInfo(translate("syncCompleted"))
             return
         } catch (e: any) {
             toggleContactModal()      
@@ -222,7 +223,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                                 maxLength={200}
                                 keyboardType="default"
                                 selectTextOnFocus={true}
-                                placeholder="Your private note"
+                                placeholder={translate("privateNotePlaceholder")}
                                 editable={
                                     isNoteEditing
                                     ? true
@@ -258,7 +259,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                     {lud16 && (
                         <ListItem                                    
                             text={lud16}
-                            subText={'Lightning address'}                            
+                            subTx='lightningAddress'                  
                             leftIcon='faBolt'
                             leftIconColor={colors.palette.orange200}                          
                         />
@@ -266,7 +267,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                         <ListItem                                                                
                             LeftComponent={
                                 <Button
-                                    text={`Request payment`}
+                                    tx="payCommon.requestPayment"
                                     style={{marginLeft: spacing.small, alignSelf: 'center', minHeight: verticalScale(20)}}
                                     textStyle={{fontSize: moderateVerticalScale(14), lineHeight: moderateVerticalScale(16)}}
                                     onPress={gotoTopup}
@@ -275,7 +276,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                             }
                             RightComponent={lud16 ? (
                                 <Button
-                                    text={`Pay to this address`}
+                                    tx="payCommon.payToAddress"
                                     style={{marginLeft: spacing.small, alignSelf: 'center', minHeight: verticalScale(20)}}
                                     textStyle={{fontSize: moderateVerticalScale(14), lineHeight: moderateVerticalScale(16)}}
                                     onPress={gotoTransfer}
@@ -307,7 +308,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                     <Text 
                         size='xs' 
                         style={{color: addressColor, marginHorizontal: spacing.large, textAlign: 'center'}} 
-                        text='This profile does not have nostr address to send ecash to.'
+                        tx="profileMissingNostrAddress"
                     />
                 )}                
             </View>
@@ -318,14 +319,14 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
           ContentComponent={
             <>
             <ListItem
-                text='Share contact address'
+                tx="share.contactAddress"
                 subText={nip05}
                 leftIcon='faShareNodes'
                 onPress={onShareContact}
                 bottomSeparator={true}
             /> 
             <ListItem
-                text="Copy contact's public key"
+                tx="copyContactPublicKey"
                 subText={npub}
                 leftIcon='faCopy'                            
                 onPress={onCopyNpub}                                      
@@ -333,16 +334,16 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
             {type === ContactType.PRIVATE && (
                 <>
                     <ListItem
-                        text='Check and sync'
-                        subText='Checks that contact name is still linked to the same pubkey and updates picture if it was changed.'
+                        tx="checkAndSync"
+                        subTx="checkAndSyncDesc"
                         leftIcon='faRotate'                            
                         onPress={onSyncPrivateContact}
                         topSeparator={true}
                         bottomSeparator={true}                            
                     />
                     <ListItem
-                        text='Delete contact'
-                        subText='Remove this contact from your wallet.'
+                        tx="deleteContact"
+                        subTx="deleteContactDesc"
                         leftIcon='faXmark'                            
                         onPress={onDeleteContact}                                                  
                     />
@@ -350,8 +351,8 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
             )}
             {type === ContactType.PUBLIC && (                
                 <ListItem
-                    text='Save as private contact'
-                    subText={`Save ${contact.nip05} to your Private contacts so you can pay faster`}
+                    tx="saveContactPrivate"
+                    subText={translate('saveContactPrivateDesc', { nip05: contact.nip05 })}
                     leftIcon='faClipboard'                            
                     onPress={saveToPrivateContacts}
                     topSeparator={true}                    

@@ -216,12 +216,12 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
                             <Button 
                                 onPress={gotoWallet}
                                 preset='secondary'
-                                text='Got it, take me to the wallet'
+                                tx="welcomeScreen.lastPageConfirmButton"
                             />
                             <Button 
                                 onPress={gotoRecovery}
                                 preset='tertiary'
-                                text='Recover lost wallet'
+                                tx="welcomeScreen.lastPageRecoverLostWalletButton"
                                 LeftAccessory={() => {return<Icon icon='faRotate'/>}}
                                 style={{marginTop: spacing.medium}}
                             />
@@ -246,7 +246,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
                 </View>
             </View>
             {error && <ErrorModal error={error} />}
-            {isLoading && <Loading statusMessage={'Creating wallet seed, this takes a while...'} style={{backgroundColor: headerBg, opacity: 1}} textStyle={{color: 'white'}}/>}
+            {isLoading && <Loading statusMessage={translate("welcomeScreen.generatingWalletSeedStatusMessage")} style={{backgroundColor: headerBg, opacity: 1}} textStyle={{color: 'white'}}/>}
         </Screen>
     )
   }

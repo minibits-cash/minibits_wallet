@@ -50,6 +50,7 @@ import { MintBalanceSelector } from './Mints/MintBalanceSelector'
 import numbro from 'numbro'
 import { TranItem } from './TranDetailScreen'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
+import { translate } from '../i18n'
 
 
 if (
@@ -116,7 +117,7 @@ useEffect(() => {
         try {
             const {unit, mintUrl} = route.params
             if(!unit) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Missing mint unit in route params')
+                throw new AppError(Err.VALIDATION_ERROR, translate('missingMintUnitRouteParamsError'))
             }
 
             setUnit(unit)
@@ -180,7 +181,7 @@ useFocusEffect(
                 const {lnurlParams} = route.params
 
                 if (!lnurlParams) {                    
-                    throw new AppError(Err.VALIDATION_ERROR, 'Missing LNURL params.')
+                    throw new AppError(Err.VALIDATION_ERROR, translate('missingLNURLParamsError'))
                 }
 
                 const metadata = lnurlParams.decodedMetadata
@@ -291,7 +292,10 @@ useEffect(() => {
             let availableBalances = proofsStore.getMintBalancesWithEnoughBalance(totalAmount, unit)
     
             if (availableBalances.length === 0) {
-                infoMessage(`There is not enough balance in ${getCurrency(unit).code} to pay the invoice amount and expected fees: ${amountToTransfer} ${getCurrency(unit).code}`)
+                infoMessage(translate("transferScreen.insufficientFunds", {
+                  currency: getCurrency(unit).code,
+                  amount: amountToTransfer
+                }))
                 return
             }
             
@@ -347,7 +351,7 @@ useEffect(() => {
             } else {
                 setResultModalInfo({
                     status,
-                    title: error.params?.message ? error.message : 'Payment failed',
+                    title: error.params?.message ? error.message : translate('payCommon.failed'),
                     message: error.params?.message || error.message,
                 })
             }        
@@ -418,50 +422,51 @@ const onMintBalanceSelect = function (balance: MintBalance) {
 
 // Amount is editable only in case of LNURL Pay, while invoice is not yet retrieved
 const onAmountEndEditing = async function () {
-    try {
-        const precision = getCurrency(unit).precision
-        const mantissa = getCurrency(unit).mantissa
-        const amount = round(toNumber(amountToTransfer) * precision, 0)
+  try {
+    const precision = getCurrency(unit).precision
+    const mantissa = getCurrency(unit).mantissa
+    const amount = round(toNumber(amountToTransfer) * precision, 0)
 
-        if (!amount || amount === 0) {
-            infoMessage('Amount should be positive number.')          
-            return
-        }
-
-        if(!lnurlPayParams) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Missing LNURL pay parameters', {caller: 'onAmountEndEditing'})
-        }
-
-        if (lnurlPayParams.minSendable && amount < lnurlPayParams.minSendable / 1000 ) {
-            infoMessage(`Minimal amount to pay is ${roundUp(lnurlPayParams.minSendable / 1000, 0)} ${CurrencyCode.SATS}.`)          
-            return
-        }
-
-        if (lnurlPayParams.maxSendable && amount > lnurlPayParams.maxSendable / 1000 ) {
-            infoMessage(`Maximal amount to pay is ${roundDown(lnurlPayParams.maxSendable / 1000, 0)} ${CurrencyCode.SATS}.`)          
-            return
-        }
-
-        if (lnurlPayParams.payerData) {
-            infoMessage(`Minibits does not yet support entering of payer identity data (LUD18).`)   
-        }        
-            
-        setAmountToTransfer(`${numbro(amountToTransfer).format({thousandSeparated: true, mantissa: getCurrency(unit).mantissa})}`)
-
-        setIsLoading(true)
-        const encoded = await LnurlClient.getInvoice(lnurlPayParams, amount * 1000)
-        setIsLoading(false)
-
-        if(encoded) {
-            return onEncodedInvoice(encoded)
-        }        
-
-        throw new AppError(Err.NOTFOUND_ERROR, `Could not get lightning invoice from ${lnurlPayParams.domain}`)
-
-    } catch (e: any) {
-      handleError(e)
+    if (!amount || amount === 0) {
+      infoMessage(translate('payCommon.amountZeroOrNegative'))          
+      return;
     }
-  }
+
+    if(!lnurlPayParams) {
+      throw new AppError(Err.VALIDATION_ERROR, 'Missing LNURL pay parameters', {caller: 'onAmountEndEditing'})
+    }
+
+    if (lnurlPayParams.minSendable && amount < lnurlPayParams.minSendable / 1000) {
+      infoMessage(translate('payCommon.minimumWithdraw', { 
+        amount: roundUp(lnurlPayParams.minSendable / 1000, 0), 
+        currency: CurrencyCode.SATS 
+      }))        
+      return;
+    }
+
+    if (lnurlPayParams.maxSendable && amount > lnurlPayParams.maxSendable / 1000 ) {       
+      infoMessage(translate("payCommon.maximumPay", { 
+        amount: roundDown(lnurlPayParams.maxSendable / 1000, 0),
+        currency: CurrencyCode.SATS
+      }))          
+      return;
+    }
+
+    if (lnurlPayParams.payerData) {
+        infoMessage(translate("transferScreen.LUD18unsupported"))   
+    }        
+        
+    setAmountToTransfer(`${numbro(amountToTransfer).format({thousandSeparated: true, mantissa: getCurrency(unit).mantissa})}`)
+
+    setIsLoading(true)
+    const encoded = await LnurlClient.getInvoice(lnurlPayParams, amount * 1000)
+    setIsLoading(false)
+
+    if (encoded) return onEncodedInvoice(encoded);
+
+    throw new AppError(Err.NOTFOUND_ERROR, `Could not get lightning invoice from ${lnurlPayParams.domain}`)
+  } catch (e: any) { handleError(e) }
+}
 
 
 const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: string = '') {
@@ -479,23 +484,20 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
         log.trace('[onEncodedInvoice] Invoice data', {amount, expiresAt, description})
 
         if (!amount || amount === 0) {
-            infoMessage('Invoice amount should be positive number')            
-            return
+          infoMessage(translate('payCommon.amountZeroOrNegative'))            
+          return;
         }
 
-
-        if(!isInternetReachable) {
-            setInfo('Your device is currently offline.')
-        }
+        if(!isInternetReachable) setInfo(translate('common.offlinePretty'));
         
         setEncodedInvoice(encoded)
         setInvoice(invoice)        
         setInvoiceExpiry(expiresAt)
         
         if (paymentRequestDesc) {
-            setMemo(paymentRequestDesc)
+          setMemo(paymentRequestDesc)
         } else if(description) {
-            setMemo(description)
+          setMemo(description)
         }
         
         // We need to retrieve the quote first to know how much is needed to settle invoice in selected currency unit
@@ -505,29 +507,29 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
             proofsStore.getMintBalancesWithUnit(unit)[0]
 
         if (!balanceToTransferFrom) {
-            infoMessage(`There is no mint with ${unit} balance from which payment can be made.`)
-            return
+          infoMessage(translate("transferScreen.noMintWithBalance", { unit }))
+          return
         }        
    
         setMintBalanceToTransferFrom(balanceToTransferFrom)
         // continues in hook that handles other mint selection by user
             
     } catch (e: any) {
-        resetState()
-        handleError(e)
-        navigation.popToTop()
+      resetState()
+      handleError(e)
+      navigation.popToTop()
     }
 }
 
 const transfer = async function () {
     try {
         if(!meltQuote) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Missing quote to initiate transfer transaction')
+          throw new AppError(Err.VALIDATION_ERROR, 'Missing quote to initiate transfer transaction')
         }
 
         if (!mintBalanceToTransferFrom) {
-            setInfo('Select mint balance to transfer from')
-            return
+          setInfo(translate("transferScreen.selectMintFrom"))
+          return;
         }
 
         setIsLoading(true)
@@ -601,7 +603,7 @@ const satsColor = colors.palette.primary200
                     ) : (
                         <Text
                             size='sm'
-                            text={'Amount to pay'}
+                            tx="payCommon.amountToPayLabel"
                             style={{color: 'white', textAlign: 'center'}}
                         />
                     )}
@@ -613,7 +615,7 @@ const satsColor = colors.palette.primary200
                         style={[$card, {minHeight: 50}]}
                         ContentComponent={
                             <ListItem
-                                text={lnurlPayParams?.address || memo || lnurlPayParams?.domain || 'No description'}
+                                text={lnurlPayParams?.address || memo || lnurlPayParams?.domain || translate("common.noDescPlaceholder")}
                                 subText={lnurlDescription}
                                 LeftComponent={
                                     <Icon
@@ -634,8 +636,8 @@ const satsColor = colors.palette.primary200
                         mintBalances={availableMintBalances}
                         selectedMintBalance={mintBalanceToTransferFrom}
                         unit={unit}
-                        title='Pay from'
-                        confirmTitle='Pay now'
+                        title={translate("payCommon.payFrom")}
+                        confirmTitle={translate("payCommon.payNow")}
                         onMintBalanceSelect={onMintBalanceSelect}
                         onCancel={onClose}              
                         onMintBalanceConfirm={transfer}
@@ -696,7 +698,7 @@ const satsColor = colors.palette.primary200
                                 <ResultModalInfo
                                     icon="faCheckCircle"
                                     iconColor={colors.palette.success200}
-                                    title="Payment completed"
+                                    title={translate('payCommon.completed')}
                                     message={resultModalInfo?.message}
                                 />
                                 <View style={$buttonContainer}>
@@ -705,9 +707,9 @@ const satsColor = colors.palette.primary200
                                     tx={'common.close'}
                                     onPress={() => {
                                         if(isInvoiceDonation) {
-                                            navigation.navigate('ContactsNavigator', {screen: 'Contacts', params: {}})
+                                          navigation.navigate('ContactsNavigator', {screen: 'Contacts', params: {}})
                                         } else {
-                                            navigation.navigate('Wallet', {})
+                                          navigation.navigate('Wallet', {})
                                         }
                                     }}
                                 />
@@ -720,7 +722,7 @@ const satsColor = colors.palette.primary200
                                 <ResultModalInfo
                                     icon="faRotate"
                                     iconColor={colors.palette.accent300}
-                                    title="Transfer reverted"
+                                    title={translate('transactionCommon.reverted')}
                                     message={resultModalInfo?.message}
                                 />
                                 <View style={$buttonContainer}>
@@ -738,7 +740,7 @@ const satsColor = colors.palette.primary200
                                 <ResultModalInfo
                                     icon="faTriangleExclamation"
                                     iconColor={colors.palette.angry500}
-                                    title={resultModalInfo?.title || 'Payment failed'}
+                                    title={resultModalInfo?.title || translate('payCommon.failed')}
                                     message={resultModalInfo?.message}
                                 />
                                 <View style={$buttonContainer}>
@@ -756,7 +758,7 @@ const satsColor = colors.palette.primary200
                                 <ResultModalInfo
                                     icon="faTriangleExclamation"
                                     iconColor={colors.palette.iconYellow300}
-                                    title="Payment is pending"
+                                    title={translate('payCommon.isPending')}
                                     message={resultModalInfo?.message}
                                 />
                                 <View style={$buttonContainer}>
