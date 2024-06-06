@@ -751,6 +751,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
     const paymentHash = {...pr}.paymentHash // copy
     const mintQuote = {...pr}.mintQuote // copy
     const mintInstance = mintsStore.findByUrl(mint as string)
+    const transaction = transactionsStore.findById(transactionId as number)
 
     try {
         if(!mintInstance || !mintQuote || !unit || !amount) {
@@ -775,12 +776,12 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
             log.trace('[_handlePendingTopupTask] Quot not paid', {mintUrl: mint, mintQuote})
             return {
                 taskFunction: '_handlePendingTopupTask',
+                transaction,
                 mintUrl: mint,
                 unit,
                 amount,
-                paymentHash,
-                status: TransactionStatus.PENDING,               
-                message: `Quote ${mintQuote} not paid`,
+                paymentHash,                     
+                message: `Quote ${mintQuote} has not yet been paid`,
             } as WalletTaskResult
         }
         
@@ -818,8 +819,6 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
                 log.debug('[_handlePendingTopupTask]', `Invoice expired, removing: ${pr.paymentHash}`)
 
                 // expire related tx - but only if it has not been completed before this check
-                const transaction = transactionsStore.findById(transactionId as number)
-
                 if(transaction && transaction.status !== TransactionStatus.COMPLETED) {
                     const transactionDataUpdate = {
                         status: TransactionStatus.EXPIRED,

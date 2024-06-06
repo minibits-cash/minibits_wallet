@@ -556,7 +556,7 @@ const ReceiveInfoBlock = function (props: {
                         label="tranDetailScreen.type"
                         value={transaction.type as string}
                     />
-                    {encodedTokenToRetry && isInternetReachable ? (
+                    {encodedTokenToRetry ? (
                         <View
                         style={{flexDirection: 'row', justifyContent: 'space-between'}}>
                         <TranItem
@@ -1258,7 +1258,7 @@ const TopupInfoBlock = function (props: {
             <View style={{marginBottom: spacing.small}}>
               <QRCodeBlock 
                 qrCodeData={paymentRequest.encodedInvoice}
-                title="tranDetailScreen.invoice"
+                title={translate("tranDetailScreen.invoice")}
                 size={spacing.screenWidth * 0.8}
               />
             </View>

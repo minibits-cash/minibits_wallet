@@ -160,12 +160,17 @@ const getWallet = async function (
       mnemonicOrSeed: undefined
     })
 
-    await newWallet.getKeys(undefined, unit)
+    try {
 
-    _wallets.push(newWallet)
-    
-    log.trace('[getWallet]', 'Returning new cashuWallet instance')
-    return newWallet
+      await newWallet.getKeys(undefined, unit)
+
+      _wallets.push(newWallet)
+      
+      log.trace('[getWallet]', 'Returning new cashuWallet instance')
+      return newWallet
+    } catch (e: any) {
+      throw new AppError(Err.NETWORK_ERROR, 'Could not get keys from the mint', {message: e.message, caller: 'getWallet'})
+    }
 }
 
 
