@@ -778,7 +778,8 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
                 mintUrl: mint,
                 unit,
                 amount,
-                paymentHash,                
+                paymentHash,
+                status: TransactionStatus.PENDING,               
                 message: `Quote ${mintQuote} not paid`,
             } as WalletTaskResult
         }
