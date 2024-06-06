@@ -1,8 +1,8 @@
-import {observer} from 'mobx-react-lite'
-import React, {FC, useEffect, useState} from 'react'
-import {LayoutAnimation, Platform, TextStyle, UIManager, View, ViewStyle} from 'react-native'
-import {colors, spacing, useThemeColor} from '../theme'
-import {SettingsStackScreenProps} from '../navigation'
+import { observer } from 'mobx-react-lite'
+import React, { FC, useEffect, useState } from 'react'
+import { LayoutAnimation, Platform, TextStyle, UIManager, View, ViewStyle } from 'react-native'
+import { colors, spacing, useThemeColor } from '../theme'
+import { SettingsStackScreenProps } from '../navigation'
 import {
   Icon,
   ListItem,
@@ -14,12 +14,14 @@ import {
   InfoModal,
   BottomModal,
   Button,
+  IconTypes,
+  $sizeStyles,
 } from '../components'
-import {useHeader} from '../utils/useHeader'
-import {useStores} from '../models'
-import {translate} from '../i18n'
+import { useHeader } from '../utils/useHeader'
+import { useStores } from '../models'
+import { translate } from '../i18n'
 import AppError, { Err } from '../utils/AppError'
-import {log, MintClient} from '../services'
+import { log, MintClient } from '../services'
 import { GetInfoResponse } from '@cashu/cashu-ts'
 import { delay } from '../utils/utils'
 import JSONTree from 'react-native-json-tree'
@@ -35,164 +37,208 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer(function MintInfoScreen(_props) {
-    const {navigation, route} = _props
-    useHeader({
-        leftIcon: 'faArrowLeft',
-        onLeftPress: () =>  {
-            /*const routes = navigation.getState()?.routes
-            let prevRouteName: string = ''
+  const { navigation, route } = _props
+  useHeader({
+    leftIcon: 'faArrowLeft',
+    onLeftPress: () => {
+      /*const routes = navigation.getState()?.routes
+      let prevRouteName: string = ''
 
-            if(routes.length >= 2) {
-                prevRouteName = routes[routes.length - 2].name
-            }            
+      if(routes.length >= 2) {
+          prevRouteName = routes[routes.length - 2].name
+      }            
 
-            log.trace('prevRouteName', {prevRouteName, routes})
+      log.trace('prevRouteName', {prevRouteName, routes})
 
-            if(prevRouteName === 'Mints') {
-                navigation.navigate('Mints', {})
-            } else {                
-                navigation.dispatch(
-                    StackActions.replace('Settings')                    
-                )
-                navigation.navigate('WalletNavigator', {screen: 'Wallet'})
-            } */
-            navigation.goBack()         
-        },
-    })
-
-    const {mintsStore} = useStores()
-
-    const [isLoading, setIsLoading] = useState(false)
-    const [mintInfo, setMintInfo] = useState<GetInfoResponse | undefined>()
-    const [isLocalInfoVisible, setIsLocalInfoVisible] = useState<boolean>(false)
-    
-    const [error, setError] = useState<AppError | undefined>()
-    const [info, setInfo] = useState('')
-
-    useEffect(() => {
-        const getInfo = async () => {            
-            try {
-                if(!route.params || !route.params.mintUrl) {
-                    throw new AppError(Err.VALIDATION_ERROR, 'Missing mintUrl')
-                }
-
-                log.trace('useEffect', {mintUrl: route.params.mintUrl})
-
-                setIsLoading(true)
-                const mint = mintsStore.findByUrl(route.params.mintUrl)            
-                
-                if(mint) {                    
-                    const info = await MintClient.getMintInfo(mint.mintUrl) 
-                    mint.setStatus(MintStatus.ONLINE)                    
-                    setMintInfo(info)
-                } else {
-                    throw new AppError(Err.VALIDATION_ERROR, 'Could not find mint', {mintUrl: route.params.mintUrl})
-                }
-
-                setIsLoading(false)
-            } catch (e: any) {
-                if (route.params.mintUrl) {
-                    const mint = mintsStore.findByUrl(route.params.mintUrl)
-                    if(mint) {
-                        mint.setStatus(MintStatus.OFFLINE)                        
-                    }
-                }                
-                handleError(e)
-            }
-        }
-        getInfo()
-    }, [])
-
-    const toggleLocalInfo = () => {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-        setIsLocalInfoVisible(!isLocalInfoVisible)        
-    }
-
-    const handleError = function (e: AppError): void {
-      setIsLoading(false)
-      setError(e)
-    }
-    
-    const headerBg = useThemeColor('header')
-    const colorScheme = useColorScheme()
-
-    return (
-      <Screen style={$screen} preset="scroll">
-        <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text
-            preset="heading"
-            tx="mintInfoHeading"
-            style={{color: 'white'}}
-          />
-        </View>
-        <View style={$contentContainer}>
-
-                <>
-                    <Card
-                        ContentComponent={
-                            <>
-                            {mintInfo && (
-                                Object.entries(mintInfo).map(([key, value], index) => (
-                                    <ListItem
-                                        subText={key}
-                                        RightComponent={
-                                            <View style={{width: spacing.screenWidth * 0.6}}>
-                                                <Text size='xs' text={isObj(value) ?  JSON.stringify(value) : value.toString()}/>
-                                            </View>
-                                        }                                        
-                                        topSeparator={index === 0 ? false : true}
-                                        key={key}
-                                    />
-                                ))                  
-                            )}
-
-                            {isLoading && <Loading style={{backgroundColor: 'transparent'}} statusMessage={translate("loadingPublicInfo")} />}                            
-                            </>
-                        }                            
-                        style={$card}
-                    />
-                    <Card
-                        style={[$card, {marginTop: spacing.small}]}
-                        ContentComponent={
-                        <>
-                            <ListItem
-                              tx="onDeviceInfo"
-                              RightComponent={<View style={$rightContainer}>
-                                <Button
-                                  onPress={toggleLocalInfo}
-                                  text={isLocalInfoVisible ? 'Hide' : 'Show'}
-                                  preset='secondary'
-                                />
-                              </View>
-                              }
-                            />
-                            {isLocalInfoVisible && (
-                                <JSONTree
-                                    hideRoot                        
-                                    data={getSnapshot(mintsStore.findByUrl(route.params?.mintUrl) as Mint)}
-                                    theme={{
-                                        scheme: 'default',
-                                        base00: '#eee',
-                                    }}
-                                    invertTheme={colorScheme === 'light' ? false : true}
-                                />
-                            )}                            
-                        </>
-                        }                  
-                    />
-                </>
-
-            
-            
-            {error && <ErrorModal error={error} />}
-            {info && <InfoModal message={info} />}
-        </View>
-      </Screen>
-    )
+      if(prevRouteName === 'Mints') {
+          navigation.navigate('Mints', {})
+      } else {                
+          navigation.dispatch(
+              StackActions.replace('Settings')                    
+          )
+          navigation.navigate('WalletNavigator', {screen: 'Wallet'})
+      } */
+      navigation.goBack()
+    },
   })
+
+  const { mintsStore } = useStores()
+
+  const [isLoading, setIsLoading] = useState(false)
+  const [mintInfo, setMintInfo] = useState<GetInfoResponse | undefined>()
+  const [isLocalInfoVisible, setIsLocalInfoVisible] = useState<boolean>(false)
+  
+  const [error, setError] = useState<AppError | undefined>()
+  const [info, setInfo] = useState('')
+
+  useEffect(() => {
+    const getInfo = async () => {
+      try {
+        if (!route.params || !route.params.mintUrl) {
+          throw new AppError(Err.VALIDATION_ERROR, 'Missing mintUrl')
+        }
+
+        log.trace('useEffect', { mintUrl: route.params.mintUrl })
+
+        setIsLoading(true)
+        const mint = mintsStore.findByUrl(route.params.mintUrl)
+
+        if (mint) {
+          const info: GetInfoResponse = await MintClient.getMintInfo(mint.mintUrl)
+          mint.setStatus(MintStatus.ONLINE)
+          setMintInfo(info)
+        } else {
+          throw new AppError(Err.VALIDATION_ERROR, 'Could not find mint', { mintUrl: route.params.mintUrl })
+        }
+
+        setIsLoading(false)
+      } catch (e: any) {
+        if (route.params.mintUrl) {
+          const mint = mintsStore.findByUrl(route.params.mintUrl)
+          if (mint) {
+            mint.setStatus(MintStatus.OFFLINE)
+          }
+        }
+        handleError(e)
+      }
+    }
+    getInfo()
+  }, [])
+
+  const toggleLocalInfo = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+    setIsLocalInfoVisible(!isLocalInfoVisible)
+  }
+
+  const handleError = function (e: AppError): void {
+    setIsLoading(false)
+    setError(e)
+  }
+
+  const colorScheme = useColorScheme()
+  const headerBg = useThemeColor('header')
+  const iconColor = useThemeColor('textDim')
+  const contactPlatformColor = useThemeColor('textDim')
+
+  const iconMap: Partial<Record<keyof GetInfoResponse, IconTypes>> = {
+    'name': 'faTag',
+    'pubkey': 'faKey',
+    'version': 'faInfoCircle',
+    'description': 'faListUl',
+    'description_long': 'faListUl',
+    'contact': 'faAddressCard',
+    'motd': 'faPaperPlane'
+  }
+  const prettyNamesMap: Partial<Record<keyof GetInfoResponse, string>> = {
+    'description': "Desc",
+    'description_long': 'Full desc'
+  }
+
+  return (
+    <Screen style={$screen} preset="scroll">
+      <View style={[$headerContainer, { backgroundColor: headerBg }]}>
+        <Text
+          preset="heading"
+          tx="mintInfoHeading"
+          style={{ color: 'white' }}
+        />
+      </View>
+      <View style={$contentContainer}>
+        <>
+          <Card
+            ContentComponent={
+              <>
+                {mintInfo && (
+                  Object.entries(mintInfo).map(([key, value], index) => {
+                    let stringValue = isObj(value) ? JSON.stringify(value) : value.toString()
+                    const missingValue = translate("mintInfo.emptyValueParam", { param: key })
+                    
+                    let valueComponent = stringValue.trim() !== ''
+                      ? <Text size='xs' text={stringValue} />
+                      : <Text style={{ fontStyle: 'italic' }} size='xs' text={missingValue} />
+                    
+                    if (key === 'contact') {
+                      valueComponent = <>
+                        {(value as [string, string][]).map(([platform, user]) => <View style={$contactListItem}>
+                          <Text size='xs' text={`${platform}:`} style={{ color: contactPlatformColor, }} />
+                          <Text size='xs' text={user} />
+                        </View>)}
+                      </>
+                    }
+                      
+                    return <ListItem
+                      LeftComponent={key in iconMap ? <Icon icon={iconMap[key]} color={iconColor}/> : void 0}
+                      text={prettyNamesMap?.[key] ?? key}
+                      textStyle={$sizeStyles.xs}
+                      RightComponent={
+                        <View style={{ width: spacing.screenWidth * 0.6 }}>
+                          {valueComponent}
+                        </View>
+                      }
+                      topSeparator={index === 0 ? false : true}
+                      key={key}
+                      style={$listItem}
+                    />
+                  })
+                )}
+                {isLoading && <Loading style={{ backgroundColor: 'transparent' }} statusMessage={translate("loadingPublicInfo")} />}
+              </>
+            }
+            style={$card}
+          />
+          <Card
+            style={[$card, { marginTop: spacing.small }]}
+            ContentComponent={
+              <>
+                <ListItem
+                  tx="onDeviceInfo"
+                  RightComponent={<View style={$rightContainer}>
+                    <Button
+                      onPress={toggleLocalInfo}
+                      text={isLocalInfoVisible ? 'Hide' : 'Show'}
+                      preset='secondary'
+                    />
+                  </View>
+                  }
+                />
+                {isLocalInfoVisible && (
+                  <JSONTree
+                    hideRoot
+                    data={getSnapshot(mintsStore.findByUrl(route.params?.mintUrl) as Mint)}
+                    theme={{
+                      scheme: 'default',
+                      base00: '#eee',
+                    }}
+                    invertTheme={colorScheme === 'light' ? false : true}
+                  />
+                )}
+              </>
+            }
+          />
+        </>
+
+
+
+        {error && <ErrorModal error={error} />}
+        {info && <InfoModal message={info} />}
+      </View>
+    </Screen>
+  )
+})
 
 const $screen: ViewStyle = {
   flex: 1,
+}
+
+const $listItem: ViewStyle = {
+  display: 'flex',
+  columnGap: spacing.micro,
+  alignItems: 'center',
+}
+const $contactListItem: ViewStyle = { 
+  display: 'flex', 
+  flexDirection: 'row',
+  columnGap: spacing.tiny
 }
 
 const $headerContainer: TextStyle = {
@@ -223,8 +269,8 @@ const $rightContainer: ViewStyle = {
 }
 
 const $buttonContainer: ViewStyle = {
-    flexDirection: 'row',
-    alignSelf: 'center',
-    alignItems: 'center',
-    marginTop: spacing.large,
+  flexDirection: 'row',
+  alignSelf: 'center',
+  alignItems: 'center',
+  marginTop: spacing.large,
 }

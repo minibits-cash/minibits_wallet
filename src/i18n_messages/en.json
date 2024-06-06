@@ -608,5 +608,8 @@
 	},
 	"wallerScreen": {
 		"mintButton": "Mint"
+	},
+	"mintInfo": {
+		"emptyValueParam": "No %{param} provided."
 	}
 }
