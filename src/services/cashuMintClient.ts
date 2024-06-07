@@ -380,7 +380,7 @@ const payLightningMelt = async function (
         lightningMeltQuote,
         proofsToPayFrom,
         {
-          keysetId: undefined,
+          keysetId: cashuWallet.keys.id,
           counter
         }        
       )
@@ -493,7 +493,7 @@ const mintProofs = async function (
             amount,
             mintQuote,
             {
-              keysetId: undefined,
+              keysetId: cashuWallet.keys.id,
               amountPreference: amountPreferences,
               counter,
               pubkey: undefined                          
