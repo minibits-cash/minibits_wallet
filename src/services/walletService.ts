@@ -356,14 +356,15 @@ const _handleSpentByMintTask = async function (
                 proofsCount: 0,
                 proofsAmount: 0
             } as WalletTaskResult
-        }
+        }       
 
         const {
             spent: spentProofs, 
             pending: pendingProofs
         } = await MintClient.getSpentOrPendingProofsFromMint(
-            mintUrl,            
             proofsFromMint,
+            mintUrl,            
+            mint && mint.units ? mint.units[0] : 'sat'
         )
     
         if(mint) { 
@@ -602,8 +603,9 @@ const _handleInFlightByMintTask = async function (mint: Mint, seed: Uint8Array):
         }        
 
         const {spent, pending} = await MintClient.getSpentOrPendingProofsFromMint(
+            proofs as Proof[],
             mint.mintUrl,            
-            proofs as Proof[]
+            mint.units ? mint.units[0] : 'sat'
         )
 
         const spentCount = spent.length        

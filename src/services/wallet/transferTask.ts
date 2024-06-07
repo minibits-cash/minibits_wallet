@@ -134,7 +134,7 @@ export const transferTask = async function (
 
         // I have no idea yet if this can happen, unpaid call throws, return sent Proofs to the store an track tx as Reverted
         if (!isPaid) {
-            const { amountPendingByMint } = await _moveProofsFromPending(proofsToPay, mintUrl, transactionId)
+            const { amountPendingByMint } = await _moveProofsFromPending(proofsToPay, mintUrl, unit, transactionId)
             // release lock
             mintInstance.resetInFlight(transactionId)
 
@@ -244,7 +244,7 @@ export const transferTask = async function (
                 const { 
                     amountToMove, 
                     amountPendingByMint 
-                } = await _moveProofsFromPending(proofsToPay, mintUrl, transactionId)
+                } = await _moveProofsFromPending(proofsToPay, mintUrl, unit, transactionId)
 
                 // keep tx as pending if proofs were not added because of a mint that keeps them as pending for timed out in-flight payment
                 if(amountPendingByMint > 0) {
@@ -301,6 +301,7 @@ export const transferTask = async function (
 const _moveProofsFromPending = async function (
     proofsToMove: CashuProof[],
     mintUrl: string,
+    unit: MintUnit,
     transactionId: number,    
 ): Promise<{
     amountToMove: number,
@@ -321,8 +322,9 @@ const _moveProofsFromPending = async function (
     // due to the timeout but mint's node keeps the payment as in-flight (e.g. receiving node holds the invoice)
     // In this case we need to keep such proofs as pending and not move them back to wallet as in other payment failures.    
     const {pending: pendingByMint} = await MintClient.getSpentOrPendingProofsFromMint(
-        mintUrl,
         proofsToMove as Proof[],
+        mintUrl,
+        unit,        
     )
 
     let amountPendingByMint: number = 0
