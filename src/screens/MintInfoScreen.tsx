@@ -45,10 +45,7 @@ const iconMap: Partial<Record<keyof GetInfoResponse, IconTypes>> = {
   'contact': 'faAddressCard',
   'motd': 'faPaperPlane'
 }
-const prettyNamesMap: Partial<Record<keyof GetInfoResponse, string>> = {
-  'description': "desc",
-  'description_long': 'full desc'
-}
+const prettyNamesMap: Partial<Record<keyof GetInfoResponse, string>> = {}
 
 function DescriptionCard(props: {info: GetInfoResponse}) {
   const textDim = useThemeColor('textDim')
@@ -75,13 +72,20 @@ function DescriptionCard(props: {info: GetInfoResponse}) {
   />)
 }
 
+function NutsCard() {
+  // TODO implement
+}
+
+/** don't render these because they're rendered in separate components */
+const detailsHiddenKeys = ['name', 'description', 'description_long', 'motd']
+
 /** key-value pairs of details about the mint */
 function MintInfoDetails(props: { info: GetInfoResponse, popupMessage: (msg: string) => void }) {
   const iconColor = useThemeColor('textDim')
   const contactPlatformColor = useThemeColor('textDim')
 
   const items: React.JSX.Element[] = Object.entries(props.info)
-    .filter(([key, value]) => !(['name'].includes(key))) // don't render these
+    .filter(([key, value]) => !(detailsHiddenKeys.includes(key)))
     .map(([key, value], index) => {
       const missingComponent = <Text
         style={{fontStyle: 'italic'}}
@@ -94,7 +98,6 @@ function MintInfoDetails(props: { info: GetInfoResponse, popupMessage: (msg: str
         ? <Text size='xs' text={stringValue} />
         : missingComponent;
       
-      // FIXME doesen't show popup message on consecutive long presses
       const handleLongPress = () => {
         if (stringValue.trim() === '') return;
         Clipboard.setString(stringValue)
@@ -220,9 +223,6 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
 
   const colorScheme = useColorScheme()
   const textDim = useThemeColor('textDim')
-  // TODO migrate to FlatList
-  // mintInfo?.description_long ?? ''
-
   return (
     <Screen style={$screen} preset="scroll">
       {/* <View style={[$headerContainer, { backgroundColor: headerBg }]}> <Text preset="heading" tx="mintInfoHeading" style={{ color: 'white' }} /> </View> */}
@@ -233,24 +233,45 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
         heading={mintInfo?.name ?? translate('mintInfo.loadingNamePlaceholder')}
         text={route.params.mintUrl}>
         {mint?.units ? (
-          <View style={{ flexDirection: 'row' }}>
+          <View style={{flexDirection: 'row'}}>
             {mint.units.map(unit => (
               <CurrencySign
-                textStyle={{ fontSize: 16}}
+                textStyle={{fontSize: 16}}
                 containerStyle={{paddingLeft: 0, marginRight: spacing.small}}
                 key={unit}
                 mintUnit={unit}
               />
             ))}
           </View>
-        ) : <Text style={{ fontStyle: 'italic' }} tx="mintInfo.loadingUnitsPlaceholder" />}
+        ) : (
+          <Text
+            style={{fontStyle: 'italic'}}
+            tx="mintInfo.loadingUnitsPlaceholder"
+          />
+        )}
       </AvatarHeader>
       <View style={$contentContainer}>
+        {mintInfo?.motd && (
+          <Card
+            LeftComponent={
+              <View style={{justifyContent: 'center'}}>
+                <Icon icon="faPaperPlane" color={textDim} size={26} />
+              </View>
+            }
+            headingTx="mintInfo.motd"
+            HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
+            ContentComponent={
+              <Text style={{fontStyle: 'italic'}} text={mintInfo.motd} />
+            }
+          />
+        )}
         {mintInfo && <DescriptionCard info={mintInfo} />}
         <Card
           ContentComponent={
             <>
-              {mintInfo && <MintInfoDetails info={mintInfo} popupMessage={setInfo} />}
+              {mintInfo && (
+                <MintInfoDetails info={mintInfo} popupMessage={setInfo} />
+              )}
               {isLoading && (
                 <Loading
                   style={{backgroundColor: 'transparent'}}
@@ -331,15 +352,15 @@ const $card: ViewStyle = {
   marginBottom: 0,
 }
 
-const $item: ViewStyle = {
-  paddingHorizontal: spacing.small,
-  paddingLeft: 0,
-}
-
 const $rightContainer: ViewStyle = {
   padding: spacing.extraSmall,
   alignSelf: 'center',
   marginLeft: spacing.small,
+}
+
+const $item: ViewStyle = {
+  paddingHorizontal: spacing.small,
+  paddingLeft: 0,
 }
 
 const $buttonContainer: ViewStyle = {

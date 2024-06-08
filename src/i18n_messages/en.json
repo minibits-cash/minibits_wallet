@@ -41,7 +41,6 @@
 		"connectedParam": "Connected: %{param}",
 		"copy": "Copy",
 		"copyFailParam": "Couldn't copy %{param}",
-		"copySuccessParam": "Copied %{param}",
 		"create": "Create",
 		"disabled": "Disabled",
 		"enabled": "Enabled",
@@ -68,7 +67,8 @@
 		"sendAsEcash": "Send as ecash",
 		"share": "Share",
 		"showMore": "Show more",
-		"success": "Success!"
+		"success": "Success!",
+		"copySuccessParam": "Copied %{param}"
 	},
 	"confirmBackupRecovery": "Do you really want to recover ecash from the backup?",
 	"confirmMintRemoval": "Do you really want to remove %{hostname} - %{shortname} from the wallet?",
@@ -614,6 +614,7 @@
 		"emptyValueParam": "No %{param} provided.",
 		"loadingNamePlaceholder": "Loading name...",
 		"loadingUnitsPlaceholder": "Loading units...",
-		"descriptionHeading": "Description"
+		"descriptionHeading": "Description",
+		"motd": "Message of the day"
 	}
 }
