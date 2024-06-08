@@ -33,9 +33,77 @@ import { StackActions } from '@react-navigation/native';
 import { isObj } from '@cashu/cashu-ts/src/utils'
 import { ProfileHeader } from '../components/ProfileHeader'
 import { AvatarHeader } from '../components/AvatarHeader'
+import { CollapsibleText } from '../components/CollapsibleText'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
+}
+
+const iconMap: Partial<Record<keyof GetInfoResponse, IconTypes>> = {
+  'name': 'faTag',
+  'pubkey': 'faKey',
+  'version': 'faInfoCircle',
+  'description': 'faListUl',
+  'description_long': 'faListUl',
+  'contact': 'faAddressCard',
+  'motd': 'faPaperPlane'
+}
+const prettyNamesMap: Partial<Record<keyof GetInfoResponse, string>> = {
+  'description': "desc",
+  'description_long': 'full desc'
+}
+
+function MintInfoDetails(props: { info: GetInfoResponse }) {
+  const iconColor = useThemeColor('textDim')
+  const contactPlatformColor = useThemeColor('textDim')
+  
+  const items: React.JSX.Element[] = Object.entries(props.info)
+    .filter(([key, value]) => !(['name'].includes(key))) // don't render these
+    .map(([key, value], index) => {
+      const missingComponent = <Text
+        style={{fontStyle: 'italic'}}
+        size="xs"
+        text={translate('mintInfo.emptyValueParam', { param: key })}
+      />
+
+      let stringValue = isObj(value) ? JSON.stringify(value) : value.toString()
+      let valueComponent = stringValue.trim() !== ''
+        ? <Text size='xs' text={stringValue} />
+        : missingComponent
+      
+      if (key === 'contact') {
+        let contacts = (value as [string, string][]).filter(([k, v]) => k.trim() !== '')
+        valueComponent = (contacts.length === 0) ? missingComponent : (
+          <>
+            {contacts.map(([platform, user]) => (
+                <View style={$contactListItem}>
+                  <Text
+                    size="xs"
+                    text={`${platform}:`}
+                    style={{ color: contactPlatformColor }}
+                  />
+                  <Text size="xs" text={user} />
+                </View>
+              ))}
+          </>
+        )
+      }
+        
+      return <ListItem
+        LeftComponent={key in iconMap ? <Icon icon={iconMap[key]} color={iconColor}/> : void 0}
+        text={prettyNamesMap?.[key] ?? key}
+        textStyle={$sizeStyles.xs}
+        RightComponent={
+          <View style={{ width: spacing.screenWidth * 0.6 }}>
+            {valueComponent}
+          </View>
+        }
+        topSeparator={index === 0 ? false : true}
+        key={key}
+        style={$listItem}
+      />
+    })
+  return <>{items}</>
 }
 
 export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer(function MintInfoScreen(_props) {
@@ -118,23 +186,6 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
   }
 
   const colorScheme = useColorScheme()
-  const headerBg = useThemeColor('header')
-  const iconColor = useThemeColor('textDim')
-  const contactPlatformColor = useThemeColor('textDim')
-
-  const iconMap: Partial<Record<keyof GetInfoResponse, IconTypes>> = {
-    'name': 'faTag',
-    'pubkey': 'faKey',
-    'version': 'faInfoCircle',
-    'description': 'faListUl',
-    'description_long': 'faListUl',
-    'contact': 'faAddressCard',
-    'motd': 'faPaperPlane'
-  }
-  const prettyNamesMap: Partial<Record<keyof GetInfoResponse, string>> = {
-    'description': "Desc",
-    'description_long': 'Full desc'
-  }
 
   // TODO fix bottom separators
   // TODO better approach for rendering list items rather than overrides like now
@@ -143,96 +194,77 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
   return (
     <Screen style={$screen} preset="scroll">
       {/* <View style={[$headerContainer, { backgroundColor: headerBg }]}> <Text preset="heading" tx="mintInfoHeading" style={{ color: 'white' }} /> </View> */}
-      <AvatarHeader 
-        fallbackIcon='faBank'
-        pictureHeight={60}
-        heading={mintInfo?.name ?? 'Loading...'}
+      <AvatarHeader
+        fallbackIcon="faBank"
+        heading={mintInfo?.name ?? translate('mintInfo.loadingNamePlaceholder')}
         text={route.params.mintUrl}
+        headerHeightModifier={0.24}
       />
       <View style={$contentContainer}>
-        <>
-          <Card
-            ContentComponent={
-              <>
-                {mintInfo && (
-                  Object.entries(mintInfo).map(([key, value], index) => {
-                    if (['name'].includes(key)) return;
-
-                    let stringValue = isObj(value) ? JSON.stringify(value) : value.toString()
-                    const missingValue = translate("mintInfo.emptyValueParam", { param: key })
-                    
-                    let valueComponent = stringValue.trim() !== ''
-                      ? <Text size='xs' text={stringValue} />
-                      : <Text style={{ fontStyle: 'italic' }} size='xs' text={missingValue} />
-                    
-                    if (key === 'contact') {
-                      valueComponent = <>
-                        {(value as [string, string][]).map(([platform, user]) => <View style={$contactListItem}>
-                          <Text size='xs' text={`${platform}:`} style={{ color: contactPlatformColor, }} />
-                          <Text size='xs' text={user} />
-                        </View>)}
-                      </>
-                    }
-                      
-                    return <ListItem
-                      LeftComponent={key in iconMap ? <Icon icon={iconMap[key]} color={iconColor}/> : void 0}
-                      text={prettyNamesMap?.[key] ?? key}
-                      textStyle={$sizeStyles.xs}
-                      RightComponent={
-                        <View style={{ width: spacing.screenWidth * 0.6 }}>
-                          {valueComponent}
-                        </View>
-                      }
-                      topSeparator={index === 0 ? false : true}
-                      key={key}
-                      style={$listItem}
-                    />
-                  })
-                )}
-                {isLoading && <Loading style={{ backgroundColor: 'transparent' }} statusMessage={translate("loadingPublicInfo")} />}
-              </>
-            }
-            style={$card}
-          />
-          <Card
-            style={[$card, { marginTop: spacing.small }]}
-            ContentComponent={
-              <>
-                <ListItem
-                  tx="onDeviceInfo"
-                  RightComponent={<View style={$rightContainer}>
+        <Card
+          style={$card}
+          ContentComponent={
+            mintInfo && mintInfo.description ? (
+              <CollapsibleText
+                text={mintInfo?.description_long ?? mintInfo.description}
+                summary={mintInfo.description}
+              />
+            ) : (
+              <Text text="No description available" />
+            )
+          }
+        />
+        <Card
+          ContentComponent={
+            <>
+              {mintInfo && <MintInfoDetails info={mintInfo} />}
+              {isLoading && (
+                <Loading
+                  style={{backgroundColor: 'transparent'}}
+                  statusMessage={translate('loadingPublicInfo')}
+                />
+              )}
+            </>
+          }
+          style={$card}
+        />
+        <Card
+          style={$card}
+          ContentComponent={
+            <>
+              <ListItem
+                tx="onDeviceInfo"
+                RightComponent={
+                  <View style={$rightContainer}>
                     <Button
                       onPress={toggleLocalInfo}
                       text={isLocalInfoVisible ? 'Hide' : 'Show'}
-                      preset='secondary'
+                      preset="secondary"
                     />
                   </View>
-                  }
+                }
+              />
+              {isLocalInfoVisible && (
+                <JSONTree
+                  hideRoot
+                  data={getSnapshot( mintsStore.findByUrl(route.params?.mintUrl) as Mint, )}
+                  theme={{
+                    scheme: 'default',
+                    base00: '#eee',
+                  }}
+                  invertTheme={colorScheme === 'light' ? false : true}
                 />
-                {isLocalInfoVisible && (
-                  <JSONTree
-                    hideRoot
-                    data={getSnapshot(mintsStore.findByUrl(route.params?.mintUrl) as Mint)}
-                    theme={{
-                      scheme: 'default',
-                      base00: '#eee',
-                    }}
-                    invertTheme={colorScheme === 'light' ? false : true}
-                  />
-                )}
-              </>
-            }
-          />
-        </>
-
-
-
+              )}
+            </>
+          }
+        />
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
       </View>
     </Screen>
   )
 })
+
 
 const $screen: ViewStyle = {
   flex: 1,
@@ -256,6 +288,8 @@ const $headerContainer: TextStyle = {
 }
 
 const $contentContainer: TextStyle = {
+  display: 'flex',
+  rowGap: spacing.small,
   flex: 1,
   padding: spacing.extraSmall,
   // alignItems: 'center',

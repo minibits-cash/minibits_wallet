@@ -610,6 +610,7 @@
 		"mintButton": "Mint"
 	},
 	"mintInfo": {
-		"emptyValueParam": "No %{param} provided."
+		"emptyValueParam": "No %{param} provided.",
+		"loadingNamePlaceholder": "Loading name..."
 	}
 }
