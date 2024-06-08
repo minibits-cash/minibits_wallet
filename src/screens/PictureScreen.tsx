@@ -8,7 +8,7 @@ import {useHeader} from '../utils/useHeader'
 import {ContactsStackScreenProps} from '../navigation'
 import { MinibitsClient} from '../services'
 import AppError from '../utils/AppError'
-import { ProfileHeader } from './Contacts/ProfileHeader'
+import { ProfileHeader } from '../components/ProfileHeader'
 import { scale } from '@gocodingnow/rn-size-matters'
 import { getImageSource } from '../utils/utils'
 

@@ -31,6 +31,8 @@ import useColorScheme from '../theme/useThemeColor'
 import { CommonActions } from '@react-navigation/native'
 import { StackActions } from '@react-navigation/native';
 import { isObj } from '@cashu/cashu-ts/src/utils'
+import { ProfileHeader } from '../components/ProfileHeader'
+import { AvatarHeader } from '../components/AvatarHeader'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
@@ -134,15 +136,19 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
     'description_long': 'Full desc'
   }
 
+  // TODO fix bottom separators
+  // TODO better approach for rendering list items rather than overrides like now
+  // TODO circle around icon in AvatarHeader
+
   return (
     <Screen style={$screen} preset="scroll">
-      <View style={[$headerContainer, { backgroundColor: headerBg }]}>
-        <Text
-          preset="heading"
-          tx="mintInfoHeading"
-          style={{ color: 'white' }}
-        />
-      </View>
+      {/* <View style={[$headerContainer, { backgroundColor: headerBg }]}> <Text preset="heading" tx="mintInfoHeading" style={{ color: 'white' }} /> </View> */}
+      <AvatarHeader 
+        fallbackIcon='faBank'
+        pictureHeight={60}
+        heading={mintInfo?.name ?? 'Loading...'}
+        text={route.params.mintUrl}
+      />
       <View style={$contentContainer}>
         <>
           <Card
@@ -150,6 +156,8 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
               <>
                 {mintInfo && (
                   Object.entries(mintInfo).map(([key, value], index) => {
+                    if (['name'].includes(key)) return;
+
                     let stringValue = isObj(value) ? JSON.stringify(value) : value.toString()
                     const missingValue = translate("mintInfo.emptyValueParam", { param: key })
                     
