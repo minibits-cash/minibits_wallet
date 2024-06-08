@@ -34,6 +34,7 @@ import { isObj } from '@cashu/cashu-ts/src/utils'
 import { ProfileHeader } from '../components/ProfileHeader'
 import { AvatarHeader } from '../components/AvatarHeader'
 import { CollapsibleText } from '../components/CollapsibleText'
+import { CurrencySign } from './Wallet/CurrencySign'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
@@ -43,8 +44,6 @@ const iconMap: Partial<Record<keyof GetInfoResponse, IconTypes>> = {
   'name': 'faTag',
   'pubkey': 'faKey',
   'version': 'faInfoCircle',
-  'description': 'faListUl',
-  'description_long': 'faListUl',
   'contact': 'faAddressCard',
   'motd': 'faPaperPlane'
 }
@@ -56,7 +55,7 @@ const prettyNamesMap: Partial<Record<keyof GetInfoResponse, string>> = {
 function MintInfoDetails(props: { info: GetInfoResponse }) {
   const iconColor = useThemeColor('textDim')
   const contactPlatformColor = useThemeColor('textDim')
-  
+
   const items: React.JSX.Element[] = Object.entries(props.info)
     .filter(([key, value]) => !(['name'].includes(key))) // don't render these
     .map(([key, value], index) => {
@@ -88,10 +87,14 @@ function MintInfoDetails(props: { info: GetInfoResponse }) {
           </>
         )
       }
-        
-      return <ListItem
-        LeftComponent={key in iconMap ? <Icon icon={iconMap[key]} color={iconColor}/> : void 0}
-        text={prettyNamesMap?.[key] ?? key}
+      // @ts-ignore no-implicit-any
+      const leftComponent = key in iconMap ? <Icon icon={iconMap[key]} color={iconColor}/> : void 0
+      // @ts-ignore no-implicit-any
+      const itemText = prettyNamesMap?.[key] ?? key
+
+      return <ListItem 
+        LeftComponent={leftComponent}
+        text={itemText}
         textStyle={$sizeStyles.xs}
         RightComponent={
           <View style={{ width: spacing.screenWidth * 0.6 }}>
@@ -136,6 +139,7 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
 
   const [isLoading, setIsLoading] = useState(false)
   const [mintInfo, setMintInfo] = useState<GetInfoResponse | undefined>()
+  const [mint, setMint] = useState<Mint>()
   const [isLocalInfoVisible, setIsLocalInfoVisible] = useState<boolean>(false)
   
   const [error, setError] = useState<AppError | undefined>()
@@ -157,6 +161,7 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
           const info: GetInfoResponse = await MintClient.getMintInfo(mint.mintUrl)
           mint.setStatus(MintStatus.ONLINE)
           setMintInfo(info)
+          setMint(mint)
         } else {
           throw new AppError(Err.VALIDATION_ERROR, 'Could not find mint', { mintUrl: route.params.mintUrl })
         }
@@ -186,31 +191,48 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
   }
 
   const colorScheme = useColorScheme()
-
-  // TODO fix bottom separators
-  // TODO better approach for rendering list items rather than overrides like now
-  // TODO circle around icon in AvatarHeader
+  // TODO migrate to FlatList
+  // mintInfo?.description_long ?? ''
 
   return (
     <Screen style={$screen} preset="scroll">
       {/* <View style={[$headerContainer, { backgroundColor: headerBg }]}> <Text preset="heading" tx="mintInfoHeading" style={{ color: 'white' }} /> </View> */}
       <AvatarHeader
+        encircle={true}
         fallbackIcon="faBank"
+        headerHeightModifier={0.26}
         heading={mintInfo?.name ?? translate('mintInfo.loadingNamePlaceholder')}
-        text={route.params.mintUrl}
-        headerHeightModifier={0.24}
-      />
+        text={route.params.mintUrl}>
+        {mint?.units ? (
+          <View style={{ flexDirection: 'row' }}>
+            {mint.units.map(unit => (
+              <CurrencySign
+                containerStyle={{paddingLeft: 0, marginRight: spacing.small}}
+                key={unit}
+                mintUnit={unit}
+              />
+            ))}
+          </View>
+        ) : <Text style={{ fontStyle: 'italic' }} tx="mintInfo.loadingUnitsPlaceholder" />}
+      </AvatarHeader>
       <View style={$contentContainer}>
         <Card
+          headingTx="mintInfo.descriptionHeading"
           style={$card}
           ContentComponent={
             mintInfo && mintInfo.description ? (
               <CollapsibleText
-                text={mintInfo?.description_long ?? mintInfo.description}
+                collapsed={true}
                 summary={mintInfo.description}
+                text={mintInfo?.description_long ?? ''}
               />
             ) : (
-              <Text text="No description available" />
+              <Text
+                style={{fontStyle: 'italic'}}
+                text={translate('mintInfo.emptyValueParam', {
+                  param: translate("mintInfo.descriptionHeading"),
+                })}
+              />
             )
           }
         />
@@ -247,7 +269,9 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
               {isLocalInfoVisible && (
                 <JSONTree
                   hideRoot
-                  data={getSnapshot( mintsStore.findByUrl(route.params?.mintUrl) as Mint, )}
+                  data={getSnapshot(
+                    mintsStore.findByUrl(route.params?.mintUrl) as Mint,
+                  )}
                   theme={{
                     scheme: 'default',
                     base00: '#eee',
@@ -271,12 +295,10 @@ const $screen: ViewStyle = {
 }
 
 const $listItem: ViewStyle = {
-  display: 'flex',
   columnGap: spacing.micro,
   alignItems: 'center',
 }
 const $contactListItem: ViewStyle = { 
-  display: 'flex', 
   flexDirection: 'row',
   columnGap: spacing.tiny
 }
@@ -288,7 +310,6 @@ const $headerContainer: TextStyle = {
 }
 
 const $contentContainer: TextStyle = {
-  display: 'flex',
   rowGap: spacing.small,
   flex: 1,
   padding: spacing.extraSmall,

@@ -18,6 +18,7 @@ export interface ProfileHeaderProps {
   fallbackIcon?: keyof typeof iconRegistry
   headerBgColor?: string
   encircle?: boolean
+  children?: React.ReactNode
 }
 
 export const AvatarHeader = observer(function (props: ProfileHeaderProps) {
@@ -26,41 +27,47 @@ export const AvatarHeader = observer(function (props: ProfileHeaderProps) {
 
   return (
     <View style={[$headerContainer(props.headerHeightModifier ?? 0.2), { backgroundColor: props.headerBgColor || headerBg }]}>
-      {props.picture ? (
-        <Image
-          style={{
-            width: 90,
-            height: props.pictureHeight ?? 96,
-            borderRadius: 100,
-          }}
-          source={{ uri: getImageSource(props.picture) }}
-        />
-      ) : (
-        <View style={(props?.encircle ?? true) ? $encircledIcon(textDim) : {}}>
-          <Icon
-            icon={props?.fallbackIcon ?? 'faCircleUser'}
-            size={props?.pictureHeight ?? 48}
-            color='white'
+      <View style={{ marginBottom: spacing.small }}>
+        {props.picture ? (
+          <Image
+            style={{
+              width: 90,
+              height: props.pictureHeight ?? 96,
+              borderRadius: 100,
+            }}
+            source={{ uri: getImageSource(props.picture) }}
           />
-        </View> 
-      )}
+        ) : (
+          <View style={props?.encircle ? $encircledIcon(textDim, props?.pictureHeight) : {}}>
+            <Icon
+              icon={props?.fallbackIcon ?? 'faCircleUser'}
+              size={props?.encircle ? 35 : (props?.pictureHeight ?? 80)}
+              color='white'
+            />
+          </View> 
+        )}
+      </View>
       {props.heading && <Text style={{ fontSize: 26, lineHeight: 40 }} text={props.heading} adjustsFontSizeToFit={true} numberOfLines={1} />}
       {props.text && <Text preset='bold' text={props.text} style={{ color: 'white', marginBottom: spacing.small }} />}
+      {props.children}
     </View>
   )
 })
 
 
 const $headerContainer = (heightModifier: number) => ({
-  justifyContent: 'space-between',
   alignItems: 'center',
   paddingHorizontal: spacing.medium,
   height: spacing.screenHeight * heightModifier,
 } satisfies TextStyle)
 
-const $encircledIcon = (borderColor: ColorValue) => ({
+const $encircledIcon = (borderColor: ColorValue, size: number = 80) => ({
+  alignItems: 'center',
+  justifyContent: 'center',
   padding: spacing.small,
   borderWidth: 2,
   borderColor: borderColor,
-  borderRadius: 100
-})
+  borderRadius: 100,
+  width: 90,
+  height: 90
+} as ViewStyle)

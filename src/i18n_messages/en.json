@@ -611,6 +611,8 @@
 	},
 	"mintInfo": {
 		"emptyValueParam": "No %{param} provided.",
-		"loadingNamePlaceholder": "Loading name..."
+		"loadingNamePlaceholder": "Loading name...",
+		"loadingUnitsPlaceholder": "Loading units...",
+		"descriptionHeading": "Description"
 	}
 }
