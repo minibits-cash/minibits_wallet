@@ -110,7 +110,7 @@ export function BottomModal(props: ModalProps) {
     isVisible = true,    
     onBackdropPress,
     onBackButtonPress,
-    backdropOpacity = 0.1,   
+    backdropOpacity = 0.45,   
     content,
     contentTx,
     contentTxOptions,
@@ -228,7 +228,7 @@ const $innerContainerBase: ViewStyle = {
     alignItems: 'center',
     borderTopLeftRadius: spacing.small,
     borderTopRightRadius: spacing.small,
-    padding: spacing.small,
+    padding: spacing.small
 }
 
 
