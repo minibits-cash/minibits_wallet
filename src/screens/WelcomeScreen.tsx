@@ -27,7 +27,7 @@ import {
   Screen,
   Text,
 } from '../components'
-import {TxKeyPath} from '../i18n'
+import {TxKeyPath, translate} from '../i18n'
 import AppError from '../utils/AppError'
 import { MintClient } from '../services'
 7

@@ -261,8 +261,9 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                 recoveredMint.increaseProofsCounter(selectedKeyset.id as string, Math.abs(endIndex - startIndex))
                 
                 const {spent, pending} = await MintClient.getSpentOrPendingProofsFromMint(
+                    proofs as Proof[],
                     recoveredMint.mintUrl,
-                    proofs as Proof[]
+                    selectedKeyset.unit as MintUnit,
                 )
 
                 log.debug('[restore]', `Spent and pending proofs`, {spent: spent.length, pending: pending.length})

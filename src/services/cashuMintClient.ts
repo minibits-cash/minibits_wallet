@@ -160,12 +160,17 @@ const getWallet = async function (
       mnemonicOrSeed: undefined
     })
 
-    await newWallet.getKeys(undefined, unit)
+    try {
 
-    _wallets.push(newWallet)
-    
-    log.trace('[getWallet]', 'Returning new cashuWallet instance')
-    return newWallet
+      await newWallet.getKeys(undefined, unit)
+
+      _wallets.push(newWallet)
+      
+      log.trace('[getWallet]', 'Returning new cashuWallet instance')
+      return newWallet
+    } catch (e: any) {
+      throw new AppError(Err.NETWORK_ERROR, 'Could not get keys from the mint', {message: e.message, caller: 'getWallet'})
+    }
 }
 
 
@@ -204,6 +209,7 @@ const receiveFromMint = async function (
 
     // this method returns quite a mess, we normalize naming of returned parameters
     const {token, tokensWithErrors, errors} = await cashuWallet.receive(decodedToken, {
+      keysetId: cashuWallet.keys.id,
       preference: amountPreferences,
       counter,
       pubkey: undefined,
@@ -243,6 +249,7 @@ const sendFromMint = async function (
       amountToSend,
       proofsToSendFrom,
       {
+        keysetId: cashuWallet.keys.id,
         preference: amountPreferences,
         counter,
         pubkey: undefined,
@@ -297,13 +304,13 @@ const sendFromMint = async function (
 
 
 const getSpentOrPendingProofsFromMint = async function (
-  mintUrl: string,
-  // unit: MintUnit,
   proofs: Proof[],
+  mintUrl: string,
+  unit: MintUnit,  
 ) {
   try {
-    // use default unit as check does not need it
-    const cashuWallet = await getWallet(mintUrl, 'sat', {withSeed: true}) 
+    
+    const cashuWallet = await getWallet(mintUrl, unit, {withSeed: true}) 
 
     const spentPendingProofs = await cashuWallet.checkProofsSpent(proofs)
 
@@ -375,7 +382,7 @@ const payLightningMelt = async function (
         lightningMeltQuote,
         proofsToPayFrom,
         {
-          keysetId: undefined,
+          keysetId: cashuWallet.keys.id,
           counter
         }        
       )
@@ -488,7 +495,7 @@ const mintProofs = async function (
             amount,
             mintQuote,
             {
-              keysetId: undefined,
+              keysetId: cashuWallet.keys.id,
               amountPreference: amountPreferences,
               counter,
               pubkey: undefined                          

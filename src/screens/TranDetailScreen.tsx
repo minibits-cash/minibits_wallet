@@ -54,6 +54,7 @@ import { pollerExists } from '../utils/poller'
 import { StackActions, useFocusEffect } from '@react-navigation/native'
 import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import { toNumber } from '../utils/number'
+import { QRCodeBlock } from './Wallet/QRCode'
 
 type ProofsByStatus = {
   isSpent: Proof[]
@@ -555,7 +556,7 @@ const ReceiveInfoBlock = function (props: {
                         label="tranDetailScreen.type"
                         value={transaction.type as string}
                     />
-                    {encodedTokenToRetry && isInternetReachable ? (
+                    {encodedTokenToRetry ? (
                         <View
                         style={{flexDirection: 'row', justifyContent: 'space-between'}}>
                         <TranItem
@@ -1250,35 +1251,18 @@ const TopupInfoBlock = function (props: {
                     label="tranDetailScreen.topupTo"
                     value={transaction.mint as string}
                 />
-                {transaction.status === TransactionStatus.PENDING && paymentRequest && (
-                    <>
-                      <Text style={{ color: labelColor, marginTop: spacing.medium }} tx="tranDetailScreen.invoiceToPay" />
-                      <View style={$qrCodeContainer}>
-                          <QRCode size={270} value={paymentRequest.encodedInvoice} />
-                      </View>
-                    </>
-                )}
                 </>
-            }
-            FooterComponent={
-                <>
-                {transaction.status === TransactionStatus.PENDING && paymentRequest && (
-                <Button
-                    preset="tertiary"
-                    onPress={() => copyInvoice()}
-                    tx='common.copy'
-                    style={{
-                        minHeight: 25,
-                        paddingVertical: spacing.extraSmall,
-                        marginTop: spacing.small,
-                        alignSelf: 'center',
-                    }}
-                    textStyle={{fontSize: 14}}
-                />
-                )}
-                </>
-            }
+            }            
         />
+        {transaction.status === TransactionStatus.PENDING && paymentRequest && (
+            <View style={{marginBottom: spacing.small}}>
+              <QRCodeBlock 
+                qrCodeData={paymentRequest.encodedInvoice}
+                title={translate("tranDetailScreen.invoice")}
+                size={spacing.screenWidth * 0.8}
+              />
+            </View>
+        )}
         {isDataParsable && (
             <>
                 <Card

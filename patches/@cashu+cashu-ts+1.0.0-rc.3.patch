@@ -63,7 +63,7 @@ index 1491934..7852bd1 100644
  	 * Requests the mint to perform token minting after the LN invoice has been paid
  	 * @param mintUrl
 diff --git a/node_modules/@cashu/cashu-ts/src/CashuWallet.ts b/node_modules/@cashu/cashu-ts/src/CashuWallet.ts
-index 6d3a0b4..02ddb59 100644
+index 6d3a0b4..e4cd79b 100644
 --- a/node_modules/@cashu/cashu-ts/src/CashuWallet.ts
 +++ b/node_modules/@cashu/cashu-ts/src/CashuWallet.ts
 @@ -1,7 +1,7 @@
@@ -96,7 +96,15 @@ index 6d3a0b4..02ddb59 100644
  import { validateMnemonic } from '@scure/bip39';
  import { wordlist } from '@scure/bip39/wordlists/english';
  import { createP2PKsecret, getSignedProofs } from '@cashu/crypto/modules/client/NUT11';
-@@ -113,6 +113,7 @@ class CashuWallet {
+@@ -106,6 +106,7 @@ class CashuWallet {
+ 	async receive(
+ 		token: string | Token,
+ 		options?: {
++			keysetId?: string;
+ 			preference?: Array<AmountPreference>;
+ 			counter?: number;
+ 			pubkey?: string;
+@@ -113,6 +114,7 @@ class CashuWallet {
  		}
  	): Promise<ReceiveResponse> {
  		let decodedToken: Array<TokenEntry>;
@@ -104,12 +112,13 @@ index 6d3a0b4..02ddb59 100644
  		if (typeof token === 'string') {
  			decodedToken = cleanToken(getDecodedToken(token)).token;
  		} else {
-@@ -125,25 +126,26 @@ class CashuWallet {
+@@ -125,25 +127,27 @@ class CashuWallet {
  				continue;
  			}
  			try {
 -				const { proofs, proofsWithError } = await this.receiveTokenEntry(tokenEntry, {
 +				const { proofs, proofsWithError, error } = await this.receiveTokenEntry(tokenEntry, {
++					keysetId: options?.keysetId,
  					preference: options?.preference,
  					counter: options?.counter,
  					pubkey: options?.pubkey,
@@ -136,7 +145,15 @@ index 6d3a0b4..02ddb59 100644
  		};
  	}
  
-@@ -167,6 +169,7 @@ class CashuWallet {
+@@ -159,6 +163,7 @@ class CashuWallet {
+ 	async receiveTokenEntry(
+ 		tokenEntry: TokenEntry,
+ 		options?: {
++			keysetId?: string;
+ 			preference?: Array<AmountPreference>;
+ 			counter?: number;
+ 			pubkey?: string;
+@@ -167,13 +172,14 @@ class CashuWallet {
  	): Promise<ReceiveTokenEntryResponse> {
  		const proofsWithError: Array<Proof> = [];
  		const proofs: Array<Proof> = [];
@@ -144,7 +161,15 @@ index 6d3a0b4..02ddb59 100644
  		try {
  			const amount = tokenEntry.proofs.reduce((total, curr) => total + curr.amount, 0);
  			let preference = options?.preference;
-@@ -192,12 +195,13 @@ class CashuWallet {
+ 			if (!preference) {
+ 				preference = getDefaultAmountPreference(amount);
+ 			}
+-			const keys = await this.getKeys();
++			const keys = await this.getKeys(options?.keysetId);
+ 			const { payload, blindedMessages } = this.createSplitPayload(
+ 				amount,
+ 				tokenEntry.proofs,
+@@ -192,12 +198,13 @@ class CashuWallet {
  			);
  			proofs.push(...newProofs);
  		} catch (error) {
@@ -160,7 +185,24 @@ index 6d3a0b4..02ddb59 100644
  		};
  	}
  
-@@ -317,7 +321,7 @@ class CashuWallet {
+@@ -217,6 +224,7 @@ class CashuWallet {
+ 		amount: number,
+ 		proofs: Array<Proof>,
+ 		options?: {
++			keysetId?: string;
+ 			preference?: Array<AmountPreference>;
+ 			counter?: number;
+ 			pubkey?: string;
+@@ -226,7 +234,7 @@ class CashuWallet {
+ 		if (options?.preference) {
+ 			amount = options?.preference?.reduce((acc, curr) => acc + curr.amount * curr.count, 0);
+ 		}
+-		const keyset = await this.getKeys();
++		const keyset = await this.getKeys(options?.keysetId);
+ 		let amountAvailable = 0;
+ 		const proofsToSend: Array<Proof> = [];
+ 		const proofsToKeep: Array<Proof> = [];
+@@ -317,7 +325,7 @@ class CashuWallet {
  	/**
  	 * Initialize the wallet with the mints public keys
  	 */
@@ -169,7 +211,7 @@ index 6d3a0b4..02ddb59 100644
  		if (!this._keys || this._keys.id !== keysetId) {
  			const allKeys = await this.mint.getKeys(keysetId);
  			let keys;
-@@ -564,7 +568,7 @@ class CashuWallet {
+@@ -564,7 +572,7 @@ class CashuWallet {
  	 * @param proofs (only the 'Y' field is required)
  	 * @returns
  	 */
@@ -178,7 +220,7 @@ index 6d3a0b4..02ddb59 100644
  		const enc = new TextEncoder();
  		const Ys = proofs.map((p) => dhke.hashToCurve(enc.encode(p.secret)).toHex(true));
  		const payload = {
-@@ -573,10 +577,17 @@ class CashuWallet {
+@@ -573,11 +581,20 @@ class CashuWallet {
  		};
  		const { states } = await this.mint.check(payload);
  
@@ -195,8 +237,11 @@ index 6d3a0b4..02ddb59 100644
 +
 +		return {spent, pending}
  	}
++
++	
  	private splitReceive(
  		amount: number,
+ 		amountAvailable: number
 diff --git a/node_modules/@cashu/cashu-ts/src/DHKE.ts b/node_modules/@cashu/cashu-ts/src/DHKE.ts
 index da1dfe6..99f60a2 100644
 --- a/node_modules/@cashu/cashu-ts/src/DHKE.ts
@@ -302,6 +347,25 @@ index 95f7d4e..03effa7 100644
  	/**
  	 * a message to send along with the token
  	 */
+diff --git a/node_modules/@cashu/cashu-ts/src/request.ts b/node_modules/@cashu/cashu-ts/src/request.ts
+index d74630a..dab9bf7 100644
+--- a/node_modules/@cashu/cashu-ts/src/request.ts
++++ b/node_modules/@cashu/cashu-ts/src/request.ts
+@@ -1,3 +1,4 @@
++import { isObj } from './utils';
+ import { HttpResponseError } from './model/Errors';
+ 
+ type RequestArgs = {
+@@ -37,7 +38,8 @@ async function _request({
+ 		// expecting: { error: '', code: 0 }
+ 		// or: { detail: '' } (cashuBtc via pythonApi)
+ 		const { error, detail } = await response.json().catch(() => ({ error: 'bad response' }));
+-		throw new HttpResponseError(error || detail || 'bad response', response.status);
++				
++		throw new HttpResponseError(isObj(error) ? JSON.stringify(error) : error  || detail || 'bad response', response.status);
+ 	}
+ 
+ 	try {
 diff --git a/node_modules/@cashu/cashu-ts/src/utils.ts b/node_modules/@cashu/cashu-ts/src/utils.ts
 index 1729b99..5614b37 100644
 --- a/node_modules/@cashu/cashu-ts/src/utils.ts
