@@ -41,6 +41,7 @@
 		"connectedParam": "Connected: %{param}",
 		"copy": "Copy",
 		"copyFailParam": "Couldn't copy %{param}",
+		"copySuccessParam": "Copied %{param}",
 		"create": "Create",
 		"disabled": "Disabled",
 		"enabled": "Enabled",

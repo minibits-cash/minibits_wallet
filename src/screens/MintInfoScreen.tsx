@@ -1,40 +1,38 @@
-import { observer } from 'mobx-react-lite'
 import React, { FC, useEffect, useState } from 'react'
+import { GetInfoResponse } from '@cashu/cashu-ts'
+import { isObj } from '@cashu/cashu-ts/src/utils'
+import Clipboard from '@react-native-clipboard/clipboard'
+import { observer } from 'mobx-react-lite'
+import { getSnapshot } from 'mobx-state-tree'
 import { LayoutAnimation, Platform, TextStyle, UIManager, View, ViewStyle } from 'react-native'
-import { colors, spacing, useThemeColor } from '../theme'
-import { SettingsStackScreenProps } from '../navigation'
+import JSONTree from 'react-native-json-tree'
 import {
-  Icon,
-  ListItem,
-  Screen,
-  Text,
-  Card,
-  Loading,
-  ErrorModal,
-  InfoModal,
+  $sizeStyles,
   BottomModal,
   Button,
+  Card,
+  ErrorModal,
+  Icon,
   IconTypes,
-  $sizeStyles,
+  InfoModal,
+  ListItem,
+  Loading,
+  Screen,
+  Text,
 } from '../components'
-import { useHeader } from '../utils/useHeader'
-import { useStores } from '../models'
-import { translate } from '../i18n'
-import AppError, { Err } from '../utils/AppError'
-import { log, MintClient } from '../services'
-import { GetInfoResponse } from '@cashu/cashu-ts'
-import { delay } from '../utils/utils'
-import JSONTree from 'react-native-json-tree'
-import { getSnapshot } from 'mobx-state-tree'
-import { Mint, MintStatus } from '../models/Mint'
-import useColorScheme from '../theme/useThemeColor'
-import { CommonActions } from '@react-navigation/native'
-import { StackActions } from '@react-navigation/native';
-import { isObj } from '@cashu/cashu-ts/src/utils'
-import { ProfileHeader } from '../components/ProfileHeader'
 import { AvatarHeader } from '../components/AvatarHeader'
 import { CollapsibleText } from '../components/CollapsibleText'
+import { translate } from '../i18n'
+import { useStores } from '../models'
+import { Mint, MintStatus } from '../models/Mint'
+import { SettingsStackScreenProps } from '../navigation'
+import { MintClient, log } from '../services'
+import { colors, spacing, useThemeColor } from '../theme'
+import useColorScheme from '../theme/useThemeColor'
+import AppError, { Err } from '../utils/AppError'
+import { useHeader } from '../utils/useHeader'
 import { CurrencySign } from './Wallet/CurrencySign'
+
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
@@ -52,7 +50,33 @@ const prettyNamesMap: Partial<Record<keyof GetInfoResponse, string>> = {
   'description_long': 'full desc'
 }
 
-function MintInfoDetails(props: { info: GetInfoResponse }) {
+function DescriptionCard(props: {info: GetInfoResponse}) {
+  const textDim = useThemeColor('textDim')
+  return (<Card
+    headingTx="mintInfo.descriptionHeading"
+    HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim }]}}
+    style={$card}
+    ContentComponent={
+      props.info && props.info.description ? (
+        <CollapsibleText
+          collapsed={true}
+          summary={props.info.description}
+          text={props.info?.description_long ?? ''}
+        />
+      ) : (
+        <Text
+          style={{fontStyle: 'italic'}}
+          text={translate('mintInfo.emptyValueParam', {
+            param: translate('mintInfo.descriptionHeading'),
+          })}
+        />
+      )
+    }
+  />)
+}
+
+/** key-value pairs of details about the mint */
+function MintInfoDetails(props: { info: GetInfoResponse, popupMessage: (msg: string) => void }) {
   const iconColor = useThemeColor('textDim')
   const contactPlatformColor = useThemeColor('textDim')
 
@@ -64,29 +88,36 @@ function MintInfoDetails(props: { info: GetInfoResponse }) {
         size="xs"
         text={translate('mintInfo.emptyValueParam', { param: key })}
       />
-
+      
       let stringValue = isObj(value) ? JSON.stringify(value) : value.toString()
       let valueComponent = stringValue.trim() !== ''
         ? <Text size='xs' text={stringValue} />
-        : missingComponent
+        : missingComponent;
+      
+      // FIXME doesen't show popup message on consecutive long presses
+      const handleLongPress = () => {
+        if (stringValue.trim() === '') return;
+        Clipboard.setString(stringValue)
+        props.popupMessage(translate('common.copySuccessParam', { param: stringValue }))
+      }
       
       if (key === 'contact') {
-        let contacts = (value as [string, string][]).filter(([k, v]) => k.trim() !== '')
-        valueComponent = (contacts.length === 0) ? missingComponent : (
-          <>
-            {contacts.map(([platform, user]) => (
-                <View style={$contactListItem}>
-                  <Text
-                    size="xs"
-                    text={`${platform}:`}
-                    style={{ color: contactPlatformColor }}
-                  />
-                  <Text size="xs" text={user} />
-                </View>
-              ))}
-          </>
-        )
+        let contacts = (value as [string, string][])
+          .filter(([k, v]) => k.trim() !== '') // filter out empty contacts
+        valueComponent = (contacts.length === 0) ? missingComponent : (<>
+          {contacts.map(([platform, user]) => (
+              <View style={$contactListItem}>
+                <Text
+                  size="xs"
+                  text={`${platform}:`}
+                  style={{ color: contactPlatformColor }}
+                />
+                <Text size="xs" text={user} />
+              </View>
+            ))}
+        </>)
       }
+
       // @ts-ignore no-implicit-any
       const leftComponent = key in iconMap ? <Icon icon={iconMap[key]} color={iconColor}/> : void 0
       // @ts-ignore no-implicit-any
@@ -96,13 +127,10 @@ function MintInfoDetails(props: { info: GetInfoResponse }) {
         LeftComponent={leftComponent}
         text={itemText}
         textStyle={$sizeStyles.xs}
-        RightComponent={
-          <View style={{ width: spacing.screenWidth * 0.6 }}>
-            {valueComponent}
-          </View>
-        }
+        RightComponent={<View style={{ width: spacing.screenWidth * 0.6 }}>{valueComponent}</View>}
         topSeparator={index === 0 ? false : true}
         key={key}
+        onLongPress={handleLongPress}
         style={$listItem}
       />
     })
@@ -191,6 +219,7 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
   }
 
   const colorScheme = useColorScheme()
+  const textDim = useThemeColor('textDim')
   // TODO migrate to FlatList
   // mintInfo?.description_long ?? ''
 
@@ -207,6 +236,7 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
           <View style={{ flexDirection: 'row' }}>
             {mint.units.map(unit => (
               <CurrencySign
+                textStyle={{ fontSize: 16}}
                 containerStyle={{paddingLeft: 0, marginRight: spacing.small}}
                 key={unit}
                 mintUnit={unit}
@@ -216,30 +246,11 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
         ) : <Text style={{ fontStyle: 'italic' }} tx="mintInfo.loadingUnitsPlaceholder" />}
       </AvatarHeader>
       <View style={$contentContainer}>
-        <Card
-          headingTx="mintInfo.descriptionHeading"
-          style={$card}
-          ContentComponent={
-            mintInfo && mintInfo.description ? (
-              <CollapsibleText
-                collapsed={true}
-                summary={mintInfo.description}
-                text={mintInfo?.description_long ?? ''}
-              />
-            ) : (
-              <Text
-                style={{fontStyle: 'italic'}}
-                text={translate('mintInfo.emptyValueParam', {
-                  param: translate("mintInfo.descriptionHeading"),
-                })}
-              />
-            )
-          }
-        />
+        {mintInfo && <DescriptionCard info={mintInfo} />}
         <Card
           ContentComponent={
             <>
-              {mintInfo && <MintInfoDetails info={mintInfo} />}
+              {mintInfo && <MintInfoDetails info={mintInfo} popupMessage={setInfo} />}
               {isLoading && (
                 <Loading
                   style={{backgroundColor: 'transparent'}}

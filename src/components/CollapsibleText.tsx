@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { Pressable, View } from "react-native"
-import { Text } from "./Text"
+import { Text, TextProps } from "./Text"
 import { translate } from "../i18n"
 import { useThemeColor } from "../theme"
 import { Icon } from "./Icon"
@@ -9,6 +9,7 @@ interface CollapsibleProps {
   summary?: string
   text: string
   collapsed?: boolean
+  textProps?: TextProps
 }
 
 const collapsedLines = 2
@@ -31,13 +32,14 @@ export const CollapsibleText = (props: CollapsibleProps) => {
   return (
     <View>
       {props.text.trim() === '' ? (
-        <Text text={summary} />
+        <Text text={summary} {...props.textProps} />
       ) : (
         <Pressable onPress={toggleCollapse}>
           <Text
             text={collapsed ? summary : props.text}
             numberOfLines={collapsed ? collapsedLines : maxLines}
             ellipsizeMode="tail"
+            {...props.textProps}
           />
           <View style={{ flexDirection: "row" }}>
             <Text text={collapsed ? translate('common.showMore') : translate('common.hideMore')} style={{ color: textDim }} size="xs" />
