@@ -2,12 +2,12 @@ import { observer } from "mobx-react-lite"
 import React from "react"
 import { ColorValue, Image, TextStyle, View, ViewStyle } from "react-native"
 import { Icon, Text } from "."
-import { colors, spacing, useThemeColor } from "../theme"
+import { spacing, useThemeColor } from "../theme"
 import { getImageSource } from '../utils/utils'
 import { iconRegistry } from '.'
 
 
-export interface ProfileHeaderProps {
+export interface AvatarHeaderProps {
   heading?: string,
   text?: string,
   picture?: string
@@ -21,7 +21,7 @@ export interface ProfileHeaderProps {
   children?: React.ReactNode
 }
 
-export const AvatarHeader = observer(function (props: ProfileHeaderProps) {
+export const AvatarHeader = observer(function (props: AvatarHeaderProps) {
   const headerBg = useThemeColor('header')
   const borderColor = useThemeColor('border')
 
