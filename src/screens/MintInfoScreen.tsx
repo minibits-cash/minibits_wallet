@@ -4,11 +4,10 @@ import { isObj } from '@cashu/cashu-ts/src/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { observer } from 'mobx-react-lite'
 import { getSnapshot } from 'mobx-state-tree'
-import { DimensionValue, LayoutAnimation, Platform, TextStyle, UIManager, View, ViewStyle, Pressable } from 'react-native'
+import { DimensionValue, LayoutAnimation, Platform, TextStyle, UIManager, View, ViewStyle } from 'react-native'
 import JSONTree from 'react-native-json-tree'
 import {
   $sizeStyles,
-  BottomModal,
   Button,
   Card,
   ErrorModal,
