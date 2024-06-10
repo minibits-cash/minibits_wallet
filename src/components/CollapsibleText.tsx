@@ -4,6 +4,7 @@ import { Text, TextProps } from "./Text"
 import { translate } from "../i18n"
 import { useThemeColor } from "../theme"
 import { Icon } from "./Icon"
+import { LayoutAnimation } from "react-native"
 
 interface CollapsibleProps {
   summary?: string
@@ -17,7 +18,10 @@ const maxLines = 50
 
 export const CollapsibleText = (props: CollapsibleProps) => {
   const [collapsed, setCollapsed] = useState(props?.collapsed ?? false)
-  const toggleCollapse = () => setCollapsed(!collapsed)
+  const toggleCollapse = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+    setCollapsed(!collapsed)
+  }
   const textDim = useThemeColor('textDim')
 
   let summary = props?.summary

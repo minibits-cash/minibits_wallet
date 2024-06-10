@@ -70,7 +70,7 @@ function DescriptionCard(props: {info: GetInfoResponse}) {
         <CollapsibleText
           collapsed={true}
           summary={props.info.description}
-          text={props.info?.description_long ?? ''}
+          text={props.info?.description_long || ''}
         />
       ) : (
         <Text
