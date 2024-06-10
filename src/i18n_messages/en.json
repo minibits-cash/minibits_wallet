@@ -617,6 +617,7 @@
 		"loadingNamePlaceholder": "Loading name...",
 		"loadingUnitsPlaceholder": "Loading units...",
 		"descriptionHeading": "Description",
-		"motd": "Important notice"
+		"motd": "Important notice",
+		"contactsHeading": "Contacts"
 	}
 }

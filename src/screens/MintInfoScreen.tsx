@@ -56,7 +56,8 @@ const contactIconMap: Record<string, IconTypes> = {
   'telegram': 'faTelegramPlane',
   'discord': 'faDiscord',
   'github': 'faGithub',
-  'reddit': 'faReddit'
+  'reddit': 'faReddit',
+  'nostr': 'faBolt'
 }
 const prettyNamesMap: Partial<Record<keyof GetInfoResponse, string>> = {}
 
@@ -125,7 +126,7 @@ function NutItem(props: {
         />
       <Text size='xs'>NUT-{props.nutNumber}</Text>
       {props.nutInfo && <View>
-        {props.nutInfo.methods.map(m => (<View style={$nutItem}>
+        {props.nutInfo.methods.map((m, i) => (<View style={$nutItem} key={i}>
           {/* <Icon icon='faBolt' color={textDim} size={16} containerStyle={$nutIcon} /> */}
           <Text text={m.method} size='xs'/>
           {typeof m.min_amount !== 'undefined' && typeof m.max_amount !== 'undefined' // for whatever reason, the methods don't always have min/max amounts
@@ -201,21 +202,19 @@ const $contactListItem: ViewStyle = {
   columnGap: spacing.tiny
 }
 
-function ContactCard(props: { info: GetInfoResponse }) {
+function ContactCard(props: { info: GetInfoResponse, popupMessage: (msg: string) => void }) {
   const textDim = useThemeColor('textDim')
 
   let contacts = props.info.contact.filter(([k, v]) => k.trim() !== '') // filter out empty contacts
   return (
     <Card
-      heading="Contacts"
+      headingTx="mintInfo.contactsHeading"
       HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
       ContentComponent={
         contacts.length === 0 ? (
           <Text
             style={{fontStyle: 'italic'}}
-            size="xs"
-            key={'contacts'}
-            text={translate('mintInfo.emptyValueParam', {param: 'contacts'})}
+            text={translate('mintInfo.emptyValueParam', { param: translate('mintInfo.contactsHeading') })}
           />
         ) : (
           <>
@@ -225,9 +224,13 @@ function ContactCard(props: { info: GetInfoResponse }) {
                 key={platform}
                 text={platform}
                 textStyle={$sizeStyles.xs}
-                onPress={() => {}}
+                LeftComponent={<Icon icon={platform in contactIconMap ? contactIconMap[platform] : 'faAddressBook'} color={textDim}/>}
                 RightComponent={<View style={{ width: spacing.screenWidth * 0.6 }}><Text text={user}/></View>}
                 topSeparator={index !== 0}
+                onLongPress={() => {
+                  Clipboard.setString(user)
+                  props.popupMessage(translate('common.copySuccessParam', { param: user }))
+                }}
               />
             ))}
           </>
@@ -417,7 +420,7 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
           }
           style={$card}
         />
-        {mintInfo && <ContactCard info={mintInfo} />}
+        {mintInfo && <ContactCard info={mintInfo} popupMessage={setInfo} />}
         <Card
           style={$card}
           ContentComponent={
