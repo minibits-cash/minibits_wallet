@@ -56,7 +56,7 @@ const contactIconMap: Record<string, IconTypes> = {
   'discord': 'faDiscord',
   'github': 'faGithub',
   'reddit': 'faReddit',
-  'nostr': 'faBolt'
+  'nostr': 'faCircleNodes'
 }
 
 function MOTDCard(props: {info: GetInfoResponse}) {
@@ -77,12 +77,25 @@ function MOTDCard(props: {info: GetInfoResponse}) {
   )
 }
 
+function MintLimtsCard(props: {info: GetInfoResponse}) {
+  const textDim = useThemeColor('textDim')
+  return (<Card
+    headingTx="mintInfo.mintMeltHeading"
+    HeadingTextProps={{ style: [$sizeStyles.sm, { color: textDim }] }}
+    ContentComponent={
+      <Text
+        style={{fontStyle: 'italic'}}
+        text={'limits go here'}
+      />
+    }
+  />)
+}
+
 function DescriptionCard(props: {info: GetInfoResponse}) {
   const textDim = useThemeColor('textDim')
   return (<Card
     headingTx="mintInfo.descriptionHeading"
     HeadingTextProps={{ style: [$sizeStyles.sm, { color: textDim }] }}
-    style={$card}
     ContentComponent={
       props.info && props.info.description ? (
         <CollapsibleText
@@ -102,12 +115,15 @@ function DescriptionCard(props: {info: GetInfoResponse}) {
   />)
 }
 
+/** one-line item for NUT specifications and adjacent things like limits */
 function NutItem(props: {
   enabled: boolean,
   nutNameNumber: string,
   display: 'row' | 'small',
   width?: DimensionValue
   nutInfo?: DetailedNutInfo
+  customIcon?: IconTypes,
+  customIconColor?: string,
 }) {
   const textDim = useThemeColor('textDim')
   const $nutIcon: ViewStyle = { paddingHorizontal: 0 }
@@ -115,8 +131,8 @@ function NutItem(props: {
   return (
     <View style={[$nutItem, { width: props.display === 'row' ? '100%' : (props?.width ?? 'auto')}]}>
       <Icon
-          icon={props.enabled ? 'faCheckCircle' : 'faXmark'}
-          color={props.enabled ? colors.palette.success200 : colors.palette.angry500}
+          icon={props?.customIcon ?? (props.enabled ? 'faCheckCircle' : 'faXmark')}
+          color={props?.customIconColor ?? (props.enabled ? colors.palette.success200 : colors.palette.angry500)}
           size={16}
           containerStyle={$nutIcon}
         />
@@ -277,6 +293,26 @@ function MintInfoDetails(props: { info: GetInfoResponse, popupMessage: (msg: str
   return <>{items}</>
 }
 
+/** returns true if mint has atleast one limit for the given type */
+function mintHasLimits(info: GetInfoResponse) {
+  const mint = info.nuts['4'].methods.some(
+    (method) =>
+      typeof method.min_amount !== 'undefined' ||
+      typeof method.max_amount !== 'undefined'
+  )
+  const melt = info.nuts['5'].methods.some(
+    (method) =>
+      typeof method.min_amount !== 'undefined' ||
+      typeof method.max_amount !== 'undefined'
+  )
+  return {
+    any: mint || melt,
+    mint,
+    melt,
+    both: mint && melt,
+  }
+}
+
 export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer(function MintInfoScreen(_props) {
   const { navigation, route } = _props
   useHeader({
@@ -388,8 +424,10 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
       </AvatarHeader>
       <View style={$contentContainer}>
         {mintInfo?.motd && <MOTDCard info={mintInfo} />}
+        {mintInfo && mintHasLimits(mintInfo).any && <MintLimtsCard info={mintInfo} />}
         {mintInfo && <>
           <DescriptionCard info={mintInfo} />
+          <ContactCard info={mintInfo} popupMessage={setInfo} />
           <NutsCard info={mintInfo} />
         </>}
         <Card
@@ -397,9 +435,7 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
           HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
           ContentComponent={
             <>
-              {mintInfo && (
-                <MintInfoDetails info={mintInfo} popupMessage={setInfo} />
-              )}
+              {mintInfo && <MintInfoDetails info={mintInfo} popupMessage={setInfo} />}
               {isLoading && (
                 <Loading
                   style={{backgroundColor: 'transparent'}}
@@ -408,11 +444,8 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
               )}
             </>
           }
-          style={$card}
         />
-        {mintInfo && <ContactCard info={mintInfo} popupMessage={setInfo} />}
         <Card
-          style={$card}
           ContentComponent={
             <>
               <ListItem
@@ -465,10 +498,6 @@ const $contentContainer: TextStyle = {
   flex: 1,
   padding: spacing.extraSmall,
   // alignItems: 'center',
-}
-
-const $card: ViewStyle = {
-  marginBottom: 0,
 }
 
 const $rightContainer: ViewStyle = {
