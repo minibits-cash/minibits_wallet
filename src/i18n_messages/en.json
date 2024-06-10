@@ -68,7 +68,9 @@
 		"share": "Share",
 		"showMore": "Show more",
 		"success": "Success!",
-		"copySuccessParam": "Copied %{param}"
+		"copySuccessParam": "Copied %{param}",
+		"hide": "Hide",
+		"show": "Show"
 	},
 	"confirmBackupRecovery": "Do you really want to recover ecash from the backup?",
 	"confirmMintRemoval": "Do you really want to remove %{hostname} - %{shortname} from the wallet?",

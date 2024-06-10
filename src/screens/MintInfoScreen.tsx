@@ -99,42 +99,44 @@ function NutItem(props: {
   const textDim = useThemeColor('textDim')
   const $nutItem: ViewStyle = {
     flexDirection: 'row',
-    width: props.display === 'row' ? '100%' : (props?.width ?? 'auto'),
     alignItems: 'center',
     justifyContent: 'flex-start',
-    gap: spacing.extraSmall
+    gap: spacing.extraSmall,
+    // borderWidth: 1, borderColor: 'red'
   }
   const $nutIcon: ViewStyle = { paddingHorizontal: 0 }
 
   return (
-    <View style={$nutItem}>
+    <View style={[$nutItem, { width: props.display === 'row' ? '100%' : (props?.width ?? 'auto')}]}>
       <Icon
-        icon={props.enabled ? 'faCheckCircle' : 'faXmark'}
-        color={props.enabled ? colors.palette.success200 : colors.palette.angry500}
-        size={16}
-        containerStyle={$nutIcon}
-      />
+          icon={props.enabled ? 'faCheckCircle' : 'faXmark'}
+          color={props.enabled ? colors.palette.success200 : colors.palette.angry500}
+          size={16}
+          containerStyle={$nutIcon}
+        />
       <Text size='xs'>NUT-{props.nutNumber}</Text>
-      {props.nutInfo && props.nutInfo.methods.map(m => (<>
-        <Text text={m.method} />
-        {/* <Icon icon='faBolt' color={textDim} size={16} containerStyle={$nutIcon} /> */}
-        {m.min_amount && m.max_amount 
-          ? <Text text={`${m.min_amount} – ${m.max_amount}`} />
-          : m.min_amount && !m.max_amount ? <Text text={`min: ${m.min_amount}`} />
-          : m.max_amount && !m.min_amount ? <Text text={`max: ${m.max_amount}`} />
-          : void 0
-        }
-        {MintUnits.includes(m.unit as MintUnit) ? (
-          <CurrencySign
-            textStyle={{fontSize: 16}}
-            containerStyle={$nutIcon}
-            mintUnit={m.unit as MintUnit}
-          />
-        ) : (<>
-          <Icon icon='faCircleQuestion' color={textDim} size={16} containerStyle={$nutIcon} />
-          <Text text={m.unit.toUpperCase()} style={{fontFamily: typography.primary?.light}} />
-        </>)}
-      </>))}
+      {props.nutInfo && <View>
+        {props.nutInfo.methods.map(m => (<View style={$nutItem}>
+          {/* <Icon icon='faBolt' color={textDim} size={16} containerStyle={$nutIcon} /> */}
+          <Text text={m.method} size='xs'/>
+          {typeof m.min_amount !== 'undefined' && typeof m.max_amount !== 'undefined' // for whatever reason, the methods don't always have min/max amounts
+            ? <Text text={`${m.min_amount} – ${m.max_amount}`} size='xs'/>
+            : typeof m.min_amount !== 'undefined' && typeof m.max_amount === 'undefined' ? <Text text={`min: ${m.min_amount}`} size='xs'/>
+            : typeof m.max_amount !== 'undefined' && typeof m.min_amount === 'undefined' ? <Text text={`max: ${m.max_amount}`} size='xs'/>
+            : void 0
+          }
+          {MintUnits.includes(m.unit as MintUnit) ? (
+            <CurrencySign
+              textStyle={{fontSize: 16}}
+              containerStyle={$nutIcon}
+              mintUnit={m.unit as MintUnit}
+            />
+          ) : (<>
+            <Icon icon='faCircleQuestion' color={textDim} size={16} containerStyle={$nutIcon} />
+            <Text text={m.unit.toUpperCase()} style={{fontFamily: typography.primary?.light}} size='xs'/>
+          </>)}
+        </View>))}
+      </View>}
     </View>
   )
 }
@@ -150,7 +152,7 @@ function NutsCard(props: {info: GetInfoResponse}) {
     } else if ('supported' in info) { // simple
       nutsSimple.push([nut, info.supported])
     } else {
-      nutsSimple.push([nut, false]) // fallback or detailed, but disabled nut
+      nutsSimple.push([nut, false]) // fallback or detailed but disabled nut
     }
   }
 
@@ -199,6 +201,7 @@ function MintInfoDetails(props: { info: GetInfoResponse, popupMessage: (msg: str
       const missingComponent = <Text
         style={{fontStyle: 'italic'}}
         size="xs"
+        key={key}
         text={translate('mintInfo.emptyValueParam', { param: key })}
       />
       
@@ -218,7 +221,7 @@ function MintInfoDetails(props: { info: GetInfoResponse, popupMessage: (msg: str
           .filter(([k, v]) => k.trim() !== '') // filter out empty contacts
         valueComponent = (contacts.length === 0) ? missingComponent : (<>
           {contacts.map(([platform, user]) => (
-              <View style={$contactListItem}>
+              <View style={$contactListItem} key={platform}>
                 <Text
                   size="xs"
                   text={`${platform}:`}
@@ -390,7 +393,7 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
                   <View style={$rightContainer}>
                     <Button
                       onPress={toggleLocalInfo}
-                      text={isLocalInfoVisible ? 'Hide' : 'Show'}
+                      text={isLocalInfoVisible ? translate("common.hide") : translate("common.show")}
                       preset="secondary"
                     />
                   </View>
@@ -401,7 +404,7 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
                   hideRoot
                   data={getSnapshot(
                     mintsStore.findByUrl(route.params?.mintUrl) as Mint,
-                  )}
+                  ) as any}
                   theme={{
                     scheme: 'default',
                     base00: '#eee',
