@@ -618,6 +618,8 @@
 		"loadingUnitsPlaceholder": "Loading units...",
 		"descriptionHeading": "Description",
 		"motd": "Important notice",
-		"contactsHeading": "Contacts"
+		"contactsHeading": "Contacts",
+		"nutsHeading": "Nuts",
+		"keyValueInfoCardHeading": "More Info"
 	}
 }

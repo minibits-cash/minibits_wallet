@@ -59,18 +59,23 @@ const contactIconMap: Record<string, IconTypes> = {
   'reddit': 'faReddit',
   'nostr': 'faBolt'
 }
-const prettyNamesMap: Partial<Record<keyof GetInfoResponse, string>> = {}
 
 function MOTDCard(props: {info: GetInfoResponse}) {
   const textDim = useThemeColor('textDim')
-  return (<Card
-    RightComponent={<View style={{ justifyContent: 'center' }}>
-      <Icon icon="faCircleExclamation" color={textDim} size={20} />
-    </View>}
-    headingTx="mintInfo.motd"
-    HeadingTextProps={{ style: [$sizeStyles.sm, {color: textDim}] }}
-    ContentComponent={<Text style={{ fontStyle: 'italic' }} text={props.info.motd} />}
-  />)
+  return (
+    <Card
+      RightComponent={
+        <View style={{justifyContent: 'center'}}>
+          <Icon icon="faCircleExclamation" color={textDim} size={20} />
+        </View>
+      }
+      headingTx="mintInfo.motd"
+      HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
+      ContentComponent={
+        <Text style={{fontStyle: 'italic'}} text={props.info.motd} />
+      }
+    />
+  )
 }
 
 function DescriptionCard(props: {info: GetInfoResponse}) {
@@ -96,14 +101,6 @@ function DescriptionCard(props: {info: GetInfoResponse}) {
       )
     }
   />)
-}
-
-const $nutItem: ViewStyle = {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'flex-start',
-  gap: spacing.extraSmall,
-  // borderWidth: 1, borderColor: 'red'
 }
 
 function NutItem(props: {
@@ -168,7 +165,7 @@ function NutsCard(props: {info: GetInfoResponse}) {
 
   const smallNutCols = 4
   return (<Card
-    heading="Nuts"
+    headingTx="mintInfo.nutsHeading"
     HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
     ContentComponent={
       <>
@@ -195,11 +192,6 @@ function NutsCard(props: {info: GetInfoResponse}) {
       </>
     }
   />)
-}
-
-const $contactListItem: ViewStyle = { 
-  flexDirection: 'row',
-  columnGap: spacing.tiny
 }
 
 function ContactCard(props: { info: GetInfoResponse, popupMessage: (msg: string) => void }) {
@@ -271,14 +263,13 @@ function MintInfoDetails(props: { info: GetInfoResponse, popupMessage: (msg: str
       // @ts-ignore no-implicit-any
       const leftComponent = key in iconMap ? <Icon icon={iconMap[key]} color={iconColor}/> : void 0
       // @ts-ignore no-implicit-any
-      const itemText = prettyNamesMap?.[key] ?? key
 
       return <ListItem 
         LeftComponent={leftComponent}
-        text={itemText}
+        text={key}
         textStyle={$sizeStyles.xs}
         RightComponent={<View style={{ width: spacing.screenWidth * 0.6 }}>{valueComponent}</View>}
-        topSeparator={index === 0 ? false : true}
+        topSeparator={index !== 0}
         key={key}
         onLongPress={handleLongPress}
         style={$listItem}
@@ -403,7 +394,7 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
           <NutsCard info={mintInfo} />
         </>}
         <Card
-          heading={mintInfo && "More Info"}
+          headingTx={mintInfo && "mintInfo.keyValueInfoCardHeading"}
           HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
           ContentComponent={
             <>
@@ -487,14 +478,14 @@ const $rightContainer: ViewStyle = {
   marginLeft: spacing.small,
 }
 
-const $item: ViewStyle = {
-  paddingHorizontal: spacing.small,
-  paddingLeft: 0,
+const $nutItem: ViewStyle = {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'flex-start',
+  gap: spacing.extraSmall
 }
 
-const $buttonContainer: ViewStyle = {
+const $contactListItem: ViewStyle = { 
   flexDirection: 'row',
-  alignSelf: 'center',
-  alignItems: 'center',
-  marginTop: spacing.large,
+  columnGap: spacing.tiny
 }

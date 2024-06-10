@@ -1,8 +1,8 @@
 import { observer } from "mobx-react-lite"
 import React from "react"
-import { ColorValue, Image, ImageStyle, TextStyle, View, ViewStyle } from "react-native"
+import { ColorValue, Image, TextStyle, View, ViewStyle } from "react-native"
 import { Icon, Text } from "."
-import { spacing, useThemeColor } from "../theme"
+import { colors, spacing, useThemeColor } from "../theme"
 import { getImageSource } from '../utils/utils'
 import { iconRegistry } from '.'
 
@@ -23,7 +23,7 @@ export interface ProfileHeaderProps {
 
 export const AvatarHeader = observer(function (props: ProfileHeaderProps) {
   const headerBg = useThemeColor('header')
-  const textDim = useThemeColor('textDim')
+  const borderColor = useThemeColor('border')
 
   return (
     <View style={[$headerContainer(props.headerHeightModifier ?? 0.2), { backgroundColor: props.headerBgColor || headerBg }]}>
@@ -38,7 +38,7 @@ export const AvatarHeader = observer(function (props: ProfileHeaderProps) {
             source={{ uri: getImageSource(props.picture) }}
           />
         ) : (
-          <View style={props?.encircle ? $encircledIcon(textDim, props?.pictureHeight) : {}}>
+          <View style={props?.encircle ? $encircledIcon(borderColor, props?.pictureHeight) : {}}>
             <Icon
               icon={props?.fallbackIcon ?? 'faCircleUser'}
               size={props?.encircle ? 35 : (props?.pictureHeight ?? 80)}
@@ -61,13 +61,13 @@ const $headerContainer = (heightModifier: number) => ({
   height: spacing.screenHeight * heightModifier,
 } satisfies TextStyle)
 
-const $encircledIcon = (borderColor: ColorValue, size: number = 80) => ({
+const $encircledIcon = (borderColor: ColorValue, size: number = 90) => ({
   alignItems: 'center',
   justifyContent: 'center',
   padding: spacing.small,
   borderWidth: 2,
   borderColor: borderColor,
   borderRadius: 100,
-  width: 90,
-  height: 90
+  width: size,
+  height: size
 } as ViewStyle)
