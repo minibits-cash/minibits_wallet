@@ -4,7 +4,7 @@ import { isObj } from '@cashu/cashu-ts/src/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { observer } from 'mobx-react-lite'
 import { getSnapshot } from 'mobx-state-tree'
-import { DimensionValue, LayoutAnimation, Platform, TextStyle, UIManager, View, ViewStyle } from 'react-native'
+import { DimensionValue, LayoutAnimation, Platform, TextStyle, UIManager, View, ViewStyle, Pressable } from 'react-native'
 import JSONTree from 'react-native-json-tree'
 import {
   $sizeStyles,
@@ -39,11 +39,24 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
+interface DetailedNutInfo {
+  methods: Array<SwapMethod>;
+  disabled: boolean;
+}
+
 const iconMap: Partial<Record<keyof GetInfoResponse, IconTypes>> = {
   'name': 'faTag',
   'pubkey': 'faKey',
   'version': 'faInfoCircle',
   'contact': 'faAddressCard'
+}
+const contactIconMap: Record<string, IconTypes> = {
+  'email': 'faEnvelope',
+  'twitter': 'faTwitter',
+  'telegram': 'faTelegramPlane',
+  'discord': 'faDiscord',
+  'github': 'faGithub',
+  'reddit': 'faReddit'
 }
 const prettyNamesMap: Partial<Record<keyof GetInfoResponse, string>> = {}
 
@@ -84,9 +97,12 @@ function DescriptionCard(props: {info: GetInfoResponse}) {
   />)
 }
 
-interface DetailedNutInfo {
-  methods: Array<SwapMethod>;
-  disabled: boolean;
+const $nutItem: ViewStyle = {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'flex-start',
+  gap: spacing.extraSmall,
+  // borderWidth: 1, borderColor: 'red'
 }
 
 function NutItem(props: {
@@ -97,13 +113,6 @@ function NutItem(props: {
   nutInfo?: DetailedNutInfo
 }) {
   const textDim = useThemeColor('textDim')
-  const $nutItem: ViewStyle = {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    gap: spacing.extraSmall,
-    // borderWidth: 1, borderColor: 'red'
-  }
   const $nutIcon: ViewStyle = { paddingHorizontal: 0 }
 
   return (
@@ -187,13 +196,53 @@ function NutsCard(props: {info: GetInfoResponse}) {
   />)
 }
 
+const $contactListItem: ViewStyle = { 
+  flexDirection: 'row',
+  columnGap: spacing.tiny
+}
+
+function ContactCard(props: { info: GetInfoResponse }) {
+  const textDim = useThemeColor('textDim')
+
+  let contacts = props.info.contact.filter(([k, v]) => k.trim() !== '') // filter out empty contacts
+  return (
+    <Card
+      heading="Contacts"
+      HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
+      ContentComponent={
+        contacts.length === 0 ? (
+          <Text
+            style={{fontStyle: 'italic'}}
+            size="xs"
+            key={'contacts'}
+            text={translate('mintInfo.emptyValueParam', {param: 'contacts'})}
+          />
+        ) : (
+          <>
+            {contacts.map(([platform, user], index) => (
+              <ListItem
+                style={$contactListItem}
+                key={platform}
+                text={platform}
+                textStyle={$sizeStyles.xs}
+                onPress={() => {}}
+                RightComponent={<View style={{ width: spacing.screenWidth * 0.6 }}><Text text={user}/></View>}
+                topSeparator={index !== 0}
+              />
+            ))}
+          </>
+        )
+      }
+    />
+  )
+}
+
 /** don't render these because they're rendered in separate components */
-const detailsHiddenKeys = new Set(['name', 'motd', 'description', 'description_long', 'nuts'])
+const detailsHiddenKeys = new Set(['name', 'motd', 'description', 'description_long', 'nuts', 'contact'])
 
 /** key-value pairs of details about the mint */
 function MintInfoDetails(props: { info: GetInfoResponse, popupMessage: (msg: string) => void }) {
   const iconColor = useThemeColor('textDim')
-  const contactPlatformColor = useThemeColor('textDim')
 
   const items: React.JSX.Element[] = Object.entries(props.info)
     .filter(([key, value]) => !(detailsHiddenKeys.has(key)))
@@ -214,23 +263,6 @@ function MintInfoDetails(props: { info: GetInfoResponse, popupMessage: (msg: str
         if (stringValue.trim() === '') return;
         Clipboard.setString(stringValue)
         props.popupMessage(translate('common.copySuccessParam', { param: stringValue }))
-      }
-      
-      if (key === 'contact') {
-        let contacts = (value as [string, string][])
-          .filter(([k, v]) => k.trim() !== '') // filter out empty contacts
-        valueComponent = (contacts.length === 0) ? missingComponent : (<>
-          {contacts.map(([platform, user]) => (
-              <View style={$contactListItem} key={platform}>
-                <Text
-                  size="xs"
-                  text={`${platform}:`}
-                  style={{ color: contactPlatformColor }}
-                />
-                <Text size="xs" text={user} />
-              </View>
-            ))}
-        </>)
       }
 
       // @ts-ignore no-implicit-any
@@ -368,6 +400,8 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
           <NutsCard info={mintInfo} />
         </>}
         <Card
+          heading={mintInfo && "More Info"}
+          HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
           ContentComponent={
             <>
               {mintInfo && (
@@ -383,6 +417,7 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
           }
           style={$card}
         />
+        {mintInfo && <ContactCard info={mintInfo} />}
         <Card
           style={$card}
           ContentComponent={
@@ -430,16 +465,6 @@ const $screen: ViewStyle = {
 const $listItem: ViewStyle = {
   columnGap: spacing.micro,
   alignItems: 'center',
-}
-const $contactListItem: ViewStyle = { 
-  flexDirection: 'row',
-  columnGap: spacing.tiny
-}
-
-const $headerContainer: TextStyle = {
-  alignItems: 'center',
-  padding: spacing.medium,
-  height: spacing.screenHeight * 0.1,
 }
 
 const $contentContainer: TextStyle = {
