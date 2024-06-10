@@ -228,7 +228,7 @@
 	"nsecPasteError": "Copy your nsec key first, then paste.",
 	"nsecPrivatePublicKeyMismatchError": "Provided private key does not match your new profile public key.",
 	"numberOfBackedupProofs": "Number of backed up proofs",
-	"onDeviceInfo": "On device information",
+	"onDeviceInfo": "On-device information",
 	"pasteEcashTokenDesc": "Paste ecash token you want to receive.",
 	"payCommon": {
 		"amountToPayLabel": "Amount to pay",
