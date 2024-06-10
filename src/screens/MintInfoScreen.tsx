@@ -104,7 +104,7 @@ function DescriptionCard(props: {info: GetInfoResponse}) {
 
 function NutItem(props: {
   enabled: boolean,
-  nutNumber: string,
+  nutNameNumber: string,
   display: 'row' | 'small',
   width?: DimensionValue
   nutInfo?: DetailedNutInfo
@@ -120,7 +120,7 @@ function NutItem(props: {
           size={16}
           containerStyle={$nutIcon}
         />
-      <Text size='xs'>NUT-{props.nutNumber}</Text>
+      <Text size='xs'>NUT-{props.nutNameNumber}</Text>
       {props.nutInfo && <View>
         {props.nutInfo.methods.map((m, i) => (<View style={$nutItem} key={i}>
           {/* <Icon icon='faBolt' color={textDim} size={16} containerStyle={$nutIcon} /> */}
@@ -170,7 +170,7 @@ function NutsCard(props: {info: GetInfoResponse}) {
       <>
         {supportedNutsDetailed.map(([nut, info]) => (
           <NutItem
-            nutNumber={nut}
+            nutNameNumber={nut}
             enabled={true}
             display="row"
             key={nut}
@@ -180,7 +180,7 @@ function NutsCard(props: {info: GetInfoResponse}) {
         <View style={{flexDirection: 'row', flexWrap: 'wrap'}}>
           {nutsSimple.map(([nut, enabled]) => (
             <NutItem
-              nutNumber={nut}
+              nutNameNumber={nut}
               enabled={enabled}
               key={nut}
               display="small"
