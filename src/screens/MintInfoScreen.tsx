@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from 'react'
+import React, { FC, useEffect, useMemo, useState } from 'react'
 import { GetInfoResponse, SwapMethod } from '@cashu/cashu-ts'
 import { isObj } from '@cashu/cashu-ts/src/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
@@ -31,7 +31,6 @@ import useColorScheme from '../theme/useThemeColor'
 import AppError, { Err } from '../utils/AppError'
 import { useHeader } from '../utils/useHeader'
 import { CurrencySign } from './Wallet/CurrencySign'
-import { MintUnit, MintUnits } from '../services/wallet/currency'
 
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -41,6 +40,10 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 interface DetailedNutInfo {
   methods: Array<SwapMethod>;
   disabled: boolean;
+}
+interface MethodLimit {
+  min?: number,
+  max?: number,
 }
 
 const iconMap: Partial<Record<keyof GetInfoResponse, IconTypes>> = {
@@ -77,17 +80,40 @@ function MOTDCard(props: {info: GetInfoResponse}) {
   )
 }
 
-function MintLimtsCard(props: {info: GetInfoResponse}) {
+function MintLimtsCard(props: { info: GetInfoResponse, limitInfo: ReturnType<typeof getMintLimits> }) {
+  if (props.limitInfo.mintSats === false && props.limitInfo.mintSats === false) return;
+  log.trace('MintLimtsCard', props.limitInfo)
+
+  const limitText = (m: MethodLimit) => (
+    typeof m.min !== 'undefined' && typeof m.max !== 'undefined' ? `${m.min} – ${m.max}`
+    : typeof m.min !== 'undefined' && typeof m.max === 'undefined' ? `min: ${m.min}`
+    : typeof m.max !== 'undefined' && typeof m.min === 'undefined' ? `max: ${m.max}`
+    : void 0
+  )
+
+  const LimitItem = (props: { m: MethodLimit, type: 'mint' | 'melt' }) => (<View style={$limitItem}>
+    <Icon 
+      icon={props.type === 'mint' ? 'faCircleArrowUp' : 'faCircleArrowDown'} 
+      color={colors.palette.success200} 
+      size={16} 
+      containerStyle={$nutIcon}
+    />
+    <Text text={limitText(props.m)} />
+  </View>)
   const textDim = useThemeColor('textDim')
   return (<Card
     headingTx="mintInfo.mintMeltHeading"
     HeadingTextProps={{ style: [$sizeStyles.sm, { color: textDim }] }}
-    ContentComponent={
-      <Text
-        style={{fontStyle: 'italic'}}
-        text={'limits go here'}
-      />
-    }
+    ContentComponent={<>
+      <View style={$limitItemWrapper}>
+        <Text text="Deposit (Mint)" style={{ width: '50%' }} size='xs' />
+        <Text text="Withdraw (Melt)" style={{ width: '50%' }} size='xs' />
+      </View>
+      <View style={$limitItemWrapper}>
+        <LimitItem m={props.limitInfo.mintSats as MethodLimit} type="mint" />
+        <LimitItem m={props.limitInfo.meltSats as MethodLimit} type="melt" />
+      </View>
+    </>}
   />)
 }
 
@@ -119,17 +145,12 @@ function DescriptionCard(props: {info: GetInfoResponse}) {
 function NutItem(props: {
   enabled: boolean,
   nutNameNumber: string,
-  display: 'row' | 'small',
   width?: DimensionValue
-  nutInfo?: DetailedNutInfo
   customIcon?: IconTypes,
   customIconColor?: string,
 }) {
-  const textDim = useThemeColor('textDim')
-  const $nutIcon: ViewStyle = { paddingHorizontal: 0 }
-
   return (
-    <View style={[$nutItem, { width: props.display === 'row' ? '100%' : (props?.width ?? 'auto')}]}>
+    <View style={[$nutItem, { width: props?.width ?? 'auto'}]}>
       <Icon
           icon={props?.customIcon ?? (props.enabled ? 'faCheckCircle' : 'faXmark')}
           color={props?.customIconColor ?? (props.enabled ? colors.palette.success200 : colors.palette.angry500)}
@@ -137,28 +158,6 @@ function NutItem(props: {
           containerStyle={$nutIcon}
         />
       <Text size='xs'>NUT-{props.nutNameNumber}</Text>
-      {props.nutInfo && <View>
-        {props.nutInfo.methods.map((m, i) => (<View style={$nutItem} key={i}>
-          {/* <Icon icon='faBolt' color={textDim} size={16} containerStyle={$nutIcon} /> */}
-          <Text text={m.method} size='xs'/>
-          {typeof m.min_amount !== 'undefined' && typeof m.max_amount !== 'undefined' // for whatever reason, the methods don't always have min/max amounts
-            ? <Text text={`${m.min_amount} – ${m.max_amount}`} size='xs'/>
-            : typeof m.min_amount !== 'undefined' && typeof m.max_amount === 'undefined' ? <Text text={`min: ${m.min_amount}`} size='xs'/>
-            : typeof m.max_amount !== 'undefined' && typeof m.min_amount === 'undefined' ? <Text text={`max: ${m.max_amount}`} size='xs'/>
-            : void 0
-          }
-          {MintUnits.includes(m.unit as MintUnit) ? (
-            <CurrencySign
-              textStyle={{fontSize: 16}}
-              containerStyle={$nutIcon}
-              mintUnit={m.unit as MintUnit}
-            />
-          ) : (<>
-            <Icon icon='faCircleQuestion' color={textDim} size={16} containerStyle={$nutIcon} />
-            <Text text={m.unit.toUpperCase()} style={{fontFamily: typography.primary?.light}} size='xs'/>
-          </>)}
-        </View>))}
-      </View>}
     </View>
   )
 }
@@ -168,6 +167,7 @@ function NutsCard(props: {info: GetInfoResponse}) {
   const supportedNutsDetailed: [string, DetailedNutInfo][] = []
   const nutsSimple: [string, boolean][] = []
 
+  // detailed nuts are separated from simple ones if we want to show more info abt them in the future
   for (const [nut, info] of Object.entries(props.info.nuts)) {
     if ('disabled' in info && info.disabled === false) { // detailed
       supportedNutsDetailed.push([nut, info])
@@ -179,34 +179,32 @@ function NutsCard(props: {info: GetInfoResponse}) {
   }
 
   const smallNutCols = 4
-  return (<Card
-    headingTx="mintInfo.nutsHeading"
-    HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
-    ContentComponent={
-      <>
-        {supportedNutsDetailed.map(([nut, info]) => (
-          <NutItem
-            nutNameNumber={nut}
-            enabled={true}
-            display="row"
-            key={nut}
-            nutInfo={info}
-          />
-        ))}
+  return (
+    <Card
+      headingTx="mintInfo.nutsHeading"
+      HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
+      ContentComponent={
         <View style={{flexDirection: 'row', flexWrap: 'wrap'}}>
+          {supportedNutsDetailed.map(([nut, info]) => (
+            <NutItem
+              nutNameNumber={nut}
+              enabled={true}
+              key={`detailed-${nut}`}
+              width={`${Math.round(100 / smallNutCols)}%`}
+            />
+          ))}
           {nutsSimple.map(([nut, enabled]) => (
             <NutItem
               nutNameNumber={nut}
               enabled={enabled}
-              key={nut}
-              display="small"
+              key={`simple-${nut}`}
               width={`${Math.round(100 / smallNutCols)}%`}
             />
           ))}
         </View>
-      </>
-    }
-  />)
+      }
+    />
+  )
 }
 
 function ContactCard(props: { info: GetInfoResponse, popupMessage: (msg: string) => void }) {
@@ -293,23 +291,29 @@ function MintInfoDetails(props: { info: GetInfoResponse, popupMessage: (msg: str
   return <>{items}</>
 }
 
-/** returns true if mint has atleast one limit for the given type */
-function mintHasLimits(info: GetInfoResponse) {
-  const mint = info.nuts['4'].methods.some(
-    (method) =>
-      typeof method.min_amount !== 'undefined' ||
-      typeof method.max_amount !== 'undefined'
-  )
-  const melt = info.nuts['5'].methods.some(
-    (method) =>
-      typeof method.min_amount !== 'undefined' ||
-      typeof method.max_amount !== 'undefined'
-  )
+function getMintLimits(info: GetInfoResponse) {
+  // later this can be adjusted to show USD/other units as well. for now only shows limits if they are in sats
+  let mintSats: false | MethodLimit = false
+  let meltSats: false | MethodLimit = false
+  console.log('runs')
+  for (const method of info.nuts['4'].methods) {
+    if ((typeof method.min_amount !== 'undefined' || typeof method.max_amount !== 'undefined') && method.unit === 'sat') {
+      mintSats = { min: method.min_amount, max: method.max_amount }
+      break;
+    }
+  }
+
+  for (const method of info.nuts['5'].methods) {
+    if ((typeof method.min_amount !== 'undefined' || typeof method.max_amount !== 'undefined') && method.unit === 'sat') {
+      meltSats = { min: method.min_amount, max: method.max_amount }
+      break;
+    }
+  }
   return {
-    any: mint || melt,
-    mint,
-    melt,
-    both: mint && melt,
+    mintSats,
+    meltSats,
+    any: mintSats || meltSats,
+    both: mintSats && meltSats,
   }
 }
 
@@ -394,6 +398,12 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
     setError(e)
   }
 
+  /** memoized mint limit info */
+  const mintLimitInfo = useMemo(() => {
+    if (typeof mintInfo === 'undefined') return;
+    return getMintLimits(mintInfo)
+  }, [mintInfo])
+
   const colorScheme = useColorScheme()
   const textDim = useThemeColor('textDim')
   return (
@@ -424,11 +434,10 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
       </AvatarHeader>
       <View style={$contentContainer}>
         {mintInfo?.motd && <MOTDCard info={mintInfo} />}
-        {mintInfo && mintHasLimits(mintInfo).any && <MintLimtsCard info={mintInfo} />}
+        {mintInfo && mintLimitInfo?.any && <MintLimtsCard info={mintInfo} limitInfo={mintLimitInfo}/>}
         {mintInfo && <>
           <DescriptionCard info={mintInfo} />
           <ContactCard info={mintInfo} popupMessage={setInfo} />
-          <NutsCard info={mintInfo} />
         </>}
         <Card
           headingTx={mintInfo && "mintInfo.keyValueInfoCardHeading"}
@@ -445,6 +454,7 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
             </>
           }
         />
+        {mintInfo && <NutsCard info={mintInfo} />}
         <Card
           ContentComponent={
             <>
@@ -483,9 +493,18 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
   )
 })
 
+const $screen: ViewStyle = { flex: 1, }
+const $nutIcon: ViewStyle = { paddingHorizontal: 0 }
 
-const $screen: ViewStyle = {
-  flex: 1,
+const $limitItem: ViewStyle = {
+  alignItems: 'center',
+  flexDirection: 'row',
+  width: '50%',
+  gap: spacing.extraSmall,
+}
+const $limitItemWrapper: ViewStyle = {
+  flexDirection: 'row',
+  gap: spacing.extraSmall,
 }
 
 const $listItem: ViewStyle = {
