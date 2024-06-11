@@ -102,7 +102,7 @@ function MintLimitsCard(props: { info: GetInfoResponse, limitInfo: ReturnType<ty
   </View>)
 
   const textDim = useThemeColor('textDim')
-  
+
   return (<Card
     headingTx="mintInfo.mintMeltHeading"
     HeadingTextProps={{ style: [$sizeStyles.sm, { color: textDim }] }}
@@ -129,7 +129,10 @@ function DescriptionCard(props: {info: GetInfoResponse}) {
         <CollapsibleText
           collapsed={true}
           summary={props.info.description}
-          text={props.info?.description_long || ''}
+          text={props.info?.description_long && props.info.description !== props.info.description_long 
+            ? props.info.description + '\n' + props.info.description_long 
+            : ''
+          }
         />
       ) : (
         <Text
