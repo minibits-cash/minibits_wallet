@@ -100,7 +100,9 @@ function MintLimitsCard(props: { info: GetInfoResponse, limitInfo: ReturnType<ty
     />
     <Text text={limitText(props.m)} />
   </View>)
+
   const textDim = useThemeColor('textDim')
+  
   return (<Card
     headingTx="mintInfo.mintMeltHeading"
     HeadingTextProps={{ style: [$sizeStyles.sm, { color: textDim }] }}
