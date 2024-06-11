@@ -11,7 +11,7 @@ import {log} from '../services/logService'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 import AppError, { Err } from '../utils/AppError'
 import { Button, Card, ErrorModal, Header, Icon, InfoModal, ListItem, ScanIcon, Screen, Text } from '../components'
-import { LnurlUtils } from '../services/lnurl/lnurlUtils'
+import { LnurlUtils, validPaywithlightningString } from '../services/lnurl/lnurlUtils'
 import { infoMessage } from '../utils/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { SvgXml } from 'react-native-svg'
@@ -23,7 +23,6 @@ import { MintHeader } from './Mints/MintHeader'
 import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { translate } from '../i18n'
-
 
 export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = function LightningPayScreen(_props) {
     const {navigation, route} = _props
@@ -43,6 +42,14 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
         }
     }, []) */
 
+    async function autoPaste(setter: (text: string) => void, sideEffect: () => void) {
+        const clipboard = (await Clipboard.getString()).trim();
+        if (clipboard.length === 0) return;
+        if (!validPaywithlightningString(clipboard)) return;
+        setter(clipboard);
+        sideEffect();
+    }
+
     useEffect(() => {
         const setUnitAndMint = () => {
             try {
@@ -61,8 +68,9 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                 handleError(e)
             }
         }
-        
+
         setUnitAndMint()
+        autoPaste(setLightningData, () => lightningInputRef.current?.blur())
         return () => {}
     }, [])
 
@@ -79,10 +87,9 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
     const onPaste = async function() {        
         const clipboard = await Clipboard.getString()
         if (clipboard.length === 0) {
-            infoMessage(translate('lightningPayScreen.onPasteEmptyClipboard'))
-            return
+          infoMessage(translate('lightningPayScreen.onPasteEmptyClipboard'))
+          return
         }
-
         setLightningData(clipboard)
         lightningInputRef.current?.blur()
     }

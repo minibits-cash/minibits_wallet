@@ -10,13 +10,46 @@ const findEncodedLnurl = function (content: string) {
     return maybeLnurl || null
 }
 
-
 const findEncodedLnurlAddress = function (content: string) {
     const words = content.split(/\s+|\n+/)
     const maybeAddress = words.find(word => word.toLowerCase().includes("@"))
     return maybeAddress || null
 }
 
+const lnurlUriPrefixes = [
+  'lightning://',
+  'lightning:',
+  'lnurlw://',
+  'lnurlw:',
+  'lnurlp://',
+  'lnurlp:',
+]
+
+function isLnurlAddress(address: string) {
+  // Regular expression for a basic email validation    
+  const regex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+  return regex.test(address)
+}
+
+function isLnurl1(address: string) {
+  return address.toLowerCase().startsWith('lnurl1')
+}
+
+function isLightningInvoice(address: string) {
+  const regex = /^(ln)(bc|bt|bs|crt)\d+\w+/
+  return regex.test(address.toLowerCase())
+}
+
+/** returns true if string is either a LNURL, a lightning address or lightning invoice */
+export function validPaywithlightningString(content: string) {
+  for (const prefix of lnurlUriPrefixes) {
+    if (content && content.startsWith(prefix)) {
+      content = content.slice(prefix.length)
+      break; // necessary
+    }
+  }
+  return isLnurlAddress(content) || isLnurl1(content) || isLightningInvoice(content);
+}
 
 const extractEncodedLnurl = function (maybeLnurl: string) {    
 
@@ -39,17 +72,7 @@ const extractEncodedLnurl = function (maybeLnurl: string) {
         }
     }
 
-    // URI token formats
-    const uriPrefixes = [
-		'lightning://',
-        'lightning:',
-		'lnurlw://',
-        'lnurlw:',
-        'lnurlp://',
-        'lnurlp:',
-	]
-
-	for (const prefix of uriPrefixes) {
+	for (const prefix of lnurlUriPrefixes) {
 		if (maybeLnurl && maybeLnurl.startsWith(prefix)) {            
             encodedLnurl = maybeLnurl.slice(prefix.length)
             break // necessary
@@ -73,13 +96,6 @@ function extractLnurlAddress(maybeAddress: string) {
     }
 
     throw new AppError(Err.NOTFOUND_ERROR, 'Could not extract Lightning address from the provided string', maybeAddress)
-}
-
-
-function isLnurlAddress(address: string) {
-    // Regular expression for a basic email validation    
-    const regex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
-    return regex.test(address)
 }
 
 
