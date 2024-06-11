@@ -80,7 +80,7 @@ function MOTDCard(props: {info: GetInfoResponse}) {
   )
 }
 
-function MintLimtsCard(props: { info: GetInfoResponse, limitInfo: ReturnType<typeof getMintLimits> }) {
+function MintLimitsCard(props: { info: GetInfoResponse, limitInfo: ReturnType<typeof getMintLimits> }) {
   if (props.limitInfo.mintSats === false && props.limitInfo.mintSats === false) return;
   log.trace('MintLimtsCard', props.limitInfo)
 
@@ -434,7 +434,7 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
       </AvatarHeader>
       <View style={$contentContainer}>
         {mintInfo?.motd && <MOTDCard info={mintInfo} />}
-        {mintInfo && mintLimitInfo?.any && <MintLimtsCard info={mintInfo} limitInfo={mintLimitInfo}/>}
+        {mintInfo && mintLimitInfo?.any && <MintLimitsCard info={mintInfo} limitInfo={mintLimitInfo}/>}
         {mintInfo && <>
           <DescriptionCard info={mintInfo} />
           <ContactCard info={mintInfo} popupMessage={setInfo} />
