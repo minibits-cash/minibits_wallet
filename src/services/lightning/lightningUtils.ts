@@ -23,6 +23,11 @@ export type LightningInvoiceData = {
     description_hash?: string,     
 }
 
+export function isLightningInvoice(address: string) {
+  const regex = /^(ln)(bc|bt|bs|crt)\d+\w+/
+  return regex.test(address.toLowerCase())
+}
+
 
 const findEncodedLightningInvoice = function (content: string) {
     const words = content.split(/\s+|\n+/)

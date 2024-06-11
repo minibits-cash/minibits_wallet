@@ -18,6 +18,23 @@ const findEncodedCashuToken = function (content: string) {
     return maybeToken || null
 }
 
+const cashuUriPrefixes = [
+  'https://wallet.nutstash.app/#',
+  'https://wallet.cashu.me/?token=',
+  'web+cashu://',
+  'cashu://',
+  'cashu:'
+]
+
+export function validCashuAToken(text: string) {
+  for (const prefix of cashuUriPrefixes) {
+    if (text && text.startsWith(prefix)) {
+      text = text.slice(prefix.length)
+      break // necessary
+    }
+  }
+  return text && text.startsWith('cashuA')
+}
 
 const extractEncodedCashuToken = function (maybeToken: string): string {
 
@@ -31,16 +48,7 @@ const extractEncodedCashuToken = function (maybeToken: string): string {
         return maybeToken
     }
 
-    // URI token formats
-    const uriPrefixes = [
-		'https://wallet.nutstash.app/#',
-		'https://wallet.cashu.me/?token=',
-		'web+cashu://',
-		'cashu://',
-		'cashu:'
-	]
-
-	for (const prefix of uriPrefixes) {
+	for (const prefix of cashuUriPrefixes) {
 		if (maybeToken && maybeToken.startsWith(prefix)) {            
             encodedToken = maybeToken.slice(prefix.length)
             break // necessary

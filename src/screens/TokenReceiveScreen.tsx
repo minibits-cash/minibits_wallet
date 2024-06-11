@@ -22,6 +22,7 @@ import { Mint } from '../models/Mint'
 import { MintHeader } from './Mints/MintHeader'
 import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
 import { translate } from '../i18n'
+import { validCashuAToken } from '../services/cashu/cashuUtils'
 
 
 export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = function TokenReceiveScreen(_props) {
@@ -40,6 +41,14 @@ export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = fu
             clearTimeout(timer)
         }
     }, []) */
+
+    async function autoPaste(setter: (text: string) => void, sideEffect: () => void) {
+      const clipboard = (await Clipboard.getString()).trim();
+      if (clipboard.length === 0) return;
+      if (!validCashuAToken(clipboard)) return;
+      setter(clipboard);
+      sideEffect();
+  }
 
     useEffect(() => {
         const setUnitAndMint = () => {
@@ -62,6 +71,7 @@ export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = fu
         }
         
         setUnitAndMint()
+        autoPaste(setEncodedToken, () => tokenInputRef.current?.blur())
         return () => {}
     }, [])
 

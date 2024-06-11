@@ -2,6 +2,7 @@
 import {decodelnurl} from 'js-lnurl/lib/helpers/decodelnurl'
 import AppError, {Err} from '../../utils/AppError'
 import { log } from '../logService'
+import { isLightningInvoice } from '../lightning/lightningUtils'
 
 
 const findEncodedLnurl = function (content: string) {
@@ -35,20 +36,15 @@ function isLnurl1(address: string) {
   return address.toLowerCase().startsWith('lnurl1')
 }
 
-function isLightningInvoice(address: string) {
-  const regex = /^(ln)(bc|bt|bs|crt)\d+\w+/
-  return regex.test(address.toLowerCase())
-}
-
 /** returns true if string is either a LNURL, a lightning address or lightning invoice */
-export function validPaywithlightningString(content: string) {
+export function validPaywithlightningString(text: string) {
   for (const prefix of lnurlUriPrefixes) {
-    if (content && content.startsWith(prefix)) {
-      content = content.slice(prefix.length)
+    if (text && text.startsWith(prefix)) {
+      text = text.slice(prefix.length)
       break; // necessary
     }
   }
-  return isLnurlAddress(content) || isLnurl1(content) || isLightningInvoice(content);
+  return isLnurlAddress(text) || isLnurl1(text) || isLightningInvoice(text);
 }
 
 const extractEncodedLnurl = function (maybeLnurl: string) {    
