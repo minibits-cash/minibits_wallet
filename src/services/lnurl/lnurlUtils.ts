@@ -2,7 +2,7 @@
 import {decodelnurl} from 'js-lnurl/lib/helpers/decodelnurl'
 import AppError, {Err} from '../../utils/AppError'
 import { log } from '../logService'
-import { isLightningInvoice } from '../lightning/lightningUtils'
+import { LightningUtils, isLightningInvoice } from '../lightning/lightningUtils'
 
 
 const findEncodedLnurl = function (content: string) {
@@ -32,28 +32,13 @@ function isLnurlAddress(address: string) {
   return regex.test(address)
 }
 
-function isLnurl1(address: string) {
-  return address.toLowerCase().startsWith('lnurl1')
-}
-
-/** returns true if string is either a LNURL, a lightning address or lightning invoice */
-export function validPaywithlightningString(text: string) {
-  for (const prefix of lnurlUriPrefixes) {
-    if (text && text.startsWith(prefix)) {
-      text = text.slice(prefix.length)
-      break; // necessary
-    }
-  }
-  return isLnurlAddress(text) || isLnurl1(text) || isLightningInvoice(text);
-}
-
 const extractEncodedLnurl = function (maybeLnurl: string) {    
 
     let encodedLnurl: string | null = null    
 
     if (maybeLnurl.toLowerCase().startsWith('lnurl1')) {
         const decoded = decodelnurl(maybeLnurl) // throws
-        log.trace('Extracted lnurl', maybeLnurl, 'extractEncodedLnurl')
+        log.trace('[extractEncodedLnurl] Extracted lnurl', maybeLnurl)
         return maybeLnurl
     }
 
@@ -63,7 +48,7 @@ const extractEncodedLnurl = function (maybeLnurl: string) {
 
         if(encodedLnurl) {
             const decoded = decodelnurl(encodedLnurl) // throws
-            log.trace('Extracted lnurl from URL', encodedLnurl, 'extractEncodedLnurl')
+            log.trace('[extractEncodedLnurl] Extracted lnurl from URL', encodedLnurl)
             return encodedLnurl
         }
     }
@@ -78,7 +63,7 @@ const extractEncodedLnurl = function (maybeLnurl: string) {
     
     if(encodedLnurl) {
         const decoded = decodelnurl(encodedLnurl) // throws
-        log.trace('Extracted lnurl from deeplink', encodedLnurl, 'extractEncodedLnurl')
+        log.trace('[extractEncodedLnurl] Extracted lnurl from deeplink', encodedLnurl)
         return encodedLnurl
     }
 
@@ -86,12 +71,24 @@ const extractEncodedLnurl = function (maybeLnurl: string) {
 }
 
 
-function extractLnurlAddress(maybeAddress: string) {   
+function extractLnurlAddress(maybeAddress: string) {
+    let address: string | null = null
+    for (const prefix of lnurlUriPrefixes) {
+        if (maybeAddress && maybeAddress.startsWith(prefix)) {
+            address = maybeAddress.slice(prefix.length)
+          break; // necessary
+        }
+    }
+
+    if(address && isLnurlAddress(address)) {
+        return address.toLowerCase()
+    }
+
     if(isLnurlAddress(maybeAddress)) {
         return maybeAddress.toLowerCase()
     }
 
-    throw new AppError(Err.NOTFOUND_ERROR, 'Could not extract Lightning address from the provided string', maybeAddress)
+    throw new AppError(Err.NOTFOUND_ERROR, '[extractLnurlAddress] Could not extract Lightning address from the provided string', {maybeAddress})
 }
 
 

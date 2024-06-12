@@ -38,7 +38,7 @@ export function validCashuAToken(text: string) {
 
 const extractEncodedCashuToken = function (maybeToken: string): string {
 
-    log.trace('Extract token from', maybeToken, 'extractEncodedCashuToken')
+    log.trace('[extractEncodedCashuToken] Extract token from', {maybeToken})
     
     let encodedToken: string | undefined = undefined
     let decoded: Token | undefined = undefined
@@ -55,7 +55,7 @@ const extractEncodedCashuToken = function (maybeToken: string): string {
         }
 	}
 
-    log.trace('Token without prefix', encodedToken, 'extractEncodedCashuToken')
+    log.trace('[extractEncodedCashuToken] Token without prefix', {encodedToken})
 
     // try to decode
     if(encodedToken) {
@@ -63,7 +63,7 @@ const extractEncodedCashuToken = function (maybeToken: string): string {
         return encodedToken
     }
     
-    throw new AppError(Err.NOTFOUND_ERROR, 'Could not extract ecash token from the provided string', maybeToken)
+    throw new AppError(Err.NOTFOUND_ERROR, 'Could not extract ecash token from the provided string', {maybeToken, caller: 'extractEncodedCashuToken'})
 }
 
 

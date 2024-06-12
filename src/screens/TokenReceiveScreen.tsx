@@ -30,25 +30,18 @@ export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = fu
     const tokenInputRef = useRef<TextInput>(null)
     const {mintsStore} = useStores()
 
-    /* useEffect(() => {
-        const focus = () => {
-            lightningInputRef && lightningInputRef.current
-            ? lightningInputRef.current.focus()
-            : false
-        }        
-        const timer = setTimeout(() => focus(), 100)
-        return () => {
-            clearTimeout(timer)
-        }
-    }, []) */
-
     async function autoPaste(setter: (text: string) => void, sideEffect: () => void) {
-      const clipboard = (await Clipboard.getString()).trim();
-      if (clipboard.length === 0) return;
-      if (!validCashuAToken(clipboard)) return;
-      setter(clipboard);
-      sideEffect();
-  }
+        const clipboard = (await Clipboard.getString()).trim();
+        if (clipboard.length === 0) return
+
+        try {
+            const resultFromClipboard = IncomingParser.findAndExtract(clipboard, IncomingDataType.CASHU)
+            setter(resultFromClipboard.encoded)
+            sideEffect()
+        } catch (e: any) {
+            return
+        }      
+    }
 
     useEffect(() => {
         const setUnitAndMint = () => {
@@ -114,7 +107,7 @@ export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = fu
         }
 
         try {
-            const tokenResult = IncomingParser.findAndExtract(encodedToken as string, IncomingDataType.CASHU)
+            const tokenResult = IncomingParser.findAndExtract(encodedToken, IncomingDataType.CASHU)
             return IncomingParser.navigateWithIncomingData(tokenResult, navigation, unit, mint && mint.mintUrl)
             
         } catch (e: any) {            
