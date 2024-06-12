@@ -95,7 +95,7 @@ const findAndExtract = function (
     const maybeLnurl = LnurlUtils.findEncodedLnurl(incomingData)
 
     if(maybeLnurl) {
-        log.trace('Got maybeLnurl', maybeLnurl, 'findAndExtract')
+        log.trace('[findAndExtract] Got maybeLnurl', maybeLnurl)
 
         const encodedLnurl = LnurlUtils.extractEncodedLnurl(maybeLnurl) // throws
 
@@ -109,7 +109,7 @@ const findAndExtract = function (
     const maybeLnurlAddress = LnurlUtils.findEncodedLnurlAddress(incomingData)
 
     if(maybeLnurlAddress) {
-        log.trace('Got maybeLnurlAddress', maybeLnurlAddress, 'findAndExtract')
+        log.trace('[findAndExtract] Got maybeLnurlAddress', maybeLnurlAddress)
 
         const lnurlAddress = LnurlUtils.extractLnurlAddress(maybeLnurlAddress) // throws
 
@@ -121,7 +121,7 @@ const findAndExtract = function (
 
     const maybeMintUrl = new URL(incomingData) // throws
 
-    log.trace('Got maybeMintUrl', incomingData, 'findAndExtract')
+    log.trace('[findAndExtract] Got maybeMintUrl', incomingData)
 
     return {
         type: IncomingDataType.MINT_URL,

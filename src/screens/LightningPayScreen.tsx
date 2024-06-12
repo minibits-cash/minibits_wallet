@@ -24,24 +24,30 @@ import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { translate } from '../i18n'
 
-
 export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = function LightningPayScreen(_props) {
     const {navigation, route} = _props
     const lightningInputRef = useRef<TextInput>(null)
     const {mintsStore} = useStores()
     const isInternetReachable = useIsInternetReachable()
 
-    /* useEffect(() => {
-        const focus = () => {
-            lightningInputRef && lightningInputRef.current
-            ? lightningInputRef.current.focus()
-            : false
-        }        
-        const timer = setTimeout(() => focus(), 100)
-        return () => {
-            clearTimeout(timer)
+
+    async function autoPaste(setter: (text: string) => void, sideEffect: () => void) {
+        const clipboard = (await Clipboard.getString()).trim()
+        if (clipboard.length === 0) return
+        try {
+            const resultFromClipboard = IncomingParser.findAndExtract(clipboard)
+
+            if (resultFromClipboard.type === IncomingDataType.INVOICE ||
+                resultFromClipboard.type === IncomingDataType.LNURL ||
+                resultFromClipboard.type === IncomingDataType.LNURL_ADDRESS) {
+                    setter(resultFromClipboard.encoded)
+                    sideEffect()
+            }
+            return
+        } catch (e: any) {
+            return
         }
-    }, []) */
+    }
 
     useEffect(() => {
         const setUnitAndMint = () => {
@@ -61,15 +67,14 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                 handleError(e)
             }
         }
-        
-        setUnitAndMint()
-        return () => {}
-    }, [])
 
-       
+        setUnitAndMint()
+        autoPaste(setLightningData, () => lightningInputRef.current?.blur())
+        return () => {}
+    }, [])       
     
-    const [prevRouteName, setPrevRouteName] = useState<string>('')
-    const [lightningData, setLightningData] = useState<string | undefined>(undefined)
+    
+    const [lightningData, setLightningData] = useState<string | undefined>(undefined)    
     const [unit, setUnit] = useState<MintUnit>('sat')
     const [mint, setMint] = useState<Mint | undefined>(undefined)    
     const [error, setError] = useState<AppError | undefined>()
@@ -79,10 +84,9 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
     const onPaste = async function() {        
         const clipboard = await Clipboard.getString()
         if (clipboard.length === 0) {
-            infoMessage(translate('lightningPayScreen.onPasteEmptyClipboard'))
-            return
+          infoMessage(translate('lightningPayScreen.onPasteEmptyClipboard'))
+          return
         }
-
         setLightningData(clipboard)
         lightningInputRef.current?.blur()
     }
@@ -104,53 +108,25 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
     const onConfirm = async function() {
         if (!lightningData) {
           setError({ name: Err.VALIDATION_ERROR, message: translate("userErrorMissingLightningData")})
-          return;
+          return
         }
 
         try {
-          const invoiceResult = IncomingParser.findAndExtract(lightningData as string, IncomingDataType.INVOICE)
-          return IncomingParser.navigateWithIncomingData(invoiceResult, navigation, unit, mint && mint.mintUrl)
-        } catch (e: any) {
-            const maybeLnurlAddress = LnurlUtils.findEncodedLnurlAddress(lightningData as string)
+            const result = IncomingParser.findAndExtract(lightningData)
 
-            if(maybeLnurlAddress) {
-                try {
-                    log.trace('Found Lightning address instead of an invoice', maybeLnurlAddress, 'onIncomingData')        
-                    const validAddress = LnurlUtils.extractLnurlAddress(maybeLnurlAddress)
-            
-                    if(validAddress) {                            
-                        await IncomingParser.navigateWithIncomingData({
-                            type: IncomingDataType.LNURL_ADDRESS,
-                            encoded: validAddress,
-                        }, navigation, unit, mint && mint.mintUrl)    
-                    }
-                    return          
-                } catch (e3: any) {
-                    handleError(e3)
-                    return
-                }
+            if(result.type === IncomingDataType.INVOICE) {
+                return IncomingParser.navigateWithIncomingData(result, navigation, unit, mint && mint.mintUrl)
             }
 
-            const maybeLnurl = LnurlUtils.findEncodedLnurl(lightningData as string)
+            if(result.type === IncomingDataType.LNURL) {
+                await IncomingParser.navigateWithIncomingData(result, navigation, unit, mint && mint.mintUrl)
+            }
             
-            if(maybeLnurl) {
-                try {
-                    log.trace('Found LNURL link instead of an invoice', maybeLnurl, 'onIncomingData')
-                    const encodedLnurl = LnurlUtils.extractEncodedLnurl(maybeLnurl)
-    
-                    if(encodedLnurl) {                            
-                        await IncomingParser.navigateWithIncomingData({
-                            type: IncomingDataType.LNURL,
-                            encoded: encodedLnurl
-                        }, navigation, unit, mint && mint.mintUrl)
-                    }
-                    return
-                } catch (e2: any) {
-                    handleError(e2)
-                    return
-                }
-            }           
-            
+            if(result.type === IncomingDataType.LNURL_ADDRESS) {
+                await IncomingParser.navigateWithIncomingData(result, navigation, unit, mint && mint.mintUrl)   
+            }
+          
+        } catch (e: any) {
             e.params = lightningData
             handleError(e)  
             return
@@ -176,8 +152,6 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
     const inputBg = useThemeColor('background')
     const contactIcon = useThemeColor('button')
     const headerBg = useThemeColor('header')
-    
-    
 
     return (
         <Screen preset="fixed" contentContainerStyle={$screen}>

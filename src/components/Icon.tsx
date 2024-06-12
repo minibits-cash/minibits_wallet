@@ -14,7 +14,16 @@ import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome'
 import { colors, spacing, useThemeColor } from "../theme"
 import { IconDefinition, Transform } from "@fortawesome/fontawesome-svg-core"
 
+// due to Metro bundler not currently supporting tree-shaking, we take the safe routes and use "deep imports" for icons
+// metro bundler tree-shaking issue: https://github.com/facebook/metro/issues/132
+// relevant font-awesome docs: https://docs.fontawesome.com/apis/javascript/tree-shaking
 
+import { faTwitter } from "@fortawesome/free-brands-svg-icons/faTwitter"
+import { faTelegramPlane } from "@fortawesome/free-brands-svg-icons/faTelegramPlane"
+import { faDiscord } from "@fortawesome/free-brands-svg-icons/faDiscord"
+import { faGithub } from "@fortawesome/free-brands-svg-icons/faGithub"
+import { faReddit } from "@fortawesome/free-brands-svg-icons/faReddit"
+ 
 import { faWallet } from '@fortawesome/free-solid-svg-icons/faWallet'
 import { faAddressCard } from '@fortawesome/free-solid-svg-icons/faAddressCard'
 import { faAddressBook } from '@fortawesome/free-solid-svg-icons/faAddressBook'
@@ -73,70 +82,22 @@ import { faPaste } from '@fortawesome/free-solid-svg-icons/faPaste'
 import { faKeyboard } from '@fortawesome/free-solid-svg-icons/faKeyboard'
 import { faMoneyBill1 } from '@fortawesome/free-solid-svg-icons/faMoneyBill1'
 import { faGears } from '@fortawesome/free-solid-svg-icons/faGears'
+import { faTag } from '@fortawesome/free-solid-svg-icons/faTag'
+import { faBank } from '@fortawesome/free-solid-svg-icons/faBank'
+import { faChevronDown } from '@fortawesome/free-solid-svg-icons/faChevronDown'
+import { faChevronUp } from '@fortawesome/free-solid-svg-icons/faChevronUp'
+import { faCircleExclamation } from '@fortawesome/free-solid-svg-icons/faCircleExclamation'
+import { faCircleQuestion } from '@fortawesome/free-solid-svg-icons/faCircleQuestion'
+import { faEnvelope } from '@fortawesome/free-solid-svg-icons/faEnvelope'
+import { faCircleArrowUp } from "@fortawesome/free-solid-svg-icons/faCircleArrowUp"
+import { faCircleArrowDown } from "@fortawesome/free-solid-svg-icons/faCircleArrowDown"
 
 
 export type IconTypes = keyof typeof iconRegistry
 
-export const iconRegistry = {
-  faAddressCard: faAddressCard,
-  faAddressBook: faAddressBook,
-  faWallet: faWallet,
-  faQrcode: faQrcode,
-  faClipboard: faClipboard,
-  faSliders: faSliders,
-  faCoins: faCoins,
-  faEllipsisVertical: faEllipsisVertical,
-  faEllipsis: faEllipsis,
-  faArrowUp: faArrowUp,
-  faArrowDown: faArrowDown,
-  faArrowLeft: faArrowLeft,
-  faXmark: faXmark,
-  faInfoCircle: faInfoCircle,
-  faBug: faBug,
-  faCheckCircle: faCheckCircle,
-  faArrowTurnUp: faArrowTurnUp,
-  faArrowTurnDown: faArrowTurnDown,
-  faPencil: faPencil,
-  faTags: faTags,
-  faShareFromSquare: faShareFromSquare,
-  faRotate: faRotate,
-  faCode: faCode,
-  faBan: faBan,
-  faCircle: faCircle,
-  faPaperPlane: faPaperPlane,
-  faBolt: faBolt,
-  faArrowUpFromBracket: faArrowUpFromBracket,
-  faArrowRightToBracket: faArrowRightToBracket,
-  faPlus: faPlus,
-  faShieldHalved: faShieldHalved,
-  faCloudArrowUp: faCloudArrowUp,
-  faPaintbrush: faPaintbrush,
-  faCopy: faCopy,
-  faBurst: faBurst,
-  faUserShield: faUserShield,
-  faLock: faLock,
-  faLockOpen: faLockOpen,
-  faTriangleExclamation: faTriangleExclamation,
-  faDownload: faDownload,
-  faUpload: faUpload,
-  faRecycle: faRecycle,
-  faListUl: faListUl,
-  faExpand: faExpand,
-  faFingerprint: faFingerprint,
-  faWandMagicSparkles: faWandMagicSparkles,
-  faCircleUser: faCircleUser,
-  faComment: faComment,
-  faKey: faKey,
-  faCircleNodes: faCircleNodes,
-  faBullseye: faBullseye,
-  faEyeSlash: faEyeSlash,
-  faUpRightFromSquare: faUpRightFromSquare,
-  faShareNodes: faShareNodes,
-  faPaste: faPaste,
-  faKeyboard: faKeyboard,
-  faMoneyBill1: faMoneyBill1,
-  faGears: faGears,
-  }
+// TODO remove need for manual iconregistry? 
+// would be best to just import all of them, i guess, or figure out something smart
+export const iconRegistry = { faAddressCard, faAddressBook, faWallet, faQrcode, faClipboard, faSliders, faCoins, faEllipsisVertical, faEllipsis, faArrowUp, faArrowDown, faArrowLeft, faXmark, faInfoCircle, faBug, faCheckCircle, faArrowTurnUp, faArrowTurnDown, faPencil, faTags, faShareFromSquare, faRotate, faCode, faBan, faCircle, faPaperPlane, faBolt, faArrowUpFromBracket, faArrowRightToBracket, faPlus, faShieldHalved, faCloudArrowUp, faPaintbrush, faCopy, faBurst, faUserShield, faLock, faLockOpen, faTriangleExclamation, faDownload, faUpload, faRecycle, faListUl, faExpand, faFingerprint, faWandMagicSparkles, faCircleUser, faComment, faKey, faCircleNodes, faBullseye, faEyeSlash, faUpRightFromSquare, faShareNodes, faPaste, faKeyboard, faMoneyBill1, faGears, faTag, faBank, faChevronDown, faChevronUp, faCircleExclamation, faCircleQuestion, faEnvelope, faTwitter, faTelegramPlane, faDiscord, faGithub, faReddit, faCircleArrowUp, faCircleArrowDown }
 
 
 interface IconProps extends TouchableOpacityProps {
@@ -227,7 +188,7 @@ const $imageStyle: ImageStyle = {
 }
 
 const $container: ImageStyle = {    
-    padding: spacing.extraSmall,    
+  padding: spacing.extraSmall,    
 }
 
 const $inverseContainer: ImageStyle = {

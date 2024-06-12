@@ -2,7 +2,7 @@
 	"common": {
 		"close": "Zavrieť",
 		"copyFailParam": "Nepodarilo sa skopírovať %{param}",
-		"notCreated": "Ešte nevytvorené",
+		"notCreated": "Ešte nevytvorený",
 		"offlinePretty": "Vaše zariadenie je momentálne offline.",
 		"qr": "QR kód",
 		"resetDefault": "Obnoviť pôvodné nastavenia",

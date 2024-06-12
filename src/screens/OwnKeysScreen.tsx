@@ -12,7 +12,7 @@ import Clipboard from '@react-native-clipboard/clipboard'
 import { log } from '../services/logService'
 import { KeyChain, KeyPair, NostrClient, NostrProfile } from '../services'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
-import { ProfileHeader } from './Contacts/ProfileHeader'
+import { ProfileHeader } from '../components/ProfileHeader'
 import { translate } from '../i18n'
 
 
@@ -397,7 +397,7 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
             isVisible={isProfileChangeCompleted ? true : false}            
             ContentComponent={
                 <View style={$bottomModal}>                
-                    <ProfileHeader headerBg='transparent' />
+                    <ProfileHeader headerBgColor='transparent' />
                     <Text 
                         style={{color: textResult, textAlign: 'center', marginTop: spacing.small}} 
                         tx="nostr.lastStandDialog.complete"

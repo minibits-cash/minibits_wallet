@@ -18,10 +18,27 @@ const findEncodedCashuToken = function (content: string) {
     return maybeToken || null
 }
 
+const cashuUriPrefixes = [
+  'https://wallet.nutstash.app/#',
+  'https://wallet.cashu.me/?token=',
+  'web+cashu://',
+  'cashu://',
+  'cashu:'
+]
+
+export function validCashuAToken(text: string) {
+  for (const prefix of cashuUriPrefixes) {
+    if (text && text.startsWith(prefix)) {
+      text = text.slice(prefix.length)
+      break // necessary
+    }
+  }
+  return text && text.startsWith('cashuA')
+}
 
 const extractEncodedCashuToken = function (maybeToken: string): string {
 
-    log.trace('Extract token from', maybeToken, 'extractEncodedCashuToken')
+    log.trace('[extractEncodedCashuToken] Extract token from', {maybeToken})
     
     let encodedToken: string | undefined = undefined
     let decoded: Token | undefined = undefined
@@ -31,23 +48,14 @@ const extractEncodedCashuToken = function (maybeToken: string): string {
         return maybeToken
     }
 
-    // URI token formats
-    const uriPrefixes = [
-		'https://wallet.nutstash.app/#',
-		'https://wallet.cashu.me/?token=',
-		'web+cashu://',
-		'cashu://',
-		'cashu:'
-	]
-
-	for (const prefix of uriPrefixes) {
+	for (const prefix of cashuUriPrefixes) {
 		if (maybeToken && maybeToken.startsWith(prefix)) {            
             encodedToken = maybeToken.slice(prefix.length)
             break // necessary
         }
 	}
 
-    log.trace('Token without prefix', encodedToken, 'extractEncodedCashuToken')
+    log.trace('[extractEncodedCashuToken] Token without prefix', {encodedToken})
 
     // try to decode
     if(encodedToken) {
@@ -55,7 +63,7 @@ const extractEncodedCashuToken = function (maybeToken: string): string {
         return encodedToken
     }
     
-    throw new AppError(Err.NOTFOUND_ERROR, 'Could not extract ecash token from the provided string', maybeToken)
+    throw new AppError(Err.NOTFOUND_ERROR, 'Could not extract ecash token from the provided string', {maybeToken, caller: 'extractEncodedCashuToken'})
 }
 
 

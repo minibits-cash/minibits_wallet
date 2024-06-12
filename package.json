@@ -12,13 +12,16 @@
     "lint": "eslint .",
     "start": "npx react-native start",
     "test": "jest",
+    "test:i18n": "node __tests__/missingTranslations.js && node __tests__/incorrectTranslationPlaceholders.js",
     "adb": "adb devices && adb reverse tcp:9090 tcp:9090 && adb reverse tcp:3000 tcp:3000 && adb reverse tcp:9001 tcp:9001 && adb reverse tcp:8081 tcp:8081",
-	"i18n:missing": "node __tests__/missingTranslations.js", 
+    "adb:unreverse": "adb devices && adb reverse --remove-all",
+    "adb:inspect": "adb shell input keyevent 82",
     "postinstall": "patch-package --exclude 'nothing'"
   },
   "dependencies": {
     "@cashu/cashu-ts": "1.0.0-rc.3",
     "@fortawesome/fontawesome-svg-core": "^6.5.2",
+    "@fortawesome/free-brands-svg-icons": "^6.5.2",
     "@fortawesome/free-regular-svg-icons": "^6.5.2",
     "@fortawesome/free-solid-svg-icons": "^6.5.2",
     "@fortawesome/react-native-fontawesome": "^0.3.0",

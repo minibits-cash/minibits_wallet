@@ -2,6 +2,7 @@
 import {decodelnurl} from 'js-lnurl/lib/helpers/decodelnurl'
 import AppError, {Err} from '../../utils/AppError'
 import { log } from '../logService'
+import { LightningUtils, isLightningInvoice } from '../lightning/lightningUtils'
 
 
 const findEncodedLnurl = function (content: string) {
@@ -10,13 +11,26 @@ const findEncodedLnurl = function (content: string) {
     return maybeLnurl || null
 }
 
-
 const findEncodedLnurlAddress = function (content: string) {
     const words = content.split(/\s+|\n+/)
     const maybeAddress = words.find(word => word.toLowerCase().includes("@"))
     return maybeAddress || null
 }
 
+const lnurlUriPrefixes = [
+  'lightning://',
+  'lightning:',
+  'lnurlw://',
+  'lnurlw:',
+  'lnurlp://',
+  'lnurlp:',
+]
+
+function isLnurlAddress(address: string) {
+  // Regular expression for a basic email validation    
+  const regex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+  return regex.test(address)
+}
 
 const extractEncodedLnurl = function (maybeLnurl: string) {    
 
@@ -24,7 +38,7 @@ const extractEncodedLnurl = function (maybeLnurl: string) {
 
     if (maybeLnurl.toLowerCase().startsWith('lnurl1')) {
         const decoded = decodelnurl(maybeLnurl) // throws
-        log.trace('Extracted lnurl', maybeLnurl, 'extractEncodedLnurl')
+        log.trace('[extractEncodedLnurl] Extracted lnurl', maybeLnurl)
         return maybeLnurl
     }
 
@@ -34,22 +48,12 @@ const extractEncodedLnurl = function (maybeLnurl: string) {
 
         if(encodedLnurl) {
             const decoded = decodelnurl(encodedLnurl) // throws
-            log.trace('Extracted lnurl from URL', encodedLnurl, 'extractEncodedLnurl')
+            log.trace('[extractEncodedLnurl] Extracted lnurl from URL', encodedLnurl)
             return encodedLnurl
         }
     }
 
-    // URI token formats
-    const uriPrefixes = [
-		'lightning://',
-        'lightning:',
-		'lnurlw://',
-        'lnurlw:',
-        'lnurlp://',
-        'lnurlp:',
-	]
-
-	for (const prefix of uriPrefixes) {
+	for (const prefix of lnurlUriPrefixes) {
 		if (maybeLnurl && maybeLnurl.startsWith(prefix)) {            
             encodedLnurl = maybeLnurl.slice(prefix.length)
             break // necessary
@@ -59,7 +63,7 @@ const extractEncodedLnurl = function (maybeLnurl: string) {
     
     if(encodedLnurl) {
         const decoded = decodelnurl(encodedLnurl) // throws
-        log.trace('Extracted lnurl from deeplink', encodedLnurl, 'extractEncodedLnurl')
+        log.trace('[extractEncodedLnurl] Extracted lnurl from deeplink', encodedLnurl)
         return encodedLnurl
     }
 
@@ -67,19 +71,24 @@ const extractEncodedLnurl = function (maybeLnurl: string) {
 }
 
 
-function extractLnurlAddress(maybeAddress: string) {   
+function extractLnurlAddress(maybeAddress: string) {
+    let address: string | null = null
+    for (const prefix of lnurlUriPrefixes) {
+        if (maybeAddress && maybeAddress.startsWith(prefix)) {
+            address = maybeAddress.slice(prefix.length)
+          break; // necessary
+        }
+    }
+
+    if(address && isLnurlAddress(address)) {
+        return address.toLowerCase()
+    }
+
     if(isLnurlAddress(maybeAddress)) {
         return maybeAddress.toLowerCase()
     }
 
-    throw new AppError(Err.NOTFOUND_ERROR, 'Could not extract Lightning address from the provided string', maybeAddress)
-}
-
-
-function isLnurlAddress(address: string) {
-    // Regular expression for a basic email validation    
-    const regex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
-    return regex.test(address)
+    throw new AppError(Err.NOTFOUND_ERROR, '[extractLnurlAddress] Could not extract Lightning address from the provided string', {maybeAddress})
 }
 
 
