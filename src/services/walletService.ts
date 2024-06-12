@@ -980,17 +980,15 @@ const handleClaim = async function (): Promise<void> {
     log.info('[handleClaim] start')
     const {walletId, seedHash, pubkey} = walletProfileStore
 
+
     if(!walletId || !seedHash || !pubkey) {
-        log.warn('[handleClaim] Missing or incomplete walletProfile, skipping claim request...')
-        return
+        throw new AppError(Err.VALIDATION_ERROR, 'Skipping claim of ecash received to your lightning address, missing profile data', {walletId, seedHash, pubkey})          
     }
 
     const claimedInvoices = await MinibitsClient.createClaim(walletId, seedHash, pubkey)
 
-    log.debug(claimedInvoices)
-
     if(claimedInvoices.length === 0) {
-        log.info('[handleClaim] No claimed invoices returned from server...')
+        log.debug('[handleClaim] No claimed invoices returned from server...')
         return
     }
 
@@ -1001,8 +999,7 @@ const handleClaim = async function (): Promise<void> {
             `_handleClaimTask-${now}`,               
             async () => await _handleClaimTask({claimedInvoice})               
         )               
-    }
-    
+    }        
     return
 }
 
