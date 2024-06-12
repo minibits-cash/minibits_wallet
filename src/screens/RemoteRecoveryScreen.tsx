@@ -494,9 +494,9 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
 
             const currentSeedHash = await KeyChain.loadSeedHash()
 
-            if(currentSeedHash === seedHash) {
+            /* if(currentSeedHash === seedHash) {
               throw new AppError(Err.VALIDATION_ERROR, translate("recovery.seedFromCurrentDeviceError"))
-            }
+            }*/ // allow on-device profile refresh based on server data
             
             const profile = await MinibitsClient.getWalletProfileBySeedHash(seedHash as string)            
 
@@ -508,7 +508,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                     setProfileToRecover(profile)
                 } else {
                     setInfo(translate("recovery.ownKeysImportAgain", { addr: profile.nip05 }))
-                    await delay(5000)
+                    await delay(4000)
                 }
             } else {
               setInfo(translate("recovery.noWalletForSeedError"))

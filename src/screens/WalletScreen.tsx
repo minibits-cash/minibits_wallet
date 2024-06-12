@@ -155,7 +155,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             if(!isInternetReachable) { return }
 
             // check lnaddress claims on app start and set timestamp to trigger focus updates
-            WalletTask.handleClaim().catch(e => false)
+            WalletTask.handleClaim().catch(e => setInfo(e.message))
             // Auto-recover inflight proofs - do only on startup and before checkPendingReceived to prevent conflicts            
             WalletTask.handleInFlight().catch(e => false)
             // Create websocket subscriptions to receive tokens or payment requests by NOSTR DMs                    
