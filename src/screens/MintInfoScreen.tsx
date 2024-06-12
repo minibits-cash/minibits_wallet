@@ -16,6 +16,7 @@ import {
   InfoModal,
   ListItem,
   Loading,
+  MintIcon,
   Screen,
   Text,
 } from '../components'
@@ -31,6 +32,7 @@ import useColorScheme from '../theme/useThemeColor'
 import AppError, { Err } from '../utils/AppError'
 import { useHeader } from '../utils/useHeader'
 import { CurrencySign } from './Wallet/CurrencySign'
+import { SvgXml } from 'react-native-svg'
 
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -41,6 +43,7 @@ interface DetailedNutInfo {
   methods: Array<SwapMethod>;
   disabled: boolean;
 }
+
 interface MethodLimit {
   min?: number,
   max?: number,
@@ -327,23 +330,6 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
   useHeader({
     leftIcon: 'faArrowLeft',
     onLeftPress: () => {
-      /*const routes = navigation.getState()?.routes
-      let prevRouteName: string = ''
-
-      if(routes.length >= 2) {
-          prevRouteName = routes[routes.length - 2].name
-      }            
-
-      log.trace('prevRouteName', {prevRouteName, routes})
-
-      if(prevRouteName === 'Mints') {
-          navigation.navigate('Mints', {})
-      } else {                
-          navigation.dispatch(
-              StackActions.replace('Settings')                    
-          )
-          navigation.navigate('WalletNavigator', {screen: 'Wallet'})
-      } */
       navigation.goBack()
     },
   })
@@ -373,6 +359,9 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
         if (mint) {
           const info: GetInfoResponse = await MintClient.getMintInfo(mint.mintUrl)
           mint.setStatus(MintStatus.ONLINE)
+          if(info.name && info.name !== mint.shortname) {
+            await mint.setShortname()
+          }
           setMintInfo(info)
           setMint(mint)
         } else {
@@ -414,8 +403,15 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
   return (
     <Screen style={$screen} preset="scroll">
       <AvatarHeader
-        encircle={true}
-        fallbackIcon="faBank"
+        encircle={false}        
+        fallbackIconComponent={
+          <SvgXml 
+              width={60} 
+              height={60} 
+              xml={MintIcon}
+              fill='white'
+          />
+        }
         headerHeightModifier={0.26}
         heading={mintInfo?.name ?? translate('mintInfo.loadingNamePlaceholder')}
         text={route.params.mintUrl}>

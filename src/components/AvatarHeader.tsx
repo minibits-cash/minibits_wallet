@@ -16,6 +16,7 @@ export interface AvatarHeaderProps {
   /** @default 0.2 */
   headerHeightModifier?: number,
   fallbackIcon?: keyof typeof iconRegistry
+  fallbackIconComponent?: React.ReactNode
   headerBgColor?: string
   encircle?: boolean
   children?: React.ReactNode
@@ -38,13 +39,22 @@ export const AvatarHeader = observer(function (props: AvatarHeaderProps) {
             source={{ uri: getImageSource(props.picture) }}
           />
         ) : (
-          <View style={props?.encircle ? $encircledIcon(borderColor, props?.pictureHeight) : {}}>
-            <Icon
-              icon={props?.fallbackIcon ?? 'faCircleUser'}
-              size={props?.encircle ? 35 : (props?.pictureHeight ?? 80)}
-              color='white'
-            />
-          </View> 
+          <>
+            {props.fallbackIconComponent && (
+              <View style={props?.encircle ? $encircledIcon(borderColor, props?.pictureHeight) : {}}>
+                {props.fallbackIconComponent}
+              </View>
+            )}
+            {props.fallbackIcon && !props.fallbackIconComponent && (
+              <View style={props?.encircle ? $encircledIcon(borderColor, props?.pictureHeight) : {}}>
+              <Icon
+                icon={props?.fallbackIcon ?? 'faCircleUser'}
+                size={props?.encircle ? 35 : (props?.pictureHeight ?? 80)}
+                color='white'
+              />
+            </View> 
+            )}
+          </> 
         )}
       </View>
       {props.heading && <Text style={{ fontSize: 26, lineHeight: 40 }} text={props.heading} adjustsFontSizeToFit={true} numberOfLines={1} />}
