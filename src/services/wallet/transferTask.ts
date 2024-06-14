@@ -312,6 +312,7 @@ const _moveProofsFromPending = async function (
     for (const proof of proofsToMove as Proof[]) {
         proof.tId = transactionId
         proof.mintUrl = mintUrl
+        proof.unit = unit
     }
 
     const amountToMove = CashuUtils.getProofsAmount(proofsToMove as Proof[])
