@@ -66,7 +66,10 @@ export const TransactionModel = types
     }).actions(self => ({
         setUnit(unit: MintUnit) { // migration
             self.unit = unit
-        }            
+        },
+        setStatus(status: TransactionStatus) {
+            self.status = status
+        }              
   }))   
     
 

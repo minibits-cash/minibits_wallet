@@ -250,6 +250,15 @@ export const TransactionsStoreModel = types
                 }
             }
         }),
+        expireAllAfterRecovery: flow(function* expireAllAfterRecovery() {
+            // Update status in database
+            yield Database.expireAllAfterRecovery()
+
+            // Update the model statuses
+            for (const t of self.all) {
+                t.setStatus(TransactionStatus.EXPIRED)
+            }
+        }),
         updateBalanceAfter: flow(function* updateBalanceAfter(
             id: number,
             balanceAfter: number,

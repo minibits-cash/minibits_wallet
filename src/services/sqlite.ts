@@ -582,6 +582,17 @@ const updateStatusesAsync = async function (
   }
 }
 
+const expireAllAfterRecovery = async function () {
+  const updateQuery = `
+      UPDATE transactions
+      SET status = ?      
+    `    
+    const params = [TransactionStatus.EXPIRED]
+    const result = await _db.executeAsync(updateQuery, params)
+    log.info('[expireAllAfterRecovery]', `Transactions statuses set to EXPITED.`)
+    return result
+}
+
 const updateBalanceAfterAsync = async function (
   id: number,
   balanceAfter: number,
@@ -1085,6 +1096,7 @@ export const Database = {
   getTransactionById,
   addTransactionAsync,
   updateStatusAsync,
+  expireAllAfterRecovery,
   updateStatusesAsync,
   updateBalanceAfterAsync,
   updateFeeAsync,

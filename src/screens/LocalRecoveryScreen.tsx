@@ -265,26 +265,26 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
 
                 // delete from wallet storage
                 proofsStore.removeOnLocalRecovery(proofsByMint, false)
+                await transactionsStore.expireAllAfterRecovery()
 
-                const groupedByUnit = proofsByMint.reduce((acc: Record<string, Proof[]>, proof) => {
-                  // Check if there's already an array for this unit, if not, create one
-                  if (!acc[proof.unit as MintUnit]) {
-                    acc[proof.unit] = []
+                const groupedByKeyset = proofsByMint.reduce((acc: Record<string, Proof[]>, proof) => {
+                  // Check if there's already an array for this keyset, if not, create one
+                  if (!acc[proof.id as string]) {
+                    acc[proof.id] = []
                   }
-                  // Push the object into the array corresponding to its unit
-                  acc[proof.unit].push(proof)
+                  // Push the object into the array corresponding to its keyset
+                  acc[proof.id].push(proof)
                   return acc;
                 }, {})
 
-                //log.trace('[groupedByMint]', groupedByUnit)
+                for (const keysetId in groupedByKeyset) {                  
 
-                for (const unit in groupedByUnit) {
-
-                  if (Object.prototype.hasOwnProperty.call(groupedByUnit, unit)) {
-                    const proofsToAdd = groupedByUnit[unit]
+                  if (Object.prototype.hasOwnProperty.call(groupedByKeyset, keysetId)) {
+                    const proofsToAdd = groupedByKeyset[keysetId]
+                    const unit = proofsToAdd[0].unit
                     const amount = CashuUtils.getProofsAmount(proofsToAdd as Proof[])
 
-                    log.trace({mint: mint.mintUrl, unit, amount})
+                    log.trace({mint: mint.mintUrl, keysetId, amount})
 
                     transactionData.push({
                       status: TransactionStatus.PREPARED,
@@ -296,13 +296,12 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
                       type: TransactionType.RECEIVE,
                       amount,
                       fee: 0,
-                      unit: unit as MintUnit,
+                      unit,
                       data: JSON.stringify(transactionData),
-                      memo: 'Wallet recovery from backup',
+                      memo: 'Recovery from backup',
                       mint: mint.mintUrl,
                       status: TransactionStatus.PREPARED,
                     }
-
 
                     const draftTransaction: TransactionRecord = await transactionsStore.addTransaction(newTransaction)
                     const transactionId = draftTransaction.id as number
@@ -311,7 +310,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
                         mint.mintUrl,
                         proofsToAdd,
                         {
-                            unit: unit as MintUnit,
+                            unit,
                             transactionId,
                             isPending: false
                         }            
@@ -324,7 +323,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
                         )                       
                     }
 
-                    const balanceAfter = proofsStore.getUnitBalance(unit as MintUnit)?.unitBalance || 0
+                    const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance || 0
                     await transactionsStore.updateBalanceAfter(transactionId, balanceAfter)
       
                     // Finally, update completed transaction
