@@ -149,7 +149,8 @@
 	"lightningAddress": "Lightning address",
 	"lightningInvoiceSharedWaiting": "Lightning invoice has been shared, waiting to be paid by receiver.",
 	"lightningPayScreen": {
-		"onPasteEmptyClipboard": "First copy Lightning invoice, address or pay code to pay to. Then paste."
+		"onPasteEmptyClipboard": "First copy Lightning invoice, address or pay code to pay to. Then paste.",
+		"payHeading": "Pay"
 	},
 	"loadingPublicInfo": "Loading public info",
 	"localBackupDisabled": "Local backup is off",

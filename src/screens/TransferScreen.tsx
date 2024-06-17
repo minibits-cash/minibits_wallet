@@ -80,6 +80,8 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     const [finalFee, setFinalFee] = useState<number>(0)
     const [memo, setMemo] = useState('')
     const [lnurlDescription, setLnurlDescription] = useState('')
+    const [lnurlPayCommentAllowed, setLnurlPayCommentAllowed] = useState(0)
+    const [lnurlPaymentComment, setLnurlPaymentComment] = useState('')
     const [availableMintBalances, setAvailableMintBalances] = useState<MintBalance[]>([])
     const [mintBalanceToTransferFrom, setMintBalanceToTransferFrom] = useState<MintBalance | undefined>()
     const [transactionStatus, setTransactionStatus] = useState<TransactionStatus | undefined>()
@@ -203,9 +205,12 @@ useFocusEffect(
                             break
                         }
                     }
+                    if ('commentAllowed' in lnurlParams && lnurlParams.commentAllowed > 0) {
+                      setLnurlPayCommentAllowed(lnurlParams.commentAllowed)
+                    }
 
                     if(desc) {
-                        setLnurlDescription(desc)
+                      setLnurlDescription(desc)
                     }
 
                     if(address) {
@@ -412,6 +417,8 @@ const resetState = function () {
     setIsTransferTaskSentToQueue(false)
     setIsResultModalVisible(false)
     setResultModalInfo(undefined)
+    setLnurlPayCommentAllowed(0)
+    setLnurlPaymentComment('')
 }
 
 const toggleResultModal = () => setIsResultModalVisible(previousState => !previousState)
@@ -569,216 +576,252 @@ const handleError = function(e: AppError): void {
 const headerBg = useThemeColor('header')
 const feeColor = colors.palette.primary200
 const iconColor = useThemeColor('textDim')
+const inputBg = useThemeColor('background')
 const satsColor = colors.palette.primary200
 
     return (
-        <Screen preset="fixed" contentContainerStyle={$screen}>
-            <MintHeader 
-                mint={mintBalanceToTransferFrom ? mintsStore.findByUrl(mintBalanceToTransferFrom?.mintUrl) : undefined}
-                unit={unit}
-                navigation={navigation}
+      <Screen preset="fixed" contentContainerStyle={$screen}>
+        <MintHeader
+          mint={
+            mintBalanceToTransferFrom
+              ? mintsStore.findByUrl(mintBalanceToTransferFrom?.mintUrl)
+              : undefined
+          }
+          unit={unit}
+          navigation={navigation}
+        />
+        <View style={[$headerContainer, {backgroundColor: headerBg}]}>
+          <View style={$amountContainer}>
+            <TextInput
+              ref={amountInputRef}
+              onChangeText={amount => setAmountToTransfer(amount)}
+              onEndEditing={onAmountEndEditing}
+              value={amountToTransfer}
+              style={$amountInput}
+              maxLength={9}
+              keyboardType="numeric"
+              selectTextOnFocus={true}
+              editable={encodedInvoice ? false : true}
             />
-            <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-                <View style={$amountContainer}>
-                    <TextInput
-                        ref={amountInputRef}
-                        onChangeText={amount => setAmountToTransfer(amount)}                                
-                        onEndEditing={onAmountEndEditing}
-                        value={amountToTransfer}
-                        style={$amountInput}
-                        maxLength={9}
-                        keyboardType="numeric"
-                        selectTextOnFocus={true}
-                        editable={
-                            encodedInvoice ? false : true
-                        }
-                    />
 
-                    {encodedInvoice && (meltQuote?.fee_reserve || finalFee) ? (
-                        <FeeBadge
-                            currencyCode={getCurrency(unit).code}
-                            estimatedFee={meltQuote?.fee_reserve || 0}
-                            finalFee={finalFee}              
-                        />    
-                    ) : (
-                        <Text
-                            size='sm'
-                            tx="payCommon.amountToPayLabel"
-                            style={{color: 'white', textAlign: 'center'}}
-                        />
-                    )}
-                </View>
-            </View>
-            <View style={$contentContainer}>
-                {transactionStatus !== TransactionStatus.COMPLETED && (                                    
-                    <Card
-                        style={[$card, {minHeight: 50}]}
-                        ContentComponent={
-                            <ListItem
-                                text={lnurlPayParams?.address || memo || lnurlPayParams?.domain || translate("common.noDescPlaceholder")}
-                                subText={lnurlDescription}
-                                LeftComponent={
-                                    <Icon
-                                        containerStyle={$iconContainer}
-                                        icon="faInfoCircle"
-                                        size={spacing.medium}
-                                        color={iconColor}
-                                    />
-                                }
-                                style={$item}
-                            />
-                        }
+            {encodedInvoice && (meltQuote?.fee_reserve || finalFee) ? (
+              <FeeBadge
+                currencyCode={getCurrency(unit).code}
+                estimatedFee={meltQuote?.fee_reserve || 0}
+                finalFee={finalFee}
+              />
+            ) : (
+              <Text
+                size="sm"
+                tx="payCommon.amountToPayLabel"
+                style={{color: 'white', textAlign: 'center'}}
+              />
+            )}
+          </View>
+        </View>
+        <View style={$contentContainer}>
+          {transactionStatus !== TransactionStatus.COMPLETED && (
+            <Card
+              style={[$card, {minHeight: 50}]}
+              ContentComponent={
+                <ListItem
+                  text={
+                    lnurlPayParams?.address ||
+                    memo ||
+                    lnurlPayParams?.domain ||
+                    translate('common.noDescPlaceholder')
+                  }
+                  subText={lnurlDescription}
+                  LeftComponent={
+                    <Icon
+                      containerStyle={$iconContainer}
+                      icon="faInfoCircle"
+                      size={spacing.medium}
+                      color={iconColor}
                     />
-                )}
-                {availableMintBalances.length > 0 &&
-                transactionStatus !== TransactionStatus.COMPLETED && (
-                    <MintBalanceSelector
-                        mintBalances={availableMintBalances}
-                        selectedMintBalance={mintBalanceToTransferFrom}
-                        unit={unit}
-                        title={translate("payCommon.payFrom")}
-                        confirmTitle={translate("payCommon.payNow")}
-                        onMintBalanceSelect={onMintBalanceSelect}
-                        onCancel={onClose}              
-                        onMintBalanceConfirm={transfer}
-                    />
-                )}                                
-                {transaction && transactionStatus === TransactionStatus.COMPLETED && (
-                    <Card
-                        style={{padding: spacing.medium}}
-                        ContentComponent={
-                        <>
-                            <TranItem 
-                                label="tranDetailScreen.trasferredTo"
-                                isFirst={true}
-                                value={mintsStore.findByUrl(transaction.mint)?.shortname as string}
-                            />
-                            {transaction?.memo && (
-                            <TranItem
-                                label="tranDetailScreen.memoFromInvoice"
-                                value={transaction.memo as string}
-                            />
-                            )}
-                            <TranItem
-                            label="transactionCommon.feePaid"
-                            value={transaction.fee || 0}
-                            unit={unit}
-                            isCurrency={true}
-                            />
-                            <TranItem
-                                label="tranDetailScreen.status"
-                                value={transaction.status as string}
-                            />
-                        </>
-                        }
-                    />
-                )}
-                {transactionStatus === TransactionStatus.COMPLETED && (
-                    <View style={$bottomContainer}>
-                        <View style={$buttonContainer}>
-                            <Button
-                                preset="secondary"
-                                tx={'common.close'}
-                                onPress={onClose}
-                            />
-                        </View>
-                    </View>
-                )}
-                {isLoading && <Loading />}
-                {error && <ErrorModal error={error} />}
-                {info && <InfoModal message={info} />}
-            </View>
-            <BottomModal
-                isVisible={isResultModalVisible}
+                  }
+                  style={$item}
+                />
+              }
+            />
+          )}
+          {transactionStatus !== TransactionStatus.COMPLETED && encodedInvoice &&
+            lnurlPayCommentAllowed > 0 && (
+              <Card
+                style={{ marginBottom: spacing.small }}
+                heading='LNURL Pay comment'
                 ContentComponent={
-                    <>
-                        {resultModalInfo &&
-                            transactionStatus === TransactionStatus.COMPLETED && (
-                            <>
-                                <ResultModalInfo
-                                    icon="faCheckCircle"
-                                    iconColor={colors.palette.success200}
-                                    title={translate('payCommon.completed')}
-                                    message={resultModalInfo?.message}
-                                />
-                                <View style={$buttonContainer}>
-                                <Button
-                                    preset="secondary"
-                                    tx={'common.close'}
-                                    onPress={() => {
-                                        if(isInvoiceDonation) {
-                                          navigation.navigate('ContactsNavigator', {screen: 'Contacts', params: {}})
-                                        } else {
-                                          navigation.navigate('Wallet', {})
-                                        }
-                                    }}
-                                />
-                                </View>
-                            </>
-                        )}
-                        {resultModalInfo && 
-                            transactionStatus === TransactionStatus.REVERTED && (
-                            <>
-                                <ResultModalInfo
-                                    icon="faRotate"
-                                    iconColor={colors.palette.accent300}
-                                    title={translate('transactionCommon.reverted')}
-                                    message={resultModalInfo?.message}
-                                />
-                                <View style={$buttonContainer}>
-                                <Button
-                                    preset="secondary"
-                                    tx={'common.close'}
-                                    onPress={toggleResultModal}
-                                />
-                                </View>
-                            </>
-                        )}               
-                        {resultModalInfo &&
-                            transactionStatus === TransactionStatus.ERROR && (
-                            <>
-                                <ResultModalInfo
-                                    icon="faTriangleExclamation"
-                                    iconColor={colors.palette.angry500}
-                                    title={resultModalInfo?.title || translate('payCommon.failed')}
-                                    message={resultModalInfo?.message}
-                                />
-                                <View style={$buttonContainer}>
-                                <Button
-                                    preset="secondary"
-                                    tx={'common.close'}
-                                    onPress={toggleResultModal}
-                                />
-                                </View>
-                            </>
-                        )}
-                        {resultModalInfo &&
-                            transactionStatus === TransactionStatus.PENDING && (
-                            <>
-                                <ResultModalInfo
-                                    icon="faTriangleExclamation"
-                                    iconColor={colors.palette.iconYellow300}
-                                    title={translate('payCommon.isPending')}
-                                    message={resultModalInfo?.message}
-                                />
-                                <View style={$buttonContainer}>
-                                <Button
-                                    preset="secondary"
-                                    tx={'common.close'}
-                                    onPress={() => {
-                                        navigation.navigate('Wallet', {})
-                                    }}
-                                />
-                                </View>
-                            </>
-                        )}
-                    </>
-
+                  <TextInput
+                    // ref={lightningInputRef}
+                    onChangeText={data => setLnurlPaymentComment(data)}
+                    value={lnurlPaymentComment}
+                    autoCapitalize="none"
+                    keyboardType="default"
+                    maxLength={lnurlPayCommentAllowed}
+                    numberOfLines={3}
+                    multiline={true}
+                    selectTextOnFocus={true}
+                    style={[$commentInput, {backgroundColor: inputBg}]}
+                  />
                 }
-                onBackButtonPress={toggleResultModal}
-                onBackdropPress={toggleResultModal}
+              />
+            )}
+          {availableMintBalances.length > 0 &&
+            transactionStatus !== TransactionStatus.COMPLETED && (
+              <MintBalanceSelector
+                mintBalances={availableMintBalances}
+                selectedMintBalance={mintBalanceToTransferFrom}
+                unit={unit}
+                title={translate('payCommon.payFrom')}
+                confirmTitle={translate('payCommon.payNow')}
+                onMintBalanceSelect={onMintBalanceSelect}
+                onCancel={onClose}
+                onMintBalanceConfirm={transfer}
+              />
+            )}
+          {transaction && transactionStatus === TransactionStatus.COMPLETED && (
+            <Card
+              style={{padding: spacing.medium}}
+              ContentComponent={
+                <>
+                  <TranItem
+                    label="tranDetailScreen.trasferredTo"
+                    isFirst={true}
+                    value={
+                      mintsStore.findByUrl(transaction.mint)
+                        ?.shortname as string
+                    }
+                  />
+                  {transaction?.memo && (
+                    <TranItem
+                      label="tranDetailScreen.memoFromInvoice"
+                      value={transaction.memo as string}
+                    />
+                  )}
+                  <TranItem
+                    label="transactionCommon.feePaid"
+                    value={transaction.fee || 0}
+                    unit={unit}
+                    isCurrency={true}
+                  />
+                  <TranItem
+                    label="tranDetailScreen.status"
+                    value={transaction.status as string}
+                  />
+                </>
+              }
             />
-        </Screen>
+          )}
+          {transactionStatus === TransactionStatus.COMPLETED && (
+            <View style={$bottomContainer}>
+              <View style={$buttonContainer}>
+                <Button
+                  preset="secondary"
+                  tx={'common.close'}
+                  onPress={onClose}
+                />
+              </View>
+            </View>
+          )}
+          {isLoading && <Loading />}
+          {error && <ErrorModal error={error} />}
+          {info && <InfoModal message={info} />}
+        </View>
+        <BottomModal
+          isVisible={isResultModalVisible}
+          ContentComponent={
+            <>
+              {resultModalInfo &&
+                transactionStatus === TransactionStatus.COMPLETED && (
+                  <>
+                    <ResultModalInfo
+                      icon="faCheckCircle"
+                      iconColor={colors.palette.success200}
+                      title={translate('payCommon.completed')}
+                      message={resultModalInfo?.message}
+                    />
+                    <View style={$buttonContainer}>
+                      <Button
+                        preset="secondary"
+                        tx={'common.close'}
+                        onPress={() => {
+                          if (isInvoiceDonation) {
+                            navigation.navigate('ContactsNavigator', {
+                              screen: 'Contacts',
+                              params: {},
+                            })
+                          } else {
+                            navigation.navigate('Wallet', {})
+                          }
+                        }}
+                      />
+                    </View>
+                  </>
+                )}
+              {resultModalInfo &&
+                transactionStatus === TransactionStatus.REVERTED && (
+                  <>
+                    <ResultModalInfo
+                      icon="faRotate"
+                      iconColor={colors.palette.accent300}
+                      title={translate('transactionCommon.reverted')}
+                      message={resultModalInfo?.message}
+                    />
+                    <View style={$buttonContainer}>
+                      <Button
+                        preset="secondary"
+                        tx={'common.close'}
+                        onPress={toggleResultModal}
+                      />
+                    </View>
+                  </>
+                )}
+              {resultModalInfo &&
+                transactionStatus === TransactionStatus.ERROR && (
+                  <>
+                    <ResultModalInfo
+                      icon="faTriangleExclamation"
+                      iconColor={colors.palette.angry500}
+                      title={
+                        resultModalInfo?.title || translate('payCommon.failed')
+                      }
+                      message={resultModalInfo?.message}
+                    />
+                    <View style={$buttonContainer}>
+                      <Button
+                        preset="secondary"
+                        tx={'common.close'}
+                        onPress={toggleResultModal}
+                      />
+                    </View>
+                  </>
+                )}
+              {resultModalInfo &&
+                transactionStatus === TransactionStatus.PENDING && (
+                  <>
+                    <ResultModalInfo
+                      icon="faTriangleExclamation"
+                      iconColor={colors.palette.iconYellow300}
+                      title={translate('payCommon.isPending')}
+                      message={resultModalInfo?.message}
+                    />
+                    <View style={$buttonContainer}>
+                      <Button
+                        preset="secondary"
+                        tx={'common.close'}
+                        onPress={() => {
+                          navigation.navigate('Wallet', {})
+                        }}
+                      />
+                    </View>
+                  </>
+                )}
+            </>
+          }
+          onBackButtonPress={toggleResultModal}
+          onBackdropPress={toggleResultModal}
+        />
+      </Screen>
     )
   }
 )
@@ -807,6 +850,14 @@ const $headerContainer: TextStyle = {
       textAlign: 'center',
       color: 'white',    
   }
+
+const $commentInput: TextStyle = {
+  textAlignVertical: 'top' ,
+  borderRadius: spacing.extraSmall,
+  padding: spacing.extraSmall,        
+  alignSelf: 'stretch',
+  height: 120,
+}
 
 const $contentContainer: TextStyle = {
     flex: 1,
