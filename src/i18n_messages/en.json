@@ -397,7 +397,8 @@
 		"sendToContactDescription": "Send your ecash to one of your contacts stored in your contact list.",
 		"showOrShareToken": "Share ecash",
 		"showOrShareTokenDescription": "Present or share ecash token for an amount you want to send.",
-		"title": "Send"
+		"title": "Send",
+		"memo": "Memo for recipient"
 	},
 	"saveContactPrivate": "Save as private contact",
 	"saveContactPrivateDesc": "Save %{nip05} to your Private contacts so you can pay faster",
