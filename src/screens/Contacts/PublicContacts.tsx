@@ -14,7 +14,6 @@ import { StackNavigationProp } from '@react-navigation/stack'
 import { ContactsStackParamList } from '../../navigation'
 import { SendOption } from '../SendOptionsScreen'
 import { ReceiveOption } from '../ReceiveOptionsScreen'
-import { useSafeAreaInsetsStyle } from '../../utils/useSafeAreaInsetsStyle'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { IncomingDataType, IncomingParser } from '../../services/incomingParser'
 import { translate } from '../../i18n'
@@ -118,17 +117,17 @@ export const PublicContacts = observer(function (props: {
 
 
     const subscribeToOwnProfileAndPubkeys = async function () {
-        log.trace('subscribeToOwnProfileAndPubkeys start')
+        log.trace('[subscribeToOwnProfileAndPubkeys] start')
         if(!contactsStore.publicPubkey) {
             return
         }
         
-         const filters: NostrFilter = [{
+         const filters: NostrFilter[] = [{
             authors: [contactsStore.publicPubkey],
             kinds: [0, 3],            
         }]        
           
-        log.trace('subscribeToOwnProfileAndPubkeys getEvents')
+        log.trace('[subscribeToOwnProfileAndPubkeys] getEvents')
         const events: NostrEvent[] = await NostrClient.getEvents(relaysStore.allPublicUrls, filters)
         log.trace(events)
 
@@ -142,7 +141,7 @@ export const PublicContacts = observer(function (props: {
                     const profile: NostrProfile = JSON.parse(event.content)
                     profile.pubkey = contactsStore.publicPubkey as string // pubkey might not be in ev.content
         
-                    log.trace('Updating own profile', profile)    
+                    log.trace('[subscribeToOwnProfileAndPubkeys] Updating own profile', profile)    
                     setOwnProfile(profile)                
                 } catch(e: any) {
                     continue
@@ -173,7 +172,7 @@ export const PublicContacts = observer(function (props: {
                 limit: maxContactsToLoad,            
             }]
 
-            log.trace('Starting following profiles subscription...')
+            log.trace('[loadProfiles] Starting following profiles subscription...')
                                     
             setIsLoading(true)
 
@@ -188,7 +187,12 @@ export const PublicContacts = observer(function (props: {
                     profile.pubkey = event.pubkey
                     profile.npub = NostrClient.getNpubkey(event.pubkey)
                     
-                    if (!following.some(f => f.pubkey === profile.pubkey)) {
+                    // fix potentially invalid types
+                    if(profile.nip05) profile.nip05 = String(profile.nip05)
+                    if(profile.picture) profile.picture = String(profile.picture)
+                    if(profile.name) profile.name = String(profile.name)
+                    
+                    if (!following.some(f => f.pubkey === profile.pubkey)) {                        
                         following.push(profile)
                     } else {
                         log.trace('[loadProfiles]', 'Got duplicate profile from relays', profile.pubkey)
@@ -199,7 +203,10 @@ export const PublicContacts = observer(function (props: {
                 }
             }
     
-            log.trace('Updating following profiles', following.length)    
+            log.trace('Updating following profiles', following.length)
+            
+            log.warn(following)
+            
             setFollowingProfiles(following)
             setIsLoading(false)
         }
@@ -483,7 +490,7 @@ export const PublicContacts = observer(function (props: {
                             const isFirst= index === 0
                             return(
                                 <ListItem 
-                                    key={item.picture}
+                                    key={item.pubkey}
                                     LeftComponent={
                                         <View style={{marginRight: spacing.medium, borderRadius: 20, overflow: 'hidden'}}>
                                             {item.picture ? (
