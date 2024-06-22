@@ -58,7 +58,7 @@ export const AvatarHeader = observer(function (props: AvatarHeaderProps) {
         )}
       </View>
       {props.heading && <Text style={{ fontSize: 26, lineHeight: 40 }} text={props.heading} adjustsFontSizeToFit={true} numberOfLines={1} />}
-      {props.text && <Text preset='bold' text={props.text} style={{ color: 'white', marginBottom: spacing.small }} />}
+      {props.text && <Text preset='bold' text={props.text} style={{ color: 'white', marginBottom: spacing.small }} numberOfLines={2} />}
       {props.children}
     </View>
   )
