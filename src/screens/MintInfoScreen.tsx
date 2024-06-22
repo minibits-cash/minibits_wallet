@@ -35,7 +35,8 @@ import { CurrencySign } from './Wallet/CurrencySign'
 import { SvgXml } from 'react-native-svg'
 
 // cashu-ts currently does not type NUT15 (multipath payments) correctly
-// https://github.com/cashubtc/nuts/blob/main/15.md
+// relevant issue: https://github.com/cashubtc/cashu-ts/issues/142
+// nut-15 spec: https://github.com/cashubtc/nuts/blob/main/15.md
 type NUT15Entry = { method: string, unit: string, mpp: boolean }
 type GetInfoResponse = _GetInfoResponse & {
   nuts: {
@@ -373,12 +374,12 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
         const mint = mintsStore.findByUrl(route.params.mintUrl)
 
         if (mint) {
-          const info: GetInfoResponse = await MintClient.getMintInfo(mint.mintUrl)
+          const info: _GetInfoResponse = await MintClient.getMintInfo(mint.mintUrl)
           mint.setStatus(MintStatus.ONLINE)
           if(info.name && info.name !== mint.shortname) {
             await mint.setShortname()
           }
-          setMintInfo(info)
+          setMintInfo(info as GetInfoResponse)
           setMint(mint)
         } else {
           throw new AppError(Err.VALIDATION_ERROR, 'Could not find mint', { mintUrl: route.params.mintUrl })
