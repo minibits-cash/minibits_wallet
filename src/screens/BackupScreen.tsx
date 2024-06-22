@@ -4,7 +4,6 @@ import {Switch, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {SettingsStackScreenProps} from '../navigation'
 import {
-  Icon,
   ListItem,
   Screen,
   Text,

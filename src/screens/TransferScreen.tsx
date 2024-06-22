@@ -51,6 +51,7 @@ import numbro from 'numbro'
 import { TranItem } from './TranDetailScreen'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { translate } from '../i18n'
+import { MemoInputCard } from '../components/MemoInputCard'
 
 
 if (
@@ -451,7 +452,7 @@ const onAmountEndEditing = async function () {
       return;
     }
 
-    if (lnurlPayParams.maxSendable && amount > lnurlPayParams.maxSendable / 1000 ) {       
+    if (lnurlPayParams.maxSendable && amount > lnurlPayParams.maxSendable / 1000) {       
       infoMessage(translate("payCommon.maximumPay", { 
         amount: roundDown(lnurlPayParams.maxSendable / 1000, 0),
         currency: CurrencyCode.SATS
@@ -460,13 +461,13 @@ const onAmountEndEditing = async function () {
     }
 
     if (lnurlPayParams.payerData) {
-        infoMessage(translate("transferScreen.LUD18unsupported"))   
+      infoMessage(translate("transferScreen.LUD18unsupported"))
     }        
         
     setAmountToTransfer(`${numbro(amountToTransfer).format({thousandSeparated: true, mantissa: getCurrency(unit).mantissa})}`)
 
     setIsLoading(true)
-    const encoded = await LnurlClient.getInvoice(lnurlPayParams, amount * 1000)
+    const encoded = await LnurlClient.getInvoice(lnurlPayParams, amount * 1000, lnurlPayCommentAllowed > 0 ? lnurlPaymentComment : void 0) 
     setIsLoading(false)
 
     if (encoded) return onEncodedInvoice(encoded);
@@ -579,6 +580,17 @@ const iconColor = useThemeColor('textDim')
 const inputBg = useThemeColor('background')
 const satsColor = colors.palette.primary200
 
+const memoInputRef = useRef<TextInput>(null)
+const onMemoDone = function () {
+  console.log(lnurlPayParams)
+  if (parseInt(amountToTransfer) > 0) {
+    if (memoInputRef && memoInputRef.current) memoInputRef.current.blur();
+    if (amountInputRef && amountInputRef.current) amountInputRef.current.blur();
+  } else {
+    if (amountInputRef && amountInputRef.current) amountInputRef.current.focus();
+  }
+}
+
     return (
       <Screen preset="fixed" contentContainerStyle={$screen}>
         <MintHeader
@@ -645,25 +657,15 @@ const satsColor = colors.palette.primary200
               }
             />
           )}
-          {transactionStatus !== TransactionStatus.COMPLETED && encodedInvoice &&
-            lnurlPayCommentAllowed > 0 && (
-              <Card
-                style={{ marginBottom: spacing.small }}
-                heading='LNURL Pay comment'
-                ContentComponent={
-                  <TextInput
-                    // ref={lightningInputRef}
-                    onChangeText={data => setLnurlPaymentComment(data)}
-                    value={lnurlPaymentComment}
-                    autoCapitalize="none"
-                    keyboardType="default"
-                    maxLength={lnurlPayCommentAllowed}
-                    numberOfLines={3}
-                    multiline={true}
-                    selectTextOnFocus={true}
-                    style={[$commentInput, {backgroundColor: inputBg}]}
-                  />
-                }
+          {lnurlPayCommentAllowed > 0 && (
+              <MemoInputCard 
+                memo={lnurlPaymentComment}
+                setMemo={setLnurlPaymentComment}
+                ref={memoInputRef}
+                onMemoDone={onMemoDone}
+                onMemoEndEditing={onAmountEndEditing} // re-calculate encoded url
+                disabled={encodedInvoice ? false : true}
+                maxLength={lnurlPayCommentAllowed}
               />
             )}
           {availableMintBalances.length > 0 &&

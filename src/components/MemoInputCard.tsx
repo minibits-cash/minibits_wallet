@@ -10,11 +10,19 @@ interface MemoInputProps {
   setMemo: (memo: string) => void
   disabled?: boolean
   onMemoDone: () => void
-  onMemoEndEditing: () => void
+  onMemoEndEditing?: () => void
+  maxLength?: number
 }
 
 export const MemoInputCard = forwardRef<TextInput, MemoInputProps>((props, memoInputRef) => {
-  const {memo, setMemo, disabled = true, onMemoDone, onMemoEndEditing} = props
+  const {
+    memo,
+    setMemo,
+    disabled = true,
+    onMemoDone,
+    onMemoEndEditing = () => {},
+    maxLength = 200,
+  } = props
   return (
     <Card
       style={$memoCard}
@@ -26,7 +34,7 @@ export const MemoInputCard = forwardRef<TextInput, MemoInputProps>((props, memoI
             onEndEditing={onMemoEndEditing}
             value={`${memo}`}
             style={$memoInput}
-            maxLength={200}
+            maxLength={maxLength}
             keyboardType="default"
             selectTextOnFocus={true}
             placeholder={translate('sendScreen.memo')}
