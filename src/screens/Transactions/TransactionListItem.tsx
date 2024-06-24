@@ -39,29 +39,29 @@ export const TransactionListItem = observer(function (
       case TransactionType.RECEIVE || TransactionType.RECEIVE_OFFLINE:
         if (tx.sentFrom) {
           if (!tx.memo || tx.memo.includes('Sent from Minibits')) {
-            return translate('transactionCommon.from', {sender: tx.sentFrom})
+            return translate('transactionCommon.from', {sender: tx.sentFrom}).slice(0, 30)
           }
         } else {
           return tx.memo ? tx.memo : translate('transactionCommon.youReceived')
         }
       case TransactionType.SEND:
-        return tx.memo
+        return (tx.memo
           ? tx.memo
           : tx.sentTo
           ? translate('transactionCommon.sentTo', {receiver: tx.sentTo})
-          : translate('transactionCommon.youSent')
+          : translate('transactionCommon.youSent')).slice(0, 30)
       case TransactionType.TOPUP:
-        return tx.memo
+        return (tx.memo
           ? tx.memo
           : tx.sentFrom
           ? translate('transactionCommon.receivedFrom', {sender: tx.sentFrom})
-          : translate('transactionCommon.youReceived')
+          : translate('transactionCommon.youReceived')).slice(0, 30)
       case TransactionType.TRANSFER:
-        return tx.memo
+        return (tx.memo
           ? tx.memo
           : tx.sentTo
           ? translate('transactionCommon.paidTo', {receiver: tx.sentTo})
-          : translate('transactionCommon.youPaid')
+          : translate('transactionCommon.youPaid')).slice(0, 30)
       default:
         return translate('transactionCommon.unknown')
     }

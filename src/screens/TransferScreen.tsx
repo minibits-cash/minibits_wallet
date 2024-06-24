@@ -9,6 +9,7 @@ import {
   ViewStyle,
   FlatList,
   TextInput,
+  Keyboard,
 } from 'react-native'
 import {spacing, useThemeColor, colors, typography} from '../theme'
 import {WalletStackScreenProps} from '../navigation'
@@ -439,8 +440,7 @@ const onMintBalanceSelect = function (balance: MintBalance) {
 // Amount is editable only in case of LNURL Pay, while invoice is not yet retrieved
 const onRequestLnurlInvoice = async function () { // onAmountEndEditing
   try {
-    const precision = getCurrency(unit).precision
-    const mantissa = getCurrency(unit).mantissa
+    const precision = getCurrency(unit).precision    
     const amount = round(toNumber(amountToTransfer) * precision, 0)
 
     if (!amount || amount === 0) {
@@ -478,13 +478,14 @@ const onRequestLnurlInvoice = async function () { // onAmountEndEditing
     const encoded = await LnurlClient.getInvoice(lnurlPayParams, amount * 1000, lnurlPayCommentAllowed > 0 ? lnurlPayComment : void 0) 
     setIsLoading(false)
 
-    if (encoded) return onEncodedInvoice(encoded);
+    if (encoded) return onEncodedInvoice(encoded)
 
     throw new AppError(Err.NOTFOUND_ERROR, `Could not get lightning invoice from ${lnurlPayParams.domain}`)
   } catch (e: any) { handleError(e) }
 }
 
 const ensureCommentNotTooLong = async function () {
+  Keyboard.dismiss()
   if (!lnurlPayCommentAllowed  || lnurlPayComment.trim().length === 0) return;
   if (lnurlPayComment.trim().length > lnurlPayCommentAllowed) {
     setLnurlPayComment(lnurlPayComment.slice(0, lnurlPayCommentAllowed));
@@ -492,7 +493,7 @@ const ensureCommentNotTooLong = async function () {
 }
 
 
-const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: string = '', keepMintBalance = false) {
+const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: string = '') {
     log.trace("onEncodedInvoice")
     try {
         navigation.setParams({encodedInvoice: undefined})
@@ -504,9 +505,6 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
         const {amount, expiry, description, timestamp} = LightningUtils.getInvoiceData(invoice)
         const expiresAt = addSeconds(new Date(timestamp as number * 1000), expiry as number)
 
-        // log.trace('Decoded invoice', invoice, 'onEncodedInvoice')
-        log.trace('[onEncodedInvoice] Invoice data', {amount, expiresAt, description})
-
         if (!amount || amount === 0) {
           infoMessage(translate('payCommon.amountZeroOrNegative'))            
           return;
@@ -515,14 +513,19 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
         if(!isInternetReachable) setInfo(translate('common.offlinePretty'));
         
         setEncodedInvoice(encoded)
-
         setInvoice(invoice)        
         setInvoiceExpiry(expiresAt)
         
+        if(description) {
+          setMemo(description)
+        }
+        
         if (paymentRequestDesc) {
           setMemo(paymentRequestDesc)
-        } else if(description) {
-          setMemo(description)
+        }  
+        
+        if (lnurlPayComment) {
+          setMemo(lnurlPayComment)
         }
         
         // We need to retrieve the quote first to know how much is needed to settle invoice in selected currency unit
@@ -536,7 +539,7 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
           return
         }        
    
-        if (!keepMintBalance) setMintBalanceToTransferFrom(balanceToTransferFrom)
+        setMintBalanceToTransferFrom(balanceToTransferFrom)
         // continues in hook that handles other mint selection by user
             
     } catch (e: any) {
@@ -548,22 +551,6 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
 
 const transfer = async function () {
   try {
-    // if (lnurlPayCommentAllowed > 0 && lnurlPayComment && lnurlPayComment.trim().length > 0) {
-    //   const precision = getCurrency(unit).precision
-    //   const amount = round(toNumber(amountToTransfer) * precision, 0)
-    //   if (!lnurlPayParams) throw new AppError(Err.VALIDATION_ERROR, 'Missing LNURL pay parameters', {caller: 'transfer'})
-    //   if (
-    //     !amount ||
-    //     amount == 0 ||
-    //     lnurlPayParams.minSendable && amount < lnurlPayParams.minSendable / 1000 ||
-    //     lnurlPayParams.maxSendable && amount > lnurlPayParams.maxSendable / 1000
-    //   ) { throw new AppError(Err.VALIDATION_ERROR, 'Invalid amount, even though it passed validation before', {caller: 'transfer'}) }
-
-    //   setIsLoading(true)
-    //   const encoded = await LnurlClient.getInvoice(lnurlPayParams, amount * 1000, lnurlPayComment) 
-    //   await onEncodedInvoice(encoded, '', true)
-    // }
-
     if(!meltQuote) {
       throw new AppError(Err.VALIDATION_ERROR, 'Missing quote to initiate transfer transaction')
     }
@@ -656,6 +643,7 @@ const iconColor = useThemeColor('textDim')
             <Card
               style={[$card, {minHeight: 50}]}
               ContentComponent={
+                <>
                 <ListItem
                   text={
                     lnurlPayParams?.address ||
@@ -674,6 +662,22 @@ const iconColor = useThemeColor('textDim')
                   }
                   style={$item}
                 />
+                {lnurlPayComment && encodedInvoice && (
+                  <ListItem
+                  text={lnurlPayComment}
+                  topSeparator={true}                  
+                  LeftComponent={
+                    <Icon
+                      containerStyle={$iconContainer}
+                      icon="faPencil"
+                      size={spacing.medium}
+                      color={iconColor}
+                    />
+                  }
+                  style={$item}
+                />
+                )}
+                </>
               }
             />
           )}
