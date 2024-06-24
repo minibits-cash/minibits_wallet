@@ -429,7 +429,7 @@ const onMintBalanceSelect = function (balance: MintBalance) {
 }
 
 // Amount is editable only in case of LNURL Pay, while invoice is not yet retrieved
-const onAmountEndEditing = async function () {
+const onRequestLnurlInvoice = async function () {
   try {
     const precision = getCurrency(unit).precision
     const mantissa = getCurrency(unit).mantissa
@@ -633,7 +633,7 @@ const onMemoDone = function () {
             <TextInput
               ref={amountInputRef}
               onChangeText={amount => setAmountToTransfer(amount)}
-              onEndEditing={onAmountEndEditing}
+              // onEndEditing={onAmountEndEditing}
               value={amountToTransfer}
               style={$amountInput}
               maxLength={9}
@@ -683,17 +683,27 @@ const onMemoDone = function () {
               }
             />
           )}
-          {encodedInvoice && transactionStatus !== TransactionStatus.COMPLETED && lnurlPayCommentAllowed > 0 && (
+          {!encodedInvoice && transactionStatus !== TransactionStatus.COMPLETED && lnurlPayCommentAllowed > 0 && (
+            <>
               <MemoInputCard 
                 memo={lnurlPayComment}
                 setMemo={setLnurlPayComment}
                 ref={memoInputRef}
                 onMemoDone={onMemoDone}
-                onMemoEndEditing={onMemoEndEditing}
+                onMemoEndEditing={onMemoEndEditing} // re-calculate encoded url
                 disabled={encodedInvoice ? false : true}
                 maxLength={lnurlPayCommentAllowed}
               />
-            )}
+              <View style={$bottomContainer}>
+                <View style={$buttonContainer}>
+                  <Button                    
+                    text={'Request invoice'}
+                    onPress={onRequestLnurlInvoice}
+                  />
+                </View>
+              </View>
+            </>
+          )}
           {availableMintBalances.length > 0 &&
             transactionStatus !== TransactionStatus.COMPLETED && (
               <MintBalanceSelector
