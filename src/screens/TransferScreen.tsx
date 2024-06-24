@@ -553,7 +553,7 @@ const transfer = async function () {
       ) { throw new AppError(Err.VALIDATION_ERROR, 'Invalid amount, even though it passed validation before', {caller: 'transfer'}) }
 
       setIsLoading(true)
-      const encoded = await LnurlClient.getInvoice(lnurlPayParams, amount * 1000, lnurlPayCommentAllowed > 0 ? lnurlPayComment : void 0) 
+      const encoded = await LnurlClient.getInvoice(lnurlPayParams, amount * 1000, lnurlPayComment) 
       await onEncodedInvoice(encoded, '', true)
     }
 
