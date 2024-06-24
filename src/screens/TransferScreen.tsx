@@ -691,13 +691,13 @@ const onMemoDone = function () {
                 ref={memoInputRef}
                 onMemoDone={onMemoDone}
                 onMemoEndEditing={onMemoEndEditing} // re-calculate encoded url
-                disabled={encodedInvoice ? false : true}
+                disabled={encodedInvoice ? true : false}
                 maxLength={lnurlPayCommentAllowed}
               />
               <View style={$bottomContainer}>
                 <View style={$buttonContainer}>
                   <Button                    
-                    text={'Request invoice'}
+                    tx="transferScreen.requestInvoice"
                     onPress={onRequestLnurlInvoice}
                   />
                 </View>
