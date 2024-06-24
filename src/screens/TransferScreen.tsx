@@ -84,7 +84,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     const [memo, setMemo] = useState('')
     const [lnurlDescription, setLnurlDescription] = useState('')
     const [lnurlPayCommentAllowed, setLnurlPayCommentAllowed] = useState(0)
-    const [lnurlPaymentComment, setLnurlPaymentComment] = useState('')
+    const [lnurlPayComment, setLnurlPayComment] = useState('')
     const [availableMintBalances, setAvailableMintBalances] = useState<MintBalance[]>([])
     const [mintBalanceToTransferFrom, setMintBalanceToTransferFrom] = useState<MintBalance | undefined>()
     const [transactionStatus, setTransactionStatus] = useState<TransactionStatus | undefined>()
@@ -99,23 +99,23 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus; title?: string, message: string} | undefined>()
 
 
-useEffect(() => {
-    const focus = () => {
-        if(route.params?.paymentOption === SendOption.LNURL_PAY) {
-            amountInputRef && amountInputRef.current
-            ? amountInputRef.current.focus()
-            : false
-        }
-    }
-    
-    const timer = setTimeout(() => focus(), 100)   
-    
-    return () => {
-        clearTimeout(timer)
-    }
-}, [])
+  useEffect(() => {
+      const focus = () => {
+          if(route.params?.paymentOption === SendOption.LNURL_PAY) {
+              amountInputRef && amountInputRef.current
+              ? amountInputRef.current.focus()
+              : false
+          }
+      }
+      
+      const timer = setTimeout(() => focus(), 100)   
+      
+      return () => {
+          clearTimeout(timer)
+      }
+  }, [])
 
-
+// TODO: fix indentation here
 
 useEffect(() => {
     const setUnitAndMint = () => {
@@ -421,7 +421,7 @@ const resetState = function () {
     setIsResultModalVisible(false)
     setResultModalInfo(undefined)
     setLnurlPayCommentAllowed(0)
-    setLnurlPaymentComment('')
+    setLnurlPayComment('')
 }
 
 const toggleResultModal = () => setIsResultModalVisible(previousState => !previousState)
@@ -469,7 +469,7 @@ const onRequestLnurlInvoice = async function () {
     setAmountToTransfer(`${numbro(amountToTransfer).format({thousandSeparated: true, mantissa: getCurrency(unit).mantissa})}`)
 
     setIsLoading(true)
-    const encoded = await LnurlClient.getInvoice(lnurlPayParams, amount * 1000, lnurlPayCommentAllowed > 0 ? lnurlPaymentComment : undefined) 
+    const encoded = await LnurlClient.getInvoice(lnurlPayParams, amount * 1000, lnurlPayCommentAllowed > 0 ? lnurlPayComment : void 0) 
     setIsLoading(false)
 
     if (encoded) return onEncodedInvoice(encoded);
@@ -478,8 +478,16 @@ const onRequestLnurlInvoice = async function () {
   } catch (e: any) { handleError(e) }
 }
 
+const onMemoEndEditing = async function () {
+  if (!lnurlPayCommentAllowed  || lnurlPayComment.trim().length === 0) return;
+  if (lnurlPayComment.trim().length > lnurlPayCommentAllowed) {
+    setLnurlPayComment(lnurlPayComment.slice(0, lnurlPayCommentAllowed));
+  }
+}
 
-const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: string = '') {
+
+const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: string = '', keepMintBalance = false) {
+    log.trace("onEncodedInvoice")
     try {
         navigation.setParams({encodedInvoice: undefined})
         navigation.setParams({paymentRequest: undefined})
@@ -501,6 +509,7 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
         if(!isInternetReachable) setInfo(translate('common.offlinePretty'));
         
         setEncodedInvoice(encoded)
+
         setInvoice(invoice)        
         setInvoiceExpiry(expiresAt)
         
@@ -521,7 +530,7 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
           return
         }        
    
-        setMintBalanceToTransferFrom(balanceToTransferFrom)
+        if (!keepMintBalance) setMintBalanceToTransferFrom(balanceToTransferFrom)
         // continues in hook that handles other mint selection by user
             
     } catch (e: any) {
@@ -532,36 +541,53 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
 }
 
 const transfer = async function () {
-    try {
-        if(!meltQuote) {
-          throw new AppError(Err.VALIDATION_ERROR, 'Missing quote to initiate transfer transaction')
-        }
+  try {
+    if (lnurlPayCommentAllowed > 0 && lnurlPayComment && lnurlPayComment.trim().length > 0) {
+      // minimal validation since most of it is already done in onAmountEndEditing
+      const precision = getCurrency(unit).precision
+      const amount = round(toNumber(amountToTransfer) * precision, 0)
+      if (!lnurlPayParams) throw new AppError(Err.VALIDATION_ERROR, 'Missing LNURL pay parameters', {caller: 'transfer'})
+      if (
+        !amount ||
+        amount == 0 ||
+        lnurlPayParams.minSendable && amount < lnurlPayParams.minSendable / 1000 ||
+        lnurlPayParams.maxSendable && amount > lnurlPayParams.maxSendable / 1000
+      ) { throw new AppError(Err.VALIDATION_ERROR, 'Invalid amount, even though it passed validation before', {caller: 'transfer'}) }
 
-        if (!mintBalanceToTransferFrom) {
-          setInfo(translate("transferScreen.selectMintFrom"))
-          return;
-        }
-
-        setIsLoading(true)
-        setIsTransferTaskSentToQueue(true)
-        
-
-        log.trace('[transfer]', {isInvoiceDonation})
-
-        const amountToTransferInt = round(toNumber(amountToTransfer) * getCurrency(unit).precision, 0)
-
-        WalletTask.transfer(
-            mintBalanceToTransferFrom,
-            amountToTransferInt,
-            unit,
-            meltQuote,        
-            memo,
-            invoiceExpiry as Date,
-            encodedInvoice,
-        )
-    } catch (e: any) {
-
+      setIsLoading(true)
+      const encoded = await LnurlClient.getInvoice(lnurlPayParams, amount * 1000, lnurlPayComment) 
+      await onEncodedInvoice(encoded, '', true)
     }
+
+    if(!meltQuote) {
+      throw new AppError(Err.VALIDATION_ERROR, 'Missing quote to initiate transfer transaction')
+    }
+
+    if (!mintBalanceToTransferFrom) {
+      setInfo(translate("transferScreen.selectMintFrom"))
+      return;
+    }
+
+    setIsLoading(true)
+    setIsTransferTaskSentToQueue(true)
+    
+
+    log.trace('[transfer]', {isInvoiceDonation})
+
+    const amountToTransferInt = round(toNumber(amountToTransfer) * getCurrency(unit).precision, 0)
+
+    WalletTask.transfer(
+        mintBalanceToTransferFrom,
+        amountToTransferInt,
+        unit,
+        meltQuote,        
+        memo,
+        invoiceExpiry as Date,
+        encodedInvoice,
+    )
+  } catch (e: any) {
+    handleError(e)
+  }
 }
     
 
@@ -646,11 +672,11 @@ const iconColor = useThemeColor('textDim')
               }
             />
           )}
-          {lnurlPayCommentAllowed > 0 && !encodedInvoice && (
+          {!encodedInvoice && transactionStatus !== TransactionStatus.COMPLETED && lnurlPayCommentAllowed > 0 && (
             <>
               <MemoInputCard 
-                memo={lnurlPaymentComment}
-                setMemo={setLnurlPaymentComment}
+                memo={lnurlPayComment}
+                setMemo={setLnurlPayComment}
                 ref={lnurlCommentInputRef}
                 onMemoDone={() => false}
                 onMemoEndEditing={() => false}
