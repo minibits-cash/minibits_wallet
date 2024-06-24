@@ -43,7 +43,8 @@
 		"walletLabel": "Peňaženka"
 	},
 	"transferScreen": {
-		"noMintWithBalance": "Neexistuje žiaden mint so zostatkom %{unit} z ktorého je možné uskutočniť platbu."
+		"noMintWithBalance": "Neexistuje žiaden mint so zostatkom %{unit} z ktorého je možné uskutočniť platbu.",
+		"requestInvoice": "Pokračovať"
 	},
 	"walletScreen": {
 		"sendEcash": "Poslať Ecash",

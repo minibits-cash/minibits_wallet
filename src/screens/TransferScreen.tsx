@@ -280,7 +280,13 @@ useEffect(() => {
         try {
             log.trace('[getEstimatedFee]', {mintBalanceToTransferFrom})  
             if (!mintBalanceToTransferFrom || !mintBalanceToTransferFrom.balances[unit] || !encodedInvoice) {
-                log.trace('[getEstimatedFee]', 'Not ready... exiting')  
+                log.trace(
+                  '[getEstimatedFee]',
+                  'Not ready... exiting',
+                  mintBalanceToTransferFrom,
+                  mintBalanceToTransferFrom?.balances[unit],
+                  encodedInvoice,
+                )  
                 return
             }           
             
@@ -431,7 +437,7 @@ const onMintBalanceSelect = function (balance: MintBalance) {
 }
 
 // Amount is editable only in case of LNURL Pay, while invoice is not yet retrieved
-const onRequestLnurlInvoice = async function () {
+const onRequestLnurlInvoice = async function () { // onAmountEndEditing
   try {
     const precision = getCurrency(unit).precision
     const mantissa = getCurrency(unit).mantissa
@@ -478,7 +484,7 @@ const onRequestLnurlInvoice = async function () {
   } catch (e: any) { handleError(e) }
 }
 
-const onMemoEndEditing = async function () {
+const ensureCommentNotTooLong = async function () {
   if (!lnurlPayCommentAllowed  || lnurlPayComment.trim().length === 0) return;
   if (lnurlPayComment.trim().length > lnurlPayCommentAllowed) {
     setLnurlPayComment(lnurlPayComment.slice(0, lnurlPayCommentAllowed));
@@ -542,22 +548,21 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
 
 const transfer = async function () {
   try {
-    if (lnurlPayCommentAllowed > 0 && lnurlPayComment && lnurlPayComment.trim().length > 0) {
-      // minimal validation since most of it is already done in onAmountEndEditing
-      const precision = getCurrency(unit).precision
-      const amount = round(toNumber(amountToTransfer) * precision, 0)
-      if (!lnurlPayParams) throw new AppError(Err.VALIDATION_ERROR, 'Missing LNURL pay parameters', {caller: 'transfer'})
-      if (
-        !amount ||
-        amount == 0 ||
-        lnurlPayParams.minSendable && amount < lnurlPayParams.minSendable / 1000 ||
-        lnurlPayParams.maxSendable && amount > lnurlPayParams.maxSendable / 1000
-      ) { throw new AppError(Err.VALIDATION_ERROR, 'Invalid amount, even though it passed validation before', {caller: 'transfer'}) }
+    // if (lnurlPayCommentAllowed > 0 && lnurlPayComment && lnurlPayComment.trim().length > 0) {
+    //   const precision = getCurrency(unit).precision
+    //   const amount = round(toNumber(amountToTransfer) * precision, 0)
+    //   if (!lnurlPayParams) throw new AppError(Err.VALIDATION_ERROR, 'Missing LNURL pay parameters', {caller: 'transfer'})
+    //   if (
+    //     !amount ||
+    //     amount == 0 ||
+    //     lnurlPayParams.minSendable && amount < lnurlPayParams.minSendable / 1000 ||
+    //     lnurlPayParams.maxSendable && amount > lnurlPayParams.maxSendable / 1000
+    //   ) { throw new AppError(Err.VALIDATION_ERROR, 'Invalid amount, even though it passed validation before', {caller: 'transfer'}) }
 
-      setIsLoading(true)
-      const encoded = await LnurlClient.getInvoice(lnurlPayParams, amount * 1000, lnurlPayComment) 
-      await onEncodedInvoice(encoded, '', true)
-    }
+    //   setIsLoading(true)
+    //   const encoded = await LnurlClient.getInvoice(lnurlPayParams, amount * 1000, lnurlPayComment) 
+    //   await onEncodedInvoice(encoded, '', true)
+    // }
 
     if(!meltQuote) {
       throw new AppError(Err.VALIDATION_ERROR, 'Missing quote to initiate transfer transaction')
@@ -673,25 +678,24 @@ const iconColor = useThemeColor('textDim')
             />
           )}
           {!encodedInvoice && transactionStatus !== TransactionStatus.COMPLETED && lnurlPayCommentAllowed > 0 && (
-            <>
-              <MemoInputCard 
-                memo={lnurlPayComment}
-                setMemo={setLnurlPayComment}
-                ref={lnurlCommentInputRef}
-                onMemoDone={() => false}
-                onMemoEndEditing={() => false}
-                disabled={encodedInvoice ? true : false}
-                maxLength={lnurlPayCommentAllowed}
-              />
-              <View style={$bottomContainer}>
-                <View style={$buttonContainer}>
-                  <Button                    
-                    tx="transferScreen.requestInvoice"
-                    onPress={onRequestLnurlInvoice}
-                  />
-                </View>
+            <MemoInputCard 
+              memo={lnurlPayComment}
+              setMemo={setLnurlPayComment}
+              ref={lnurlCommentInputRef}
+              onMemoDone={ensureCommentNotTooLong}
+              disabled={encodedInvoice ? true : false}
+              maxLength={lnurlPayCommentAllowed}
+            />
+          )}
+          {!encodedInvoice && transactionStatus !== TransactionStatus.COMPLETED && (
+            <View style={$bottomContainer}>
+              <View style={$buttonContainer}>
+                <Button                    
+                  tx="transferScreen.requestInvoice"
+                  onPress={onRequestLnurlInvoice}
+                />
               </View>
-            </>
+            </View>
           )}
           {availableMintBalances.length > 0 &&
             transactionStatus !== TransactionStatus.COMPLETED && (

@@ -431,14 +431,16 @@ const getBolt11MintQuote = async function (
       mintQuote,
     }
   } catch (e: any) {
+    let message = 'The mint could not return an invoice.'
+    if (new URL(mintUrl).hostname.endsWith('.onion')) message += '\nIs your Tor VPN running?'
     throw new AppError(
-        Err.MINT_ERROR, 
-        'The mint could not return an invoice.', 
-        {
-            message: e.message,
-            caller: 'getBolt11MintQuote', 
-            mintUrl,            
-        }
+      Err.MINT_ERROR, 
+      message, 
+      {
+          message: e.message,
+          caller: 'getBolt11MintQuote', 
+          mintUrl,            
+      }
     )
   }
 }
