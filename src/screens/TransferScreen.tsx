@@ -65,6 +65,8 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
   function TransferScreen({route, navigation}) {
 
     const amountInputRef = useRef<TextInput>(null)
+    const lnurlCommentInputRef = useRef<TextInput>(null)
+
     const {proofsStore, mintsStore, paymentRequestsStore, transactionsStore} = useStores()
 
     const isInternetReachable = useIsInternetReachable()
@@ -575,21 +577,8 @@ const handleError = function(e: AppError): void {
 }
 
 const headerBg = useThemeColor('header')
-const feeColor = colors.palette.primary200
 const iconColor = useThemeColor('textDim')
-const inputBg = useThemeColor('background')
-const satsColor = colors.palette.primary200
 
-const memoInputRef = useRef<TextInput>(null)
-const onMemoDone = function () {
-  console.log(lnurlPayParams)
-  if (parseInt(amountToTransfer) > 0) {
-    if (memoInputRef && memoInputRef.current) memoInputRef.current.blur();
-    if (amountInputRef && amountInputRef.current) amountInputRef.current.blur();
-  } else {
-    if (amountInputRef && amountInputRef.current) amountInputRef.current.focus();
-  }
-}
 
     return (
       <Screen preset="fixed" contentContainerStyle={$screen}>
@@ -662,9 +651,9 @@ const onMemoDone = function () {
               <MemoInputCard 
                 memo={lnurlPaymentComment}
                 setMemo={setLnurlPaymentComment}
-                ref={memoInputRef}
-                onMemoDone={onMemoDone}
-                onMemoEndEditing={() => false} // re-calculate encoded url
+                ref={lnurlCommentInputRef}
+                onMemoDone={() => false}
+                onMemoEndEditing={() => false}
                 disabled={encodedInvoice ? true : false}
                 maxLength={lnurlPayCommentAllowed}
               />
