@@ -432,7 +432,7 @@ const getBolt11MintQuote = async function (
     }
   } catch (e: any) {
     let message = 'The mint could not return an invoice.'
-    if (new URL(mintUrl).hostname.endsWith('.onion')) message += '\nIs your Tor VPN running?'
+    if (new URL(mintUrl).hostname.endsWith('.onion')) message += '\nIs your Tor VPN running?';
     throw new AppError(
       Err.MINT_ERROR, 
       message, 
@@ -579,16 +579,17 @@ const getMintInfo = async function (
         log.trace('[getMintInfo]', {info})
         return info
     } catch (e: any) {
-        throw new AppError(
-            Err.MINT_ERROR, 
-            'The mint could not return mint information.', 
-            {
-                    message: e.message,
-                    caller: 'getMintInfo', 
-                    mintUrl, 
-                
-            }
-        )
+      let message = 'The mint could not return mint information.';
+      if (new URL(mintUrl).hostname.endsWith('.onion')) message += '\nIs your Tor VPN running?';
+      throw new AppError(
+          Err.MINT_ERROR, 
+          message, 
+          {
+            message: e.message,
+            caller: 'getMintInfo', 
+            mintUrl
+          }
+      )
     }
 }
 
