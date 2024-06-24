@@ -686,7 +686,7 @@ const iconColor = useThemeColor('textDim')
               <View style={$bottomContainer}>
                 <View style={$buttonContainer}>
                   <Button                    
-                    text={'Request invoice'}
+                    tx="transferScreen.requestInvoice"
                     onPress={onRequestLnurlInvoice}
                   />
                 </View>
