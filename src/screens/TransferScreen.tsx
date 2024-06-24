@@ -429,7 +429,7 @@ const onMintBalanceSelect = function (balance: MintBalance) {
 }
 
 // Amount is editable only in case of LNURL Pay, while invoice is not yet retrieved
-const onAmountEndEditing = async function () {
+const onRequestLnurlInvoice = async function () {
   try {
     const precision = getCurrency(unit).precision
     const mantissa = getCurrency(unit).mantissa
@@ -467,7 +467,7 @@ const onAmountEndEditing = async function () {
     setAmountToTransfer(`${numbro(amountToTransfer).format({thousandSeparated: true, mantissa: getCurrency(unit).mantissa})}`)
 
     setIsLoading(true)
-    const encoded = await LnurlClient.getInvoice(lnurlPayParams, amount * 1000, lnurlPayCommentAllowed > 0 ? lnurlPaymentComment : void 0) 
+    const encoded = await LnurlClient.getInvoice(lnurlPayParams, amount * 1000, lnurlPayCommentAllowed > 0 ? lnurlPaymentComment : undefined) 
     setIsLoading(false)
 
     if (encoded) return onEncodedInvoice(encoded);
@@ -607,7 +607,7 @@ const onMemoDone = function () {
             <TextInput
               ref={amountInputRef}
               onChangeText={amount => setAmountToTransfer(amount)}
-              onEndEditing={onAmountEndEditing}
+              // onEndEditing={onAmountEndEditing}
               value={amountToTransfer}
               style={$amountInput}
               maxLength={9}
@@ -657,17 +657,27 @@ const onMemoDone = function () {
               }
             />
           )}
-          {lnurlPayCommentAllowed > 0 && (
+          {lnurlPayCommentAllowed > 0 && !encodedInvoice && (
+            <>
               <MemoInputCard 
                 memo={lnurlPaymentComment}
                 setMemo={setLnurlPaymentComment}
                 ref={memoInputRef}
                 onMemoDone={onMemoDone}
-                onMemoEndEditing={onAmountEndEditing} // re-calculate encoded url
-                disabled={encodedInvoice ? false : true}
+                onMemoEndEditing={() => false} // re-calculate encoded url
+                disabled={encodedInvoice ? true : false}
                 maxLength={lnurlPayCommentAllowed}
               />
-            )}
+              <View style={$bottomContainer}>
+                <View style={$buttonContainer}>
+                  <Button                    
+                    text={'Request invoice'}
+                    onPress={onRequestLnurlInvoice}
+                  />
+                </View>
+              </View>
+            </>
+          )}
           {availableMintBalances.length > 0 &&
             transactionStatus !== TransactionStatus.COMPLETED && (
               <MintBalanceSelector
