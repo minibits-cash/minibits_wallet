@@ -133,7 +133,7 @@ const $unselected: ViewStyle = {
 
 const $contentContainer: TextStyle = {    
   padding: spacing.small,
-
+  minHeight: spacing.huge,
 }
 
 const $picturesContainer: TextStyle = { 

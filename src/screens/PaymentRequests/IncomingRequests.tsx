@@ -77,8 +77,8 @@ export const IncomingRequests = observer(function (props: {
                 style={$card}
             />
           )}
-          {isLoading && <Loading />}
         </View>
+        {isLoading && <Loading />}
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
       </Screen>

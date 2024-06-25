@@ -216,19 +216,17 @@ export function BottomModal(props: ModalProps) {
 }
 
 const $outerContainerBase: ViewStyle = {    
-    flex: 1,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    width: '100%',
-    margin: 0,
+  flex: 1,
+  justifyContent: 'flex-end',
+  alignItems: 'center',
+  width: '100%',
+  margin: 0
 }
 
 const $innerContainerBase: ViewStyle = {
-    width: '100%',    
-    alignItems: 'center',
-    borderTopLeftRadius: spacing.small,
-    borderTopRightRadius: spacing.small,
-    padding: spacing.small
+  width: '100%',    
+  alignItems: 'center',
+  borderTopLeftRadius: spacing.small,
+  borderTopRightRadius: spacing.small,
+  padding: spacing.small
 }
-
-
