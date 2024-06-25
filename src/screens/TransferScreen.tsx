@@ -101,22 +101,22 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
 
 
   useEffect(() => {
-      const focus = () => {
-          if(route.params?.paymentOption === SendOption.LNURL_PAY) {
-              amountInputRef && amountInputRef.current
-              ? amountInputRef.current.focus()
-              : false
-          }
+    const focus = () => {
+      if (route.params?.paymentOption === SendOption.LNURL_PAY) {
+        amountInputRef && amountInputRef.current
+          ? amountInputRef.current.focus()
+          : false
       }
-      
-      const timer = setTimeout(() => focus(), 100)   
-      
-      return () => {
-          clearTimeout(timer)
-      }
+    }
+
+    const timer = setTimeout(() => focus(), 100)
+
+    return () => {
+      clearTimeout(timer)
+    }
   }, [])
 
-// TODO: fix indentation here
+// TODO: fix indentation in this component
 
 useEffect(() => {
     const setUnitAndMint = () => {
