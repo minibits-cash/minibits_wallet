@@ -37,8 +37,8 @@ function isOnionMint(mintUrl: string) {
 }
 const TorVPNSetupInstructions = `
 Is your Tor VPN running?
-.onion mints require a Tor VPN like Orbo to work. You can get Orbot on Google Play or Github (guardianproject/orbot)
-`
+Mints on Tor require a Tor VPN like Orbot. You can get it on Google Play or Github (guardianproject/orbot).
+Tor can sometimes be slow, so requests might time out. If Orbot is running, try again in a bit.`
 
 const getOrCreateMnemonic = async function (): Promise<string> {    
     let mnemonic: string | undefined = undefined

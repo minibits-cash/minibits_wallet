@@ -120,7 +120,7 @@
 	"copyAsEncodedTokens": "Copy as encoded tokens",
 	"copyContactPublicKey": "Copy contact's public key",
 	"copyMnemonicBackupWorkaround": "To apply backup to your existing funds, send your entire balance to yourself. Otherwise, only funds from this point onward can be restored.",
-	"copyProofs": "text=\"Copy proofs\"",
+	"copyProofs": "Copy proofs",
 	"decodedMissingCurrencyUnit": "Currency unit is missing in the received token. Wallet will assume token amount is in bitcoin $%{unit}. Do not continue if you are not sure this is correct.",
 	"deleteContact": "Delete contact",
 	"deleteContactDesc": "Remove this contact from your wallet.",
