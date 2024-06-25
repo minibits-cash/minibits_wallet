@@ -86,10 +86,14 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
         setIsAddMintVisible(false)
 
         if(mintUrl.includes('.onion')) {
-            if(!userSettingsStore.isTorDaemonOn) {
-                setInfo('Tor support has been discontinued in version v0.1.7-beta. Minibits needs help to get Tor support back. Visit our Github for more info.')
-                return
-            }
+          // const req = await fetch(mintUrl)
+          // const res = await req.json()
+          // console.log(req.status, res)
+
+          // if(!userSettingsStore.isTorDaemonOn) {
+          //     setInfo('Tor support has been discontinued in version v0.1.7-beta. Minibits needs help to get Tor support back. Visit our Github for more info.')
+          //     return
+          // }
         }
 
         if (mintsStore.alreadyExists(mintUrl)) {
