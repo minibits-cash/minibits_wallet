@@ -91,13 +91,14 @@ import { faCircleQuestion } from '@fortawesome/free-solid-svg-icons/faCircleQues
 import { faEnvelope } from '@fortawesome/free-solid-svg-icons/faEnvelope'
 import { faCircleArrowUp } from "@fortawesome/free-solid-svg-icons/faCircleArrowUp"
 import { faCircleArrowDown } from "@fortawesome/free-solid-svg-icons/faCircleArrowDown"
+import { faGlobe } from "@fortawesome/free-solid-svg-icons/faGlobe"
 
 
 export type IconTypes = keyof typeof iconRegistry
 
 // TODO remove need for manual iconregistry? 
 // would be best to just import all of them, i guess, or figure out something smart
-export const iconRegistry = { faAddressCard, faAddressBook, faWallet, faQrcode, faClipboard, faSliders, faCoins, faEllipsisVertical, faEllipsis, faArrowUp, faArrowDown, faArrowLeft, faXmark, faInfoCircle, faBug, faCheckCircle, faArrowTurnUp, faArrowTurnDown, faPencil, faTags, faShareFromSquare, faRotate, faCode, faBan, faCircle, faPaperPlane, faBolt, faArrowUpFromBracket, faArrowRightToBracket, faPlus, faShieldHalved, faCloudArrowUp, faPaintbrush, faCopy, faBurst, faUserShield, faLock, faLockOpen, faTriangleExclamation, faDownload, faUpload, faRecycle, faListUl, faExpand, faFingerprint, faWandMagicSparkles, faCircleUser, faComment, faKey, faCircleNodes, faBullseye, faEyeSlash, faUpRightFromSquare, faShareNodes, faPaste, faKeyboard, faMoneyBill1, faGears, faTag, faBank, faChevronDown, faChevronUp, faCircleExclamation, faCircleQuestion, faEnvelope, faTwitter, faTelegramPlane, faDiscord, faGithub, faReddit, faCircleArrowUp, faCircleArrowDown }
+export const iconRegistry = { faAddressCard, faAddressBook, faWallet, faQrcode, faClipboard, faSliders, faCoins, faEllipsisVertical, faEllipsis, faArrowUp, faArrowDown, faArrowLeft, faXmark, faInfoCircle, faBug, faCheckCircle, faArrowTurnUp, faArrowTurnDown, faPencil, faTags, faShareFromSquare, faRotate, faCode, faBan, faCircle, faPaperPlane, faBolt, faArrowUpFromBracket, faArrowRightToBracket, faPlus, faShieldHalved, faCloudArrowUp, faPaintbrush, faCopy, faBurst, faUserShield, faLock, faLockOpen, faTriangleExclamation, faDownload, faUpload, faRecycle, faListUl, faExpand, faFingerprint, faWandMagicSparkles, faCircleUser, faComment, faKey, faCircleNodes, faBullseye, faEyeSlash, faUpRightFromSquare, faShareNodes, faPaste, faKeyboard, faMoneyBill1, faGears, faTag, faBank, faChevronDown, faChevronUp, faCircleExclamation, faCircleQuestion, faEnvelope, faTwitter, faTelegramPlane, faDiscord, faGithub, faReddit, faCircleArrowUp, faCircleArrowDown, faGlobe }
 
 
 interface IconProps extends TouchableOpacityProps {

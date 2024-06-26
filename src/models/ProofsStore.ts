@@ -200,6 +200,20 @@ export const ProofsStoreModel = types
 
             proofs.replace(proofs.filter(proof => !proofsToRemove.some(removed => removed.secret === proof.secret)))
         },
+        updateMintUrl(currentMintUrl: string, updatedMintUrl: string) {
+            log.trace('[proofStore.updateMintUrl] start')
+            for (const proof of self.proofs) {
+                if(proof.mintUrl === currentMintUrl) {
+                    proof.setMintUrl(updatedMintUrl)
+                }                
+            }
+
+            for (const proof of self.pendingProofs) {
+                if(proof.mintUrl === currentMintUrl) {
+                    proof.setMintUrl(updatedMintUrl)
+                } 
+            }
+        },
     }))
     .views(self => ({
         get proofsCount() {
