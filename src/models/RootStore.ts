@@ -8,7 +8,7 @@ import {PaymentRequestsStoreModel} from './PaymentRequestsStore'
 import {ProofsStoreModel} from './ProofsStore'
 import {RelaysStoreModel} from './RelaysStore'
 
-export const rootStoreModelVersion = 15 // Update this if model changes require migrations defined in setupRootStore.ts
+export const rootStoreModelVersion = 16 // Update this if model changes require migrations defined in setupRootStore.ts
 
 /**
  * A RootStore model.

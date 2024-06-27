@@ -3,7 +3,6 @@ import {withSetPropAction} from './helpers/withSetPropAction'
 import type {GetInfoResponse, MintKeys, MintKeyset} from '@cashu/cashu-ts'
 import {colors, getRandomIconColor} from '../theme'
 import { log, MintClient } from '../services'
-import { MINIBITS_MINT_URL } from '@env'
 
 import AppError, { Err } from '../utils/AppError'
 import { MintUnit } from '../services/wallet/currency'
@@ -54,7 +53,7 @@ export type MintProofsCounter = {
  */
 export const MintModel = types
     .model('Mint', {
-        id: types.optional(types.identifier, generateId(8)),
+        id: types.optional(types.string, () => generateId(8)),
         mintUrl: types.string,
         hostname: types.maybe(types.string),
         shortname: types.maybe(types.string),

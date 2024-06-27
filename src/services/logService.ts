@@ -23,7 +23,7 @@ const customSentryTransport: transportFunctionType = props => {
     // Log to Sentry only if user setting is switched on
     if (!userSettingsStore.isLoggerOn) {        
         return true
-    }    
+    }
 
     if (props.level.text === 'error') {                
         // Capture error log

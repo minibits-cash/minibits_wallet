@@ -265,13 +265,14 @@ async function _runMigrations(rootStore: RootStore) {
             }
         }
         
-        if(currentVersion < 15) {
-            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v15`)
+        if(currentVersion < 16) {
+            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v16`)
             try {                
 
                 for (const mint of mintsStore.allMints) {
                     try {                    
-                        mint.setId()                        
+                        mint.setId() 
+                        log.trace('[_runMigrations]', {id: mint.id, mintUrl: mint.mintUrl})                       
                     } catch (e: any) {
                         log.warn('[_runMigrations]', e.message)
                         continue
