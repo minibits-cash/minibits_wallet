@@ -25,7 +25,8 @@
     ],
     "recognizedJSXAttributes": [
       "tx",
-      "subTx"
+      "subTx",
+      "contentTx"
     ]
   }
 }

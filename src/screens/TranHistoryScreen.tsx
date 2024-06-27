@@ -349,8 +349,8 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
                     />
                 }
                 style={{maxHeight: spacing.screenHeight * 0.66}}                                
-            />                                        
-            {isLoading && <Loading />}
+            />    
+          {isLoading && <Loading shiftedUp={true} />}
         </View>
         <BottomModal
           isVisible={isDeleteModalVisible ? true : false}
