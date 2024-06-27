@@ -1,5 +1,8 @@
 import { showMessage } from "react-native-flash-message"
 import { colors, spacing, useThemeColor } from "../theme"
+import QuickCrypto from 'react-native-quick-crypto'
+import { fromByteArray } from "react-native-quick-base64"
+import { log } from "../services/logService"
 
 /**
  * sleep statement.
@@ -57,6 +60,15 @@ export const warningMessage = function(message: string, description?: string) {
             borderTopRightRadius: spacing.medium
         },        
     })
+}
+
+export const generateId = function (lengthInBytes: number) {        
+        const random = QuickCrypto.randomBytes(lengthInBytes)
+        const uint8Array = new Uint8Array(random)
+        
+        const id: string = Buffer.from(uint8Array).toString('hex')
+        log.trace('[generateId]', {id})
+        return id
 }
 
 

@@ -24,10 +24,13 @@ import {Mint} from '../models/Mint'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
-import AppError from '../utils/AppError'
+import AppError, { Err } from '../utils/AppError'
 import {translate} from '../i18n'
 import {MintListItem} from './Mints/MintListItem'
 import { SvgXml } from 'react-native-svg'
+import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
+import { MintKeyset } from '@cashu/cashu-ts'
+import { MintClient } from '../services'
 
 
 
@@ -86,10 +89,10 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
         setIsAddMintVisible(false)
 
         if (mintsStore.alreadyExists(mintUrl)) {
-            const msg = translate('mintsScreen.mintExists')
-            log.trace(msg)
-            setInfo(msg)
-            return
+          const msg = translate('mintsScreen.mintExists')
+          log.trace(msg)
+          setInfo(msg)
+          return
         }
 
         try {
@@ -102,23 +105,60 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
         } finally {
             setMintUrl('')
             setIsLoading(false)
+            toggleAddMintModal()
         }
     }
 
 
     const updateMint = async function () {
-      if (!selectedMint) {return}
+        if (!selectedMint) {return}
 
-      try {          
-        setIsLoading(true)
-        await mintsStore.updateMint(selectedMint.mintUrl)
-        setInfo(translate("mintSettingsUpdated"))
-      } catch (e: any) {          
+        try {          
+          setIsLoading(true)
+          await mintsStore.updateMint(selectedMint.mintUrl)
+          setInfo(translate("mintSettingsUpdated"))
+        } catch (e: any) {          
+          handleError(e)
+        } finally {  
+          onMintUnselect()
+        }
+    }
+
+
+    const updateMintUrlStart = async function () {
+      if (!selectedMint) {return}
+      toggleAddMintModal() // open
+    }
+
+
+    const updateMintUrl = async function () {
+      if (!selectedMint) {return}      
+      try {
+        if (isStateTreeNode(selectedMint)) { // update URL of existing mint
+          // checks if mint is reachable on new url, if it the same mint by checking keysets and syncs local data
+          if(mintsStore.alreadyExists(mintUrl)) {
+            throw new AppError(Err.VALIDATION_ERROR, 'Mint with this URL already exists.')
+          }
+
+          setIsLoading(true)
+          const activeKeysets: MintKeyset[] = await MintClient.getMintKeysets(mintUrl)
+          const matchingKeyset = activeKeysets.find(keyset => selectedMint.keysets?.some(k => k === keyset.id))
+
+          if(!matchingKeyset) {
+            throw new AppError(Err.VALIDATION_ERROR, 'No keyset match, provided URL likely points to different mint.')
+          }
+
+          selectedMint.setMintUrl!(mintUrl)                    
+        }
+      } catch (e: any) {        
         handleError(e)
       } finally {  
+        setMintUrl('')
         setIsLoading(false)
+        onMintUnselect() // close
+        toggleAddMintModal() // close
       }
-  }
+    }
 
 
     const addDefaultMint = async function () {
@@ -337,6 +377,13 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                 style={{paddingHorizontal: spacing.medium}}
               />
               <ListItem
+                leftIcon='faGlobe'
+                onPress={updateMintUrlStart}
+                text="Update mint URL"
+                bottomSeparator={true}
+                style={{paddingHorizontal: spacing.medium}}
+              />
+              <ListItem
                 leftIcon="faXmark"
                 onPress={removeMint}
                 tx='mintsScreen.removeMint'
@@ -354,7 +401,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
             <View style={$bottomModal}>            
                 <Text
                     preset="subheading"
-                    tx='mintsScreen.addMintUrl'
+                    tx={selectedMint ? 'mintsScreen.updateMintUrl' : 'mintsScreen.addMintUrl'}
                     // style={{marginBottom: spacing.medium, textAlign: 'center'}}
                 />
                 <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
@@ -390,7 +437,19 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                         />
                 </View>
                 <View style={$buttonContainer}>
-                    <Button
+                  {selectedMint ? (
+                      <Button
+                        tx='common.update'
+                        style={{
+                            // borderTopLeftRadius: 0,
+                            // borderBottomLeftRadius: 0,                                
+                            marginRight: spacing.small,
+                            minWidth: 80
+                        }}
+                        onPress={updateMintUrl}
+                      />  
+                  ) : (
+                      <Button
                         tx='common.save'
                         style={{
                             // borderTopLeftRadius: 0,
@@ -399,7 +458,9 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                             minWidth: 80
                         }}
                         onPress={addMint}
-                    />                    
+                      />                    
+                  )}
+                    
                     <Button
                         tx='common.cancel'
                         onPress={toggleAddMintModal}

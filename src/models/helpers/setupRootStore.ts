@@ -25,6 +25,7 @@ import AppError, { Err } from '../../utils/AppError'
 import { MINIBITS_NIP05_DOMAIN, MINIBITS_RELAY_URL } from '@env'
 import { LogLevel } from '../../services/log/logTypes'
 import { MintStatus } from '../Mint'
+import { generateId } from '../../utils/utils'
 
 /**
  * The key we'll be saving our state as within storage.
@@ -262,7 +263,28 @@ async function _runMigrations(rootStore: RootStore) {
             } catch (e: any) {
                 log.warn('[setupRootStore] Migration error', {message: e.name})
             }
-        }        
+        }
+        
+        if(currentVersion < 16) {
+            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v16`)
+            try {                
+
+                for (const mint of mintsStore.allMints) {
+                    try {                    
+                        mint.setId() 
+                        log.trace('[_runMigrations]', {id: mint.id, mintUrl: mint.mintUrl})                       
+                    } catch (e: any) {
+                        log.warn('[_runMigrations]', e.message)
+                        continue
+                    }
+                }
+
+                log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+                rootStore.setVersion(rootStoreModelVersion)
+            } catch (e: any) {
+                log.warn('[setupRootStore] Migration error', {message: e.name})
+            }
+        }
 
     } catch (e: any) {
         throw new AppError(

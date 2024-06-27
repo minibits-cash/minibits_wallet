@@ -3,11 +3,11 @@ import {withSetPropAction} from './helpers/withSetPropAction'
 import type {GetInfoResponse, MintKeys, MintKeyset} from '@cashu/cashu-ts'
 import {colors, getRandomIconColor} from '../theme'
 import { log, MintClient } from '../services'
-import { MINIBITS_MINT_URL } from '@env'
 
 import AppError, { Err } from '../utils/AppError'
 import { MintUnit } from '../services/wallet/currency'
 import { getRootStore } from './helpers/getRootStore'
+import { generateId } from '../utils/utils'
 
 // used as a helper type across app
 /* export type Balance = {
@@ -53,7 +53,8 @@ export type MintProofsCounter = {
  */
 export const MintModel = types
     .model('Mint', {
-        mintUrl: types.identifier,
+        id: types.optional(types.identifier, () => generateId(8)),
+        mintUrl: types.string,
         hostname: types.maybe(types.string),
         shortname: types.maybe(types.string),
         units: types.array(types.frozen<MintUnit>()),        
@@ -130,6 +131,14 @@ export const MintModel = types
             const counter = self.proofsCounters.find(c => c.inFlightTid === tId)                       
             return counter as MintProofsCounter | undefined
         },
+        validateURL(url: string) {
+            try {
+                new URL(url)
+                return true
+            } catch (e) {
+                return false
+            }
+        },
     }))
     .actions(self => ({
         getProofsCounterByUnit: flow(function* getProofsCounterByUnit(unit: MintUnit) {
@@ -140,20 +149,33 @@ export const MintModel = types
             const counter = self.getOrCreateProofsCounter(keys.id, unit)
             return counter
         }),
-        validateURL(url: string) {
-            try {
-                new URL(url)
-                return true
-            } catch (e) {
-                return false
-            }
-        },
         setHostname() {
             try {
                 self.hostname = new URL(self.mintUrl).hostname
             } catch (e) {
                 return false
             }
+        },
+        setMintUrl(url: string) {
+            if(self.validateURL(url)) {
+                const mintsStore = getRootStore(self).mintsStore
+
+                if(!mintsStore.alreadyExists(url)) {
+
+                    const proofsStore = getRootStore(self).proofsStore
+                    proofsStore.updateMintUrl(self.mintUrl, url) // update mintUrl on mint's proofs                    
+                    self.mintUrl = url
+                    
+                    return true
+                }
+
+                throw new AppError(Err.VALIDATION_ERROR, 'Mint URL already exists.', {url})
+            } else {
+                throw new AppError(Err.VALIDATION_ERROR, 'Invalid Mint URL.', {url})
+            }
+        },
+        setId() { // migration
+            self.id = generateId(8)
         },
         setShortname: flow(function* setShortname() {
             // get name from URL as a fallback

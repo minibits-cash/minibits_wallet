@@ -70,7 +70,8 @@
 		"success": "Success!",
 		"copySuccessParam": "Copied %{param}",
 		"hide": "Hide",
-		"show": "Show"
+		"show": "Show",
+		"update": "Update"
 	},
 	"confirmBackupRecovery": "Do you really want to recover ecash from the backup?",
 	"confirmMintRemoval": "Do you really want to remove %{hostname} - %{shortname} from the wallet?",
@@ -165,6 +166,7 @@
 		"addMint": "Add mint",
 		"addMintMinibits": "Add Minibits mint",
 		"addMintUrl": "Add mint URL",
+		"updateMintUrl": "Update mint URL",
 		"blockMint": "Block receiving from this mint",
 		"copy": "Copy mint URL",
 		"invalidUrl": "This is not a valid URL",

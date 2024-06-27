@@ -13,7 +13,7 @@ import {
   import { MintClient } from '../services'  
   import AppError, { Err } from '../utils/AppError'
 import { MintKeyset } from '@cashu/cashu-ts'
-import { getRootStore } from './helpers/getRootStore'
+
 import { MintUnit, MintUnits } from '../services/wallet/currency'
   
   export type MintsByHostname = {
@@ -89,10 +89,6 @@ import { MintUnit, MintUnits } from '../services/wallet/currency'
 
             if(!activeKeysets || activeKeysets.length === 0) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Mint has no active keysets and is not operational', {mintUrl})
-            }            
-          
-            const newMint: Mint = {
-                mintUrl,                    
             }            
 
             for(const keyset of activeKeysets) {
