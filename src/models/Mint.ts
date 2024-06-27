@@ -53,7 +53,7 @@ export type MintProofsCounter = {
  */
 export const MintModel = types
     .model('Mint', {
-        id: types.optional(types.string, () => generateId(8)),
+        id: types.optional(types.identifier, () => generateId(8)),
         mintUrl: types.string,
         hostname: types.maybe(types.string),
         shortname: types.maybe(types.string),
