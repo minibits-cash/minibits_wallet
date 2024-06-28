@@ -177,6 +177,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
     const screenBg = useThemeColor('background')
     const mainButtonColor = useThemeColor('card')
     const mainButtonIcon = useThemeColor('button')
+    const mainButtonText = useThemeColor('text')
   
 
     const {type, name, display_name, npub, nip05, picture, about, lud16} = contact
@@ -293,6 +294,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
             <View style={$buttonContainer}>
                 {contact.nip05 ? (
                     <Button
+                        preset='secondary'
                         text={`Send ecash`}
                         LeftAccessory={() => (
                             <Icon
@@ -302,6 +304,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                             />
                         )}
                         onPress={gotoSend} 
+                        textStyle={{color: mainButtonText}}
                         style={[{backgroundColor: mainButtonColor}, $buttonSend]}                        
                     />
                 ) : (

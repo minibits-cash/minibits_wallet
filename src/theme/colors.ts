@@ -168,6 +168,7 @@ export const colors = {
      * The default card color.
      */
     card: palette.neutral100,
+    statusBarOnModalOpen: '#214D96'
   },
   dark: {
     /**
@@ -267,6 +268,7 @@ export const colors = {
      * The default card color.
      */
     card: palette.neutral800,
+    statusBarOnModalOpen: '#162F83'
   },
 }
 

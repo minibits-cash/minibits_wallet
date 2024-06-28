@@ -6,11 +6,13 @@ import {
   ViewProps,
   View,
   ViewStyle,
-  ColorValue,  
+  ColorValue,
+  StatusBar,  
 } from "react-native"
 import { colors, useThemeColor, spacing } from "../theme"
 import { Text, TextProps } from "./Text"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { Header } from "@react-navigation/stack"
 
 
 interface ModalProps extends ViewProps {
@@ -102,9 +104,7 @@ interface ModalProps extends ViewProps {
 /**
  * Modal
  */
-export function BottomModal(props: ModalProps) {    
-  
-
+export function BottomModal(props: ModalProps) {
 
   const {
     isVisible = true,    
@@ -160,19 +160,20 @@ export function BottomModal(props: ModalProps) {
     FooterTextProps?.style,
   ]
 
+  const statusBarOnModalOpen = useThemeColor('statusBarOnModalOpen')
 
   return (
     <Modal      
       isVisible={isVisible}
-      statusBarTranslucent={true}
-      // avoidKeyboard={true}     
+      statusBarTranslucent={false}
+      avoidKeyboard={true}     
       onBackdropPress={onBackdropPress}
       onBackButtonPress={onBackButtonPress}
       backdropOpacity={backdropOpacity}
       style={[$outerContainerBase]}      
       {...otherProps}
-    >     
-
+    >
+      <StatusBar backgroundColor={isVisible ? statusBarOnModalOpen : undefined} />
       <View style={[$innerContainerBase, $innerContainerStyle]}>        
           {HeadingComponent ||
             (isHeadingPresent && (
@@ -212,7 +213,7 @@ export function BottomModal(props: ModalProps) {
             />
           ))}
       </View>      
-    </Modal>
+    </Modal>    
   )
 }
 
