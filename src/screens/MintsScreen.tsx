@@ -88,13 +88,6 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
     const addMint = async function () {
         setIsAddMintVisible(false)
 
-        if(mintUrl.includes('.onion')) {
-            if(!userSettingsStore.isTorDaemonOn) {
-                setInfo('Tor support has been discontinued in version v0.1.7-beta. Minibits needs help to get Tor support back. Visit our Github for more info.')
-                return
-            }
-        }
-
         if (mintsStore.alreadyExists(mintUrl)) {
           const msg = translate('mintsScreen.mintExists')
           log.trace(msg)

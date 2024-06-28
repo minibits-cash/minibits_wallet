@@ -64,6 +64,7 @@ import { round, toNumber } from '../utils/number'
 import { QRCodeBlock } from './Wallet/QRCode'
 import numbro from 'numbro'
 import { TranItem } from './TranDetailScreen'
+import { MemoInputCard } from '../components/MemoInputCard'
 
 
 if (Platform.OS === 'android' &&
@@ -610,43 +611,16 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             </View>          
         </View>
         <View style={$contentContainer}>
-        {!encodedTokenToSend && (
-            <Card
-                style={$memoCard}
-                ContentComponent={
-                <View style={$memoContainer}>
-                    <TextInput
-                        ref={memoInputRef}
-                        onChangeText={memo => setMemo(memo)}
-                        onEndEditing={onMemoEndEditing}
-                        value={`${memo}`}
-                        style={$memoInput}
-                        maxLength={200}
-                        keyboardType="default"
-                        selectTextOnFocus={true}
-                        placeholder="Memo for recipient"
-                        editable={
-                            transactionStatus === TransactionStatus.PENDING
-                            ? false
-                            : true
-                        }
-                    />
-                    <Button
-                        preset="secondary"
-                        style={$memoButton}
-                        text="Done"
-                        onPress={onMemoDone}
-                        disabled={
-                            transactionStatus === TransactionStatus.PENDING
-                            ? true
-                            : false
-                        }
-                    />
-                </View>
-                }
-            />
-            )} 
-         
+            {!encodedTokenToSend && (
+              <MemoInputCard
+                memo={memo}
+                ref={memoInputRef}
+                setMemo={setMemo}
+                disabled={transactionStatus === TransactionStatus.PENDING}
+                onMemoDone={onMemoDone}
+                onMemoEndEditing={onMemoEndEditing}
+              />
+            )}
             {isMintSelectorVisible && (
                 <MintBalanceSelector
                     mintBalances={availableMintBalances}

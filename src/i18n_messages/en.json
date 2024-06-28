@@ -121,7 +121,7 @@
 	"copyAsEncodedTokens": "Copy as encoded tokens",
 	"copyContactPublicKey": "Copy contact's public key",
 	"copyMnemonicBackupWorkaround": "To apply backup to your existing funds, send your entire balance to yourself. Otherwise, only funds from this point onward can be restored.",
-	"copyProofs": "text=\"Copy proofs\"",
+	"copyProofs": "Copy proofs",
 	"decodedMissingCurrencyUnit": "Currency unit is missing in the received token. Wallet will assume token amount is in bitcoin $%{unit}. Do not continue if you are not sure this is correct.",
 	"deleteContact": "Delete contact",
 	"deleteContactDesc": "Remove this contact from your wallet.",
@@ -150,7 +150,8 @@
 	"lightningAddress": "Lightning address",
 	"lightningInvoiceSharedWaiting": "Lightning invoice has been shared, waiting to be paid by receiver.",
 	"lightningPayScreen": {
-		"onPasteEmptyClipboard": "First copy Lightning invoice, address or pay code to pay to. Then paste."
+		"onPasteEmptyClipboard": "First copy Lightning invoice, address or pay code to pay to. Then paste.",
+		"payHeading": "Pay"
 	},
 	"loadingPublicInfo": "Loading public info",
 	"localBackupDisabled": "Local backup is off",
@@ -398,7 +399,8 @@
 		"sendToContactDescription": "Send your ecash to one of your contacts stored in your contact list.",
 		"showOrShareToken": "Share ecash",
 		"showOrShareTokenDescription": "Present or share ecash token for an amount you want to send.",
-		"title": "Send"
+		"title": "Send",
+		"memo": "Memo for recipient"
 	},
 	"saveContactPrivate": "Save as private contact",
 	"saveContactPrivateDesc": "Save %{nip05} to your Private contacts so you can pay faster",
@@ -522,7 +524,8 @@
 		"insufficientFunds": "There is not enough balance in %{currency} to pay the invoice amount and expected fees: %{amount} %{currency}",
 		"LUD18unsupported": "Minibits does not yet support entering of payer identity data (LUD18).",
 		"noMintWithBalance": "There is no mint with %{unit} balance from which payment can be made.",
-		"selectMintFrom": "Select mint balance to transfer from"
+		"selectMintFrom": "Select mint balance to transfer from",
+		"requestInvoice": "Continue"
 	},
 	"updateScreen": {
 		"gotoPlayStore": "Visit Play Store",

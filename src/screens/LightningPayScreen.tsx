@@ -163,9 +163,8 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
             <View style={[$headerContainer, {backgroundColor: headerBg}]}>                
                 <Text
                     preset="heading"
-                    text={'Pay'}
+                    tx="lightningPayScreen.payHeading"
                     style={{color: 'white'}}
-                    // style={$tranAmount}
                 />                
             </View> 
             <View style={$contentContainer}>            
@@ -300,11 +299,11 @@ const $buttonContainer: ViewStyle = {
 
 
 const $addressInput: TextStyle = {
-    textAlignVertical: 'top' ,
-    borderRadius: spacing.extraSmall,
-    padding: spacing.extraSmall,        
-    alignSelf: 'stretch',
-    height: 120,
+  textAlignVertical: 'top' ,
+  borderRadius: spacing.extraSmall,
+  padding: spacing.extraSmall,        
+  alignSelf: 'stretch',
+  height: 120,
 }
 
 const $bottomContainer: ViewStyle = {

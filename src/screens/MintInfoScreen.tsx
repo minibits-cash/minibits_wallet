@@ -1,5 +1,5 @@
 import React, { FC, useEffect, useMemo, useState } from 'react'
-import { GetInfoResponse, SwapMethod } from '@cashu/cashu-ts'
+import { GetInfoResponse as _GetInfoResponse, SwapMethod } from '@cashu/cashu-ts'
 import { isObj } from '@cashu/cashu-ts/src/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { observer } from 'mobx-react-lite'
@@ -33,6 +33,16 @@ import AppError, { Err } from '../utils/AppError'
 import { useHeader } from '../utils/useHeader'
 import { CurrencySign } from './Wallet/CurrencySign'
 import { SvgXml } from 'react-native-svg'
+
+// cashu-ts currently does not type NUT15 (multipath payments) correctly
+// relevant issue: https://github.com/cashubtc/cashu-ts/issues/142
+// nut-15 spec: https://github.com/cashubtc/nuts/blob/main/15.md
+type NUT15Entry = { method: string, unit: string, mpp: boolean }
+type GetInfoResponse = _GetInfoResponse & {
+  nuts: {
+    15: Array<NUT15Entry>
+  }
+}
 
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -177,6 +187,13 @@ function NutsCard(props: {info: GetInfoResponse}) {
 
   // detailed nuts are separated from simple ones if we want to show more info abt them in the future
   for (const [nut, info] of Object.entries(props.info.nuts)) {
+    if (nut === '15' && (info as NUT15Entry[]).length > 0) {
+      // see https://github.com/cashubtc/nuts/blob/main/15.md - multipath payments
+      // in the future, it might be nice to show for which currencies are multipath payments supported
+      // for example by extending NutItem
+      nutsSimple.push(['15', (info as NUT15Entry[])[0]?.mpp ?? false])
+      continue;
+    }
     if ('disabled' in info && info.disabled === false) { // detailed
       supportedNutsDetailed.push([nut, info])
     } else if ('supported' in info) { // simple
@@ -357,12 +374,12 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
         const mint = mintsStore.findByUrl(route.params.mintUrl)
 
         if (mint) {
-          const info: GetInfoResponse = await MintClient.getMintInfo(mint.mintUrl)
+          const info: _GetInfoResponse = await MintClient.getMintInfo(mint.mintUrl)
           mint.setStatus(MintStatus.ONLINE)
           if(info.name && info.name !== mint.shortname) {
             await mint.setShortname()
           }
-          setMintInfo(info)
+          setMintInfo(info as GetInfoResponse)
           setMint(mint)
         } else {
           throw new AppError(Err.VALIDATION_ERROR, 'Could not find mint', { mintUrl: route.params.mintUrl })

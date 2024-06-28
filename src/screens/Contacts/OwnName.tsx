@@ -466,7 +466,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                     }
                 />
             )}
-            {isLoading && <Loading />}        
+        {isLoading && <Loading />}
         </View>
         <BottomModal
           isVisible={isResultModalVisible ? true : false}
