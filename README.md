@@ -7,13 +7,13 @@
 - This wallet should be used for research purposes only.
 - The wallet is a beta version with incomplete functionality and both known and unknown bugs.
 - Do not use it with large amounts of ecash.
-- The ecash stored in the wallet is issued by the mint. You trust the mint to back it with bitcoin until you transfer your holdings to another bitcoin Lightning wallet.
-- The Cashu protocol that the wallet implements has not yet received extensive review or testing so far.
+- The ecash stored in the wallet is issued by the mint. You trust the mint to back it with bitcoin until you transfer your holdings to another bitcoin lightning wallet.
+- The Cashu protocol that the wallet implements has not yet received extensive review or testing.
 
 
 # Minibits Wallet
 
-Minibits is an e-cash wallet with a focus on performance and usability. Cash is issued by mints and backed by Bitcoin via the [Cashu](https://cashu.space) protocol and Lightning Network.
+Minibits is an ecash and lightning wallet with a focus on ease of use and security. Ecash is issued by mints and backed by Bitcoin via the [Cashu](https://cashu.space) protocol and Lightning Network. Ecash is cash-like yet digital token with cheap and instant transfers and high privacy guarantees.
 
 ## Roadmap
 
@@ -94,8 +94,8 @@ Backup and recovery
 Security and Privacy
 - [x] Optional AES encryption of wallet storage using a key stored in the device secure key storage
 - [x] Use device biometry to login (if storage encryption is on)
-- [-] Tor daemon to connect to mints with .onion addresses [discontinued from v0.1.7-beta]
-- [ ] Connection to external Tor daemon such as Orbot using SOCKS proxy
+- [ ] Connect to the mints on .onion Tor addresses using own Tor daemon [discontinued from v0.1.7]
+- [x] Connect to the mints on .onion Tor addresses using Orbot [✨ New!]
 
 
 Self-funding
@@ -104,16 +104,16 @@ Self-funding
 DevOps
 - [x] OTA updates (opt in)
 - [ ] Automated tests
-- [ ] Release pipelines
+- [ ] Automated release pipelines for both OTA updates and native releases
 
 
 ## Architecture
 
 The wallet's design has been crafted to prioritize the following primary quality properties:
 - Support both Android and iOS mobile platforms
-- Achieve fast startup time and UX (despite using React Native)
+- Achieve fast UX and startup time (despite using React Native)
 - Minimize the risk of data/ecash loss
-- Bring e-cash UX on par with the current standard of traditional finance (tradfi) mobile apps
+- Bring ecash UX on par with the current standard of traditional finance (tradfi) mobile apps
 
 As a result, the following architectural constraints are in place:
 - Wherever available, use libraries with a fast JSI (JavaScript Interface) to native modules.
@@ -127,7 +127,7 @@ Open architectural concepts that were still open for discussion when the wallet 
 - [x] Contacts management - identities, sharing contacts, send ecash with the UX of tradfi instant payment while keeping privacy towards mints - Implemented as NOSTR keypairs and NIP05 public sharable names that ecash can be sent to
 - [x] Off-device backup strategy - Implemented using @gandlafbtc concept of deterministic secrets
 - [ ] UX and naming conventions - ecash is not always intuitive. UX for new users heavily depends on using the right abstractions or terms to describe what is going on. This wallet wants to serve as a means to test what could work. One of the first ideas is to avoid terms such as token or proof and propose the term --coin ++ecash instead.
-- [ ] Suitable Tor daemon available to replace not maintained react-native-tor or SOCKS proxy connection to external on device daemon such as Orbot.
+- [ ] Suitable Tor daemon available to replace not maintained react-native-tor. From v0.1.8-beta.33 connection through Orbot in VPN mode is possible.
 
 
 ## Download and test

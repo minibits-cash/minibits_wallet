@@ -164,6 +164,7 @@ export function BottomModal(props: ModalProps) {
   return (
     <Modal      
       isVisible={isVisible}
+      statusBarTranslucent={true}
       // avoidKeyboard={true}     
       onBackdropPress={onBackdropPress}
       onBackButtonPress={onBackButtonPress}
