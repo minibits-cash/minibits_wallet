@@ -763,7 +763,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         const amountPreferences = getDefaultAmountPreference(amount)        
         const countOfInFlightProofs = CashuUtils.getAmountPreferencesCount(amountPreferences)
         
-        log.trace('[_handlePendingTopupTask]', 'paymentRequest', paymentHash)
+        log.trace('[_handlePendingTopupTask]', 'paymentHash', paymentHash)
         log.trace('[_handlePendingTopupTask]', 'amountPreferences', amountPreferences)
         log.trace('[_handlePendingTopupTask]', 'countOfInFlightProofs', countOfInFlightProofs)
         
@@ -775,7 +775,30 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         }
 
         if (isPaid !== true) {
-            log.trace('[_handlePendingTopupTask] Quot not paid', {mintUrl: mint, mintQuote})
+            log.trace('[_handlePendingTopupTask] Quote not paid', {mintUrl: mint, mintQuote})
+
+            if (isBefore(pr.expiresAt as Date, new Date())) {
+                log.debug('[_handlePendingTopupTask]', `Invoice expired, removing: ${pr.paymentHash}`)
+
+                // expire related tx - but only if it has not been completed before this check
+                if(transaction && transaction.status !== TransactionStatus.COMPLETED) {
+                    const transactionDataUpdate = {
+                        status: TransactionStatus.EXPIRED,
+                        message: 'Invoice expired',                        
+                        createdAt: new Date(),
+                    }                        
+
+                    await transactionsStore.updateStatuses(
+                        [transactionId as number],
+                        TransactionStatus.EXPIRED,
+                        JSON.stringify(transactionDataUpdate),
+                    ) 
+                }
+
+                stopPolling(`handlePendingTopupPoller-${paymentHash}`)         
+                paymentRequestsStore.removePaymentRequest(pr)
+            }
+
             return {
                 taskFunction: '_handlePendingTopupTask',
                 transaction,
@@ -799,94 +822,20 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         const lockedProofsCounter = await mintInstance.getProofsCounterByUnit(unit)
 
         let proofs: CashuProof[] = []
-
-        try {
-            proofs = (await MintClient.mintProofs(
-                mint as string,
-                unit,
-                amount,
-                mintQuote as string,
-                amountPreferences,
-                lockedProofsCounter.inFlightFrom as number
-            )) as CashuProof[]
-
-            // log.info('[_handlePendingTopupTask]', {proofs})
-
-        } catch (e: any) {            
-            // decrease so that unpaid invoices does not cause counter gaps from polling
-            mintInstance.decreaseProofsCounter(lockedProofsCounter.keyset, countOfInFlightProofs)           
-
-            // remove already expired invoices 
-            if (isBefore(pr.expiresAt as Date, new Date())) {
-                log.debug('[_handlePendingTopupTask]', `Invoice expired, removing: ${pr.paymentHash}`)
-
-                // expire related tx - but only if it has not been completed before this check
-                if(transaction && transaction.status !== TransactionStatus.COMPLETED) {
-                    const transactionDataUpdate = {
-                        status: TransactionStatus.EXPIRED,
-                        message: 'Mint returned error and invoice expired',
-                        error: {name: e.name, message: e.message, params: e.params},
-                        createdAt: new Date(),
-                    }                        
-
-                    await transactionsStore.updateStatuses(
-                        [transactionId as number],
-                        TransactionStatus.EXPIRED,
-                        JSON.stringify(transactionDataUpdate),
-                    ) 
-                }
-
-                stopPolling(`handlePendingTopupPoller-${paymentHash}`)         
-                paymentRequestsStore.removePaymentRequest(pr)
-            }
-
-            // throw but keep polling
-            throw e        
-        }
-
-        mintInstance.decreaseProofsCounter(lockedProofsCounter.keyset, countOfInFlightProofs)
         
-        // This runs if invoice has not yet been paid, w/o other error
-        if (!proofs || proofs.length === 0) {
-            log.trace('[_handlePendingTopupTask]', 'Invoice has not yet been paid')
-            
-            const transaction = transactionsStore.findById(transactionId as number)   
-            let isExpired: boolean = false         
+        proofs = (await MintClient.mintProofs(
+            mint as string,
+            unit,
+            amount,
+            mintQuote as string,
+            amountPreferences,
+            lockedProofsCounter.inFlightFrom as number
+        )) as CashuProof[]        
 
-            // remove already expired invoices only after check that they have not been paid                
-            if (isBefore(pr.expiresAt as Date, new Date())) {
-                log.debug('[_handlePendingTopupTask]', `Invoice expired, removing: ${paymentHash}`)
-
-                if(transaction && transaction.status !== TransactionStatus.COMPLETED) {
-                    const transactionDataUpdate = {
-                        status: TransactionStatus.EXPIRED,
-                        message: 'Invoice expired before being paid.',
-                        createdAt: new Date(),
-                    }                        
-
-                    await transactionsStore.updateStatuses(
-                        [transactionId as number],
-                        TransactionStatus.EXPIRED,
-                        JSON.stringify(transactionDataUpdate),
-                    ) 
-                }
-
-                stopPolling(`handlePendingTopupTaskPoller-${paymentHash}`)
-                paymentRequestsStore.removePaymentRequest(pr)
-                isExpired = true                
-            }
-            // release lock and move on (keep polling)
-            mintInstance.resetInFlight(transactionId as number )
-                      
-            return {
-                taskFunction: '_handlePendingTopupTask',
-                mintUrl: mint,
-                unit,
-                amount,
-                paymentHash,
-                transaction,
-                message: isExpired ? 'Lightning invoice expired unpaid.' : 'Lightning invoice has not yet been paid.',
-            } as TransactionTaskResult
+        mintInstance.decreaseProofsCounter(lockedProofsCounter.keyset, countOfInFlightProofs)        
+        
+        if (!proofs || proofs.length === 0) {        
+            throw new AppError(Err.VALIDATION_ERROR, 'Mint did not return any proofs.')
         }        
 
         // we got proofs, accept to the wallet asap

@@ -1115,7 +1115,7 @@ const TopupInfoBlock = function (props: {
   const [isLoading, setIsLoading] = useState(false)
 
 
-    useEffect(() => {
+    useFocusEffect(useCallback(() => {
         const handlePendingTopupTaskResult = async (result: TransactionTaskResult) => {
             log.trace('[handlePendingTopupTaskResult] event handler triggered')
             setIsLoading(false)
@@ -1147,19 +1147,12 @@ const TopupInfoBlock = function (props: {
         return () => {
             EventEmitter.off('ev__handlePendingTopupTask_result', handlePendingTopupTaskResult)
         }
-    }, [isPendingTopupTaskSentToQueue])
+    }, [isPendingTopupTaskSentToQueue]))
 
 
     const toggleResultModal = () =>
         setIsResultModalVisible(previousState => !previousState)
 
-    const copyInvoice = function () {
-        try {
-            Clipboard.setString(paymentRequest?.encodedInvoice as string)
-        } catch (e: any) {
-            return false
-        }
-    }
 
     const onRetryToHandlePendingTopup = async function () {                
         if(!isInternetReachable || !paymentRequest) {
@@ -1193,10 +1186,12 @@ const TopupInfoBlock = function (props: {
                         isCurrency={true}
                         isFirst={true}
                     />
-                    <TranItem
-                        label="receiverMemo"
-                        value={transaction.memo as string}
-                    />
+                    {transaction.memo && transaction.memo.length > 0 && (
+                      <TranItem
+                          label="receiverMemo"
+                          value={transaction.memo as string}
+                      />
+                    )}
                     {transaction.sentFrom && (
                         <TranItem
                             label="tranDetailScreen.sentFrom"
@@ -1234,11 +1229,17 @@ const TopupInfoBlock = function (props: {
                             unit={transaction.unit}
                             isCurrency={true}
                         />
-                        )}
+                    )}
                     <TranItem
                         label="tranDetailScreen.createdAt"
                         value={(transaction.createdAt as Date).toLocaleString()}
                     />
+                    {paymentRequest && (
+                      <TranItem
+                        label="tranDetailScreen.expiresAt"
+                        value={(new Date(paymentRequest.expiresAt!)).toLocaleString()}
+                      />
+                    )}                    
                     <TranItem label="tranDetailScreen.id" value={`${transaction.id}`} />            
                 </>
             }

@@ -805,8 +805,6 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
               </View>
             </View>
           )}
-          {isLoading && <Loading />}
-          {info && <InfoModal message={info} />}
         </View>
         <BottomModal
           isVisible={isNostrDMModalVisible ? true : false}
@@ -910,6 +908,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         />
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
+        {isLoading && <Loading />}
       </Screen>
     )
   },

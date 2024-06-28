@@ -24,6 +24,7 @@ export const InfoModal: FC<InfoModalProps> = function ({ message }) {
     }   
 
     const backgroundColor = useThemeColor('info')
+    const iconColor = useThemeColor('textDim')
 
     return (
         <BottomModal
@@ -32,7 +33,7 @@ export const InfoModal: FC<InfoModalProps> = function ({ message }) {
             onBackButtonPress={() => onClose()}
             ContentComponent={                
                 <View style={{ padding: spacing.small, flexDirection: 'row', alignItems: 'center', marginRight: spacing.medium}}>
-                    <Icon icon="faInfoCircle" size={spacing.large} color="white" />
+                    <Icon icon="faInfoCircle" size={spacing.large} color={iconColor} />
                     <Text style={{ marginHorizontal: spacing.extraSmall}}>{message}</Text>                                    
                 </View>                
             }

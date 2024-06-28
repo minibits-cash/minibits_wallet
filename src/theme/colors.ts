@@ -106,6 +106,26 @@ export const colors = {
      */
     button: palette.success300,
     /**
+     * The default bg color of the primary button.
+     */
+    buttonPressed: palette.success200,
+    /**
+     * The default bg color of the primary button.
+     */
+    buttonSecondary: palette.neutral200,
+    /**
+     * The default bg color of the primary button.
+     */
+    buttonSecondaryPressed: palette.neutral300,
+    /**
+     * The default bg color of the primary button.
+     */
+    buttonTertiary: 'transparent',
+    /**
+     * The default bg color of the primary button.
+     */
+    buttonTertiaryPressed: palette.neutral200,
+    /**
      * The default color of the header and status bar.
      */
     header: palette.primary400,
@@ -183,7 +203,27 @@ export const colors = {
     /**
      * The default bg color of the primary button.
      */
-    button: palette.success200,
+    button: palette.success300,
+    /**
+     * The default bg color of the primary button.
+     */
+    buttonPressed: palette.success200,
+    /**
+     * The default bg color of the primary button.
+     */
+    buttonSecondary: palette.neutral700,
+    /**
+     * The default bg color of the primary button.
+     */
+    buttonSecondaryPressed: palette.neutral600,
+    /**
+     * The default bg color of the primary button.
+     */
+    buttonTertiary: 'transparent',
+    /**
+     * The default bg color of the primary button.
+     */
+    buttonTertiaryPressed: palette.neutral700,
     /**
      * The default color of the header and status bar.
      */

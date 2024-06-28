@@ -30,6 +30,7 @@ import QRCode from 'react-native-qrcode-svg'
 import { infoMessage } from '../../utils/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { translate } from '../../i18n'
+import { QRCodeBlock } from '../Wallet/QRCode'
 
 
 export const OutgoingRequests = observer(function (props: {
@@ -63,35 +64,6 @@ export const OutgoingRequests = observer(function (props: {
     const onShowQRModal = function(paymentRequest: PaymentRequest) {
         setSelectedRequest(paymentRequest)        
         toggleQRModal()
-    }
-
-
-    const onShareToApp = async () => {
-        try {
-          const result = await Share.share({
-            message: selectedRequest?.encodedInvoice as string,
-          })
-  
-          if (result.action === Share.sharedAction) {          
-            setTimeout(
-              () => infoMessage(translate("lightningInvoiceSharedWaiting")),              
-              500,
-            )
-          } else if (result.action === Share.dismissedAction) {
-              infoMessage(translate("share.cancelled"))          
-          }
-        } catch (e: any) {
-          handleError(e)
-        }
-      }
-  
-  
-    const onCopy = function () {
-        try {
-            Clipboard.setString(selectedRequest?.encodedInvoice as string)
-        } catch (e: any) {
-            setInfo(translate('common.copyFailParam', { param: e.message }))
-        }
     }
 
 
@@ -132,77 +104,32 @@ export const OutgoingRequests = observer(function (props: {
               contentStyle={{color: hintColor, padding: spacing.small}}
               style={$card}
             />
-          )}
-          {isLoading && <Loading />}
+          )}          
         </View>
         <BottomModal
             isVisible={isQRModalVisible}
             ContentComponent={
-                <ShareAsQRCodeBlock
-                    toggleQRModal={toggleQRModal}
-                    invoiceToPay={selectedRequest?.encodedInvoice as string}
-                    onShareToApp={onShareToApp}
-                    onCopy={onCopy}
-                    onError={handleError}
-                />
+              <QRCodeBlock
+                qrCodeData={selectedRequest?.encodedInvoice as string}
+                title="Scan and pay to topup"
+                size={270}
+              />
             }
             onBackButtonPress={toggleQRModal}
             onBackdropPress={toggleQRModal}
         />
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
+        {isLoading && <Loading />}
       </Screen>
     )
   },
 )
 
 
-const ShareAsQRCodeBlock = observer(function (props: {
-    toggleQRModal: any
-    invoiceToPay: string
-    onShareToApp: any  
-    onCopy: any
-    onError: any
-  }) {
-    return (
-      <View style={[$bottomModal, {marginHorizontal: spacing.small}]}>
-        <Text tx="paymentRequestScreen.outgoing.scanAndPay" />
-        <View style={$qrCodeContainer}>
-          <QRCode 
-              size={270} 
-              value={props.invoiceToPay}
-              onError={props.onError}
-          />
-        </View>
-        <View style={$buttonContainer}>
-          <Button
-            tx="common.share"
-            onPress={props.onShareToApp}
-            style={{marginRight: spacing.medium}}
-            LeftAccessory={() => (
-              <Icon
-                icon="faShareFromSquare"
-                color="white"
-                size={spacing.medium}
-                // containerStyle={{marginRight: spacing.small}}
-              />
-            )}
-          />
-          <Button preset="secondary" tx="common.copy" onPress={props.onCopy} />
-          <Button
-            preset="tertiary"
-            tx="common.close"
-            onPress={props.toggleQRModal}
-          />
-        </View>
-      </View>
-    )
-  })
-
 const $screen: ViewStyle = {
     flex: 1
 }
-
 
 const $contentContainer: TextStyle = {
   padding: spacing.extraSmall,

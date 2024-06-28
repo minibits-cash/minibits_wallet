@@ -92,8 +92,17 @@ export function Button(props: ButtonProps) {
 
   const textColor = useThemeColor("text")
   const defaultBg = useThemeColor("button")
-  const secondaryBg = useThemeColor("background")
-  const tertiaryBg = "transparent"
+  const defaultBgPressed = useThemeColor("buttonPressed")
+  const secondaryBg = useThemeColor("buttonSecondary")
+  const secondaryBgPressed = useThemeColor("buttonSecondaryPressed")
+  const tertiaryBg = useThemeColor("buttonTertiary")
+  const tertiaryBgPressed = useThemeColor("buttonTertiaryPressed")
+
+  const $pressedViewPresets: Record<Presets, StyleProp<ViewStyle>> = {
+    default: { backgroundColor: defaultBgPressed },
+    secondary: { backgroundColor: secondaryBgPressed },
+    tertiary: { backgroundColor: tertiaryBgPressed },
+  }
   
   function $viewStyle({ pressed }) {
     return [
@@ -179,12 +188,6 @@ const $textPresets: Record<Presets, StyleProp<TextStyle>> = {
   default: $baseTextStyle,
   secondary: $baseTextStyle,
   tertiary: $baseTextStyle,
-}
-
-const $pressedViewPresets: Record<Presets, StyleProp<ViewStyle>> = {
-  default: { backgroundColor: colors.palette.success100 },
-  secondary: { backgroundColor: colors.palette.neutral300 },
-  tertiary: { backgroundColor: colors.palette.neutral200, opacity: 0.4 },
 }
 
 const $pressedTextPresets: Record<Presets, StyleProp<TextStyle>> = {

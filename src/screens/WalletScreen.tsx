@@ -594,6 +594,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 tx="walletScreen.sendEcash"
                 subTx="walletScreen.sendEcashDesc"
                 onPress={gotoSend}
+                bottomSeparator={true}
             />
             <ListItem   
                 leftIcon='faBolt'             
@@ -616,6 +617,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 tx="walletScreen.receiveEcash"
                 subTx="walletScreen.receiveEcashDesc"
                 onPress={gotoTokenReceive}
+                bottomSeparator={true}
             />
             <ListItem      
                 leftIcon='faBolt'          
@@ -784,9 +786,6 @@ const MintsByUnitListItem = observer(function (props: {
                         <ListItem                        
                             text={mint.shortname}
                             subText={mint.hostname}                    
-                            // leftIcon={mint.status === MintStatus.OFFLINE ? 'faTriangleExclamation' : 'faMoneyBill1'}              
-                            // leftIconInverse={true}
-                            // leftIconColor={mint.color}
                             LeftComponent={
                                 <View
                                     style={{
@@ -836,20 +835,6 @@ const MintsByUnitListItem = observer(function (props: {
                                         marginRight: spacing.small
                                     }}                    
                                 />
-                                {/*<Button
-                                    text={'Exchange'}
-                                    LeftAccessory={() => (
-                                        <Icon
-                                        icon='faRotate'
-                                        color={color}
-                                        size={spacing.medium}                  
-                                        />
-                                    )}
-                                    textStyle={{fontSize: 14, color}}
-                                    preset='tertiary'
-                                    onPress={props.gotoMintInfo}
-                                    style={{minHeight: moderateVerticalScale(40), paddingVertical: moderateVerticalScale(spacing.tiny)}}                    
-                                />*/}
                                 <Button
                                     tx="walletScreen.pay"
                                     LeftAccessory={() => (
@@ -868,24 +853,6 @@ const MintsByUnitListItem = observer(function (props: {
                                         marginRight: spacing.small
                                     }}                    
                                 />
-                                {/*<Button
-                                    text={'Send'}
-                                    LeftAccessory={() => (
-                                        <Icon
-                                        icon='faMoneyBill1'
-                                        color={color}
-                                        size={spacing.medium}                  
-                                        />
-                                    )}
-                                    textStyle={{fontSize: 14, color}}
-                                    preset='secondary'
-                                    onPress={() => gotoSend(mintsByUnit.unit, mint.mintUrl)}
-                                    style={{
-                                        minHeight: moderateVerticalScale(40), 
-                                        paddingVertical: moderateVerticalScale(spacing.tiny),
-                                        marginRight: spacing.tiny
-                                    }}                    
-                                />*/}
                                 <Button
                                     tx="wallerScreen.mintButton"
                                     LeftAccessory={() => (

@@ -93,6 +93,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState(false)
+    const [isNotEnoughFunds, setIsNotEnoughFunds] = useState(false)
     const [isPasteInvoiceModalVisible, setIsPasteInvoiceModalVisible] = useState(false)
     const [isInvoiceDonation, setIsInvoiceDonation] = useState(false)    
     const [isTransferTaskSentToQueue, setIsTransferTaskSentToQueue] = useState(false)
@@ -223,9 +224,7 @@ useFocusEffect(
                     }
                 }                
 
-                const amountSats = roundUp(lnurlParams.minSendable / 1000, 0)
-
-                log.trace('[handleLnurlPay]', {lnurlParams})
+                const amountSats = roundUp(lnurlParams.minSendable / 1000, 0)                
 
                 setAmountToTransfer(`${numbro(amountSats).format({thousandSeparated: true, mantissa: 0})}`)        
                 setLnurlPayParams(lnurlParams)                
@@ -279,38 +278,38 @@ useFocusEffect(
 useEffect(() => {
     const getMeltQuote = async function () {
         try {
-            log.trace('[getEstimatedFee]', {mintBalanceToTransferFrom})  
-            if (!mintBalanceToTransferFrom || !mintBalanceToTransferFrom.balances[unit] || !encodedInvoice) {
+            log.trace('[getMeltQuote]', {mintBalanceToTransferFrom})  
+            if (!mintBalanceToTransferFrom || !encodedInvoice) {
                 log.trace(
-                  '[getEstimatedFee]',
-                  'Not ready... exiting',
-                  mintBalanceToTransferFrom,
-                  mintBalanceToTransferFrom?.balances[unit],
-                  encodedInvoice,
+                  '[getMeltQuote]',
+                  'Not yet ready to request melt quote or melt quote already exists... exiting',
+                  {mintBalanceToTransferFrom,                  
+                  encodedInvoice}
                 )  
                 return
             }           
             
             setIsLoading(true)
-            const meltQuote = await MintClient.getLightningMeltQuote(
+            const quote = await MintClient.getLightningMeltQuote(
                 mintBalanceToTransferFrom.mintUrl,
                 unit,
                 encodedInvoice,
             )
             
             setIsLoading(false)
-            setMeltQuote(meltQuote)
-            setAmountToTransfer(`${numbro(meltQuote.amount / getCurrency(unit).precision).format({thousandSeparated: true, mantissa: getCurrency(unit).mantissa})}`)
+            setMeltQuote(quote)
+            setAmountToTransfer(`${numbro(quote.amount / getCurrency(unit).precision).format({thousandSeparated: true, mantissa: getCurrency(unit).mantissa})}`)
     
-            const totalAmount = meltQuote.amount + meltQuote.fee_reserve
+            const totalAmount = quote.amount + quote.fee_reserve
     
             let availableBalances = proofsStore.getMintBalancesWithEnoughBalance(totalAmount, unit)
     
             if (availableBalances.length === 0) {
-                infoMessage(translate("transferScreen.insufficientFunds", {
+                setInfo(translate("transferScreen.insufficientFunds", {
                   currency: getCurrency(unit).code,
                   amount: amountToTransfer
                 }))
+                setIsNotEnoughFunds(true)
                 return
             }
             
@@ -434,7 +433,7 @@ const resetState = function () {
 const toggleResultModal = () => setIsResultModalVisible(previousState => !previousState)
 
 const onMintBalanceSelect = function (balance: MintBalance) {
-    setMintBalanceToTransferFrom(balance) // this triggers effect to get estimated fees
+    setMintBalanceToTransferFrom(balance) // this triggers effect to get melt quote
 }
 
 // Amount is editable only in case of LNURL Pay, while invoice is not yet retrieved
@@ -444,7 +443,7 @@ const onRequestLnurlInvoice = async function () { // onAmountEndEditing
     const amount = round(toNumber(amountToTransfer) * precision, 0)
 
     if (!amount || amount === 0) {
-      infoMessage(translate('payCommon.amountZeroOrNegative'))          
+      setInfo(translate('payCommon.amountZeroOrNegative'))          
       return;
     }
 
@@ -453,7 +452,7 @@ const onRequestLnurlInvoice = async function () { // onAmountEndEditing
     }
 
     if (lnurlPayParams.minSendable && amount < lnurlPayParams.minSendable / 1000) {
-      infoMessage(translate('payCommon.minimumWithdraw', { 
+      setInfo(translate('payCommon.minimumWithdraw', { 
         amount: roundUp(lnurlPayParams.minSendable / 1000, 0), 
         currency: CurrencyCode.SATS 
       }))        
@@ -461,7 +460,7 @@ const onRequestLnurlInvoice = async function () { // onAmountEndEditing
     }
 
     if (lnurlPayParams.maxSendable && amount > lnurlPayParams.maxSendable / 1000) {       
-      infoMessage(translate("payCommon.maximumPay", { 
+      setInfo(translate("payCommon.maximumPay", { 
         amount: roundDown(lnurlPayParams.maxSendable / 1000, 0),
         currency: CurrencyCode.SATS
       }))          
@@ -469,7 +468,7 @@ const onRequestLnurlInvoice = async function () { // onAmountEndEditing
     }
 
     if (lnurlPayParams.payerData) {
-      infoMessage(translate("transferScreen.LUD18unsupported"))
+      setInfo(translate("transferScreen.LUD18unsupported"))
     }        
         
     setAmountToTransfer(`${numbro(amountToTransfer).format({thousandSeparated: true, mantissa: getCurrency(unit).mantissa})}`)
@@ -494,7 +493,7 @@ const ensureCommentNotTooLong = async function () {
 
 
 const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: string = '') {
-    log.trace("onEncodedInvoice")
+    log.trace("[onEncodedInvoice] start")
     try {
         navigation.setParams({encodedInvoice: undefined})
         navigation.setParams({paymentRequest: undefined})
@@ -506,7 +505,7 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
         const expiresAt = addSeconds(new Date(timestamp as number * 1000), expiry as number)
 
         if (!amount || amount === 0) {
-          infoMessage(translate('payCommon.amountZeroOrNegative'))            
+          setInfo(translate('payCommon.amountZeroOrNegative'))            
           return;
         }
 
@@ -534,11 +533,15 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
             proofsStore.getMintBalance(mintUrl) : 
             proofsStore.getMintBalancesWithUnit(unit)[0]
 
+        log.trace('[onEncodedInvoice]', {balanceToTransferFrom})
+
         if (!balanceToTransferFrom) {
-          infoMessage(translate("transferScreen.noMintWithBalance", { unit }))
+          log.warn('Not enough alance')
+          setInfo(translate("transferScreen.noMintWithBalance", { unit }))
+          setIsNotEnoughFunds(true)
           return
-        }        
-   
+        }
+
         setMintBalanceToTransferFrom(balanceToTransferFrom)
         // continues in hook that handles other mint selection by user
             
@@ -701,6 +704,17 @@ const iconColor = useThemeColor('textDim')
               </View>
             </View>
           )}
+          {isNotEnoughFunds && transactionStatus !== TransactionStatus.COMPLETED && (
+            <View style={$bottomContainer}>
+              <View style={$buttonContainer}>
+                <Button                    
+                  tx="common.close"
+                  onPress={onClose}
+                  preset="secondary"
+                />
+              </View>
+            </View>
+          )}
           {availableMintBalances.length > 0 &&
             transactionStatus !== TransactionStatus.COMPLETED && (
               <MintBalanceSelector
@@ -758,9 +772,6 @@ const iconColor = useThemeColor('textDim')
               </View>
             </View>
           )}
-          {isLoading && <Loading />}
-          {error && <ErrorModal error={error} />}
-          {info && <InfoModal message={info} />}
         </View>
         <BottomModal
           isVisible={isResultModalVisible}
@@ -856,6 +867,9 @@ const iconColor = useThemeColor('textDim')
           onBackButtonPress={toggleResultModal}
           onBackdropPress={toggleResultModal}
         />
+        {isLoading && <Loading />}
+        {error && <ErrorModal error={error} />}
+        {info && <InfoModal message={info} />}
       </Screen>
     )
   }

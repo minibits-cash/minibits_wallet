@@ -463,6 +463,7 @@
 		"balanceAfter": "Balance after this transaction",
 		"claim": "Claim",
 		"createdAt": "Created at",
+		"expiresAt": "Expires at",
 		"id": "ID",
 		"invoice": "Lightning invoice to pay",
 		"isOffline": "Redeem online",

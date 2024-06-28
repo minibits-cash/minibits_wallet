@@ -18,7 +18,7 @@ const $loading = (bg: ColorValue, shiftedUp = false) => ({
   alignItems: 'center',
   justifyContent: 'center',
   backgroundColor: bg,
-  opacity: 0.5,
+  opacity: 0.25,
   zIndex: 9999,
   // for cards that go up in the header, the loading should cover them
   marginTop: shiftedUp ? -(spacing.extraLarge * 2 + spacing.small) : 0,
