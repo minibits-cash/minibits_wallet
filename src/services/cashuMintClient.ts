@@ -32,6 +32,14 @@ let _seed: Uint8Array | undefined = undefined
 
 const { mintsStore } = rootStoreInstance
 
+function isOnionMint(mintUrl: string) {
+  return new URL(mintUrl).hostname.endsWith('.onion')
+}
+const TorVPNSetupInstructions = `
+Is your Tor VPN running?
+Mints on Tor require a Tor VPN like Orbot. You can get it on Google Play or Github (guardianproject/orbot).
+Tor can sometimes be slow, so requests might time out. If Orbot is running, try again in a bit.`
+
 const getOrCreateMnemonic = async function (): Promise<string> {    
     let mnemonic: string | undefined = undefined
 
@@ -169,7 +177,9 @@ const getWallet = async function (
       log.trace('[getWallet]', 'Returning new cashuWallet instance')
       return newWallet
     } catch (e: any) {
-      throw new AppError(Err.NETWORK_ERROR, 'Could not get keys from the mint', {message: e.message, caller: 'getWallet'})
+      let message = 'Could not connect to the selected mint.'
+      if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
+      throw new AppError(Err.NETWORK_ERROR, message, {message: e.message, caller: 'getWallet'})
     }
 }
 
@@ -188,11 +198,9 @@ const getMintKeysets = async function (mintUrl: string) {
     const {keysets} = await cashuMint.getKeySets() // all
     return keysets    
   } catch (e: any) {
-    throw new AppError(
-      Err.CONNECTION_ERROR,
-      `Could not connect to the selected mint.`,
-      {message: e.message, mintUrl},
-    )
+    let message = 'Could not connect to the selected mint.'
+    if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
+    throw new AppError(Err.CONNECTION_ERROR, message, { message: e.message, mintUrl })
   }  
 }
 
@@ -287,16 +295,17 @@ const sendFromMint = async function (
       proofsToSend: send as Proof[],      
     }
   } catch (e: any) {
+    let message = 'The mint could not return signatures necessary for this transaction'
+    if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
     throw new AppError(
-        Err.MINT_ERROR, 
-        `The mint could not return signatures necessary for this transaction`, 
-        {
-            message: e.message,            
-            mintUrl,
-            caller: 'MintClient.sendFromMint', 
-            proofsToSendFrom, 
-            
-        }
+      Err.MINT_ERROR, 
+      message,
+      {
+        message: e.message,            
+        mintUrl,
+        caller: 'MintClient.sendFromMint', 
+        proofsToSendFrom, 
+      }
     )
   }
 }
@@ -322,13 +331,15 @@ const getSpentOrPendingProofsFromMint = async function (
     }
 
   } catch (e: any) {    
+    let message = 'Could not get response from the mint.'
+    if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
     throw new AppError(
         Err.MINT_ERROR, 
-        'Could not get response from the mint.', 
+        message, 
         {
-            message: e.message,
-            caller: 'CashuMintClient.getSpentOrPendingProofsFromMint', 
-            mintUrl            
+          message: e.message,
+          caller: 'CashuMintClient.getSpentOrPendingProofsFromMint', 
+          mintUrl            
         }
     )
   }
@@ -353,13 +364,15 @@ const getLightningMeltQuote = async function (
     return lightningQuote
 
   } catch (e: any) {
+    let message = 'The mint could not return the lightning quote.'
+    if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
     throw new AppError(
         Err.MINT_ERROR, 
-        'The mint could not return the lightning quote.', 
+        message,
         {
-            message: e.message,
-            caller: 'getLightningMeltQuote', 
-            request: {mintUrl, unit, encodedInvoice},            
+          message: e.message,
+          caller: 'getLightningMeltQuote', 
+          request: {mintUrl, unit, encodedInvoice},            
         }
     )
   }
@@ -395,9 +408,11 @@ const payLightningMelt = async function (
       preimage,      
     }
   } catch (e: any) {
+    let message = 'Lightning payment failed.'
+    if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
     throw new AppError(
         Err.MINT_ERROR, 
-        'Lightning payment failed.', 
+        message,
         {
             message: isObj(e.message) ? JSON.stringify(e.message) : e.message,
             caller: 'payLightningMelt', 
@@ -431,14 +446,16 @@ const getBolt11MintQuote = async function (
       mintQuote,
     }
   } catch (e: any) {
+    let message = 'The mint could not return an invoice.'
+    if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
     throw new AppError(
-        Err.MINT_ERROR, 
-        'The mint could not return an invoice.', 
-        {
-            message: e.message,
-            caller: 'getBolt11MintQuote', 
-            mintUrl,            
-        }
+      Err.MINT_ERROR, 
+      message, 
+      {
+          message: e.message,
+          caller: 'getBolt11MintQuote', 
+          mintUrl,            
+      }
     )
   }
 }
@@ -466,9 +483,11 @@ const getBolt11MintQuoteIsPaid = async function (
       isPaid
     }
   } catch (e: any) {
+    let message = 'The mint could not return the state of a mint quote.'
+    if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
     throw new AppError(
         Err.MINT_ERROR, 
-        'The mint could not return the state of a mint quote.', 
+        message, 
         {
             message: e.message,
             caller: 'getBolt11MintQuoteIsPaid', 
@@ -514,10 +533,11 @@ const mintProofs = async function (
                 proofs: [],                
             }
         }
-        
+        let message = 'The mint returned error on request to mint new ecash.'
+        if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
         throw new AppError(
             Err.MINT_ERROR, 
-            'The mint returned error on request to mint new ecash.', 
+            message, 
             {
                 message: e.message,
                 caller: 'mintProofs', 
@@ -577,16 +597,17 @@ const getMintInfo = async function (
         log.trace('[getMintInfo]', {info})
         return info
     } catch (e: any) {
-        throw new AppError(
-            Err.MINT_ERROR, 
-            'The mint could not return mint information.', 
-            {
-                    message: e.message,
-                    caller: 'getMintInfo', 
-                    mintUrl, 
-                
-            }
-        )
+      let message = 'The mint could not return mint information.';
+      if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
+      throw new AppError(
+          Err.MINT_ERROR, 
+          message, 
+          {
+            message: e.message,
+            caller: 'getMintInfo', 
+            mintUrl
+          }
+      )
     }
 }
 

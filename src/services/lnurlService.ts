@@ -123,27 +123,27 @@ const getLnurlAddressParams = async (lnurlAddress: string) => {
 
 
 
-const getInvoice = async(lnurlParams: LNURLPayParams, amountMsat?: number) => {
+const getInvoice = async (lnurlParams: LNURLPayParams, amountMsat?: number, comment?: string) => {
+    if (!amountMsat || amountMsat === 0) { amountMsat = lnurlParams.minSendable }
 
-    if(!amountMsat || amountMsat === 0) {
-        amountMsat = lnurlParams.minSendable
-    }
-
-    const url = lnurlParams.callback.includes('?') ? `${lnurlParams.callback}&amount=${amountMsat}` : `${lnurlParams.callback}?amount=${amountMsat}`
+    const url = new URL(lnurlParams.callback)
+    url.searchParams.set('amount', amountMsat.toString())
+    if (comment) url.searchParams.set('comment', comment)
+    const strUrl = url.toString()
     const method = 'GET'        
     const headers = MinibitsClient.getPublicHeaders()
     
-    const invoiceResult: any = await MinibitsClient.fetchApi(url, {
-        method,
-        headers,            
+    const invoiceResult: any = await MinibitsClient.fetchApi(strUrl, {
+      method,
+      headers,            
     })
 
     if(invoiceResult.status && invoiceResult.status === 'ERROR') {
-        throw new AppError(Err.CONNECTION_ERROR, invoiceResult.reason, {domain: lnurlParams.domain, caller: 'getLnurlParams'})
+      throw new AppError(Err.CONNECTION_ERROR, invoiceResult.reason, {domain: lnurlParams.domain, caller: 'getLnurlParams'})
     }
 
     if(invoiceResult.pr) {
-        return invoiceResult.pr as string
+      return invoiceResult.pr as string
     }
     
     throw new AppError(Err.CONNECTION_ERROR, 'Could not get lightning invoice from the LNURL provider', {domain: lnurlParams.domain, caller: 'getLnurlParams'})    

@@ -118,7 +118,7 @@ export const transferTask = async function (
         // get locked counter values
         const lockedProofsCounter = await mintInstance.getProofsCounterByUnit?.(unit)
 
-        const {isPaid, feeSavedProofs} = await MintClient.payLightningMelt(
+        const {isPaid, preimage, feeSavedProofs} = await MintClient.payLightningMelt(
             mintUrl,
             unit,
             meltQuote,
@@ -206,6 +206,7 @@ export const transferTask = async function (
         transactionData.push({
             status: TransactionStatus.COMPLETED,
             finalFee,
+            preimage, // TODO add to tx details
             createdAt: new Date(),
         })
 
