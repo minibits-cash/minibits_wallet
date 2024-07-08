@@ -65,7 +65,6 @@ const findAndExtract = function (
                 throw new AppError(Err.NOTFOUND_ERROR, 'Unknown expectedType', {expectedType})
         }
     }
-
     
     const maybeToken = CashuUtils.findEncodedCashuToken(incomingData)
 
@@ -77,7 +76,6 @@ const findAndExtract = function (
             encoded: encodedToken
         }
     }
-
 
     const maybeInvoice = LightningUtils.findEncodedLightningInvoice(incomingData)
 
@@ -105,7 +103,6 @@ const findAndExtract = function (
         }
     }
 
-
     const maybeLnurlAddress = LnurlUtils.findEncodedLnurlAddress(incomingData)
 
     if(maybeLnurlAddress) {
@@ -121,12 +118,27 @@ const findAndExtract = function (
 
     const maybeMintUrl = new URL(incomingData) // throws
 
-    log.trace('[findAndExtract] Got maybeMintUrl', incomingData)
+    if(incomingData.startsWith('http')) {
+        log.trace('[findAndExtract] Got maybeMintUrl', incomingData)
 
-    return {
-        type: IncomingDataType.MINT_URL,
-        encoded: incomingData
+        return {
+            type: IncomingDataType.MINT_URL,
+            encoded: incomingData
+        }
     }
+
+    if(incomingData.startsWith('ur:bytes')) {
+        log.trace('[findAndExtract] Got animated QR', incomingData)
+
+        throw new AppError(Err.VALIDATION_ERROR, 'Minibits does not yet support animated QR codes.', {
+            caller: 'findAndExtract'                     
+        })
+    }
+
+    throw new AppError(Err.VALIDATION_ERROR, 'Unknown incoming data type.', {
+        caller: 'findAndExtract'                     
+    })
+
 }
 
 

@@ -86,9 +86,9 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
         const {preferredUnit: unit} = userSettingsStore
 
         switch (prevRouteName) {
-            case 'ReceiveOptions':  
-            log.trace('ReceiveOptions')
-                try {                    
+            case 'TokenReceive':  
+                log.trace('TokenReceive')
+                try {     
                     const tokenResult = IncomingParser.findAndExtract(incoming, IncomingDataType.CASHU)
                     return IncomingParser.navigateWithIncomingData(tokenResult, navigation, unit)
                     
@@ -111,6 +111,16 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                             handleError(e2)
                             break
                         }
+                    }
+
+                    // temp validation
+                    if(incoming.startsWith('ur:bytes')) {
+                        log.trace('[findAndExtract] Got animated QR', incoming)
+
+                        e.params = incoming
+                        e.message = 'Minibits does not yet support animated QR codes.'
+                        handleError(e)
+                        break
                     }
 
                     e.params = incoming

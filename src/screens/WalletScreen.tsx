@@ -529,7 +529,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                         )}
                         onPress={toggleSendModal}                        
                         style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonTopup]}
-                        preset='tertiary'
+                        preset='secondary'
                         tx='payCommon.send'
                     />             
                     <Button
@@ -543,7 +543,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                         )}
                         onPress={gotoScan}
                         style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonScan]}
-                        preset='tertiary'
+                        preset='secondary'
                     />
                     <Button
                         RightAccessory={() => (
@@ -556,7 +556,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                         onPress={toggleReceiveModal}
                         tx='payCommon.receive'
                         style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonPay]}
-                        preset='tertiary'
+                        preset='secondary'
                     /> 
                 </View>  
             </View>
