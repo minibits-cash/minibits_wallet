@@ -1202,9 +1202,9 @@
   resolved "https://registry.yarnpkg.com/@bcoe/v8-coverage/-/v8-coverage-0.2.3.tgz#75a2e8b51cb758a7553d6804a5932d7aace75c39"
   integrity sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==
 
-"@cashu/cashu-ts@KraXen72/cashu-ts-minibits#9d425359158837b71243780d9fafba74b685df2e":
+"@cashu/cashu-ts@minibits-cash/cashu-ts#v1.0.0-rc.9-minibits":
   version "1.0.0-rc.9-minibits"
-  resolved "https://codeload.github.com/KraXen72/cashu-ts-minibits/tar.gz/9d425359158837b71243780d9fafba74b685df2e"
+  resolved "https://codeload.github.com/minibits-cash/cashu-ts/tar.gz/24b15d4925bee8491a28e027bcc37ebc038bc674"
   dependencies:
     "@cashu/crypto" "^0.2.6"
     "@noble/curves" "^1.3.0"
