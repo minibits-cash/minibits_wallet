@@ -33,6 +33,7 @@ import AppError, { Err } from '../utils/AppError'
 import { useHeader } from '../utils/useHeader'
 import { CurrencySign } from './Wallet/CurrencySign'
 import { SvgXml } from 'react-native-svg'
+import { isArray } from 'util'
 
 // cashu-ts currently does not type NUT15 (multipath payments) correctly
 // relevant issue: https://github.com/cashubtc/cashu-ts/issues/142
@@ -235,20 +236,38 @@ function NutsCard(props: {info: GetInfoResponse}) {
 function ContactCard(props: { info: GetInfoResponse, popupMessage: (msg: string) => void }) {
   const textDim = useThemeColor('textDim')
 
-  let contacts = props.info.contact.filter(([k, v]) => k.trim() !== '') // filter out empty contacts
+  type Contact = [string, string]
+  type NewContact = {method: string, info: string}
+
+  let contacts: Array<any> = []
+  let newContacts:  Array<any> = []
+  let mayBeContacts = props.info.contact
+
+  if(mayBeContacts.length > 0) {
+    if(mayBeContacts[0].method) {
+      newContacts = mayBeContacts
+    }
+
+    if(Array.isArray(mayBeContacts[0])) {
+      contacts = mayBeContacts
+    }
+  }
+  
+  log.trace({newContacts, contacts})
+
   return (
     <Card
       headingTx="mintInfo.contactsHeading"
       HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
       ContentComponent={
-        contacts.length === 0 ? (
+        contacts.length === 0 &&  newContacts.length === 0 ? (
           <Text
             style={{fontStyle: 'italic'}}
             text={translate('mintInfo.emptyValueParam', { param: translate('mintInfo.contactsHeading') })}
           />
         ) : (
           <>
-            {contacts.map(([platform, user], index) => (
+            {contacts.map(([platform, user]: Contact, index) => (
               <ListItem
                 style={$contactListItem}
                 key={platform}
@@ -260,6 +279,21 @@ function ContactCard(props: { info: GetInfoResponse, popupMessage: (msg: string)
                 onLongPress={() => {
                   Clipboard.setString(user)
                   props.popupMessage(translate('common.copySuccessParam', { param: user }))
+                }}
+              />
+            ))}
+            {newContacts.map((c: NewContact, index) => (
+              <ListItem
+                style={$contactListItem}
+                key={c.method}
+                text={c.method}
+                textStyle={$sizeStyles.xs}
+                LeftComponent={<Icon icon={c.method in contactIconMap ? contactIconMap[c.method] : 'faAddressBook'} color={textDim}/>}
+                RightComponent={<View style={{ width: spacing.screenWidth * 0.6 }}><Text text={c.info}/></View>}
+                topSeparator={index !== 0}
+                onLongPress={() => {
+                  Clipboard.setString(c.info)
+                  props.popupMessage(translate('common.copySuccessParam', { param: c.info }))
                 }}
               />
             ))}
