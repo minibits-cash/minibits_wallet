@@ -462,7 +462,7 @@ const getBolt11MintQuoteIsPaid = async function (
       request: encodedInvoice, 
       quote: mintQuote, 
       paid: isPaid
-    } = await cashuMint.mintQuotePaid(      
+    } = await cashuMint.getMintQuote(      
       quote
     )
 
@@ -506,7 +506,7 @@ const mintProofs = async function (
             mintQuote,
             {
               keysetId: cashuWallet.keys.id,
-              amountPreference: amountPreferences,
+              preference: amountPreferences,
               counter,
               pubkey: undefined                          
             }            

@@ -13,6 +13,7 @@ import {
   InfoModal,
   BottomModal,
   Button,
+  Header,
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
@@ -25,11 +26,6 @@ import { translate } from '../i18n'
 
 export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(function BackupScreen(_props) {
     const {navigation} = _props
-    useHeader({
-        leftIcon: 'faArrowLeft',
-        onLeftPress: () => navigation.goBack(),
-    })
-
     const {userSettingsStore, proofsStore, mintsStore} = useStores()
 
     const [isLoading, setIsLoading] = useState(false)
@@ -146,7 +142,11 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
     const headerBg = useThemeColor('header')
 
     return (
-      <Screen preset='auto' style={$screen}>
+      <Screen preset='auto' contentContainerStyle={$screen}>
+        <Header                
+            leftIcon='faArrowLeft'
+            onLeftPress={() => navigation.goBack()}                            
+        /> 
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text preset="heading" text="Backup" style={{color: 'white'}} />
         </View>

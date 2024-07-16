@@ -644,7 +644,8 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
       setError(e)
     }
 
-    const headerBg = useThemeColor('header')
+    
+    
 
     const getAmountTitle = function () {
       switch (paymentOption) {
@@ -656,9 +657,10 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
           return translate("amount.topup")
       }
     }
-    // const inputBg = useThemeColor('background')
+    
+    const headerBg = useThemeColor('header')
     const satsColor = colors.palette.primary200
-    const warningColor = useThemeColor('warn')
+    const placeholderTextColor = useThemeColor('textDim')
 
     return (
       <Screen preset="fixed" contentContainerStyle={$screen}>
@@ -709,6 +711,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                     keyboardType="default"
                     selectTextOnFocus={true}
                     placeholder={translate('payerMemo')}
+                    placeholderTextColor={placeholderTextColor}
                     editable={
                       transactionStatus === TransactionStatus.PENDING
                         ? false

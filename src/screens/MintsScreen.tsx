@@ -96,6 +96,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
         }
 
         try {
+            toggleAddMintModal() // close
             setIsLoading(true)
             await mintsStore.addMint(mintUrl)
             setInfo(translate('mintsScreen.mintAdded'))
@@ -104,8 +105,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
             handleError(e)
         } finally {
             setMintUrl('')
-            setIsLoading(false)
-            toggleAddMintModal()
+            setIsLoading(false)            
         }
     }
 
@@ -140,6 +140,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
             throw new AppError(Err.VALIDATION_ERROR, 'Mint with this URL already exists.')
           }
 
+          toggleAddMintModal() // close
           setIsLoading(true)
           const activeKeysets: MintKeyset[] = await MintClient.getMintKeysets(mintUrl)
           const matchingKeyset = activeKeysets.find(keyset => selectedMint.keysets?.some(k => k === keyset.id))
@@ -155,8 +156,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
       } finally {  
         setMintUrl('')
         setIsLoading(false)
-        onMintUnselect() // close
-        toggleAddMintModal() // close
+        onMintUnselect() // close        
       }
     }
 

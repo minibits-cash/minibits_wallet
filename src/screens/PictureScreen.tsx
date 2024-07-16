@@ -2,9 +2,8 @@ import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
 import {Image, Pressable, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
-import {Button, Card, ErrorModal, InfoModal, ListItem, Loading, Screen, Text} from '../components'
+import {Button, Card, ErrorModal, Header, InfoModal, ListItem, Loading, Screen, Text} from '../components'
 import {useStores} from '../models'
-import {useHeader} from '../utils/useHeader'
 import {ContactsStackScreenProps} from '../navigation'
 import { MinibitsClient} from '../services'
 import AppError from '../utils/AppError'
@@ -15,10 +14,6 @@ import { getImageSource } from '../utils/utils'
 interface PictureScreenProps extends ContactsStackScreenProps<'Picture'> {}
 
 export const PictureScreen: FC<PictureScreenProps> = observer(function PictureScreen({route, navigation}) {    
-    useHeader({
-        leftIcon: 'faArrowLeft',
-        onLeftPress: () => navigation.goBack(), 
-    })
     const {walletProfileStore} = useStores()
 
     const [info, setInfo] = useState('')
@@ -65,15 +60,16 @@ export const PictureScreen: FC<PictureScreenProps> = observer(function PictureSc
     const handleError = function (e: AppError): void {
         setIsLoading(false)
         setError(e)
-    }
-
+    }    
     
-    const headerBg = useThemeColor('header')
-    const selectedColor = colors.palette.success200
-    // const {nip05, picture} = walletProfileStore
+    const selectedColor = colors.palette.success200    
 
     return (
-      <Screen style={$screen} preset='auto'>        
+      <Screen contentContainerStyle={$screen} preset='auto'> 
+        <Header                
+            leftIcon='faArrowLeft'
+            onLeftPress={() => navigation.goBack()}                            
+        />       
         <ProfileHeader />
         <View style={$contentContainer}>
             <View style={$picturesContainer}>
@@ -110,9 +106,9 @@ export const PictureScreen: FC<PictureScreenProps> = observer(function PictureSc
                         onPress={() => setSelectedPicture('')}
                     />
                 </View>
-            )}
-            {isLoading && <Loading />}
-        </View>       
+            )}            
+        </View>
+        {isLoading && <Loading />}      
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
  
@@ -122,7 +118,7 @@ export const PictureScreen: FC<PictureScreenProps> = observer(function PictureSc
 
 
 
-const $screen: ViewStyle = {}
+const $screen: ViewStyle = { flex: 1 }
 
 const $unselected: ViewStyle = {
     borderWidth: 5, 
@@ -131,9 +127,10 @@ const $unselected: ViewStyle = {
     borderColor: 'transparent',
 }
 
-const $contentContainer: TextStyle = {    
-  padding: spacing.small,
-  minHeight: spacing.huge,
+const $contentContainer: TextStyle = {  
+    flex: 1,  
+    padding: spacing.small,
+    minHeight: spacing.huge,
 }
 
 const $picturesContainer: TextStyle = { 

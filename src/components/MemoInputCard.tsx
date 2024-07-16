@@ -1,6 +1,6 @@
 import React, {forwardRef} from 'react'
 import {View, ViewStyle, TextInput, TextStyle} from 'react-native'
-import {spacing} from '../theme'
+import {spacing, useThemeColor} from '../theme'
 import {Button} from './Button'
 import {Card} from './Card'
 import {translate} from '../i18n'
@@ -23,6 +23,9 @@ export const MemoInputCard = forwardRef<TextInput, MemoInputProps>((props, memoI
     onMemoEndEditing = () => {},
     maxLength = 200,
   } = props
+
+  const placeholderTextColor = useThemeColor('textDim')
+  
   return (
     <Card
       style={$memoCard}
@@ -38,6 +41,7 @@ export const MemoInputCard = forwardRef<TextInput, MemoInputProps>((props, memoI
             keyboardType="default"
             selectTextOnFocus={true}
             placeholder={translate('sendScreen.memo')}
+            placeholderTextColor={placeholderTextColor}
             editable={!disabled}
           />
           <Button
