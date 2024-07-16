@@ -13,7 +13,7 @@ import { isStateTreeNode } from 'mobx-state-tree'
 import { CashuUtils } from '../cashu/cashuUtils'
 import { Mint, MintProofsCounter } from '../../models/Mint'
 import { delay } from '../../utils/utils'
-import { MintClient, MintUnit } from '../cashuMintClient'
+import { MintUnit } from './currency'
 
 
 

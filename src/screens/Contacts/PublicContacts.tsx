@@ -205,8 +205,6 @@ export const PublicContacts = observer(function (props: {
     
             log.trace('Updating following profiles', following.length)
             
-            log.warn(following)
-            
             setFollowingProfiles(following)
             setIsLoading(false)
         }

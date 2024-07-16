@@ -214,9 +214,8 @@ const receiveFromMint = async function (
 ) {
   try {
     const cashuWallet = await getWallet(mintUrl, unit, {withSeed: true}) // with seed    
-
-    // this method returns quite a mess, we normalize naming of returned parameters
-    const {token, tokensWithErrors, errors} = await cashuWallet.receive(decodedToken, {
+    
+    const proofs = await cashuWallet.receive(decodedToken, {
       keysetId: cashuWallet.keys.id,
       preference: amountPreferences,
       counter,
@@ -224,15 +223,7 @@ const receiveFromMint = async function (
       privkey: undefined
     })
 
-    log.trace('[receiveFromMint] updatedToken', token)
-    log.trace('[receiveFromMint] tokensWithErrors', tokensWithErrors)    
-    //log.trace('[receiveFromMint] errors', errors)
-
-    return {
-      updatedToken: token as CashuToken | undefined,
-      errorToken: tokensWithErrors as CashuToken | undefined,
-      errors      
-    }
+    return proofs
   } catch (e: any) {
     throw new AppError(Err.MINT_ERROR, e.message)
   }

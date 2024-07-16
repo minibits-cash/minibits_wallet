@@ -14,7 +14,7 @@ import {Token} from '../../models/Token'
 import {
     type Token as CashuToken
 } from '@cashu/cashu-ts'
-import { getDefaultAmountPreference } from '@cashu/cashu-ts/src/utils'
+import { getDefaultAmountPreference, getEncodedToken } from '@cashu/cashu-ts/src/utils'
 import { TransactionTaskResult } from '../walletService'
 import { WalletUtils } from './utils'
 import { formatCurrency, getCurrency } from './currency'
@@ -133,16 +133,8 @@ export const receiveTask = async function (
         
         // get locked counter values
         const lockedProofsCounter = await mintInstance.getProofsCounterByUnit?.(unit)
-        
-        // Now we ask all mints to get fresh outputs for their tokenEntries, and create from them new proofs
-        // As this method supports multiple token entries potentially from multiple mints processed in cycle it does not throw but returns collected errors
-        let receiveResult: {
-            updatedToken: CashuToken | undefined, 
-            errorToken: CashuToken | undefined,
-            errors: string[] | undefined
-        }
 
-        receiveResult = await MintClient.receiveFromMint(
+        const receivedProofs = await MintClient.receiveFromMint(
             mintToReceive,
             unit,
             token,
@@ -153,14 +145,22 @@ export const receiveTask = async function (
         // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs        
         mintInstance.decreaseProofsCounter(lockedProofsCounter.keyset, countOfInFlightProofs)
 
-        const {updatedToken, errorToken, errors} = receiveResult
+        // store swapped proofs as encoded token in tx data        
+        const tokenEntryToSend = {
+            mint: mintToReceive,
+            proofs: receivedProofs,
+        }
+
+        const updatedToken = getEncodedToken({
+            token: [tokenEntryToSend],
+            unit,
+            memo,
+        })
         
         // Update transaction status
         transactionData.push({
-            status: TransactionStatus.PREPARED,
-            errorToken,
-            updatedToken,            
-            errors,
+            status: TransactionStatus.PREPARED,            
+            updatedToken,
             createdAt: new Date(),
         })
 
@@ -169,55 +169,20 @@ export const receiveTask = async function (
             TransactionStatus.PREPARED,
             JSON.stringify(transactionData),
         )
-
-        let amountWithErrors = 0
-
-        if (errorToken && errorToken.token.length > 0) {
-            amountWithErrors += CashuUtils.getTokenAmounts(errorToken as Token).totalAmount
-            log.warn('[receiveTask]', 'amountWithErrors', {amountWithErrors, errors})
-        }
-
-        if (amountWithErrors === amountToReceive) {            
-            throw new AppError(
-                Err.MINT_ERROR,
-                'Mint returned error on request to swap the received ecash.',
-                {caller: 'receiveTask', message: errors && errors.length > 0 ? errors[0] : undefined, errorToken}
-            )
-        }
-
-        let receivedAmount = 0
-        let addedProofsCount = 0
-
-        if(updatedToken && updatedToken.token.length > 0) {
-            for (const entry of updatedToken.token) {
-                // create ProofModel instances and store them into the proofsStore
-                const { addedProofs, addedAmount } = WalletUtils.addCashuProofs(
-                    entry.mint,
-                    entry.proofs,
-                    {
-                        unit,
-                        transactionId,
-                        isPending: false
-                    }                    
-                )
-    
-                receivedAmount += addedAmount 
-                addedProofsCount += addedProofs.length         
-            }
-        }
+       
+        const { addedAmount: receivedAmount } = WalletUtils.addCashuProofs(
+            mintToReceive,
+            receivedProofs,
+            {
+                unit,
+                transactionId,
+                isPending: false
+            }                    
+        )
 
         // release lock
         mintInstance.resetInFlight(transactionId)
-
-        // temporary check of zero value tx until I figure out how it happens
-        const receivedAmountCheck = CashuUtils.getTokenAmounts(updatedToken as Token).totalAmount
-
-        if (receivedAmount !== receivedAmountCheck) {
-            log.error('[receiveTask]', 
-            `Received per proofStore: ${receivedAmount} Received check using tokenAmounts: ${receivedAmountCheck}`, 
-            {updatedToken})
-        }        
-
+ 
         // Update tx amount if full amount was not received
         if (receivedAmount !== amountToReceive) {      
             await transactionsStore.updateReceivedAmount(
@@ -228,10 +193,9 @@ export const receiveTask = async function (
 
         // Finally, update completed transaction
         transactionData.push({
-            status: TransactionStatus.COMPLETED,
+            status: TransactionStatus.COMPLETED,            
             receivedAmount,
-            unit,
-            amountWithErrors,
+            unit,            
             createdAt: new Date(),
         })
 
@@ -243,17 +207,6 @@ export const receiveTask = async function (
 
         const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
         await transactionsStore.updateBalanceAfter(transactionId, balanceAfter)
-
-        if (amountWithErrors > 0) {
-            return {
-                taskFunction: RECEIVE,
-                mintUrl: mintInstance.mintUrl,
-                transaction: completedTransaction,
-                message: `You've received ${formatCurrency(receivedAmount, getCurrency(unit).code)} ${getCurrency(unit).code} to your Minibits wallet. ${formatCurrency(amountWithErrors, getCurrency(unit).code)} ${getCurrency(unit).code} could not be redeemed from the mint`,
-                receivedAmount,
-
-            } as TransactionTaskResult
-        }
 
         return {
             taskFunction: RECEIVE,
@@ -386,18 +339,6 @@ export const receiveOfflinePrepareTask = async function (
             JSON.stringify(transactionData),
         )
 
-        // TODO store as proofs in new model and redeem on internet connection?
-        /* const newProofs: Proof[] = []
-
-        for (const entry of token) {
-            for (const proof of entry.proofs) {
-                proof.tId = transactionId
-                proof.mintUrl = entry.mint //multimint support
-
-                newProofs.push(proof)
-            }
-        } */
-
         return {
             taskFunction: RECEIVE_OFFLINE_PREPARE,
             mintUrl: mintToReceive,
@@ -503,68 +444,55 @@ export const receiveOfflineCompleteTask = async function (
         
         // get locked counter values
         const lockedProofsCounter = await mintInstance.getProofsCounterByUnit?.(unit)
-        
-        // Now we ask all mints to get fresh outputs for their tokenEntries, and create from them new proofs
-        // As this method supports multiple token entries potentially from multiple mints processed in cycle it does not throw but returns collected errors
-        let receiveResult: {
-            updatedToken: CashuToken | undefined, 
-            errorToken: CashuToken | undefined,
-            errors: string[] | undefined
-        } 
-        
-        receiveResult = await MintClient.receiveFromMint(
-            tokenMints[0],
+
+        const receivedProofs = await MintClient.receiveFromMint(
+            mintToReceive,
             unit,
             token,
             amountPreferences,
             lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
-        )
-
+        )        
+       
         // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs        
         mintInstance.decreaseProofsCounter(lockedProofsCounter.keyset, countOfInFlightProofs)
 
-        const {updatedToken, errorToken, errors} = receiveResult
-                
-        let amountWithErrors = 0
-
-        if (errorToken && errorToken.token.length > 0) {            
-            amountWithErrors += CashuUtils.getTokenAmounts(errorToken as Token).totalAmount
-            log.warn('[receiveOfflineCompleteTask]', 'receiveToken amountWithErrors', amountWithErrors)
+        // store swapped proofs as encoded token in tx data        
+        const tokenEntryToSend = {
+            mint: mintToReceive,
+            proofs: receivedProofs,
         }
 
-        if (amountWithErrors === transaction.amount) {            
-            throw new AppError(
-                Err.VALIDATION_ERROR,
-                'Ecash could not be redeemed.',
-                {caller: 'receiveOfflineCompleteTask', message: errors?.length ? errors[0] : undefined}
-            )
-        }        
+        const updatedToken = getEncodedToken({
+            token: [tokenEntryToSend],
+            unit,            
+        })
         
-        let receivedAmount = 0
+        // Update transaction status
+        transactionData.push({
+            status: TransactionStatus.PREPARED,            
+            updatedToken,
+            createdAt: new Date(),
+        })
 
-        if(updatedToken && updatedToken.token.length > 0) {
-            for (const entry of updatedToken.token) {
-                // create ProofModel instances and store them into the proofsStore
-                const { addedProofs, addedAmount } = WalletUtils.addCashuProofs(
-                    entry.mint,
-                    entry.proofs,
-                    {
-                        unit,
-                        transactionId: transaction.id as number,
-                        isPending: false
-                    }                    
-                )
-                
-                receivedAmount += addedAmount            
-            }
-        }
-        
+        await transactionsStore.updateStatus(
+            transaction.id as number,
+            TransactionStatus.PREPARED,
+            JSON.stringify(transactionData),
+        )
+       
+        const { addedAmount: receivedAmount } = WalletUtils.addCashuProofs(
+            mintToReceive,
+            receivedProofs,
+            {
+                unit,
+                transactionId: transaction.id as number,
+                isPending: false
+            }                    
+        )
+
         // release lock
         mintInstance.resetInFlight(transaction.id as number)
-
-        // const receivedAmount = CashuUtils.getTokenAmounts(updatedToken as Token).totalAmount
-        log.debug('[receiveOfflineCompleteTask]', 'Received amount', receivedAmount)
-
+ 
         // Update tx amount if full amount was not received
         if (receivedAmount !== transaction.amount) {      
             await transactionsStore.updateReceivedAmount(
@@ -573,11 +501,11 @@ export const receiveOfflineCompleteTask = async function (
             )
         }
 
-        // Finally, update completed transaction        
+        // Finally, update completed transaction
         transactionData.push({
-            status: TransactionStatus.COMPLETED,
+            status: TransactionStatus.COMPLETED,            
             receivedAmount,
-            amountWithErrors,
+            unit,            
             createdAt: new Date(),
         })
 
@@ -590,23 +518,14 @@ export const receiveOfflineCompleteTask = async function (
         const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
         await transactionsStore.updateBalanceAfter(transaction.id as number, balanceAfter)
 
-        if (amountWithErrors > 0) {
-            return {
-                taskFunction: RECEIVE_OFFLINE_COMPLETE,
-                mintUrl: mintToReceive,
-                transaction: completedTransaction,
-                message: `You received ${formatCurrency(receivedAmount, getCurrency(unit).code)} ${getCurrency(unit).code} to your Minibits wallet. ${formatCurrency(amountWithErrors, getCurrency(unit).code)} could not be redeemed from the mint`,
-                receivedAmount,
-            } as TransactionTaskResult
-        }
-
         return {
             taskFunction: RECEIVE_OFFLINE_COMPLETE,
-            mintUrl: mintToReceive,
+            mintUrl: mintInstance.mintUrl,
             transaction: completedTransaction,
-            message: `You received ${formatCurrency(receivedAmount, getCurrency(unit).code)} to your Minibits wallet.`,
+            message: `You've received ${formatCurrency(receivedAmount, getCurrency(unit).code)} ${getCurrency(unit).code} to your Minibits wallet.`,
             receivedAmount,
         } as TransactionTaskResult
+
     } catch (e: any) {
         // release lock
         const mintInstance = mintsStore.findByUrl(transaction.mint)

@@ -536,7 +536,7 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
         log.trace('[onEncodedInvoice]', {balanceToTransferFrom})
 
         if (!balanceToTransferFrom) {
-          log.warn('Not enough alance')
+          log.warn('Not enough balance')
           setInfo(translate("transferScreen.noMintWithBalance", { unit }))
           setIsNotEnoughFunds(true)
           return

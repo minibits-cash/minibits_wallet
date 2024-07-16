@@ -434,7 +434,7 @@ const ReceiveInfoBlock = function (props: {
 
     const isInternetReachable = useIsInternetReachable()
     const encodedTokenToRetry = getEncodedTokenToRetry(transaction)  
-    const {transactionsStore, mintsStore} = useStores()
+    const {transactionsStore} = useStores()
     const [isReceiveTaskSentToQueue, setIsReceiveTaskSentToQueue] = useState<boolean>(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
     const [resultModalInfo, setResultModalInfo] = useState<
@@ -1616,9 +1616,10 @@ const getEncodedTokenToRetry = (
         
         const {error} = errorRecord
         
-        if(error && error.params && error.params.message) {          
-
-            if(error.params.message.includes('Network request failed') || error.params.message.includes('Bad Gateway')) {                    
+        if(error && error.message) {
+            if(error.message.toLowerCase().includes('network request failed') || 
+              error.message.toLowerCase().includes('bad gateway') || 
+              error.message.toLowerCase().includes('outputs')) {                    
                 return encodedTokenToRetry
             }
 
