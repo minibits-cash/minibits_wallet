@@ -384,7 +384,7 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
         const mint = mintsStore.findByUrl(route.params.mintUrl)
 
         if (mint) {
-          const info: _GetInfoResponse = await MintClient.getMintInfo(mint.mintUrl)
+          const info: GetInfoResponse = await MintClient.getMintInfo(mint.mintUrl)
           mint.setStatus(MintStatus.ONLINE)
           if(info.name && info.name !== mint.shortname) {
             await mint.setShortname()
