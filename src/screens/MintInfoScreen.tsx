@@ -1,5 +1,5 @@
 import React, { FC, useEffect, useMemo, useState } from 'react'
-import { GetInfoResponse as _GetInfoResponse, SwapMethod } from '@cashu/cashu-ts'
+import { GetInfoResponse, NUT15Entry, NUT17Entry, SwapMethod } from '@cashu/cashu-ts'
 import { isObj } from '@cashu/cashu-ts/src/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { observer } from 'mobx-react-lite'
@@ -33,17 +33,6 @@ import AppError, { Err } from '../utils/AppError'
 import { useHeader } from '../utils/useHeader'
 import { CurrencySign } from './Wallet/CurrencySign'
 import { SvgXml } from 'react-native-svg'
-import { isArray } from 'util'
-
-// cashu-ts currently does not type NUT15 (multipath payments) correctly
-// relevant issue: https://github.com/cashubtc/cashu-ts/issues/142
-// nut-15 spec: https://github.com/cashubtc/nuts/blob/main/15.md
-type NUT15Entry = { method: string, unit: string, mpp: boolean }
-type GetInfoResponse = _GetInfoResponse & {
-  nuts: {
-    15: Array<NUT15Entry>
-  }
-}
 
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -195,10 +184,21 @@ function NutsCard(props: {info: GetInfoResponse}) {
       nutsSimple.push(['15', (info as NUT15Entry[])[0]?.mpp ?? false])
       continue;
     }
+    // bug: nutshell 0.15.3 returns NUT17Entry[], instead of { supported: NUT17Entry[] }
+    // see https://github.com/cashubtc/nutshell/issues/588
+    if (nut === '17' && Array.isArray(info) && (info as NUT17Entry[]).length > 0) {
+      nutsSimple.push(['17', (info as NUT17Entry[]).some(m => m.unit === 'sat')])
+      continue;
+    }
+    // proper nut-17 response handling (not implemented in nutshell yet)
+    if (nut === '17' && 'supported' in info && Array.isArray(info.supported) && info.supported.length > 0) {
+      nutsSimple.push(['17', info.supported.some(m => m.unit === 'sat')])
+      continue;
+    }
     if ('disabled' in info && info.disabled === false) { // detailed
       supportedNutsDetailed.push([nut, info])
-    } else if ('supported' in info) { // simple
-      nutsSimple.push([nut, info.supported])
+    } else if ('supported' in info && typeof info.supported !== 'undefined') { // simple
+      nutsSimple.push([nut, !!info.supported])
     } else {
       nutsSimple.push([nut, false]) // fallback or detailed but disabled nut
     }
@@ -235,65 +235,41 @@ function NutsCard(props: {info: GetInfoResponse}) {
 
 function ContactCard(props: { info: GetInfoResponse, popupMessage: (msg: string) => void }) {
   const textDim = useThemeColor('textDim')
+  type Contact = {method: string, info: string}
 
-  type Contact = [string, string]
-  type NewContact = {method: string, info: string}
-
-  let contacts: Array<any> = []
-  let newContacts:  Array<any> = []
-  let mayBeContacts = props.info.contact
-
-  if(mayBeContacts.length > 0) {
-    if(mayBeContacts[0].method) {
-      newContacts = mayBeContacts
-    }
-
-    if(Array.isArray(mayBeContacts[0])) {
-      contacts = mayBeContacts
+  let contacts: Contact[] = []
+  for (const contact of props.info.contact) {
+    if (Array.isArray(contact) && contact.length === 2) {
+      contacts.push({ method: contact[0], info: contact[1] })
+    } else if ('method' in contact && 'info' in contact) {
+      contacts.push(contact)
     }
   }
-  
-  log.trace({newContacts, contacts})
 
   return (
     <Card
       headingTx="mintInfo.contactsHeading"
       HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
       ContentComponent={
-        contacts.length === 0 &&  newContacts.length === 0 ? (
+        contacts.length === 0 ? (
           <Text
             style={{fontStyle: 'italic'}}
             text={translate('mintInfo.emptyValueParam', { param: translate('mintInfo.contactsHeading') })}
           />
         ) : (
           <>
-            {contacts.map(([platform, user]: Contact, index) => (
+            {contacts.map(({ method, info }, index) => (
               <ListItem
                 style={$contactListItem}
-                key={platform}
-                text={platform}
+                key={method}
+                text={method}
                 textStyle={$sizeStyles.xs}
-                LeftComponent={<Icon icon={platform in contactIconMap ? contactIconMap[platform] : 'faAddressBook'} color={textDim}/>}
-                RightComponent={<View style={{ width: spacing.screenWidth * 0.6 }}><Text text={user}/></View>}
+                LeftComponent={<Icon icon={method in contactIconMap ? contactIconMap[method] : 'faAddressBook'} color={textDim}/>}
+                RightComponent={<View style={{ width: spacing.screenWidth * 0.6 }}><Text text={info}/></View>}
                 topSeparator={index !== 0}
                 onLongPress={() => {
-                  Clipboard.setString(user)
-                  props.popupMessage(translate('common.copySuccessParam', { param: user }))
-                }}
-              />
-            ))}
-            {newContacts.map((c: NewContact, index) => (
-              <ListItem
-                style={$contactListItem}
-                key={c.method}
-                text={c.method}
-                textStyle={$sizeStyles.xs}
-                LeftComponent={<Icon icon={c.method in contactIconMap ? contactIconMap[c.method] : 'faAddressBook'} color={textDim}/>}
-                RightComponent={<View style={{ width: spacing.screenWidth * 0.6 }}><Text text={c.info}/></View>}
-                topSeparator={index !== 0}
-                onLongPress={() => {
-                  Clipboard.setString(c.info)
-                  props.popupMessage(translate('common.copySuccessParam', { param: c.info }))
+                  Clipboard.setString(info)
+                  props.popupMessage(translate('common.copySuccessParam', { param: info }))
                 }}
               />
             ))}
