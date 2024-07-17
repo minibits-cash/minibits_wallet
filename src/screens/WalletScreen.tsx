@@ -421,164 +421,190 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const mainButtonIcon = useThemeColor('button')
     const mainButtonColor = useThemeColor('card')
 
-    return (        
+    return (
       <Screen contentContainerStyle={$screen}>
-            <Header 
-                LeftActionComponent={<LeftProfileHeader 
-                    gotoProfile={gotoProfile}
-                    isAvatarVisible={false}
-                />}
-                /*leftIcon='faListUl'
+        <Header
+          LeftActionComponent={
+            <LeftProfileHeader
+              gotoProfile={gotoProfile}
+              isAvatarVisible={false}
+            />
+          }
+          /*leftIcon='faListUl'
                 leftIconColor={colors.palette.primary100}                
                 onLeftPress={gotoTranHistory}*/
-                TitleActionComponent={!isInternetReachable ? (
-                        <Text   
-                            tx={'common.offline'}
-                            style={$offline}
-                            size='xxs'                          
-                        />
-                    ) : (
-                        groupedMints.length > 1 ? (
-                            <ScalingDot
-                                testID={'sliding-border'}                        
-                                data={groupedMints}
-                                inActiveDotColor={colors.palette.primary300}
-                                activeDotColor={colors.palette.primary100}
-                                activeDotScale={1}
-                                containerStyle={{marginBottom: -spacing.tiny}}
-                                //@ts-ignore
-                                scrollX={scrollX}
-                                dotSize={25}
-                            />
-                    ) : undefined
-                )}                
-                RightActionComponent={
-                <>
-                    {paymentRequestsStore.countNotExpired > 0 && (
-                        <Pressable 
-                            style={{flexDirection: 'row', alignItems:'center', marginRight: spacing.medium}}
-                            onPress={() => gotoPaymentRequests()}
-                        >
-                            <Icon icon='faPaperPlane' color={'white'}/>
-                            <Text text={`${paymentRequestsStore.countNotExpired}`} style={{color: 'white'}} />
-                        </Pressable>
-                    )}
-                </>
-                }                
-            />
-            {groupedMints.length === 0 && (
-                <>
-                    <ZeroBalanceBlock/>
-                    <View style={$contentContainer}>
-                        <PromoBlock addMint={addMint} />
-                    </View>
-                </>
-            )}
-            <AnimatedPagerView                            
-                initialPage={0}
-                ref={pagerRef}    
-                style={{flexGrow: 1}}                                                       
-                onPageScroll={onPageScroll}
-                onPageSelected={onPageSelected}                
-            >
-                {groupedMints.map((mints) => (
-                    <View key={mints.unit}>
-                        <UnitBalanceBlock                            
-                            unitBalance={balances.unitBalances.find(balance => balance.unit === mints.unit)!}
-                        />
-                        <View style={$contentContainer}>
-                            <MintsByUnitListItem                                    
-                                mintsByUnit={mints}                                
-                                navigation={navigation}                                     
-                            />                            
-                            {transactionsStore.recentByUnit(mints.unit).length > 0 &&  mints.mints.length  < 4 && (
-                                <Card                                    
-                                    ContentComponent={                                            
-                                        <FlatList
-                                            data={transactionsStore.recentByUnit(mints.unit, maxTransactionsByUnit - mints.mints.length) as Transaction[]}
-                                            renderItem={({item, index}) => {
-                                                return (<TransactionListItem
-                                                    key={item.id}
-                                                    transaction={item}
-                                                    isFirst={index === 0}
-                                                    isTimeAgoVisible={true}
-                                                    gotoTranDetail={() => gotoTranDetail(item.id!)}
-                                                />)
-                                                }
-                                            }
-                                            // style={{ maxHeight: 300 - (mints.mints.length > 1 ? mints.mints.length * 38 : 0)}}
-                                        />                                            
-                                    }
-                                    style={[$card, {paddingTop: spacing.extraSmall}]}
-                                />
-                            )}
-                        </View>                        
-                    </View>     
-                ))}                       
-            </AnimatedPagerView>   
-            <View style={$bottomContainer}>
-                <View style={$buttonContainer}>
-                    <Button
-                        LeftAccessory={() => (
-                            <Icon
-                                icon='faArrowUp'
-                                size={spacing.medium}
-                                color={mainButtonIcon}
-                                //style={{paddingLeft: spacing.medium}}
-                            />
-                        )}
-                        onPress={toggleSendModal}                        
-                        style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonTopup]}
-                        preset='secondary'
-                        tx='payCommon.send'
-                    />             
-                    <Button
-                        RightAccessory={() => (
-                            <SvgXml 
-                                width={spacing.large} 
-                                height={spacing.large} 
-                                xml={ScanIcon}
-                                fill={mainButtonIcon}
-                            />
-                        )}
-                        onPress={gotoScan}
-                        style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonScan]}
-                        preset='secondary'
-                    />
-                    <Button
-                        RightAccessory={() => (
-                            <Icon
-                                icon='faArrowDown'
-                                size={spacing.medium}
-                                color={mainButtonIcon}
-                            />
-                        )}
-                        onPress={toggleReceiveModal}
-                        tx='payCommon.receive'
-                        style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonPay]}
-                        preset='secondary'
-                    /> 
-                </View>  
+          TitleActionComponent={
+            !isInternetReachable ? (
+              <Text tx={'common.offline'} style={$offline} size="xxs" />
+            ) : groupedMints.length > 1 ? (
+              <ScalingDot
+                testID={'sliding-border'}
+                data={groupedMints}
+                inActiveDotColor={colors.palette.primary300}
+                activeDotColor={colors.palette.primary100}
+                activeDotScale={1}
+                containerStyle={{marginBottom: -spacing.tiny}}
+                //@ts-ignore
+                scrollX={scrollX}
+                dotSize={25}
+              />
+            ) : undefined
+          }
+          RightActionComponent={
+            <>
+              {paymentRequestsStore.countNotExpired > 0 && (
+                <Pressable
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    marginRight: spacing.medium,
+                  }}
+                  onPress={() => gotoPaymentRequests()}>
+                  <Icon icon="faPaperPlane" color={'white'} />
+                  <Text
+                    text={`${paymentRequestsStore.countNotExpired}`}
+                    style={{color: 'white'}}
+                  />
+                </Pressable>
+              )}
+            </>
+          }
+        />
+        {groupedMints.length === 0 && (
+          <>
+            <ZeroBalanceBlock />
+            <View style={$contentContainer}>
+              <PromoBlock addMint={addMint} />
             </View>
-            {info && <InfoModal message={info} />}
-            {error && <ErrorModal error={error} />}
-            {isLoading && <Loading />}
+          </>
+        )}
+        <AnimatedPagerView
+          initialPage={0}
+          ref={pagerRef}
+          style={{flexGrow: 1}}
+          onPageScroll={onPageScroll}
+          onPageSelected={onPageSelected}>
+          {groupedMints.map(mints => (
+            <View key={mints.unit}>
+              <UnitBalanceBlock
+                unitBalance={
+                  balances.unitBalances.find(
+                    balance => balance.unit === mints.unit,
+                  )!
+                }
+              />
+              <View style={$contentContainer}>
+                <MintsByUnitListItem
+                  mintsByUnit={mints}
+                  navigation={navigation}
+                />
+                {transactionsStore.recentByUnit(mints.unit).length > 0 &&
+                  mints.mints.length < 4 && (
+                    <Card
+                      ContentComponent={
+                        <FlatList
+                          data={
+                            transactionsStore.recentByUnit(
+                              mints.unit,
+                              maxTransactionsByUnit - mints.mints.length,
+                            ) as Transaction[]
+                          }
+                          renderItem={({item, index}) => {
+                            return (
+                              <TransactionListItem
+                                key={item.id}
+                                transaction={item}
+                                isFirst={index === 0}
+                                isTimeAgoVisible={true}
+                                gotoTranDetail={() => gotoTranDetail(item.id!)}
+                              />
+                            )
+                          }}
+                          // style={{ maxHeight: 300 - (mints.mints.length > 1 ? mints.mints.length * 38 : 0)}}
+                        />
+                      }
+                      style={[$card, {paddingTop: spacing.extraSmall}]}
+                    />
+                  )}
+              </View>
+            </View>
+          ))}
+        </AnimatedPagerView>
+        <View style={$bottomContainer}>
+          <View style={$buttonContainer}>
+            <Button
+              onPress={toggleSendModal}
+              // LeftAccessory={() => (
+              //   <Icon
+              //     icon="faArrowUp"
+              //     size={spacing.medium}
+              //     color={mainButtonIcon}
+              //   />
+              // )}
+              preset="secondary"
+              textStyle={{ textAlign: 'center', width: '100%', fontWeight: '500' }}
+              style={[
+                { backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg }, 
+                $buttonTopup
+              ]}
+              tx="payCommon.send"
+            />
+            <Button
+              onPress={gotoScan}
+              LeftAccessory={() => (
+                <SvgXml
+                  width={spacing.large}
+                  height={spacing.large}
+                  xml={ScanIcon}
+                  fill={mainButtonIcon}
+                />
+              )}
+              preset="secondary"
+              style={[
+                { backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg },
+                $buttonScan,
+              ]}
+            />
+            <Button
+              onPress={toggleReceiveModal}
+              // LeftAccessory={() => (
+              //   <Icon
+              //   icon="faArrowDown"
+              //   size={spacing.medium}
+              //   color={mainButtonIcon}
+              //   />
+              // )}
+              preset="secondary"
+              textStyle={{ textAlign: 'center', width: '100%', fontWeight: '500' }}
+              style={[
+                { backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg },
+                $buttonPay,
+              ]}
+              tx="payCommon.receive"
+            />
+          </View>
+        </View>
+        {info && <InfoModal message={info} />}
+        {error && <ErrorModal error={error} />}
+        {isLoading && <Loading />}
         <BottomModal
           isVisible={isUpdateModalVisible ? true : false}
           style={{alignItems: 'stretch'}}
-          ContentComponent={        
+          ContentComponent={
             <ListItem
-                LeftComponent={
-                    <View style={{marginRight: spacing.medium}}>                        
-                        <Image 
-                            source={{uri: 'https://www.minibits.cash/img/minibits_icon-192.png'}}
-                            style={{width: 40, height: 40}}
-                        />
-                    </View>
-                }
-                tx="updateModal.title"
-                subTx="updateModal.desc"
-                onPress={gotoUpdate}
+              LeftComponent={
+                <View style={{marginRight: spacing.medium}}>
+                  <Image
+                    source={{
+                      uri: 'https://www.minibits.cash/img/minibits_icon-192.png',
+                    }}
+                    style={{width: 40, height: 40}}
+                  />
+                </View>
+              }
+              tx="updateModal.title"
+              subTx="updateModal.desc"
+              onPress={gotoUpdate}
             />
           }
           onBackButtonPress={toggleUpdateModal}
@@ -587,50 +613,49 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         <BottomModal
           isVisible={isSendModalVisible ? true : false}
           style={{alignItems: 'stretch'}}
-          ContentComponent={  
+          ContentComponent={
             <>
-            <ListItem   
-                leftIcon='faMoneyBill1'                          
+              <ListItem
+                leftIcon="faMoneyBill1"
                 tx="walletScreen.sendEcash"
                 subTx="walletScreen.sendEcashDesc"
                 onPress={gotoSend}
                 bottomSeparator={true}
-            />
-            <ListItem   
-                leftIcon='faBolt'             
+              />
+              <ListItem
+                leftIcon="faBolt"
                 tx="walletScreen.payWithLightning"
                 subTx="walletScreen.payWithLightningDesc"
                 onPress={gotoLightningPay}
-            />
-            </>      
+              />
+            </>
           }
           onBackButtonPress={toggleSendModal}
           onBackdropPress={toggleSendModal}
-        /> 
+        />
         <BottomModal
           isVisible={isReceiveModalVisible ? true : false}
           style={{alignItems: 'stretch'}}
-          ContentComponent={  
+          ContentComponent={
             <>
-            <ListItem   
-                leftIcon='faMoneyBill1'             
+              <ListItem
+                leftIcon="faMoneyBill1"
                 tx="walletScreen.receiveEcash"
                 subTx="walletScreen.receiveEcashDesc"
                 onPress={gotoTokenReceive}
                 bottomSeparator={true}
-            />
-            <ListItem      
-                leftIcon='faBolt'          
-                tx='walletScreen.topupWithLightning'
+              />
+              <ListItem
+                leftIcon="faBolt"
+                tx="walletScreen.topupWithLightning"
                 subTx="walletScreen.topupWithLightningDesc"
                 onPress={gotoTopup}
-            />
-            </>      
+              />
+            </>
           }
           onBackButtonPress={toggleReceiveModal}
           onBackdropPress={toggleReceiveModal}
-        />       
-
+        />
       </Screen>
     )
   },
@@ -983,39 +1008,40 @@ const $buttonContainer: ViewStyle = {
     marginBottom: spacing.tiny,
     justifyContent: 'center',
     alignItems: 'center',    
+    columnGap: spacing.tiny,
 }
 
 const $buttonTopup: ViewStyle = {
-  borderTopLeftRadius: moderateVerticalScale(60 / 2),
-  borderBottomLeftRadius: moderateVerticalScale(60 / 2),
-  borderTopRightRadius: 0,
-  borderBottomRightRadius: 0,  
-  width: moderateVerticalScale(150),
+  // borderTopLeftRadius: moderateVerticalScale(60 / 2),
+  // borderBottomLeftRadius: moderateVerticalScale(60 / 2),
+  // borderTopRightRadius: 0,
+  // borderBottomRightRadius: 0,  
+  borderRadius: moderateVerticalScale(30),
+  width: moderateVerticalScale(130),
   height: moderateVerticalScale(60),
-  marginRight: -25,  
 }
 
 const $buttonScan: ViewStyle = {
-  borderRadius: moderateVerticalScale(70 / 2),
-  width: moderateVerticalScale(70),
-  height: moderateVerticalScale(70),
+  borderRadius: moderateVerticalScale(60 / 2),
+  width: moderateVerticalScale(60),
+  height: moderateVerticalScale(60),
   zIndex: 99,  
 }
 
 const $buttonPay: ViewStyle = {
-  borderTopLeftRadius: 0,
-  borderBottomLeftRadius: 0,
-  borderTopRightRadius: moderateVerticalScale(30),
-  borderBottomRightRadius: moderateVerticalScale(30),
-  width: moderateVerticalScale(150),
+  // borderTopLeftRadius: 0,
+  // borderBottomLeftRadius: 0,
+  // borderTopRightRadius: moderateVerticalScale(30),
+  // borderBottomRightRadius: moderateVerticalScale(30),
+  borderRadius: moderateVerticalScale(30),
+  width: moderateVerticalScale(130),
   height: moderateVerticalScale(60),
-  marginLeft: -25, 
 }
 
 const $bottomModal: ViewStyle = {    
-    alignItems: 'center',  
-    paddingVertical: spacing.large,
-    paddingHorizontal: spacing.small,  
+  alignItems: 'center',  
+  paddingVertical: spacing.large,
+  paddingHorizontal: spacing.small,  
 }
 
 
