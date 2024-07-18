@@ -276,12 +276,12 @@ useFocusEffect(
 
 
 useEffect(() => {
-    const getMeltQuote = async function () {
+    const createMeltQuote = async function () {
         try {
-            log.trace('[getMeltQuote]', {mintBalanceToTransferFrom})  
+            log.trace('[createMeltQuote]', {mintBalanceToTransferFrom})  
             if (!mintBalanceToTransferFrom || !encodedInvoice) {
                 log.trace(
-                  '[getMeltQuote]',
+                  '[createMeltQuote]',
                   'Not yet ready to request melt quote or melt quote already exists... exiting',
                   {mintBalanceToTransferFrom,                  
                   encodedInvoice}
@@ -290,7 +290,7 @@ useEffect(() => {
             }           
             
             setIsLoading(true)
-            const quote = await MintClient.getLightningMeltQuote(
+            const quote = await MintClient.createLightningMeltQuote(
                 mintBalanceToTransferFrom.mintUrl,
                 unit,
                 encodedInvoice,
@@ -320,7 +320,7 @@ useEffect(() => {
         }
     }
 
-    getMeltQuote()
+    createMeltQuote()
 
 }, [mintBalanceToTransferFrom])
 

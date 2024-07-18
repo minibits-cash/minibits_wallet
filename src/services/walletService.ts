@@ -13,7 +13,7 @@ import {LightningUtils} from './lightning/lightningUtils'
 import AppError, {Err} from '../utils/AppError'
 import {MintBalance, MintStatus} from '../models/Mint'
 import {Token} from '../models/Token'
-import {MeltQuoteResponse, type Proof as CashuProof} from '@cashu/cashu-ts'
+import {MeltQuoteResponse, MintQuoteState, type Proof as CashuProof} from '@cashu/cashu-ts'
 import {Mint} from '../models/Mint'
 import {pollerExists, stopPolling} from '../utils/poller'
 import EventEmitter from '../utils/eventEmitter'
@@ -768,13 +768,13 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         log.trace('[_handlePendingTopupTask]', 'countOfInFlightProofs', countOfInFlightProofs)
         
         // check is quote has been paid
-        const { isPaid, mintQuote: quote } = await MintClient.getBolt11MintQuoteIsPaid(mint!, mintQuote)
+        const { state, mintQuote: quote } = await MintClient.checkLightningMintQuote(mint!, mintQuote)
 
         if (quote !== mintQuote) {
             throw new AppError(Err.VALIDATION_ERROR, 'Returned quote is different then the one requested', {mintUrl: mint, quote, mintQuote})
         }
 
-        if (isPaid !== true) {
+        if (state !== MintQuoteState.PAID) {
             log.trace('[_handlePendingTopupTask] Quote not paid', {mintUrl: mint, mintQuote})
 
             if (isBefore(pr.expiresAt as Date, new Date())) {
@@ -928,13 +928,23 @@ const handleClaim = async function (): Promise<void> {
     
     log.info('[handleClaim] start')
     const {walletId, seedHash, pubkey} = walletProfileStore
+    let recoveredWalletId: string | null = null
 
-
-    if(!walletId || !seedHash || !pubkey) {
-        throw new AppError(Err.VALIDATION_ERROR, 'Skipping claim of ecash received to your lightning address, missing profile data', {walletId, seedHash, pubkey})          
+    if(!seedHash || !pubkey) {
+        throw new AppError(Err.VALIDATION_ERROR, 'Skipping claim of ecash received to your lightning address, missing profile data. Reinstall wallet to fix it.', {walletId, seedHash, pubkey})
     }
 
-    const claimedInvoices = await MinibitsClient.createClaim(walletId, seedHash, pubkey)
+    if(!walletId) {
+        // fix immediately in case only walletId missing in walletProfile
+        const profile = await MinibitsClient.getWalletProfileBySeedHash(seedHash)
+
+        if(profile) {
+            recoveredWalletId = profile.walletId
+            walletProfileStore.setWalletId(recoveredWalletId)
+        }
+    }
+
+    const claimedInvoices = await MinibitsClient.createClaim(walletId || recoveredWalletId as string, seedHash, pubkey)
 
     if(claimedInvoices.length === 0) {
         log.debug('[handleClaim] No claimed invoices returned from server...')

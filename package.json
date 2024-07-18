@@ -1,6 +1,6 @@
 {
   "name": "minibits_wallet",
-  "version": "0.1.8-beta.36",
+  "version": "0.1.8-beta.37",
   "private": true,
   "scripts": {
     "android:clean": "cd android && ./gradlew clean",
@@ -19,7 +19,7 @@
     "postinstall": "patch-package --exclude 'nothing'"
   },
   "dependencies": {
-    "@cashu/cashu-ts": "minibits-cash/cashu-ts#v1.0.0-rc.9-minibits",
+    "@cashu/cashu-ts": "minibits-cash/cashu-ts#1.0.0-minibits",
     "@fortawesome/fontawesome-svg-core": "^6.5.2",
     "@fortawesome/free-brands-svg-icons": "^6.5.2",
     "@fortawesome/free-regular-svg-icons": "^6.5.2",
