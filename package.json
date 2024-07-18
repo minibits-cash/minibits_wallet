@@ -19,7 +19,7 @@
     "postinstall": "patch-package --exclude 'nothing'"
   },
   "dependencies": {
-    "@cashu/cashu-ts": "minibits-cash/cashu-ts#v1.0.0-rc.9-minibits",
+    "@cashu/cashu-ts": "KraXen72/cashu-ts-minibits#fixed-typedef",
     "@fortawesome/fontawesome-svg-core": "^6.5.2",
     "@fortawesome/free-brands-svg-icons": "^6.5.2",
     "@fortawesome/free-regular-svg-icons": "^6.5.2",
