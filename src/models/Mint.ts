@@ -43,6 +43,7 @@ export type MintProofsCounter = {
     keyset: string
     counter: number
     unit: MintUnit
+    input_fee_ppk: number
     inFlightFrom?: number // starting counter index for pending split request sent to mint (for recovery from failure to receive proofs)
     inFlightTo?: number // last counter index for pending split request sent to mint 
     inFlightTid?: number // related tx id
@@ -63,6 +64,7 @@ export const MintModel = types
               keyset: types.string,
               unit: types.optional(types.frozen<MintUnit>(), 'sat'),
               counter: types.number,
+              input_fee_ppk: types.optional(types.number, 0),
               inFlightFrom: types.maybe(types.number),
               inFlightTo: types.maybe(types.number),
               inFlightTid: types.maybe(types.number)
@@ -94,7 +96,7 @@ export const MintModel = types
         },
     }))
     .actions(self => ({          
-        getOrCreateProofsCounter(keysetId: string, unit?: MintUnit) {
+        getOrCreateProofsCounter(keysetId: string, unit?: MintUnit, input_fee_ppk?: number) {
             log.trace('[getOrCreateProofsCounter]', keysetId, unit)           
             const counter = self.proofsCounters.find(c => c.keyset === keysetId)
 
@@ -107,6 +109,7 @@ export const MintModel = types
                     keyset: keysetId,
                     unit,                    
                     counter: 0,
+                    input_fee_ppk: input_fee_ppk || 0,
                 }
 
                 self.proofsCounters.push(newCounter)                

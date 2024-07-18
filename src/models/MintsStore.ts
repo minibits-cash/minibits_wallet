@@ -45,7 +45,8 @@ import { MintUnit, MintUnits } from '../services/wallet/currency'
                 }
     
                 // create default wallet instance then download and cache up to date mint keys in that instance
-                const activeKeysets: MintKeyset[] = yield MintClient.getMintKeysets(mintUrl)
+                const allKeysets: MintKeyset[] = yield MintClient.getMintKeysets(mintUrl)
+                const activeKeysets = allKeysets.filter(keyset => keyset.active === true)
 
                 if(!activeKeysets || activeKeysets.length === 0) {
                     throw new AppError(Err.VALIDATION_ERROR, 'Mint has no active keysets and is not operational', {mintUrl})
@@ -69,7 +70,7 @@ import { MintUnit, MintUnits } from '../services/wallet/currency'
                         }
 
                         mintInstance.addUnit(keyset.unit as MintUnit) // add supported units by mint
-                        mintInstance.getOrCreateProofsCounter(keyset.id, keyset.unit as MintUnit) // create proofsCounters
+                        mintInstance.getOrCreateProofsCounter(keyset.id, keyset.unit as MintUnit, keyset.input_fee_ppk || 0) // create proofsCounters
                     }
                 }
                 
@@ -100,7 +101,7 @@ import { MintUnit, MintUnits } from '../services/wallet/currency'
                     }
 
                     mintInstance.addUnit(keyset.unit as MintUnit) // add supported units by mint if not yet exist
-                    mintInstance.getOrCreateProofsCounter(keyset.id, keyset.unit as MintUnit) // create proofsCounters if not yet exist
+                    mintInstance.getOrCreateProofsCounter(keyset.id, keyset.unit as MintUnit, keyset.input_fee_ppk || 0) // create proofsCounters if not yet exist
                 }
             }
             
