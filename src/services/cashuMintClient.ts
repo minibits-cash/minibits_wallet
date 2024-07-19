@@ -144,17 +144,23 @@ const getWallet = async function (
         mnemonicOrSeed: seed
       })
 
-      // make sure we have keys for wallet unit cached in wallet instance
-      const keys = await newSeedWallet.getKeys(undefined, unit)
+      try {
+        // make sure we have keys for wallet unit cached in wallet instance
+        const keys = await newSeedWallet.getKeys(undefined, unit)
 
-      if(!keys || keys.unit !== unit) {
-        throw new AppError(Err.VALIDATION_ERROR, `This mint does not currently support unit ${unit}`)
+        if(!keys || keys.unit !== unit) {
+          throw new AppError(Err.VALIDATION_ERROR, `This mint does not currently support unit ${unit}`)
+        }
+
+        _seedWallets.push(newSeedWallet)
+
+        log.trace('[getWallet]', 'Returning new cashuWallet instance with seed')
+        return newSeedWallet
+      } catch (e: any) {
+        let message = 'Could not connect to the selected mint.'
+        if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
+        throw new AppError(Err.NETWORK_ERROR, message, {message: e.message, caller: 'getWallet'})
       }
-
-      _seedWallets.push(newSeedWallet)
-
-      log.trace('[getWallet]', 'Returning new cashuWallet instance with seed')
-      return newSeedWallet
     }
 
     const wallet = _wallets.find(w => w.mint.mintUrl === mintUrl && w.unit === unit)

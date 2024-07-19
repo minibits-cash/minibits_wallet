@@ -193,7 +193,7 @@ const getProofsFromTokenEntries = (tokenEntries: TokenEntry[]) => {
  * @param tokens
  * @returns
  */
-const getProofsToSend = function (amount: number, proofs: Array<Proof>) {
+/* const getProofsToSend = function (amount: number, proofs: Array<Proof>) {
   let proofsAmount = 0
   const proofSubset = proofs.filter(proof => {
     if (proofsAmount < amount) {
@@ -202,7 +202,52 @@ const getProofsToSend = function (amount: number, proofs: Array<Proof>) {
     }
   })
   return proofSubset
-}
+} */
+
+export const getProofsToSend = (amount: number, proofs: Proof[]) => {
+  if (proofs.reduce((s, t) => (s += t.amount), 0) < amount) {
+      // there are not enough proofs to pay the amount
+      throw new AppError(Err.VALIDATION_ERROR, 'Not enough proofs to match requested amount', {amount})
+    }
+
+    // sort proofs by amount ascending
+    proofs = proofs.slice().sort((a, b) => a.amount - b.amount);
+    // remember next bigger proof as a fallback
+    const nextBigger = proofs.find((p) => p.amount > amount);
+
+    // go through smaller proofs until sum is bigger than amount
+    const smallerProofs = proofs.filter((p) => p.amount <= amount);
+    // sort by amount descending
+    smallerProofs.sort((a, b) => b.amount - a.amount);
+
+    let selectedProofs: Proof[] = [];
+
+    if (smallerProofs.length == 0 && nextBigger) {
+      // if there are no smaller proofs, take the next bigger proof as a fallback
+      return [nextBigger];
+    } else if (smallerProofs.length == 0 && !nextBigger) {
+      // no proofs available
+      return [];
+    }
+
+    // recursively select the largest proof of smallerProofs, subtract the amount from the remainder
+    // and call coinSelect again with the remainder and the rest of the smallerProofs (without the largest proof)
+    let remainder = amount;
+    selectedProofs = [smallerProofs[0]];
+    remainder -= smallerProofs[0].amount;
+    if (remainder > 0) {
+      selectedProofs = selectedProofs.concat(getProofsToSend(remainder, smallerProofs.slice(1)));
+    }
+    let sum = selectedProofs.reduce((s, t) => (s += t.amount), 0);
+
+    // if sum of selectedProofs is smaller than amount, take next bigger proof instead as a fallback
+    if (sum < amount && nextBigger) {
+      selectedProofs = [nextBigger];
+    }
+
+    log.trace("[getProofsToSend] ### selected amounts", "sum", selectedProofs.reduce((s, t) => (s += t.amount), 0), selectedProofs.map(p => p.amount));
+    return selectedProofs
+} 
 
 
 /**

@@ -62,20 +62,16 @@ import { MintUnit, MintUnits } from '../services/wallet/currency'
                 mintInstance.setRandomColor()
 
                 for(const keyset of activeKeysets) {
-                    if(keyset.active === true) {
-                        // Do not add unit the wallet does not have configured
-                        if (!MintUnits.includes(keyset.unit as MintUnit)) {
-                            log.error(`Unsupported unit provided by the mint: ${keyset.unit}`)
-                            continue
+                    try {
+                        if(keyset.active === true) {
+                            mintInstance.createProofsCounter(keyset)
                         }
-
-                        mintInstance.addUnit(keyset.unit as MintUnit) // add supported units by mint
-                        mintInstance.getOrCreateProofsCounter(keyset.id, keyset.unit as MintUnit, keyset.input_fee_ppk || 0) // create proofsCounters
+                    } catch(e: any) {
+                        continue
                     }
                 }
                 
-                yield mintInstance.setShortname()            
-    
+                yield mintInstance.setShortname()
                 self.mints.push(mintInstance)
           }),
           updateMint: flow(function* updateMint(mintUrl: string) {
@@ -86,13 +82,13 @@ import { MintUnit, MintUnits } from '../services/wallet/currency'
                 throw new AppError(Err.VALIDATION_ERROR, 'Could not find mint to update', {mintUrl})
             }
             // refresh up to date mint keys
-            const activeKeysets: MintKeyset[] = yield MintClient.getMintKeysets(mintUrl)
+            const allKeysets: MintKeyset[] = yield MintClient.getMintKeysets(mintUrl)
 
-            if(!activeKeysets || activeKeysets.length === 0) {
+            if(!allKeysets || allKeysets.length === 0) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Mint has no active keysets and is not operational', {mintUrl})
             }            
 
-            for(const keyset of activeKeysets) {
+            for(const keyset of allKeysets) {
                 if(keyset.active === true) {
                     // Do not add unit the wallet does not have configured
                     if (!MintUnits.includes(keyset.unit as MintUnit)) {
@@ -101,7 +97,7 @@ import { MintUnit, MintUnits } from '../services/wallet/currency'
                     }
 
                     mintInstance.addUnit(keyset.unit as MintUnit) // add supported units by mint if not yet exist
-                    mintInstance.getOrCreateProofsCounter(keyset.id, keyset.unit as MintUnit, keyset.input_fee_ppk || 0) // create proofsCounters if not yet exist
+                    mintInstance.createProofsCounter(keyset) // create proofsCounters or update fees if exists
                 }
             }
             

@@ -24,6 +24,7 @@ import { poller } from '../../utils/poller'
 import { WalletUtils } from './utils'
 import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
 import { MintUnit } from './currency'
+import { getProofsToSend } from '../../services/cashu/cashuUtils'
 
 const {
     mintsStore,
@@ -86,7 +87,7 @@ export const sendTask = async function (
         // Update transaction status
         transactionData.push({
             status: TransactionStatus.PREPARED,
-            proofsToSend,
+            //proofsToSend,
             createdAt: new Date(),
         })
 
@@ -191,7 +192,7 @@ export const sendFromMint = async function (
 ) {
     const mintUrl = mintBalance.mintUrl
     const mintInstance = mintsStore.findByUrl(mintUrl)
-
+    
     try {
         if (!mintInstance) {
             throw new AppError(
@@ -228,11 +229,11 @@ export const sendFromMint = async function (
 
         const selectedProofsAmount = CashuUtils.getProofsAmount(selectedProofs)
 
-        if(selectedProofsAmount > 0 && (amountToSend !== selectedProofsAmount)) { // failsafe for some unknown ecash selection UX error
-            throw new AppError(Err.VALIDATION_ERROR, 'Requested amount to send does not equal sum of ecash denominations provided.')
-        }
+        if(selectedProofsAmount > 0) {            
+            if(amountToSend !== selectedProofsAmount) { // failsafe for some unknown ecash selection UX error
+                throw new AppError(Err.VALIDATION_ERROR, 'Requested amount to send does not equal sum of ecash denominations provided.')
+            }
 
-        if(selectedProofsAmount > 0) {
             for (const proof of selectedProofs) {                
                 proof.setTransactionId(transactionId) // update txId                
             }
@@ -250,32 +251,71 @@ export const sendFromMint = async function (
             // We return cleaned proofs to be encoded as a sendable token
             return cleanedProofsToSend
         }
-
         
         /* 
-         * if we did not selected ecash but amount and we might need a split of ecash by the mint to match exact amount        
+         * if we did not selected ecash but amount and we might need a swap of ecash by the mint to match exact amount        
          */        
         
-        const proofsToSendFrom = proofsStore.getProofsToSend(
+        const proofsToSendFrom = getProofsToSend(
             amountToSend,
             proofsFromMint,
         )
 
-        const proofsToSendFromAmount = CashuUtils.getProofsAmount(proofsToSendFrom)
+        let proofsToSendFromAmount = CashuUtils.getProofsAmount(proofsToSendFrom)        
+        
 
-        // Increase the proofs counter before the mint call so that in case the response
-        // is not received our recovery index counts for sigs the mint has already issued (prevents duplicate b_b bug)
-        const amountPreferences = getDefaultAmountPreference(amountToSend)    
-        const returnedAmountPreferences = getDefaultAmountPreference(proofsToSendFromAmount - amountToSend)   
+        // swap will happen if we could not select proofs equal to amountToSend
+        let returnedAmount = proofsToSendFromAmount - amountToSend
+        let feesAmount: number = 0
+
+        if(returnedAmount > 0) {
+            feesAmount = mintInstance.getFeesForProofs(proofsToSendFrom)
+            // if we did not selected enough proofs to cover the fees we need some more
+            if(feesAmount > returnedAmount) {
+                const missingFeesAmount = feesAmount - returnedAmount
+                const remainingProofs = proofsStore.getProofsSubset(proofsFromMint, proofsToSendFrom)
+                const remainingProofsAmount = CashuUtils.getProofsAmount(remainingProofs)
+
+                log.warn('[sendFromMint]', 'Not enough proofs to cover feeAmount', {feesAmount, returnedAmount})
+
+                if(missingFeesAmount > remainingProofsAmount) {
+                    throw new AppError(
+                        Err.VALIDATION_ERROR,
+                        'There is not enough funds to send this payment with expected fees',
+                        {totalAmountFromMint, amountToSend, feesAmount},
+                    )
+                }
+
+                const proofsToPayFees = getProofsToSend(
+                    missingFeesAmount,
+                    remainingProofs
+                )
+
+                // add more proofs into inputs and recalculate amounts
+                proofsToSendFrom.push(...proofsToPayFees)
+                proofsToSendFromAmount = CashuUtils.getProofsAmount(proofsToSendFrom)
+                returnedAmount =  proofsToSendFromAmount - amountToSend             
+            }
+
+            // decrease requested returned outputs by fees so mint can charge them
+            returnedAmount -= feesAmount
+        }
+
+        // Inputs we are about to send
+        const amountPreferences = getDefaultAmountPreference(amountToSend)
+        // Outputs we are about to get back if swap occurs
+        const returnedAmountPreferences = getDefaultAmountPreference(returnedAmount)
 
         const countOfProofsToSend = CashuUtils.getAmountPreferencesCount(amountPreferences)
         const countOfReturnedProofs = CashuUtils.getAmountPreferencesCount(returnedAmountPreferences)
-        const countOfInFlightProofs = countOfProofsToSend + countOfReturnedProofs        
-        
+        const countOfInFlightProofs = countOfProofsToSend + countOfReturnedProofs
+       
         log.trace('[sendFromMint]', 'amountPreferences', {amountPreferences, returnedAmountPreferences})
         log.trace('[sendFromMint]', 'countOfInFlightProofs', countOfInFlightProofs)    
         
-        // temp increase the counter + acquire lock and set inFlight values                
+        // Increase the proofs counter before the mint call so that in case the response
+        // is not received our recovery index counts for sigs the mint has already issued (prevents duplicate b_b bug)
+        // + acquire lock and set inFlight values                
         await WalletUtils.lockAndSetInFlight(mintInstance, unit, countOfInFlightProofs, transactionId)
         
         // get locked counter values
@@ -353,3 +393,4 @@ export const sendFromMint = async function (
         }
   }
 }
+
