@@ -338,19 +338,19 @@ const getSpentOrPendingProofsFromMint = async function (
 
 
 
-const getLightningMeltQuote = async function (
+const createLightningMeltQuote = async function (
   mintUrl: string,
   unit: MintUnit,
   encodedInvoice: string,
 ) {
   try {
     const cashuMint = getMint(mintUrl)
-    const lightningQuote: MeltQuoteResponse = await cashuMint.meltQuote({ 
+    const lightningQuote: MeltQuoteResponse = await cashuMint.createMeltQuote({ 
       unit, 
       request: encodedInvoice 
     })
 
-    log.info('[getLightningMeltQuote]', {mintUrl, unit, encodedInvoice}, {lightningQuote})
+    log.info('[createLightningMeltQuote]', {mintUrl, unit, encodedInvoice}, {lightningQuote})
 
     return lightningQuote
 
@@ -362,7 +362,7 @@ const getLightningMeltQuote = async function (
         message,
         {
           message: e.message,
-          caller: 'getLightningMeltQuote', 
+          caller: 'createLightningMeltQuote', 
           request: {mintUrl, unit, encodedInvoice},            
         }
     )
@@ -415,7 +415,7 @@ const payLightningMelt = async function (
 
 
 
-const getBolt11MintQuote = async function (
+const createLightningMintQuote = async function (
   mintUrl: string,
   unit: MintUnit,
   amount: number,
@@ -425,12 +425,12 @@ const getBolt11MintQuote = async function (
     const {
       request: encodedInvoice, 
       quote: mintQuote,      
-    } = await cashuMint.mintQuote({
+    } = await cashuMint.createMintQuote({
       unit, 
       amount
     })
 
-    log.info('[getBolt11MintQuote]', {encodedInvoice, mintQuote})
+    log.info('[createLightningMintQuote]', {encodedInvoice, mintQuote})
 
     return {
       encodedInvoice,
@@ -444,7 +444,7 @@ const getBolt11MintQuote = async function (
       message, 
       {
           message: e.message,
-          caller: 'getBolt11MintQuote', 
+          caller: 'createLightningMintQuote', 
           mintUrl,            
       }
     )
@@ -452,7 +452,7 @@ const getBolt11MintQuote = async function (
 }
 
 
-const getBolt11MintQuoteIsPaid = async function (
+const checkLightningMintQuote = async function (
   mintUrl: string,
   quote: string,  
 ) {
@@ -461,17 +461,17 @@ const getBolt11MintQuoteIsPaid = async function (
     const {
       request: encodedInvoice, 
       quote: mintQuote, 
-      paid: isPaid
-    } = await cashuMint.getMintQuote(      
+      state,      
+    } = await cashuMint.checkMintQuote(      
       quote
     )
 
-    log.info('[getBolt11MintQuoteIsPaid]', {encodedInvoice, mintQuote, isPaid})
+    log.info('[checkLightningMintQuote]', {encodedInvoice, mintQuote, state})
 
     return {
       encodedInvoice,
       mintQuote,
-      isPaid
+      state
     }
   } catch (e: any) {
     let message = 'The mint could not return the state of a mint quote.'
@@ -481,7 +481,7 @@ const getBolt11MintQuoteIsPaid = async function (
         message, 
         {
             message: e.message,
-            caller: 'getBolt11MintQuoteIsPaid', 
+            caller: 'checkLightningMintQuote', 
             mintUrl,            
         }
     )
@@ -613,10 +613,10 @@ export const MintClient = {
     receiveFromMint,
     sendFromMint,
     getSpentOrPendingProofsFromMint,
-    getBolt11MintQuote,
-    getBolt11MintQuoteIsPaid,
+    createLightningMintQuote,
+    checkLightningMintQuote,
     mintProofs,
-    getLightningMeltQuote,
+    createLightningMeltQuote,
     payLightningMelt,
     restore,
     getMintInfo,

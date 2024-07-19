@@ -59,7 +59,7 @@ export const topupTask = async function (
         const storedTransaction: TransactionRecord = await transactionsStore.addTransaction(newTransaction)
         transactionId = storedTransaction.id as number        
 
-        const {encodedInvoice, mintQuote} = await MintClient.getBolt11MintQuote(mintUrl, unit, amountToTopup)
+        const {encodedInvoice, mintQuote} = await MintClient.createLightningMintQuote(mintUrl, unit, amountToTopup)
 
         const decodedInvoice = LightningUtils.decodeInvoice(encodedInvoice)
         const {amount, payment_hash, expiry, timestamp} = LightningUtils.getInvoiceData(decodedInvoice)
