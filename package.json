@@ -19,7 +19,7 @@
     "postinstall": "patch-package --exclude 'nothing'"
   },
   "dependencies": {
-    "@cashu/cashu-ts": "KraXen72/cashu-ts-minibits#v1-minibits-v4token",
+    "@cashu/cashu-ts": "KraXen72/cashu-ts-minibits",
     "@fortawesome/fontawesome-svg-core": "^6.5.2",
     "@fortawesome/free-brands-svg-icons": "^6.5.2",
     "@fortawesome/free-regular-svg-icons": "^6.5.2",
@@ -99,6 +99,6 @@
     "typescript": "5.0.4"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=18 || 20 || 22"
   }
 }
