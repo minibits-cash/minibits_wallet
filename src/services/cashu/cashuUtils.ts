@@ -10,30 +10,33 @@ import {TokenEntry} from '../../models/TokenEntry'
 import {Proof} from '../../models/Proof'
 import { log } from '../logService'
 
-
-
 const findEncodedCashuToken = function (content: string) {
-    const words = content.split(/\s+|\n+/) // Split text into words
-    const maybeToken = words.find(word => word.includes("cashuA"))
-    return maybeToken || null
+  const words = content.split(/\s+|\n+/) // Split text into words
+  const maybeToken = words.find(word => CASHU_TOKEN_PREFIXES.some(pref => word.includes(pref)))
+  return maybeToken || null
 }
 
-const cashuUriPrefixes = [
+const CASHU_URI_PREFIXES = [
   'https://wallet.nutstash.app/#',
   'https://wallet.cashu.me/?token=',
   'web+cashu://',
   'cashu://',
   'cashu:'
 ]
+const CASHU_TOKEN_PREFIXES = [
+  'cashuA',
+  'cashuB'
+]
+
 
 export function validCashuAToken(text: string) {
-  for (const prefix of cashuUriPrefixes) {
+  for (const prefix of CASHU_URI_PREFIXES) {
     if (text && text.startsWith(prefix)) {
       text = text.slice(prefix.length)
       break // necessary
     }
   }
-  return text && text.startsWith('cashuA')
+  return text && CASHU_TOKEN_PREFIXES.some(pref => text.startsWith(pref))
 }
 
 const extractEncodedCashuToken = function (maybeToken: string): string {
@@ -43,12 +46,12 @@ const extractEncodedCashuToken = function (maybeToken: string): string {
     let encodedToken: string | undefined = undefined
     let decoded: Token | undefined = undefined
     
-    if (maybeToken && maybeToken.startsWith('cashuA')) {
+    if (maybeToken && CASHU_TOKEN_PREFIXES.some(pref => maybeToken.startsWith(pref))) {
         decoded = decodeToken(maybeToken) // throws
         return maybeToken
     }
 
-	for (const prefix of cashuUriPrefixes) {
+	for (const prefix of CASHU_URI_PREFIXES) {
 		if (maybeToken && maybeToken.startsWith(prefix)) {            
             encodedToken = maybeToken.slice(prefix.length)
             break // necessary

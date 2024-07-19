@@ -181,7 +181,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
             default:
                 try {
                 // generic scan button on wallet screen
-                  const incomingData = IncomingParser.findAndExtract(incoming)                    
+                  const incomingData = IncomingParser.findAndExtract(incoming)              
                   return IncomingParser.navigateWithIncomingData(incomingData, navigation, unit)   
                 } catch (e: any) {
                   e.name = Err.VALIDATION_ERROR
