@@ -70,3 +70,4 @@ yarn-error.log
 /coverage
 
 minibits.inlang/cache
+.mise.toml
