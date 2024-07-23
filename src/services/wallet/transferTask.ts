@@ -55,7 +55,7 @@ export const transferTask = async function (
 
     try {
         if (amountToTransfer + meltQuote.fee_reserve > mintBalanceToTransferFrom.balances[unit]!) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Mint balance is insufficient to cover the amount to transfer with expected Lightning fees.')
+            throw new AppError(Err.VALIDATION_ERROR, 'Mint balance is insufficient to cover the amount to transfer with the expected Lightning fees.')
         }
     
         if(isBefore(invoiceExpiry, new Date())) {
@@ -87,7 +87,7 @@ export const transferTask = async function (
         transactionId = storedTransaction.id as number
 
         // get proofs ready to be paid to the mint
-        proofsToPay = await sendFromMint(
+        const {proofs: proofsToPay, mintFeePaid, mintFeeReserve} = await sendFromMint(
             mintBalanceToTransferFrom,
             amountToTransfer + meltQuote.fee_reserve,
             unit,
@@ -101,6 +101,8 @@ export const transferTask = async function (
         // Update transaction status
         transactionData.push({
             status: TransactionStatus.PREPARED,
+            mintFeeReserve,
+            mintFeePaid,
             createdAt: new Date(),
         })
 
@@ -116,14 +118,16 @@ export const transferTask = async function (
         await WalletUtils.lockAndSetInFlight(mintInstance, unit, countOfInFlightProofs, transactionId)
 
         // get locked counter values
-        const lockedProofsCounter = await mintInstance.getProofsCounterByUnit?.(unit)
+        const lockedProofsCounter = mintInstance.getProofsCounterByUnit?.(unit)
 
         const {isPaid, preimage, feeSavedProofs} = await MintClient.payLightningMelt(
             mintUrl,
             unit,
             meltQuote,
-            proofsToPay,            
-            lockedProofsCounter.inFlightFrom as number
+            proofsToPay, 
+            {
+                counter: lockedProofsCounter.inFlightFrom as number
+            }
         )    
 
         mintInstance.decreaseProofsCounter(lockedProofsCounter.keyset, countOfInFlightProofs) 
@@ -178,10 +182,9 @@ export const transferTask = async function (
         }
 
         // If real fees were less then estimated, cash the returned savings.
-        let finalFee = meltQuote.fee_reserve
+        let lightningFeePaid = meltQuote.fee_reserve
 
-        if (feeSavedProofs.length) {
-            
+        if (feeSavedProofs.length) {            
             const {addedAmount: feeSaved} = WalletUtils.addCashuProofs(
                 mintUrl, 
                 feeSavedProofs, 
@@ -193,19 +196,20 @@ export const transferTask = async function (
                 
             )
             
-            finalFee = meltQuote.fee_reserve - feeSaved            
+            lightningFeePaid = meltQuote.fee_reserve - feeSaved            
         }
 
         // release lock
         mintInstance.resetInFlight(transactionId)
 
         // Save final fee in db
-        await transactionsStore.updateFee(transactionId, finalFee)
+        await transactionsStore.updateFee(transactionId, lightningFeePaid + mintFeePaid)
 
         // Update transaction status
         transactionData.push({
             status: TransactionStatus.COMPLETED,
-            finalFee,
+            lightningFeeReserve: meltQuote.fee_reserve,
+            lightningFeePaid,
             preimage, // TODO add to tx details
             createdAt: new Date(),
         })
@@ -226,7 +230,8 @@ export const transferTask = async function (
             mintUrl,
             transaction: completedTransaction,
             message: `Lightning invoice has been successfully paid and settled with your Minibits ecash. Final network fee has been ${formatCurrency(finalFee, getCurrency(unit).code)} ${getCurrency(unit).code}.`,
-            finalFee,
+            lightningFeePaid,
+            mintFeePaid
         } as TransactionTaskResult
     } catch (e: any) {        
         // Update transaction status if we have any
@@ -324,9 +329,9 @@ const _moveProofsFromPending = async function (
     // due to the timeout but mint's node keeps the payment as in-flight (e.g. receiving node holds the invoice)
     // In this case we need to keep such proofs as pending and not move them back to wallet as in other payment failures.    
     const {pending: pendingByMint} = await MintClient.getSpentOrPendingProofsFromMint(
-        proofsToMove as Proof[],
         mintUrl,
-        unit,        
+        unit,
+        proofsToMove as Proof[]
     )
 
     let amountPendingByMint: number = 0

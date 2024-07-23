@@ -1202,9 +1202,9 @@
   resolved "https://registry.yarnpkg.com/@bcoe/v8-coverage/-/v8-coverage-0.2.3.tgz#75a2e8b51cb758a7553d6804a5932d7aace75c39"
   integrity sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==
 
-"@cashu/cashu-ts@minibits-cash/cashu-ts#1.0.0-minibits":
+"@cashu/cashu-ts@minibits-cash/cashu-ts#1.0.0-minibits.2":
   version "1.0.0-minibits"
-  resolved "https://codeload.github.com/minibits-cash/cashu-ts/tar.gz/95cd37801f54700bed1b84113a774bd23f36aecb"
+  resolved "https://codeload.github.com/minibits-cash/cashu-ts/tar.gz/03b26c1db3a72d3d8e975a72f63b0ed06dc1be34"
   dependencies:
     "@cashu/crypto" "^0.2.6"
     "@noble/curves" "^1.3.0"
@@ -1214,9 +1214,9 @@
     buffer "^6.0.3"
 
 "@cashu/crypto@^0.2.6":
-  version "0.2.6"
-  resolved "https://registry.yarnpkg.com/@cashu/crypto/-/crypto-0.2.6.tgz#fbc173f1a5c380085f62b5141ae62d309a427426"
-  integrity sha512-qjytcY26MRntG6nJc9U2tSeDw+BApKQaIch58POjEiTuc7MbIxgR/l/xU5NzXa/nGrSLdNZQwl/o5RQDhc2otw==
+  version "0.2.7"
+  resolved "https://registry.yarnpkg.com/@cashu/crypto/-/crypto-0.2.7.tgz#26467fd2f5ecfeabcc74b9c65189a1e8c6ce85ce"
+  integrity sha512-1aaDfUjiHNXoJqg8nW+341TLWV9W28DsVNXJUKcHL0yAmwLs5+56SSnb8LLDJzPamLVoYL0U0bda91klAzptig==
   dependencies:
     "@noble/curves" "^1.3.0"
     "@noble/hashes" "^1.3.3"

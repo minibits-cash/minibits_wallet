@@ -76,7 +76,7 @@ export const sendTask = async function (
         transactionId = storedTransaction.id as number
 
         // get ready proofs to send and update proofs and pending proofs storage
-        const proofsToSend = await sendFromMint(
+        const {proofs: proofsToSend, mintFeePaid, mintFeeReserve} = await sendFromMint(
             mintBalanceToSendFrom,
             amountToSend,
             unit,
@@ -87,7 +87,8 @@ export const sendTask = async function (
         // Update transaction status
         transactionData.push({
             status: TransactionStatus.PREPARED,
-            //proofsToSend,
+            mintFeeReserve,
+            mintFeePaid,
             createdAt: new Date(),
         })
 
@@ -115,7 +116,7 @@ export const sendTask = async function (
 
         // Update transaction status
         transactionData.push({
-            status: TransactionStatus.PENDING,
+            status: TransactionStatus.PENDING,            
             encodedTokenToSend,
             createdAt: new Date(),
         })
@@ -153,6 +154,7 @@ export const sendTask = async function (
             transaction: pendingTransaction,
             message: '',
             encodedTokenToSend,
+            mintFeePaid
         } as TransactionTaskResult
     } catch (e: any) {
         // Update transaction status if we have any
@@ -249,7 +251,11 @@ export const sendFromMint = async function (
             })
 
             // We return cleaned proofs to be encoded as a sendable token
-            return cleanedProofsToSend
+            return {
+                proofs: cleanedProofsToSend, 
+                mintFeeReserve: 0, 
+                mintFeePaid: 0
+            }
         }
         
         /* 
@@ -261,28 +267,27 @@ export const sendFromMint = async function (
             proofsFromMint,
         )
 
-        let proofsToSendFromAmount = CashuUtils.getProofsAmount(proofsToSendFrom)        
-        
+        let proofsToSendFromAmount = CashuUtils.getProofsAmount(proofsToSendFrom)
 
         // swap will happen if we could not select proofs equal to amountToSend
         let returnedAmount = proofsToSendFromAmount - amountToSend
-        let feesAmount: number = 0
+        let mintFeeReserve: number = 0
 
         if(returnedAmount > 0) {
-            feesAmount = mintInstance.getFeesForProofs(proofsToSendFrom)
+            mintFeeReserve = mintInstance.getFeesForProofs(proofsToSendFrom)
             // if we did not selected enough proofs to cover the fees we need some more
-            if(feesAmount > returnedAmount) {
-                const missingFeesAmount = feesAmount - returnedAmount
+            if(mintFeeReserve > returnedAmount) {
+                const missingFeesAmount = mintFeeReserve - returnedAmount
                 const remainingProofs = proofsStore.getProofsSubset(proofsFromMint, proofsToSendFrom)
                 const remainingProofsAmount = CashuUtils.getProofsAmount(remainingProofs)
 
-                log.warn('[sendFromMint]', 'Not enough proofs to cover feeAmount', {feesAmount, returnedAmount})
+                log.warn('[sendFromMint]', 'Not enough proofs to cover feeReserve', {mintFeeReserve, returnedAmount})
 
                 if(missingFeesAmount > remainingProofsAmount) {
                     throw new AppError(
                         Err.VALIDATION_ERROR,
                         'There is not enough funds to send this payment with expected fees',
-                        {totalAmountFromMint, amountToSend, feesAmount},
+                        {totalAmountFromMint, amountToSend, mintFeeReserve},
                     )
                 }
 
@@ -297,8 +302,8 @@ export const sendFromMint = async function (
                 returnedAmount =  proofsToSendFromAmount - amountToSend             
             }
 
-            // decrease requested returned outputs by fees so mint can charge them
-            returnedAmount -= feesAmount
+            // decrease requested returned outputs by fees so that the mint can charge them
+            returnedAmount -= mintFeeReserve
         }
 
         // Inputs we are about to send
@@ -319,19 +324,20 @@ export const sendFromMint = async function (
         await WalletUtils.lockAndSetInFlight(mintInstance, unit, countOfInFlightProofs, transactionId)
         
         // get locked counter values
-        const lockedProofsCounter = await mintInstance.getProofsCounterByUnit?.(unit)        
+        const lockedProofsCounter = mintInstance.getProofsCounterByUnit?.(unit)        
         
         // if split to required denominations was necessary, this gets it done with the mint and we get the return
         
-        const {returnedProofs, proofsToSend} = await MintClient.sendFromMint(
+        const {returnedProofs, proofsToSend, mintFeePaid} = await MintClient.send(
             mintUrl,
-            unit,
             amountToSend,
+            unit,            
             proofsToSendFrom,
-            amountPreferences,
-            lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
-        )    
-        
+            {              
+              preference: amountPreferences,
+              counter: lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
+            }
+        )
 
         // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs        
         mintInstance.decreaseProofsCounter(lockedProofsCounter.keyset, countOfInFlightProofs) 
@@ -339,7 +345,7 @@ export const sendFromMint = async function (
         // add proofs returned by the mint after the split        
         if (returnedProofs.length > 0) {
             log.trace('[sendFromMint] add returned proofs to spendable')
-            const { addedProofs, addedAmount } = WalletUtils.addCashuProofs(
+            WalletUtils.addCashuProofs(
                 mintUrl,
                 returnedProofs,
                 {
@@ -356,7 +362,7 @@ export const sendFromMint = async function (
 
         // these might be original proofToSendFrom if they matched the exact amount and split was not necessary  
         log.trace('[sendFromMint] add proofsToSend to pending')      
-        const { addedProofs, addedAmount } = WalletUtils.addCashuProofs(            
+        WalletUtils.addCashuProofs(            
             mintUrl,
             proofsToSend,
             {
@@ -380,8 +386,12 @@ export const sendFromMint = async function (
             }
         })        
         
-        // We return cleaned proofs to be encoded as a sendable token
-        return cleanedProofsToSend
+        // We return cleaned proofs to be encoded as a sendable token + fees
+        return {
+            proofs: cleanedProofsToSend as CashuProof[], 
+            mintFeeReserve, 
+            mintFeePaid
+        }
   } catch (e: any) {
         // release lock        
         mintInstance?.resetInFlight(transactionId)       

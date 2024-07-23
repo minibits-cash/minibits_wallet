@@ -1,6 +1,11 @@
-import {cast, flow, Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
+import {cast, flow, getSnapshot, Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
 import {withSetPropAction} from './helpers/withSetPropAction'
-import type {CashuWallet, GetInfoResponse, MintKeys, MintKeyset} from '@cashu/cashu-ts'
+import type {
+    CashuWallet, 
+    GetInfoResponse, 
+    MintKeys as CashuMintKeys, 
+    MintKeyset as CashuMintKeyset
+} from '@cashu/cashu-ts'
 import {colors, getRandomIconColor} from '../theme'
 import { log, MintClient } from '../services'
 
@@ -33,8 +38,6 @@ export type Balances = {
     unitBalances: UnitBalance[]
 }
 
-
-
 export enum MintStatus {
     ONLINE = 'ONLINE',
     OFFLINE = 'OFFLINE'
@@ -43,13 +46,21 @@ export enum MintStatus {
 export type MintProofsCounter = {
     keyset: string
     counter: number
-    unit: MintUnit    
-    input_fee_ppk: number
+    unit: MintUnit
     inFlightFrom?: number // starting counter index for pending split request sent to mint (for recovery from failure to receive proofs)
     inFlightTo?: number // last counter index for pending split request sent to mint 
     inFlightTid?: number // related tx id
 }
 
+export const MintProofsCounterModel = types
+    .model('MintProofsCounter', {        
+        keyset: types.string,
+        unit: types.optional(types.frozen<MintUnit>(), 'sat'),
+        counter: types.number,              
+        inFlightFrom: types.maybe(types.number),
+        inFlightTo: types.maybe(types.number),
+        inFlightTid: types.maybe(types.number)
+    })
 /**
  * This represents a Cashu mint
  */
@@ -59,24 +70,61 @@ export const MintModel = types
         mintUrl: types.string,
         hostname: types.maybe(types.string),
         shortname: types.maybe(types.string),
-        units: types.array(types.frozen<MintUnit>()),        
-        proofsCounters: types.array(
-            types.model('MintProofsCounter', {
-              keyset: types.string,
-              unit: types.optional(types.frozen<MintUnit>(), 'sat'),
-              counter: types.number,
-              input_fee_ppk: types.optional(types.number, 0),
-              inFlightFrom: types.maybe(types.number),
-              inFlightTo: types.maybe(types.number),
-              inFlightTid: types.maybe(types.number)
-            })
-        ),
+        units: types.array(types.frozen<MintUnit>()),
+        keysets: types.array(types.frozen<CashuMintKeyset>()),   
+        keys: types.array(types.frozen<CashuMintKeys>()),
+        proofsCounters: types.array(MintProofsCounterModel),
         color: types.optional(types.string, colors.palette.iconBlue200),
         status: types.optional(types.frozen<MintStatus>(), MintStatus.ONLINE),
         createdAt: types.optional(types.Date, new Date()),
     })
     .actions(withSetPropAction) // TODO? start to use across app to avoid pure setter methods, e.g. mint.setProp('color', '#ccc')
     .actions(self => ({
+        addKeyset(keyset: CashuMintKeyset) {
+            const alreadyExists = self.keysets.some(k => k.id === keyset.id)
+
+            if(!alreadyExists) {
+                self.keysets.push(keyset)
+            }
+
+            self.keysets = cast(self.keysets)
+        },
+        removeKeyset(keyset: CashuMintKeyset) {
+            const index = self.keysets.findIndex(k => k.id === keyset.id)
+
+            if(index) {
+                self.keysets.splice(index, 0)
+            }
+
+            self.keysets = cast(self.keysets)
+        },
+        setIsActive(freshKeyset: CashuMintKeyset) {
+            const keyset = self.keysets.find(k => k.id === freshKeyset.id)
+
+            if(keyset) {
+                keyset.active = freshKeyset.active
+            }
+
+            self.keysets = cast(self.keysets)
+        },
+        addKeys(keys: CashuMintKeys) {
+            const alreadyExists = self.keys.some(k => k.id === keys.id)
+
+            if(!alreadyExists) {
+                self.keys.push(keys)
+            }
+
+            self.keys = cast(self.keys)
+        },
+        removeKeys(keys: CashuMintKeys) {
+            const index = self.keys.findIndex(k => k.id === keys.id)
+
+            if(index) {
+                self.keys.splice(index, 0)
+            }
+
+            self.keys = cast(self.keys)
+        },
         addUnit(unit: MintUnit) {
             const alreadyExists = self.units.some(u => u === unit)
 
@@ -95,43 +143,99 @@ export const MintModel = types
 
             self.units = cast(self.units)
         },
+        addProofsCounter(counter: MintProofsCounter) {
+            const alreadyExists = self.proofsCounters.some(p => p.keyset === counter.keyset)
+
+            if(!alreadyExists) {
+                self.proofsCounters.push(counter)
+            }
+
+            self.proofsCounters = cast(self.proofsCounters)
+        },
+        removeProofsCounter(counter: MintProofsCounter) {
+            const index = self.proofsCounters.findIndex(p => p.keyset === counter.keyset)
+
+            if(index) {
+                self.proofsCounters.splice(index, 0)
+            }
+
+            self.proofsCounters = cast(self.proofsCounters)
+        },
         getProofsCounter(keysetId: string) {
             const counter = self.proofsCounters.find(c => c.keyset === keysetId)            
             return counter
         },
+        isUnitSupported(unit: MintUnit): boolean {
+            return MintUnits.includes(unit) ? true : false
+        },
+        keysetExists(keyset: CashuMintKeyset): boolean {
+            return self.keysets.some(k => k.id === keyset.id)
+        },
     }))
-    .actions(self => ({   
-        createProofsCounter(keyset: MintKeyset) {
-            // Do not add unit the wallet does not have configured
-            if (!MintUnits.includes(keyset.unit as MintUnit)) {                    
-                throw new AppError(Err.VALIDATION_ERROR, `Unsupported unit provided by the mint: ${keyset.unit}`)                    
-            }
-            
-            const existing = self.getProofsCounter(keyset.id)
-
-            if(existing) { // update fees if they can change (?)
-                if (existing.unit !== keyset.unit) {                    
-                    throw new AppError(Err.VALIDATION_ERROR, `Keyset unit mismatch, got ${keyset.unit}, expected ${existing.unit}`)                 
-                }
-
-                existing.input_fee_ppk = keyset.input_fee_ppk || 0
-                self.proofsCounters = cast(self.proofsCounters)  
-                return existing
-            }
-
+    .actions(self => ({
+        createProofsCounter(keyset: CashuMintKeyset) {
             const newCounter: MintProofsCounter = {
                 keyset: keyset.id,
-                unit: keyset.unit as MintUnit,                    
-                input_fee_ppk: keyset.input_fee_ppk || 0,
+                unit: keyset.unit as MintUnit,
                 counter: 0,                    
             }
 
-            self.proofsCounters.push(newCounter)                
-            self.addUnit(keyset.unit as MintUnit)
-            const instance = self.proofsCounters.find(c => c.keyset === keyset.id) as MintProofsCounter
+            const proofsCounterInstance = MintProofsCounterModel.create(newCounter)
+            self.addProofsCounter(newCounter)
+            
+            log.trace('[ceateProofsCounter]', {newCounter: getSnapshot(proofsCounterInstance)})
+            return proofsCounterInstance            
+        }
+    }))
+    .actions(self => ({ 
+        initKeyset(keyset: CashuMintKeyset) {
+            // Do not add unit the wallet does not have configured
+            if(!self.isUnitSupported(keyset.unit as MintUnit)) {                                
+                throw new AppError(Err.VALIDATION_ERROR, `Unsupported unit provided by the mint: ${keyset.unit}`)            
+            }
+            
+            const existing = self.keysets.find(k => k.id === keyset.id)
 
-            log.trace('[ceateProofsCounter]', {newCounter: instance})
-            return instance            
+            if(existing) {
+                if (existing.unit !== keyset.unit) {                    
+                    throw new AppError(Err.VALIDATION_ERROR, `Keyset unit mismatch, got ${keyset.unit}, expected ${existing.unit}`)                 
+                }  
+                
+                return existing
+            }
+
+            if(!keyset.input_fee_ppk) {
+                keyset.input_fee_ppk = 0
+            }
+
+            if(!keyset.unit) {
+                keyset.unit = 'sat'
+            }
+
+            self.addKeyset(keyset)            
+            self.addUnit(keyset.unit as MintUnit)            
+            self.createProofsCounter(keyset)
+
+            log.trace('[initKeyset]', {newKeyset: keyset})          
+        },
+        initKeys(key: CashuMintKeys) {
+            // Do not add unit the wallet does not have configured
+            if(!self.isUnitSupported(key.unit as MintUnit)) {                                
+                throw new AppError(Err.VALIDATION_ERROR, `Unsupported unit provided by the mint: ${key.unit}`)            
+            }            
+            
+            const existing = self.keys.find(k => k.id === key.id)
+
+            if(existing) {
+                if (existing.unit !== key.unit) {                    
+                    throw new AppError(Err.VALIDATION_ERROR, `Keyset unit mismatch, got ${key.unit}, expected ${existing.unit}`)                 
+                }  
+                
+                return existing
+            }
+
+            self.addKeys(key)            
+            log.trace('[initKeys]', {newKeys: key.id})                   
         },
         findInFlightProofsCounter() {            
             const counter = self.proofsCounters.find(c => c.inFlightFrom && c.inFlightTo && c.inFlightTid)                       
@@ -151,32 +255,39 @@ export const MintModel = types
         },
     }))
     .actions(self => ({
-        getProofsCounterByUnit: flow(function* getProofsCounterByUnit(unit: MintUnit) {                        
-            try {
-                // Refresh current keys for this unit from new or existing in-memory wallet instance
-                const wallet: CashuWallet = yield MintClient.getWallet(self.mintUrl, unit)
-                const keyset = wallet.keyset
-
-                // Get or create new proofs counter for this keyset            
-                const counter = self.getProofsCounter(keyset.id)
-
-                if(!counter) {
-                    return self.createProofsCounter(keyset)                
-                }
-
-                return counter
-            } catch(e: any) {
-                log.warn('[getProofsCounterByUnit] Could not refresh keyset, using mint proofsCounter for unit', {unit})
-                
-                const proofsCounterInstance = self.proofsCounters.find(c => c.unit === unit)
-
-                if(!proofsCounterInstance) {
-                    throw new AppError(Err.NOTFOUND_ERROR, 'Could not get keyset to create new mint proofsCounter for unit', {unit})
-                }
-                
-                return proofsCounterInstance  
+        refreshKeysets(freshKeysets: CashuMintKeyset[]) {            
+            // add new keyset if not exists            
+            for (const keyset of freshKeysets) {
+                self.initKeyset(keyset)
+                self.setIsActive(keyset)
             }
-        }),
+        },
+        refreshKeys(freshKeys: CashuMintKeys[]) {            
+            for (const key of freshKeys) {
+                self.initKeys(key)                
+            }
+        },
+        getProofsCounterByUnit(unit: MintUnit, useActiveKeyset: boolean = true) {                        
+            let keyset: CashuMintKeyset | undefined
+
+            if(useActiveKeyset) {
+                keyset = self.keysets.find(k => k.active === true && k.unit === unit)
+            } else {
+                keyset = self.keysets.find(k => k.active === false && k.unit === unit)
+            }
+
+            if(!keyset) {
+                throw new AppError(Err.NOTFOUND_ERROR, 'Mint has no keyset for this unit', {unit})
+            }
+            
+            const counter = self.proofsCounters.find(p => p.keyset === keyset?.id)
+
+            if(!counter) {
+                return self.createProofsCounter(keyset)                
+            }
+
+            return counter
+        },
         setHostname() {
             try {
                 self.hostname = new URL(self.mintUrl).hostname
@@ -299,10 +410,10 @@ export const MintModel = types
             self.proofsCounters = cast(self.proofsCounters)
         },
         getFeesForProofs(proofs: Proof[]): number {
-            // Find the corresponding MintProofsCounter for each proof and sum the input fees
+            // Find the corresponding keyset for each proof and sum the input fees
             const totalInputFees = proofs.reduce((sum, proof) => {
-              const counter = self.proofsCounters.find(pc => pc.keyset === proof.id)
-              return counter ? sum + counter.input_fee_ppk : sum
+              const keyset = self.keysets.find(k => k.id === proof.id)
+              return keyset && keyset.input_fee_ppk ? sum + keyset.input_fee_ppk : sum
             }, 0)
       
             // Calculate the fees
@@ -317,15 +428,15 @@ export const MintModel = types
             const mintBalance: MintBalance | undefined = getRootStore(self).proofsStore.getMintBalance(self.mintUrl)
             return mintBalance
         },
-        get keysets(): string[] {
-            return self.proofsCounters.map(c => c.keyset)
-        }
+        get keysetIds(): string[] {
+            return self.keysets.map(k => k.id)
+        }        
      }))
     
     
 
 export type Mint = {
-    mintUrl: string    
+    mintUrl: string   
 } & Partial<Instance<typeof MintModel>>
 export interface MintSnapshotOut extends SnapshotOut<typeof MintModel> {}
 export interface MintSnapshotIn extends SnapshotIn<typeof MintModel> {}

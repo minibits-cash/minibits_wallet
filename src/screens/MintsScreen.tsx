@@ -142,8 +142,8 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
 
           toggleAddMintModal() // close
           setIsLoading(true)
-          const activeKeysets: MintKeyset[] = await MintClient.getMintKeysets(mintUrl)
-          const matchingKeyset = activeKeysets.find(keyset => selectedMint.keysets?.some(k => k === keyset.id))
+          const keysets: MintKeyset[] = await MintClient.getMintKeysets(mintUrl)
+          const matchingKeyset = keysets.find(keyset => selectedMint.keysets?.some(k => k.id === keyset.id))
 
           if(!matchingKeyset) {
             throw new AppError(Err.VALIDATION_ERROR, 'No keyset match, provided URL likely points to different mint.')

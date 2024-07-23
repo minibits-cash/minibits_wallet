@@ -17,7 +17,7 @@ import {
 import { getDefaultAmountPreference, getEncodedToken } from '@cashu/cashu-ts/src/utils'
 import { TransactionTaskResult } from '../walletService'
 import { WalletUtils } from './utils'
-import { formatCurrency, getCurrency } from './currency'
+import { MintUnit, formatCurrency, getCurrency } from './currency'
 
 const {
     mintsStore,
@@ -124,7 +124,7 @@ export const receiveTask = async function (
         const amountPreferences = getDefaultAmountPreference(amountToReceive)        
         const countOfInFlightProofs = CashuUtils.getAmountPreferencesCount(amountPreferences)
         
-        log.trace('[receiveTask]', 'proofsCounter initial state', {proofsCounter: await mintInstance.getProofsCounterByUnit?.(unit)})
+        log.trace('[receiveTask]', 'proofsCounter initial state', {proofsCounter: mintInstance.getProofsCounterByUnit?.(unit)})
         log.trace('[receiveTask]', 'amountPreferences', {amountPreferences, transactionId})
         log.trace('[receiveTask]', 'countOfInFlightProofs', {countOfInFlightProofs, transactionId})  
         
@@ -132,14 +132,16 @@ export const receiveTask = async function (
         await WalletUtils.lockAndSetInFlight(mintInstance, unit, countOfInFlightProofs, transactionId)
         
         // get locked counter values
-        const lockedProofsCounter = await mintInstance.getProofsCounterByUnit?.(unit)
+        const lockedProofsCounter = mintInstance.getProofsCounterByUnit?.(unit)
 
-        const receivedProofs = await MintClient.receiveFromMint(
+        const receivedProofs = await MintClient.receive(
             mintToReceive,
-            unit,
+            unit as MintUnit,
             token,
-            amountPreferences,
-            lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
+            {            
+              preference: amountPreferences,
+              counter: lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
+            }
         )        
        
         // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs        
@@ -443,15 +445,17 @@ export const receiveOfflineCompleteTask = async function (
         await WalletUtils.lockAndSetInFlight(mintInstance, unit, countOfInFlightProofs, transaction.id as number)
         
         // get locked counter values
-        const lockedProofsCounter = await mintInstance.getProofsCounterByUnit?.(unit)
+        const lockedProofsCounter = mintInstance.getProofsCounterByUnit?.(unit)
 
-        const receivedProofs = await MintClient.receiveFromMint(
+        const receivedProofs = await MintClient.receive(
             mintToReceive,
-            unit,
+            unit as MintUnit,
             token,
-            amountPreferences,
-            lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
-        )        
+            {            
+              preference: amountPreferences,
+              counter: lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
+            }
+        )     
        
         // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs        
         mintInstance.decreaseProofsCounter(lockedProofsCounter.keyset, countOfInFlightProofs)

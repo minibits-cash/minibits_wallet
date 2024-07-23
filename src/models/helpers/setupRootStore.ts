@@ -17,7 +17,7 @@ import {
 import * as Sentry from '@sentry/react-native'
 import RNExitApp from 'react-native-exit-app'
 import type {RootStore} from '../RootStore'
-import {KeyChain, MinibitsClient, MMKVStorage, NostrClient} from '../../services'
+import {KeyChain, MinibitsClient, MintClient, MMKVStorage, NostrClient} from '../../services'
 import {Database} from '../../services'
 import { log } from  '../../services/logService'
 import { rootStoreModelVersion } from '../RootStore'
@@ -285,7 +285,6 @@ async function _runMigrations(rootStore: RootStore) {
                 log.warn('[setupRootStore] Migration error', {message: e.name})
             }
         }
-
     } catch (e: any) {
         throw new AppError(
         Err.STORAGE_ERROR,

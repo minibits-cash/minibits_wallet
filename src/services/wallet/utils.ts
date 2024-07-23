@@ -31,7 +31,7 @@ const lockAndSetInFlight = async function (
     retryCount: number = 0,    
 ): Promise<void> {
     
-    const currentCounter = await mint.getProofsCounterByUnit?.(unit)
+    const currentCounter = mint.getProofsCounterByUnit?.(unit)
     log.trace('[lockAndSetInFlight] proofsCounter', {currentCounter})
 
     if(!retryCount) {
