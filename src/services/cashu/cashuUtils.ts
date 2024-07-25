@@ -151,31 +151,6 @@ const getMintsFromToken = function (token: Token): string[] {
 }
 
 
-const updateMintProofs = function (
-  token: Token,
-  mintUrl: string,
-  updatedProofs: Proof[],
-): Token {
-  // Find the index of the mint to update
-  const mintIndex = token.token.findIndex(mint => mint.mint === mintUrl)
-
-  if (mintIndex === -1) {
-    throw new AppError(
-      Err.VALIDATION_ERROR,
-      `Mint ${mintUrl} not found in token`,
-    )
-  }
-
-  // Clone the token instance
-  const updatedToken: Token = cloneDeep(token)
-
-  // Update the proofs for the specified mint
-  updatedToken.token[mintIndex].proofs = updatedProofs
-
-  return updatedToken
-}
-
-
 const getProofsFromTokenEntries = (tokenEntries: TokenEntry[]) => {
   const proofs: Proof[] = []
 
@@ -184,6 +159,63 @@ const getProofsFromTokenEntries = (tokenEntries: TokenEntry[]) => {
   }
 
   return proofs
+}
+
+
+const findExactMatch = function (requestedAmount: number, proofs: Proof[]): Proof[] | null {
+  const result: Proof[] = [];
+  function backtrack(start: number, remaining: number): boolean {
+      if (remaining === 0) {
+          return true;
+      }
+      for (let i = start; i < proofs.length; i++) {
+          if (proofs[i].amount > remaining) continue;
+          result.push(proofs[i]);
+          if (backtrack(i + 1, remaining - proofs[i].amount)) {
+              return true;
+          }
+          result.pop();
+      }
+      return false;
+  }
+
+  proofs.sort((a, b) => b.amount - a.amount);
+  if (backtrack(0, requestedAmount)) {
+      return result;
+  }
+  return null;
+}
+
+const findMinExcess = function (requestedAmount: number, proofs: Proof[]): Proof[] {
+  proofs.sort((a, b) => b.amount - a.amount);
+  const selectedProofs: Proof[] = [];
+  let currentAmount = 0;
+
+  for (const proof of proofs) {
+      if (currentAmount >= requestedAmount) {
+          break;
+      }
+      selectedProofs.push(proof);
+      currentAmount += proof.amount;
+  }
+
+  return selectedProofs;
+}
+
+const getProofsToSend = function (requestedAmount: number, proofs: Proof[]): Proof[] {
+  const proofsAmount = getProofsAmount(proofs)
+  if(requestedAmount > proofsAmount) {
+    throw new AppError(
+      Err.VALIDATION_ERROR, 
+      'There is not enough funds to send this amount', 
+      {requestedAmount, proofsAmount, caller: 'getProofsToSend'})
+  }
+  const exactMatch = findExactMatch(requestedAmount, proofs);
+  if (exactMatch) {
+      return exactMatch;
+  }
+
+  return findMinExcess(requestedAmount, proofs);
 }
 
 
@@ -203,51 +235,6 @@ const getProofsFromTokenEntries = (tokenEntries: TokenEntry[]) => {
   })
   return proofSubset
 } */
-
-export const getProofsToSend = (amount: number, proofs: Proof[]) => {
-  if (proofs.reduce((s, t) => (s += t.amount), 0) < amount) {
-      // there are not enough proofs to pay the amount
-      throw new AppError(Err.VALIDATION_ERROR, 'Not enough proofs to match requested amount', {amount})
-    }
-
-    // sort proofs by amount ascending
-    proofs = proofs.slice().sort((a, b) => a.amount - b.amount);
-    // remember next bigger proof as a fallback
-    const nextBigger = proofs.find((p) => p.amount > amount);
-
-    // go through smaller proofs until sum is bigger than amount
-    const smallerProofs = proofs.filter((p) => p.amount <= amount);
-    // sort by amount descending
-    smallerProofs.sort((a, b) => b.amount - a.amount);
-
-    let selectedProofs: Proof[] = [];
-
-    if (smallerProofs.length == 0 && nextBigger) {
-      // if there are no smaller proofs, take the next bigger proof as a fallback
-      return [nextBigger];
-    } else if (smallerProofs.length == 0 && !nextBigger) {
-      // no proofs available
-      return [];
-    }
-
-    // recursively select the largest proof of smallerProofs, subtract the amount from the remainder
-    // and call coinSelect again with the remainder and the rest of the smallerProofs (without the largest proof)
-    let remainder = amount;
-    selectedProofs = [smallerProofs[0]];
-    remainder -= smallerProofs[0].amount;
-    if (remainder > 0) {
-      selectedProofs = selectedProofs.concat(getProofsToSend(remainder, smallerProofs.slice(1)));
-    }
-    let sum = selectedProofs.reduce((s, t) => (s += t.amount), 0);
-
-    // if sum of selectedProofs is smaller than amount, take next bigger proof instead as a fallback
-    if (sum < amount && nextBigger) {
-      selectedProofs = [nextBigger];
-    }
-
-    log.trace("[getProofsToSend] ### selected amounts", "sum", selectedProofs.reduce((s, t) => (s += t.amount), 0), selectedProofs.map(p => p.amount));
-    return selectedProofs
-} 
 
 
 /**
@@ -303,7 +290,7 @@ const getMintFromProof = function (
 ): Mint | undefined {
   let mint: Mint | undefined
   mints.forEach(m => {
-    if (m.keysets?.includes(proof.id)) {
+    if (m.keysetIds?.includes(proof.id)) {
       mint = m
     }
   })
@@ -322,7 +309,8 @@ export const CashuUtils = {
     getProofsAmount,
     getAmountPreferencesCount,
     getMintsFromToken,
-    updateMintProofs,
+    findMinExcess,
+    // updateMintProofs,
     getProofsFromTokenEntries,
     getProofsToSend,
     getProofsSubset,

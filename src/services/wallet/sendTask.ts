@@ -18,13 +18,13 @@ import {
 } from '@cashu/cashu-ts'
 import { getDefaultAmountPreference, isObj } from '@cashu/cashu-ts/src/utils'
 import { TransactionTaskResult, WalletTask } from '../walletService'
-import { MintBalance } from '../../models/Mint'
+import { MintBalance, MintProofsCounter } from '../../models/Mint'
 import { Proof } from '../../models/Proof'
 import { poller } from '../../utils/poller'
 import { WalletUtils } from './utils'
 import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
 import { MintUnit } from './currency'
-import { getProofsToSend } from '../../services/cashu/cashuUtils'
+import { boolean } from 'mobx-state-tree/dist/internal'
 
 const {
     mintsStore,
@@ -129,6 +129,10 @@ export const sendTask = async function (
 
         const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
         await transactionsStore.updateBalanceAfter(transactionId, balanceAfter)
+        
+        if(mintFeePaid > 0) {
+            await transactionsStore.updateFee(transactionId, mintFeePaid)
+        }
 
         log.trace('[send] totalBalance after', balanceAfter)
 
@@ -203,9 +207,11 @@ export const sendFromMint = async function (
             )
         }
 
-        const proofsFromMint = proofsStore.getByMint(mintUrl, {isPending: false, unit}) as Proof[]
-
-        log.debug('[sendFromMint]', 'proofsFromMint count', {proofsCount: proofsFromMint.length, amountToSend})
+        
+             
+        const proofsFromMint = proofsStore.getByMint(mintUrl, {isPending: false, unit}) as Proof[]        
+        
+        log.debug('[sendFromMint]', 'proofsFromMint count', {mintBalance: mintBalance.balances[unit], amountToSend})
 
         if (proofsFromMint.length < 1) {
             throw new AppError(
@@ -219,8 +225,8 @@ export const sendFromMint = async function (
         if (totalAmountFromMint < amountToSend) {
             throw new AppError(
                 Err.VALIDATION_ERROR,
-                'There is not enough funds to send this payment',
-                {totalAmountFromMint, amountToSend},
+                'There is not enough funds to send this amount',
+                {totalAmountFromMint, amountToSend, caller: 'sendFromMint'},
             )
         }
 
@@ -259,25 +265,78 @@ export const sendFromMint = async function (
         }
         
         /* 
-         * if we did not selected ecash but amount and we might need a swap of ecash by the mint to match exact amount        
-         */        
+         *  SWAP or DIRECT SEND 
+         *  if we did not selected ecash but amount and we might need a swap of ecash by the mint to match exact amount        
+         */
+
+        // Prioritize send from inactive keysets
+        let proofsToSendFrom: Proof[] = []   
+        const inactiveKeysetIds = mintInstance?.keysets.filter(k => k.active === false).map(k => k.id)   
+        const activeKeysetIds = mintInstance?.keysets.filter(k => k.active === true).map(k => k.id)
         
-        const proofsToSendFrom = getProofsToSend(
-            amountToSend,
-            proofsFromMint,
-        )
+        log.trace('[sendFromMint]', {inactiveKeysetIds, activeKeysetIds})
+        
+        if(inactiveKeysetIds.length > 0) {
+            
+            const proofsFromInactiveKeysets = proofsStore.getByMint(mintUrl, {isPending: false, unit, keysetIds: inactiveKeysetIds})
+            const proofsFromActiveKeysets = proofsStore.getByMint(mintUrl, {isPending: false, unit, keysetIds: activeKeysetIds})            
 
-        let proofsToSendFromAmount = CashuUtils.getProofsAmount(proofsToSendFrom)
+            if(proofsFromInactiveKeysets && proofsFromInactiveKeysets.length > 0) {
+                let proofsFromInactiveKeysetsAmount = CashuUtils.getProofsAmount(proofsFromInactiveKeysets)
 
-        // swap will happen if we could not select proofs equal to amountToSend
-        let returnedAmount = proofsToSendFromAmount - amountToSend
+                log.trace('[sendFromMint]', {proofsFromInactiveKeysetsAmount})
+
+                if(proofsFromInactiveKeysetsAmount >= amountToSend) {
+                    proofsToSendFrom = CashuUtils.getProofsToSend(
+                        amountToSend,
+                        proofsFromInactiveKeysets
+                    )
+                } else {
+                    const remainingAmount = amountToSend - proofsFromInactiveKeysetsAmount
+                    const remainingProofs = CashuUtils.findMinExcess(remainingAmount, proofsFromActiveKeysets!)          
+                    proofsToSendFrom = CashuUtils.getProofsToSend(
+                        amountToSend,
+                        [...proofsFromInactiveKeysets, ...remainingProofs]
+                    )
+                }
+            } else {
+                proofsToSendFrom = CashuUtils.getProofsToSend(
+                    amountToSend,
+                    proofsFromMint
+                )
+            }
+        }  else {
+            proofsToSendFrom = CashuUtils.getProofsToSend(
+                amountToSend,
+                proofsFromMint
+            )
+        }
+
+        let proofsToSendFromAmount = CashuUtils.getProofsAmount(proofsToSendFrom)        
+        // swap will happen if we could not select proofs equal to amountToSend        
         let mintFeeReserve: number = 0
+        let mintFeePaid: number = 0
+        let proofsToSend: Proof[] = []
+        let returnedProofs: Proof[] = []
+        let isSwapNeeded: boolean = proofsToSendFromAmount - amountToSend > 0 ? true : false
+        let returnedAmount = 0
 
-        if(returnedAmount > 0) {
-            mintFeeReserve = mintInstance.getFeesForProofs(proofsToSendFrom)
+        log.trace('[sendFromMint]', {proofsToSendFromAmount, amountToSend})
+        /* 
+         *  SWAP is needed, could involve a fee
+         *  if we did not selected ecash but amount and we might need a swap of ecash by the mint to match exact amount        
+         */
+        if(isSwapNeeded) {
+            // Calculate feeReserve from mint fee rate
+            mintFeeReserve = mintInstance.getMintFeeReserve(proofsToSendFrom)
+            // This is expected to get back from mint as a split remainder - we deduct fee that mint will keep
+            returnedAmount = proofsToSendFromAmount - amountToSend - mintFeeReserve
+
+            log.debug('[sendFromMint] Swap is needed.', {mintFeeReserve, returnedAmount})
+            
             // if we did not selected enough proofs to cover the fees we need some more
-            if(mintFeeReserve > returnedAmount) {
-                const missingFeesAmount = mintFeeReserve - returnedAmount
+            if(returnedAmount < 0) {
+                const missingFeesAmount = Math.abs(returnedAmount)
                 const remainingProofs = proofsStore.getProofsSubset(proofsFromMint, proofsToSendFrom)
                 const remainingProofsAmount = CashuUtils.getProofsAmount(remainingProofs)
 
@@ -290,8 +349,8 @@ export const sendFromMint = async function (
                         {totalAmountFromMint, amountToSend, mintFeeReserve},
                     )
                 }
-
-                const proofsToPayFees = getProofsToSend(
+                // select additional proof(s) to pay fees
+                const proofsToPayFees = CashuUtils.getProofsToSend(
                     missingFeesAmount,
                     remainingProofs
                 )
@@ -299,51 +358,51 @@ export const sendFromMint = async function (
                 // add more proofs into inputs and recalculate amounts
                 proofsToSendFrom.push(...proofsToPayFees)
                 proofsToSendFromAmount = CashuUtils.getProofsAmount(proofsToSendFrom)
-                returnedAmount =  proofsToSendFromAmount - amountToSend             
+                returnedAmount =  proofsToSendFromAmount - amountToSend - mintFeeReserve
             }
 
-            // decrease requested returned outputs by fees so that the mint can charge them
-            returnedAmount -= mintFeeReserve
-        }
+            // Outputs denominations we asked for to get
+            const amountPreferences = getDefaultAmountPreference(amountToSend)
+            // Output denominations we are about to get as a split remainder
+            const returnedAmountPreferences = getDefaultAmountPreference(returnedAmount)
 
-        // Inputs we are about to send
-        const amountPreferences = getDefaultAmountPreference(amountToSend)
-        // Outputs we are about to get back if swap occurs
-        const returnedAmountPreferences = getDefaultAmountPreference(returnedAmount)
+            const countOfProofsToSend = CashuUtils.getAmountPreferencesCount(amountPreferences)
+            const countOfReturnedProofs = CashuUtils.getAmountPreferencesCount(returnedAmountPreferences)
+            const countOfInFlightProofs = countOfProofsToSend + countOfReturnedProofs
 
-        const countOfProofsToSend = CashuUtils.getAmountPreferencesCount(amountPreferences)
-        const countOfReturnedProofs = CashuUtils.getAmountPreferencesCount(returnedAmountPreferences)
-        const countOfInFlightProofs = countOfProofsToSend + countOfReturnedProofs
-       
-        log.trace('[sendFromMint]', 'amountPreferences', {amountPreferences, returnedAmountPreferences})
-        log.trace('[sendFromMint]', 'countOfInFlightProofs', countOfInFlightProofs)    
-        
-        // Increase the proofs counter before the mint call so that in case the response
-        // is not received our recovery index counts for sigs the mint has already issued (prevents duplicate b_b bug)
-        // + acquire lock and set inFlight values                
-        await WalletUtils.lockAndSetInFlight(mintInstance, unit, countOfInFlightProofs, transactionId)
-        
-        // get locked counter values
-        const lockedProofsCounter = mintInstance.getProofsCounterByUnit?.(unit)        
-        
-        // if split to required denominations was necessary, this gets it done with the mint and we get the return
-        
-        const {returnedProofs, proofsToSend, mintFeePaid} = await MintClient.send(
-            mintUrl,
-            amountToSend,
-            unit,            
-            proofsToSendFrom,
-            {              
-              preference: amountPreferences,
-              counter: lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
-            }
-        )
+            log.trace('[sendFromMint]', 'amountPreferences', {amountPreferences, returnedAmountPreferences})
+            log.trace('[sendFromMint]', 'countOfInFlightProofs', countOfInFlightProofs)    
 
-        // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs        
-        mintInstance.decreaseProofsCounter(lockedProofsCounter.keyset, countOfInFlightProofs) 
+            // Increase the proofs counter before the mint call so that in case the response
+            // is not received our recovery index counts for sigs the mint has already issued (prevents duplicate b_b bug)
+            // + acquire lock and set inFlight values                
+            await WalletUtils.lockAndSetInFlight(mintInstance, unit, countOfInFlightProofs, transactionId)
 
-        // add proofs returned by the mint after the split        
-        if (returnedProofs.length > 0) {
+            // get locked counter values
+            const lockedProofsCounter = mintInstance.getProofsCounterByUnit(unit)!       
+
+            // if split to required denominations was necessary, this gets it done with the mint and we get the return
+
+            const sendResult = await MintClient.send(
+                mintUrl,
+                amountToSend,
+                mintFeeReserve,
+                unit,            
+                proofsToSendFrom,
+                {              
+                    preference: amountPreferences,                    
+                    counter: lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
+                }
+            )
+
+            returnedProofs = sendResult.returnedProofs
+            proofsToSend = sendResult.proofsToSend
+            mintFeePaid = sendResult.mintFeePaid
+
+            // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs        
+            mintInstance.decreaseProofsCounter(lockedProofsCounter.keyset, countOfInFlightProofs) 
+
+            // add proofs returned by the mint after the split
             log.trace('[sendFromMint] add returned proofs to spendable')
             WalletUtils.addCashuProofs(
                 mintUrl,
@@ -352,16 +411,24 @@ export const sendFromMint = async function (
                     unit,
                     transactionId,
                     isPending: false
-                }                
-            )            
-        }
+                })            
+            
+        } else if (returnedAmount === 0) {
+        /* 
+         *  SWAP not needed, all selected proofs will be sent
+         */
+            log.trace('[sendFromMint] Swap is not necessary, all proofsToSendFrom will be sent.')
+            proofsToSend = [...proofsToSendFrom]
+            
+        } else {
+            throw new AppError(Err.VALIDATION_ERROR, 'Amount to keep can not be negative')
+        }        
 
         // remove used proofs and move sent proofs to pending
         log.trace('[sendFromMint] remove proofsToSendFrom from spendable')
         proofsStore.removeProofs(proofsToSendFrom)
 
-        // these might be original proofToSendFrom if they matched the exact amount and split was not necessary  
-        log.trace('[sendFromMint] add proofsToSend to pending')      
+        // these might be original proofToSendFrom if they matched the exact amount and split was not necessary
         WalletUtils.addCashuProofs(            
             mintUrl,
             proofsToSend,

@@ -821,7 +821,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         )   
 
         // get locked counter values        
-        const lockedProofsCounter = mintInstance.getProofsCounterByUnit(unit)
+        const lockedProofsCounter = mintInstance.getProofsCounterByUnit(unit)!
 
         let proofs: CashuProof[] = []
         

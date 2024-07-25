@@ -15,6 +15,7 @@ import { getRootStore } from './helpers/getRootStore'
 import { generateId } from '../utils/utils'
 import { Proof } from './Proof'
 
+
 // used as a helper type across app
 /* export type Balance = {
     balance: number
@@ -52,7 +53,7 @@ export type MintProofsCounter = {
     inFlightTid?: number // related tx id
 }
 
-export const MintProofsCounterModel = types
+/* export const MintProofsCounterModel = types
     .model('MintProofsCounter', {        
         keyset: types.string,
         unit: types.optional(types.frozen<MintUnit>(), 'sat'),
@@ -60,7 +61,7 @@ export const MintProofsCounterModel = types
         inFlightFrom: types.maybe(types.number),
         inFlightTo: types.maybe(types.number),
         inFlightTid: types.maybe(types.number)
-    })
+    })*/
 /**
  * This represents a Cashu mint
  */
@@ -73,7 +74,16 @@ export const MintModel = types
         units: types.array(types.frozen<MintUnit>()),
         keysets: types.array(types.frozen<CashuMintKeyset>()),   
         keys: types.array(types.frozen<CashuMintKeys>()),
-        proofsCounters: types.array(MintProofsCounterModel),
+        proofsCounters: types.array(
+            types.model('MintProofsCounter', {
+              keyset: types.string,
+              unit: types.optional(types.frozen<MintUnit>(), 'sat'),
+              counter: types.number,
+              inFlightFrom: types.maybe(types.number),
+              inFlightTo: types.maybe(types.number),
+              inFlightTid: types.maybe(types.number)
+            })
+        ),
         color: types.optional(types.string, colors.palette.iconBlue200),
         status: types.optional(types.frozen<MintStatus>(), MintStatus.ONLINE),
         createdAt: types.optional(types.Date, new Date()),
@@ -147,6 +157,7 @@ export const MintModel = types
             const alreadyExists = self.proofsCounters.some(p => p.keyset === counter.keyset)
 
             if(!alreadyExists) {
+                log.trace('[addProofsCounter]', {counter})          
                 self.proofsCounters.push(counter)
             }
 
@@ -180,43 +191,44 @@ export const MintModel = types
                 counter: 0,                    
             }
 
-            const proofsCounterInstance = MintProofsCounterModel.create(newCounter)
             self.addProofsCounter(newCounter)
-            
-            log.trace('[ceateProofsCounter]', {newCounter: getSnapshot(proofsCounterInstance)})
-            return proofsCounterInstance            
+            return self.getProofsCounter(keyset.id)
         }
     }))
     .actions(self => ({ 
         initKeyset(keyset: CashuMintKeyset) {
             // Do not add unit the wallet does not have configured
-            if(!self.isUnitSupported(keyset.unit as MintUnit)) {                                
-                throw new AppError(Err.VALIDATION_ERROR, `Unsupported unit provided by the mint: ${keyset.unit}`)            
-            }
-            
-            const existing = self.keysets.find(k => k.id === keyset.id)
-
-            if(existing) {
-                if (existing.unit !== keyset.unit) {                    
-                    throw new AppError(Err.VALIDATION_ERROR, `Keyset unit mismatch, got ${keyset.unit}, expected ${existing.unit}`)                 
-                }  
+            try {
+                if(!self.isUnitSupported(keyset.unit as MintUnit)) {                                
+                    throw new AppError(Err.VALIDATION_ERROR, `Unsupported unit provided by the mint: ${keyset.unit}`)            
+                }
                 
-                return existing
-            }
+                const existing = self.keysets.find(k => k.id === keyset.id)
 
-            if(!keyset.input_fee_ppk) {
-                keyset.input_fee_ppk = 0
-            }
+                if(existing) {
+                    if (existing.unit !== keyset.unit) {                    
+                        throw new AppError(Err.VALIDATION_ERROR, `Keyset unit mismatch, got ${keyset.unit}, expected ${existing.unit}`)                 
+                    }  
+                    
+                    return existing
+                }
 
-            if(!keyset.unit) {
-                keyset.unit = 'sat'
-            }
+                if(!keyset.input_fee_ppk) {
+                    keyset.input_fee_ppk = 0
+                }
 
-            self.addKeyset(keyset)            
-            self.addUnit(keyset.unit as MintUnit)            
-            self.createProofsCounter(keyset)
+                if(!keyset.unit) {
+                    keyset.unit = 'sat'
+                }
 
-            log.trace('[initKeyset]', {newKeyset: keyset})          
+                self.addKeyset(keyset)            
+                self.addUnit(keyset.unit as MintUnit)            
+                self.createProofsCounter(keyset)
+
+                log.trace('[initKeyset]', {newKeyset: keyset})
+            } catch (e: any) {
+                throw new AppError(Err.WALLET_ERROR, '[initKeyset] ' + e.message)
+            }        
         },
         initKeys(key: CashuMintKeys) {
             // Do not add unit the wallet does not have configured
@@ -409,7 +421,7 @@ export const MintModel = types
             
             self.proofsCounters = cast(self.proofsCounters)
         },
-        getFeesForProofs(proofs: Proof[]): number {
+        getMintFeeReserve(proofs: Proof[]): number {
             // Find the corresponding keyset for each proof and sum the input fees
             const totalInputFees = proofs.reduce((sum, proof) => {
               const keyset = self.keysets.find(k => k.id === proof.id)
@@ -417,10 +429,10 @@ export const MintModel = types
             }, 0)
       
             // Calculate the fees
-            const fees = Math.max(Math.floor((totalInputFees + 999) / 1000), 0)
+            const feeReserve = Math.max(Math.floor((totalInputFees + 999) / 1000), 0)
             
-            log.debug('*** [getFeesForProofs]', {fees})
-            return fees
+            log.debug('[getMintFeeReserve]', {feeReserve})
+            return feeReserve
         }
     }))
     .views(self => ({

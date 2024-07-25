@@ -304,7 +304,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                          contactToSendTo?.picture             
                     )
 
-                    return navigation.navigate('Wallet', {})
+                    // return navigation.navigate('Wallet', {})
                 } catch(e: any) {
                     log.error(e.name, e.message) // silent
                 }
@@ -687,9 +687,6 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                     </View>
                 </View>
             )}
-            {isLoading && <Loading />}
-            {error && <ErrorModal error={error} />}
-            {info && <InfoModal message={info} />}
         </View>
         <BottomModal
           isVisible={isProofSelectorModalVisible}
@@ -781,6 +778,9 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
           onBackButtonPress={toggleResultModal}
           onBackdropPress={toggleResultModal}
         />
+        {isLoading && <Loading />}
+        {error && <ErrorModal error={error} />}
+        {info && <InfoModal message={info} />}
       </Screen>
     )
   }

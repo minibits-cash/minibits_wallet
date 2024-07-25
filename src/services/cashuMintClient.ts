@@ -26,6 +26,7 @@ import { isObj } from '@cashu/cashu-ts/src/utils'
 import { JS_BUNDLE_VERSION } from '@env'
 import { MintUnit } from './wallet/currency'
 import { getSnapshot } from 'mobx-state-tree'
+import { Token } from '../models/Token'
 
 let _mints: CashuMint[] = []
 let _wallets: CashuWallet[] = [] // used where seed is not required (perf)
@@ -114,22 +115,22 @@ const getMint = async function (mintUrl: string): Promise<CashuMint> {
     // get mint model from wallet state
     const mintInstance = mintsStore.findByUrl(mintUrl)
 
-    if(!mintInstance) {
-      throw new AppError(Err.NOTFOUND_ERROR, 'Missing mint in the wallet state', {mintUrl})
+    // skip checks if this is new mint being added
+    if(mintInstance) {
+      const newKeysets = keysets.filter(freshKeyset => {
+        return !mintInstance.keysets.some(keyset => keyset.id === freshKeyset.id);
+      })
+  
+      if(newKeysets.length > 0) {
+        // if we heve new keysets, get and sync new keys
+        const {keysets} = await newMint.getKeys()
+        mintInstance.refreshKeys(keysets)
+      }
+  
+      // sync wallet state with fresh keysets, active statuses and keys
+      mintInstance.refreshKeysets(keysets) 
     }
-    // check if we've got new keysets not existing in wallet state
-    const newKeysets = keysets.filter(freshKeyset => {
-      return !mintInstance.keysets.some(keyset => keyset.id === freshKeyset.id);
-    })
-
-    if(newKeysets.length > 0) {
-      // if we heve new keysets, get and sync new keys
-      const {keysets} = await newMint.getKeys()
-      mintInstance.refreshKeys(keysets)
-    }
-
-    // sync wallet state with fresh keysets, active statuses and keys
-    mintInstance.refreshKeysets(keysets)    
+   
     // store cashu-ts mint instance in memory
     _mints.push(newMint)
 
@@ -142,13 +143,13 @@ const getWallet = async function (
     mintUrl: string,
     unit: MintUnit,
     options?: {
-      keysetId?: string // force specific (inactive) keys to swap from
+      keysetId?: string
       withSeed: boolean
     }    
 ): Promise<CashuWallet> {
     // syncs mint model in wallet state and returns cashu-ts mint class instance
     const cashuMint = await getMint(mintUrl)
-    
+        
     // mint model from wallet state
     const mintInstance = mintsStore.findByUrl(mintUrl)
     if(!mintInstance) {
@@ -156,7 +157,7 @@ const getWallet = async function (
         mintUrl
       })
     }
-
+    
     // select keys to be used to find or create new cashu-ts wallet instance
     let walletKeys: MintKeys
     if(options && options.keysetId) {
@@ -181,7 +182,9 @@ const getWallet = async function (
       walletKeys = requestedKeys
     } else {
       // if not we find first active keyset and related keys
-      const activeKeyset = mintInstance.keysets.find(k => k.unit === unit && k.active === true) 
+      const activeKeyset = mintInstance.keysets.find(k => k.unit === unit && k.active === true)
+
+      
 
       if(!activeKeyset) {
         throw new AppError(Err.VALIDATION_ERROR, 'Wallet has not any active keyset for the selected unit.', {
@@ -199,7 +202,7 @@ const getWallet = async function (
         })
       }
         
-      walletKeys = getSnapshot(activeKeys)
+      walletKeys = activeKeys      
     }    
 
     if (options && options.withSeed) {
@@ -288,6 +291,7 @@ const receive = async function (
     mintUrl: string,
     unit: MintUnit,
     decodedToken: CashuToken,
+    mintFeeReserve: number,
     options: {      
       preference: AmountPreference[],
       counter: number
@@ -301,8 +305,11 @@ const receive = async function (
         withSeed: true,         
       })   
     
+    const amountToReceive = CashuUtils.getTokenAmounts(decodedToken as Token).totalAmount
+
     const proofs = await cashuWallet.receive(
-      decodedToken, 
+      decodedToken,
+      mintFeeReserve,
       {
         keysetId: cashuWallet.keys.id,
         preference: options.preference,
@@ -311,7 +318,10 @@ const receive = async function (
         privkey: undefined
       })
 
-    return proofs
+      const receivedAmount = CashuUtils.getProofsAmount(proofs as Proof[])
+      const mintFeePaid = amountToReceive - receivedAmount
+
+    return {proofs, mintFeePaid}
   } catch (e: any) {
     throw new AppError(Err.MINT_ERROR, e.message)
   }
@@ -322,6 +332,7 @@ const receive = async function (
 const send = async function (
   mintUrl: string,
   amountToSend: number,
+  mintFeeReserve: number,
   unit: MintUnit,  
   proofsToSendFrom: Proof[],
   options: {    
@@ -337,10 +348,11 @@ const send = async function (
         withSeed: true,         
       }) 
 
-    log.debug('[MintClient.sendFromMint] counter', options.counter)
+    log.debug('[MintClient.send] counter', options.counter)
 
     const {returnChange, send} = await cashuWallet.send(
       amountToSend,
+      mintFeeReserve,
       proofsToSendFrom,
       {
         keysetId: cashuWallet.keys.id,
@@ -351,8 +363,8 @@ const send = async function (
       }      
     )
 
-    log.debug('[MintClient.sendFromMint] returnedProofs', returnChange)
-    log.debug('[MintClient.sendFromMint] proofsToSend', send)
+    log.debug('[MintClient.send] returnedProofs', returnChange)
+    log.debug('[MintClient.send] proofsToSend', send)
 
     // do some basic validations that proof amounts from mints match
     const totalAmountToSendFrom = CashuUtils.getProofsAmount(proofsToSendFrom)
@@ -397,10 +409,8 @@ const getSpentOrPendingProofsFromMint = async function (
   unit: MintUnit,  
   proofs: Proof[],
 ) {
-  try {
-    
-    const cashuWallet = await getWallet(mintUrl, unit, {withSeed: true}) 
-
+  try {    
+    const cashuWallet = await getWallet(mintUrl, unit, {withSeed: true})    
     const spentPendingProofs = await cashuWallet.checkProofsSpent(proofs)
 
     log.trace('[CashuMintClient.getSpentOrPendingProofsFromMint]', {mintUrl, spentPendingProofs})

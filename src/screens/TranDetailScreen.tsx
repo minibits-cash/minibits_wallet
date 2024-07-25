@@ -556,6 +556,12 @@ const ReceiveInfoBlock = function (props: {
                         label="tranDetailScreen.type"
                         value={transaction.type as string}
                     />
+                    <TranItem
+                      label="tranDetailScreen.fee"
+                      value={transaction.fee}
+                      unit={transaction.unit}
+                      isCurrency={true}
+                    />
                     {encodedTokenToRetry ? (
                         <View
                         style={{flexDirection: 'row', justifyContent: 'space-between'}}>
@@ -809,6 +815,12 @@ const ReceiveOfflineInfoBlock = function (props: {
                         value={transaction.type as string}
                     />
                     <TranItem
+                      label="tranDetailScreen.fee"
+                      value={transaction.fee}
+                      unit={transaction.unit}
+                      isCurrency={true}
+                    />
+                    <TranItem
                         label="tranDetailScreen.status"
                         value={transaction.status as string}
                     />
@@ -961,6 +973,12 @@ const SendInfoBlock = function (props: {
                         <TranItem
                             label="tranDetailScreen.type"
                             value={transaction.type as string}
+                        />
+                        <TranItem
+                          label="tranDetailScreen.fee"
+                          value={transaction.fee}
+                          unit={transaction.unit}
+                          isCurrency={true}
                         />
                         {transaction.status === TransactionStatus.PENDING ? (
                             <View
@@ -1202,6 +1220,12 @@ const TopupInfoBlock = function (props: {
                         label="tranDetailScreen.type"
                         value={transaction.type as string}
                     />
+                    <TranItem
+                      label="tranDetailScreen.fee"
+                      value={transaction.fee}
+                      unit={transaction.unit}
+                      isCurrency={true}
+                    />
                     {paymentRequest && isInternetReachable ? (
                         <View
                         style={{flexDirection: 'row', justifyContent: 'space-between'}}>
@@ -1408,10 +1432,6 @@ const TransferInfoBlock = function (props: {
               isCurrency={true}
               isFirst={true}
             />
-            <TranItem
-              label="tranDetailScreen.lightningFee"
-              value={`${transaction.fee}`}
-            />
             {transaction.memo && (
             <TranItem
               label="tranDetailScreen.memoFromInvoice"
@@ -1427,6 +1447,12 @@ const TransferInfoBlock = function (props: {
             <TranItem
               label="tranDetailScreen.type"
               value={transaction.type as string}
+            />
+            <TranItem
+              label="tranDetailScreen.fee"
+              value={transaction.fee}
+              unit={transaction.unit}
+              isCurrency={true}
             />
             <TranItem
               label="tranDetailScreen.status"
