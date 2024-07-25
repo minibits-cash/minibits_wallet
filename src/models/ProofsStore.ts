@@ -45,15 +45,25 @@ export const ProofsStoreModel = types
         getByMint(
             mintUrl: string,
             options: {
-                unit?: MintUnit, 
                 isPending: boolean,
+                unit?: MintUnit,                
+                keysetIds?: string[]
             }
-            
         ): Proof[] | undefined {
-            const proofs = options.isPending ? self.pendingProofs : self.proofs
-            
+            let proofs: Proof[] = []
+            if(options.keysetIds && options.keysetIds.length > 0) {
+                proofs = options.isPending ? 
+                    self.pendingProofs.filter(p => options.keysetIds?.includes(p.id)) : 
+                    self.proofs.filter(p => options.keysetIds?.includes(p.id))
+            } else {
+                proofs = options.isPending ? self.pendingProofs : self.proofs
+            }
+
             if (options.unit) {
-                return proofs.filter(proof => proof.mintUrl === mintUrl && proof.unit === options.unit)
+                return proofs.filter(
+                    proof => proof.mintUrl === mintUrl && 
+                    proof.unit === options.unit
+                )
                 .slice()
                 .sort((a, b) => b.amount - a.amount)   
             }
@@ -62,7 +72,7 @@ export const ProofsStoreModel = types
                 .slice()
                 .sort((a, b) => b.amount - a.amount)
 
-        },
+        },        
         getProofInstance(proof: Proof, isPending: boolean = false) {
             let proofInstance: Proof | undefined
             if (isStateTreeNode(proof)) {
@@ -363,30 +373,19 @@ export const ProofsStoreModel = types
 
             log.debug('[getMintBalanceWithMaxBalance]', {balances})
 
-            /*const maxBalance = balances.reduce((maxBalance, currentBalance) => {
-                if(currentBalance.balances[unit] === undefined) {
-                    return maxBalance
-                }
-
-                if (currentBalance.balances[unit] || 0 > maxBalance.balances[unit]!) {
-                  return currentBalance
-                }
-                return maxBalance
-              })*/
-
-              let maxBalance = null;
-              let maxAmount = -Infinity;
+            let maxBalance = null;
+            let maxAmount = -Infinity;
           
-              for (const balance of balances) {
-                  const amount = balance.balances[unit];
-                  if (amount !== undefined && amount > maxAmount) {
-                        maxAmount = amount;
-                        maxBalance = balance;
-                  }
-              }
+            for (const balance of balances) {
+                const amount = balance.balances[unit];
+                if (amount !== undefined && amount > maxAmount) {
+                      maxAmount = amount;
+                      maxBalance = balance;
+                }
+            }
 
-              log.debug('[getMintBalanceWithMaxBalance]', {maxBalance})
-              return maxBalance;
+            log.debug('[getMintBalanceWithMaxBalance]', {maxBalance})
+            return maxBalance;
         },
         getUnitBalance: (unit: MintUnit) => {
             const balances = self.getBalances().unitBalances
@@ -395,22 +394,12 @@ export const ProofsStoreModel = types
                 .find((balance: UnitBalance) => balance.unit === unit)                
 
             return unitBalance
-        },
-        getProofsToSend: (amount: number, proofs: Proof[]) => {
-            let proofsAmount = 0
-            const proofSubset = proofs.filter(proof => {
-                if (proofsAmount < amount) {
-                proofsAmount += proof.amount
-                return true
-                }
-            })
-        return proofSubset
-        },
+        },        
         getProofsSubset: (proofs: Proof[], proofsToRemove: Proof[]) => {
             return proofs.filter(proof => !proofsToRemove.includes(proof))
         },
     }))
-
+    
 
 export interface Proofs extends Instance<typeof ProofsStoreModel> {}
 export interface ProofsStoreSnapshot

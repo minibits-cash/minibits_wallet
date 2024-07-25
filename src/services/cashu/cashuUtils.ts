@@ -154,31 +154,6 @@ const getMintsFromToken = function (token: Token): string[] {
 }
 
 
-const updateMintProofs = function (
-  token: Token,
-  mintUrl: string,
-  updatedProofs: Proof[],
-): Token {
-  // Find the index of the mint to update
-  const mintIndex = token.token.findIndex(mint => mint.mint === mintUrl)
-
-  if (mintIndex === -1) {
-    throw new AppError(
-      Err.VALIDATION_ERROR,
-      `Mint ${mintUrl} not found in token`,
-    )
-  }
-
-  // Clone the token instance
-  const updatedToken: Token = cloneDeep(token)
-
-  // Update the proofs for the specified mint
-  updatedToken.token[mintIndex].proofs = updatedProofs
-
-  return updatedToken
-}
-
-
 const getProofsFromTokenEntries = (tokenEntries: TokenEntry[]) => {
   const proofs: Proof[] = []
 
@@ -190,13 +165,70 @@ const getProofsFromTokenEntries = (tokenEntries: TokenEntry[]) => {
 }
 
 
+const findExactMatch = function (requestedAmount: number, proofs: Proof[]): Proof[] | null {
+  const result: Proof[] = [];
+  function backtrack(start: number, remaining: number): boolean {
+      if (remaining === 0) {
+          return true;
+      }
+      for (let i = start; i < proofs.length; i++) {
+          if (proofs[i].amount > remaining) continue;
+          result.push(proofs[i]);
+          if (backtrack(i + 1, remaining - proofs[i].amount)) {
+              return true;
+          }
+          result.pop();
+      }
+      return false;
+  }
+
+  proofs.sort((a, b) => b.amount - a.amount);
+  if (backtrack(0, requestedAmount)) {
+      return result;
+  }
+  return null;
+}
+
+const findMinExcess = function (requestedAmount: number, proofs: Proof[]): Proof[] {
+  proofs.sort((a, b) => b.amount - a.amount);
+  const selectedProofs: Proof[] = [];
+  let currentAmount = 0;
+
+  for (const proof of proofs) {
+      if (currentAmount >= requestedAmount) {
+          break;
+      }
+      selectedProofs.push(proof);
+      currentAmount += proof.amount;
+  }
+
+  return selectedProofs;
+}
+
+const getProofsToSend = function (requestedAmount: number, proofs: Proof[]): Proof[] {
+  const proofsAmount = getProofsAmount(proofs)
+  if(requestedAmount > proofsAmount) {
+    throw new AppError(
+      Err.VALIDATION_ERROR, 
+      'There is not enough funds to send this amount', 
+      {requestedAmount, proofsAmount, caller: 'getProofsToSend'})
+  }
+  const exactMatch = findExactMatch(requestedAmount, proofs);
+  if (exactMatch) {
+      return exactMatch;
+  }
+
+  return findMinExcess(requestedAmount, proofs);
+}
+
+
 /**
  * returns a subset of tokens, so that not all tokens are sent to mint for smaller amounts.
  * @param amount
  * @param tokens
  * @returns
  */
-const getProofsToSend = function (amount: number, proofs: Array<Proof>) {
+/* const getProofsToSend = function (amount: number, proofs: Array<Proof>) {
   let proofsAmount = 0
   const proofSubset = proofs.filter(proof => {
     if (proofsAmount < amount) {
@@ -205,7 +237,7 @@ const getProofsToSend = function (amount: number, proofs: Array<Proof>) {
     }
   })
   return proofSubset
-}
+} */
 
 
 /**
@@ -261,7 +293,7 @@ const getMintFromProof = function (
 ): Mint | undefined {
   let mint: Mint | undefined
   mints.forEach(m => {
-    if (m.keysets?.includes(proof.id)) {
+    if (m.keysetIds?.includes(proof.id)) {
       mint = m
     }
   })
@@ -280,7 +312,8 @@ export const CashuUtils = {
     getProofsAmount,
     getAmountPreferencesCount,
     getMintsFromToken,
-    updateMintProofs,
+    findMinExcess,
+    // updateMintProofs,
     getProofsFromTokenEntries,
     getProofsToSend,
     getProofsSubset,

@@ -468,6 +468,7 @@
 		"invoice": "Lightning invoice to pay",
 		"isOffline": "Redeem online",
 		"lightningFee": "Lightning network fee",
+		"fee": "Fee",
 		"memoFromInvoice": "Memo from invoice",
 		"memoFromSender": "Memo from sender",
 		"receiveOfflineComplete": "Redeem to wallet",

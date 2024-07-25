@@ -100,6 +100,8 @@ export interface WalletTaskResult {
 
 export interface TransactionTaskResult extends WalletTaskResult {
     transaction?: Transaction
+    lightningFeePaid?: number
+    mintFeePaid?: number
 }
 
 export type ReceivedEventResult = {
@@ -362,9 +364,9 @@ const _handleSpentByMintTask = async function (
             spent: spentProofs, 
             pending: pendingProofs
         } = await MintClient.getSpentOrPendingProofsFromMint(
-            proofsFromMint,
             mintUrl,            
-            mint && mint.units ? mint.units[0] : 'sat'
+            mint && mint.units ? mint.units[0] : 'sat',
+            proofsFromMint
         )
     
         if(mint) { 
@@ -603,9 +605,9 @@ const _handleInFlightByMintTask = async function (mint: Mint, seed: Uint8Array):
         }        
 
         const {spent, pending} = await MintClient.getSpentOrPendingProofsFromMint(
-            proofs as Proof[],
             mint.mintUrl,            
-            mint.units ? mint.units[0] : 'sat'
+            mint.units ? mint.units[0] : 'sat',
+            proofs as Proof[]
         )
 
         const spentCount = spent.length        
@@ -819,17 +821,19 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         )   
 
         // get locked counter values        
-        const lockedProofsCounter = await mintInstance.getProofsCounterByUnit(unit)
+        const lockedProofsCounter = mintInstance.getProofsCounterByUnit(unit)!
 
         let proofs: CashuProof[] = []
         
         proofs = (await MintClient.mintProofs(
             mint as string,
-            unit,
             amount,
-            mintQuote as string,
-            amountPreferences,
-            lockedProofsCounter.inFlightFrom as number
+            unit,
+            mintQuote,
+            {
+              preference: amountPreferences,
+              counter: lockedProofsCounter.inFlightFrom as number
+            }
         )) as CashuProof[]        
 
         mintInstance.decreaseProofsCounter(lockedProofsCounter.keyset, countOfInFlightProofs)        
