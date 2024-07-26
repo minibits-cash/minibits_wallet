@@ -1,8 +1,5 @@
-import notifee, { AndroidImportance } from '@notifee/react-native'
 import { StackNavigationProp } from '@react-navigation/stack'
-import { getParams, LNURLResponse } from 'js-lnurl'
 import { ReceiveOption, SendOption } from '../screens'
-import { colors } from '../theme'
 import AppError, { Err } from '../utils/AppError'
 import { log } from './logService'
 import { CashuUtils } from './cashu/cashuUtils'

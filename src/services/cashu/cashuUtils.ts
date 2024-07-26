@@ -5,7 +5,7 @@ import {
     getEncodedToken,  
 } from '@cashu/cashu-ts'
 import cbor from '@exodus/borc'
-import type {Token as V3Token, TokenEntry as V3TokenEntry, Proof as V3Proof} from '@cashu/cashu-ts'
+import type {Token as TokenV3, TokenEntry as TokenEntryV3, Proof as ProofV3} from '@cashu/cashu-ts'
 import AppError, {Err} from '../../utils/AppError'
 import {} from '@cashu/cashu-ts'
 import {Proof} from '../../models/Proof'
@@ -14,6 +14,29 @@ import { log } from '../logService'
 import { encodeBase64ToJson, encodeBase64toUint8, encodeUint8toBase64 } from '@cashu/cashu-ts/src/base64'
 import { bytesToHex, hexToBytes } from '@noble/curves/abstract/utils';
 
+interface ProofV4 {
+  a: number;
+  s: string;
+  c: Uint8Array;
+  d?: { 
+    e: Uint8Array,
+    s: Uint8Array,
+    r: Uint8Array
+  },
+  w?: string
+}
+
+interface TokenEntryV4 {
+  i: Uint8Array;
+  p: ProofV4[];
+}
+
+interface TokenV4 {
+  m: string;
+  u: string;
+  d?: string;
+  t: TokenEntryV4[]
+}
 
 const CASHU_URI_PREFIXES = [
   'https://wallet.nutstash.app/#',
@@ -48,7 +71,7 @@ const extractEncodedCashuToken = function (maybeToken: string): string {
     log.trace('[extractEncodedCashuToken] Extract token from', {maybeToken})
     
     let encodedToken: string | undefined = undefined
-    let decoded: V3Token | undefined = undefined
+    let decoded: TokenV3 | undefined = undefined
     
     if (maybeToken && CASHU_TOKEN_PREFIXES.some(pref => maybeToken.startsWith(pref))) {
         decoded = decodeToken(maybeToken) // throws
@@ -88,35 +111,13 @@ const extractEncodedCashuToken = function (maybeToken: string): string {
   }
 } */
 
-interface V4Proof {
-  a: number;
-  s: string;
-  c: Uint8Array;
-  d?: { 
-    e: Uint8Array,
-    s: Uint8Array,
-    r: Uint8Array
-  },
-  w?: string
-}
 
-interface V4TokenEntry {
-  i: Uint8Array;
-  p: V4Proof[];
-}
 
-interface V4Token {
-  m: string;
-  u: string;
-  d?: string;
-  t: V4TokenEntry[]
-}
-
-function mapToV4TokenEntries(tokenEntries: V3TokenEntry[]): V4TokenEntry[] {
-  const v4TokenEntries: V4TokenEntry[] = [];
+function mapToV4TokenEntries(tokenEntries: TokenEntryV3[]): TokenEntryV4[] {
+  const v4TokenEntries: TokenEntryV4[] = [];
 
   tokenEntries.forEach(entry => {
-    const idMap: { [id: string]: V4Proof[] } = {};
+    const idMap: { [id: string]: ProofV4[] } = {};
 
     entry.proofs.forEach(proof => {
       if (!idMap[proof.id]) {
@@ -151,14 +152,14 @@ function base64urlToBase64(str: string) {
 }
 
 
-const encodeToken = function (token: V3Token, version: 3 | 4 = 3): string {
+const encodeToken = function (token: TokenV3, version: 3 | 4 = 3): string {
   try {
     if(version === 3) {
       return getEncodedToken(token)
     } else if(version === 4) {
       const v4tokenEntries = mapToV4TokenEntries(token.token)
 
-      const v4Token: V4Token = {
+      const v4Token: TokenV4 = {
         m: token.token[0].mint as string,
         u: token.unit as string,
         d: token.memo as string,
@@ -203,15 +204,15 @@ function decodeToken(token: string) {
  * @param token
  * @returns
  */
-function handleTokens(token: string): V3Token {
+function handleTokens(token: string): TokenV3 {
 	const version = token.slice(0, 1);
 	const encodedToken = token.slice(1);
 	if (version === 'A') {
-		return encodeBase64ToJson<V3Token>(encodedToken);
+		return encodeBase64ToJson<TokenV3>(encodedToken);
 	} else if (version === 'B') {
 		const uInt8Token = encodeBase64toUint8(base64urlToBase64(encodedToken));
-		const tokenData = cbor.decodeFirst(uInt8Token) as V4Token
-		const mergedTokenEntry: V3TokenEntry = { mint: tokenData.m, proofs: [] };
+		const tokenData = cbor.decodeFirst(uInt8Token) as TokenV4
+		const mergedTokenEntry: TokenEntryV3 = { mint: tokenData.m, proofs: [] };
 		tokenData.t.forEach((tokenEntry) =>
 			tokenEntry.p.forEach((p) => {
 				mergedTokenEntry.proofs.push({
@@ -230,7 +231,7 @@ function handleTokens(token: string): V3Token {
 
 
 
-const getTokenAmounts = function (token: V3Token) {
+const getTokenAmounts = function (token: TokenV3) {
   const mintAmounts: {[k: string]: number} = {}
   let totalAmount = 0
 
@@ -262,7 +263,7 @@ const getTokenAmounts = function (token: V3Token) {
 }
 
 
-const getTokenEntryAmount = function (tokenEntry: V3TokenEntry) {
+const getTokenEntryAmount = function (tokenEntry: TokenEntryV3) {
   try {
     return getProofsAmount(tokenEntry.proofs)
   } catch (e: any) {
@@ -275,7 +276,7 @@ const getTokenEntryAmount = function (tokenEntry: V3TokenEntry) {
 }
 
 
-const getProofsAmount = function (proofs: Array<V3Proof>): number {
+const getProofsAmount = function (proofs: Array<ProofV3>): number {
   let totalAmount = 0
 
   for (const proof of proofs) {
@@ -292,14 +293,14 @@ const getAmountPreferencesCount = function (amountPreferences: AmountPreference[
 }
 
 
-const getMintsFromToken = function (token: V3Token): string[] {
+const getMintsFromToken = function (token: TokenV3): string[] {
   const mints = token.token.map(item => item.mint)
   return Array.from(new Set(mints)) // make sure the mints are not duplicated
 }
 
 
-const getProofsFromTokenEntries = (tokenEntries: V3TokenEntry[]) => {
-  const proofs: V3Proof[] = []
+const getProofsFromTokenEntries = (tokenEntries: TokenEntryV3[]) => {
+  const proofs: ProofV3[] = []
 
   for (const entry of tokenEntries) {
     proofs.push(...entry.proofs)
