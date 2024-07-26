@@ -127,10 +127,11 @@ export const QRCodeBlock = function (props: {
             {type === 'EncodedV3Token' && (
               <Button 
                   preset="tertiary" 
-                  text={`Show ${encodedV4Token ? 'v3' : 'v4'} format`}
+                  text={`${encodedV4Token ? 'Legacy' : 'New'} format`}
                   onPress={switchTokenEncoding}
                   LeftAccessory={() => <Icon icon='faMoneyBill1' size={spacing.small} color={colors.light.text} />}
                   textStyle={{color: colors.light.text, fontSize: 14}}
+                  pressedStyle={{backgroundColor: colors.light.buttonTertiaryPressed}}
                   style={{
                       minWidth: 60, 
                       minHeight: moderateVerticalScale(40),                    
@@ -157,6 +158,7 @@ export const QRCodeBlock = function (props: {
 }
 
 const $buttonContainer: ViewStyle = {
+  marginTop: spacing.small,
   flexDirection: 'row',
   alignSelf: 'center',
 }
