@@ -26,12 +26,9 @@ import Clipboard from '@react-native-clipboard/clipboard'
 import { useStores } from '../models'
 import { MintListItem } from './Mints/MintListItem'
 import { Mint } from '../models/Mint'
-import { CashuMint, MintActiveKeys, MintAllKeysets, MintKeyset, deriveKeysetId } from '@cashu/cashu-ts'
+import { MintKeyset } from '@cashu/cashu-ts'
 import { CashuUtils } from '../services/cashu/cashuUtils'
 import { Proof } from '../models/Proof'
-import {
-    type Proof as CashuProof,
-} from '@cashu/cashu-ts'
 import { Transaction, TransactionData, TransactionRecord, TransactionStatus, TransactionType } from '../models/Transaction'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import { deriveSeedFromMnemonic } from '@cashu/cashu-ts'

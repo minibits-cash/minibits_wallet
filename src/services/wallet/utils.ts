@@ -2,8 +2,6 @@ import {
     type Token as CashuToken,
     type TokenEntry as CashuTokenEntry,
     type Proof as CashuProof,
-    deriveKeysetId,
-    MintKeys,
 } from '@cashu/cashu-ts'
 import {Proof} from '../../models/Proof'
 import {rootStoreInstance} from '../../models'

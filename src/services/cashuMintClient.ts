@@ -4,8 +4,6 @@ import {
     CashuWallet,
     MeltQuoteResponse,
     MeltTokensResponse,
-    MintAllKeysets,
-    deriveKeysetId,    
     setGlobalRequestOptions,
     type Proof as CashuProof,
     type MintKeyset as CashuMintKeyset,
