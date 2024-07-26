@@ -1,4 +1,3 @@
-import {getEncodedToken} from '@cashu/cashu-ts'
 import {log} from '../logService'
 import {MintClient} from '../cashuMintClient'
 import {
@@ -108,7 +107,7 @@ export const sendTask = async function (
             memo = 'Sent from Minibits'
         }
 
-        const encodedTokenToSend = getEncodedToken({
+        const encodedTokenToSend = CashuUtils.encodeToken({
             token: [tokenEntryToSend as CashuTokenEntry],
             unit,
             memo,

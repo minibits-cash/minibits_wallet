@@ -16,7 +16,7 @@ import {
     type Token as CashuToken,
     type Proof as CashuProof
 } from '@cashu/cashu-ts'
-import { getDefaultAmountPreference, getEncodedToken } from '@cashu/cashu-ts/src/utils'
+import { getDefaultAmountPreference } from '@cashu/cashu-ts/src/utils'
 import { TransactionTaskResult } from '../walletService'
 import { WalletUtils } from './utils'
 import { MintUnit, formatCurrency, getCurrency } from './currency'
@@ -163,7 +163,7 @@ export const receiveTask = async function (
             proofs: receivedProofs,
         }
 
-        const updatedToken = getEncodedToken({
+        const updatedToken = CashuUtils.encodeToken({
             token: [tokenEntryToSend],
             unit,
             memo,
@@ -491,7 +491,7 @@ export const receiveOfflineCompleteTask = async function (
             proofs: receivedProofs,
         }
 
-        const updatedToken = getEncodedToken({
+        const updatedToken = CashuUtils.encodeToken({
             token: [tokenEntryToSend],
             unit,            
         })

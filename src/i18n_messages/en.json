@@ -304,7 +304,7 @@
 	"profileToRecoverDesc": "This is the wallet address linked to your seed. If you press Complete, your wallet profile will reset to above seed and address.",
 	"pushNotifications": "Push notifications",
 	"qr": {
-		"fail": "Could not display QR code, copy or share the Ecash token instead."
+		"fail": "Could not display QR code, try new v4 token format or use option to send token to contact."
 	},
 	"receiverMemo": "Memo for the receiver",
 	"receiveScreen": {

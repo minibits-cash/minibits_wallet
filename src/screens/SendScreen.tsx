@@ -636,8 +636,9 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             {transactionStatus === TransactionStatus.PENDING && encodedTokenToSend && paymentOption && (
                 <>
                     <QRCodeBlock                  
-                        qrCodeData={encodedTokenToSend as string}
-                        title='Ecash token to send'                        
+                        qrCodeData={encodedTokenToSend as string}                        
+                        title='Ecash token to send'
+                        type='EncodedV3Token'
                     />
                     <TokenOptionsBlock                    
                         toggleNostrDMModal={toggleNostrDMModal}

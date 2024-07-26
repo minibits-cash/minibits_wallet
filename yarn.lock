@@ -1202,9 +1202,9 @@
   resolved "https://registry.yarnpkg.com/@bcoe/v8-coverage/-/v8-coverage-0.2.3.tgz#75a2e8b51cb758a7553d6804a5932d7aace75c39"
   integrity sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==
 
-"@cashu/cashu-ts@minibits-cash/cashu-ts#1.0.0-minibits.2":
-  version "1.0.0-minibits"
-  resolved "https://codeload.github.com/minibits-cash/cashu-ts/tar.gz/03b26c1db3a72d3d8e975a72f63b0ed06dc1be34"
+"@cashu/cashu-ts@minibits-cash/cashu-ts#1.0.0-minibits.4":
+  version "1.0.0-minibits.4"
+  resolved "https://codeload.github.com/minibits-cash/cashu-ts/tar.gz/c8932a044126e143a5460c14a3a47c196e26baa2"
   dependencies:
     "@cashu/crypto" "^0.2.6"
     "@noble/curves" "^1.3.0"
@@ -1270,6 +1270,15 @@
   version "8.55.0"
   resolved "https://registry.yarnpkg.com/@eslint/js/-/js-8.55.0.tgz#b721d52060f369aa259cf97392403cb9ce892ec6"
   integrity sha512-qQfo2mxH5yVom1kacMtZZJFVdW+E70mqHMJvVg6WTLo+VBuQJ4TojZlfWBjK0ve5BdEeNAVxOsl/nvNMpJOaJA==
+
+"@exodus/borc@^2.1.1":
+  version "2.1.1"
+  resolved "https://registry.yarnpkg.com/@exodus/borc/-/borc-2.1.1.tgz#42f38d3b96bcf53a93c72e9739192b876a8058fa"
+  integrity sha512-rOFa4apJXK67mdUU8RI25umOIXUEpt+gwqPKsNCg/OwTYhi2b1tzX6H+g8dXahHzG7gwOImoDQmw8Vxho+us5A==
+  dependencies:
+    bignumber.js "^8.0.1"
+    ieee754 "^1.1.8"
+    iso-url "~0.4.4"
 
 "@fortawesome/fontawesome-common-types@6.5.2":
   version "6.5.2"
@@ -3047,6 +3056,11 @@ bignumber.js@*, "bignumber.js@^8 || ^9":
   version "9.1.2"
   resolved "https://registry.yarnpkg.com/bignumber.js/-/bignumber.js-9.1.2.tgz#b7c4242259c008903b13707983b5f4bbd31eda0c"
   integrity sha512-2/mKyZH9K85bzOEfhXDBFZTGd1CTs+5IHpeFQo9luiBG7hghdC851Pj2WAhb6E3R6b9tZj/XKhbg4fum+Kepug==
+
+bignumber.js@^8.0.1:
+  version "8.1.1"
+  resolved "https://registry.yarnpkg.com/bignumber.js/-/bignumber.js-8.1.1.tgz#4b072ae5aea9c20f6730e4e5d529df1271c4d885"
+  integrity sha512-QD46ppGintwPGuL1KqmwhR0O+N2cZUg8JG/VzwI2e28sM9TqHjQB10lI4QAaMHVbLzwVLLAwEglpKPViWX+5NQ==
 
 bl@^4.1.0:
   version "4.1.0"
@@ -4957,7 +4971,7 @@ iconv-lite@^0.4.24:
   dependencies:
     safer-buffer ">= 2.1.2 < 3"
 
-ieee754@^1.1.13, ieee754@^1.2.1:
+ieee754@^1.1.13, ieee754@^1.1.8, ieee754@^1.2.1:
   version "1.2.1"
   resolved "https://registry.yarnpkg.com/ieee754/-/ieee754-1.2.1.tgz#8eb7a10a63fff25d15a57b001586d177d1b0d352"
   integrity sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==
@@ -5320,6 +5334,11 @@ isexe@^2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/isexe/-/isexe-2.0.0.tgz#e8fbf374dc556ff8947a10dcb0572d633f2cfa10"
   integrity sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==
+
+iso-url@~0.4.4:
+  version "0.4.7"
+  resolved "https://registry.yarnpkg.com/iso-url/-/iso-url-0.4.7.tgz#de7e48120dae46921079fe78f325ac9e9217a385"
+  integrity sha512-27fFRDnPAMnHGLq36bWTpKET+eiXct3ENlCcdcMdk+mjXrb2kw3mhBUg1B7ewAC0kVzlOPhADzQgz1SE6Tglog==
 
 isobject@^3.0.1:
   version "3.0.1"

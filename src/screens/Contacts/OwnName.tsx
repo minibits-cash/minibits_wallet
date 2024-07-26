@@ -335,6 +335,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                                         <QRCodeBlock 
                                             qrCodeData={donationInvoice.payment_request}
                                             title='Lightning invoice to pay'
+                                            type='Bolt11Invoice'
                                             size={270}
                                         />
                                     )}

@@ -752,7 +752,8 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
               <>
                 <QRCodeBlock
                   qrCodeData={invoiceToPay as string}
-                  title="Invoice to pay"
+                  title='Invoice to pay'
+                  type='Bolt11Invoice'     
                   size={270}
                 />
                 <InvoiceOptionsBlock

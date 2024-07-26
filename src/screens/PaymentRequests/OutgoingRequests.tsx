@@ -112,6 +112,7 @@ export const OutgoingRequests = observer(function (props: {
               <QRCodeBlock
                 qrCodeData={selectedRequest?.encodedInvoice as string}
                 title="Scan and pay to topup"
+                type='Bolt11Invoice'
                 size={270}
               />
             }

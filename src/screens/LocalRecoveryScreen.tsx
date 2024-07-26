@@ -1,5 +1,5 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useState, useEffect, useRef, useMemo} from 'react'
+import React, {FC, useState, useEffect} from 'react'
 import {
   TextStyle,
   ViewStyle,
@@ -30,13 +30,10 @@ import AppError from '../utils/AppError'
 import {BackupProof, Proof} from '../models/Proof'
 import { useStores } from '../models'
 import { CashuUtils } from '../services/cashu/cashuUtils'
-import JSONTree from 'react-native-json-tree'
 import Clipboard from '@react-native-clipboard/clipboard'
-import { getEncodedToken } from '@cashu/cashu-ts'
 import { Transaction, TransactionData, TransactionRecord, TransactionStatus, TransactionType } from '../models/Transaction'
 import { WalletUtils } from '../services/wallet/utils'
-import { MintUnit, MintUnits, getCurrency } from '../services/wallet/currency'
-import { ScrollView } from 'react-native-gesture-handler'
+import { MintUnits, getCurrency } from '../services/wallet/currency'
 import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import { translate } from '../i18n'
 
@@ -172,7 +169,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
 
                     log.trace(tokenByMint)
 
-                    const encodedByMint = getEncodedToken(tokenByMint)
+                    const encodedByMint = CashuUtils.encodeToken(tokenByMint)
                     encodedTokens.push(encodedByMint)
                 }
             }            

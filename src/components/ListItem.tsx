@@ -1,5 +1,5 @@
 import { verticalScale } from "@gocodingnow/rn-size-matters"
-import React, { ReactElement } from "react"
+import { ReactElement } from "react"
 import { ColorValue, useColorScheme } from "react-native"
 import {
   StyleProp,
@@ -122,7 +122,7 @@ interface ListItemActionProps {
  *
  * - [Documentation and Examples](https://github.com/infinitered/ignite/blob/master/docs/Components-ListItem.md)
  */
-export function ListItem(props: ListItemProps) {
+export const ListItem = function (props: ListItemProps) {
   const colorScheme = useColorScheme()  
 
   const {

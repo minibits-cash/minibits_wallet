@@ -22,7 +22,6 @@ import { Mint } from '../models/Mint'
 import { MintHeader } from './Mints/MintHeader'
 import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
 import { translate } from '../i18n'
-import { validCashuAToken } from '../services/cashu/cashuUtils'
 
 
 export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = function TokenReceiveScreen(_props) {

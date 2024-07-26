@@ -1284,6 +1284,7 @@ const TopupInfoBlock = function (props: {
               <QRCodeBlock 
                 qrCodeData={paymentRequest.encodedInvoice}
                 title={translate("tranDetailScreen.invoice")}
+                type='Bolt11Invoice'
                 size={spacing.screenWidth * 0.8}
               />
             </View>

@@ -7,16 +7,20 @@ import { moderateVerticalScale } from "@gocodingnow/rn-size-matters"
 import { colors, spacing } from "../../theme"
 import { useState } from "react"
 import { translate } from "../../i18n"
+import { CashuUtils } from "../../services/cashu/cashuUtils"
+import { log } from "../../services"
 
 export const QRCodeBlock = function (props: {  
-    qrCodeData: string
+    qrCodeData: string    
     title: string
+    type: 'EncodedV3Token' | 'EncodedV4Token' | 'Bolt11Invoice' | 'URL'
     size?: number
   }
 ) {
   
-    const {qrCodeData, title, size} = props
-    const [qrError, setQrError] = useState<Error | undefined>()
+    const {qrCodeData, title, type, size} = props
+    const [qrError, setQrError] = useState<Error | undefined>()   
+    const [encodedV4Token, setEncodedV4Token] = useState<string | undefined>()  
 
     const handleQrError = function (error: Error) {
         setQrError(error)
@@ -40,6 +44,26 @@ export const QRCodeBlock = function (props: {
         setQrError(e)
       }
     }
+
+
+    const switchTokenEncoding = function () {
+      try {
+        if(encodedV4Token) {
+          setEncodedV4Token(undefined)
+        } else if(type === 'EncodedV3Token') {
+          log.trace('[v3]', qrCodeData)
+
+          const decoded = CashuUtils.decodeToken(qrCodeData)
+          const encodedV4 = CashuUtils.encodeToken(decoded, 4)
+
+          log.trace('[v4]', encodedV4)
+          
+          setEncodedV4Token(encodedV4)
+        }
+      } catch (e: any) {
+        setQrError(e)
+      }
+    }
   
   
     const onCopy = function () {
@@ -54,7 +78,7 @@ export const QRCodeBlock = function (props: {
       <Card
         heading={title}
         headingStyle={{textAlign: 'center', color: colors.light.text, marginBottom: spacing.extraSmall}}
-        style={{backgroundColor: 'white', paddingBottom: 0}}
+        style={{backgroundColor: 'white', paddingBottom: spacing.small}}
         ContentComponent={qrError ? (
           <ListItem 
               text={translate("qr.fail")}
@@ -67,11 +91,11 @@ export const QRCodeBlock = function (props: {
         ) : (
           <View style={$qrCodeContainer}>
               <QRCode 
-                  size={size || spacing.screenWidth - spacing.large * 2} value={qrCodeData} 
+                  size={size || spacing.screenWidth - spacing.large * 2} value={encodedV4Token || qrCodeData} 
                   onError={(error: any) => handleQrError(error)}
               />
           </View>              
-      )}
+        )}
         FooterComponent={
           <View style={$buttonContainer}>
             <Button
@@ -99,8 +123,23 @@ export const QRCodeBlock = function (props: {
                     paddingVertical: moderateVerticalScale(spacing.tiny),
                     marginRight: spacing.small
                 }}  
-            />            
-      </View>
+            />
+            {type === 'EncodedV3Token' && (
+              <Button 
+                  preset="tertiary" 
+                  text={`Show ${encodedV4Token ? 'v3' : 'v4'} format`}
+                  onPress={switchTokenEncoding}
+                  LeftAccessory={() => <Icon icon='faMoneyBill1' size={spacing.small} color={colors.light.text} />}
+                  textStyle={{color: colors.light.text, fontSize: 14}}
+                  style={{
+                      minWidth: 60, 
+                      minHeight: moderateVerticalScale(40),                    
+                      paddingVertical: moderateVerticalScale(spacing.tiny),
+                      marginRight: spacing.small
+                  }}  
+              /> 
+            )}          
+        </View>
         }
       />
         
