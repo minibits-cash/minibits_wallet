@@ -495,7 +495,7 @@ export const WalletStoreModel = types
         }
       ) {
         try {
-          const cashuWallet = yield self.getWallet(mintUrl, unit, {withSeed: true}) // with seed
+          const cashuWallet: CashuWallet = yield self.getWallet(mintUrl, unit, {withSeed: true}) // with seed
           
           const {proofs} = yield cashuWallet.mintTokens(
               amount,
@@ -515,12 +515,7 @@ export const WalletStoreModel = types
   
       } catch (e: any) {
           log.info('[mintProofs]', {error: {name: e.name, message: e.message}})
-          if(e.message.includes('quote not paid')) {
-              return {
-                  proofs: [],                
-              }
-          }
-          let message = 'The mint returned error on request to mint new ecash.'
+          let message = 'Error on request to mint new ecash.'
           if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
           throw new AppError(
               Err.MINT_ERROR, 

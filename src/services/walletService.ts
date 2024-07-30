@@ -7,11 +7,11 @@ import {
   TransactionStatus
 } from '../models/Transaction'
 import {rootStoreInstance} from '../models'
-import {CashuUtils, TokenV3} from './cashu/cashuUtils'
+import {CashuUtils, ProofV3, TokenV3} from './cashu/cashuUtils'
 import {LightningUtils} from './lightning/lightningUtils'
 import AppError, {Err} from '../utils/AppError'
 import {MintBalance, MintStatus} from '../models/Mint'
-import {CashuMint, MeltQuoteResponse, MintQuoteState, type Proof as CashuProof} from '@cashu/cashu-ts'
+import {MeltQuoteResponse, MintQuoteState} from '@cashu/cashu-ts'
 import {Mint} from '../models/Mint'
 import {pollerExists, stopPolling} from '../utils/poller'
 import EventEmitter from '../utils/eventEmitter'
@@ -753,17 +753,17 @@ const handlePendingTopup = async function (params: {paymentRequest: PaymentReque
 const _handlePendingTopupTask = async function (params: {paymentRequest: PaymentRequest}): Promise<WalletTaskResult> {
     const {paymentRequest: pr} = params
     const transactionId = {...pr}.transactionId || 0// copy
-    const mint = {...pr}.mint // copy
+    const mintUrl = {...pr}.mint // copy
     const unit = {...pr}.mintUnit // copy, unit of proofs to be received
     const amount = {...pr}.amountToTopup // copy, amount of proofs to be received    
     const paymentHash = {...pr}.paymentHash // copy
     const mintQuote = {...pr}.mintQuote // copy
-    const mintInstance = mintsStore.findByUrl(mint as string)
+    const mintInstance = mintsStore.findByUrl(mintUrl as string)
     const transaction = transactionsStore.findById(transactionId as number)
 
     try {
         if(!mintInstance || !mintQuote || !unit || !amount) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Missing mint or mint quote or mintUnit or amountToTopup', {mintUrl: mint})
+            throw new AppError(Err.VALIDATION_ERROR, 'Missing mint or mint quote or mintUnit or amountToTopup', {mintUrl})
         }
         
         const amountPreferences = getDefaultAmountPreference(amount)        
@@ -774,14 +774,14 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         log.trace('[_handlePendingTopupTask]', 'countOfInFlightProofs', countOfInFlightProofs)
         
         // check is quote has been paid
-        const { state, mintQuote: quote } = await walletStore.checkLightningMintQuote(mint!, mintQuote)
+        const { state, mintQuote: quote } = await walletStore.checkLightningMintQuote(mintUrl!, mintQuote)
 
         if (quote !== mintQuote) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Returned quote is different then the one requested', {mintUrl: mint, quote, mintQuote})
+            throw new AppError(Err.VALIDATION_ERROR, 'Returned quote is different then the one requested', {mintUrl, quote, mintQuote})
         }
 
         if (state !== MintQuoteState.PAID) {
-            log.trace('[_handlePendingTopupTask] Quote not paid', {mintUrl: mint, mintQuote})
+            log.trace('[_handlePendingTopupTask] Quote not paid', {mintUrl, mintQuote})
 
             if (isBefore(pr.expiresAt as Date, new Date())) {
                 log.debug('[_handlePendingTopupTask]', `Invoice expired, removing: ${pr.paymentHash}`)
@@ -808,7 +808,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
             return {
                 taskFunction: '_handlePendingTopupTask',
                 transaction,
-                mintUrl: mint,
+                mintUrl,
                 unit,
                 amount,
                 paymentHash,                     
@@ -827,10 +827,10 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         // get locked counter values        
         const lockedProofsCounter = mintInstance.getProofsCounterByUnit(unit)!
 
-        let proofs: CashuProof[] = []
+        let proofs: ProofV3[] = []
         
         proofs = (await walletStore.mintProofs(
-            mint as string,
+            mintUrl as string,
             amount,
             unit,
             mintQuote,
@@ -838,7 +838,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
               preference: amountPreferences,
               counter: lockedProofsCounter.inFlightFrom as number
             }
-        )) as CashuProof[]        
+        )) as ProofV3[] 
 
         mintInstance.decreaseProofsCounter(lockedProofsCounter.keyset, countOfInFlightProofs)        
         
@@ -848,7 +848,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
 
         // we got proofs, accept to the wallet asap
         const {addedAmount: receivedAmount} = WalletUtils.addCashuProofs(
-            mint as string,
+            mintUrl as string,
             proofs,
             {
                 unit,
@@ -904,7 +904,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         
         return {
             taskFunction: '_handlePendingTopupTask',
-            mintUrl: mint,
+            mintUrl,
             unit,
             amount,
             paymentHash,
@@ -919,12 +919,12 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         }
         return {
             taskFunction: '_handlePendingTopupTask',
-            mintUrl: mint,
+            mintUrl,
             unit,
             amount,
             paymentHash,
             transaction: transactionsStore.findById(transactionId as number),
-            error: {name: e.name, message: e.message},
+            error: {name: e.name, message: e.message, params: e.params || undefined},
             message: `_handlePendingTopupTask ended with error: ${e.message}`,                        
         } as TransactionTaskResult
     }

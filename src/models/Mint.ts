@@ -49,7 +49,7 @@ export type MintProofsCounter = {
 export const MintProofsCounter = types.model('MintProofsCounter', {
     keyset: types.string,
     unit: types.optional(types.frozen<MintUnit>(), 'sat'),
-    counter: types.number,
+    counter: types.optional(types.number, 0),
     inFlightFrom: types.maybe(types.number),
     inFlightTo: types.maybe(types.number),
     inFlightTid: types.maybe(types.number)
@@ -157,7 +157,14 @@ export const MintModel = types
             self.proofsCounters = cast(self.proofsCounters)
         },
         getProofsCounter(keysetId: string) {
-            const counter = self.proofsCounters.find(c => c.keyset === keysetId)            
+            const counter = self.proofsCounters.find(c => c.keyset === keysetId)
+            
+            // Make sure we did not lost counter, breaks the wallet
+            if(counter && isNaN(counter?.counter)) {
+                counter.counter = 0
+                self.proofsCounters = cast(self.proofsCounters)
+            }
+                        
             return counter
         },
         isUnitSupported(unit: MintUnit): boolean {

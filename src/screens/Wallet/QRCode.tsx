@@ -9,6 +9,7 @@ import { useState } from "react"
 import { translate } from "../../i18n"
 import { CashuUtils } from "../../services/cashu/cashuUtils"
 import { log } from "../../services"
+import AppError, { Err } from "../../utils/AppError"
 
 export const QRCodeBlock = function (props: {  
     qrCodeData: string    
@@ -54,11 +55,15 @@ export const QRCodeBlock = function (props: {
           log.trace('[v3]', qrCodeData)
 
           const decoded = CashuUtils.decodeToken(qrCodeData)
-          const encodedV4 = CashuUtils.encodeToken(decoded, 4)
 
-          log.trace('[v4]', encodedV4)
+          if(decoded.token[0].proofs[0].id.startsWith('00')) {
+            const encodedV4 = CashuUtils.encodeToken(decoded, 4)
+            log.trace('[v4]', encodedV4)            
+            setEncodedV4Token(encodedV4)
+          } else {
+            throw new AppError(Err.VALIDATION_ERROR, 'This token uses old keyset type, can not create new token format.')
+          }
           
-          setEncodedV4Token(encodedV4)
         }
       } catch (e: any) {
         setQrError(e)
