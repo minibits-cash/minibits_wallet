@@ -12,7 +12,7 @@ import {getRootStore} from './helpers/getRootStore'
 import AppError, {Err} from '../utils/AppError'
 import {Mint, MintBalance, UnitBalance} from './Mint'
 import {Database} from '../services'
-import { MintUnit, MintUnits } from '../services/wallet/currency'
+import { MintUnit } from '../services/wallet/currency'
 
 export const ProofsStoreModel = types
     .model('Proofs', {

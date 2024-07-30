@@ -10,7 +10,7 @@ import {
 import Clipboard from '@react-native-clipboard/clipboard'
 import JSONTree from 'react-native-json-tree'
 import {colors, spacing, useThemeColor} from '../theme'
-import {TransactionsStackScreenProps, WalletStackScreenProps} from '../navigation'
+import {TransactionsStackScreenProps} from '../navigation'
 import EventEmitter from '../utils/eventEmitter'
 import {
   Button,
@@ -25,7 +25,6 @@ import {
   Loading,
   Header,
 } from '../components'
-import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import {translate, TxKeyPath} from '../i18n'
 import {
@@ -41,19 +40,15 @@ import {BackupProof, Proof} from '../models/Proof'
 import useColorScheme from '../theme/useThemeColor'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
-import QRCode from 'react-native-qrcode-svg'
 import { getDecodedToken, Token as CashuToken } from '@cashu/cashu-ts'
-import { CashuUtils } from '../services/cashu/cashuUtils'
+import { CashuUtils, TokenV3 } from '../services/cashu/cashuUtils'
 import { MintStatus } from '../models/Mint'
 import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencySign } from './Wallet/CurrencySign'
 import { MintUnit, formatCurrency, getCurrency } from "../services/wallet/currency"
-import { Token } from '../models/Token'
 import { PaymentRequest } from '../models/PaymentRequest'
 import { pollerExists } from '../utils/poller'
-import { StackActions, useFocusEffect } from '@react-navigation/native'
-import { CurrencyAmount } from './Wallet/CurrencyAmount'
-import { toNumber } from '../utils/number'
+import { useFocusEffect } from '@react-navigation/native'
 import { QRCodeBlock } from './Wallet/QRCode'
 
 type ProofsByStatus = {
@@ -500,12 +495,12 @@ const ReceiveInfoBlock = function (props: {
 
         try {    
             const tokenToRetry: CashuToken = getDecodedToken(encodedTokenToRetry)              
-            const amountToReceive = CashuUtils.getTokenAmounts(tokenToRetry as Token).totalAmount
+            const amountToReceive = CashuUtils.getTokenAmounts(tokenToRetry).totalAmount
             const memo = tokenToRetry.memo || ''
             
             setIsReceiveTaskSentToQueue(true)
             WalletTask.receive(
-                tokenToRetry as Token,
+                tokenToRetry,
                 amountToReceive,
                 memo,
                 encodedTokenToRetry

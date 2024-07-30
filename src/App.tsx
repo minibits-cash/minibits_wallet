@@ -21,7 +21,7 @@ import {
 } from '@gocodingnow/rn-size-matters'
 import {AppNavigator} from './navigation'
 import {useInitialRootStore, useStores} from './models'
-import {Database, MinibitsClient} from './services'
+import {Database} from './services'
 import {ErrorBoundary} from './screens/ErrorScreen/ErrorBoundary'
 import Config from './config'
 import {log} from './services'

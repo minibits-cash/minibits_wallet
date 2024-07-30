@@ -88,7 +88,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const pagerRef = useRef<PagerView>(null)
     const appState = useRef(AppState.currentState)
     const isInternetReachable = useIsInternetReachable()
-    const groupedMints = mintsStore.groupedByUnit
+    const groupedMints: MintsByUnit[] = mintsStore.groupedByUnit
 
     const [currentUnit, setCurrentUnit] = useState<MintUnit>(groupedMints.length > 0 ? groupedMints[0].unit : 'sat')
     const [info, setInfo] = useState<string>('')
@@ -162,7 +162,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             WalletTask.receiveEventsFromRelays().catch(e => false)
             // log.trace('[getInitialData]', 'walletProfile', walletProfileStore) 
             const preferredUnit: MintUnit = userSettingsStore.preferredUnit
-            const pageIndex = groupedMints.findIndex(m => m.unit === preferredUnit)
+            const pageIndex = groupedMints.findIndex((m) => m.unit === preferredUnit)
             pagerRef.current && pagerRef.current.setPage(pageIndex)         
         }
         

@@ -1,5 +1,4 @@
 import {log} from '../logService'
-import {MintClient} from '../cashuMintClient'
 import {
   Transaction,
   TransactionData,
@@ -8,12 +7,10 @@ import {
   TransactionType,
 } from '../../models/Transaction'
 import {rootStoreInstance} from '../../models'
-import {CashuUtils} from '../cashu/cashuUtils'
+import {CashuUtils, ProofV3, TokenEntryV3} from '../cashu/cashuUtils'
 import AppError, {Err} from '../../utils/AppError'
-import {
-    type Token as CashuToken,
-    type TokenEntry as CashuTokenEntry,
-    type Proof as CashuProof,
+import {    
+    MintKeyset,
 } from '@cashu/cashu-ts'
 import { getDefaultAmountPreference, isObj } from '@cashu/cashu-ts/src/utils'
 import { TransactionTaskResult, WalletTask } from '../walletService'
@@ -28,9 +25,11 @@ import { boolean } from 'mobx-state-tree/dist/internal'
 const {
     mintsStore,
     proofsStore,
-    transactionsStore,
+    transactionsStore,    
+    nonPersistedStores
 } = rootStoreInstance
 
+const {walletStore} = nonPersistedStores
 
 export const sendTask = async function (
     mintBalanceToSendFrom: MintBalance,
@@ -108,7 +107,7 @@ export const sendTask = async function (
         }
 
         const encodedTokenToSend = CashuUtils.encodeToken({
-            token: [tokenEntryToSend as CashuTokenEntry],
+            token: [tokenEntryToSend as TokenEntryV3],
             unit,
             memo,
         })
@@ -270,8 +269,8 @@ export const sendFromMint = async function (
 
         // Prioritize send from inactive keysets
         let proofsToSendFrom: Proof[] = []   
-        const inactiveKeysetIds = mintInstance?.keysets.filter(k => k.active === false).map(k => k.id)   
-        const activeKeysetIds = mintInstance?.keysets.filter(k => k.active === true).map(k => k.id)
+        const inactiveKeysetIds = mintInstance?.keysets.filter((k: MintKeyset) => k.active === false).map((k: MintKeyset) => k.id)   
+        const activeKeysetIds = mintInstance?.keysets.filter((k: MintKeyset) => k.active === true).map((k: MintKeyset) => k.id)
         
         log.trace('[sendFromMint]', {inactiveKeysetIds, activeKeysetIds})
         
@@ -382,7 +381,7 @@ export const sendFromMint = async function (
 
             // if split to required denominations was necessary, this gets it done with the mint and we get the return
 
-            const sendResult = await MintClient.send(
+            const sendResult = await walletStore.send(
                 mintUrl,
                 amountToSend,
                 mintFeeReserve,
@@ -454,7 +453,7 @@ export const sendFromMint = async function (
         
         // We return cleaned proofs to be encoded as a sendable token + fees
         return {
-            proofs: cleanedProofsToSend as CashuProof[], 
+            proofs: cleanedProofsToSend as ProofV3[], 
             mintFeeReserve, 
             mintFeePaid
         }

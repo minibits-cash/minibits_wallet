@@ -25,25 +25,22 @@ import {
   BottomModal,
   Text,  
 } from '../components'
-import {Mint} from '../models/Mint'
 import {Transaction, TransactionStatus} from '../models/Transaction'
 import {useStores} from '../models'
-import {MintClient, TransactionTaskResult, WalletTask} from '../services'
+import {TransactionTaskResult, WalletTask} from '../services'
 import EventEmitter from '../utils/eventEmitter'
 import {log} from '../services/logService'
 import AppError, {Err} from '../utils/AppError'
 import {MintBalance} from '../models/Mint'
-import {MintListItem} from './Mints/MintListItem'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {addSeconds} from 'date-fns'
 import { PaymentRequestStatus } from '../models/PaymentRequest'
-import { infoMessage } from '../utils/utils'
 import { DecodedLightningInvoice, LightningUtils } from '../services/lightning/lightningUtils'
 import { SendOption } from './SendOptionsScreen'
 import { round, roundDown, roundUp, toNumber } from '../utils/number'
 import { LnurlClient, LNURLPayParams } from '../services/lnurlService'
 import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
-import { Currencies, CurrencyCode, MintUnit, getCurrency } from "../services/wallet/currency"
+import { CurrencyCode, MintUnit, getCurrency } from "../services/wallet/currency"
 import { FeeBadge } from './Wallet/FeeBadge'
 import { MeltQuoteResponse } from '@cashu/cashu-ts'
 import { MintHeader } from './Mints/MintHeader'
@@ -68,7 +65,8 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     const amountInputRef = useRef<TextInput>(null)
     const lnurlCommentInputRef = useRef<TextInput>(null)
 
-    const {proofsStore, mintsStore, paymentRequestsStore, transactionsStore} = useStores()
+    const {proofsStore, mintsStore, paymentRequestsStore, transactionsStore, nonPersistedStores} = useStores()
+    const {walletStore} = nonPersistedStores
 
     const isInternetReachable = useIsInternetReachable()
 
@@ -290,7 +288,7 @@ useEffect(() => {
             }           
             
             setIsLoading(true)
-            const quote = await MintClient.createLightningMeltQuote(
+            const quote = await walletStore.createLightningMeltQuote(
                 mintBalanceToTransferFrom.mintUrl,
                 unit,
                 encodedInvoice,

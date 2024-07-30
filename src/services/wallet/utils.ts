@@ -1,14 +1,9 @@
-import {
-    type Token as CashuToken,
-    type TokenEntry as CashuTokenEntry,
-    type Proof as CashuProof,
-} from '@cashu/cashu-ts'
 import {Proof} from '../../models/Proof'
 import {rootStoreInstance} from '../../models'
 import AppError from "../../utils/AppError"
 import { log } from '../logService'
 import { isStateTreeNode } from 'mobx-state-tree'
-import { CashuUtils } from '../cashu/cashuUtils'
+import { CashuUtils, ProofV3 } from '../cashu/cashuUtils'
 import { Mint, MintProofsCounter } from '../../models/Mint'
 import { delay } from '../../utils/utils'
 import { MintUnit } from './currency'
@@ -79,7 +74,7 @@ const lockAndSetInFlight = async function (
 
 const addCashuProofs = function (    
     mintUrl: string,
-    proofsToAdd: CashuProof[] | Proof[],
+    proofsToAdd: ProofV3[] | Proof[],
     options: {
         unit: MintUnit,
         transactionId: number,

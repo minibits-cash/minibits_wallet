@@ -12,7 +12,7 @@ import {
 } from '@cashu/cashu-ts'
 import {rootStoreInstance} from '../models'
 import { KeyChain } from '../services'
-import {CashuUtils} from './cashu/cashuUtils'
+import {CashuUtils, TokenV3} from './cashu/cashuUtils'
 import AppError, {Err} from '../utils/AppError'
 import {log} from './logService'
 import {
@@ -24,7 +24,7 @@ import { isObj } from '@cashu/cashu-ts/src/utils'
 import { JS_BUNDLE_VERSION } from '@env'
 import { MintUnit } from './wallet/currency'
 import { getSnapshot } from 'mobx-state-tree'
-import { Token } from '../models/Token'
+
 
 let _mints: CashuMint[] = []
 let _wallets: CashuWallet[] = [] // used where seed is not required (perf)
@@ -303,7 +303,7 @@ const receive = async function (
         withSeed: true,         
       })   
     
-    const amountToReceive = CashuUtils.getTokenAmounts(decodedToken as Token).totalAmount
+    const amountToReceive = CashuUtils.getTokenAmounts(decodedToken as TokenV3).totalAmount
 
     const proofs = await cashuWallet.receive(
       decodedToken,

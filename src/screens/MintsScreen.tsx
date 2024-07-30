@@ -28,9 +28,8 @@ import AppError, { Err } from '../utils/AppError'
 import {translate} from '../i18n'
 import {MintListItem} from './Mints/MintListItem'
 import { SvgXml } from 'react-native-svg'
-import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
+import { isStateTreeNode } from 'mobx-state-tree'
 import { MintKeyset } from '@cashu/cashu-ts'
-import { MintClient } from '../services'
 
 
 
@@ -40,7 +39,8 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
       onLeftPress: () => navigation.goBack(),
     })
 
-    const {mintsStore, proofsStore, userSettingsStore} = useStores()
+    const {mintsStore, proofsStore, nonPersistedStores} = useStores()
+    const {walletStore} = nonPersistedStores
     const mintInputRef = useRef<TextInput>(null)
 
     const [mintUrl, setMintUrl] = useState('')
@@ -142,7 +142,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
 
           toggleAddMintModal() // close
           setIsLoading(true)
-          const keysets: MintKeyset[] = await MintClient.getMintKeysets(mintUrl)
+          const keysets: MintKeyset[] = await walletStore.getMintKeysets(mintUrl)
           const matchingKeyset = keysets.find(keyset => selectedMint.keysets?.some(k => k.id === keyset.id))
 
           if(!matchingKeyset) {

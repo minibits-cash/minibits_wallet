@@ -144,7 +144,7 @@ Minibits is a bare React Native app written in Typescript. The project structure
 
 The code is derived from Ignite template, however with many libraries, notably Expo, stripped down to achieve fast startup times. Performance bottleneck on some Android devices is react-native-keychain. To overcome this, it has been patched not to warm-up on startup, caching for wallet operations is in place and its use to encrypt storage is opt-in.
 
-Wallet state is managed by mobx-state-tree and persisted in fast MMKV storage. Only the basic mobx concepts are in place, whole model could be improved. All critical wallet code is in services/walletService.ts and all ecash state changes are in models/ProofsStore.ts. Wallet communication with the mints is in services/cashuMintClient.ts and uses [cashu-ts](https://github.com/cashubtc/cashu-ts) library.
+Wallet state is managed by mobx-state-tree and persisted in fast MMKV storage. Only the basic mobx concepts are in place, whole model could be improved. All critical wallet code is in services/walletService.ts and all ecash state changes are in models/ProofsStore.ts. Wallet communication with the mints is in model/Wallet.ts and uses [cashu-ts](https://github.com/cashubtc/cashu-ts) library.
 
 Crypto operations are handled by react-native-quick-crypto, that is fast and does not require awful javascript shims. Transaction history and ecash backup is stored in sqlite, with fast react-native-quick-sqlite driver that enables to run lighter queries synchronously.
 

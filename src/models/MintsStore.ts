@@ -6,18 +6,22 @@ import {
     isStateTreeNode,
     detach,
     flow,
+    getRoot,
+    getSnapshot,
+    getParent,
   } from 'mobx-state-tree'
   import {withSetPropAction} from './helpers/withSetPropAction'
-  import {MintModel, Mint, MintBalance} from './Mint'
+  import {MintModel, Mint, MintProofsCounter} from './Mint'
   import {log} from '../services/logService'  
-  import { MintClient } from '../services'  
   import AppError, { Err } from '../utils/AppError'
   import type {
     MintKeys as CashuMintKeys, 
     MintKeyset as CashuMintKeyset
   } from '@cashu/cashu-ts'
 
-import { MintUnit, MintUnits } from '../services/wallet/currency'
+import { MintUnit } from '../services/wallet/currency'
+
+
   
 export type MintsByHostname = {
     hostname: string
@@ -29,10 +33,22 @@ export type MintsByUnit = {
     mints: Mint[]
 }
 
+export type CounterBackup = {
+    mintUrl: string
+    proofCounters: MintProofsCounter
+}
+
+// Define the CounterBackup model
+const CounterBackupModel = types.model('CounterBackup', {
+    mintUrl: types.string,
+    counters: types.array(MintProofsCounter)
+})
+
 export const MintsStoreModel = types
     .model('MintsStore', {
         mints: types.array(MintModel),
-        blockedMintUrls: types.array(types.string),        
+        blockedMintUrls: types.array(types.string),
+        counterBackups: types.array(CounterBackupModel)        
     })
     .views(self => ({
         findByUrl: (mintUrl: string | URL) => {
@@ -42,14 +58,61 @@ export const MintsStoreModel = types
     }))
     .actions(withSetPropAction)
     .actions(self => ({
+        addOrUpdateCounterBackup(mintToRemove: Mint) {
+            try {
+                const existingIndex = self.counterBackups.findIndex(
+                (backup) => backup.mintUrl === mintToRemove.mintUrl
+                )
+        
+                const newCounterBackup = CounterBackupModel.create({
+                mintUrl: mintToRemove.mintUrl,
+                counters: getSnapshot(mintToRemove.proofsCounters!)
+                })
+        
+                if (existingIndex !== -1) {
+                // Replace existing backup
+                self.counterBackups[existingIndex] = newCounterBackup
+                } else {
+                // Add new backup
+                self.counterBackups.push(newCounterBackup)
+                }
+            } catch (e: any) {
+                throw new AppError(Err.STORAGE_ERROR, e.message)
+            }
+        },
+        updateMintCountersFromBackup(newMint: Mint) {
+            const backup = self.counterBackups.find(
+              (backup) => backup.mintUrl === newMint.mintUrl
+            )
+      
+            if (backup) {
+                newMint.proofsCounters!.forEach((proofsCounter) => {
+                const backupCounter = backup.counters.find(
+                  (counter) => counter.keyset === proofsCounter.keyset
+                )
+      
+                if (backupCounter) {
+                  newMint.increaseProofsCounter!(proofsCounter.keyset, backupCounter.counter)
+                }
+              })
+            }
+        },
+    }))
+    .actions(self => ({
         addMint: flow(function* addMint(mintUrl: string) {
             if(!mintUrl.includes('.onion') && !mintUrl.startsWith('https')) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Mint URL needs to start with https.')
             }
 
-            // create default wallet instance then download and cache up to date mint keys in that instance
-            const keysets: CashuMintKeyset[] = yield MintClient.getMintKeysets(mintUrl)
-            const keys: CashuMintKeys[] = yield MintClient.getMintKeys(mintUrl)                
+            log.trace('[addMint] start')
+
+            // create default wallet instance then download and cache up to date mint keys in that instance 
+            const {walletStore} = getRoot(self).nonPersistedStores
+            
+            const keysets: CashuMintKeyset[] = yield walletStore.getMintKeysets(mintUrl)
+            const keys: CashuMintKeys[] = yield walletStore.getMintKeys(mintUrl)
+            
+            log.trace('[addMint]', {keysets})
 
             if(!keysets || keysets.length === 0 || !keys || keys.length === 0) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Mint has no keysets and is not operational.', {mintUrl})
@@ -73,8 +136,12 @@ export const MintsStoreModel = types
                 mintInstance.initKeys(key)                    
             }
 
+            log.trace('[addMint] updateMintCountersFromBackup')
+            
+            self.updateMintCountersFromBackup(mintInstance)            
+
             mintInstance.setHostname()      
-            yield mintInstance.setShortname()                
+            yield mintInstance.setShortname()                           
             
             self.mints.push(mintInstance)
         }),
@@ -85,8 +152,9 @@ export const MintsStoreModel = types
                 throw new AppError(Err.VALIDATION_ERROR, 'Could not find mint to update', {mintUrl})
             }
             // refresh up to date mint keys
-            const keysets: CashuMintKeyset[] = yield MintClient.getMintKeysets(mintUrl)
-            const keys: CashuMintKeys[] = yield MintClient.getMintKeys(mintUrl)        
+            const {walletStore} = getRoot(self).nonPersistedStores 
+            const keysets: CashuMintKeyset[] = yield walletStore.getMintKeysets(mintUrl)
+            const keys: CashuMintKeys[] = yield walletStore.getMintKeys(mintUrl)        
 
             if(!keysets || keysets.length === 0 || !keys || keys.length === 0) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Mint has no keysets and is not operational', {mintUrl})
@@ -106,7 +174,7 @@ export const MintsStoreModel = types
                 }
 
                 mintInstance.initKeys(key)                    
-            }
+            }            
             
             yield mintInstance.setShortname()
             
@@ -126,6 +194,7 @@ export const MintsStoreModel = types
             }
 
             if (mintInstance) {
+                self.addOrUpdateCounterBackup(mintInstance)
                 detach(mintInstance)
                 destroy(mintInstance)
                 log.info('[removeMint]', 'Mint removed from MintsStore')
@@ -142,7 +211,7 @@ export const MintsStoreModel = types
         unblockMint(blockedMint: Mint) {
             self.blockedMintUrls.remove(blockedMint.mintUrl)
             log.debug('[unblockMint]', 'Mint unblocked in MintsStore')
-        }
+        }        
     }))
     .views(self => ({
         get mintCount() {
@@ -155,7 +224,7 @@ export const MintsStoreModel = types
             const grouped: Record<string, MintsByHostname> = {}
 
             self.mints.forEach((mint: Mint) => {
-                const {hostname} = mint
+                const hostname = mint.hostname!
 
                 if (!grouped[hostname as string]) {
                     grouped[hostname as string] = {

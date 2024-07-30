@@ -20,10 +20,10 @@ import {
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import AppError, { Err } from '../utils/AppError'
-import { KeyChain, log, MintClient } from '../services'
 import { scale } from '@gocodingnow/rn-size-matters'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { translate } from '../i18n'
+import { useStores } from '../models'
 
 
 export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = observer(function RemoteBackupScreen(_props) {
@@ -35,7 +35,8 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
         },
     })
 
-    // const {userSettingsStore} = useStores()
+    const {nonPersistedStores} = useStores()
+    const {walletStore} = nonPersistedStores
 
     const [info, setInfo] = useState('')
     const [mnemonic, setMnemonic] = useState<string>()
@@ -50,12 +51,12 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
                 setIsLoading(true)
                 let mnemonic: string | undefined = undefined
 
-                mnemonic = await MintClient.getMnemonic()
+                mnemonic = await walletStore.getMnemonic()
 
                 if(!mnemonic) {
                     // wallets upgraded from 0.1.4 with no generated seed                    
-                    mnemonic = await MintClient.getOrCreateMnemonic() // expensive, derives seed
-                    MintClient.resetCachedWallets() // force all cached wallet instances to be recreated with seed
+                    mnemonic = await walletStore.getOrCreateMnemonic() // expensive, derives seed
+                    walletStore.resetWallets() // force all cached wallet instances to be recreated with seed
                     setIsNewMnemonic(true)
                 }
 

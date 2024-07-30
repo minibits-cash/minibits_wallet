@@ -26,7 +26,7 @@ import { translate } from '../i18n'
 import { useStores } from '../models'
 import { Mint, MintStatus } from '../models/Mint'
 import { SettingsStackScreenProps } from '../navigation'
-import { MintClient, log } from '../services'
+import { log } from '../services'
 import { colors, spacing, typography, useThemeColor } from '../theme'
 import useColorScheme from '../theme/useThemeColor'
 import AppError, { Err } from '../utils/AppError'
@@ -361,7 +361,8 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
     },
   })
 
-  const { mintsStore } = useStores()
+  const { mintsStore, nonPersistedStores } = useStores()
+  const { walletStore } = nonPersistedStores
 
   const [isLoading, setIsLoading] = useState(false)
   const [mintInfo, setMintInfo] = useState<GetInfoResponse | undefined>()
@@ -384,7 +385,7 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
         const mint = mintsStore.findByUrl(route.params.mintUrl)
 
         if (mint) {
-          const info: GetInfoResponse = await MintClient.getMintInfo(mint.mintUrl)
+          const info: GetInfoResponse = await walletStore.getMintInfo(mint.mintUrl)
           mint.setStatus(MintStatus.ONLINE)
           if(info.name && info.name !== mint.shortname) {
             await mint.setShortname()

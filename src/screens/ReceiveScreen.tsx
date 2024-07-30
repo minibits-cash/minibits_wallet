@@ -17,7 +17,6 @@ import {
   Text,
 } from '../components'
 import {Mint} from '../models/Mint'
-import {Token} from '../models/Token'
 import {Transaction, TransactionStatus} from '../models/Transaction'
 import {useStores} from '../models'
 import {TransactionTaskResult, WalletTask} from '../services'
@@ -25,7 +24,7 @@ import {log} from '../services/logService'
 import AppError, { Err } from '../utils/AppError'
 import EventEmitter from '../utils/eventEmitter'
 
-import {CashuUtils} from '../services/cashu/cashuUtils'
+import {CashuUtils, TokenV3} from '../services/cashu/cashuUtils'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {MintListItem} from './Mints/MintListItem'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
@@ -42,7 +41,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
     const isInternetReachable = useIsInternetReachable()
     const {mintsStore} = useStores()
 
-    const [token, setToken] = useState<Token | undefined>()
+    const [token, setToken] = useState<TokenV3 | undefined>()
     const [encodedToken, setEncodedToken] = useState<string | undefined>()
     const [amountToReceive, setAmountToReceive] = useState<string>('0')
     const [unit, setUnit] = useState<MintUnit>('sat')
@@ -146,7 +145,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
       try {
         navigation.setParams({encodedToken: undefined})
         
-        const decoded: Token = CashuUtils.decodeToken(encoded)
+        const decoded = CashuUtils.decodeToken(encoded)
         const tokenAmounts = CashuUtils.getTokenAmounts(decoded)
 
         log.trace('decoded token', {decoded})
@@ -154,17 +153,14 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
 
         if(!decoded.unit) {
           setInfo(translate("decodedMissingCurrencyUnit", { unit: CurrencyCode.SATS }))
+          decoded.unit = CurrencyCode.SATS
         }
 
-        const currency = getCurrency(decoded.unit)
+        const currency = getCurrency(decoded.unit as MintUnit)
 
         setToken(decoded)
         setAmountToReceive(numbro(tokenAmounts.totalAmount / currency.precision).format({thousandSeparated: true, mantissa: currency.mantissa}))
-        
-        if(decoded.unit) {
-          log.trace('Token unit', decoded.unit)
-          setUnit(decoded.unit)
-        }
+        setUnit(decoded.unit as MintUnit)
         
         if (decoded.memo && decoded.memo.length > 0) {
           setMemo(decoded.memo as string)
@@ -182,7 +178,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         const amountToReceiveInt = round(toNumber(amountToReceive) * getCurrency(unit).precision, 0)
 
         WalletTask.receive(
-            token as Token,
+            token as TokenV3,
             amountToReceiveInt,
             memo,
             encodedToken as string,
@@ -197,7 +193,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         const amountToReceiveInt = round(toNumber(amountToReceive) * getCurrency(unit).precision, 0)
         
         WalletTask.receiveOfflinePrepare(
-            token as Token,
+            token as TokenV3,
             amountToReceiveInt,
             memo,
             encodedToken as string,

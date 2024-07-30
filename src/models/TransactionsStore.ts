@@ -14,7 +14,7 @@ import {
   TransactionStatus,
   TransactionRecord,
 } from './Transaction'
-import {Database, MintClient} from '../services'
+import {Database} from '../services'
 import {log} from '../services/logService'
 import { getRootStore } from './helpers/getRootStore'
 import { formatDistance } from 'date-fns'
@@ -35,10 +35,6 @@ export type GroupedByTimeAgo = {
 export const TransactionsStoreModel = types
     .model('TransactionsStore', {
         transactions: types.array(TransactionModel),
-        /*tranUnit: types.maybe(types.frozen<MintUnit>()),
-        tranMint: types.maybe(types.frozen<Mint>()),
-        tranOption: types.maybe(types.frozen<ReceiveOption | SendOption>()),
-        tranContact: types.maybe(types.frozen<Contact>())*/
     })
     .actions(withSetPropAction)
     .views(self => ({
@@ -98,7 +94,7 @@ export const TransactionsStoreModel = types
         recentByHostnameGroupedByTimeAgo(mintHostname: string) {
             const recentByHostname = this.recentByHostname(mintHostname)
 
-            return recentByHostname.reduce((groups: GroupedByTimeAgo, transaction: Transaction) => {                               
+            return recentByHostname.reduce((groups: GroupedByTimeAgo, transaction: Transaction) => {
                 const timeAgo = formatDistance(transaction.createdAt as Date, new Date(), {addSuffix: true})  
                 if (!groups[timeAgo]) {
                     groups[timeAgo] = []
@@ -156,7 +152,7 @@ export const TransactionsStoreModel = types
 
             const transactionsToRemove = self.transactions.filter(transaction => {
                 // Check if the mint property of the transaction does not exist in the mints array
-                return !mintsStore.allMints.some(mint => mint.mintUrl === transaction.mint);
+                return !mintsStore.allMints.some((mint: Mint) => mint.mintUrl === transaction.mint);
             });
 
             self.transactions.replace(self.transactions.filter(t => !transactionsToRemove.some(removed => removed.id === t.id)))
@@ -353,30 +349,6 @@ export const TransactionsStoreModel = types
             self.transactions.clear()
             log.debug('[removeAllTransactions]', 'Removed all transactions from TransactionsStore')
         },
-        /* setTranUnit(unit: MintUnit) {
-            self.tranUnit = unit
-        },
-        setTranMint(mint: Mint) {
-            self.tranMint = mint
-        },
-        setTranOption(option: ReceiveOption | SendOption) {
-            self.tranOption = option
-        },
-        setTranContact(contact: Contact) {
-            self.tranContact = contact
-        },
-        unsetTranUnit() {
-            self.tranUnit = undefined
-        },
-        unsetTranMint(mint: Mint) {
-            self.tranMint = undefined
-        },
-        unsetTranOption(option: ReceiveOption | SendOption) {
-            self.tranOption = undefined
-        },
-        unsetTranContact(contact: Contact) {
-            self.tranContact = undefined
-        },*/
     }))
 
     const getHostname = function (mintUrl: string) {

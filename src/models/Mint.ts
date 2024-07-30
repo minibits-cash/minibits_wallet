@@ -1,26 +1,19 @@
-import {cast, flow, getSnapshot, Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
+import {cast, flow, getRoot, getSnapshot, Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
 import {withSetPropAction} from './helpers/withSetPropAction'
-import type {
-    CashuWallet, 
+import type {    
     GetInfoResponse, 
     MintKeys as CashuMintKeys, 
     MintKeyset as CashuMintKeyset
 } from '@cashu/cashu-ts'
 import {colors, getRandomIconColor} from '../theme'
-import { log, MintClient } from '../services'
+import { log } from '../services'
 
 import AppError, { Err } from '../utils/AppError'
 import { MintUnit, MintUnits } from '../services/wallet/currency'
 import { getRootStore } from './helpers/getRootStore'
 import { generateId } from '../utils/utils'
-import { Proof } from './Proof'
+import { ProofV3 } from '../services/cashu/cashuUtils'
 
-
-// used as a helper type across app
-/* export type Balance = {
-    balance: number
-    unit: MintUnit
-}*/
 
 export type MintBalance = {
     mintUrl: string
@@ -53,15 +46,15 @@ export type MintProofsCounter = {
     inFlightTid?: number // related tx id
 }
 
-/* export const MintProofsCounterModel = types
-    .model('MintProofsCounter', {        
-        keyset: types.string,
-        unit: types.optional(types.frozen<MintUnit>(), 'sat'),
-        counter: types.number,              
-        inFlightFrom: types.maybe(types.number),
-        inFlightTo: types.maybe(types.number),
-        inFlightTid: types.maybe(types.number)
-    })*/
+export const MintProofsCounter = types.model('MintProofsCounter', {
+    keyset: types.string,
+    unit: types.optional(types.frozen<MintUnit>(), 'sat'),
+    counter: types.number,
+    inFlightFrom: types.maybe(types.number),
+    inFlightTo: types.maybe(types.number),
+    inFlightTid: types.maybe(types.number)
+  })
+
 /**
  * This represents a Cashu mint
  */
@@ -74,16 +67,7 @@ export const MintModel = types
         units: types.array(types.frozen<MintUnit>()),
         keysets: types.array(types.frozen<CashuMintKeyset>()),   
         keys: types.array(types.frozen<CashuMintKeys>()),
-        proofsCounters: types.array(
-            types.model('MintProofsCounter', {
-              keyset: types.string,
-              unit: types.optional(types.frozen<MintUnit>(), 'sat'),
-              counter: types.number,
-              inFlightFrom: types.maybe(types.number),
-              inFlightTo: types.maybe(types.number),
-              inFlightTid: types.maybe(types.number)
-            })
-        ),
+        proofsCounters: types.array(MintProofsCounter),
         color: types.optional(types.string, colors.palette.iconBlue200),
         status: types.optional(types.frozen<MintStatus>(), MintStatus.ONLINE),
         createdAt: types.optional(types.Date, new Date()),
@@ -334,7 +318,8 @@ export const MintModel = types
             let shortname = self.mintUrl.substring(lastSlashIndex + 1).slice(0, 25)
 
             try {
-                const info: GetInfoResponse = yield MintClient.getMintInfo(self.mintUrl)
+                const {walletStore} = getRoot(self).nonPersistedStores    
+                const info: GetInfoResponse = yield walletStore.getMintInfo(self.mintUrl)
 
                 if(info.name.length > 0) {
                     shortname = info.name                    
@@ -421,7 +406,7 @@ export const MintModel = types
             
             self.proofsCounters = cast(self.proofsCounters)
         },
-        getMintFeeReserve(proofs: Proof[]): number {
+        getMintFeeReserve(proofs: ProofV3[]): number {
             // Find the corresponding keyset for each proof and sum the input fees
             const totalInputFees = proofs.reduce((sum, proof) => {
               const keyset = self.keysets.find(k => k.id === proof.id)

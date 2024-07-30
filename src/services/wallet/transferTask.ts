@@ -1,13 +1,12 @@
-import {CashuUtils} from '../cashu/cashuUtils'
+import {CashuUtils, ProofV3} from '../cashu/cashuUtils'
 import AppError, {Err} from '../../utils/AppError'
-import {MeltQuoteResponse, type Proof as CashuProof} from '@cashu/cashu-ts'
+import {MeltQuoteResponse} from '@cashu/cashu-ts'
 import {rootStoreInstance} from '../../models'
 import { TransactionTaskResult, WalletTask } from '../walletService'
 import { MintBalance } from '../../models/Mint'
 import { Proof } from '../../models/Proof'
 import { Transaction, TransactionData, TransactionRecord, TransactionStatus, TransactionType } from '../../models/Transaction'
 import { log } from '../logService'
-import { MintClient } from '../cashuMintClient'
 import { WalletUtils } from './utils'
 import {isBefore} from 'date-fns'
 import { sendFromMint } from './sendTask'
@@ -16,8 +15,11 @@ import { MintUnit, formatCurrency, getCurrency } from './currency'
 const {
     transactionsStore,
     mintsStore,
-    proofsStore
+    proofsStore, 
+    nonPersistedStores,   
 } = rootStoreInstance
+
+const {walletStore} = nonPersistedStores
 
 const TRANSFER = 'transferTask'
 
@@ -51,7 +53,7 @@ export const transferTask = async function (
     ]
 
     let transactionId: number = 0
-    let proofsToPay: CashuProof[] = []
+    let proofsToPay: Proof[] = []
 
     try {
         if (amountToTransfer + meltQuote.fee_reserve > mintBalanceToTransferFrom.balances[unit]!) {
@@ -129,7 +131,7 @@ export const transferTask = async function (
         // get locked counter values
         const lockedProofsCounter = mintInstance.getProofsCounterByUnit?.(unit)!
 
-        const {isPaid, preimage, feeSavedProofs} = await MintClient.payLightningMelt(
+        const {isPaid, preimage, feeSavedProofs} = await walletStore.payLightningMelt(
             mintUrl,
             unit,
             meltQuote,
@@ -316,7 +318,7 @@ export const transferTask = async function (
 
 
 const _moveProofsFromPending = async function (
-    proofsToMove: CashuProof[],
+    proofsToMove: ProofV3[],
     mintUrl: string,
     unit: MintUnit,
     transactionId: number,    
@@ -339,7 +341,7 @@ const _moveProofsFromPending = async function (
     // Check with the mint if the proofs are not marked as pending. This happens when lightning payment fails
     // due to the timeout but mint's node keeps the payment as in-flight (e.g. receiving node holds the invoice)
     // In this case we need to keep such proofs as pending and not move them back to wallet as in other payment failures.    
-    const {pending: pendingByMint} = await MintClient.getSpentOrPendingProofsFromMint(
+    const {pending: pendingByMint} = await walletStore.getSpentOrPendingProofsFromMint(
         mintUrl,
         unit,
         proofsToMove as Proof[]

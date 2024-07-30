@@ -1,4 +1,3 @@
-export * from "./cashuMintClient"
 export * from "./mmkvStorage"
 export * from "./sqlite"
 export * from "./keyChain"
@@ -8,4 +7,4 @@ export * from "./nostrService"
 export * from "./logService"
 export * from "./torService"
 export * from "./syncQueueService"
-// export * from "./restoreService"
+

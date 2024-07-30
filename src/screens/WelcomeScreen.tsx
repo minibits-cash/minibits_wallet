@@ -29,8 +29,8 @@ import {
 } from '../components'
 import {TxKeyPath, translate} from '../i18n'
 import AppError from '../utils/AppError'
-import { MintClient } from '../services'
-7
+
+
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView)
 
 const PAGES = [
@@ -81,7 +81,8 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
       //StatusBarProps: {barStyle: 'dark-content'},
     })
 
-    const {userSettingsStore, relaysStore, walletProfileStore} = useStores()
+    const {userSettingsStore, relaysStore, walletProfileStore, nonPersistedStores} = useStores()
+    const {walletStore} = nonPersistedStores
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState<boolean>(false)    
 
@@ -90,7 +91,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
       try {
           // do not overwrite if one was set during recovery
           setIsLoading(true)
-          const mnemonic = await MintClient.getOrCreateMnemonic()
+          const mnemonic = await walletStore.getOrCreateMnemonic()
 
           // move new profile creation to the app start so that device token can register
           if(!walletProfileStore.pubkey || !walletProfileStore.picture) {            

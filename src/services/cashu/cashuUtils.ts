@@ -1,18 +1,23 @@
 import {Mint} from '../../models/Mint'
 import {  
-    AmountPreference,
-    getDecodedToken,
+    AmountPreference,    
     getEncodedToken,  
 } from '@cashu/cashu-ts'
 import cbor from '@exodus/borc'
-import type {Token as TokenV3, TokenEntry as TokenEntryV3, Proof as ProofV3} from '@cashu/cashu-ts'
+import type {
+  Token as TokenV3, 
+  TokenEntry as 
+  TokenEntryV3, 
+  Proof as ProofV3
+} from '@cashu/cashu-ts'
 import AppError, {Err} from '../../utils/AppError'
 import {} from '@cashu/cashu-ts'
 import {Proof} from '../../models/Proof'
 import { log } from '../logService'
-// import { encodeCBOR } from '@cashu/cashu-ts/src/cbor'
 import { encodeBase64ToJson, encodeBase64toUint8, encodeUint8toBase64 } from '@cashu/cashu-ts/src/base64'
 import { bytesToHex, hexToBytes } from '@noble/curves/abstract/utils';
+
+export type {TokenV3, TokenEntryV3, ProofV3}
 
 interface ProofV4 {
   a: number;

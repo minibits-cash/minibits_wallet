@@ -17,15 +17,13 @@ import {
 import * as Sentry from '@sentry/react-native'
 import RNExitApp from 'react-native-exit-app'
 import type {RootStore} from '../RootStore'
-import {KeyChain, MinibitsClient, MintClient, MMKVStorage, NostrClient} from '../../services'
+import {KeyChain, MinibitsClient, MMKVStorage, NostrClient} from '../../services'
 import {Database} from '../../services'
 import { log } from  '../../services/logService'
 import { rootStoreModelVersion } from '../RootStore'
 import AppError, { Err } from '../../utils/AppError'
-import { MINIBITS_NIP05_DOMAIN, MINIBITS_RELAY_URL } from '@env'
 import { LogLevel } from '../../services/log/logTypes'
 import { MintStatus } from '../Mint'
-import { generateId } from '../../utils/utils'
 
 /**
  * The key we'll be saving our state as within storage.
@@ -80,7 +78,10 @@ export async function setupRootStore(rootStore: RootStore) {
         }
 
         // load the last known state from storage
-        restoredState = MMKVStorage.load(ROOT_STORAGE_KEY) || {}    
+        restoredState = MMKVStorage.load(ROOT_STORAGE_KEY) || {}        
+        
+        // log.trace('[setupRootStore]', {restoredState})
+        
         applySnapshot(rootStore, restoredState)
     
     } catch (e: any) {        
@@ -93,9 +94,15 @@ export async function setupRootStore(rootStore: RootStore) {
     }
 
     // track changes & save to storage
-    _disposer = onSnapshot(rootStore, snapshot =>
-        MMKVStorage.save(ROOT_STORAGE_KEY, snapshot),
-    )
+    _disposer = onSnapshot(rootStore, snapshot => {
+        // log.trace('[setupRootStore] snapshot listener', {snapshot})
+        const persistedSnapshot = {
+            ...snapshot,
+            nonPersistedStores: undefined // Exclude non-persisted stores
+        }
+
+        MMKVStorage.save(ROOT_STORAGE_KEY, persistedSnapshot)
+    })
 
     // run migrations if needed, needs to be after onSnapshot to be persisted
     try {    

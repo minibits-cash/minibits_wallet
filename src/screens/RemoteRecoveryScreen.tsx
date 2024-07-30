@@ -21,7 +21,7 @@ import {
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import AppError, { Err } from '../utils/AppError'
-import { KeyChain, log, MinibitsClient, MintClient, NostrClient } from '../services'
+import { KeyChain, log, MinibitsClient, NostrClient } from '../services'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { useStores } from '../models'
 import { MintListItem } from './Mints/MintListItem'
@@ -58,7 +58,8 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
         },
     })
 
-    const {mintsStore, proofsStore, userSettingsStore, transactionsStore, walletProfileStore} = useStores()
+    const {mintsStore, proofsStore, userSettingsStore, transactionsStore, walletProfileStore, nonPersistedStores} = useStores()
+    const {walletStore} = nonPersistedStores
     const mnemonicInputRef = useRef<TextInput>(null)
     const indexInputRef = useRef<TextInput>(null)
 
@@ -91,7 +92,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
         const getMnemonic = async () => {  
             try {
                 setIsLoading(true)          
-                const existing = await MintClient.getMnemonic()
+                const existing = await walletStore.getMnemonic()
 
                 if(existing) {
                     setMnemonicExists(true)
@@ -174,7 +175,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
     const onMintSelect = async function (mint: Mint) {
         try {
             setSelectedMintUrl(mint.mintUrl)
-            const allActiveKeysets = await MintClient.getMintKeysets(mint.mintUrl) // mint api call
+            const allActiveKeysets = await walletStore.getMintKeysets(mint.mintUrl) // mint api call
             
             // Default is the last one as it seems to be the newest one
             const lastKeyset = allActiveKeysets.slice(-1)[0]            
@@ -240,7 +241,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
             setStatusMessage(translate("recovery.restoringFromParam", { hostname: recoveredMint.hostname }))
             log.info('[restore]', `Restoring from ${recoveredMint.hostname}...`)
             
-            const { proofs } = await MintClient.restore(
+            const { proofs } = await walletStore.restore(
                 recoveredMint.mintUrl, 
                 seed as Uint8Array,
                 {
@@ -257,7 +258,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                 // need to move counter by whole interval to avoid duplicate _B!!!
                 recoveredMint.increaseProofsCounter(selectedKeyset.id as string, Math.abs(endIndex - startIndex))
                 
-                const {spent, pending} = await MintClient.getSpentOrPendingProofsFromMint(
+                const {spent, pending} = await walletStore.getSpentOrPendingProofsFromMint(
                     recoveredMint.mintUrl,
                     selectedKeyset.unit as MintUnit,
                     proofs as Proof[],
@@ -270,7 +271,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                 const spentAmount = CashuUtils.getProofsAmount(spent as Proof[])
                 alreadySpentAmount += spentAmount
 
-                const unspent = proofs.filter(proof => !spent.includes(proof))
+                const unspent = proofs.filter((proof: Proof) => !spent.includes(proof))
                 
                 if(unspent && unspent.length > 0) {
                     

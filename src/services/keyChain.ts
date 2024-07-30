@@ -7,9 +7,6 @@ import {btoa, fromByteArray} from 'react-native-quick-base64'
 import {rootStoreInstance} from '../models'
 import {log} from './logService'
 
-const {
-    userSettingsStore
-} = rootStoreInstance
 
 export enum KeyChainServiceName {
   MMKV = 'app.minibits.mmkv',

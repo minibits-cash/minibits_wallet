@@ -7,9 +7,15 @@ import {WalletProfileStoreModel} from './WalletProfileStore'
 import {PaymentRequestsStoreModel} from './PaymentRequestsStore'
 import {ProofsStoreModel} from './ProofsStore'
 import {RelaysStoreModel} from './RelaysStore'
+import {WalletStoreModel} from './WalletStore'
 
 export const rootStoreModelVersion = 16 // Update this if model changes require migrations defined in setupRootStore.ts
 
+// Ephemeral non-persisted stores
+const NonPersistedStoresModel = types.model('NonPersistedStores', {
+    walletStore: types.optional(WalletStoreModel, {}),
+    
+});
 /**
  * A RootStore model.
  */
@@ -24,6 +30,7 @@ export const RootStoreModel = types
         paymentRequestsStore: types.optional(PaymentRequestsStoreModel, {}),
         proofsStore: types.optional(ProofsStoreModel, {}),
         relaysStore: types.optional(RelaysStoreModel, {}),
+        nonPersistedStores: types.optional(NonPersistedStoresModel, {}),        
         version: types.optional(types.number, rootStoreModelVersion),
     })
     .actions(self => ({
@@ -31,6 +38,8 @@ export const RootStoreModel = types
         self.version = version
     },
 }))
+
+
 
 /**
  * The RootStore instance.

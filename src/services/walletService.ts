@@ -1,19 +1,17 @@
 import {isBefore} from 'date-fns'
 import {getSnapshot} from 'mobx-state-tree'
 import {log} from './logService'
-import {MintClient} from './cashuMintClient'
 import {Proof} from '../models/Proof'
 import {
   Transaction,
   TransactionStatus
 } from '../models/Transaction'
 import {rootStoreInstance} from '../models'
-import {CashuUtils} from './cashu/cashuUtils'
+import {CashuUtils, TokenV3} from './cashu/cashuUtils'
 import {LightningUtils} from './lightning/lightningUtils'
 import AppError, {Err} from '../utils/AppError'
 import {MintBalance, MintStatus} from '../models/Mint'
-import {Token} from '../models/Token'
-import {MeltQuoteResponse, MintQuoteState, type Proof as CashuProof} from '@cashu/cashu-ts'
+import {CashuMint, MeltQuoteResponse, MintQuoteState, type Proof as CashuProof} from '@cashu/cashu-ts'
 import {Mint} from '../models/Mint'
 import {pollerExists, stopPolling} from '../utils/poller'
 import EventEmitter from '../utils/eventEmitter'
@@ -22,7 +20,7 @@ import { MINIBITS_NIP05_DOMAIN, MINIBITS_SERVER_API_HOST, MINIBIT_SERVER_NOSTR_P
 import { PaymentRequest, PaymentRequestStatus, PaymentRequestType } from '../models/PaymentRequest'
 import { IncomingDataType, IncomingParser } from './incomingParser'
 import { Contact } from '../models/Contact'
-import { getDecodedToken, getDefaultAmountPreference } from '@cashu/cashu-ts/src/utils'
+import { getDefaultAmountPreference } from '@cashu/cashu-ts/src/utils'
 import { SyncQueue } from './syncQueueService'
 import { receiveTask, receiveOfflinePrepareTask, receiveOfflineCompleteTask} from './wallet/receiveTask'
 import { sendTask } from './wallet/sendTask'
@@ -30,7 +28,7 @@ import { topupTask } from './wallet/topupTask'
 import { transferTask } from './wallet/transferTask'
 import { WalletUtils } from './wallet/utils'
 import { NotificationService } from './notificationService'
-import { CurrencyCode, MintUnit, formatCurrency, getCurrency } from './wallet/currency'
+import { MintUnit, formatCurrency, getCurrency } from './wallet/currency'
 import { MinibitsClient } from './minibitsService'
 
 
@@ -60,13 +58,13 @@ type WalletTaskService = {
         encodedInvoice: string,
     ) => Promise<void>
     receive: (
-        token: Token,
+        token: TokenV3,
         amountToReceive: number,
         memo: string,
         encodedToken: string,
     ) => Promise<void>
     receiveOfflinePrepare: (
-        token: Token,
+        token: TokenV3,
         amountToReceive: number,
         memo: string,
         encodedToken: string,
@@ -111,7 +109,7 @@ export type ReceivedEventResult = {
     memo?: string, 
     picture?: string
     paymentRequest?: PaymentRequest
-    token?: Token
+    token?: TokenV3
 }
 
 
@@ -123,7 +121,10 @@ const {
     paymentRequestsStore,
     contactsStore,
     relaysStore,
+    nonPersistedStores,
 } = rootStoreInstance
+
+const { walletStore } = nonPersistedStores
 
 
 const transfer = async function (
@@ -153,7 +154,7 @@ const transfer = async function (
 
 
 const receive = async function (
-    token: Token,
+    token: TokenV3,
     amountToReceive: number,
     memo: string,
     encodedToken: string,
@@ -173,7 +174,7 @@ const receive = async function (
 
 
 const receiveOfflinePrepare = async function (
-    token: Token,
+    token: TokenV3,
     amountToReceive: number,    
     memo: string,
     encodedToken: string,
@@ -325,6 +326,7 @@ const handleSpentByMint = async function (
  *  @isPending whether to work on proofs in spendable or pending state by the wallet
  *  @returns WalletTaskResult
  */
+
 const _handleSpentByMintTask = async function (    
     options: {  
         mintUrl: string,           
@@ -363,7 +365,7 @@ const _handleSpentByMintTask = async function (
         const {
             spent: spentProofs, 
             pending: pendingProofs
-        } = await MintClient.getSpentOrPendingProofsFromMint(
+        } = await walletStore.getSpentOrPendingProofsFromMint(
             mintUrl,            
             mint && mint.units ? mint.units[0] : 'sat',
             proofsFromMint
@@ -405,7 +407,7 @@ const _handleSpentByMintTask = async function (
                 log.trace('[_handleSpentByMintTask]', 'Starting sweep of spent pendingByMint proofs')
 
                 for (const spent of spentProofs) {
-                    const secret = proofsStore.pendingByMintSecrets.find((s => s === spent.secret))
+                    const secret = proofsStore.pendingByMintSecrets.find((s: string) => s === spent.secret)
                     if(secret) {
                         proofsStore.removeFromPendingByMint(spent as Proof)
                     }
@@ -439,7 +441,7 @@ const _handleSpentByMintTask = async function (
         // Check if remaining pendingByMint secrets are still pending with the mint. 
         // If not, move related wallet's pending proofs back to spendable as the payment failed 
         // and proofs did not come as spent (those are handled above). 
-        const remainingSecrets = getSnapshot(proofsStore.pendingByMintSecrets) 
+        const remainingSecrets: string[] = getSnapshot(proofsStore.pendingByMintSecrets) 
         
         log.trace('[_handleSpentByMintTask]', 'Remaining pendingByMintSecrets', remainingSecrets)
         
@@ -454,7 +456,7 @@ const _handleSpentByMintTask = async function (
                 
                 // only move if it is from current mint
                 if(proofToMove && proofToMove.mintUrl === mintUrl) {                     
-                    const stillPendingByMint = pendingProofs.find((p => p.secret === secret))
+                    const stillPendingByMint = pendingProofs.find(p => p.secret === secret)
 
                     if(!stillPendingByMint) {
                         // move to spendable if it is not pending by mint anymore
@@ -542,16 +544,12 @@ const handleInFlight = async function (): Promise<void> {
         return
     }
 
-    const seed = await MintClient.getSeed()
-
-    if(!seed) {return}
-
     for (const mint of mintsStore.allMints) {
         const now = new Date().getTime()
 
         SyncQueue.addTask( 
             `_handleInFlightByMintTask-${now}`,               
-            async () => await _handleInFlightByMintTask(mint, seed)               
+            async () => await _handleInFlightByMintTask(mint)               
         )               
     }
 
@@ -561,7 +559,7 @@ const handleInFlight = async function (): Promise<void> {
 /*
  * Recover proofs that were issued by mint, but wallet failed to receive them if split did not complete.
  */
-const _handleInFlightByMintTask = async function (mint: Mint, seed: Uint8Array): Promise<WalletTaskResult> {
+const _handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTaskResult> {
 
     const mintUrl = mint.mintUrl
     const proofsCounter = mint.findInFlightProofsCounter?.()
@@ -579,10 +577,16 @@ const _handleInFlightByMintTask = async function (mint: Mint, seed: Uint8Array):
     }
 
     try {
+        const seed = await walletStore.getSeed()
+        if(!seed) {
+            throw new Error('Missing seed')
+        }
+        
         log.info('[_handleInFlightByMintTask]', `Restoring from ${mint.hostname}...`)
-        log.debug('[_handleInFlightByMintTask]', proofsCounter)        
+        log.debug('[_handleInFlightByMintTask]', proofsCounter)  
+
                 
-        const { proofs } = await MintClient.restore(
+        const { proofs } = await walletStore.restore(
             mint.mintUrl,
             seed as Uint8Array,
             {
@@ -604,7 +608,7 @@ const _handleInFlightByMintTask = async function (mint: Mint, seed: Uint8Array):
             }  as WalletTaskResult          
         }        
 
-        const {spent, pending} = await MintClient.getSpentOrPendingProofsFromMint(
+        const {spent, pending} = await walletStore.getSpentOrPendingProofsFromMint(
             mint.mintUrl,            
             mint.units ? mint.units[0] : 'sat',
             proofs as Proof[]
@@ -616,7 +620,7 @@ const _handleInFlightByMintTask = async function (mint: Mint, seed: Uint8Array):
         const spentAmount = CashuUtils.getProofsAmount(spent as Proof[])
         const pendingAmount = CashuUtils.getProofsAmount(pending as Proof[])
 
-        const unspent = proofs.filter(proof => !spent.includes(proof))
+        const unspent = proofs.filter((proof: Proof) => !spent.includes(proof))
         const unspentCount = unspent.length
         const unspentAmount = CashuUtils.getProofsAmount(unspent as Proof[])
 
@@ -770,7 +774,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         log.trace('[_handlePendingTopupTask]', 'countOfInFlightProofs', countOfInFlightProofs)
         
         // check is quote has been paid
-        const { state, mintQuote: quote } = await MintClient.checkLightningMintQuote(mint!, mintQuote)
+        const { state, mintQuote: quote } = await walletStore.checkLightningMintQuote(mint!, mintQuote)
 
         if (quote !== mintQuote) {
             throw new AppError(Err.VALIDATION_ERROR, 'Returned quote is different then the one requested', {mintUrl: mint, quote, mintQuote})
@@ -825,7 +829,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
 
         let proofs: CashuProof[] = []
         
-        proofs = (await MintClient.mintProofs(
+        proofs = (await walletStore.mintProofs(
             mint as string,
             amount,
             unit,
@@ -979,7 +983,7 @@ const _handleClaimTask = async function (params: {claimedInvoice: {token: string
 
     log.debug('[_handleClaimTask] decrypted token', {encodedToken})
 
-    const decoded: Token = CashuUtils.decodeToken(encodedToken)
+    const decoded = CashuUtils.decodeToken(encodedToken)
     const amountToReceive = CashuUtils.getTokenAmounts(decoded).totalAmount
     const memo = decoded.memo || 'Received to Lightning address'
 
@@ -1175,12 +1179,12 @@ const _handleReceivedEventTask = async function (event: NostrEvent): Promise<Wal
     //
     if(incoming.type === IncomingDataType.CASHU) {
 
-        const decoded: Token = CashuUtils.decodeToken(incoming.encoded)
+        const decoded = CashuUtils.decodeToken(incoming.encoded)
         const amountToReceive = CashuUtils.getTokenAmounts(decoded).totalAmount        
         const memo = decoded.memo || 'Received over Nostr'
 
         const {transaction, receivedAmount} = await receiveTask(
-            decoded as Token,
+            decoded,
             amountToReceive,
             memo,
             incoming.encoded as string,

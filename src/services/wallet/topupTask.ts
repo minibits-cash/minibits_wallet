@@ -1,4 +1,3 @@
-import AppError, {Err} from '../../utils/AppError'
 import {rootStoreInstance} from '../../models'
 import { TransactionTaskResult, WalletTask } from '../walletService'
 import { MintBalance } from '../../models/Mint'
@@ -6,18 +5,20 @@ import { poller } from '../../utils/poller'
 import { Transaction, TransactionData, TransactionRecord, TransactionStatus, TransactionType } from '../../models/Transaction'
 import { log } from '../logService'
 import { Contact } from '../../models/Contact'
-import { MintClient } from '../cashuMintClient'
 import { LightningUtils } from '../lightning/lightningUtils'
 import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
 import { PaymentRequest, PaymentRequestStatus, PaymentRequestType } from '../../models/PaymentRequest'
 import { WalletUtils } from './utils'
-import { MintUnit, MintUnits } from './currency'
+import { MintUnit } from './currency'
 
 const {
     transactionsStore,
     walletProfileStore,
-    paymentRequestsStore
+    paymentRequestsStore,    
+    nonPersistedStores
 } = rootStoreInstance
+
+const {walletStore} = nonPersistedStores
 
 const TOPUP = 'topupTask'
 
@@ -59,7 +60,7 @@ export const topupTask = async function (
         const storedTransaction: TransactionRecord = await transactionsStore.addTransaction(newTransaction)
         transactionId = storedTransaction.id as number        
 
-        const {encodedInvoice, mintQuote} = await MintClient.createLightningMintQuote(mintUrl, unit, amountToTopup)
+        const {encodedInvoice, mintQuote} = await walletStore.createLightningMintQuote(mintUrl, unit, amountToTopup)
 
         const decodedInvoice = LightningUtils.decodeInvoice(encodedInvoice)
         const {amount, payment_hash, expiry, timestamp} = LightningUtils.getInvoiceData(decodedInvoice)
