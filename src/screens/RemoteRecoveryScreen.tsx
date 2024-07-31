@@ -256,7 +256,8 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
             
             if (proofs.length > 0) {
                 // need to move counter by whole interval to avoid duplicate _B!!!
-                recoveredMint.increaseProofsCounter(selectedKeyset.id as string, Math.abs(endIndex - startIndex))
+                const proofsCounter = recoveredMint.getProofsCounterByKeysetId(selectedKeyset.id)                
+                proofsCounter?.increaseProofsCounter(Math.abs(endIndex - startIndex))
                 
                 const {spent, pending} = await walletStore.getSpentOrPendingProofsFromMint(
                     recoveredMint.mintUrl,

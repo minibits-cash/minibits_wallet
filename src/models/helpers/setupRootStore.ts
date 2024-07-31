@@ -80,7 +80,7 @@ export async function setupRootStore(rootStore: RootStore) {
         // load the last known state from storage
         restoredState = MMKVStorage.load(ROOT_STORAGE_KEY) || {}        
         
-        // log.trace('[setupRootStore]', {restoredState})
+        //log.trace('[setupRootStore]', {restoredState})
         
         applySnapshot(rootStore, restoredState)
     

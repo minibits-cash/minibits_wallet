@@ -1,6 +1,6 @@
 import {Proof} from '../../models/Proof'
 import {rootStoreInstance} from '../../models'
-import AppError from "../../utils/AppError"
+import AppError, { Err } from "../../utils/AppError"
 import { log } from '../logService'
 import { isStateTreeNode } from 'mobx-state-tree'
 import { CashuUtils, ProofV3 } from '../cashu/cashuUtils'
@@ -8,12 +8,12 @@ import { Mint, MintProofsCounter } from '../../models/Mint'
 import { delay } from '../../utils/utils'
 import { MintUnit } from './currency'
 
-
-
 const {
     proofsStore,
-    mintsStore
+    nonPersistedStores
 } = rootStoreInstance
+
+const { walletStore } = nonPersistedStores
 
 
 const lockAndSetInFlight = async function (
@@ -22,10 +22,17 @@ const lockAndSetInFlight = async function (
     countOfInFlightProofs: number,
     transactionId: number,
     retryCount: number = 0,    
-): Promise<void> {
+): Promise<MintProofsCounter> {
     
-    const currentCounter = mint.getProofsCounterByUnit?.(unit)
-    log.trace('[lockAndSetInFlight] proofsCounter', {currentCounter})
+    // Make sure to select the wallet instance keysetId
+    const walletInstance = await walletStore.getWallet(mint.mintUrl, unit, {withSeed: true})
+    const currentCounter = mint.getProofsCounterByKeysetId!(walletInstance.keys.id)
+
+    if(!currentCounter) {
+        throw new AppError(Err.VALIDATION_ERROR, 'Missing ProofsCounter.')
+    }
+
+    // log.trace('[lockAndSetInFlight] proofsCounter before lock', {currentCounter})
 
     if(!retryCount) {
         retryCount = 10
@@ -55,20 +62,21 @@ const lockAndSetInFlight = async function (
                 lockedBy: currentCounter.inFlightTid, 
                 waiting: transactionId
             })         
-            mint.resetInFlight?.(currentCounter.inFlightTid as number)
+            currentCounter.resetInFlight(currentCounter.inFlightTid as number)
         }
     } // deprecated end
 
     // This sets inFlightFrom -> inFlightTo recovery interval in case the mint response won't come
     // It sets as well the counter to inFlightTo until response comes
-    mint.setInFlight?.(
-        currentCounter?.keyset as string,        
-        {
-            inFlightFrom:  currentCounter?.counter as number,
-            inFlightTo: currentCounter?.counter as number + countOfInFlightProofs,
-            inFlightTid: transactionId
-        }
+    currentCounter.setInFlight!(        
+        currentCounter?.counter as number, // from
+        currentCounter?.counter as number + countOfInFlightProofs, // to + temp counter value
+        transactionId        
     )
+
+    // log.trace('[lockAndSetInFlight] proofsCounter locked', {currentCounter})
+
+    return currentCounter
 }
 
 

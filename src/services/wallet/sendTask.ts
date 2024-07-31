@@ -20,7 +20,6 @@ import { poller } from '../../utils/poller'
 import { WalletUtils } from './utils'
 import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
 import { MintUnit } from './currency'
-import { boolean } from 'mobx-state-tree/dist/internal'
 
 const {
     mintsStore,
@@ -196,6 +195,7 @@ export const sendFromMint = async function (
 ) {
     const mintUrl = mintBalance.mintUrl
     const mintInstance = mintsStore.findByUrl(mintUrl)
+    let lockedProofsCounter: MintProofsCounter | undefined = undefined
     
     try {
         if (!mintInstance) {
@@ -374,13 +374,14 @@ export const sendFromMint = async function (
             // Increase the proofs counter before the mint call so that in case the response
             // is not received our recovery index counts for sigs the mint has already issued (prevents duplicate b_b bug)
             // + acquire lock and set inFlight values                
-            await WalletUtils.lockAndSetInFlight(mintInstance, unit, countOfInFlightProofs, transactionId)
-
-            // get locked counter values
-            const lockedProofsCounter = mintInstance.getProofsCounterByUnit(unit)!       
+            lockedProofsCounter = await WalletUtils.lockAndSetInFlight(
+                mintInstance, 
+                unit, 
+                countOfInFlightProofs, 
+                transactionId
+            )
 
             // if split to required denominations was necessary, this gets it done with the mint and we get the return
-
             const sendResult = await walletStore.send(
                 mintUrl,
                 amountToSend,
@@ -398,7 +399,7 @@ export const sendFromMint = async function (
             mintFeePaid = sendResult.mintFeePaid
 
             // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs        
-            mintInstance.decreaseProofsCounter(lockedProofsCounter.keyset, countOfInFlightProofs) 
+            lockedProofsCounter.decreaseProofsCounter(countOfInFlightProofs) 
 
             // add proofs returned by the mint after the split
             log.trace('[sendFromMint] add returned proofs to spendable')
@@ -409,7 +410,10 @@ export const sendFromMint = async function (
                     unit,
                     transactionId,
                     isPending: false
-                })            
+                })
+                
+            // release lock
+            lockedProofsCounter.resetInFlight(transactionId)
             
         } else if (returnedAmount === 0) {
         /* 
@@ -435,10 +439,7 @@ export const sendFromMint = async function (
                 transactionId,
                 isPending: true
             }       
-        )
-
-        // release lock
-        mintInstance.resetInFlight(transactionId)
+        )        
 
         // Clean private properties to not to send them out. This returns plain js array, not model objects.
         const cleanedProofsToSend = proofsToSend.map(proof => {
@@ -458,8 +459,10 @@ export const sendFromMint = async function (
             mintFeePaid
         }
   } catch (e: any) {
-        // release lock        
-        mintInstance?.resetInFlight(transactionId)       
+        // release lock
+        if(lockedProofsCounter) {
+            lockedProofsCounter.resetInFlight(transactionId)
+        }
 
         if (e instanceof AppError) {
             throw e

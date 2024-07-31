@@ -57,9 +57,10 @@ interface AppProps {
 }
 
 function App(props: AppProps) {
+    
     const {userSettingsStore, relaysStore, walletProfileStore} = useStores()
 
-    const {rehydrated} = useInitialRootStore(async() => {
+    const {rehydrated} = useInitialRootStore(async() => {        
         // This runs after the root store has been initialized and rehydrated from storage.
 
         // Creates and opens a sqlite database that stores transactions history and user settings.

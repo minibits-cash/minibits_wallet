@@ -18,8 +18,6 @@ import { MintUnit } from '../services/wallet/currency'
 import { CashuUtils, ProofV3, TokenV3 } from '../services/cashu/cashuUtils'
 import { Proof } from './Proof'
 import { isObj } from '@cashu/cashu-ts/src/utils'
-import { Mint, MintModel } from './Mint'
-import { getRootStore } from './helpers/getRootStore'
 
 /* 
    Not persisted, in-memory only model of the cashu-ts wallet instances and seed.

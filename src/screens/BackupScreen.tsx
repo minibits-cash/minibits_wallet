@@ -127,7 +127,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
       const increaseAmount = 50
       for (const mint of mintsStore.allMints) {
         for(const counter of mint.proofsCounters) {
-          mint.increaseProofsCounter(counter.keyset, increaseAmount)
+          counter.increaseProofsCounter(increaseAmount)
         }            
       }  
       setInfo(translate("recoveryIndexesIncSuccess", { indCount: increaseAmount }))

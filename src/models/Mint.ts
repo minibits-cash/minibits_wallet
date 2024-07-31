@@ -3,7 +3,8 @@ import {withSetPropAction} from './helpers/withSetPropAction'
 import type {    
     GetInfoResponse, 
     MintKeys as CashuMintKeys, 
-    MintKeyset as CashuMintKeyset
+    MintKeyset as CashuMintKeyset,
+    MintKeyset
 } from '@cashu/cashu-ts'
 import {colors, getRandomIconColor} from '../theme'
 import { log } from '../services'
@@ -37,23 +38,42 @@ export enum MintStatus {
     OFFLINE = 'OFFLINE'
 }
 
-export type MintProofsCounter = {
-    keyset: string
-    counter: number
-    unit: MintUnit
-    inFlightFrom?: number // starting counter index for pending split request sent to mint (for recovery from failure to receive proofs)
-    inFlightTo?: number // last counter index for pending split request sent to mint 
-    inFlightTid?: number // related tx id
-}
-
-export const MintProofsCounter = types.model('MintProofsCounter', {
+export const MintProofsCounterModel = types.model('MintProofsCounter', {
     keyset: types.string,
     unit: types.optional(types.frozen<MintUnit>(), 'sat'),
     counter: types.optional(types.number, 0),
     inFlightFrom: types.maybe(types.number),
     inFlightTo: types.maybe(types.number),
     inFlightTid: types.maybe(types.number)
-  })
+}).actions(self => ({
+    setInFlight(inFlightFrom: number, inFlightTo: number, inFlightTid: number) {
+        self.inFlightFrom = inFlightFrom
+        self.inFlightTo = inFlightTo
+        self.counter = inFlightTo // temp increase of main counter value
+        self.inFlightTid = inFlightTid
+
+        log.trace('[setInFlight]', 'Lock and inflight indexes were set', self)
+    },
+    resetInFlight(inFlightTid: number) {
+        self.inFlightFrom = undefined
+        self.inFlightTo = undefined
+        self.inFlightTid = undefined
+        
+        log.trace('[resetInFlight]', 'Lock and inflight indexes were reset', {inFlightTid})
+    },
+    increaseProofsCounter(numberOfProofs: number) {
+        if(isNaN(self.counter)) self.counter = 0
+        self.counter += numberOfProofs
+        log.trace('[increaseProofsCounter]', 'Increased proofsCounter', {numberOfProofs, counter: self.counter})
+    },
+    decreaseProofsCounter(numberOfProofs: number) {
+        self.counter -= numberOfProofs
+        Math.max(0, self.counter)
+        log.trace('[decreaseProofsCounter]', 'Decreased proofsCounter', {numberOfProofs, counter: self.counter})
+    },
+}))
+
+export type MintProofsCounter = Instance<typeof MintProofsCounterModel>
 
 /**
  * This represents a Cashu mint
@@ -67,7 +87,7 @@ export const MintModel = types
         units: types.array(types.frozen<MintUnit>()),
         keysets: types.array(types.frozen<CashuMintKeyset>()),   
         keys: types.array(types.frozen<CashuMintKeys>()),
-        proofsCounters: types.array(MintProofsCounter),
+        proofsCounters: types.array(MintProofsCounterModel),
         color: types.optional(types.string, colors.palette.iconBlue200),
         status: types.optional(types.frozen<MintStatus>(), MintStatus.ONLINE),
         createdAt: types.optional(types.Date, new Date()),
@@ -143,18 +163,18 @@ export const MintModel = types
             if(!alreadyExists) {
                 log.trace('[addProofsCounter]', {counter})          
                 self.proofsCounters.push(counter)
+                self.proofsCounters = cast(self.proofsCounters)
             }
 
-            self.proofsCounters = cast(self.proofsCounters)
+            
         },
         removeProofsCounter(counter: MintProofsCounter) {
             const index = self.proofsCounters.findIndex(p => p.keyset === counter.keyset)
 
             if(index) {
                 self.proofsCounters.splice(index, 0)
+                self.proofsCounters = cast(self.proofsCounters)
             }
-
-            self.proofsCounters = cast(self.proofsCounters)
         },
         getProofsCounter(keysetId: string) {
             const counter = self.proofsCounters.find(c => c.keyset === keysetId)
@@ -176,11 +196,12 @@ export const MintModel = types
     }))
     .actions(self => ({
         createProofsCounter(keyset: CashuMintKeyset) {
-            const newCounter: MintProofsCounter = {
+
+            const newCounter = MintProofsCounterModel.create({
                 keyset: keyset.id,
                 unit: keyset.unit as MintUnit,
                 counter: 0,                    
-            }
+            })
 
             self.addProofsCounter(newCounter)
             return self.getProofsCounter(keyset.id)
@@ -270,6 +291,18 @@ export const MintModel = types
                 self.initKeys(key)                
             }
         },
+        getProofsCounterByKeysetId(keysetId: string) {                        
+            const counter = self.proofsCounters.find(p => p.keyset === keysetId)
+            if(!counter) {
+                const keyset = self.keysets.find(k => k.id === keysetId)
+                if(keyset) {
+                    return self.createProofsCounter(keyset)
+                }
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing keyset.')
+            }
+
+            return counter
+        },
         getProofsCounterByUnit(unit: MintUnit, useActiveKeyset: boolean = true) {                        
             let keyset: CashuMintKeyset | undefined
 
@@ -347,13 +380,7 @@ export const MintModel = types
         setStatus(status: MintStatus) {
             self.status = status
         },
-        setInFlight(keysetId: string, options: {inFlightFrom: number, inFlightTo: number, inFlightTid: number}) {
-            const counter = self.getProofsCounter(keysetId)
-
-            if(!counter) {
-                throw new AppError(Err.NOTFOUND_ERROR, 'Count not get mint proofsCounter for keysetId', {keysetId})
-            }
-
+/*        setInFlight(counter: MintProofsCounter, options: {inFlightFrom: number, inFlightTo: number, inFlightTid: number}) {
             counter.inFlightFrom = options.inFlightFrom
             counter.inFlightTo = options.inFlightTo
             counter.counter = options.inFlightTo // temp increase of main counter value
@@ -362,7 +389,7 @@ export const MintModel = types
             log.trace('[setInFlight]', 'Lock and inflight indexes were set', counter)
 
             self.proofsCounters = cast(self.proofsCounters)
-        },
+        }, 
         resetInFlight(inFlightTid: number) {
             const counter = self.findInFlightProofsCounterByTId(inFlightTid)
 
@@ -404,7 +431,7 @@ export const MintModel = types
             log.trace('[decreaseProofsCounter]', 'Decreased proofsCounter', {numberOfProofs, counter})
 
             self.proofsCounters = cast(self.proofsCounters)                        
-        },
+        },*/
         resetCounters() {
             for(const counter of self.proofsCounters) {
                 log.warn('Resetting counter', counter.keyset)

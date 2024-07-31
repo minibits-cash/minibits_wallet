@@ -90,58 +90,69 @@ export const ProofsStoreModel = types
     }))
     .actions(self => ({
         addProofs(newProofs: Proof[], isPending: boolean = false): {addedAmount: number, addedProofs: Proof[]} {
-        try {
-            const proofs = isPending ? self.pendingProofs : self.proofs
-            let addedAmount: number = 0
-            let addedProofs: Proof[] = []
-            const unit: MintUnit = newProofs[0].unit
-            const keysetId: string = newProofs[0].id
+            try {
+                const proofs = isPending ? self.pendingProofs : self.proofs
+                let addedAmount: number = 0
+                let addedProofs: Proof[] = []
+                const unit: MintUnit = newProofs[0].unit
 
-            for (const proof of newProofs) { 
-                if(self.alreadyExists(proof)) {
-                    log.error('[addProofs]', `${isPending ? ' pending' : ''} proof with this secret already exists in the ProofsStore`, {proof})
-                    continue
+                const proofsByKeysetId = new Map<string, Array<Proof>>();
+        
+                for (const proof of newProofs) {
+                    if (!proofsByKeysetId.has(proof.id)) {
+                        proofsByKeysetId.set(proof.id, []);
+                    }
+                    proofsByKeysetId.get(proof.id)!.push(proof);
                 }
+        
+                // Step 2: Update counters and prepare batches for insertion
+                const mintsStore = getRootStore(self).mintsStore
+                const mintInstance = mintsStore.findByUrl(newProofs[0].mintUrl as string)
 
-                if(proof.unit !== unit) {
-                    log.error('[addProofs]', `Proof has a different unit then others`, {proof, unit})
-                    continue
+                for (const [keysetId, keysetProofs] of proofsByKeysetId.entries()) {                    
+
+                    for (const proof of keysetProofs) { 
+                        if(self.alreadyExists(proof)) {
+                            log.error('[addProofs]', `${isPending ? ' pending' : ''} proof with this secret already exists in the ProofsStore`, {proof})
+                            continue
+                        }
+        
+                        if(proof.unit !== unit) {
+                            log.error('[addProofs]', `Proof has a different unit then others`, {proof, unit})
+                            continue
+                        }
+        
+                        if (isStateTreeNode(proof)) {
+                            proofs.push(proof)                    
+                        } else {
+                            const proofInstance = ProofModel.create(proof)
+                            proofs.push(proofInstance)
+                        }
+
+                        addedAmount += proof.amount
+                        addedProofs.push(proof)
+                    }
+                    
+                    // Find the corresponding counter for this keysetId
+                    const proofsCounter = mintInstance?.getProofsCounterByKeysetId(keysetId)
+                    if (proofsCounter) {
+                        // Increment the counter by the number of proofs to insert
+                        proofsCounter.increaseProofsCounter(keysetProofs.length) 
+                    }
                 }
-
-                if(proof.id !== keysetId) {
-                    log.error('[addProofs]', `Proof has a different keysetId then others`, {proof, keysetId})
-                    continue
+        
+                log.debug('[addProofs]', `Added new ${addedProofs.length}${isPending ? ' pending' : ''} proofs to the ProofsStore`)
+                const userSettingsStore = getRootStore(self).userSettingsStore           
+    
+                if (userSettingsStore.isLocalBackupOn === true && addedProofs.length > 0) {
+                    Database.addOrUpdateProofs(addedProofs, isPending) // isSpent = false
                 }
-
-                if (isStateTreeNode(proof)) {
-                    proofs.push(proof)                    
-                } else {
-                    const proofInstance = ProofModel.create(proof)
-                    proofs.push(proofInstance)
-                }
-
-                addedAmount += proof.amount
-                addedProofs.push(proof)
+    
+                return { addedAmount, addedProofs }
+        
+            } catch (e: any) {
+                throw new AppError(Err.STORAGE_ERROR, e.message, {caller: 'addProofs'})
             }
-
-            // Handle counter increment
-            const mintsStore = getRootStore(self).mintsStore
-            const mintInstance = mintsStore.findByUrl(newProofs[0].mintUrl as string)
-            
-            mintInstance?.increaseProofsCounter(keysetId, addedProofs.length)                      
-
-            log.debug('[addProofs]', `Added new ${addedProofs.length}${isPending ? ' pending' : ''} proofs to the ProofsStore`,)
-
-            const userSettingsStore = getRootStore(self).userSettingsStore           
-
-            if (userSettingsStore.isLocalBackupOn === true && addedProofs.length > 0) {
-                Database.addOrUpdateProofs(addedProofs, isPending) // isSpent = false
-            }
-
-            return { addedAmount, addedProofs }
-        } catch (e: any) {
-            throw new AppError(Err.STORAGE_ERROR, e.message, {caller: 'addProofs'})
-        }
         },
         removeProofs(proofsToRemove: Proof[], isPending: boolean = false, isRecoveredFromPending: boolean = false) {
             try {                

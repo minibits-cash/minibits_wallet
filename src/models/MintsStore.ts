@@ -11,7 +11,7 @@ import {
     getParent,
   } from 'mobx-state-tree'
   import {withSetPropAction} from './helpers/withSetPropAction'
-  import {MintModel, Mint, MintProofsCounter} from './Mint'
+  import {MintModel, Mint, MintProofsCounter, MintProofsCounterModel} from './Mint'
   import {log} from '../services/logService'  
   import AppError, { Err } from '../utils/AppError'
   import type {
@@ -41,7 +41,7 @@ export type CounterBackup = {
 // Define the CounterBackup model
 const CounterBackupModel = types.model('CounterBackup', {
     mintUrl: types.string,
-    counters: types.array(MintProofsCounter)
+    counters: types.array(MintProofsCounterModel)
 })
 
 export const MintsStoreModel = types
@@ -87,13 +87,13 @@ export const MintsStoreModel = types
       
             if (backup) {
                 newMint.proofsCounters!.forEach((proofsCounter) => {
-                const backupCounter = backup.counters.find(
-                  (counter) => counter.keyset === proofsCounter.keyset
-                )
-      
-                if (backupCounter) {
-                  newMint.increaseProofsCounter!(proofsCounter.keyset, backupCounter.counter)
-                }
+                    const backupCounter = backup.counters.find(
+                        (counter) => counter.keyset === proofsCounter.keyset
+                    )
+        
+                    if (backupCounter) {
+                        proofsCounter.increaseProofsCounter(backupCounter.counter)
+                    }
               })
             }
         },

@@ -10,7 +10,7 @@ import {rootStoreInstance} from '../models'
 import {CashuUtils, ProofV3, TokenV3} from './cashu/cashuUtils'
 import {LightningUtils} from './lightning/lightningUtils'
 import AppError, {Err} from '../utils/AppError'
-import {MintBalance, MintStatus} from '../models/Mint'
+import {MintBalance, MintProofsCounter, MintStatus} from '../models/Mint'
 import {MeltQuoteResponse, MintQuoteState} from '@cashu/cashu-ts'
 import {Mint} from '../models/Mint'
 import {pollerExists, stopPolling} from '../utils/poller'
@@ -576,6 +576,8 @@ const _handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTas
         } as WalletTaskResult
     }
 
+    const transactionId = proofsCounter.inFlightTid!
+
     try {
         const seed = await walletStore.getSeed()
         if(!seed) {
@@ -597,7 +599,7 @@ const _handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTas
         )        
 
         if (proofs.length === 0) {
-            mint.resetInFlight?.(proofsCounter.inFlightTid as number)
+            proofsCounter.resetInFlight(transactionId)
             
             return {
                 taskFunction: '_handleInFlightByMintTask',
@@ -637,7 +639,7 @@ const _handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTas
             const message = 'Recovered proofs are already spent.'
             log.debug('[_handleInFlightByMintTask]',message)
 
-            mint.resetInFlight?.(proofsCounter.inFlightTid as number)
+            proofsCounter.resetInFlight(transactionId)
             return {
                 taskFunction: '_handleInFlightByMintTask',
                 mintUrl,
@@ -654,14 +656,14 @@ const _handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTas
             unspent,
             {
                 unit: proofsCounter.unit,
-                transactionId: proofsCounter.inFlightTid as number,
+                transactionId,
                 isPending: false
             }
                            
         )
 
         // release the lock
-        mint.resetInFlight?.(proofsCounter.inFlightTid as number)
+        proofsCounter.resetInFlight(transactionId)
 
         const walletTaskResult: WalletTaskResult  = {
             taskFunction: '_handleInFlightByMintTask',
@@ -681,7 +683,7 @@ const _handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTas
         }
 
         transactionsStore.updateStatuses(
-            [proofsCounter.inFlightTid as number],
+            [transactionId],
             TransactionStatus.COMPLETED, // has been most likely DRAFT
             JSON.stringify(transactionDataUpdate),
         )
@@ -694,7 +696,7 @@ const _handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTas
         // silent
         log.error('[_handleInFlightByMintTask]', e.name, {message: e.message, mintUrl})
         // make sure we release the lock
-        mint.resetInFlight?.(proofsCounter.inFlightTid as number)
+        proofsCounter.resetInFlight(transactionId)
 
         return {
             taskFunction: '_handleInFlightByMintTask',
@@ -759,7 +761,8 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
     const paymentHash = {...pr}.paymentHash // copy
     const mintQuote = {...pr}.mintQuote // copy
     const mintInstance = mintsStore.findByUrl(mintUrl as string)
-    const transaction = transactionsStore.findById(transactionId as number)
+    const transaction = transactionsStore.findById(transactionId)
+    let lockedProofsCounter: MintProofsCounter | undefined = undefined
 
     try {
         if(!mintInstance || !mintQuote || !unit || !amount) {
@@ -795,7 +798,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
                     }                        
 
                     await transactionsStore.updateStatuses(
-                        [transactionId as number],
+                        [transactionId],
                         TransactionStatus.EXPIRED,
                         JSON.stringify(transactionDataUpdate),
                     ) 
@@ -817,15 +820,12 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         }
         
         // temp increase the counter + acquire lock and set inFlight values        
-        await WalletUtils.lockAndSetInFlight(
+        lockedProofsCounter = await WalletUtils.lockAndSetInFlight(
             mintInstance, 
             unit, 
             countOfInFlightProofs, 
             transactionId,
-        )   
-
-        // get locked counter values        
-        const lockedProofsCounter = mintInstance.getProofsCounterByUnit(unit)!
+        )
 
         let proofs: ProofV3[] = []
         
@@ -840,7 +840,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
             }
         )) as ProofV3[] 
 
-        mintInstance.decreaseProofsCounter(lockedProofsCounter.keyset, countOfInFlightProofs)        
+        lockedProofsCounter.decreaseProofsCounter(countOfInFlightProofs)        
         
         if (!proofs || proofs.length === 0) {        
             throw new AppError(Err.VALIDATION_ERROR, 'Mint did not return any proofs.')
@@ -858,7 +858,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         )    
         
         // release lock and cleanup
-        mintInstance.resetInFlight(transactionId as number )
+        lockedProofsCounter.resetInFlight(transactionId)
         stopPolling(`handlePendingTopupTaskPoller-${paymentHash}`)               
 
         const currencyCode = getCurrency(pr.mintUnit!).code  
@@ -878,13 +878,13 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
 
         // await for final status
         await transactionsStore.updateStatuses(
-            [transactionId as number],
+            [transactionId],
             TransactionStatus.COMPLETED,
             JSON.stringify(transactionDataUpdate),
         )
 
         transactionsStore.updateSentFrom(
-            transactionId as number,
+            transactionId,
             pr.contactTo?.nip05 as string // payemnt has been sent from payment request receiver
         )
 
@@ -895,7 +895,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
 
         await transactionsStore.updateBalanceAfter(
-            transactionId as number,
+            transactionId,
             balanceAfter,
         )     
     
@@ -908,14 +908,14 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
             unit,
             amount,
             paymentHash,
-            transaction: transactionsStore.findById(transactionId as number),
+            transaction: transactionsStore.findById(transactionId),
             message: `Your invoice has been paid and your wallet balance credited with ${formatCurrency(amount, currencyCode)} ${currencyCode}.`,
         } as TransactionTaskResult
 
     } catch (e: any) {
         // release lock  
-        if(mintInstance) {
-            mintInstance.resetInFlight(transactionId as number)
+        if(lockedProofsCounter) {
+            lockedProofsCounter.resetInFlight(transactionId)
         }
         return {
             taskFunction: '_handlePendingTopupTask',
@@ -923,7 +923,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
             unit,
             amount,
             paymentHash,
-            transaction: transactionsStore.findById(transactionId as number),
+            transaction: transactionsStore.findById(transactionId),
             error: {name: e.name, message: e.message, params: e.params || undefined},
             message: `_handlePendingTopupTask ended with error: ${e.message}`,                        
         } as TransactionTaskResult

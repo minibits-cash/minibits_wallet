@@ -5,11 +5,11 @@ import QRCode from "react-native-qrcode-svg"
 import Clipboard from "@react-native-clipboard/clipboard"
 import { moderateVerticalScale } from "@gocodingnow/rn-size-matters"
 import { colors, spacing } from "../../theme"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { translate } from "../../i18n"
-import { CashuUtils } from "../../services/cashu/cashuUtils"
+import { CashuUtils, TokenV3 } from "../../services/cashu/cashuUtils"
 import { log } from "../../services"
-import AppError, { Err } from "../../utils/AppError"
+
 
 export const QRCodeBlock = function (props: {  
     qrCodeData: string    
@@ -21,7 +21,27 @@ export const QRCodeBlock = function (props: {
   
     const {qrCodeData, title, type, size} = props
     const [qrError, setQrError] = useState<Error | undefined>()   
-    const [encodedV4Token, setEncodedV4Token] = useState<string | undefined>()  
+    const [encodedV4Token, setEncodedV4Token] = useState<string | undefined>()
+    const [decodedV3Token, setDecodedV3Token] = useState<TokenV3>()
+    const [keysetFormat, setKeysetFormat] = useState<'hex' | 'base64' | undefined>()
+    
+    useEffect(() => {
+      const detectKeysetFormat = () => {
+        if(type === 'EncodedV3Token') {
+          const decoded = CashuUtils.decodeToken(qrCodeData) as TokenV3
+          setDecodedV3Token(decoded)
+          
+          if(decoded.token[0].proofs[0].id.startsWith('00')) {
+            setKeysetFormat('hex')
+          } else {
+            setKeysetFormat('base64')
+          }          
+        }
+      }
+
+      detectKeysetFormat()
+      return () => {}
+  }, [])
 
     const handleQrError = function (error: Error) {
         setQrError(error)
@@ -53,17 +73,15 @@ export const QRCodeBlock = function (props: {
           setEncodedV4Token(undefined)
         } else if(type === 'EncodedV3Token') {
           log.trace('[v3]', qrCodeData)
-
-          const decoded = CashuUtils.decodeToken(qrCodeData)
-
-          if(decoded.token[0].proofs[0].id.startsWith('00')) {
-            const encodedV4 = CashuUtils.encodeToken(decoded, 4)
-            log.trace('[v4]', encodedV4)            
-            setEncodedV4Token(encodedV4)
-          } else {
-            throw new AppError(Err.VALIDATION_ERROR, 'This token uses old keyset type, can not create new token format.')
-          }
           
+          if(!decodedV3Token) {
+            return false
+          }
+
+          const encodedV4 = CashuUtils.encodeToken(decodedV3Token, 4)
+            
+          log.trace('[v4]', encodedV4)            
+          setEncodedV4Token(encodedV4)
         }
       } catch (e: any) {
         setQrError(e)
@@ -129,7 +147,7 @@ export const QRCodeBlock = function (props: {
                     marginRight: spacing.small
                 }}  
             />
-            {type === 'EncodedV3Token' && (
+            {type === 'EncodedV3Token' && keysetFormat === 'hex' && (
               <Button 
                   preset="tertiary" 
                   text={`${encodedV4Token ? 'Legacy' : 'New'} format`}
