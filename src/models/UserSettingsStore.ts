@@ -12,8 +12,8 @@ export type UserSettings = {
   isStorageEncrypted: boolean | 0 | 1
   isLocalBackupOn: boolean | 0 | 1
   isTorDaemonOn: boolean | 0 | 1
-  isLoggerOn: boolean | 0 | 1  
-  isStorageMigrated: boolean | 0 | 1
+  isLoggerOn: boolean | 0 | 1   
+  // isBatchClaimOn: boolean | 0 | 1
   logLevel: LogLevel
 }
 
@@ -26,8 +26,8 @@ export const UserSettingsStoreModel = types
         isStorageEncrypted: types.optional(types.boolean, false),
         isLocalBackupOn: types.optional(types.boolean, true),
         isTorDaemonOn: types.optional(types.boolean, false),
-        isLoggerOn: types.optional(types.boolean, true),        
-        isStorageMigrated: types.optional(types.boolean, false),
+        // isBatchClaimOn: types.optional(types.boolean, false),
+        isLoggerOn: types.optional(types.boolean, true),
         logLevel: types.optional(types.frozen<LogLevel>(), LogLevel.ERROR)
     })
     .actions(self => ({
@@ -39,8 +39,8 @@ export const UserSettingsStoreModel = types
                 isStorageEncrypted, 
                 isLocalBackupOn,
                 isTorDaemonOn,
-                isLoggerOn,                
-                isStorageMigrated,
+                isLoggerOn,                                
+                // isBatchClaimOn,
                 logLevel
             } = Database.getUserSettings()
             
@@ -48,8 +48,8 @@ export const UserSettingsStoreModel = types
             const booleanIsStorageEncrypted = isStorageEncrypted === 1
             const booleanIsLocalBackupOn = isLocalBackupOn === 1            
             const booleanIsTorDaemonOn = isTorDaemonOn === 1
-            const booleanIsLoggerOn = isLoggerOn === 1            
-            const booleanIsStorageMigrated = isStorageMigrated === 1            
+            const booleanIsLoggerOn = isLoggerOn === 1                        
+            // const booleanIsBatchClaimOn = isBatchClaimOn === 1            
             
             self.walletId = walletId as string
             self.preferredUnit = preferredUnit as MintUnit                        
@@ -57,8 +57,8 @@ export const UserSettingsStoreModel = types
             self.isStorageEncrypted = booleanIsStorageEncrypted as boolean
             self.isLocalBackupOn = booleanIsLocalBackupOn as boolean
             self.isTorDaemonOn = booleanIsTorDaemonOn as boolean
-            self.isLoggerOn = booleanIsLoggerOn as boolean            
-            self.isStorageMigrated = booleanIsStorageMigrated as boolean
+            self.isLoggerOn = booleanIsLoggerOn as boolean                        
+            // self.isBatchClaimOn = booleanIsBatchClaimOn as boolean
             self.logLevel = logLevel as LogLevel
         },
         setWalletId: (walletId: string) => {
@@ -104,11 +104,16 @@ export const UserSettingsStoreModel = types
             self.isLoggerOn = isLoggerOn            
             return isLoggerOn
         },
-        setIsStorageMigrated: (isStorageMigrated: boolean) => {
+        /* setIsStorageMigrated: (isStorageMigrated: boolean) => {
             Database.updateUserSettings({...self, isStorageMigrated})
             self.isStorageMigrated = isStorageMigrated            
             return isStorageMigrated
-        },
+        }, */
+        /* setIsBatchClaimOn: (isBatchClaimOn: boolean) => {
+            Database.updateUserSettings({...self, isBatchClaimOn})
+            self.isBatchClaimOn = isBatchClaimOn            
+            return isBatchClaimOn
+        },*/
         setLogLevel: (logLevel: LogLevel) => {
             Database.updateUserSettings({...self, logLevel})
             self.logLevel = logLevel            
@@ -122,6 +127,9 @@ export const UserSettingsStoreModel = types
         get isAppStorageEncrypted() { // can not have the same name as model property
             return self.isStorageEncrypted
         }, 
+        /* get isBatchClaimOn() {
+            return self.isBatchClaimOn
+        }, */
         get isTorOn() {
             return self.isTorDaemonOn
         },
@@ -129,17 +137,6 @@ export const UserSettingsStoreModel = types
             return self
         },
     }))
-/*.preProcessSnapshot((snapshot) => {
-    // remove sensitive data from snapshot to avoid secrets
-    // being stored in AsyncStorage in plain text if backing up store
-    // const { authToken, authPassword, ...rest } = snapshot // eslint-disable-line @typescript-eslint/no-unused-vars
-
-    // see the following for strategies to consider storing secrets on device
-    // https://reactnative.dev/docs/security#storing-sensitive-info
-
-    // return rest
-    return snapshot
-  })*/
 
 export interface UserSettingsStore
   extends Instance<typeof UserSettingsStoreModel> {}

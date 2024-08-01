@@ -1,3 +1,4 @@
+import React from 'react'
 import { verticalScale } from "@gocodingnow/rn-size-matters"
 import { ReactElement } from "react"
 import { ColorValue, useColorScheme } from "react-native"

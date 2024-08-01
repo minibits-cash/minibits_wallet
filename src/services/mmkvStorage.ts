@@ -15,36 +15,6 @@ const initEncryption = async function (): Promise<void> {
   if (!_encryptionKey) {
     try {
         _encryptionKey = await getOrCreateEncryptionKey()
-        
-        // init migration from previously encrypted storage-v1, needs to be this early            
-        if (!Database.getUserSettings().isStorageMigrated) {
-            log.error('[getInstance] Starting migration to new encrypted storage')
-
-            const _current_storage = new MMKV({
-                id: STORAGE_KEY,
-                encryptionKey: _encryptionKey,
-            })
-
-            const migratedWalletState = _current_storage.getString(ROOT_STORAGE_KEY)
-            
-            if(migratedWalletState) {
-                const _new_storage = new MMKV({
-                    id: ENCRYPTED_STORAGE_KEY,
-                    encryptionKey: _encryptionKey,
-                })
-    
-                _new_storage.set(ROOT_STORAGE_KEY, migratedWalletState)
-            }
-            
-            // remove encryption from default storage
-            _current_storage.recrypt(undefined)
-
-            const userSettings = Database.getUserSettings()
-            Database.updateUserSettings({...userSettings, isStorageMigrated: true})           
-
-        } // migration end
-
-
         getInstance() // Instantiate the MMKV instance with the encryption key
     } catch(e: any) {
         throw e

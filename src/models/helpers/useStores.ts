@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState } from "react"
 import { RootStoreModel } from "../RootStore"
 import type { RootStore } from "../RootStore"
 import { setupRootStore } from "./setupRootStore"
+import { log } from "../../services"
 
 /**
  * Create the initial (empty) global RootStore instance here.
@@ -49,15 +50,15 @@ export const useStores = () => useContext(RootStoreContext)
  * and then rehydrates it. It connects everything with Reactotron
  * and then lets the app know that everything is ready to go.
  */
-export const useInitialRootStore = (callback: () => void | Promise<void>) => {
+export const useInitialRootStore = (callback: () => void | Promise<void>) => {  
   const rootStore = useStores()
   const [rehydrated, setRehydrated] = useState(false)
 
   // Kick off initial async loading actions, like loading fonts and rehydrating RootStore
-  useEffect(() => {
+  useEffect(() => {    
     let _unsubscribe
     ;(async () => {
-      // set up the RootStore (returns the state restored from storage)
+      // set up the RootStore (returns the state restored from storage)      
       const { restoredState, unsubscribe } = await setupRootStore(rootStore)
       _unsubscribe = unsubscribe
 

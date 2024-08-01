@@ -40,7 +40,6 @@ import {BackupProof, Proof} from '../models/Proof'
 import useColorScheme from '../theme/useThemeColor'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
-import { getDecodedToken, Token as CashuToken } from '@cashu/cashu-ts'
 import { CashuUtils, TokenV3 } from '../services/cashu/cashuUtils'
 import { MintStatus } from '../models/Mint'
 import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
@@ -50,6 +49,7 @@ import { PaymentRequest } from '../models/PaymentRequest'
 import { pollerExists } from '../utils/poller'
 import { useFocusEffect } from '@react-navigation/native'
 import { QRCodeBlock } from './Wallet/QRCode'
+
 
 type ProofsByStatus = {
   isSpent: Proof[]
@@ -494,7 +494,7 @@ const ReceiveInfoBlock = function (props: {
         setIsLoading(true)     
 
         try {    
-            const tokenToRetry: CashuToken = getDecodedToken(encodedTokenToRetry)              
+            const tokenToRetry: TokenV3 = CashuUtils.decodeToken(encodedTokenToRetry)              
             const amountToReceive = CashuUtils.getTokenAmounts(tokenToRetry).totalAmount
             const memo = tokenToRetry.memo || ''
             

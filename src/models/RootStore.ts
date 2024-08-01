@@ -8,14 +8,23 @@ import {PaymentRequestsStoreModel} from './PaymentRequestsStore'
 import {ProofsStoreModel} from './ProofsStore'
 import {RelaysStoreModel} from './RelaysStore'
 import {WalletStoreModel} from './WalletStore'
+import { log } from '../services'
 
-export const rootStoreModelVersion = 16 // Update this if model changes require migrations defined in setupRootStore.ts
+export const rootStoreModelVersion = 23 // Update this if model changes require migrations defined in setupRootStore.ts
 
 // Ephemeral non-persisted stores
 const NonPersistedStoresModel = types.model('NonPersistedStores', {
-    walletStore: types.optional(WalletStoreModel, {}),
-    
-});
+    walletStore: types.optional(WalletStoreModel, {}),    
+}).postProcessSnapshot((snapshot) => {    
+    return {walletStore: {
+        mints: [],
+        seedWallets: [],
+        wallets: [],
+        mnemonicPhrase: undefined,
+        seedBase64: undefined}
+    }    
+})
+
 /**
  * A RootStore model.
  */
@@ -38,8 +47,6 @@ export const RootStoreModel = types
         self.version = version
     },
 }))
-
-
 
 /**
  * The RootStore instance.

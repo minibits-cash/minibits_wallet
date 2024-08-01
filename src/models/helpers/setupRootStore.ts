@@ -24,6 +24,7 @@ import { rootStoreModelVersion } from '../RootStore'
 import AppError, { Err } from '../../utils/AppError'
 import { LogLevel } from '../../services/log/logTypes'
 import { MintStatus } from '../Mint'
+import { WalletStoreModel } from '../WalletStore'
 
 /**
  * The key we'll be saving our state as within storage.
@@ -42,7 +43,8 @@ export async function setupRootStore(rootStore: RootStore) {
     try {
         // Give an option to encrypt storage as it might slow down app start on some Android devices
         // User settings are mastered in sqlite so we can get the encryption setting before loading root store
-        const userSettings = Database.getUserSettings()
+        
+        const userSettings = Database.getUserSettings()        
         
         // random identificator of an app installation for bugs and crash reporting
         if(userSettings.walletId) {
@@ -72,18 +74,15 @@ export async function setupRootStore(rootStore: RootStore) {
                     }
                 }  
             }      
-        } else {
-            // mark not encrypted wallets as migrated to avoid migration on later encryption turned on
-            Database.updateUserSettings({...userSettings, isStorageMigrated: true})
         }
 
         // load the last known state from storage
-        restoredState = MMKVStorage.load(ROOT_STORAGE_KEY) || {}        
+        restoredState = MMKVStorage.load(ROOT_STORAGE_KEY) || {}          
         
         //log.trace('[setupRootStore]', {restoredState})
+
+        applySnapshot(rootStore, restoredState)        
         
-        applySnapshot(rootStore, restoredState)
-    
     } catch (e: any) {        
         log.error('[setupRootStore]', Err.STORAGE_ERROR, e.message, e.params)
     }
@@ -95,22 +94,16 @@ export async function setupRootStore(rootStore: RootStore) {
 
     // track changes & save to storage
     _disposer = onSnapshot(rootStore, snapshot => {
-        // log.trace('[setupRootStore] snapshot listener', {snapshot})
-        const persistedSnapshot = {
-            ...snapshot,
-            nonPersistedStores: undefined // Exclude non-persisted stores
-        }
-
-        MMKVStorage.save(ROOT_STORAGE_KEY, persistedSnapshot)
+        MMKVStorage.save(ROOT_STORAGE_KEY, snapshot)
     })
 
     // run migrations if needed, needs to be after onSnapshot to be persisted
     try {    
         log.debug('[setupRootStore]', `Device rootStore.version is: ${rootStore.version}`)      
 
-    if(rootStore.version < rootStoreModelVersion) {
-        await _runMigrations(rootStore)
-    }    
+        if(rootStore.version < rootStoreModelVersion) {
+            await _runMigrations(rootStore)
+        }    
     } catch (e: any) {    
         log.error(Err.STORAGE_ERROR, e.message)
     }
@@ -207,8 +200,7 @@ async function _runMigrations(rootStore: RootStore) {
         }
 
         if(currentVersion < 11) {
-            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v11`)
-            // migration code needs to run early so it is in mmkvStorage.getInstance()
+            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v11`)            
             userSettingsStore.setIsStorageMigrated(true)
             rootStore.setVersion(rootStoreModelVersion)
             log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
@@ -292,6 +284,13 @@ async function _runMigrations(rootStore: RootStore) {
                 log.warn('[setupRootStore] Migration error', {message: e.name})
             }
         }
+
+        if(currentVersion < 23) {
+            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v23`)            
+            walletProfileStore.setIsBatchClaimOn(false)
+            rootStore.setVersion(rootStoreModelVersion)
+            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+        }
     } catch (e: any) {
         throw new AppError(
         Err.STORAGE_ERROR,
@@ -299,4 +298,6 @@ async function _runMigrations(rootStore: RootStore) {
         e.message,
         )    
     }
+
+
 }

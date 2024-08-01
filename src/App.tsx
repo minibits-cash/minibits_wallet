@@ -56,21 +56,19 @@ interface AppProps {
   appName: string
 }
 
-function App(props: AppProps) {
-    
-    const {userSettingsStore, relaysStore, walletProfileStore} = useStores()
+function App(props: AppProps) {    
+    const {userSettingsStore, relaysStore, walletProfileStore} = useStores()    
 
-    const {rehydrated} = useInitialRootStore(async() => {        
+    const {rehydrated} = useInitialRootStore(async() => {
+        log.trace('[useInitialRootStore]', 'Root store rehydrated')
         // This runs after the root store has been initialized and rehydrated from storage.
 
         // Creates and opens a sqlite database that stores transactions history and user settings.
-        // It triggers db migrations if database version has changed.
-        // As it runs inside a callback, it should not block UI.        
+        // It triggers db migrations if database version has changed.        
         Database.getDatabaseVersion()
         
-        // Syncs userSettings store with the database where they are persisted
-        userSettingsStore.loadUserSettings()        
-        log.trace('[useInitialRootStore]', 'Root store rehydrated')
+        // Syncs userSettings store with the database (needed?)
+        userSettingsStore.loadUserSettings()
 
         // FCM push notifications - set or refresh device token on app start                
         await messaging().registerDeviceForRemoteMessages()        
@@ -87,16 +85,14 @@ function App(props: AppProps) {
         }
 
         // Set initial websocket to close as it might have remained open on last app close
-        for (const relay of relaysStore.allRelays) {
-            relay.setStatus(WebSocket.CLOSED)
-        }
+        relaysStore.resetStatuses()
     })
 
     
 
     if (!rehydrated) {    
         return null
-    }  
+    } 
 
     return (
         <SafeAreaProvider>

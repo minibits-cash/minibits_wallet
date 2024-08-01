@@ -254,14 +254,15 @@ const checkDonationPaid = async function (paymentHash: string, pubkey: string) {
 }
 
 
-const createClaim = async function (walletId: string, seedHash: string, pubkey: string,) {    
+const createClaim = async function (walletId: string, seedHash: string, pubkey: string, batchFrom?: number) {    
     const url = MINIBITS_SERVER_API_HOST + '/claim' 
     const method = 'POST'    
     
     const body = {
         walletId,
         seedHash,
-        pubkey
+        pubkey,
+        batchFrom
     }        
 
     const claimedInvoices: Array<{token: string, zapSenderProfile?: string}> = await fetchApi(url, {
@@ -269,7 +270,7 @@ const createClaim = async function (walletId: string, seedHash: string, pubkey: 
         body
     })
 
-    log.info(`[createClaim] Created new claim and got invoices`, {claimedInvoices})
+    log.debug(`[minibitsClient.createClaim] Got claim response`)
 
     return claimedInvoices
 }

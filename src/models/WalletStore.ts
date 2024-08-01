@@ -1,4 +1,4 @@
-import {Instance, SnapshotOut, types, flow, getRoot} from 'mobx-state-tree'
+import {Instance, SnapshotOut, types, flow, getRoot, getSnapshot} from 'mobx-state-tree'
 import {
   AmountPreference,
   CashuMint,
@@ -566,7 +566,7 @@ export const WalletStoreModel = types
         }
       ) {
         try {    
-          const cashuWallet = yield self.getWallet(mintUrl, unit, {withSeed: true}) // with seed
+          const cashuWallet: CashuWallet = yield self.getWallet(mintUrl, unit, {withSeed: true}) // with seed
       
           const {isPaid, preimage, change: feeSavedProofs}: MeltTokensResponse =
             yield cashuWallet.meltTokens(
@@ -664,8 +664,9 @@ export const WalletStoreModel = types
         },
         get seed() {
           return self.seedBase64
-      },
+        }
     }))
+
 
     function isOnionMint(mintUrl: string) {
       return new URL(mintUrl).hostname.endsWith('.onion')

@@ -120,7 +120,7 @@ const {
     transactionsStore,    
     paymentRequestsStore,
     contactsStore,
-    relaysStore,
+    relaysStore,    
     nonPersistedStores,
 } = rootStoreInstance
 
@@ -936,10 +936,15 @@ const handleClaim = async function (): Promise<void> {
     
     log.info('[handleClaim] start')
     const {walletId, seedHash, pubkey} = walletProfileStore
+    const {isBatchClaimOn} = walletProfileStore
     let recoveredWalletId: string | null = null
 
     if(!seedHash || !pubkey) {
-        throw new AppError(Err.VALIDATION_ERROR, 'Skipping claim of ecash received to your lightning address, missing profile data. Reinstall wallet to fix it.', {walletId, seedHash, pubkey})
+        throw new AppError(
+            Err.VALIDATION_ERROR, 
+            'Skipping claim of ecash received to your lightning address, missing profile data. Reinstall wallet to fix it.', 
+            {walletId, seedHash, pubkey}
+        )
     }
 
     if(!walletId) {
@@ -952,33 +957,41 @@ const handleClaim = async function (): Promise<void> {
         }
     }
 
-    const claimedInvoices = await MinibitsClient.createClaim(walletId || recoveredWalletId as string, seedHash, pubkey)
+    // Based on user setting, ask for batched token if more then 5 payments are waiting to be claimed
+    const claimedTokens = await MinibitsClient.createClaim(
+        walletId || recoveredWalletId as string,
+        seedHash, 
+        pubkey,
+        isBatchClaimOn ? 5 : undefined
+    )
 
-    if(claimedInvoices.length === 0) {
-        log.debug('[handleClaim] No claimed invoices returned from server...')
+    if(claimedTokens.length === 0) {
+        log.debug('[handleClaim] No claimed invoices returned from the server...')
         return
+    } else {
+        log.debug(`[handleClaim] Claimed ${claimedTokens.length} tokens from the server...`)
     }
 
-    for(const claimedInvoice of claimedInvoices) {
+    for(const claimedToken of claimedTokens) {
         const now = new Date().getTime()
 
         SyncQueue.addTask( 
             `_handleClaimTask-${now}`,               
-            async () => await _handleClaimTask({claimedInvoice})               
+            async () => await _handleClaimTask({claimedToken})               
         )               
     }        
     return
 }
 
 
-const _handleClaimTask = async function (params: {claimedInvoice: {token: string, zapSenderProfile?: string}}) {
-    const {claimedInvoice} = params
-    const encryptedToken = claimedInvoice.token
+const _handleClaimTask = async function (params: {claimedToken: {token: string, zapSenderProfile?: string}}) {
+    const {claimedToken} = params    
 
-    if(!claimedInvoice.token) {
+    if(!claimedToken.token) {
         throw new AppError(Err.VALIDATION_ERROR, '[_handleClaimTask] Missing encodedToken to receive.')
     }
 
+    const encryptedToken = claimedToken.token
     const encodedToken = await NostrClient.decryptNip04(MINIBIT_SERVER_NOSTR_PUBKEY, encryptedToken)
 
     log.debug('[_handleClaimTask] decrypted token', {encodedToken})
@@ -994,9 +1007,9 @@ const _handleClaimTask = async function (params: {claimedInvoice: {token: string
         encodedToken,
     )
 
-    if(result && result.transaction && claimedInvoice.zapSenderProfile) {
+    if(result && result.transaction && claimedToken.zapSenderProfile) {
 
-        const {zapSenderProfile} = claimedInvoice
+        const {zapSenderProfile} = claimedToken
         const zapSenderProfileData: NostrProfile = JSON.parse(zapSenderProfile)
         const sentFrom = zapSenderProfileData.nip05 || zapSenderProfileData.name
         

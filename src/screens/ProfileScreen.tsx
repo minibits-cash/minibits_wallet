@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
-import {Share, TextStyle, View, ViewStyle} from 'react-native'
+import {Share, Switch, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {ContactsStackScreenProps} from '../navigation'
 import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, Loading, Header} from '../components'
@@ -9,10 +9,9 @@ import AppError, { Err } from '../utils/AppError'
 import { ProfileHeader } from '../components/ProfileHeader'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { log } from '../services/logService'
-import { KeyChain, MinibitsClient, NostrClient, NostrProfile } from '../services'
-import { MINIBITS_NIP05_DOMAIN } from '@env'
-import { StackActions } from '@react-navigation/native'
+import { MinibitsClient, NostrClient, NostrProfile } from '../services'
 import { translate } from '../i18n'
+import { CollapsibleText } from '../components/CollapsibleText'
 
 interface ProfileScreenProps extends ContactsStackScreenProps<'Profile'> {}
 
@@ -20,8 +19,11 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
   function ProfileScreen({navigation}) {    
     
     const {walletProfileStore, userSettingsStore, relaysStore} = useStores() 
-    const {npub, name, picture, nip05} = walletProfileStore    
+    const {npub, nip05} = walletProfileStore    
 
+    const [isBatchClaimOn, setIsBatchClaimOn] = useState<boolean>(
+        walletProfileStore.isBatchClaimOn,
+    )
     const [isUpdateModalVisible, setIsUpdateModalVisible] = useState<boolean>(false)
     const [isShareModalVisible, setIsShareModalVisible] = useState<boolean>(false)
     const [isLoading, setIsLoading] = useState<boolean>(false)
@@ -150,65 +152,29 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
     }
 
     
-    /* const resetProfile = async function() {
-        setIsLoading(true)
-        toggleUpdateModal()
-
-        try {
-            // overwrite with new keys
-            const keyPair = KeyChain.generateNostrKeyPair()
-            await KeyChain.saveNostrKeyPair(keyPair)
-
-            // set name to defualt walletId
-            const name = userSettingsStore.walletId as string
-
-            // get random image
-            const pictures = await MinibitsClient.getRandomPictures() // TODO PERF
-
-            // update wallet profile
-            await walletProfileStore.updateNip05(
-                keyPair.publicKey,
-                name + MINIBITS_NIP05_DOMAIN,
-                name,
-                pictures[0],
-                false // isOwnProfile
-            )
-
-            setIsLoading(false)
+    const toggleBatchClaimSwitch = () => {
+        try {          
+          const result = walletProfileStore.setIsBatchClaimOn(!isBatchClaimOn)
+          setIsBatchClaimOn(result)
         } catch (e: any) {
-            handleError(e)
+          handleError(e)
         }
-    }*/
+      }
 
     const handleError = function (e: AppError): void {
         setIsLoading(false)      
         setError(e)
     }
 
-    const iconNpub = useThemeColor('textDim')
+    const icon = useThemeColor('textDim')
+    const $subText = {color: useThemeColor('textDim'), fontSize: 14}
+    const $itemRight = {color: useThemeColor('textDim')}
     
     return (
       <Screen contentContainerStyle={$screen} preset='auto'>
             <Header 
                 leftIcon='faArrowLeft'
-                onLeftPress={() => {
-                    /* const routes = navigation.getState()?.routes
-                    let prevRouteName: string = ''
-        
-                    if(routes.length >= 2) {
-                        prevRouteName = routes[routes.length - 2].name
-                    }
-        
-                    if(prevRouteName === 'Contacts') {
-                        navigation.navigate('Contacts', {})
-                    } else {
-                        navigation.dispatch(
-                            StackActions.replace('Contacts')                    
-                        )
-                        navigation.navigate('WalletNavigator', {screen: 'Wallet', params: {}})
-                    } */
-                    navigation.goBack()
-                }}
+                onLeftPress={() => {navigation.goBack()}}
                 rightIcon='faCopy'
                 onRightPress={onCopyNip05}
             />        
@@ -245,8 +211,14 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                                 ) : (
                                     <ListItem
                                         tx="profileOnboarding.minibitsTitle"
-                                        subTx="profileOnboarding.minibitsDesc"
+                                        //subTx="profileOnboarding.minibitsDesc"
                                         leftIcon='faCircleUser'
+                                        BottomComponent={
+                                            <CollapsibleText
+                                                collapsed={true}                                
+                                                text={translate('profileOnboarding.minibitsDesc')}
+                                                textProps={{style: $subText}}
+                                            />}
                                         bottomSeparator={true}
                                         style={{paddingRight: spacing.small}}
                                     />   
@@ -269,6 +241,33 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                             </>
                         )}                          
                         </>
+                    }
+                />
+                <Card
+                    style={[$card, {marginTop: spacing.small}]}
+                    ContentComponent={
+                    <>
+                        <ListItem
+                            text='Batch receive'                            
+                            leftIcon='faCubes'                            
+                            style={$item}                        
+                            RightComponent={
+                                <View style={$rightContainer}>
+                                    <Switch
+                                        onValueChange={toggleBatchClaimSwitch}
+                                        value={isBatchClaimOn}
+                                    />
+                                </View>
+                            }
+                            BottomComponent={
+                                <CollapsibleText
+                                    collapsed={true}                                
+                                    text={'Recommended for heavy zap collectors. If there are more payments or zaps received to your lightning address, batch them into a single one.'}
+                                    textProps={{style: $subText}}
+                                />}
+                            bottomSeparator={false}                            
+                        />
+                    </>
                     }
                 />
             </View>

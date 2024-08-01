@@ -1,3 +1,4 @@
+import React from 'react'
 import { Share, View, ViewStyle } from "react-native"
 import { infoMessage } from "../../utils/utils"
 import { Button, Card, Icon, ListItem } from "../../components"
@@ -91,7 +92,7 @@ export const QRCodeBlock = function (props: {
   
     const onCopy = function () {
       try {
-        Clipboard.setString(qrCodeData as string)
+        Clipboard.setString(encodedV4Token || qrCodeData as string)
       } catch (e: any) {
         setQrError(e)
       }

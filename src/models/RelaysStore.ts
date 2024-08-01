@@ -82,6 +82,10 @@ export const RelaysStoreModel = types
                 status: WebSocket.CLOSED
             })
         },
+        resetStatuses() {            
+            self.allRelays.every(relay => relay.setStatus(WebSocket.CLOSED))
+            log.trace('[RelayStore] resetStatuses')
+        }
     })) 
     .views(self => ({
         get allUrls() {
