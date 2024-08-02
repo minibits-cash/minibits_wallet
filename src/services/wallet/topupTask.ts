@@ -170,7 +170,7 @@ export const topupTask = async function (
         return {
             taskFunction: TOPUP,
             transaction: errorTransaction || undefined,
-            message: '',
+            message: e.message,
             error: WalletUtils.formatError(e),
         } as TransactionTaskResult
     }

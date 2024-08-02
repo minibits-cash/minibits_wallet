@@ -258,7 +258,7 @@ export const receiveTask = async function (
             taskFunction: RECEIVE,
             mintUrl: mintToReceive || '',
             transaction: errorTransaction || undefined,
-            message: '',
+            message: e.message,
             error: WalletUtils.formatError(e),
         } as TransactionTaskResult
     }

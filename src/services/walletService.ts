@@ -985,47 +985,62 @@ const handleClaim = async function (): Promise<void> {
 
 
 const _handleClaimTask = async function (params: {claimedToken: {token: string, zapSenderProfile?: string}}) {
-    const {claimedToken} = params    
+    let decoded: TokenV3 | undefined = undefined
 
-    if(!claimedToken.token) {
-        throw new AppError(Err.VALIDATION_ERROR, '[_handleClaimTask] Missing encodedToken to receive.')
-    }
-
-    const encryptedToken = claimedToken.token
-    const encodedToken = await NostrClient.decryptNip04(MINIBIT_SERVER_NOSTR_PUBKEY, encryptedToken)
-
-    log.debug('[_handleClaimTask] decrypted token', {encodedToken})
-
-    const decoded = CashuUtils.decodeToken(encodedToken)
-    const amountToReceive = CashuUtils.getTokenAmounts(decoded).totalAmount
-    const memo = decoded.memo || 'Received to Lightning address'
-
-    const result: TransactionTaskResult = await receiveTask(
-        decoded,
-        amountToReceive,
-        memo,
-        encodedToken,
-    )
-
-    if(result && result.transaction && claimedToken.zapSenderProfile) {
-
-        const {zapSenderProfile} = claimedToken
-        const zapSenderProfileData: NostrProfile = JSON.parse(zapSenderProfile)
-        const sentFrom = zapSenderProfileData.nip05 || zapSenderProfileData.name
+    try {
+        const {claimedToken} = params
         
-        await transactionsStore.updateSentFrom(
-            result.transaction.id as number,
-            sentFrom as string
-        )
-    }
+        log.debug('[_handleClaimTask] claimed token', {claimedToken})
 
-    return { 
-        mintUrl: decoded.token[0].mint,
-        taskFunction: '_handleClaimTask',
-        message: 'Ecash sent to your lightning address has been received.',
-        proofsCount: decoded.token[0].proofs.length,
-        proofsAmount: result.transaction?.amount,
-    } as WalletTaskResult 
+        if(!claimedToken.token) {
+            throw new AppError(Err.VALIDATION_ERROR, '[_handleClaimTask] Missing encodedToken to receive.')
+        }
+
+        const encryptedToken = claimedToken.token
+        const encodedToken = await NostrClient.decryptNip04(MINIBIT_SERVER_NOSTR_PUBKEY, encryptedToken)
+
+        log.debug('[_handleClaimTask] decrypted token', {encodedToken})
+
+        decoded = CashuUtils.decodeToken(encodedToken)
+        const amountToReceive = CashuUtils.getTokenAmounts(decoded).totalAmount
+        const memo = decoded.memo || 'Received to Lightning address'
+
+        const result: TransactionTaskResult = await receiveTask(
+            decoded,
+            amountToReceive,
+            memo,
+            encodedToken,
+        )
+
+        if(result && result.transaction && claimedToken.zapSenderProfile) {
+
+            const {zapSenderProfile} = claimedToken
+            const zapSenderProfileData: NostrProfile = JSON.parse(zapSenderProfile)
+            const sentFrom = zapSenderProfileData.nip05 || zapSenderProfileData.name
+            
+            await transactionsStore.updateSentFrom(
+                result.transaction.id as number,
+                sentFrom as string
+            )
+        }
+
+        return { 
+            mintUrl: decoded.token[0].mint,
+            taskFunction: '_handleClaimTask',
+            message: 'Ecash sent to your lightning address has been received.',
+            proofsCount: decoded.token[0].proofs.length,
+            proofsAmount: result.transaction?.amount,
+        } as WalletTaskResult
+    } catch (e: any) {
+        log.error(e.name, e.message)
+
+        return {
+            mintUrl: decoded ? decoded.token[0].mint : '',            
+            taskFunction: '_handleClaimTask',            
+            message: e.message,
+            error: WalletUtils.formatError(e),
+        } as WalletTaskResult
+    } 
 }
 
 

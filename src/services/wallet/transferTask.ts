@@ -325,7 +325,7 @@ export const transferTask = async function (
             taskFunction: TRANSFER,
             mintUrl,
             transaction: errorTransaction || undefined,
-            message: '',
+            message: e.message,
             error: WalletUtils.formatError(e),
         } as TransactionTaskResult
   }
