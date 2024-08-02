@@ -7,9 +7,6 @@ import {
   useColorScheme,
   Alert,
 } from 'react-native'
-import {
-    type Proof as CashuProof,
-} from '@cashu/cashu-ts'
 import {useThemeColor, spacing, colors, typography} from '../theme'
 import {
   Button,
@@ -27,21 +24,19 @@ import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
 import {Database} from '../services'
 import AppError from '../utils/AppError'
-import {BackupProof, Proof} from '../models/Proof'
+import {BackupProof} from '../models/Proof'
 import { useStores } from '../models'
-import { CashuUtils } from '../services/cashu/cashuUtils'
+import { CashuUtils, ProofV3, TokenV3 } from '../services/cashu/cashuUtils'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { Transaction, TransactionData, TransactionRecord, TransactionStatus, TransactionType } from '../models/Transaction'
 import { WalletUtils } from '../services/wallet/utils'
-import { MintUnits, getCurrency } from '../services/wallet/currency'
+import { MintUnit, MintUnits, getCurrency } from '../services/wallet/currency'
 import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import { translate } from '../i18n'
 
 interface LocalRecoveryScreenProps
   extends SettingsStackScreenProps<'LocalRecovery'> {}
 
-// Number of transactions held in TransactionsStore model
-const limit = 10
 
 export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
   function LocalRecoveryScreen(_props) {
@@ -77,10 +72,9 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
       try {
             setIsLoading(true)
             // update empty unit fields to resolve v0.1.7 upgrade issue of backed up proofs not having unit migrated
-            const update = await Database.updateProofsToDefaultUnit()
-            const proofs = await Database.getProofs(isUnspent, isPending, isDeleted)           
-
-            setProofs(proofs)
+            await Database.updateProofsToDefaultUnit()
+            const backupProofs = await Database.getProofs(isUnspent, isPending, isDeleted)
+            setProofs(backupProofs)
             setIsLoading(false)
            
       } catch (e: any) {
@@ -140,39 +134,43 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
               setInfo(translate("missingMintsForProofsUserMessage"))
             }
 
-            for (const mint of mintsStore.allMints) {
-                
-                let proofsByMint: CashuProof[] = []                
+            const groupedByMint = groupProofsByMint(proofs)
 
-                for (const proof of proofs) {
+            for (const mint in groupedByMint) { 
+              
+              const proofsByMint = groupedByMint[mint]
 
-                    const proofMint = CashuUtils.getMintFromProof(proof, mintsStore.allMints)                    
-                    
-                    const { tId, unit, isPending, isSpent, updatedAt, ...cleanedProof } = proof
+              if(proofsByMint.length === 0) {
+                continue
+              }
 
-                    if (!proofMint) { continue }                
+              const groupedByKeyset = groupProofsByKeysets(proofsByMint)
 
-                    if(mint.mintUrl === proofMint.mintUrl) {                        
-                        proofsByMint.push(cleanedProof)
-                    }                    
+              for (const keysetId in groupedByKeyset) {
+                const proofsByKeysetId = groupedByKeyset[keysetId]
+                const proofsToExport: ProofV3[] = []
+
+                for (const proof of proofsByKeysetId) {
+                  const { mintUrl, tId, unit, isPending, isSpent, updatedAt, ...proofToExport } = proof
+                  proofsToExport.push(proofToExport)
                 }
 
-                if (proofsByMint.length > 0) {
-                    const tokenByMint = {
-                        token: [
-                            {
-                                mint: mint.mintUrl,
-                                proofs: proofsByMint
-                            }
-                        ]
-                    }
-
-                    log.trace(tokenByMint)
-
-                    const encodedByMint = CashuUtils.encodeToken(tokenByMint)
-                    encodedTokens.push(encodedByMint)
+                const tokenByKeysetId: TokenV3 = {
+                  token: [
+                      {
+                          mint: proofsByKeysetId[0].mintUrl,
+                          proofs: proofsToExport
+                      }
+                  ],
+                  unit: proofsByKeysetId[0].unit
                 }
-            }            
+
+                log.trace('[copyEncodedTokens]', {tokenByKeysetId})
+
+                const encodedByMint = CashuUtils.encodeToken(tokenByKeysetId)
+                encodedTokens.push(encodedByMint)                
+              }
+            }                       
             
             Clipboard.setString(JSON.stringify(encodedTokens))
             setIsLoading(false)
@@ -194,7 +192,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
 
       const nonZeroBalances = balances.mintBalances.filter(b => Object.values(b.balances).some(b => b && b > 0))        
       
-      log.trace('[onRecovery]', nonZeroBalances)
+      log.trace('[onRecovery]', {nonZeroBalances})
 
       if (nonZeroBalances && nonZeroBalances.length > 0) {
           message = translate("backupWillOverwriteBalanceWarning")
@@ -231,113 +229,105 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
 
     const doLocalRecovery = async function () {
       try {
-          if(!showUnspentOnly) {
-            setInfo(translate('unspentOnlyRecoverable'))
-            return
-          }
+        if(!showUnspentOnly) {
+          setInfo(translate('unspentOnlyRecoverable'))
+          return
+        }
 
-          if(mintsStore.allMints.length === 0) {
-            setInfo(translate('missingMintsForProofsUserMessage'))
-          }
+        if(mintsStore.allMints.length === 0) {
+          setInfo(translate('missingMintsForProofsUserMessage'))
+        }
         
-          setIsLoading(true)
-          
-          for (const mint of mintsStore.allMints) {
-              
-              let proofsByMint: Proof[] = []
-              let transactionData: TransactionData[] = []                
+        setIsLoading(true)
 
-              for (const proof of proofs) {
-                const proofMint = CashuUtils.getMintFromProof(proof, mintsStore.allMints)                    
-                const { isPending, isSpent, updatedAt, ...cleanedProof } = proof
+        const groupedByMint = groupProofsByMint(proofs)
+        await transactionsStore.expireAllAfterRecovery()
 
-                if (!proofMint) { continue }                
+          for (const mint in groupedByMint) { 
+            
+            const proofsByMint = groupedByMint[mint]
 
-                if (mint.mintUrl === proofMint.mintUrl) {                        
-                  proofsByMint.push(cleanedProof)
-                }                    
+            if(proofsByMint.length === 0) {
+              continue
+            }
+
+            proofsStore.removeOnLocalRecovery(proofsByMint, false)
+
+            const groupedByKeyset = groupProofsByKeysets(proofsByMint)
+
+            for (const keysetId in groupedByKeyset) {
+              const proofsByKeysetId = groupedByKeyset[keysetId]
+              const proofsToImport: ProofV3[] = []
+
+              for (const proof of proofsByKeysetId) {
+                const { tId, unit, isPending, isSpent, updatedAt, ...proofToImport } = proof
+                proofsToImport.push(proofToImport)
               }
 
-              if (proofsByMint.length > 0) {
-
-                // delete from wallet storage
-                proofsStore.removeOnLocalRecovery(proofsByMint, false)
-                await transactionsStore.expireAllAfterRecovery()
-
-                const groupedByKeyset = proofsByMint.reduce((acc: Record<string, Proof[]>, proof) => {
-                  // Check if there's already an array for this keyset, if not, create one
-                  if (!acc[proof.id as string]) {
-                    acc[proof.id] = []
-                  }
-                  // Push the object into the array corresponding to its keyset
-                  acc[proof.id].push(proof)
-                  return acc;
-                }, {})
-
-                for (const keysetId in groupedByKeyset) {                  
-
-                  if (Object.prototype.hasOwnProperty.call(groupedByKeyset, keysetId)) {
-                    const proofsToAdd = groupedByKeyset[keysetId]
-                    const unit = proofsToAdd[0].unit
-                    const amount = CashuUtils.getProofsAmount(proofsToAdd as Proof[])
-
-                    log.trace({mint: mint.mintUrl, keysetId, amount})
-
-                    transactionData.push({
-                      status: TransactionStatus.PREPARED,
-                      amount,
-                      createdAt: new Date(),
-                    })
-
-                    const newTransaction: Transaction = {
-                      type: TransactionType.RECEIVE,
-                      amount,
-                      fee: 0,
-                      unit,
-                      data: JSON.stringify(transactionData),
-                      memo: 'Recovery from backup',
-                      mint: mint.mintUrl,
-                      status: TransactionStatus.PREPARED,
-                    }
-
-                    const draftTransaction: TransactionRecord = await transactionsStore.addTransaction(newTransaction)
-                    const transactionId = draftTransaction.id as number
-      
-                    const { amountToAdd, addedAmount } = WalletUtils.addCashuProofs(
-                        mint.mintUrl,
-                        proofsToAdd,
-                        {
-                            unit,
-                            transactionId,
-                            isPending: false
-                        }            
-                    )                 
-      
-                    if (amountToAdd !== addedAmount) {
-                        await transactionsStore.updateReceivedAmount(
-                            transactionId as number,
-                            addedAmount,
-                        )                       
-                    }
-
-                    const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance || 0
-                    await transactionsStore.updateBalanceAfter(transactionId, balanceAfter)
-      
-                    // Finally, update completed transaction
-                    transactionData.push({
-                        status: TransactionStatus.COMPLETED,
-                        addedAmount,                       
-                        createdAt: new Date(),
-                    })
-      
-                    await transactionsStore.updateStatus(
-                        transactionId,
-                        TransactionStatus.COMPLETED,
-                        JSON.stringify(transactionData),
-                    )
-                  }
-                }
+              if(proofsToImport.length === 0) {
+                continue
               }
+
+              const amount = CashuUtils.getProofsAmount(proofsToImport)
+              const unit = proofsByKeysetId[0].unit
+
+              log.trace('[doLocalRecovery] to be recovered', {mint, keysetId, unit, amount})
+
+              let transactionData: TransactionData[] = []              
+
+              transactionData.push({
+                status: TransactionStatus.PREPARED,
+                amount,
+                createdAt: new Date(),
+              })
+
+              const newTransaction: Transaction = {
+                type: TransactionType.RECEIVE,
+                amount,
+                fee: 0,
+                unit: unit as MintUnit,
+                data: JSON.stringify(transactionData),
+                memo: 'Recovery from backup',
+                mint: mint,
+                status: TransactionStatus.PREPARED,
+              }
+
+              const preparedTransaction: TransactionRecord = await transactionsStore.addTransaction(newTransaction)
+              const transactionId = preparedTransaction.id as number
+
+              const { amountToAdd, addedAmount } = WalletUtils.addCashuProofs(
+                  mint,
+                  proofsToImport,
+                  {
+                      unit: unit as MintUnit,
+                      transactionId,
+                      isPending: false
+                  }            
+              )                 
+
+              if (amountToAdd !== addedAmount) {
+                  await transactionsStore.updateReceivedAmount(
+                      transactionId as number,
+                      addedAmount,
+                  )                       
+              }
+
+              const balanceAfter = proofsStore.getUnitBalance(unit as MintUnit)?.unitBalance || 0
+              await transactionsStore.updateBalanceAfter(transactionId, balanceAfter)
+
+              // Finally, update completed transaction
+              transactionData.push({
+                  status: TransactionStatus.COMPLETED,
+                  addedAmount,                       
+                  createdAt: new Date(),
+              })
+
+              await transactionsStore.updateStatus(
+                  transactionId,
+                  TransactionStatus.COMPLETED,
+                  JSON.stringify(transactionData),
+              )               
+            }
           }
 
           setIsLoading(false)
@@ -346,6 +336,41 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
           handleError(e)
       }
   }
+
+  const groupProofsByMint = function (proofs: BackupProof[]) {
+    return proofs.reduce((acc: Record<string, BackupProof[]>, proof) => {
+      
+      const proofMint = CashuUtils.getMintFromProof(proof, mintsStore.allMints)
+      // Check if there's already an array for this keyset, if not, create one
+      if(!proofMint) {
+        return acc
+      }
+
+      if (!acc[proofMint.mintUrl]) {
+        acc[proofMint.mintUrl] = []
+      }                 
+      
+      // Push the object into the array corresponding to its keyset
+      acc[proofMint.mintUrl].push(proof)
+      return acc
+    }, {})
+  }
+
+  const groupProofsByKeysets = function (proofsByMint: BackupProof[]) {
+    return proofsByMint.reduce((acc: Record<string, BackupProof[]>, proof) => {
+      // Check if there's already an array for this keyset, if not, create one
+      if (!acc[proof.id as string]) {
+        acc[proof.id] = []
+      }                 
+      
+      // Push the object into the array corresponding to its keyset
+      acc[proof.id].push(proof)
+      return acc;
+    }, {})
+  }
+
+
+
 
 
     const handleError = function (e: AppError): void {

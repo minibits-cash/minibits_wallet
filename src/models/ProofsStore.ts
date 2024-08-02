@@ -13,6 +13,7 @@ import AppError, {Err} from '../utils/AppError'
 import {Mint, MintBalance, UnitBalance} from './Mint'
 import {Database} from '../services'
 import { MintUnit } from '../services/wallet/currency'
+import { ProofV3 } from '../services/cashu/cashuUtils'
 
 export const ProofsStoreModel = types
     .model('Proofs', {
@@ -73,15 +74,8 @@ export const ProofsStoreModel = types
                 .sort((a, b) => b.amount - a.amount)
 
         },        
-        getProofInstance(proof: Proof, isPending: boolean = false) {
-            let proofInstance: Proof | undefined
-            if (isStateTreeNode(proof)) {
-                proofInstance = proof
-            } else {
-                proofInstance = self.getBySecret((proof as Proof).secret, isPending)
-            }
-
-            return proofInstance
+        getProofInstance(proof: ProofV3, isPending: boolean = false) {
+            return self.getBySecret(proof.secret, isPending)
         },
         alreadyExists(proof: Proof, isPending: boolean = false) {
             const proofs = isPending ? self.pendingProofs : self.proofs
@@ -205,18 +199,14 @@ export const ProofsStoreModel = types
             self.pendingByMintSecrets.remove(proof.secret)
             log.trace('[removeFromPendingByMint]', 'Proof removed from pending by mint, secret', proof.secret)
         },
-        removeOnLocalRecovery(proofsToRemove: Proof[], isPending: boolean = false) {
+        removeOnLocalRecovery(proofsToRemove: ProofV3[], isPending: boolean = false) {
             const proofs = isPending ? self.pendingProofs : self.proofs
 
             proofsToRemove.map((proof) => {
-                if (isStateTreeNode(proof)) {                    
-                    detach(proof) // vital
-                } else {
-                    const proofInstance = self.getProofInstance(proof, isPending)
-                    if(proofInstance) {
-                        detach(proofInstance) // vital
-                    }                    
-                }                    
+                const proofInstance = self.getProofInstance(proof, isPending)
+                if(proofInstance) {
+                    detach(proofInstance) // vital
+                }                   
             }) 
 
             proofs.replace(proofs.filter(proof => !proofsToRemove.some(removed => removed.secret === proof.secret)))

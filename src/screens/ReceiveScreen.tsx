@@ -153,7 +153,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
 
         if(!decoded.unit) {
           setInfo(translate("decodedMissingCurrencyUnit", { unit: CurrencyCode.SATS }))
-          decoded.unit = CurrencyCode.SATS
+          decoded.unit = 'sat'          
         }
 
         const currency = getCurrency(decoded.unit as MintUnit)
