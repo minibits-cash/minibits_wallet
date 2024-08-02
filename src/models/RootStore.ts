@@ -12,19 +12,6 @@ import { log } from '../services'
 
 export const rootStoreModelVersion = 23 // Update this if model changes require migrations defined in setupRootStore.ts
 
-// Ephemeral non-persisted stores
-const NonPersistedStoresModel = types.model('NonPersistedStores', {
-    walletStore: types.optional(WalletStoreModel, {}),    
-}).postProcessSnapshot((snapshot) => {    
-    return {walletStore: {
-        mints: [],
-        seedWallets: [],
-        wallets: [],
-        mnemonicPhrase: undefined,
-        seedBase64: undefined}
-    }    
-})
-
 /**
  * A RootStore model.
  */
@@ -38,8 +25,8 @@ export const RootStoreModel = types
         walletProfileStore: types.optional(WalletProfileStoreModel, {}),
         paymentRequestsStore: types.optional(PaymentRequestsStoreModel, {}),
         proofsStore: types.optional(ProofsStoreModel, {}),
-        relaysStore: types.optional(RelaysStoreModel, {}),
-        nonPersistedStores: types.optional(NonPersistedStoresModel, {}),        
+        relaysStore: types.optional(RelaysStoreModel, {}),        
+        walletStore: types.optional(WalletStoreModel, {}),   // not persisted      
         version: types.optional(types.number, rootStoreModelVersion),
     })
     .actions(self => ({

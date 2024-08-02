@@ -16,10 +16,10 @@ const {
     transactionsStore,
     mintsStore,
     proofsStore, 
-    nonPersistedStores,   
+    walletStore,   
 } = rootStoreInstance
 
-const {walletStore} = nonPersistedStores
+// const {walletStore} = nonPersistedStores
 
 const TRANSFER = 'transferTask'
 
@@ -54,7 +54,7 @@ export const transferTask = async function (
     ]
 
     let transactionId: number = 0
-    let proofsToPay: Proof[] = []
+    let proofsToPay: ProofV3[] = []
 
     try {
         if (amountToTransfer + meltQuote.fee_reserve > mintBalanceToTransferFrom.balances[unit]!) {
@@ -105,7 +105,7 @@ export const transferTask = async function (
         })
 
         // get proofs ready to be paid to the mint
-        const {proofs: proofsToPay, mintFeePaid, mintFeeReserve} = await sendFromMint(
+        const swapResult = await sendFromMint(
             mintBalanceToTransferFrom,
             amountToTransfer + meltQuote.fee_reserve + meltFeeReserve,
             unit,
@@ -113,7 +113,9 @@ export const transferTask = async function (
             transactionId,
         )
 
-        const proofsAmount = CashuUtils.getProofsAmount(proofsToPay as Proof[])
+        proofsToPay = swapResult.proofs
+        const {mintFeePaid, mintFeeReserve} = swapResult
+        const proofsAmount = CashuUtils.getProofsAmount(proofsToPay)
 
         log.debug('[transfer]', 'Prepared poofsToPay amount', proofsAmount)
 

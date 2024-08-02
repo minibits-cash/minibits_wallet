@@ -25,10 +25,10 @@ const {
     mintsStore,
     proofsStore,
     transactionsStore,    
-    nonPersistedStores
+    walletStore
 } = rootStoreInstance
 
-const {walletStore} = nonPersistedStores
+// const {walletStore} = nonPersistedStores
 
 export const sendTask = async function (
     mintBalanceToSendFrom: MintBalance,
@@ -420,7 +420,7 @@ export const sendFromMint = async function (
         /* 
          *  SWAP not needed, all selected proofs will be sent
          */
-            log.trace('[sendFromMint] Swap is not necessary, all proofsToSendFrom will be sent.')
+            log.debug('[sendFromMint] Swap is not necessary, all proofsToSendFrom will be sent.')
             proofsToSend = [...proofsToSendFrom]
             
         } else {

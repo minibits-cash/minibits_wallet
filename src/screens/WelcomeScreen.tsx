@@ -81,8 +81,8 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
       //StatusBarProps: {barStyle: 'dark-content'},
     })
 
-    const {userSettingsStore, relaysStore, walletProfileStore, nonPersistedStores} = useStores()
-    const {walletStore} = nonPersistedStores
+    const {userSettingsStore, relaysStore, walletProfileStore, walletStore} = useStores()
+    // const {walletStore} = nonPersistedStores
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState<boolean>(false)    
 

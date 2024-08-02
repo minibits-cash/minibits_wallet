@@ -65,8 +65,8 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     const amountInputRef = useRef<TextInput>(null)
     const lnurlCommentInputRef = useRef<TextInput>(null)
 
-    const {proofsStore, mintsStore, paymentRequestsStore, transactionsStore, nonPersistedStores} = useStores()
-    const {walletStore} = nonPersistedStores
+    const {proofsStore, mintsStore, paymentRequestsStore, transactionsStore, walletStore} = useStores()
+    // const {walletStore} = nonPersistedStores
 
     const isInternetReachable = useIsInternetReachable()
 

@@ -35,8 +35,8 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
         },
     })
 
-    const {nonPersistedStores} = useStores()
-    const {walletStore} = nonPersistedStores
+    const {walletStore} = useStores()
+    // const {walletStore} = nonPersistedStores
 
     const [info, setInfo] = useState('')
     const [mnemonic, setMnemonic] = useState<string>()

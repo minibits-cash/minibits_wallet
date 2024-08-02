@@ -20,10 +20,10 @@ const {
     mintsStore,
     proofsStore,
     transactionsStore,
-    nonPersistedStores
+    walletStore
 } = rootStoreInstance
 
-const {walletStore} = nonPersistedStores
+// const {walletStore} = nonPersistedStores
 
 
 // function names to pass to task results

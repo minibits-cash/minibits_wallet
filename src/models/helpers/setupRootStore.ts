@@ -79,8 +79,7 @@ export async function setupRootStore(rootStore: RootStore) {
         // load the last known state from storage
         restoredState = MMKVStorage.load(ROOT_STORAGE_KEY) || {}          
         
-        //log.trace('[setupRootStore]', {restoredState})
-
+        // log.trace('[setupRootStore] loaded', {walletStore: restoredState.walletStore})
         applySnapshot(rootStore, restoredState)        
         
     } catch (e: any) {        
@@ -95,6 +94,7 @@ export async function setupRootStore(rootStore: RootStore) {
     // track changes & save to storage
     _disposer = onSnapshot(rootStore, snapshot => {
         MMKVStorage.save(ROOT_STORAGE_KEY, snapshot)
+        // log.trace('[setupRootStore] saved', {walletStore: snapshot.walletStore})
     })
 
     // run migrations if needed, needs to be after onSnapshot to be persisted

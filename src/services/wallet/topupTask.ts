@@ -15,10 +15,10 @@ const {
     transactionsStore,
     walletProfileStore,
     paymentRequestsStore,    
-    nonPersistedStores
+    walletStore
 } = rootStoreInstance
 
-const {walletStore} = nonPersistedStores
+// const {walletStore} = nonPersistedStores
 
 const TOPUP = 'topupTask'
 

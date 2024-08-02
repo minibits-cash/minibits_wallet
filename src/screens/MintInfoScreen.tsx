@@ -361,8 +361,8 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
     },
   })
 
-  const { mintsStore, nonPersistedStores } = useStores()
-  const { walletStore } = nonPersistedStores
+  const { mintsStore, walletStore } = useStores()
+  //const { walletStore } = nonPersistedStores
 
   const [isLoading, setIsLoading] = useState(false)
   const [mintInfo, setMintInfo] = useState<GetInfoResponse | undefined>()

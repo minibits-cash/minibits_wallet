@@ -10,10 +10,10 @@ import { MintUnit } from './currency'
 
 const {
     proofsStore,
-    nonPersistedStores
+    walletStore
 } = rootStoreInstance
 
-const { walletStore } = nonPersistedStores
+// const { walletStore } = nonPersistedStores
 
 
 const lockAndSetInFlight = async function (

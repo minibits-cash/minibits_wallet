@@ -1,10 +1,11 @@
-import {cast, flow, getRoot, getSnapshot, Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
+import {cast, flow, getParent, getRoot, getSnapshot, IAnyStateTreeNode, Instance, IStateTreeNode, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
 import {withSetPropAction} from './helpers/withSetPropAction'
-import type {    
-    GetInfoResponse, 
-    MintKeys as CashuMintKeys, 
-    MintKeyset as CashuMintKeyset,
-    MintKeyset
+import {    
+    type GetInfoResponse, 
+    type MintKeys as CashuMintKeys, 
+    type MintKeyset as CashuMintKeyset,
+    type MintKeyset,
+    CashuMint
 } from '@cashu/cashu-ts'
 import {colors, getRandomIconColor} from '../theme'
 import { log } from '../services'
@@ -14,6 +15,9 @@ import { MintUnit, MintUnits } from '../services/wallet/currency'
 import { getRootStore } from './helpers/getRootStore'
 import { generateId } from '../utils/utils'
 import { ProofV3 } from '../services/cashu/cashuUtils'
+import { RootStoreModel } from './RootStore'
+import { MintsStoreModel } from './MintsStore'
+import { WalletStoreModel } from './WalletStore'
 
 
 export type MintBalance = {
@@ -358,8 +362,8 @@ export const MintModel = types
             let shortname = self.mintUrl.substring(lastSlashIndex + 1).slice(0, 25)
 
             try {
-                const {walletStore} = getRoot(self).nonPersistedStores    
-                const info: GetInfoResponse = yield walletStore.getMintInfo(self.mintUrl)
+                const cashuMint = new CashuMint(self.mintUrl)
+                const info = yield cashuMint.getInfo()                
 
                 if(info.name.length > 0) {
                     shortname = info.name                    
@@ -367,7 +371,8 @@ export const MintModel = types
 
                 self.shortname = shortname
                 
-            } catch (e) {
+            } catch (e: any) {
+                log.warn('[setShortname]', {error: e.message})
                 self.shortname = shortname
             }
         }),
@@ -380,58 +385,6 @@ export const MintModel = types
         setStatus(status: MintStatus) {
             self.status = status
         },
-/*        setInFlight(counter: MintProofsCounter, options: {inFlightFrom: number, inFlightTo: number, inFlightTid: number}) {
-            counter.inFlightFrom = options.inFlightFrom
-            counter.inFlightTo = options.inFlightTo
-            counter.counter = options.inFlightTo // temp increase of main counter value
-            counter.inFlightTid = options.inFlightTid
-
-            log.trace('[setInFlight]', 'Lock and inflight indexes were set', counter)
-
-            self.proofsCounters = cast(self.proofsCounters)
-        }, 
-        resetInFlight(inFlightTid: number) {
-            const counter = self.findInFlightProofsCounterByTId(inFlightTid)
-
-            if(!counter) {
-                log.warn('[resetInFlight]', 'Could not find counter locked by inFlightTid', {inFlightTid})
-                return
-            }
-
-            counter.inFlightFrom = undefined
-            counter.inFlightTo = undefined
-            counter.inFlightTid = undefined
-            
-            log.trace('[resetInFlight]', 'Lock and inflight indexes were reset', {inFlightTid})
-
-            self.proofsCounters = cast(self.proofsCounters)
-        },
-        increaseProofsCounter(keysetId: string, numberOfProofs: number) {
-            const counter = self.getProofsCounter(keysetId)       
-            
-            if(!counter) {
-                throw new AppError(Err.NOTFOUND_ERROR, 'Count not get mint proofsCounter for keysetId', {keysetId})
-            }
-                  
-            counter.counter += numberOfProofs
-            log.trace('[increaseProofsCounter]', 'Increased proofsCounter', {numberOfProofs, counter})
-
-            // Make sure to cast the frozen array back to a mutable array
-            self.proofsCounters = cast(self.proofsCounters)
-        },
-        decreaseProofsCounter(keysetId: string, numberOfProofs: number) {
-            const counter = self.getProofsCounter(keysetId)
-            
-            if(!counter) {
-                throw new AppError(Err.NOTFOUND_ERROR, 'Count not get mint proofsCounter for keysetId', {keysetId})
-            }
-
-            counter.counter -= numberOfProofs
-            Math.max(0, counter.counter)
-            log.trace('[decreaseProofsCounter]', 'Decreased proofsCounter', {numberOfProofs, counter})
-
-            self.proofsCounters = cast(self.proofsCounters)                        
-        },*/
         resetCounters() {
             for(const counter of self.proofsCounters) {
                 log.warn('Resetting counter', counter.keyset)

@@ -39,8 +39,8 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
       onLeftPress: () => navigation.goBack(),
     })
 
-    const {mintsStore, proofsStore, nonPersistedStores} = useStores()
-    const {walletStore} = nonPersistedStores
+    const {mintsStore, proofsStore, walletStore} = useStores()
+    // const {walletStore} = nonPersistedStores
     const mintInputRef = useRef<TextInput>(null)
 
     const [mintUrl, setMintUrl] = useState('')

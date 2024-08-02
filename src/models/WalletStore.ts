@@ -205,6 +205,7 @@ export const WalletStoreModel = types
           )
           
           if (seedWallet) {
+            log.trace('[getWallet]', 'Returning CACHED cashuWallet instance with seed')
             return seedWallet
           }
 
@@ -229,6 +230,7 @@ export const WalletStoreModel = types
         )
 
         if (wallet) {
+          log.trace('[getWallet]', 'Returning CACHED cashuWallet instance')
           return wallet
         }
         
@@ -665,7 +667,15 @@ export const WalletStoreModel = types
         get seed() {
           return self.seedBase64
         }
-    }))
+    })).postProcessSnapshot((snapshot) => {   // NOT persisted to storage!  
+      return {
+          mints: [],
+          seedWallets: [],
+          wallets: [],
+          mnemonicPhrase: undefined,
+          seedBase64: undefined
+      }          
+    })
 
 
     function isOnionMint(mintUrl: string) {

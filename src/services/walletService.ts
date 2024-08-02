@@ -121,10 +121,8 @@ const {
     paymentRequestsStore,
     contactsStore,
     relaysStore,    
-    nonPersistedStores,
+    walletStore,
 } = rootStoreInstance
-
-const { walletStore } = nonPersistedStores
 
 
 const transfer = async function (

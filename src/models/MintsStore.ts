@@ -107,7 +107,7 @@ export const MintsStoreModel = types
             log.trace('[addMint] start')
 
             // create default wallet instance then download and cache up to date mint keys in that instance 
-            const {walletStore} = getRoot(self).nonPersistedStores
+            const {walletStore} = getRoot(self)
             
             const keysets: CashuMintKeyset[] = yield walletStore.getMintKeysets(mintUrl)
             const keys: CashuMintKeys[] = yield walletStore.getMintKeys(mintUrl)
@@ -152,7 +152,7 @@ export const MintsStoreModel = types
                 throw new AppError(Err.VALIDATION_ERROR, 'Could not find mint to update', {mintUrl})
             }
             // refresh up to date mint keys
-            const {walletStore} = getRoot(self).nonPersistedStores 
+            const {walletStore} = getRoot(self)
             const keysets: CashuMintKeyset[] = yield walletStore.getMintKeysets(mintUrl)
             const keys: CashuMintKeys[] = yield walletStore.getMintKeys(mintUrl)        
 

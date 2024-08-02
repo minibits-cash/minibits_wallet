@@ -58,8 +58,8 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
         },
     })
 
-    const {mintsStore, proofsStore, userSettingsStore, transactionsStore, walletProfileStore, nonPersistedStores} = useStores()
-    const {walletStore} = nonPersistedStores
+    const {mintsStore, proofsStore, userSettingsStore, transactionsStore, walletProfileStore, walletStore} = useStores()
+    // const {walletStore} = nonPersistedStores
     const mnemonicInputRef = useRef<TextInput>(null)
     const indexInputRef = useRef<TextInput>(null)
 
