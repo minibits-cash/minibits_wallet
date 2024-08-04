@@ -14,9 +14,12 @@ import {
   import {MintModel, Mint, MintProofsCounter, MintProofsCounterModel} from './Mint'
   import {log} from '../services/logService'  
   import AppError, { Err } from '../utils/AppError'
-  import type {
-    MintKeys as CashuMintKeys, 
-    MintKeyset as CashuMintKeyset
+  import {
+      CashuMint,
+    MintActiveKeys,
+    MintAllKeysets,
+    type MintKeys as CashuMintKeys, 
+    type MintKeyset as CashuMintKeyset
   } from '@cashu/cashu-ts'
 
 import { MintUnit } from '../services/wallet/currency'
@@ -107,10 +110,16 @@ export const MintsStoreModel = types
             log.trace('[addMint] start')
 
             // create default wallet instance then download and cache up to date mint keys in that instance 
-            const {walletStore} = getRoot(self)
+            // const {walletStore} = getRoot(self) // this somehow makes typescript + mobx complain
+            // const keysets: CashuMintKeyset[] = yield walletStore.getMintKeysets(mintUrl)
+            // const keys: CashuMintKeys[] = yield walletStore.getMintKeys(mintUrl)
             
-            const keysets: CashuMintKeyset[] = yield walletStore.getMintKeysets(mintUrl)
-            const keys: CashuMintKeys[] = yield walletStore.getMintKeys(mintUrl)
+            const newMint = new CashuMint(mintUrl)
+            // get fresh keysets
+            const keySetResult: MintAllKeysets = yield newMint.getKeySets()
+            const keysResult: MintActiveKeys = yield newMint.getKeys()
+            const {keysets} = keySetResult
+            const {keysets: keys} = keysResult
             
             log.trace('[addMint]', {keysets})
 
@@ -121,7 +130,12 @@ export const MintsStoreModel = types
             const mintInstance = MintModel.create({mintUrl})                              
 
             for(const keyset of keysets) {
-                if (!mintInstance.isUnitSupported(keyset.unit as MintUnit)) {                    
+                if(!keyset.unit) {
+                    keyset.unit = 'sat'
+                }
+
+                if (!mintInstance.isUnitSupported(keyset.unit as MintUnit)) {
+                    log.error('Unsupported mint usnit, skipping...', {caller: 'addMint', keyset})                    
                     continue                    
                 }
 
@@ -129,6 +143,10 @@ export const MintsStoreModel = types
             }
 
             for(const key of keys) {
+                if(!key.unit) {
+                    key.unit = 'sat'
+                }
+
                 if (!mintInstance.isUnitSupported(key.unit as MintUnit)) {                    
                     continue                    
                 }
@@ -152,16 +170,24 @@ export const MintsStoreModel = types
                 throw new AppError(Err.VALIDATION_ERROR, 'Could not find mint to update', {mintUrl})
             }
             // refresh up to date mint keys
-            const {walletStore} = getRoot(self)
-            const keysets: CashuMintKeyset[] = yield walletStore.getMintKeysets(mintUrl)
-            const keys: CashuMintKeys[] = yield walletStore.getMintKeys(mintUrl)        
+            const newMint = new CashuMint(mintUrl)
+            // get fresh keysets
+            const keySetResult: MintAllKeysets = yield newMint.getKeySets()
+            const keysResult: MintActiveKeys = yield newMint.getKeys()
+            const {keysets} = keySetResult
+            const {keysets: keys} = keysResult       
 
             if(!keysets || keysets.length === 0 || !keys || keys.length === 0) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Mint has no keysets and is not operational', {mintUrl})
             }            
 
             for(const keyset of keysets) {
-                if (!mintInstance.isUnitSupported(keyset.unit as MintUnit)) {                    
+                if(!keyset.unit) {
+                    keyset.unit = 'sat'
+                }
+
+                if (!mintInstance.isUnitSupported(keyset.unit as MintUnit)) {
+                    log.error('Unsupported mint usnit, skipping...', {caller: 'addMint', keyset})                    
                     continue                    
                 }
 
@@ -169,6 +195,10 @@ export const MintsStoreModel = types
             }
 
             for(const key of keys) {
+                if(!key.unit) {
+                    key.unit = 'sat'
+                }
+
                 if (!mintInstance.isUnitSupported(key.unit as MintUnit)) {                    
                     continue                    
                 }

@@ -8,7 +8,9 @@ import {
   setGlobalRequestOptions,  
   deriveSeedFromMnemonic,  
   type MintKeys,
-  type MintKeyset
+  type MintKeyset,
+  MintAllKeysets,
+  MintActiveKeys
 } from '@cashu/cashu-ts'
 import { JS_BUNDLE_VERSION } from '@env'
 import {KeyChain} from '../services'
@@ -137,7 +139,7 @@ export const WalletStoreModel = types
           withSeed: boolean
         } 
       ) {
-        log.trace('[WalletStore.getWallet] start')
+        log.trace('[WalletStore.getWallet] start', {mintUrl})
         // syncs mint model in wallet state and returns cashu-ts mint class instance
         const cashuMint = yield self.getMint(mintUrl)
             
@@ -174,9 +176,22 @@ export const WalletStoreModel = types
           walletKeys = requestedKeys
         } else {
           // if not we find active keyset with lowest fees and related keys
-          const activeKeyset: MintKeyset = mintInstance.keysets
+          const activeKeyset: MintKeyset =mintInstance.keysets
           .filter((k: MintKeyset) => k.unit === unit && k.active)
-          .sort((a: MintKeyset, b: MintKeyset) => (a.input_fee_ppk ?? 0) - (b.input_fee_ppk ?? 0))[0]
+          .sort((a: MintKeyset, b: MintKeyset) => {
+              // Prioritize keysets that start with '00'
+              const aStartsWith00 = a.id.startsWith('00') ? 1 : 0;
+              const bStartsWith00 = b.id.startsWith('00') ? 1 : 0;
+      
+              if (aStartsWith00 !== bStartsWith00) {
+                  return bStartsWith00 - aStartsWith00;
+              }
+      
+              // If both start with '00' or neither do, sort by input_fee_ppk
+              return (a.input_fee_ppk ?? 0) - (b.input_fee_ppk ?? 0);
+          })[0]
+
+          log.trace('[WalletStore.getWallet]', {activeKeyset, mintUrl})
 
           if(!activeKeyset) {
             throw new AppError(Err.VALIDATION_ERROR, 'Wallet has not any active keyset for the selected unit.', {
@@ -205,7 +220,7 @@ export const WalletStoreModel = types
           )
           
           if (seedWallet) {
-            log.trace('[getWallet]', 'Returning CACHED cashuWallet instance with seed')
+            log.trace('[WalletStore.getWallet]', 'Returning CACHED cashuWallet instance with seed', {mintUrl})
             return seedWallet
           }
 
@@ -219,7 +234,7 @@ export const WalletStoreModel = types
 
           self.seedWallets.push(newSeedWallet)
 
-          log.trace('[getWallet]', 'Returning NEW cashuWallet instance with seed')
+          log.trace('[WalletStore.getWallet]', 'Returning NEW cashuWallet instance with seed', {mintUrl})
           
           return newSeedWallet
         }
@@ -230,7 +245,7 @@ export const WalletStoreModel = types
         )
 
         if (wallet) {
-          log.trace('[getWallet]', 'Returning CACHED cashuWallet instance')
+          log.trace('[WalletStore.getWallet]', 'Returning CACHED cashuWallet instance', {mintUrl})
           return wallet
         }
         
@@ -241,7 +256,7 @@ export const WalletStoreModel = types
         
         self.wallets.push(newWallet)
           
-        log.trace('[getWallet]', 'Returning NEW cashuWallet instance')
+        log.trace('[WalletStore.getWallet]', 'Returning NEW cashuWallet instance', {mintUrl})
         return newWallet        
       }),
       getMintKeysets: flow(function* getMintKeysets(mintUrl: string) { 
@@ -249,8 +264,8 @@ export const WalletStoreModel = types
         const cashuMint: CashuMint = yield self.getMint(mintUrl)
   
         try {
-          const {keysets} = yield cashuMint.getKeySets() // all
-          return keysets    
+          const {keysets} = yield cashuMint.getKeySets() as Promise<MintAllKeysets> // all keysets
+          return keysets as MintKeyset[]      
         } catch (e: any) {
           let message = 'Could not connect to the selected mint.'
           if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
@@ -261,8 +276,8 @@ export const WalletStoreModel = types
         const cashuMint: CashuMint = yield self.getMint(mintUrl)
   
         try {
-          const {keysets} = yield cashuMint.getKeys() // all
-          return keysets    
+          const {keysets} = yield cashuMint.getKeys() as Promise<MintActiveKeys> // all active keys
+          return keysets as MintKeys[]   
         } catch (e: any) {
           let message = 'Could not connect to the selected mint.'
           if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;

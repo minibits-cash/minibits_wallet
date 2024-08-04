@@ -224,17 +224,12 @@ export const MintModel = types
                 if(existing) {
                     if (existing.unit !== keyset.unit) {                    
                         throw new AppError(Err.VALIDATION_ERROR, `Keyset unit mismatch, got ${keyset.unit}, expected ${existing.unit}`)                 
-                    }  
-                    
+                    }
                     return existing
                 }
 
                 if(!keyset.input_fee_ppk) {
                     keyset.input_fee_ppk = 0
-                }
-
-                if(!keyset.unit) {
-                    keyset.unit = 'sat'
                 }
 
                 self.addKeyset(keyset)            
@@ -307,27 +302,6 @@ export const MintModel = types
 
             return counter
         },
-        /*getProofsCounterByUnit(unit: MintUnit, useActiveKeyset: boolean = true) {                        
-            let keyset: CashuMintKeyset | undefined
-
-            if(useActiveKeyset) {
-                keyset = self.keysets.find(k => k.active === true && k.unit === unit)
-            } else {
-                keyset = self.keysets.find(k => k.active === false && k.unit === unit)
-            }
-
-            if(!keyset) {
-                throw new AppError(Err.NOTFOUND_ERROR, 'Mint has no keyset for this unit', {unit})
-            }
-            
-            const counter = self.proofsCounters.find(p => p.keyset === keyset?.id)
-
-            if(!counter) {
-                return self.createProofsCounter(keyset)                
-            }
-
-            return counter
-        },*/
         setHostname() {
             try {
                 self.hostname = new URL(self.mintUrl).hostname
@@ -363,7 +337,7 @@ export const MintModel = types
 
             try {
                 const cashuMint = new CashuMint(self.mintUrl)
-                const info = yield cashuMint.getInfo()                
+                const info: GetInfoResponse = yield cashuMint.getInfo()                
 
                 if(info.name.length > 0) {
                     shortname = info.name                    
