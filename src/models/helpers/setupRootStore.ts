@@ -43,7 +43,8 @@ export async function setupRootStore(rootStore: RootStore) {
     try {
         // Give an option to encrypt storage as it might slow down app start on some Android devices
         // User settings are mastered in sqlite so we can get the encryption setting before loading root store
-        
+        log.trace('[setupRootStore]', `Create Database instance and get UserSettings`)
+
         const userSettings = Database.getUserSettings()        
         
         // random identificator of an app installation for bugs and crash reporting
@@ -55,7 +56,7 @@ export async function setupRootStore(rootStore: RootStore) {
             try {
                 await MMKVStorage.initEncryption()
             } catch (e: any) {
-                log.error('[setupRootStore]', 'Encryption init failed', {error: e})
+                log.error('[setupRootStore]', 'Encryption init failed', {message: e.message})
 
                 if (e && typeof e === 'object') {
                     const errString = JSON.stringify(e)                   
@@ -83,7 +84,7 @@ export async function setupRootStore(rootStore: RootStore) {
         applySnapshot(rootStore, restoredState)        
         
     } catch (e: any) {        
-        log.error('[setupRootStore]', Err.STORAGE_ERROR, e.message, e.params)
+        log.error('[setupRootStore]', Err.STORAGE_ERROR, {message: e.message, params: e.params})
     }
 
     // stop tracking state changes if we've already setup
@@ -99,7 +100,7 @@ export async function setupRootStore(rootStore: RootStore) {
 
     // run migrations if needed, needs to be after onSnapshot to be persisted
     try {    
-        log.debug('[setupRootStore]', `Device rootStore.version is: ${rootStore.version}`)      
+        log.info('[setupRootStore]', `RootStore loaded from MMKV, version is: ${rootStore.version}`)      
 
         if(rootStore.version < rootStoreModelVersion) {
             await _runMigrations(rootStore)

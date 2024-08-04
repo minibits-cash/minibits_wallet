@@ -23,9 +23,6 @@ const {
     walletStore
 } = rootStoreInstance
 
-// const {walletStore} = nonPersistedStores
-
-
 // function names to pass to task results
 const RECEIVE = 'receiveTask'
 const RECEIVE_OFFLINE_PREPARE = 'receiveOfflinePrepareTask'
@@ -127,9 +124,8 @@ export const receiveTask = async function (
         const countOfInFlightProofs = CashuUtils.getAmountPreferencesCount(amountPreferences)
         const tokenEntries: TokenEntryV3[] = token.token
         const proofsToReceive = tokenEntries[0].proofs as ProofV3[]
-        const mintFeeReserve = mintInstance.getMintFeeReserve(proofsToReceive)
+        const mintFeeReserve = mintInstance.getMintFeeReserve(proofsToReceive)        
         
-        log.trace('[receiveTask]', 'proofsCounter initial state', {proofsCounter: mintInstance.getProofsCounterByUnit?.(unit)})
         log.trace('[receiveTask]', 'amountPreferences', {amountPreferences, transactionId})
         log.trace('[receiveTask]', 'countOfInFlightProofs', {countOfInFlightProofs, transactionId})  
         

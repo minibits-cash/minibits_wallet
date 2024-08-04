@@ -109,7 +109,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     useEffect(() => {
         const checkForUpdate = async () => {            
             try {
-                const update = await codePush.checkForUpdate(deploymentKey, handleBinaryVersionMismatchCallback)
+                const update = await codePush.checkForUpdate(deploymentKey, handleBinaryVersionMismatchCallback)                
                 
                 if (update && update.failedInstall !== true) {  // do not announce update that failed to install before
                     setUpdateDescription(update.description)

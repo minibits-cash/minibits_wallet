@@ -86,6 +86,7 @@ function App(props: AppProps) {
 
         // Set initial websocket to close as it might have remained open on last app close
         relaysStore.resetStatuses()
+        log.trace('[useInitialRootStore]', 'App is ready to render')
     })
 
     

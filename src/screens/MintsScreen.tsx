@@ -115,12 +115,13 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
 
         try {          
           setIsLoading(true)
-          await mintsStore.updateMint(selectedMint.mintUrl)
+          await mintsStore.updateMint(selectedMint.mintUrl)          
           setInfo(translate("mintSettingsUpdated"))
         } catch (e: any) {          
           handleError(e)
         } finally {  
           onMintUnselect()
+          setIsLoading(false)
         }
     }
 

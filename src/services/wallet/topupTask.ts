@@ -60,19 +60,24 @@ export const topupTask = async function (
         const storedTransaction: TransactionRecord = await transactionsStore.addTransaction(newTransaction)
         transactionId = storedTransaction.id as number        
 
-        const {encodedInvoice, mintQuote} = await walletStore.createLightningMintQuote(mintUrl, unit, amountToTopup)
+        const {
+            encodedInvoice, 
+            mintQuote 
+        } = await walletStore.createLightningMintQuote(
+            mintUrl, 
+            unit, 
+            amountToTopup
+        )
 
         const decodedInvoice = LightningUtils.decodeInvoice(encodedInvoice)
-        const {amount, payment_hash, expiry, timestamp} = LightningUtils.getInvoiceData(decodedInvoice)
+        const {
+            amount, 
+            payment_hash, 
+            expiry, 
+            timestamp
+        } = LightningUtils.getInvoiceData(decodedInvoice)
 
         log.trace('[topupTask] invoice', {amount, payment_hash, expiry, timestamp})
-
-        /* if (amount !== amountToTopup) {
-            throw new AppError(
-                Err.MINT_ERROR,
-                'Received lightning invoice amount does not equal requested top-up amount.',
-            )
-        } */       
 
         // sender is current wallet profile
         const {

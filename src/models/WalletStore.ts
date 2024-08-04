@@ -310,7 +310,11 @@ export const WalletStoreModel = types
         
             return {proofs, mintFeePaid}
           } catch (e: any) {
-            throw new AppError(Err.MINT_ERROR, e.message)
+            throw new AppError(
+              Err.MINT_ERROR, 
+              e.message, 
+              {caller: 'WalletStore.receive'}
+            )
           }        
       }),
       send: flow(function* send(mintUrl: string,
@@ -389,11 +393,12 @@ export const WalletStoreModel = types
         proofs: Proof[]
       ) {
           try {
-            log.trace('*** [WalletStore.getSpentOrPendingProofsFromMint] start', {mintUrl, unit})
+            log.trace('[WalletStore.getSpentOrPendingProofsFromMint] start', {mintUrl, unit})
+            
             const cashuWallet = yield self.getWallet(mintUrl, unit, {withSeed: true})    
             const spentPendingProofs = yield cashuWallet.checkProofsSpent(proofs)
         
-            log.trace('*** [WalletStore.getSpentOrPendingProofsFromMint]', {mintUrl, spentPendingProofs})
+            log.trace('[WalletStore.getSpentOrPendingProofsFromMint]', {mintUrl, spentPendingProofs})
         
             return spentPendingProofs as {
                 spent: ProofV3[]

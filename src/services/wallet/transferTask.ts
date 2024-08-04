@@ -36,9 +36,9 @@ export const transferTask = async function (
     const mintInstance = mintsStore.findByUrl(mintUrl)
     let lockedProofsCounter: MintProofsCounter | undefined = undefined
 
-    log.debug('[transfer]', 'mintBalanceToTransferFrom', mintBalanceToTransferFrom)
-    log.debug('[transfer]', 'amountToTransfer', amountToTransfer)
-    log.debug('[transfer]', 'meltQuote', meltQuote)
+    log.debug('[transfer]', 'mintBalanceToTransferFrom', {mintBalanceToTransferFrom})
+    log.debug('[transfer]', 'amountToTransfer', {amountToTransfer})
+    log.debug('[transfer]', 'meltQuote', {meltQuote})
 
     // create draft transaction
     const transactionData: TransactionData[] = [
@@ -58,11 +58,18 @@ export const transferTask = async function (
 
     try {
         if (amountToTransfer + meltQuote.fee_reserve > mintBalanceToTransferFrom.balances[unit]!) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Mint balance is insufficient to cover the amount to transfer with the expected Lightning fees.')
+            throw new AppError(
+                Err.VALIDATION_ERROR, 
+                'Mint balance is insufficient to cover the amount to transfer with the expected Lightning fees.'
+            )
         }
     
         if(isBefore(invoiceExpiry, new Date())) {
-            throw new AppError(Err.VALIDATION_ERROR, 'This invoice has already expired and can not be paid.', {invoiceExpiry})
+            throw new AppError(
+                Err.VALIDATION_ERROR, 
+                'This invoice has already expired and can not be paid.', 
+                {invoiceExpiry}
+            )
         }
 
         if (!mintInstance) {
@@ -99,8 +106,9 @@ export const transferTask = async function (
 
         let meltFeeReserve = mintInstance.getMintFeeReserve(proofsToSendFrom) 
 
-        log.trace('[transfer]', {
-            meltFeeReserve, 
+        log.trace('[transfer]', {            
+            meltFeeReserve,
+            lightningFeeReserve:  meltQuote.fee_reserve,
             amountWithFees: amountToTransfer + meltQuote.fee_reserve + meltFeeReserve,
         })
 
@@ -165,7 +173,14 @@ export const transferTask = async function (
 
         // I have no idea yet if this can happen, unpaid call throws, return sent Proofs to the store an track tx as Reverted
         if (!isPaid) {
-            const { amountPendingByMint } = await _moveProofsFromPending(proofsToPay, mintUrl, unit, transactionId)
+            
+            const { amountPendingByMint } = await _moveProofsFromPending(
+                proofsToPay, 
+                mintUrl, 
+                unit, 
+                transactionId
+            )
+
             // release lock
             lockedProofsCounter.resetInFlight(transactionId)
 
@@ -280,7 +295,12 @@ export const transferTask = async function (
                 const { 
                     amountToMove, 
                     amountPendingByMint 
-                } = await _moveProofsFromPending(proofsToPay, mintUrl, unit, transactionId)
+                } = await _moveProofsFromPending(
+                    proofsToPay, 
+                    mintUrl, 
+                    unit, 
+                    transactionId
+                )
 
                 // keep tx as pending if proofs were not added because of a mint that keeps them as pending for timed out in-flight payment
                 if(amountPendingByMint > 0) {
@@ -344,14 +364,8 @@ const _moveProofsFromPending = async function (
     amountPendingByMint: number,
     movedAmount: number
 }> {
-    // Add internal references
-    for (const proof of proofsToMove as Proof[]) {
-        proof.tId = transactionId
-        proof.mintUrl = mintUrl
-        proof.unit = unit
-    }
 
-    const amountToMove = CashuUtils.getProofsAmount(proofsToMove as Proof[])
+    const amountToMove = CashuUtils.getProofsAmount(proofsToMove)
     
     // Here we move proofs from pending back to spendable wallet in case of lightning payment failure
     
@@ -382,6 +396,13 @@ const _moveProofsFromPending = async function (
     }
 
     if(movedProofs.length > 0) {
+        // Add internal references
+        for (const proof of proofsToMove as Proof[]) {
+            proof.tId = transactionId
+            proof.mintUrl = mintUrl
+            proof.unit = unit
+        }
+        
         // remove it from pending proofs in the wallet
         proofsStore.removeProofs(movedProofs, true, true)
         // add proofs back to the spendable wallet

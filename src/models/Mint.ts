@@ -307,7 +307,7 @@ export const MintModel = types
 
             return counter
         },
-        getProofsCounterByUnit(unit: MintUnit, useActiveKeyset: boolean = true) {                        
+        /*getProofsCounterByUnit(unit: MintUnit, useActiveKeyset: boolean = true) {                        
             let keyset: CashuMintKeyset | undefined
 
             if(useActiveKeyset) {
@@ -327,7 +327,7 @@ export const MintModel = types
             }
 
             return counter
-        },
+        },*/
         setHostname() {
             try {
                 self.hostname = new URL(self.mintUrl).hostname

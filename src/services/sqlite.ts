@@ -107,7 +107,7 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
     const {rowsAffected} = db.executeBatch(creationQueries)
 
     if (rowsAffected && rowsAffected > 0) {
-      log.info('New database schema created')
+      log.info('[_createOrUpdateSchema] New database schema created')
     }
 
     const {version} = getDatabaseVersion()    
