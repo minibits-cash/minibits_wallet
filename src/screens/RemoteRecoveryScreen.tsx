@@ -58,8 +58,15 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
         },
     })
 
-    const {mintsStore, proofsStore, userSettingsStore, transactionsStore, walletProfileStore, walletStore} = useStores()
-    // const {walletStore} = nonPersistedStores
+    const {
+        mintsStore, 
+        proofsStore, 
+        userSettingsStore, 
+        transactionsStore, 
+        walletProfileStore, 
+        walletStore
+    } = useStores()
+    
     const mnemonicInputRef = useRef<TextInput>(null)
     const indexInputRef = useRef<TextInput>(null)
 
@@ -550,7 +557,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
             userSettingsStore.setIsOnboarded(true)
             setStatusMessage('')
             setIsLoading(false)
-            navigation.navigate('Tabs')        
+            navigation.goBack()     
         } catch (e: any) {
             handleError(e)
         }

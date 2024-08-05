@@ -374,7 +374,8 @@ export const sendFromMint = async function (
 
             // Increase the proofs counter before the mint call so that in case the response
             // is not received our recovery index counts for sigs the mint has already issued (prevents duplicate b_b bug)
-            // + acquire lock and set inFlight values                
+            // + acquire lock and set inFlight values
+            // Warning/TBD: if proofs from inactive keysets are in proofsToSendFrom, this still locks only an active keyset
             lockedProofsCounter = await WalletUtils.lockAndSetInFlight(
                 mintInstance, 
                 unit, 

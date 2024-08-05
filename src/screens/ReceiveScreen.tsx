@@ -39,7 +39,7 @@ import { translate } from '../i18n'
 export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
   function ReceiveScreen({route, navigation}) {
     const isInternetReachable = useIsInternetReachable()
-    const {mintsStore} = useStores()
+    const {mintsStore, walletStore} = useStores()
 
     const [token, setToken] = useState<TokenV3 | undefined>()
     const [encodedToken, setEncodedToken] = useState<string | undefined>()
@@ -83,7 +83,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
             
             setIsLoading(false)
 
-            const {error, message, transaction, receivedAmount} = result
+            const {error, message, transaction, receivedAmount, mintUrl} = result
             const {status} = transaction as Transaction
 
             setTransactionStatus(status)
@@ -183,6 +183,33 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
             memo,
             encodedToken as string,
         )        
+    }
+
+
+    const increaseProofsCounterAndRetry = async function () {
+      try {
+        if(!transaction) {
+          return
+        }
+
+        const {mint} = transaction
+        const walletInstance = await walletStore.getWallet(
+            mint, 
+            unit, 
+            {withSeed: true}
+        )
+
+        const mintInstance = mintsStore.findByUrl(mint)
+        const counter = mintInstance!.getProofsCounterByKeysetId!(walletInstance.keys.id)
+        counter!.increaseProofsCounter(50)
+
+        // retry receive
+        receiveToken()
+      } catch (e: any) {            
+          handleError(e)
+      } finally {
+          toggleResultModal() //close
+      }
     }
 
 
@@ -434,11 +461,19 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                     message={resultModalInfo?.message as string}
                   />
                   <View style={$buttonContainer}>
-                    <Button
-                      preset="secondary"
-                      tx='common.close'
-                      onPress={toggleResultModal}
-                    />
+                      {resultModalInfo.message.includes('outputs have already been signed before') ? (
+                          <Button
+                              preset="secondary"
+                              text={"Try again"}
+                              onPress={increaseProofsCounterAndRetry}
+                          />
+                      ) : (
+                          <Button
+                              preset="secondary"
+                              tx={'common.close'}
+                              onPress={toggleResultModal}
+                          />
+                      )}
                   </View>
                 </>
               )}

@@ -562,8 +562,7 @@ const transfer = async function () {
     }
 
     setIsLoading(true)
-    setIsTransferTaskSentToQueue(true)
-    
+    setIsTransferTaskSentToQueue(true)    
 
     log.trace('[transfer]', {isInvoiceDonation})
 
@@ -580,6 +579,26 @@ const transfer = async function () {
     )
   } catch (e: any) {
     handleError(e)
+  }
+}
+
+const increaseProofsCounterAndRetry = async function () {
+  try {
+    const walletInstance = await walletStore.getWallet(
+      mintBalanceToTransferFrom?.mintUrl as string, 
+        unit, 
+        {withSeed: true}
+    )
+    const mintInstance = mintsStore.findByUrl(mintBalanceToTransferFrom?.mintUrl as string)
+    const counter = mintInstance!.getProofsCounterByKeysetId!(walletInstance.keys.id)
+    counter!.increaseProofsCounter(50)
+
+    // retry transfer
+    transfer()
+  } catch (e: any) {            
+    handleError(e)
+  } finally {
+    toggleResultModal() //close
   }
 }
     
@@ -832,11 +851,19 @@ const iconColor = useThemeColor('textDim')
                       message={resultModalInfo?.message}
                     />
                     <View style={$buttonContainer}>
-                      <Button
-                        preset="secondary"
-                        tx={'common.close'}
-                        onPress={toggleResultModal}
-                      />
+                        {resultModalInfo.message.includes('outputs have already been signed before') ? (
+                            <Button
+                                preset="secondary"
+                                text={"Try again"}
+                                onPress={increaseProofsCounterAndRetry}
+                            />
+                        ) : (
+                            <Button
+                                preset="secondary"
+                                tx={'common.close'}
+                                onPress={toggleResultModal}
+                            />
+                        )}
                     </View>
                   </>
                 )}

@@ -689,7 +689,21 @@ const PromoBlock = function (props: {addMint: any}) {
         <Card
             HeadingComponent={
             <View style={$promoIconContainer}>
-                <Icon icon='faBurst' size={50} color={colors.palette.accent400} />
+                <View
+                    style={{
+                        flex: 0,
+                        borderRadius: spacing.small,
+                        padding: spacing.extraSmall,
+                        backgroundColor: colors.palette.orange600
+                    }}
+                >
+                    <SvgXml 
+                        width={spacing.extraLarge} 
+                        height={spacing.extraLarge} 
+                        xml={MintIcon}
+                        fill='white'
+                    />
+                </View>
             </View>
             }
             ContentComponent={
