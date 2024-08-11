@@ -34,7 +34,7 @@ import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import { deriveSeedFromMnemonic } from '@cashu/cashu-ts'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 import { delay } from '../utils/utils'
-import { isStateTreeNode } from 'mobx-state-tree'
+import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
 import { scale } from '@gocodingnow/rn-size-matters'
 import { WalletUtils } from '../services/wallet/utils'
 import { WalletScreen } from './WalletScreen'
@@ -182,12 +182,11 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
     const onMintSelect = async function (mint: Mint) {
         try {
             setSelectedMintUrl(mint.mintUrl)
-            const allActiveKeysets = await walletStore.getMintKeysets(mint.mintUrl) // mint api call
-            
-            // Default is the last one as it seems to be the newest one
-            const lastKeyset = allActiveKeysets.slice(-1)[0]            
-            setSelectedKeyset(lastKeyset)
-            setSelectedMintKeysets(allActiveKeysets)
+            const allKeysets = getSnapshot(mint.keysets!)
+            const defaultKeyset = walletStore.getOptimalKeyset(mint, 'sat')
+         
+            setSelectedKeyset(defaultKeyset)
+            setSelectedMintKeysets(allKeysets)
             setStartIndex(0)
             setEndIndex(RESTORE_INDEX_INTERVAL)
         } catch (e: any) {

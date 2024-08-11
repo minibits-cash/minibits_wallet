@@ -20,6 +20,7 @@ import { MintUnit } from '../services/wallet/currency'
 import { CashuUtils, ProofV3, TokenV3 } from '../services/cashu/cashuUtils'
 import { Proof } from './Proof'
 import { isObj } from '@cashu/cashu-ts/src/utils'
+import { Mint } from './Mint'
 
 /* 
    Not persisted, in-memory only model of the cashu-ts wallet instances and seed.
@@ -68,8 +69,33 @@ export const WalletStoreModel = types
       }),
       getMintModelInstance(mintUrl: string) {
         const mintsStore = getRoot(self).mintsStore
-        return mintsStore.findByUrl(mintUrl)        
-      }  
+        return mintsStore.findByUrl(mintUrl) as Mint        
+      },
+      getOptimalKeyset(mintInstance: Mint, unit: MintUnit) {
+        const optimalKeyset: MintKeyset =mintInstance.keysets!
+        .filter((k: MintKeyset) => k.unit === unit && k.active)
+        .sort((a: MintKeyset, b: MintKeyset) => {
+            // Prioritize keysets that start with '00'
+            const aStartsWith00 = a.id.startsWith('00') ? 1 : 0;
+            const bStartsWith00 = b.id.startsWith('00') ? 1 : 0;
+    
+            if (aStartsWith00 !== bStartsWith00) {
+                return bStartsWith00 - aStartsWith00;
+            }
+    
+            // If both start with '00' or neither do, sort by input_fee_ppk
+            return (a.input_fee_ppk ?? 0) - (b.input_fee_ppk ?? 0);
+        })[0]
+
+        if(!optimalKeyset) {
+          throw new AppError(Err.VALIDATION_ERROR, 'Wallet has not any active keyset for the selected unit.', {
+            mintUrl: mintInstance.mintUrl, 
+            unit
+          })
+        }
+        
+        return optimalKeyset
+      }, 
     })) 
     .actions(self => ({  
       getOrCreateMnemonic: flow(function* getOrCreateMnemonic() {    
@@ -111,17 +137,17 @@ export const WalletStoreModel = types
         // skip checks if this is new mint being added
         if(mintInstance) {
           const newKeysets = keysets.filter((freshKeyset: MintKeyset) => {
-            return !mintInstance.keysets.some((keyset: MintKeyset) => keyset.id === freshKeyset.id)
+            return !mintInstance.keysets!.some((keyset: MintKeyset) => keyset.id === freshKeyset.id)
           })
       
           if(newKeysets.length > 0) {
             // if we heve new keysets, get and sync new keys
             const {keysets} = yield newMint.getKeys()
-            mintInstance.refreshKeys(keysets)
+            mintInstance.refreshKeys!(keysets)
           }
       
           // sync wallet state with fresh keysets, active statuses and keys
-          mintInstance.refreshKeysets(keysets) 
+          mintInstance.refreshKeysets!(keysets) 
         }
       
         // store cashu-ts mint instance in memory
@@ -156,7 +182,7 @@ export const WalletStoreModel = types
         let walletKeys: MintKeys
         if(options && options.keysetId) {
 
-          const requestedKeys = mintInstance.keys.find((k: MintKeys) => k.id === options.keysetId)
+          const requestedKeys = mintInstance.keys!.find((k: MintKeys) => k.id === options.keysetId)
 
           if(!requestedKeys) {
             throw new AppError(Err.NOTFOUND_ERROR, 'Wallet has not keys with provided keyset id.', {
@@ -176,31 +202,11 @@ export const WalletStoreModel = types
           walletKeys = requestedKeys
         } else {
           // if not we find active keyset with lowest fees and related keys
-          const activeKeyset: MintKeyset =mintInstance.keysets
-          .filter((k: MintKeyset) => k.unit === unit && k.active)
-          .sort((a: MintKeyset, b: MintKeyset) => {
-              // Prioritize keysets that start with '00'
-              const aStartsWith00 = a.id.startsWith('00') ? 1 : 0;
-              const bStartsWith00 = b.id.startsWith('00') ? 1 : 0;
-      
-              if (aStartsWith00 !== bStartsWith00) {
-                  return bStartsWith00 - aStartsWith00;
-              }
-      
-              // If both start with '00' or neither do, sort by input_fee_ppk
-              return (a.input_fee_ppk ?? 0) - (b.input_fee_ppk ?? 0);
-          })[0]
+          const activeKeyset: MintKeyset = self.getOptimalKeyset(mintInstance, unit) // throws
 
           log.trace('[WalletStore.getWallet]', {activeKeyset, mintUrl})
 
-          if(!activeKeyset) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Wallet has not any active keyset for the selected unit.', {
-              mintUrl, 
-              unit
-            })
-          }
-
-          const activeKeys = mintInstance.keys.find((k: MintKeys) => k.id === activeKeyset.id)
+          const activeKeys = mintInstance.keys!.find((k: MintKeys) => k.id === activeKeyset.id)
 
           if(!activeKeys) {
             throw new AppError(Err.VALIDATION_ERROR, 'Wallet has not any keys for the selected unit.', {
