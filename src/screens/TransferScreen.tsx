@@ -326,6 +326,11 @@ useEffect(() => {
 useEffect(() => {
     const handleTransferTaskResult = async (result: TransactionTaskResult) => {
         log.trace('handleTransferTaskResult event handler triggered', {isInvoiceDonation})
+
+        /* if(result.meltQuote && meltQuote && result.meltQuote.quote !== meltQuote.quote) {
+          log.error('[handleTransferTaskResult] Event belongs to a different meltquote, skipping...')
+          return
+        } */
         
         setIsLoading(false)
         const {transaction, message, error, finalFee} = result        

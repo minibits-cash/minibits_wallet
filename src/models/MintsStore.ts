@@ -108,11 +108,6 @@ export const MintsStoreModel = types
             }
 
             log.trace('[addMint] start')
-
-            // create default wallet instance then download and cache up to date mint keys in that instance 
-            // const {walletStore} = getRoot(self) // this somehow makes typescript + mobx complain
-            // const keysets: CashuMintKeyset[] = yield walletStore.getMintKeysets(mintUrl)
-            // const keys: CashuMintKeys[] = yield walletStore.getMintKeys(mintUrl)
             
             const newMint = new CashuMint(mintUrl)
             // get fresh keysets

@@ -1,3 +1,5 @@
+import { log } from "../services"
+
 class EventEmitter {
   private events: {[eventName: string]: Function[]}
 
@@ -11,11 +13,17 @@ class EventEmitter {
    * @param handler The callback function to be called when the event is emitted.
    */
   on(eventName: string, handler: Function) {
+    log.trace(`[EventEmitter.on] Subscribing to ${eventName}`)
+
     if (!this.events[eventName]) {
       this.events[eventName] = []
     }
 
-    this.events[eventName].push(handler)
+    if(!this.events[eventName].includes(handler)) {
+      this.events[eventName].push(handler)
+    } else {
+      log.warn(`[EventEmitter.on] ${eventName} event listener with this handler already exists, skipping...`)
+    }    
   }
 
   /**

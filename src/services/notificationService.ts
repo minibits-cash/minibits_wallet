@@ -9,6 +9,7 @@ import { MintUnit, formatCurrency, getCurrency } from './wallet/currency'
 import { NostrClient, NostrProfile } from './nostrService'
 import AppError, { Err } from '../utils/AppError'
 import { Platform } from 'react-native'
+import { rootStoreInstance } from '../models';
 
 export type NotifyReceiveToLnurlData = {
     type: 'NotifyReceiveToLnurlData',
@@ -19,6 +20,12 @@ export type NotifyReceiveToLnurlData = {
         zapSenderProfile?: NostrProfile
     }    
 }
+
+const {  
+  proofsStore,
+  relaysStore,    
+  walletStore,
+} = rootStoreInstance
 
 // Remote notification receive handler
 const onReceiveRemoteNotification = async function(remoteMessage: FirebaseMessagingTypes.RemoteMessage) {
@@ -45,11 +52,19 @@ const onReceiveRemoteNotification = async function(remoteMessage: FirebaseMessag
           const {amount, unit, comment, zapSenderProfile} = remoteData.data
           const currencyCode = getCurrency(unit as MintUnit).code
 
+          
+          /* const mint = await walletStore.getMint('https://mint.minibits.cash/Bitcoin')
+          const {keysets} = await mint.getKeySets()
+
+          log.trace('[onReceiveRemoteNotification]', {mint: mint.mintUrl, keysets}) */
+
           await createLocalNotification(
               `<b>⚡${formatCurrency(amount, currencyCode)} ${currencyCode}</b> incoming!`,
               `${zapSenderProfile ? 'Zap' : 'Payment'} from <b>${zapSenderProfile?.nip05 || 'unknown payer'}</b> is ready to be received.${comment ? ' Message from sender: ' + comment : ''}`,
               zapSenderProfile?.picture       
           )
+
+
 
           return
         }

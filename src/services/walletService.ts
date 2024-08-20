@@ -1059,7 +1059,7 @@ const _sendTopupNotification = async function (pr: PaymentRequest) {
 const receiveEventsFromRelays = async function (): Promise<void> {
     log.trace('[receiveEventsFromRelays] start')
 
-    if(!walletProfileStore.pubkey) { // New profile not yet created in ContactsScreen
+    if(!walletProfileStore.pubkey) {
         const message = `No wallet profile created.`            
         log.trace('[receiveEventsFromRelays]', message)
         return     

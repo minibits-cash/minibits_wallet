@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useCallback, useEffect, useRef, useState} from 'react'
-import {Alert, AppState, FlatList, Switch, TextStyle, View, ViewStyle} from 'react-native'
+import {Alert, AppState, TextStyle, View, ViewStyle} from 'react-native'
 import notifee from '@notifee/react-native'
 import messaging from '@react-native-firebase/messaging'
 import {
@@ -11,7 +11,7 @@ import {
 import codePush, { RemotePackage } from 'react-native-code-push'
 import {colors, spacing, useThemeColor} from '../theme'
 import {SettingsStackScreenProps} from '../navigation' // @demo remove-current-line
-import {Icon, ListItem, Screen, Text, Card} from '../components'
+import {ListItem, Screen, Text, Card, NwcIcon} from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import {translate} from '../i18n'
@@ -21,6 +21,7 @@ import { round } from '../utils/number'
 import { getCurrency } from '../services/wallet/currency'
 import { getMintColor } from './WalletScreen'
 import { NotificationService } from '../services/notificationService'
+import { SvgXml } from 'react-native-svg'
 
 
 interface SettingsScreenProps extends SettingsStackScreenProps<'Settings'> {}
@@ -32,7 +33,13 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
     const {navigation} = _props
     useHeader({}) // default header component
     const appState = useRef(AppState.currentState)
-    const {mintsStore, relaysStore, userSettingsStore, walletProfileStore} = useStores()
+    const {
+      mintsStore, 
+      relaysStore, 
+      userSettingsStore, 
+      walletProfileStore,
+      nwcStore
+    } = useStores()
 
     const [isUpdateAvailable, setIsUpdateAvailable] = useState<boolean>(false)
     const [updateDescription, setUpdateDescription] = useState<string>('')    
@@ -152,6 +159,10 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
         })
     }
 
+    const gotoNwc = function() {
+      navigation.navigate('Nwc')
+    } 
+
     const openNotificationSettings = async function() {
         await notifee.openNotificationSettings()        
     }
@@ -235,6 +246,31 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                    }
                     bottomSeparator={true}
                     onPress={openNotificationSettings}
+                />
+                <ListItem
+                    text='Nostr Wallet Connect'
+                    subText={`${nwcStore.all.length} connection${nwcStore.all.length > 1 ? 's' : ''}`}                 
+                    LeftComponent={
+                    <View style={{
+                      borderRadius: spacing.small,
+                      padding: spacing.tiny, 
+                      backgroundColor: 'white',
+                      marginRight: spacing.medium
+                    }}
+                    >
+                      <SvgXml 
+                        width={spacing.large} 
+                        height={spacing.large} 
+                        xml={NwcIcon}   
+                        style={{}}                     
+                      />
+                    </View>
+                    }   
+                    leftIconInverse={true}
+                    style={$item}
+
+                    bottomSeparator={true}
+                    onPress={gotoNwc}
                 />
                 <ListItem
                     tx="nostr.relaysTitle"

@@ -51,10 +51,13 @@ export type Nip05VerificationRecord = {
     }
 }
 
-// TODO cleanup
+// TODO cleanup all this shit, move to RelayStore model
+
 const _defaultPublicRelays: string[] = ['wss://relay.damus.io', 'wss://nostr.mom']
 const _minibitsRelays: string[] = [MINIBITS_RELAY_URL]
+
 let _pool: any = undefined
+
 const {relaysStore} = rootStoreInstance
 
 const getRelayPool = function () {
@@ -216,16 +219,16 @@ const publish = async function (
         throw new AppError(Err.VALIDATION_ERROR, 'Event is invalid and could not be published', signed)
     }
     
-    log.trace('Event to be published', signed, 'publish')
+    // log.trace('Event to be published', signed, 'publish')
 
     const pool = getRelayPool()
     let pubs = pool.publish(relays, signed)
     await delay(1000)
     // await Promise.all(pubs)
 
-    const published: NostrEvent = await pool.get(relays, {
+    const published = await pool.get(relays, {
         ids: [signed.id]
-    })
+    }) as NostrEvent
 
     
     if(published) {
@@ -239,11 +242,11 @@ const publish = async function (
 
 const getEvent = async function (    
     relays: string[],
-    filter: NostrFilter
-): Promise<Event | null> {   
+    filters: NostrFilter[]
+): Promise<NostrEvent | null> {   
     
     const pool = getRelayPool()    
-    const event: Event = await pool.get(relays, filter)    
+    const event = await pool.get(relays, filters) as NostrEvent
 
     if(event) {
         log.trace('Event received', event, 'getEvent')        

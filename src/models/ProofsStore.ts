@@ -371,9 +371,6 @@ export const ProofsStoreModel = types
         },
         getMintBalanceWithMaxBalance: (unit: MintUnit) => {
             const balances = self.getBalances().mintBalances
-
-            log.debug('[getMintBalanceWithMaxBalance]', {balances})
-
             let maxBalance = null;
             let maxAmount = -Infinity;
           

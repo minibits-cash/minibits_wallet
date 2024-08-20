@@ -67,6 +67,7 @@ const palette = {
   iconMagenta200: '#F62586',
   iconViolet200: '#AF00C9',
   iconViolet300: '#7F38CA',
+  iconViolet400: '#662482',
 } as const
 
 export const colors = {

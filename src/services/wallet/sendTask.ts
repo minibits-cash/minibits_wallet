@@ -73,7 +73,12 @@ export const sendTask = async function (
         transactionId = storedTransaction.id as number
 
         // get ready proofs to send and update proofs and pending proofs storage
-        const {proofs: proofsToSend, mintFeePaid, mintFeeReserve} = await sendFromMint(
+        const {
+            proofs: proofsToSend, 
+            mintFeePaid, 
+            mintFeeReserve, 
+            isSwapNeeded
+        } = await sendFromMint(
             mintBalanceToSendFrom,
             amountToSend,
             unit,
@@ -86,6 +91,7 @@ export const sendTask = async function (
             status: TransactionStatus.PREPARED,
             mintFeeReserve,
             mintFeePaid,
+            isSwapNeeded,
             createdAt: new Date(),
         })
 
@@ -204,9 +210,7 @@ export const sendFromMint = async function (
                 Err.VALIDATION_ERROR,
                 'Could not find mint', {mintUrl}
             )
-        }
-
-        
+        }        
              
         const proofsFromMint = proofsStore.getByMint(mintUrl, {isPending: false, unit}) as Proof[]        
         
@@ -458,7 +462,8 @@ export const sendFromMint = async function (
         return {
             proofs: cleanedProofsToSend as ProofV3[], 
             mintFeeReserve, 
-            mintFeePaid
+            mintFeePaid,
+            isSwapNeeded
         }
   } catch (e: any) {
         // release lock

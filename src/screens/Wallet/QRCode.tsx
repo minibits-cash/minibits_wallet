@@ -15,7 +15,7 @@ import { log } from "../../services"
 export const QRCodeBlock = function (props: {  
     qrCodeData: string    
     title: string
-    type: 'EncodedV3Token' | 'EncodedV4Token' | 'Bolt11Invoice' | 'URL'
+    type: 'EncodedV3Token' | 'EncodedV4Token' | 'Bolt11Invoice' | 'URL' | 'NWC'
     size?: number
   }
 ) {

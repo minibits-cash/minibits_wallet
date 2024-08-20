@@ -41,6 +41,7 @@ import {
   SendOption,
   TokenReceiveScreen,
   RemoteRecoveryScreen,
+  NwcScreen,
 } from "../screens"
 import { Contact } from "../models/Contact"
 import { colors, useThemeColor, spacing, typography } from "../theme"
@@ -291,7 +292,8 @@ export type SettingsStackParamList = {
   Relays: undefined
   RemoteRecovery: {isAddressOnlyRecovery: boolean}
   WalletNavigator: {screen: string} 
-  ContactsNavigator: {screen: string}  
+  ContactsNavigator: {screen: string}
+  Nwc: undefined
 }
 
 export type SettingsStackScreenProps<T extends keyof SettingsStackParamList> = StackScreenProps<
@@ -322,6 +324,7 @@ const SettingsNavigator = function SettingsNavigator() {
       <SettingsStack.Screen name="Developer" component={DeveloperScreen} />
       <SettingsStack.Screen name="Relays" component={RelaysScreen} />
       <SettingsStack.Screen name="RemoteRecovery" component={RemoteRecoveryScreen} />
+      <SettingsStack.Screen name="Nwc" component={NwcScreen} />
     </SettingsStack.Navigator>
   )
 }

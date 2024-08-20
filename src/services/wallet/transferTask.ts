@@ -122,8 +122,11 @@ export const transferTask = async function (
         )
 
         proofsToPay = swapResult.proofs
-        const {mintFeePaid, mintFeeReserve} = swapResult
+        const {mintFeePaid, mintFeeReserve, isSwapNeeded} = swapResult
         const proofsAmount = CashuUtils.getProofsAmount(proofsToPay)
+
+        // TODO in case of swap from inactive keysets, different meltFees might apply than above calculated meltFeeReserve
+        // In such case, we might need to add / substract the fee difference to / from proofsToPay
 
         log.debug('[transfer]', 'Prepared poofsToPay amount', proofsAmount)
 
@@ -132,6 +135,7 @@ export const transferTask = async function (
             status: TransactionStatus.PREPARED,
             mintFeeReserve,
             mintFeePaid,
+            isSwapNeeded,
             createdAt: new Date(),
         })
 
@@ -165,11 +169,7 @@ export const transferTask = async function (
             }
         )    
 
-        lockedProofsCounter.decreaseProofsCounter(countOfInFlightProofs) 
-                
-        // We've sent the proofsToPay to the mint, so we remove those pending proofs from model storage.
-        // Hopefully mint gets important shit done synchronously.        
-        await WalletTask.handleSpentByMint({mintUrl, isPending: true})
+        lockedProofsCounter.decreaseProofsCounter(countOfInFlightProofs)
 
         // I have no idea yet if this can happen, unpaid call throws, return sent Proofs to the store an track tx as Reverted
         if (!isPaid) {
@@ -223,6 +223,10 @@ export const transferTask = async function (
             }            
         }
 
+        // We've sent the proofsToPay to the mint, so we remove those pending proofs from model storage.
+        // Hopefully mint gets important shit done synchronously.        
+        WalletTask.handleSpentByMint({mintUrl, isPending: true})
+
         // If real fees were less then estimated, cash the returned savings.
         let lightningFeePaid = meltQuote.fee_reserve
 
@@ -275,7 +279,9 @@ export const transferTask = async function (
             transaction: completedTransaction,
             message: `Lightning invoice has been successfully paid and settled with your Minibits ecash. Fee has been ${formatCurrency(lightningFeePaid + mintFeePaid, getCurrency(unit).code)} ${getCurrency(unit).code}.`,
             lightningFeePaid,
-            mintFeePaid
+            mintFeePaid,
+            meltQuote,
+            preimage
         } as TransactionTaskResult
 
     } catch (e: any) {        
