@@ -70,7 +70,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         return NostrClient.getMinibitsRelays()
     },
     get supportedMethods() {
-        return ['pay_invoice', 'get_balance', 'get_info', 'list_transactions']
+        return ['pay_invoice', 'get_balance', 'get_info']
     }
 }))
 .views(self => ({
@@ -111,9 +111,6 @@ export const NwcConnectionModel = types.model('NwcConnection', {
     resetMeltQuoteInFlight() {
         self.meltQuoteInFlight = undefined
     },
-    /*setListenerExists(exists: boolean) {
-        self.listenerExists = exists
-    }*/
 }))
 .actions(self => ({    
     sendResponse: flow(function* sendResponse(nwcResponse: NwcResponse | NwcError) {
@@ -309,10 +306,10 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         log.trace('[Nwc.handleRequest] request method', {method: nwcRequest.method})
 
         switch (nwcRequest.method) {
-            case 'get_info':
+            case 'get_info':                
                 nwcResponse = self.handleGetInfo(nwcRequest)
                 break                
-            case 'get_balance':
+            case 'get_balance':                
                 nwcResponse = self.handleGetBalance(nwcRequest)    
                 break            
             case 'pay_invoice':                
@@ -326,13 +323,13 @@ export const NwcConnectionModel = types.model('NwcConnection', {
 
                     break
                 }
-
-                self.setEventInFlight(requestEvent)                
+                                
                 // only early errors are immediately returned, transfer result is handled via event handler
                 nwcResponse = yield self.handlePayInvoice(nwcRequest) as Promise<NwcError>
                 
                 // no early error, transfer initiated, exit and create response in transfer result event handler
                 if(!nwcResponse) { 
+                    self.setEventInFlight(requestEvent)
                     return
                 }
                 break
@@ -346,13 +343,19 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                 log.error(message, {nwcRequest})
         }
 
+        self.setEventInFlight(requestEvent)
         yield self.sendResponse(nwcResponse)
 
     }),
 }))
 .actions(self => ({
-    receiveNwcEvents: flow(function* receiveNwcEvents() {  
-        log.trace('[receiveNwcEvents] start for connection', {name: self.name})
+    receiveNwcEvents () {  
+        log.trace('[receiveNwcEvents] start listening for NWC events', {
+            name: self.name, 
+            connectionPubkey: self.connectionPubkey, 
+            walletPubkey: self.walletPubkey
+        })
+
         self.resetEventInFlight()
         self.resetMeltQuoteInFlight()
         
@@ -431,7 +434,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             log.error(e.name, e.message)
             return
         }
-    })   
+    }  
 }))
 
 
@@ -458,7 +461,7 @@ export const NwcStoreModel = types
             return self.nwcConnections
         },
         get supportedMethods() {
-            return ['pay_invoice', 'get_balance', 'get_info', 'list_transactions']
+            return ['pay_invoice', 'get_balance', 'get_info']
         }
     }))
     .actions(self => ({
@@ -534,8 +537,28 @@ export const NwcStoreModel = types
                 conn.receiveNwcEvents()
             }
             
-            EventEmitter.on('ev_transferTask_result', self.handleTransferTaskResult)            
-        }     
+            if (self.all.length > 0) {
+                EventEmitter.on('ev_transferTask_result', self.handleTransferTaskResult)            
+            }            
+        },
+        handleNwcRequestFromNotification: flow(function* handleNwcRequestFromNotification(requestEvent: NostrEvent) {        
+            // We need to select the connection the request belongs to
+            const connection = self.nwcConnections.find(c => c.connectionPubkey === requestEvent.pubkey)
+
+            if(connection) {                
+                const decryptedContent = yield NostrClient.decryptNip04(requestEvent.pubkey, requestEvent.content)
+                const nwcRequest: NwcRequest = JSON.parse(decryptedContent)
+
+                if(nwcRequest.method === 'pay_invoice') {
+                    EventEmitter.on('ev_transferTask_result', self.handleTransferTaskResult)            
+                }
+                
+                yield connection.handleRequest(requestEvent)                
+                return nwcRequest
+            } else {
+                log.warn('[handleNwcRequestFromNotification] No connectionPubkey matches the event pubkey', {requestEvent})
+            }
+        })   
     }))
     .views(self => ({
         get all() {

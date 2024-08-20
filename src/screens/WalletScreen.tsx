@@ -83,6 +83,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         transactionsStore, 
         paymentRequestsStore, 
         userSettingsStore, 
+        nwcStore
     } = useStores()
         
     const pagerRef = useRef<PagerView>(null)
@@ -160,6 +161,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             WalletTask.handleInFlight().catch(e => false)
             // Create websocket subscriptions to receive tokens or payment requests by NOSTR DMs                    
             WalletTask.receiveEventsFromRelays().catch(e => false)
+            // Create websocket subscriptions to receive NWC requests from remote wallets (if any)            
+            nwcStore.receiveNwcEvents()
             // log.trace('[getInitialData]', 'walletProfile', walletProfileStore) 
             const preferredUnit: MintUnit = userSettingsStore.preferredUnit
             const pageIndex = groupedMints.findIndex((m) => m.unit === preferredUnit)

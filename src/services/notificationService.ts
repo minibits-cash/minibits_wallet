@@ -6,10 +6,10 @@ import {
 } from '@env'
 import { FirebaseMessagingTypes } from '@react-native-firebase/messaging'
 import { MintUnit, formatCurrency, getCurrency } from './wallet/currency'
-import { NostrClient, NostrProfile } from './nostrService'
+import { NostrClient, NostrEvent, NostrProfile } from './nostrService'
 import AppError, { Err } from '../utils/AppError'
 import { Platform } from 'react-native'
-import { rootStoreInstance } from '../models';
+import { RootStoreModel, rootStoreInstance, setupRootStore } from '../models';
 
 export type NotifyReceiveToLnurlData = {
     type: 'NotifyReceiveToLnurlData',
@@ -21,52 +21,30 @@ export type NotifyReceiveToLnurlData = {
     }    
 }
 
-const {  
-  proofsStore,
-  relaysStore,    
-  walletStore,
-} = rootStoreInstance
+export type NotifyNwcRequestData = {
+  type: 'NotifyNwcRequestData',
+  data: {
+    requestEvent: NostrEvent,
+  }
+}
 
 // Remote notification receive handler
-const onReceiveRemoteNotification = async function(remoteMessage: FirebaseMessagingTypes.RemoteMessage) {
-    log.debug('[onReceiveRemoteNotification]', {remoteMessage})
+const onForegroundNotification = async function(remoteMessage: FirebaseMessagingTypes.RemoteMessage) {
+    log.trace('[onForegroundReceiveNotification]', {remoteMessage})
     try {
 
-        const {encrypted} = remoteMessage.data!
+        const remoteData = await _getRemoteData(remoteMessage)
 
-        if (!encrypted) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Unknown remote message data received', {data: remoteMessage.data})            
+        // Process notification about incoming lightning address / zap payment
+        if(remoteData.type === 'NotifyReceiveToLnurlData') {
+            return _receiveToLnurlHandler(remoteData)    
         }
 
-        const serverPubkey = MINIBIT_SERVER_NOSTR_PUBKEY
-        const decrypted = await NostrClient.decryptNip04(serverPubkey, encrypted as string)
-
-        if (!decrypted) {
-          throw new AppError(Err.VALIDATION_ERROR, 'Unknown remote message data received', {data: remoteMessage.data})
-        }
-        
-        const remoteData = JSON.parse(decrypted)
-
-        // Remote notification building and showing per remoteData.type
-        if(remoteData.type === 'NotifyReceiveToLnurlData' || remoteData.type === 'RemoteMessageReceiveToLnurl') {
-          const {amount, unit, comment, zapSenderProfile} = remoteData.data
-          const currencyCode = getCurrency(unit as MintUnit).code
-
-          
-          /* const mint = await walletStore.getMint('https://mint.minibits.cash/Bitcoin')
-          const {keysets} = await mint.getKeySets()
-
-          log.trace('[onReceiveRemoteNotification]', {mint: mint.mintUrl, keysets}) */
-
-          await createLocalNotification(
-              `<b>⚡${formatCurrency(amount, currencyCode)} ${currencyCode}</b> incoming!`,
-              `${zapSenderProfile ? 'Zap' : 'Payment'} from <b>${zapSenderProfile?.nip05 || 'unknown payer'}</b> is ready to be received.${comment ? ' Message from sender: ' + comment : ''}`,
-              zapSenderProfile?.picture       
-          )
-
-
-
-          return
+        // Process NWC request notified by FCM message
+        if(remoteData.type === 'NotifyNwcRequestData') {
+            // Ingnore when in foreground as we should be connected to relays
+            log.trace('[onForegroundNotification] App is in foreground, skipping NWC requestHandler')
+            return  
         }
 
         throw new AppError(Err.VALIDATION_ERROR, 'Unknown remoteData.type', {remoteData})       
@@ -75,6 +53,85 @@ const onReceiveRemoteNotification = async function(remoteMessage: FirebaseMessag
         log.error(e.name, e.message)
     }
   
+}
+
+const onBackgroundNotification = async function(remoteMessage: FirebaseMessagingTypes.RemoteMessage) {
+    log.trace('[onBackgroundReceiveNotification]', {remoteMessage})
+    try {
+
+        const remoteData = await _getRemoteData(remoteMessage)
+
+        // Process notification about incoming lightning address / zap payment
+        if(remoteData.type === 'NotifyReceiveToLnurlData') {
+            return _receiveToLnurlHandler(remoteData)          
+        }
+
+        // Process NWC request notified by FCM message
+        if(remoteData.type === 'NotifyNwcRequestData') {
+            return _nwcRequestHandler(remoteData)
+        }
+
+        throw new AppError(Err.VALIDATION_ERROR, 'Unknown remoteData.type', {remoteData})       
+        
+    } catch (e: any) {
+        log.error(e.name, e.message)
+    }  
+}
+
+const _receiveToLnurlHandler = async function(remoteData: NotifyReceiveToLnurlData) {   
+    const {amount, unit, comment, zapSenderProfile} = remoteData.data
+    const currencyCode = getCurrency(unit as MintUnit).code
+
+    await createLocalNotification(
+        `<b>⚡${formatCurrency(amount, currencyCode)} ${currencyCode}</b> incoming!`,
+        `${zapSenderProfile ? 'Zap' : 'Payment'} from <b>${zapSenderProfile?.nip05 || 'unknown payer'}</b> is ready to be received.${comment ? ' Message from sender: ' + comment : ''}`,
+        zapSenderProfile?.picture       
+    )
+}
+
+const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {   
+    const {requestEvent} = remoteData.data
+    const {nwcStore} = rootStoreInstance
+
+    // If app is killed, state is not loaded
+    if(nwcStore.all.length === 0) {        
+        await setupRootStore(rootStoreInstance)
+    }
+
+    log.trace('[_nwcRequestHandler]', {connections: nwcStore.all})
+    
+    const nwcRequest = await nwcStore.handleNwcRequestFromNotification(requestEvent)   
+  
+    if(nwcRequest) {
+        const body = nwcRequest.method === 'pay_invoice' ? 'Pay invoice' : nwcRequest.method === 'get_balance' ? 'Get wallet balance' : null
+
+        if(body) {
+            await createLocalNotification(
+                `Received <b>Nostr Wallet Connect</b> request`,
+                body,              
+            )
+        }        
+    } else {
+        log.warn('[_nwcRequestHandler] Could not get nwcRequest from requestEvent', {remoteData})
+    }   
+}
+
+const _getRemoteData = async function(remoteMessage: FirebaseMessagingTypes.RemoteMessage) {
+   
+    const {encrypted} = remoteMessage.data!
+
+    if (!encrypted) {
+        throw new AppError(Err.VALIDATION_ERROR, 'Unknown remote message data received', {data: remoteMessage.data})            
+    }
+
+    const serverPubkey = MINIBIT_SERVER_NOSTR_PUBKEY
+    const decrypted = await NostrClient.decryptNip04(serverPubkey, encrypted as string)
+
+    if (!decrypted) {
+        throw new AppError(Err.VALIDATION_ERROR, 'Unknown remote message data received', {data: remoteMessage.data})
+    }
+    
+    return JSON.parse(decrypted)
 }
 
 
@@ -170,7 +227,8 @@ const areNotificationsEnabled = async function (): Promise<boolean> {
 }
 
 export const NotificationService = {
-    onReceiveRemoteNotification,    
+    onForegroundNotification,
+    onBackgroundNotification,    
     createLocalNotification,
     // updateLocalNotification,
     // cancelNotification,
