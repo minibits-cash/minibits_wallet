@@ -317,14 +317,30 @@ const getProofsFromTokenEntries = (tokenEntries: TokenEntryV3[]) => {
 
 const findExactMatch = function (requestedAmount: number, proofs: Proof[]): Proof[] | null {
   const result: Proof[] = [];
-  function backtrack(start: number, remaining: number): boolean {
+  const memo = new Set<string>(); // A set to store visited states
+  const MAX_DEPTH = 1000;  // Set a reasonable recursion depth limit
+
+  function backtrack(start: number, remaining: number, depth: number): boolean {
+      if (depth > MAX_DEPTH) {
+        log.error('[findExactMatch] Hit max algo depth')
+        return false;  // Stop recursion if the depth limit is reached
+      }
+
       if (remaining === 0) {
           return true;
       }
+
+      if (memo.has(`${start}-${remaining}`)) { // Check if we've already visited this state
+        log.trace('[findExactMatch] Same state cycle detected')
+        return false;
+      }
+
+      memo.add(`${start}-${remaining}`); // Mark the state as visited
+
       for (let i = start; i < proofs.length; i++) {
           if (proofs[i].amount > remaining) continue;
           result.push(proofs[i]);
-          if (backtrack(i + 1, remaining - proofs[i].amount)) {
+          if (backtrack(i + 1, remaining - proofs[i].amount, depth + 1)) {
               return true;
           }
           result.pop();
@@ -333,7 +349,7 @@ const findExactMatch = function (requestedAmount: number, proofs: Proof[]): Proo
   }
 
   proofs.sort((a, b) => b.amount - a.amount);
-  if (backtrack(0, requestedAmount)) {
+  if (backtrack(0, requestedAmount, 0)) {
       return result;
   }
   return null;
@@ -365,9 +381,11 @@ const getProofsToSend = function (requestedAmount: number, proofs: Proof[]): Pro
   }
   const exactMatch = findExactMatch(requestedAmount, proofs);
   if (exactMatch) {
+      log.trace('[getProofsToSend] found exact match')
       return exactMatch;
   }
 
+  log.trace('[getProofsToSend] no exact match, fallback to findMinExcess')
   return findMinExcess(requestedAmount, proofs);
 }
 
