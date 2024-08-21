@@ -99,7 +99,7 @@ const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {
 
     log.trace('[_nwcRequestHandler]', {connections: nwcStore.all})
     
-    const nwcRequest = await nwcStore.handleNwcRequestFromNotification(requestEvent)   
+    await nwcStore.handleNwcRequestFromNotification(requestEvent)   
 }
 
 const _getRemoteData = async function(remoteMessage: FirebaseMessagingTypes.RemoteMessage) {

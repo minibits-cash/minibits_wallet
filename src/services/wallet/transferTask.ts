@@ -11,6 +11,7 @@ import { WalletUtils } from './utils'
 import {isBefore} from 'date-fns'
 import { sendFromMint } from './sendTask'
 import { MintUnit, formatCurrency, getCurrency } from './currency'
+import { NostrEvent } from '../nostrService'
 
 const {
     transactionsStore,
@@ -31,6 +32,7 @@ export const transferTask = async function (
     memo: string,
     invoiceExpiry: Date,    
     encodedInvoice: string,
+    nwcEvent?: NostrEvent
 )  : Promise<TransactionTaskResult> {
     const mintUrl = mintBalanceToTransferFrom.mintUrl
     const mintInstance = mintsStore.findByUrl(mintUrl)
@@ -200,7 +202,9 @@ export const transferTask = async function (
                     taskFunction: TRANSFER,
                     mintUrl,
                     transaction: pendingTransaction,
-                    message: 'Lightning payment did not complete in time. Your ecash will remain pending until the payment completes or fails.',                    
+                    message: 'Lightning payment did not complete in time. Your ecash will remain pending until the payment completes or fails.',
+                    meltQuote,
+                    nwcEvent
                 } as TransactionTaskResult
             } else {
                 transactionData.push({
@@ -219,6 +223,8 @@ export const transferTask = async function (
                     mintUrl,
                     transaction: revertedTransaction,
                     message: 'Payment of lightning invoice failed. Reserved ecash was returned to your wallet.',
+                    meltQuote,
+                    nwcEvent
                 } as TransactionTaskResult
             }            
         }
@@ -281,7 +287,8 @@ export const transferTask = async function (
             lightningFeePaid,
             mintFeePaid,
             meltQuote,
-            preimage
+            preimage,
+            nwcEvent
         } as TransactionTaskResult
 
     } catch (e: any) {        
@@ -326,9 +333,12 @@ export const transferTask = async function (
 
                     return {
                         taskFunction: TRANSFER,
+                        mintUrl,
                         transaction: pendingTransaction,
                         message: 'Lightning payment did not complete in time. Your ecash will remain pending until the payment completes or fails.',
                         error: WalletUtils.formatError(e),
+                        meltQuote,
+                        nwcEvent
                     } as TransactionTaskResult
                 }
 
@@ -355,6 +365,8 @@ export const transferTask = async function (
             transaction: errorTransaction || undefined,
             message: e.message,
             error: WalletUtils.formatError(e),
+            meltQuote,
+            nwcEvent
         } as TransactionTaskResult
   }
 }

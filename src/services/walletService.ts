@@ -56,6 +56,7 @@ type WalletTaskService = {
         memo: string,
         invoiceExpiry: Date,
         encodedInvoice: string,
+        nwcEvent?: NostrEvent
     ) => Promise<void>
     receive: (
         token: TokenV3,
@@ -100,6 +101,8 @@ export interface TransactionTaskResult extends WalletTaskResult {
     transaction?: Transaction
     lightningFeePaid?: number
     mintFeePaid?: number
+    meltQuote?: MeltQuoteResponse
+    nwcEvent?: NostrEvent
 }
 
 export type ReceivedEventResult = {
@@ -133,6 +136,7 @@ const transfer = async function (
     memo: string,
     invoiceExpiry: Date,    
     encodedInvoice: string,
+    nwcEvent?: NostrEvent
 ): Promise<void> {
     const now = new Date().getTime()
     SyncQueue.addPrioritizedTask(
@@ -145,6 +149,7 @@ const transfer = async function (
             memo,
             invoiceExpiry,
             encodedInvoice,
+            nwcEvent
         )
     )
     return

@@ -99,14 +99,13 @@ export const NwcScreen: FC<SettingsScreenProps> = observer(
     }
 
     const onConnect = async function () {
-        log.trace('onConnect')    
+        log.trace('onConnect') 
         
-        // Full force re-subscription, not just reconnect
-        // WalletTask.receiveEventsFromRelays().catch(e => false) 
-        setSelectedConnection(undefined)
-        // Receive events only through push notifications for now
-        // nwcStore.receiveNwcEvents()   
-        // setInfo('NWC connections were refreshed')
+        if(!areNotificationsEnabled) {
+            setSelectedConnection(undefined)        
+            nwcStore.receiveNwcEvents()   
+            setInfo('NWC connections were refreshed')
+        }
     }
 
     const gotoAdd = function () {        
@@ -143,8 +142,9 @@ export const NwcScreen: FC<SettingsScreenProps> = observer(
             toggleAddConnectionModal()            
             await nwcStore.addConnection(newConnectionName, parseInt(newConnectionDailyLimit))
             setIsLoading(false)
+            setNewConnectionName('')
+            setNewConnectionDailyLimit('0')
             onConnect()
-
         } catch(e: any) {
           handleError(e)
         }
@@ -283,7 +283,8 @@ export const NwcScreen: FC<SettingsScreenProps> = observer(
         <BottomModal
           isVisible={isShareConnectionModalVisible ? true : false}          
           ContentComponent={
-                        
+            <>
+            <Text text={selectedConnection?.name} preset="subheading" style={{alignSelf: 'center', marginBottom: spacing.small}} />            
             <View style={$newContainer}>                
                 <QRCodeBlock
                     qrCodeData={selectedConnection?.connectionString as string}
@@ -296,7 +297,7 @@ export const NwcScreen: FC<SettingsScreenProps> = observer(
                     text="Scan or copy this connection string to another application to allow it to connect to your wallet. Use only with apps you trust."
                 />
             </View>
-            
+            </>
           }
           onBackButtonPress={toggleShareConnectionModal}
           onBackdropPress={toggleShareConnectionModal}
