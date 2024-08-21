@@ -1,7 +1,7 @@
 import {observer} from 'mobx-react-lite'
 import { Observer } from 'mobx-react-lite'
 import Clipboard from '@react-native-clipboard/clipboard'
-import React, {FC, useRef, useState} from 'react'
+import React, {FC, useEffect, useRef, useState} from 'react'
 import {FlatList, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {SettingsStackScreenProps} from '../navigation' // @demo remove-current-line
@@ -14,6 +14,7 @@ import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matte
 import { NwcConnection } from '../models/NwcStore'
 import { QRCodeBlock } from './Wallet/QRCode'
 import { CollapsibleText } from '../components/CollapsibleText'
+import { NotificationService } from '../services/notificationService'
 
 interface SettingsScreenProps extends SettingsStackScreenProps<'Nwc'> {}
 
@@ -21,12 +22,7 @@ export const NwcScreen: FC<SettingsScreenProps> = observer(
   function NwcScreen(_props) {
     const {navigation} = _props
 
-    useHeader({
-        leftIcon: 'faArrowLeft',
-        onLeftPress: () => navigation.goBack(),
-        /* rightIcon: 'faRotate',
-        onRightPress: () => onConnect() */
-    })
+
 
     const connectionNameInputRef = useRef<TextInput>(null)
     const dailyLimitInputRef = useRef<TextInput>(null)
@@ -41,6 +37,27 @@ export const NwcScreen: FC<SettingsScreenProps> = observer(
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState(false)
+    const [areNotificationsEnabled, setAreNotificationsEnabled] = useState<boolean>(false)
+
+    useHeader({
+        leftIcon: 'faArrowLeft',
+        onLeftPress: () => navigation.goBack(),
+        rightIcon: areNotificationsEnabled ? 'faRotate' : undefined,
+        onRightPress: () => areNotificationsEnabled ? onConnect() : false
+    })
+    
+    useEffect(() => {
+        const getNotificationPermission = async () => {
+            try {
+                const enabled = await NotificationService.areNotificationsEnabled()
+                setAreNotificationsEnabled(enabled)              
+            } catch (e: any) {
+                log.info(e.name, e.message)
+                return false // silent
+            }
+        } 
+        getNotificationPermission()
+    }, [])
     
     const toggleAddConnectionModal = () => {
         setIsAddConnectionModalVisible(previousState => !previousState)

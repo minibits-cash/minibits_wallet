@@ -449,7 +449,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
     }),
 }))
 .actions(self => ({
-    receiveNwcEvents () {  
+    receiveNwcEvents () {  // TODO MOVE TO NwcStoreModel and dispatch events to connections
         log.trace('[receiveNwcEvents] start listening for NWC events', {
             name: self.name, 
             connectionPubkey: self.connectionPubkey, 

@@ -63,6 +63,7 @@ import { MintUnit } from "../services/wallet/currency"
 import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import { LeftProfileHeader } from './ContactsScreen'
 import { maxTransactionsByUnit } from '../models/TransactionsStore'
+import { NotificationService } from '../services/notificationService'
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView)
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
@@ -154,19 +155,22 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             }
             
             if(!isInternetReachable) { return }
+            
 
             // check lnaddress claims on app start and set timestamp to trigger focus updates
             WalletTask.handleClaim().catch(e => setInfo(e.message))
             // Auto-recover inflight proofs - do only on startup and before checkPendingReceived to prevent conflicts            
             WalletTask.handleInFlight().catch(e => false)
             // Create websocket subscriptions to receive tokens or payment requests by NOSTR DMs                    
-            WalletTask.receiveEventsFromRelays().catch(e => false)
-            // Create websocket subscriptions to receive NWC requests from remote wallets (if any)            
-            // nwcStore.receiveNwcEvents() // go only through push notifications for now
+            WalletTask.receiveEventsFromRelays().catch(e => false)            
             // log.trace('[getInitialData]', 'walletProfile', walletProfileStore) 
             const preferredUnit: MintUnit = userSettingsStore.preferredUnit
             const pageIndex = groupedMints.findIndex((m) => m.unit === preferredUnit)
-            pagerRef.current && pagerRef.current.setPage(pageIndex)         
+            pagerRef.current && pagerRef.current.setPage(pageIndex) 
+            
+            const enabled = await NotificationService.areNotificationsEnabled()
+            // Create websocket subscriptions to receive NWC requests from remote wallets (if any)            
+            if(!enabled) {nwcStore.receiveNwcEvents()} // go through websockets only if notifications are disabled
         }
         
         Linking.addEventListener('url', handleDeeplink)
