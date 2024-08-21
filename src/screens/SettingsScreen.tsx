@@ -249,7 +249,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                 />
                 <ListItem
                     text='Nostr Wallet Connect'
-                    subText={`${nwcStore.all.length} connection${nwcStore.all.length > 1 ? 's' : ''}`}                 
+                    subText={`${nwcStore.all.length} allowed app${nwcStore.all.length > 1 ? 's' : ''}`}                 
                     LeftComponent={
                     <View style={{
                       borderRadius: spacing.small,

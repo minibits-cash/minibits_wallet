@@ -232,7 +232,7 @@ const publish = async function (
 
     
     if(published) {
-        log.trace('Event successfully published', published, 'NostrClient.publish')        
+        log.trace('[NostrClient.publish] Event successfully published', {published})        
         return published
     }
     

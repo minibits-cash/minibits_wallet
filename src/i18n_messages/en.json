@@ -38,7 +38,7 @@
 		"confirm": "Confirm",
 		"confirmAlertTitle": "Confirmation",
 		"confirmCreateInvoice": "Create invoice",
-		"connectedParam": "Connected: %{param}",
+		"connectedParam": "%{param} relays connected",
 		"copy": "Copy",
 		"copyFailParam": "Couldn't copy %{param}",
 		"create": "Create",

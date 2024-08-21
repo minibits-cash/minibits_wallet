@@ -7,6 +7,8 @@ import {
   isStateTreeNode,
   detach,  
 } from 'mobx-state-tree'
+import QuickCrypto from 'react-native-quick-crypto'
+import {secp256k1} from '@noble/curves/secp256k1'
 import {withSetPropAction} from './helpers/withSetPropAction'
 import {log} from '../services/logService'
 import EventEmitter from '../utils/eventEmitter'
@@ -15,11 +17,12 @@ import { KeyChain, KeyPair, NostrClient, NostrEvent, NostrUnsignedEvent, Transac
 import AppError, { Err } from '../utils/AppError'
 import { LightningUtils } from '../services/lightning/lightningUtils'
 import { addSeconds } from 'date-fns/addSeconds'
-import { TransactionStatus } from './Transaction'
+import { Transaction, TransactionStatus, TransactionType } from './Transaction'
 import { MeltQuoteResponse } from '@cashu/cashu-ts'
 import { WalletStore } from './WalletStore'
 import { Proofs } from './ProofsStore'
 import { isSameDay } from 'date-fns/isSameDay'
+import { NotificationService } from '../services/notificationService'
 
 type NwcError = {
     result_type: string,
@@ -45,6 +48,21 @@ type NwcResponse = {
     result: any
 }
 
+type nwcTransaction = {
+    type: string,
+    invoice: string,
+    description: string | null,
+    preimage: string | null,
+    payment_hash: string | null,
+    amount: number,
+    fees_paid: number | null,
+    created_at: number,
+    settled_at: number | null
+    expires_at: number | null
+}
+
+const nwcPngUrl = 'https://1044827509-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2F0JQfRPMJ4uO7z9wmnAOK%2Fuploads%2FVO76qdgzHHzWSDsHQXdu%2FGroup%201000001143%20(1).png?alt=media&token=0fdb70b7-bb19-4bed-a752-a0560585c2f4&width=512&dpr=1&quality=100&sign=57c41699&sv=1'
+
 export const NwcConnectionModel = types.model('NwcConnection', {
     name: types.string,
     connectionPubkey: types.string,
@@ -62,20 +80,21 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         const {walletProfileStore} = rootStore
         return walletProfileStore.pubkey
     },
-    get relays(): string[] {
-        /* const publicRelays = NostrClient.getDefaultRelays()
-        const minibitsRelays = NostrClient.getMinibitsRelays()
-
-        return [...publicRelays, ...minibitsRelays]*/
+    get connectionRelays(): string[] {        
         return NostrClient.getMinibitsRelays()
     },
+    get responseRelays(): string[] {
+        const minibitsRelays = NostrClient.getMinibitsRelays()
+        const publicRelays = ["wss://relay.primal.net", "wss://relay.damus.io", "wss://relay.8333.space/", "wss://relay.snort.social", "wss://nostr.mutinywallet.com"]
+        return [...publicRelays, ...minibitsRelays]        
+    },
     get supportedMethods() {
-        return ['pay_invoice', 'get_balance', 'get_info']
+        return ['pay_invoice', 'get_balance', 'get_info', 'list_transactions']
     }
 }))
 .views(self => ({
     get connectionString(): string {
-        return `nostr+walletconnect://${self.walletPubkey}?relay=${self.relays.join('&relay=')}&secret=${self.connectionSecret}`
+        return `nostr+walletconnect://${self.walletPubkey}?relay=${self.connectionRelays.join('&relay=')}&secret=${self.connectionSecret}`
     },
 }))
 .actions(self => ({
@@ -113,33 +132,50 @@ export const NwcConnectionModel = types.model('NwcConnection', {
     },
 }))
 .actions(self => ({    
-    sendResponse: flow(function* sendResponse(nwcResponse: NwcResponse | NwcError) {
+    sendResponse: flow(function* sendResponse(nwcResponse: NwcResponse | NwcError, requestEvent: NostrEvent) {
         log.trace('[Nwc.sendResponse] start', {nwcResponse})
 
-        if(!self.eventInFlight) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Missing eventInFlight', {caller: 'Nwc.sendResponse'})
-        }
-
         // eventInFlight.pubkey should = connectionPubkey
+        log.trace('Encrypt response', {connectionPubkey: self.connectionPubkey, requestEventPubkey: requestEvent.pubkey})
+
         const encryptedContent = yield NostrClient.encryptNip04(
-            self.eventInFlight.pubkey,          
+            requestEvent.pubkey,          
             JSON.stringify(nwcResponse)
         )
 
         const responseEvent: NostrUnsignedEvent = {
             pubkey: self.walletPubkey,            
             kind: NwcKind.response,
-            tags: [["p", self.eventInFlight.pubkey], ["e", self.eventInFlight.id]],
+            tags: [["p", requestEvent.pubkey], ["e", requestEvent.id]],
             content: encryptedContent,
             created_at: Math.floor(Date.now() / 1000)
         }
         
-        self.resetEventInFlight()
-        self.resetMeltQuoteInFlight()                
+        // notify errors
+        if((nwcResponse as NwcError).error) {
+            let body = ''
+            if(nwcResponse.result_type === 'pay_invoice') {
+                body = 'Pay invoice error: '
+            }
+
+            if(nwcResponse.result_type === 'get_balance') {
+                body = 'Get balance error: '
+            }
+
+            if(nwcResponse.result_type === 'list_transactions') {
+                body = 'List transactions error: '
+            }
+
+            yield NotificationService.createLocalNotification(
+                `<b>${self.name}</b> - Nostr Wallet Connect`,
+                body + (nwcResponse as NwcError).error.message,
+                nwcPngUrl
+            )
+        }        
 
         const publishedEvent: Event | undefined = yield NostrClient.publish(
             responseEvent,
-            self.relays                    
+            self.responseRelays                    
         )
         
         return publishedEvent
@@ -164,6 +200,13 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             } as NwcResponse
 
             self.setRemainingDailyLimit(updatedLimit)
+
+            // notify completed payment
+            yield NotificationService.createLocalNotification(
+                `<b>${self.name}</b> - Nostr Wallet Connect`,
+                `Invoice for ${result.transaction.amount} SATS paid${result.transaction.fee > 0 && ', fee ' + result.transaction.fee + ' SATS'}. Remaining today's limit is ${self.remainingDailyLimit} SATS`,
+                nwcPngUrl
+            )
             
         } else {
             nwcResponse = {
@@ -172,11 +215,49 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             } as NwcError
         }
 
-        yield self.sendResponse(nwcResponse)
+        if(!self.eventInFlight) {
+            throw new AppError(Err.VALIDATION_ERROR, 'Missing eventInFLight')
+        }
+
+        yield self.sendResponse(nwcResponse, self.eventInFlight)
+
+        self.resetEventInFlight()
+        self.resetMeltQuoteInFlight()
     })
 }))
 .actions(self => ({
+    handleListTransactions (nwcRequest: NwcRequest): NwcResponse {
+        const rootStore = getRootStore(self)
+        const {transactionsStore} = rootStore
+        const lightningTransactions = transactionsStore.all.filter(
+            t => t.type === TransactionType.TOPUP || 
+            t.type === TransactionType.TRANSFER
+        )
 
+        const transactions = lightningTransactions.map(t => {
+            return {                
+                type: t.type === TransactionType.TOPUP ? 'incoming' : 'outgoing',
+                invoice: null,
+                description: t.memo,
+                preimage: null,
+                payment_hash: null,
+                amount: t.amount,
+                fees_paid: t.fee,
+                created_at: Math.floor(t.createdAt!.getTime() / 1000),
+                settled_at: null,
+                expires_at: null                  
+            }
+        })
+        
+        const nwcResponse = {
+            result_type: nwcRequest.method,
+            result: {
+                transactions
+            }
+        }
+        
+        return nwcResponse   
+    },
     handleGetInfo (nwcRequest: NwcRequest): NwcResponse {        
         const nwcResponse = {
             result_type: nwcRequest.method,
@@ -193,11 +274,8 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         
         return nwcResponse   
     },
-    handleGetBalance (nwcRequest: NwcRequest): NwcResponse {
-        const rootStore = getRootStore(self)
-        const {proofsStore} = rootStore
-
-        const balance = proofsStore.getMintBalanceWithMaxBalance('sat')?.balances.sat
+    handleGetBalance(nwcRequest: NwcRequest) {
+        const balance = self.remainingDailyLimit
         let balanceMsat = 0
 
         if(balance && balance > 0) {
@@ -205,6 +283,13 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         } else {
             balanceMsat = 0
         }
+
+        // notify balance request
+        /* yield NotificationService.createLocalNotification(
+            `<b>${self.name}</b> - Nostr Wallet Connect`,
+            `Daily balance is ${balance} SATS`,
+            nwcPngUrl
+        )*/
 
         const nwcResponse = {
             result_type: nwcRequest.method,
@@ -217,13 +302,21 @@ export const NwcConnectionModel = types.model('NwcConnection', {
     },
     handlePayInvoice: flow(function* handlePayInvoice(nwcRequest: NwcRequest) {
         log.trace('[Nwc.handlePayInvoice] start')
+
         const encoded = nwcRequest.params.invoice
         const walletStore = self.getWalletStore()
         const proofsStore = self.getProofsStore()
         
         try {
             const invoice = LightningUtils.decodeInvoice(encoded)
-            const {amount: amountToPay, expiry, description, timestamp} = LightningUtils.getInvoiceData(invoice)
+
+            const {
+                amount: amountToPay, 
+                expiry, 
+                description, 
+                timestamp
+            } = LightningUtils.getInvoiceData(invoice)
+
             const invoiceExpiry = addSeconds(new Date(timestamp as number * 1000), expiry as number)
 
             const mintBalance = proofsStore.getMintBalanceWithMaxBalance('sat')
@@ -308,10 +401,14 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         switch (nwcRequest.method) {
             case 'get_info':                
                 nwcResponse = self.handleGetInfo(nwcRequest)
-                break                
+                break
+            case 'list_transactions':                
+                nwcResponse = self.handleListTransactions(nwcRequest)    
+                break                 
             case 'get_balance':                
                 nwcResponse = self.handleGetBalance(nwcRequest)    
-                break            
+                break 
+                           
             case 'pay_invoice':                
                 // payInvoice is long running and async, make sure we do not overwrite event
                 // by a new one
@@ -343,8 +440,9 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                 log.error(message, {nwcRequest})
         }
 
+        // needs to be set before sendResponse but after switch / pay_invoice
         self.setEventInFlight(requestEvent)
-        yield self.sendResponse(nwcResponse)
+        yield self.sendResponse(nwcResponse, requestEvent)
 
     }),
 }))
@@ -377,7 +475,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             
             const pool = NostrClient.getRelayPool()
     
-            const sub = pool.sub(self.relays , filters)
+            const sub = pool.sub(self.connectionRelays , filters)
             const relaysConnections = pool._conn    
             const rootStore = getRootStore(self)
             const {relaysStore} = rootStore
@@ -410,7 +508,9 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             sub.on('event', async (event: NostrEvent) => { 
                 if (event.kind != NwcKind.request) {
                     return
-                }                
+                }
+                
+                // log.trace('[receiveNwcEvents] incoming event', {event})
     
                 if(self.eventInFlight && self.eventInFlight.id === event.id) {
                     log.warn(
@@ -461,7 +561,7 @@ export const NwcStoreModel = types
             return self.nwcConnections
         },
         get supportedMethods() {
-            return ['pay_invoice', 'get_balance', 'get_info']
+            return ['pay_invoice', 'get_balance', 'get_info', 'list_transactions']
         }
     }))
     .actions(self => ({
@@ -499,7 +599,7 @@ export const NwcStoreModel = types
                 authors: [newConnection.walletPubkey],                
             }]
 
-            const existingInfoEvent = yield NostrClient.getEvent(newConnection.relays, filters)
+            const existingInfoEvent = yield NostrClient.getEvent(newConnection.responseRelays, filters)
 
             if(!existingInfoEvent) {
                 // publish info replacable event // seems to be a relict replaced by get_info request?
@@ -513,7 +613,7 @@ export const NwcStoreModel = types
 
                 NostrClient.publish(
                     infoEvent,
-                    newConnection.relays                    
+                    newConnection.responseRelays                    
                 )
             }
         }),        

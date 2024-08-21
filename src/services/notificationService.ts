@@ -102,7 +102,7 @@ const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {
     
     const nwcRequest = await nwcStore.handleNwcRequestFromNotification(requestEvent)   
   
-    if(nwcRequest) {
+    /* if(nwcRequest) {
         const body = nwcRequest.method === 'pay_invoice' ? 'Pay invoice' : nwcRequest.method === 'get_balance' ? 'Get wallet balance' : null
 
         if(body) {
@@ -113,7 +113,7 @@ const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {
         }        
     } else {
         log.warn('[_nwcRequestHandler] Could not get nwcRequest from requestEvent', {remoteData})
-    }   
+    } */   
 }
 
 const _getRemoteData = async function(remoteMessage: FirebaseMessagingTypes.RemoteMessage) {
