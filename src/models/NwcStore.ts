@@ -83,12 +83,12 @@ export const NwcConnectionModel = types.model('NwcConnection', {
     get connectionRelays(): string[] {
         const minibitsRelays = NostrClient.getMinibitsRelays()
         const publicRelays = NostrClient.getDefaultRelays() 
-        return [...publicRelays, ...minibitsRelays]
+        return [...minibitsRelays]
     },
     get responseRelays(): string[] {
         const minibitsRelays = NostrClient.getMinibitsRelays()
         const publicRelays = NostrClient.getDefaultRelays() 
-        return [...publicRelays, ...minibitsRelays]    
+        return [...minibitsRelays]    
     },
     get supportedMethods() {
         return ['pay_invoice', 'get_balance', 'get_info', 'list_transactions']
