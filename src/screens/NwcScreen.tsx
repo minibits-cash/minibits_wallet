@@ -24,8 +24,8 @@ export const NwcScreen: FC<SettingsScreenProps> = observer(
     useHeader({
         leftIcon: 'faArrowLeft',
         onLeftPress: () => navigation.goBack(),
-        rightIcon: 'faRotate',
-        onRightPress: () => onConnect()
+        /* rightIcon: 'faRotate',
+        onRightPress: () => onConnect() */
     })
 
     const connectionNameInputRef = useRef<TextInput>(null)
@@ -87,8 +87,9 @@ export const NwcScreen: FC<SettingsScreenProps> = observer(
         // Full force re-subscription, not just reconnect
         // WalletTask.receiveEventsFromRelays().catch(e => false) 
         setSelectedConnection(undefined)
-        nwcStore.receiveNwcEvents()   
-        setInfo('NWC connections were refreshed')
+        // Receive events only through push notifications for now
+        // nwcStore.receiveNwcEvents()   
+        // setInfo('NWC connections were refreshed')
     }
 
     const gotoAdd = function () {        

@@ -41,10 +41,9 @@ const onForegroundNotification = async function(remoteMessage: FirebaseMessaging
         }
 
         // Process NWC request notified by FCM message
-        if(remoteData.type === 'NotifyNwcRequestData') {
-            // Ingnore when in foreground as we should be connected to relays
-            log.trace('[onForegroundNotification] App is in foreground, skipping NWC requestHandler')
-            return  
+        if(remoteData.type === 'NotifyNwcRequestData') {            
+            // log.trace('[onForegroundNotification] App is in foreground, skipping NWC requestHandler')
+            return _nwcRequestHandler(remoteData)  
         }
 
         throw new AppError(Err.VALIDATION_ERROR, 'Unknown remoteData.type', {remoteData})       
@@ -101,19 +100,6 @@ const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {
     log.trace('[_nwcRequestHandler]', {connections: nwcStore.all})
     
     const nwcRequest = await nwcStore.handleNwcRequestFromNotification(requestEvent)   
-  
-    /* if(nwcRequest) {
-        const body = nwcRequest.method === 'pay_invoice' ? 'Pay invoice' : nwcRequest.method === 'get_balance' ? 'Get wallet balance' : null
-
-        if(body) {
-            await createLocalNotification(
-                `Received <b>Nostr Wallet Connect</b> request`,
-                body,              
-            )
-        }        
-    } else {
-        log.warn('[_nwcRequestHandler] Could not get nwcRequest from requestEvent', {remoteData})
-    } */   
 }
 
 const _getRemoteData = async function(remoteMessage: FirebaseMessagingTypes.RemoteMessage) {

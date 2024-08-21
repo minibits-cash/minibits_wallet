@@ -162,7 +162,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             // Create websocket subscriptions to receive tokens or payment requests by NOSTR DMs                    
             WalletTask.receiveEventsFromRelays().catch(e => false)
             // Create websocket subscriptions to receive NWC requests from remote wallets (if any)            
-            nwcStore.receiveNwcEvents()
+            // nwcStore.receiveNwcEvents() // go only through push notifications for now
             // log.trace('[getInitialData]', 'walletProfile', walletProfileStore) 
             const preferredUnit: MintUnit = userSettingsStore.preferredUnit
             const pageIndex = groupedMints.findIndex((m) => m.unit === preferredUnit)

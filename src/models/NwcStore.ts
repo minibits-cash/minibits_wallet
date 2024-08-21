@@ -80,13 +80,15 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         const {walletProfileStore} = rootStore
         return walletProfileStore.pubkey
     },
-    get connectionRelays(): string[] {        
-        return NostrClient.getMinibitsRelays()
+    get connectionRelays(): string[] {
+        const minibitsRelays = NostrClient.getMinibitsRelays()
+        const publicRelays = NostrClient.getDefaultRelays() 
+        return [...publicRelays, ...minibitsRelays]
     },
     get responseRelays(): string[] {
         const minibitsRelays = NostrClient.getMinibitsRelays()
-        const publicRelays = ["wss://relay.primal.net", "wss://relay.damus.io", "wss://relay.8333.space/", "wss://relay.snort.social", "wss://nostr.mutinywallet.com"]
-        return [...publicRelays, ...minibitsRelays]        
+        const publicRelays = NostrClient.getDefaultRelays() 
+        return [...publicRelays, ...minibitsRelays]    
     },
     get supportedMethods() {
         return ['pay_invoice', 'get_balance', 'get_info', 'list_transactions']
@@ -300,8 +302,9 @@ export const NwcConnectionModel = types.model('NwcConnection', {
 
         return nwcResponse 
     },
-    handlePayInvoice: flow(function* handlePayInvoice(nwcRequest: NwcRequest) {
+    handlePayInvoice: flow(function* handlePayInvoice(nwcRequest: NwcRequest, requestEvent: NostrEvent) {
         log.trace('[Nwc.handlePayInvoice] start')
+        self.setEventInFlight(requestEvent)
 
         const encoded = nwcRequest.params.invoice
         const walletStore = self.getWalletStore()
@@ -422,11 +425,10 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                 }
                                 
                 // only early errors are immediately returned, transfer result is handled via event handler
-                nwcResponse = yield self.handlePayInvoice(nwcRequest) as Promise<NwcError>
+                nwcResponse = yield self.handlePayInvoice(nwcRequest, requestEvent) as Promise<NwcError>
                 
                 // no early error, transfer initiated, exit and create response in transfer result event handler
-                if(!nwcResponse) { 
-                    self.setEventInFlight(requestEvent)
+                if(!nwcResponse) {                    
                     return
                 }
                 break
