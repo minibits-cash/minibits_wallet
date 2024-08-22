@@ -81,7 +81,6 @@ Contacts
 - [x] Wallet addresses usable as Lightning addresses to receive payments from many Lightning wallets
 - [x] Private contacts with other than minibits.cash NOSTR adresses and relays
 
-
 Backup and recovery
 - [x] Local append-only backup of all ecash in a database separate from wallet storage
 - [x] Recovery tool to recover ecash from local backup
@@ -91,12 +90,16 @@ Backup and recovery
 - [x] Auto-recover funds if wallet failed to receive ecash issued by mint due to network or device failure
 - [x] Smooth migration to another device - recovery of wallet address without balances using mnemonic phrase [✨ New!]
 
+Interoperability
+- [x] Nostr Wallet Connect - lets you initiate payments from another app, such as Nostr client [✨ New!]
+- [x] Deeplinks - app reacts to lightning: and cashu: URIs
+
+
 Security and Privacy
 - [x] Optional AES encryption of wallet storage using a key stored in the device secure key storage
 - [x] Use device biometry to login (if storage encryption is on)
 - [ ] Connect to the mints on .onion Tor addresses using own Tor daemon [discontinued from v0.1.7]
 - [x] Connect to the mints on .onion Tor addresses using Orbot [✨ New!]
-
 
 Self-funding
 - [X] Donation for custom wallet name

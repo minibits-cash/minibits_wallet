@@ -189,7 +189,10 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         })
 
         if(result.meltQuote?.quote === self.lastMeltQuoteId) {
-            log.error('Meltquote was already handled, skipping...', {meltQuoteId: self.lastMeltQuoteId, caller: 'handleTransferTaskResult'})
+            log.error('Meltquote has been already handled, skipping...', {
+                meltQuoteId: self.lastMeltQuoteId, 
+                caller: 'handleTransferTaskResult'
+            })
             return
         }
 
