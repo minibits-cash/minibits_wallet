@@ -128,7 +128,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
     setCurrentDay() {
         self.currentDay = new Date()
     },
-    setLastMeltQuoteId(quoteId: string) {
+    setLastMeltQuoteId(quoteId: string | undefined) {
         self.lastMeltQuoteId = quoteId
     },
 }))
@@ -183,9 +183,10 @@ export const NwcConnectionModel = types.model('NwcConnection', {
 }))
 .actions(self => ({    
     handleTransferTaskResult: flow(function* handleTransferTaskResult(result: TransactionTaskResult) {
-        log.debug('[NWC.handleTransferTaskResult] Got transfer task result', {
+        log.debug('Got transfer task result', {
             connection: self.name, 
-            meltQuote: result.meltQuote?.quote
+            meltQuote: result.meltQuote?.quote,
+            caller: 'handleTransferTaskResult'
         })
 
         if(result.meltQuote?.quote === self.lastMeltQuoteId) {
@@ -195,6 +196,8 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             })
             return
         }
+
+        self.setLastMeltQuoteId(result.meltQuote?.quote)
 
         let nwcResponse: NwcResponse | NwcError
 
@@ -210,12 +213,12 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                 }
             } as NwcResponse
 
-            self.setRemainingDailyLimit(updatedLimit)
+            self.setRemainingDailyLimit(updatedLimit)            
 
             // notify completed payment
             yield NotificationService.createLocalNotification(
                 `<b>${self.name}</b> - Nostr Wallet Connect`,
-                `Invoice for ${result.transaction.amount} SATS paid${result.transaction.fee > 0 && ', fee ' + result.transaction.fee + ' SATS'}. Remaining today's limit is ${self.remainingDailyLimit} SATS`,
+                `Invoice for ${result.transaction.amount} SATS paid${result.transaction.fee > 0 ? ', fee ' + result.transaction.fee + ' SATS' : ''}. Remaining today's limit is ${self.remainingDailyLimit} SATS`,
                 nwcPngUrl
             )
             
@@ -338,8 +341,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                 'sat',
                 encoded,
             )
-
-            self.setLastMeltQuoteId(meltQuote.quote)
+            
             const totalAmountToPay = meltQuote.amount + meltQuote.fee_reserve
 
             // reset daily limit if day changed while keeping live connection
