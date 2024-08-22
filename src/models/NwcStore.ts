@@ -85,7 +85,8 @@ export const NwcConnectionModel = types.model('NwcConnection', {
     connectionSecret: types.identifier,
     dailyLimit: types.optional(types.number, 0),    
     remainingDailyLimit: types.optional(types.number, 0),
-    currentDay: types.optional(types.Date, new Date()),    
+    currentDay: types.optional(types.Date, new Date()),
+    lastMeltQuoteId: types.maybe(types.string),    
 })
 .actions(withSetPropAction)
 .views(self => ({
@@ -126,6 +127,9 @@ export const NwcConnectionModel = types.model('NwcConnection', {
     },
     setCurrentDay() {
         self.currentDay = new Date()
+    },
+    setLastMeltQuoteId(quoteId: string) {
+        self.lastMeltQuoteId = quoteId
     },
 }))
 .actions(self => ({    
@@ -184,6 +188,11 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             meltQuote: result.meltQuote?.quote
         })
 
+        if(result.meltQuote?.quote === self.lastMeltQuoteId) {
+            log.error('Meltquote was already handled, skipping...', {meltQuoteId: self.lastMeltQuoteId, caller: 'handleTransferTaskResult'})
+            return
+        }
+
         let nwcResponse: NwcResponse | NwcError
 
         if(result.transaction?.status === TransactionStatus.COMPLETED) {
@@ -215,7 +224,8 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         }
 
         if(!result.nwcEvent) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Missing nwcEvent.')
+            log.error('Missing nwcEvent.', {caller: 'handleTransferTaskResult'})
+            return
         }
 
         yield self.sendResponse(nwcResponse, result.nwcEvent)
@@ -326,6 +336,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                 encoded,
             )
 
+            self.setLastMeltQuoteId(meltQuote.quote)
             const totalAmountToPay = meltQuote.amount + meltQuote.fee_reserve
 
             // reset daily limit if day changed while keeping live connection
