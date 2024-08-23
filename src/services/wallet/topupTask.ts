@@ -10,6 +10,7 @@ import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
 import { PaymentRequest, PaymentRequestStatus, PaymentRequestType } from '../../models/PaymentRequest'
 import { WalletUtils } from './utils'
 import { MintUnit } from './currency'
+import { NostrEvent } from '../nostrService'
 
 const {
     transactionsStore,
@@ -27,7 +28,8 @@ export const topupTask = async function (
     amountToTopup: number,
     unit: MintUnit,
     memo: string,
-    contactToSendTo?: Contact
+    contactToSendTo?: Contact,
+    nwcEvent?: NostrEvent
 ) : Promise<TransactionTaskResult> {
     log.info('[topupTask]', 'mintBalanceToTopup', mintBalanceToTopup)
     log.info('[topupTask]', 'amountToTopup', {amountToTopup, unit})
@@ -134,16 +136,18 @@ export const topupTask = async function (
             JSON.stringify(transactionData),
         )
 
-        poller(
-            `handlePendingTopupTaskPoller-${paymentRequest.paymentHash}`, 
-            WalletTask.handlePendingTopup,
-            {
-                interval: 6 * 1000,
-                maxPolls: 10,
-                maxErrors: 2
-            },        
-            {paymentRequest})   
-        .then(() => log.trace('Polling completed', [], `handlePendingTopupTaskPoller`))
+        if(!nwcEvent) {
+            poller(
+                `handlePendingTopupTaskPoller-${paymentRequest.paymentHash}`, 
+                WalletTask.handlePendingTopup,
+                {
+                    interval: 6 * 1000,
+                    maxPolls: 10,
+                    maxErrors: 2
+                },        
+                {paymentRequest})   
+            .then(() => log.trace('Polling completed', [], `handlePendingTopupTaskPoller`))
+        }
 
         return {
             taskFunction: TOPUP,
@@ -151,6 +155,8 @@ export const topupTask = async function (
             transaction: pendingTransaction,
             message: '',
             encodedInvoice,
+            paymentRequest,
+            nwcEvent
         } as TransactionTaskResult
 
     } catch (e: any) {

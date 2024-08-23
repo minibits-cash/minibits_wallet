@@ -22,7 +22,7 @@ class EventEmitter {
     if(!this.events[eventName].includes(handler)) {
       this.events[eventName].push(handler)
     } else {
-      log.warn(`[EventEmitter.on] ${eventName} event listener with this handler already exists, skipping...`)
+      log.trace(`[EventEmitter.on] ${eventName} event listener with this handler already exists, skipping...`)
     }    
   }
 

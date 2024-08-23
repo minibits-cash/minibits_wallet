@@ -8,7 +8,8 @@ import {
     type Proof as CashuProof,
     type MintKeyset as CashuMintKeyset,
     type MintKeys as CashuMintKeys,
-    MintKeys
+    MintKeys,
+    MintQuoteResponse
 } from '@cashu/cashu-ts'
 import {rootStoreInstance} from '../models'
 import { KeyChain } from '../services'

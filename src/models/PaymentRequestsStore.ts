@@ -27,6 +27,10 @@ export const PaymentRequestsStoreModel = types
             const pr = self.paymentRequests.find(p => p.transactionId === transactionId)
             return pr || undefined
         },
+        findByEncodedInvoice(encodedInvoice: string) {
+            const pr = self.paymentRequests.find(p => p.encodedInvoice === encodedInvoice)
+            return pr || undefined
+        },
     }))
     .actions(withSetPropAction)
     .actions(self => ({

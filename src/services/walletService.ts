@@ -237,7 +237,8 @@ const topup = async function (
     amountToTopup: number,
     unit: MintUnit,
     memo: string,
-    contactToSendTo?: Contact
+    contactToSendTo?: Contact,
+    nwcEvent?: NostrEvent
 ): Promise<void> {
     const now = new Date().getTime()
     SyncQueue.addPrioritizedTask(
@@ -247,7 +248,8 @@ const topup = async function (
             amountToTopup,
             unit,
             memo,
-            contactToSendTo  
+            contactToSendTo,
+            nwcEvent
         )
     )
     return
