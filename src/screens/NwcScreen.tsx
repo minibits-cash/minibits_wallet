@@ -124,6 +124,12 @@ export const NwcScreen: FC<SettingsScreenProps> = observer(
 
             if(!newConnectionName || !newConnectionDailyLimit) {
                 setInfo('Insert name or daily limit')
+                return
+            }
+
+            if(parseInt(newConnectionDailyLimit) === 0) {
+                setInfo('Daily limit must be above zero')
+                return
             }
 
             if(nwcStore.alreadyExists(newConnectionName)) {
