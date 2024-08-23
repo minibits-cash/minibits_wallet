@@ -150,21 +150,28 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
                 const proofsByKeysetId = groupedByKeyset[keysetId]
                 const proofsToExport: ProofV3[] = []
 
-                for (const proof of proofsByKeysetId) {
-                  const { mintUrl, tId, unit, isPending, isSpent, updatedAt, ...proofToExport } = proof
+                for (const p of proofsByKeysetId) {
+                  // clean private params
+                  const proofToExport: ProofV3 = {
+                    id: p.id,
+                    amount: p.amount,
+                    secret: p.secret,
+                    C: p.C
+                  }
+
                   proofsToExport.push(proofToExport)
                 }
 
                 const tokenByKeysetId: TokenV3 = {
                   token: [
                       {
-                          mint: proofsByKeysetId[0].mintUrl,
+                          mint,
                           proofs: proofsToExport
                       }
                   ],
                   unit: proofsByKeysetId[0].unit
                 }
-
+                
                 log.trace('[copyEncodedTokens]', {tokenByKeysetId})
 
                 const encodedByMint = CashuUtils.encodeToken(tokenByKeysetId)

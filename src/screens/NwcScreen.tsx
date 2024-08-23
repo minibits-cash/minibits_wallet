@@ -5,7 +5,7 @@ import React, {FC, useEffect, useRef, useState} from 'react'
 import {FlatList, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {SettingsStackScreenProps} from '../navigation' // @demo remove-current-line
-import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal} from '../components'
+import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, Loading} from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import AppError, { Err } from '../utils/AppError'
@@ -20,10 +20,8 @@ interface SettingsScreenProps extends SettingsStackScreenProps<'Nwc'> {}
 
 export const NwcScreen: FC<SettingsScreenProps> = observer(
   function NwcScreen(_props) {
+
     const {navigation} = _props
-
-
-
     const connectionNameInputRef = useRef<TextInput>(null)
     const dailyLimitInputRef = useRef<TextInput>(null)
     const {nwcStore} = useStores()   
@@ -52,7 +50,7 @@ export const NwcScreen: FC<SettingsScreenProps> = observer(
                 const enabled = await NotificationService.areNotificationsEnabled()
                 setAreNotificationsEnabled(enabled)              
             } catch (e: any) {
-                log.info(e.name, e.message)
+                log.warn(e.name, e.message)
                 return false // silent
             }
         } 
@@ -104,7 +102,11 @@ export const NwcScreen: FC<SettingsScreenProps> = observer(
         if(!areNotificationsEnabled) {
             setSelectedConnection(undefined)        
             nwcStore.receiveNwcEvents()   
-            setInfo('NWC connections were refreshed')
+            setInfo(`
+                Your device has no push notifications enabled. This is essential to recieve NWC commands. 
+                As a fallback, Minibits subscribed to Nostr relays to receive the commands. 
+                However, this will stop working when app is in the background or off.
+            `)
         }
     }
 
@@ -115,16 +117,7 @@ export const NwcScreen: FC<SettingsScreenProps> = observer(
     const gotoShare = function (conn: NwcConnection) {
         setSelectedConnection(conn)     
         toggleShareConnectionModal()
-    }
-
-    const onCopy = function (conn: NwcConnection) {
-        try {
-          Clipboard.setString(JSON.stringify(conn.connectionString))          
-        } catch (e: any) {
-          return false
-        }
-    }
-  
+    } 
 
     const onSaveConnection = async function () {        
         try {
@@ -153,13 +146,11 @@ export const NwcScreen: FC<SettingsScreenProps> = observer(
     const handleError = function (e: AppError): void {        
         setIsAddConnectionModalVisible(false)
         setError(e)
-    }
+    }    
     
-    const $itemRight = {color: useThemeColor('textDim')}
     const iconColor = useThemeColor('textDim')
     const headerBg = useThemeColor('header')
-    const inputBg = useThemeColor('background')
-    const iconBottom = useThemeColor('button')
+    const inputBg = useThemeColor('background')    
     const mainButtonColor = useThemeColor('card')
     const screenBg = useThemeColor('background')
     const mainButtonIcon = useThemeColor('button')
@@ -373,6 +364,7 @@ export const NwcScreen: FC<SettingsScreenProps> = observer(
           onBackButtonPress={toggleAddConnectionModal}
           onBackdropPress={toggleAddConnectionModal}
         />
+        {isLoading && <Loading/>}
         {info && <InfoModal message={info} />}
         {error && <ErrorModal error={error} />}
       </Screen>

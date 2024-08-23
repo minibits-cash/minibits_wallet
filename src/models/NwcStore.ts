@@ -203,8 +203,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
 
         if(result.transaction?.status === TransactionStatus.COMPLETED) {
             const updatedLimit = self.remainingDailyLimit - 
-            result.transaction.amount +
-            result.transaction.fee            
+            (result.transaction.amount + result.transaction.fee)
 
             nwcResponse = {
                 result_type: 'pay_invoice',
@@ -246,6 +245,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             t.type === TransactionType.TRANSFER
         )
 
+        // TODO barebones implementation, no paging commands support
         const transactions = lightningTransactions.map(t => {
             return {                
                 type: t.type === TransactionType.TOPUP ? 'incoming' : 'outgoing',
@@ -527,7 +527,7 @@ export const NwcStoreModel = types
                 log.debug('[remove]', 'Connection removed from NwcStore')
             }
         },
-        receiveNwcEvents () {  // TODO MOVE TO NwcStoreModel and dispatch events to connections
+        receiveNwcEvents () {
             log.trace('[receiveNwcEvents] start listening for NWC events', {                
                 walletPubkey: self.walletPubkey
             })
@@ -551,35 +551,8 @@ export const NwcStoreModel = types
                     since
                 }]    
                 
-                const pool = NostrClient.getRelayPool()
-        
+                const pool = NostrClient.getRelayPool()        
                 const sub = pool.sub(self.connectionRelays , filters)
-                const relaysConnections = pool._conn    
-                const rootStore = getRootStore(self)
-                const {relaysStore} = rootStore
-        
-                // update single relay instances status
-                for (const url in relaysConnections) {
-                    if (relaysConnections.hasOwnProperty(url)) {
-                        const relay = relaysConnections[url]
-        
-                        relay.on('error', (error: string) => {
-                            const relayInstance = relaysStore.findByUrl(relay.url)
-                            relayInstance?.setStatus(relay.status)
-                            relayInstance?.setError(relay.error)
-                        })
-        
-                        relay.on('connect', () => {  
-                            const relayInstance = relaysStore.findByUrl(relay.url)
-                            relayInstance?.setStatus(relay.status)                    
-                        })
-        
-                        relay.on('disconnect', () => {                    
-                            const relayInstance = relaysStore.findByUrl(relay.url)
-                            relayInstance?.setStatus(relay.status)  
-                        })
-                    }            
-                }
     
                 let eventsBatch: NostrEvent[] = []
                 
@@ -598,15 +571,14 @@ export const NwcStoreModel = types
                     if(!targetConnection) {
                         throw new AppError(Err.VALIDATION_ERROR, 'Missing connection matching event pubkey', {pubkey: event.pubkey})
                     }
-
+                    // dispatch to correct connection
                     await targetConnection.handleRequest(event)
                 })        
         
                 sub.on('eose', async () => {
                     log.trace('[receiveNwcEvents]', `Eose: Got ${eventsBatch.length} NWC events`)
                     eventsBatch = []
-                })            
-                
+                })                
             } catch (e: any) {
                 log.error(e.name, e.message)
                 return

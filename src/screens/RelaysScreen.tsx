@@ -1,7 +1,7 @@
 import {observer} from 'mobx-react-lite'
 import { Observer } from 'mobx-react-lite'
 import Clipboard from '@react-native-clipboard/clipboard'
-import React, {FC, useRef, useState} from 'react'
+import React, {FC, useEffect, useRef, useState} from 'react'
 import {FlatList, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {SettingsStackScreenProps} from '../navigation' // @demo remove-current-line
@@ -13,6 +13,7 @@ import AppError, { Err } from '../utils/AppError'
 import { log, WalletTask } from '../services'
 import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
 import { translate } from '../i18n'
+import { NotificationService } from '../services/notificationService'
 
 interface SettingsScreenProps extends SettingsStackScreenProps<'Relays'> {}
 
@@ -28,13 +29,27 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
     })
 
     const newRelayInputRef = useRef<TextInput>(null)
-    const {relaysStore} = useStores()
+    const {relaysStore, nwcStore} = useStores()
     
     const [selectedRelay, setSelectedRelay] = useState<Relay | undefined>()
     const [isAddRelayModalVisible, setIsAddRelayModalVisible] = useState(false)
     const [newPublicRelay, setNewPublicRelay] = useState<string>('')
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
+    const [areNotificationsEnabled, setAreNotificationsEnabled] = useState<boolean>(false)
+
+    useEffect(() => {
+      const getNotificationPermission = async () => {
+          try {
+              const enabled = await NotificationService.areNotificationsEnabled()
+              setAreNotificationsEnabled(enabled)              
+          } catch (e: any) {
+              log.warn(e.name, e.message)
+              return false // silent
+          }
+      } 
+      getNotificationPermission()
+    }, [])
     
     const toggleAddRelayModal = () => {
         setIsAddRelayModalVisible(previousState => !previousState)
@@ -60,7 +75,12 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
         log.trace('onConnect')    
         
         // Full force re-subscription, not just reconnect
-        WalletTask.receiveEventsFromRelays().catch(e => false)          
+        WalletTask.receiveEventsFromRelays().catch(e => false)
+
+        // Subscribe to NWC events as well as a push notifications fallback
+        if(!areNotificationsEnabled) {          
+          nwcStore.receiveNwcEvents()  
+        }
         setSelectedRelay(undefined)        
     }
 
@@ -71,35 +91,34 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
     const onPastePublicRelay = async function () {
         const url = await Clipboard.getString()
         if (!url) {
-          setInfo(translate('relayurlPasteError'))
-          return
+            setInfo(translate('relayurlPasteError'))
+            return
         }  
         setNewPublicRelay(url)        
     }
 
-
     const onSavePublicRelay = function () {        
         try {
-            if(newPublicRelay && newPublicRelay.startsWith('wss://')) {
-                if(relaysStore.alreadyExists(newPublicRelay)) {
-                  setInfo(translate('relayExists'))
-                  return
-                }
+          if(newPublicRelay && newPublicRelay.startsWith('wss://')) {
+              if(relaysStore.alreadyExists(newPublicRelay)) {
+                setInfo(translate('relayExists'))
+                return
+              }
 
-                relaysStore.addRelay({
-                  url: newPublicRelay,
-                  status: WebSocket.CLOSED
-                })
-                
-                toggleAddRelayModal()
-                onConnect()
-            } else {
-                throw new AppError(
-                  Err.VALIDATION_ERROR, 
-                  translate("invalidRelayUrl"), 
-                  newPublicRelay
-                )
-            }
+              relaysStore.addRelay({
+                url: newPublicRelay,
+                status: WebSocket.CLOSED
+              })
+              
+              toggleAddRelayModal()
+              onConnect()
+          } else {
+              throw new AppError(
+                Err.VALIDATION_ERROR, 
+                translate("invalidRelayUrl"), 
+                newPublicRelay
+              )
+          }
         } catch(e: any) {
           handleError(e)
         }
