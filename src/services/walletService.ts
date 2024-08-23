@@ -85,7 +85,8 @@ type WalletTaskService = {
         amountToTopup: number,
         unit: MintUnit,
         memo: string,
-        contactToSendTo?: Contact
+        contactToSendTo?: Contact,
+        nwcEvent?: NostrEvent
     ) => Promise<void>
 }
 
