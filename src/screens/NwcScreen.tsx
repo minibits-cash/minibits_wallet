@@ -24,7 +24,7 @@ export const NwcScreen: FC<SettingsScreenProps> = observer(
     const {navigation} = _props
     const connectionNameInputRef = useRef<TextInput>(null)
     const dailyLimitInputRef = useRef<TextInput>(null)
-    const {nwcStore} = useStores()   
+    const {nwcStore, walletProfileStore} = useStores()   
     
     const [selectedConnection, setSelectedConnection] = useState<NwcConnection | undefined>()
     const [isAddConnectionModalVisible, setIsAddConnectionModalVisible] = useState(false)
@@ -47,8 +47,9 @@ export const NwcScreen: FC<SettingsScreenProps> = observer(
     useEffect(() => {
         const getNotificationPermission = async () => {
             try {
-                const enabled = await NotificationService.areNotificationsEnabled()
-                setAreNotificationsEnabled(enabled)              
+                const permissionGranted = await NotificationService.areNotificationsEnabled()
+                const remoteEnabled = walletProfileStore.device ? true : false
+                setAreNotificationsEnabled(permissionGranted && remoteEnabled)              
             } catch (e: any) {
                 log.warn(e.name, e.message)
                 return false // silent

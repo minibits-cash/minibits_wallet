@@ -84,7 +84,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         transactionsStore, 
         paymentRequestsStore, 
         userSettingsStore, 
-        nwcStore
+        nwcStore,
+        walletProfileStore
     } = useStores()
         
     const pagerRef = useRef<PagerView>(null)
@@ -154,8 +155,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 return // skip further processing so that it does not slow down or clash deep link
             }
             
-            if(!isInternetReachable) { return }
-            
+            if(!isInternetReachable) { return }            
 
             // check lnaddress claims on app start and set timestamp to trigger focus updates
             WalletTask.handleClaim().catch(e => setInfo(e.message))
@@ -166,11 +166,13 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             // log.trace('[getInitialData]', 'walletProfile', walletProfileStore) 
             const preferredUnit: MintUnit = userSettingsStore.preferredUnit
             const pageIndex = groupedMints.findIndex((m) => m.unit === preferredUnit)
-            pagerRef.current && pagerRef.current.setPage(pageIndex) 
-            
-            const enabled = await NotificationService.areNotificationsEnabled()
-            // Create websocket subscriptions to receive NWC requests from remote wallets (if any)            
-            if(!enabled) {nwcStore.receiveNwcEvents()} // go through websockets only if notifications are disabled
+            pagerRef.current && pagerRef.current.setPage(pageIndex)
+
+            // Create websocket subscriptions to receive NWC requests from remote wallets (if any)
+            // go through websockets only if notifications are disabled or not working
+            const permissionGranted = await NotificationService.areNotificationsEnabled()
+            const remoteEnabled = walletProfileStore.device ? true : false
+            if((permissionGranted && remoteEnabled) === false) {nwcStore.receiveNwcEvents()} 
         }
         
         Linking.addEventListener('url', handleDeeplink)

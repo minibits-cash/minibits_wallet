@@ -182,11 +182,22 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                 body = 'List transactions error: '
             }
 
-            yield NotificationService.createLocalNotification(
-                `<b>${self.name}</b> - Nostr Wallet Connect`,
-                body + (nwcResponse as NwcError).error.message,
-                nwcPngUrl
-            )
+            if(nwcResponse.result_type === 'make_invoice') {
+                body = 'Create invoice error: '
+            }
+
+            if(nwcResponse.result_type === 'lookup_invoice') {
+                body = 'Lookup invoice error: '
+            }
+
+            const enabled = yield NotificationService.areNotificationsEnabled()
+            if(enabled) {
+                yield NotificationService.createLocalNotification(
+                    `<b>${self.name}</b> - Nostr Wallet Connect`,
+                    body + (nwcResponse as NwcError).error.message,
+                    nwcPngUrl
+                )
+            }
         }        
 
         NostrClient.publish(
@@ -386,37 +397,27 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             amountMsat: nwcRequest.params.amount,                         
         })
 
-        try {                
-            const proofsStore = self.getProofsStore()
-            const mintBalance = proofsStore.getMintBalanceWithMaxBalance('sat')
-            const {amount: amontMsat, description} = nwcRequest.params
+                     
+        const proofsStore = self.getProofsStore()
+        const mintBalance = proofsStore.getMintBalanceWithMaxBalance('sat')
+        const {amount: amontMsat, description} = nwcRequest.params
 
-            if(!mintBalance) {
-                const message = `Wallet has no mints`
-                return {
-                    result_type: nwcRequest.method,
-                    error: { code: 'INTERNAL', message}
-                } as NwcError
-            }
-
-            WalletTask.topup(
-                mintBalance,
-                roundUp(amontMsat / 1000, 0),
-                'sat',
-                description,
-                undefined,
-                requestEvent                    
-            )
-
-        } catch (e: any) {
-            const message = `Could not create invoice: ${e.message}`
-            log.error(`[NwcConnection.handleMakeInvoice] ${message}`)
-
+        if(!mintBalance) {
+            const message = `Wallet has no mints`
             return {
                 result_type: nwcRequest.method,
                 error: { code: 'INTERNAL', message}
             } as NwcError
         }
+
+        yield WalletTask.topup(
+            mintBalance,
+            roundUp(amontMsat / 1000, 0),
+            'sat',
+            description,
+            undefined,
+            requestEvent                    
+        )        
     }),
     handleLookupInvoice(nwcRequest: NwcRequest) {
         const paymentRequestsStore = self.getPaymentRequestsStore()
@@ -526,13 +527,12 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                 requestEvent
             )
 
-        } catch (e: any) {
-            const message = `Could not pay provided invoice: ${e.message}`
-            log.error(`[NwcConnection.handlePayInvoice] ${message}`)
+        } catch (e: any) {            
+            log.error(`[NwcConnection.handlePayInvoice] ${e.message}`)
 
             return {
                 result_type: nwcRequest.method,
-                error: { code: 'INTERNAL', message}
+                error: { code: 'INTERNAL', message: e.message}
             } as NwcError
         }
     })
@@ -561,7 +561,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             case 'make_invoice':                
                 nwcResponse = yield self.handleMakeInvoice(nwcRequest, requestEvent) as Promise<NwcError | undefined> 
                 
-                // no early error, transfer initiated, exit and create response in transfer result event handler
+                // no early error, topup initiated, exit and create response in topup result event handler
                 if(!nwcResponse) {                    
                     return
                 }
@@ -635,7 +635,8 @@ export const NwcStoreModel = types
             )
 
             if(!targetConnection) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Missing connection matching event pubkey', {pubkey: result.nwcEvent?.pubkey})
+                log.error('Missing connection matching event pubkey', {pubkey: result.nwcEvent?.pubkey})
+                return
             }
 
             yield targetConnection.handleTransferTaskResult(result)                
@@ -648,7 +649,8 @@ export const NwcStoreModel = types
             )
 
             if(!targetConnection) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Missing connection matching event pubkey', {pubkey: result.nwcEvent?.pubkey})
+                log.error('Missing connection matching event pubkey', {pubkey: result.nwcEvent?.pubkey})
+                return
             }
 
             yield targetConnection.handleTopupTaskResult(result)                
@@ -772,8 +774,7 @@ export const NwcStoreModel = types
                 log.error(e.name, e.message)
                 return
             }
-        },
-        
+        },        
         handleNwcRequestFromNotification: flow(function* handleNwcRequestFromNotification(event: NostrEvent) {        
             // find connection the nwc request is sent to
             const targetConnection = self.nwcConnections.find(c => 
