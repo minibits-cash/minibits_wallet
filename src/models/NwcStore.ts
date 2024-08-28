@@ -719,6 +719,11 @@ export const NwcStoreModel = types
                 walletPubkey: self.walletPubkey
             })
 
+            if(self.nwcConnections.length === 0) {
+                log.trace('[receiveNwcEvents] No NWC connections, skipping subscription...')
+                return
+            }
+
             // reset daily limits if day changed            
             for (const c of self.nwcConnections) {
                 if(!isSameDay(c.currentDay, new Date())) {
@@ -729,7 +734,7 @@ export const NwcStoreModel = types
             
             try {
                 const since = Math.floor(Date.now() / 1000)
-                const connectionsPubkeys = self.nwcConnections.map(c => c.connectionPubkey)
+                const connectionsPubkeys = self.nwcConnections.map(c => c.connectionPubkey)                
         
                 const filters = [{            
                     kinds: [NwcKind.request],
@@ -782,7 +787,8 @@ export const NwcStoreModel = types
             )
 
             if(!targetConnection) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Missing connection matching event pubkey', {pubkey: event.pubkey})
+                log.error('[handleNwcRequestFromNotification] Missing connection matching event pubkey.', {pubkey: event.pubkey})
+                return
             }
 
             yield targetConnection.handleRequest(event)                

@@ -14,7 +14,7 @@ import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matte
 import { NwcConnection } from '../models/NwcStore'
 import { QRCodeBlock } from './Wallet/QRCode'
 import { CollapsibleText } from '../components/CollapsibleText'
-import { NotificationService } from '../services/notificationService'
+import { isSameDay } from 'date-fns/isSameDay'
 
 interface SettingsScreenProps extends SettingsStackScreenProps<'Nwc'> {}
 
@@ -35,27 +35,40 @@ export const NwcScreen: FC<SettingsScreenProps> = observer(
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState(false)
-    const [areNotificationsEnabled, setAreNotificationsEnabled] = useState<boolean>(false)
+    const [isRemoteDataPushEnabled, setIsRemoteDataPushEnabled] = useState<boolean>(false)
 
     useHeader({
         leftIcon: 'faArrowLeft',
         onLeftPress: () => navigation.goBack(),
-        rightIcon: areNotificationsEnabled ? 'faRotate' : undefined,
-        onRightPress: () => areNotificationsEnabled ? onConnect() : false
+        rightIcon: isRemoteDataPushEnabled ? 'faRotate' : undefined,
+        onRightPress: () => isRemoteDataPushEnabled ? onConnect() : false
     })
     
     useEffect(() => {
         const getNotificationPermission = async () => {
-            try {
-                const permissionGranted = await NotificationService.areNotificationsEnabled()
+            try {                
                 const remoteEnabled = walletProfileStore.device ? true : false
-                setAreNotificationsEnabled(permissionGranted && remoteEnabled)              
+                setIsRemoteDataPushEnabled(remoteEnabled)              
             } catch (e: any) {
                 log.warn(e.name, e.message)
                 return false // silent
             }
         } 
         getNotificationPermission()
+    }, [])
+
+
+    useEffect(() => {
+        const resetDailyLimits = async () => {
+            // reset daily limits if day changed            
+            for (const c of nwcStore.nwcConnections) {
+                if(!isSameDay(c.currentDay, new Date())) {
+                    c.setRemainingDailyLimit(c.dailyLimit)
+                    c.setCurrentDay()
+                }
+            }
+        } 
+        resetDailyLimits()
     }, [])
     
     const toggleAddConnectionModal = () => {
@@ -100,11 +113,11 @@ export const NwcScreen: FC<SettingsScreenProps> = observer(
     const onConnect = async function () {
         log.trace('onConnect') 
         
-        if(!areNotificationsEnabled) {
+        if(!isRemoteDataPushEnabled) {
             setSelectedConnection(undefined)        
             nwcStore.receiveNwcEvents()   
             setInfo(`
-                Your device has no push notifications enabled. This is essential to recieve NWC commands. 
+                Your device can not receive background push messages. This is essential to recieve NWC commands. 
                 As a fallback, Minibits subscribed to Nostr relays to receive the commands. 
                 However, this will stop working when app is in the background or off.
             `)

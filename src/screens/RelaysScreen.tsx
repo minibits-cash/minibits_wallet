@@ -29,27 +29,27 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
     })
 
     const newRelayInputRef = useRef<TextInput>(null)
-    const {relaysStore, nwcStore} = useStores()
+    const {relaysStore, nwcStore, walletProfileStore} = useStores()
     
     const [selectedRelay, setSelectedRelay] = useState<Relay | undefined>()
     const [isAddRelayModalVisible, setIsAddRelayModalVisible] = useState(false)
     const [newPublicRelay, setNewPublicRelay] = useState<string>('')
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
-    const [areNotificationsEnabled, setAreNotificationsEnabled] = useState<boolean>(false)
+    const [isRemoteDataPushEnabled, setIsRemoteDataPushEnabled] = useState<boolean>(false)
 
     useEffect(() => {
       const getNotificationPermission = async () => {
-          try {
-              const enabled = await NotificationService.areNotificationsEnabled()
-              setAreNotificationsEnabled(enabled)              
+          try {              
+              const remoteEnabled = walletProfileStore.device ? true : false
+              setIsRemoteDataPushEnabled(remoteEnabled)              
           } catch (e: any) {
               log.warn(e.name, e.message)
               return false // silent
           }
       } 
       getNotificationPermission()
-    }, [])
+  }, [])
     
     const toggleAddRelayModal = () => {
         setIsAddRelayModalVisible(previousState => !previousState)
@@ -77,8 +77,8 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
         // Full force re-subscription, not just reconnect
         WalletTask.receiveEventsFromRelays().catch(e => false)
 
-        // Subscribe to NWC events as well as a push notifications fallback
-        if(!areNotificationsEnabled) {          
+        // Subscribe to NWC events if we have some connections
+        if(!isRemoteDataPushEnabled) {          
           nwcStore.receiveNwcEvents()  
         }
         setSelectedRelay(undefined)        
