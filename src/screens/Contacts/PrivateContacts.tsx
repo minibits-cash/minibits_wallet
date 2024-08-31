@@ -343,7 +343,7 @@ export const PrivateContacts = observer(function (props: {
                   value={newContactName}
                   autoCapitalize="none"
                   keyboardType="default"
-                  maxLength={60}
+                  maxLength={64}
                   selectTextOnFocus={true}
                   style={[
                     $contactInput,

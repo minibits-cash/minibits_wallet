@@ -451,7 +451,7 @@ const _handleSpentByMintTask = async function (
         
         log.trace('[_handleSpentByMintTask]', 'Remaining pendingByMintSecrets', remainingSecrets)
         
-        if(pendingCount > 0 && remainingSecrets.length > 0) {
+        if(remainingSecrets.length > 0) {
 
             log.trace('[_handleSpentByMintTask]', 'Starting sweep of pendingByMintSecrets back to spendable wallet')
             
@@ -462,9 +462,9 @@ const _handleSpentByMintTask = async function (
                 
                 // only move if it is from current mint
                 if(proofToMove && proofToMove.mintUrl === mintUrl) {                     
-                    const stillPendingByMint = pendingProofs.find(p => p.secret === secret)
+                    const isStillPendingByMint = pendingProofs.some(p => p.secret === secret)
 
-                    if(!stillPendingByMint) {
+                    if(!isStillPendingByMint) {
                         // move to spendable if it is not pending by mint anymore
                         proofsStore.removeFromPendingByMint(proofToMove as Proof)                            
                         movedProofs.push(proofToMove)
@@ -476,7 +476,7 @@ const _handleSpentByMintTask = async function (
             movedToSpendableAmount = CashuUtils.getProofsAmount(movedProofs as Proof[])
 
             if(movedProofs.length > 0) {                
-                log.trace('[_handleSpentByMintTask]', 'Moving proofs from pending to spendable', movedProofs.length)
+                log.debug('[_handleSpentByMintTask]', 'Moving proofs from pendingByMint to spendable', movedProofs.length)
 
                 // Update related transactions as reverted
                 let relatedTransactionIds: number[] = []
