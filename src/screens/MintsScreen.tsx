@@ -31,8 +31,7 @@ import { SvgXml } from 'react-native-svg'
 import { isStateTreeNode } from 'mobx-state-tree'
 import { MintKeyset } from '@cashu/cashu-ts'
 import { QRCodeBlock } from './Wallet/QRCode'
-
-
+import { QRShareModal } from '../components/QRShareModal'
 
 export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(function MintsScreen({route, navigation}) {    
     useHeader({
@@ -47,11 +46,12 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
     const [mintUrl, setMintUrl] = useState('')
     const [defaultMintUrl, setDefaultMintUrl] = useState<string>(MINIBITS_MINT_URL)
     const [selectedMint, setSelectedMint] = useState<Mint | undefined>()
-    const [sharingMint, setSharingMint] = useState<string | undefined>()
+    const [lastSelectedMint, setLastSelectedMint] = useState<Mint | undefined>()
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState(false)
     const [isAddMintVisible, setIsAddMintVisible] = useState(false)
+    const [shareModalVisible, setShareModalVisible] = useState(false)
 
 
     const toggleAddMintModal = async function () {
@@ -75,15 +75,15 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
 
 
     const gotoScan = function () {
-        toggleAddMintModal()
-        navigation.navigate('WalletNavigator', {screen: 'Scan'})
+      toggleAddMintModal()
+      navigation.navigate('WalletNavigator', {screen: 'Scan'})
     }
 
 
     const gotoInfo = function () {        
-        if(!selectedMint) {return}
-        navigation.navigate('MintInfo', {mintUrl: selectedMint?.mintUrl})
-        onMintUnselect()
+      if(!selectedMint) {return}
+      navigation.navigate('MintInfo', {mintUrl: selectedMint?.mintUrl})
+      onMintUnselect()
     }
 
     
@@ -247,19 +247,21 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
         }
     }
 
-    const shareMint = function () {
-      // setSelectedMint(void 0)
-      setSharingMint(selectedMint?.mintUrl)
-    }
-
 
     const onMintSelect = function (mint: Mint) {
       setSelectedMint(mint)
+      setLastSelectedMint(mint)
     }
 
     const onMintUnselect = function () {
       setSelectedMint(undefined)
     }
+
+    const openShareModal = () => { 
+      setSelectedMint(void 0)
+      setShareModalVisible(true) 
+    }
+    const closeShareModal = () => { setShareModalVisible(false) }
 
     const handleError = function (e: AppError) {
       setIsLoading(false)
@@ -379,7 +381,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
               />*/}
               <ListItem
                 leftIcon="faShareNodes"
-                onPress={shareMint}
+                onPress={openShareModal}
                 tx="mintsScreen.share"
                 bottomSeparator={true}
                 style={{paddingHorizontal: spacing.medium}}
@@ -389,7 +391,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                 onPress={onCopyMintUrl}
                 tx='mintsScreen.copy'
                 bottomSeparator={true}
-                style={{paddingHorizontal: spacing.medium}}
+                style={{paddingHorizontal: spacing.medium}}j
               />
               <ListItem
                 leftIcon='faGlobe'
@@ -487,20 +489,17 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
           onBackButtonPress={toggleAddMintModal}
           onBackdropPress={toggleAddMintModal}          
         />
-        {/* TODO fix */}
-        <BottomModal 
-          isVisible={sharingMint && selectedMint ? true : false}
-          ContentComponent={
-            <>
-              <QRCodeBlock
-                qrCodeData={sharingMint || ''}
-                title='Share Mint URL'
-                type='URL'
-              />
-              <Button preset='secondary' onPress={() => setSharingMint(void 0)} text='Close' />
-            </>
-          }
-        />
+        {/* using lastSelectedMint so we can close the underlying modal */}
+        {lastSelectedMint && typeof lastSelectedMint?.mintUrl === 'string' &&
+          <QRShareModal
+            url={lastSelectedMint?.mintUrl as string}
+            shareModalTx='mintsScreen.share'
+            subHeading={lastSelectedMint?.shortname as string}
+            type='URL'
+            isVisible={shareModalVisible}
+            onClose={closeShareModal}
+          />
+        }
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
       </Screen>

@@ -11,11 +11,11 @@ import { translate } from "../../i18n"
 import { CashuUtils, TokenV3 } from "../../services/cashu/cashuUtils"
 import { log } from "../../services"
 
-
+export type QRCodeBlockTypes = 'EncodedV3Token' | 'EncodedV4Token' | 'Bolt11Invoice' | 'URL' | 'NWC'
 export const QRCodeBlock = function (props: {  
     qrCodeData: string    
     title: string
-    type: 'EncodedV3Token' | 'EncodedV4Token' | 'Bolt11Invoice' | 'URL' | 'NWC'
+    type: QRCodeBlockTypes
     size?: number
   }
 ) {

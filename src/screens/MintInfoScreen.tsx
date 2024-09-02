@@ -33,6 +33,7 @@ import AppError, { Err } from '../utils/AppError'
 import { useHeader } from '../utils/useHeader'
 import { CurrencySign } from './Wallet/CurrencySign'
 import { SvgXml } from 'react-native-svg'
+import { QRShareModal } from '../components/QRShareModal'
 
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -368,6 +369,7 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
   const [mintInfo, setMintInfo] = useState<GetInfoResponse | undefined>()
   const [mint, setMint] = useState<Mint>()
   const [isLocalInfoVisible, setIsLocalInfoVisible] = useState<boolean>(false)
+  const [shareModalVisible, setShareModalVisible] = useState(false)
   
   const [error, setError] = useState<AppError | undefined>()
   const [info, setInfo] = useState('')
@@ -415,6 +417,9 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
     setIsLocalInfoVisible(!isLocalInfoVisible)
   }
 
+  const openShareModal = () => { setShareModalVisible(true) }
+  const closeShareModal = () => { setShareModalVisible(false) }
+
   const handleError = function (e: AppError): void {
     setIsLoading(false)
     setError(e)
@@ -442,7 +447,10 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
         }
         headerHeightModifier={0.26}
         heading={mintInfo?.name ?? translate('mintInfo.loadingNamePlaceholder')}
-        text={route.params.mintUrl}>
+        text={route.params.mintUrl}
+        onTextPress={openShareModal}
+        onTextLongPress={openShareModal}
+      >
         {mint?.units ? (
           <View style={{flexDirection: 'row'}}>
             {mint.units.map(unit => (
@@ -515,6 +523,14 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
             </>
           }
         />
+        <QRShareModal
+            url={route.params.mintUrl}
+            shareModalTx='mintsScreen.share'
+            subHeading={mintInfo?.name ?? translate('mintInfo.loadingNamePlaceholder')}
+            type='URL'
+            isVisible={shareModalVisible}
+            onClose={closeShareModal}
+          />
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
       </View>
