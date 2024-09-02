@@ -487,6 +487,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
           onBackButtonPress={toggleAddMintModal}
           onBackdropPress={toggleAddMintModal}          
         />
+        {/* TODO fix */}
         <BottomModal 
           isVisible={sharingMint && selectedMint ? true : false}
           ContentComponent={
