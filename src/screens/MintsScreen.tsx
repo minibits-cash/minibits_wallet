@@ -30,6 +30,7 @@ import {MintListItem} from './Mints/MintListItem'
 import { SvgXml } from 'react-native-svg'
 import { isStateTreeNode } from 'mobx-state-tree'
 import { MintKeyset } from '@cashu/cashu-ts'
+import { QRCodeBlock } from './Wallet/QRCode'
 
 
 
@@ -46,6 +47,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
     const [mintUrl, setMintUrl] = useState('')
     const [defaultMintUrl, setDefaultMintUrl] = useState<string>(MINIBITS_MINT_URL)
     const [selectedMint, setSelectedMint] = useState<Mint | undefined>()
+    const [sharingMint, setSharingMint] = useState<string | undefined>()
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState(false)
@@ -245,6 +247,11 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
         }
     }
 
+    const shareMint = function () {
+      // setSelectedMint(void 0)
+      setSharingMint(selectedMint?.mintUrl)
+    }
+
 
     const onMintSelect = function (mint: Mint) {
       setSelectedMint(mint)
@@ -371,6 +378,13 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                 style={{paddingHorizontal: spacing.medium}}
               />*/}
               <ListItem
+                leftIcon="faShareNodes"
+                onPress={shareMint}
+                tx="mintsScreen.share"
+                bottomSeparator={true}
+                style={{paddingHorizontal: spacing.medium}}
+              />
+              <ListItem
                 leftIcon="faCopy"
                 onPress={onCopyMintUrl}
                 tx='mintsScreen.copy'
@@ -472,6 +486,19 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
           }
           onBackButtonPress={toggleAddMintModal}
           onBackdropPress={toggleAddMintModal}          
+        />
+        <BottomModal 
+          isVisible={sharingMint && selectedMint ? true : false}
+          ContentComponent={
+            <>
+              <QRCodeBlock
+                qrCodeData={sharingMint || ''}
+                title='Share Mint URL'
+                type='URL'
+              />
+              <Button preset='secondary' onPress={() => setSharingMint(void 0)} text='Close' />
+            </>
+          }
         />
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}

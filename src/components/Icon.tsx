@@ -94,7 +94,6 @@ import { faCircleArrowDown } from "@fortawesome/free-solid-svg-icons/faCircleArr
 import { faGlobe } from "@fortawesome/free-solid-svg-icons/faGlobe"
 import { faCubes } from "@fortawesome/free-solid-svg-icons/faCubes"
 
-
 export type IconTypes = keyof typeof iconRegistry
 
 // TODO remove need for manual iconregistry? 
