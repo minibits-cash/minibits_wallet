@@ -50,7 +50,7 @@ export const ProofsStoreModel = types
                 unit?: MintUnit,                
                 keysetIds?: string[]
             }
-        ): Proof[] | undefined {
+        ): Proof[] {
             let proofs: Proof[] = []
             if(options.keysetIds && options.keysetIds.length > 0) {
                 proofs = options.isPending ? 
@@ -198,6 +198,11 @@ export const ProofsStoreModel = types
         removeFromPendingByMint(proof: Proof) {
             self.pendingByMintSecrets.remove(proof.secret)
             log.trace('[removeFromPendingByMint]', 'Proof removed from pending by mint, secret', proof.secret)
+        },
+        removeManyFromPendingByMint(secretsToRemove: string[]) {
+            const secrets = self.pendingByMintSecrets
+            secrets.replace(secrets.filter(secret => !secretsToRemove.includes(secret)))
+            log.trace('[removeManyFromPendingByMint]', 'Secrets removed from pending by mint', {secretsToRemove, remaining: secrets})
         },
         removeOnLocalRecovery(proofsToRemove: ProofV3[], isPending: boolean = false) {
             const proofs = isPending ? self.pendingProofs : self.proofs

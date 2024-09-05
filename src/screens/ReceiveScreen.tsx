@@ -111,8 +111,10 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         }
 
         // Subscribe to the 'sendCompleted' event
-        EventEmitter.on('ev_receiveTask_result', handleReceiveTaskResult)
-        EventEmitter.on('ev_receiveOfflinePrepareTask_result', handleReceiveTaskResult)
+        if(isReceiveTaskSentToQueue) {
+          EventEmitter.on('ev_receiveTask_result', handleReceiveTaskResult)
+          EventEmitter.on('ev_receiveOfflinePrepareTask_result', handleReceiveTaskResult)
+        }        
 
         // Unsubscribe from the 'sendCompleted' event on component unmount
         return () => {

@@ -314,6 +314,17 @@ const getProofsFromTokenEntries = (tokenEntries: TokenEntryV3[]) => {
   return proofs
 }
 
+// Function to find the intersection of two arrays of Proof objects
+/* const findIntersection = function (proofArray1: Proof[], proofArray2: Proof[]) {
+  // Convert the second array to a Set of secrets for fast lookup
+  const secretSet = new Set(proofArray2.map(proof => proof.secret))
+
+  // Filter the first array, keeping only objects whose secret exists in the second array
+  const intersection = proofArray1.filter(proof => secretSet.has(proof.secret))
+
+  return intersection
+} */
+
 
 const findExactMatch = function (requestedAmount: number, proofs: Proof[]): Proof[] | null {
   const result: Proof[] = [];
@@ -464,6 +475,7 @@ export const CashuUtils = {
     getAmountPreferencesCount,
     getMintsFromToken,
     findMinExcess,
+    // findIntersection,
     // updateMintProofs,
     getProofsFromTokenEntries,
     getProofsToSend,

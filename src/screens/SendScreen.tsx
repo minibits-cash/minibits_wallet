@@ -42,7 +42,7 @@ import {
 } from '../components'
 import {TransactionStatus, Transaction} from '../models/Transaction'
 import {useStores} from '../models'
-import {NostrClient, NostrUnsignedEvent, TransactionTaskResult, WalletTask} from '../services'
+import {NostrClient, NostrUnsignedEvent, SyncStateTaskResult, TransactionTaskResult, WalletTask, WalletTaskResult} from '../services'
 import {log} from '../services/logService'
 import AppError, {Err} from '../utils/AppError'
 import {translate} from '../i18n'
@@ -276,7 +276,9 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         }
 
         // Subscribe to the 'sendCompleted' event
-        EventEmitter.on('ev_sendTask_result', handleSendTaskResult)
+        if(isSendTaskSentToQueue) {
+            EventEmitter.on('ev_sendTask_result', handleSendTaskResult)
+        }        
 
         // Unsubscribe from the 'sendCompleted' event on component unmount
         return () => {
@@ -286,44 +288,51 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
 
     useEffect(() => {
-        const handleSendCompleted = async (transactionIds: number[]) => {
+        const handleSendCompleted = async (result: SyncStateTaskResult) => {
             log.trace('handleSendCompleted event handler triggered')
 
             if (!transactionId) return
-            // Filter and handle events for a specific transactionId
-            if (transactionIds.includes(transactionId)) {
+            // Filter and handle event related only to this transactionId
+            if (result.completedTransactionIds.includes(transactionId)) {
                 log.trace(
                     'Sent ecash has been claimed by the receiver for tx',
                     transactionId,
                 )
 
-                setTransactionStatus(TransactionStatus.COMPLETED)                
+                const amountSentInt = round(toNumber(amountToSend) * getCurrency(unit).precision, 0)
+                
+                // Send to contact flow alredy shows one modal
+                setIsNostrDMModalVisible(false)
                 setIsProofSelectorModalVisible(false)
+                setResultModalInfo({
+                    status: TransactionStatus.COMPLETED,
+                    title:  '🚀 That was fast!',                   
+                    message: `${formatCurrency(amountSentInt, getCurrency(unit).code)} ${getCurrency(unit).code} were received by the payee.`,
+                })                
+                setTransactionStatus(TransactionStatus.COMPLETED)                
+                setIsResultModalVisible(true)
 
-                const receiver = (contactToSendTo?.nip05) ? contactToSendTo?.nip05 : 'unknown wallet'
-
-                try {
-                    const amountSentInt = round(toNumber(amountToSend) * getCurrency(unit).precision, 0)
-
+                /*try {
+                    const receiver = (contactToSendTo?.nip05) ? contactToSendTo?.nip05 : 'unknown wallet'
                     await NotificationService.createLocalNotification(
                         '🚀 That was fast!',
                         `<b>${formatCurrency(amountSentInt, getCurrency(unit).code)} ${getCurrency(unit).code}</b> were received by <b>${receiver}</b>.`,
                          contactToSendTo?.picture             
                     )
-
-                    // return navigation.navigate('Wallet', {})
                 } catch(e: any) {
                     log.error(e.name, e.message) // silent
-                }
+                }*/
             }
         }
 
-        // Subscribe to the 'sendCompleted' event
-        EventEmitter.on('ev_sendCompleted', handleSendCompleted)
+        // Subscribe to the '_syncStateWithMintTask' event
+        if(transactionId) {
+            EventEmitter.on('ev__syncStateWithMintTask_result', handleSendCompleted)
+        }
 
-        // Unsubscribe from the 'sendCompleted' event on component unmount
+        // Unsubscribe from the '_syncStateWithMintTask' event on component unmount
         return () => {
-            EventEmitter.off('ev_sendCompleted', handleSendCompleted)
+            EventEmitter.off('ev__syncStateWithMintTask_result', handleSendCompleted)
         }
     }, [transactionId])
        
@@ -772,7 +781,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                     <ResultModalInfo
                       icon="faCheckCircle"
                       iconColor={colors.palette.success200}
-                      title="Success!"
+                      title={resultModalInfo?.title || "Success!"}
                       message={resultModalInfo?.message}
                     />
                     <View style={$buttonContainer}>

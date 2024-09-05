@@ -219,7 +219,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 return
             }
 
-            WalletTask.handleSpentFromPending().catch(e => false)               
+            WalletTask.syncPendingStateWithMints().catch(e => false)               
             WalletTask.handlePendingTopups().catch(e => false) 
             
             // check lnaddress claims max once per minute to decrease server load      
@@ -259,13 +259,13 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                         return
                     } 
 
-                    WalletTask.handleSpentFromPending().catch(e => false) 
+                    WalletTask.syncPendingStateWithMints().catch(e => false) 
                     WalletTask.handlePendingTopups().catch(e => false)
 
                     // check lnaddress claims max once per minute to decrease server load            
                     const nowInSec = getUnixTime(new Date())
 
-                    log.trace('[appState change]', {nowInSec, lastClaimCheck, delay: lastClaimCheck ? nowInSec - lastClaimCheck : undefined})
+                    // log.trace('[appState change]', {nowInSec, lastClaimCheck, delay: lastClaimCheck ? nowInSec - lastClaimCheck : undefined})
 
                     if(lastClaimCheck && nowInSec - lastClaimCheck > 60) {                        
                         WalletTask.handleClaim().catch(e => false)

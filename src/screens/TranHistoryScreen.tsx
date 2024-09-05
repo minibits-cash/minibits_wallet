@@ -278,7 +278,7 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
                         LeftComponent={
                             <Icon
                             containerStyle={$iconContainer}
-                            icon="faPaperPlane"
+                            icon="faClock"
                             size={spacing.medium}
                             color={showPendingOnly ? activeIconColor : iconColor}
                             />

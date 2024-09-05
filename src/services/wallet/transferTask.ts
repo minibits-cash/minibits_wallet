@@ -173,65 +173,21 @@ export const transferTask = async function (
 
         lockedProofsCounter.decreaseProofsCounter(countOfInFlightProofs)
 
-        // I have no idea yet if this can happen, unpaid call throws, return sent Proofs to the store an track tx as Reverted
-        if (!isPaid) {
-            
-            const { amountPendingByMint } = await _moveProofsFromPending(
-                proofsToPay, 
-                mintUrl, 
-                unit, 
-                transactionId
-            )
+        // update transaction status and proofs state based on sync with the mint
+        const { completedTransactionIds, transactionStateUpdates } = await WalletTask.syncStateWithMintSync({
+            mintUrl,
+            isPending: true
+        })        
 
-            // release lock
-            lockedProofsCounter.resetInFlight(transactionId)
-
-            if(amountPendingByMint > 0) {
-                transactionData.push({
-                    status: TransactionStatus.PENDING,                    
-                    amountPendingByMint,
-                })
-
-                const pendingTransaction = await transactionsStore.updateStatus(
-                    transactionId,
-                    TransactionStatus.PENDING,
-                    JSON.stringify(transactionData),
-                )
-
-                return {
-                    taskFunction: TRANSFER,
-                    mintUrl,
-                    transaction: pendingTransaction,
-                    message: 'Lightning payment did not complete in time. Your ecash will remain pending until the payment completes or fails.',
-                    meltQuote,
-                    nwcEvent
-                } as TransactionTaskResult
-            } else {
-                transactionData.push({
-                    status: TransactionStatus.REVERTED,
-                    createdAt: new Date(),
-                })
-    
-                const revertedTransaction = await transactionsStore.updateStatus(
-                    transactionId,
-                    TransactionStatus.REVERTED,
-                    JSON.stringify(transactionData),
-                )
-    
-                return {
-                    taskFunction: TRANSFER,
-                    mintUrl,
-                    transaction: revertedTransaction,
-                    message: 'Payment of lightning invoice failed. Reserved ecash was returned to your wallet.',
-                    meltQuote,
-                    nwcEvent
-                } as TransactionTaskResult
-            }            
+        if(!completedTransactionIds.includes(transactionId)) {
+            // silent
+            log.error('[transfer] payLightningMelt call suceeded but proofs were not spent by mint', {transactionStateUpdates})
         }
 
-        // We've sent the proofsToPay to the mint, so we remove those pending proofs from model storage.
-        // Hopefully mint gets important shit done synchronously.        
-        WalletTask.handleSpentByMint({mintUrl, isPending: true})
+        // some unknown error because failed payment throws
+        if (!isPaid) {
+            throw new AppError(Err.MINT_ERROR, 'Lightning payment is not paid', {isPaid})
+        }
 
         // If real fees were less then estimated, cash the returned savings.
         let lightningFeePaid = meltQuote.fee_reserve
@@ -268,7 +224,7 @@ export const transferTask = async function (
             createdAt: new Date(),
         })
 
-        // this overwrites transactionData and COMPLETED status already set by _checkSpentByMint
+        // this overwrites transactionData and COMPLETED status already set by syncStateWithMintSync
         const completedTransaction = await transactionsStore.updateStatus(
             transactionId,
             TransactionStatus.COMPLETED,
@@ -305,43 +261,25 @@ export const transferTask = async function (
             if (proofsToPay.length > 0) {
                 log.warn('[transfer]', 'Returning proofsToPay to the wallet likely after failed lightning payment.', proofsToPay.length)
                 
-                const { 
-                    amountToMove, 
-                    amountPendingByMint 
-                } = await _moveProofsFromPending(
-                    proofsToPay, 
-                    mintUrl, 
-                    unit, 
-                    transactionId
-                )
+                // update transaction status and proofs state based on sync with the mint
+                const { pendingTransactionIds } = await WalletTask.syncStateWithMintSync({
+                    mintUrl,
+                    isPending: true
+                })
+                         
+                const transaction = transactionsStore.findById(transactionId)
 
-                // keep tx as pending if proofs were not added because of a mint that keeps them as pending for timed out in-flight payment
-                if(amountPendingByMint > 0) {
-                    transactionData.push({
-                        status: TransactionStatus.PENDING,
-                        error: WalletUtils.formatError(e),
-                        amountToMove,
-                        amountPendingByMint,
-                        createdAt: new Date()
-                    })
-    
-                    const pendingTransaction = await transactionsStore.updateStatus(
-                        transactionId,
-                        TransactionStatus.PENDING,
-                        JSON.stringify(transactionData),
-                    )
-
+                if(transaction?.status === TransactionStatus.PENDING) {                    
                     return {
                         taskFunction: TRANSFER,
                         mintUrl,
-                        transaction: pendingTransaction,
+                        transaction,
                         message: 'Lightning payment did not complete in time. Your ecash will remain pending until the payment completes or fails.',
                         error: WalletUtils.formatError(e),
                         meltQuote,
                         nwcEvent
                     } as TransactionTaskResult
                 }
-
             }
 
             transactionData.push({
@@ -369,74 +307,4 @@ export const transferTask = async function (
             nwcEvent
         } as TransactionTaskResult
   }
-}
-
-
-const _moveProofsFromPending = async function (
-    proofsToMove: ProofV3[],
-    mintUrl: string,
-    unit: MintUnit,
-    transactionId: number,    
-): Promise<{
-    amountToMove: number,
-    amountPendingByMint: number,
-    movedAmount: number
-}> {
-
-    const amountToMove = CashuUtils.getProofsAmount(proofsToMove)
-    
-    // Here we move proofs from pending back to spendable wallet in case of lightning payment failure
-    
-    // Check with the mint if the proofs are not marked as pending. This happens when lightning payment fails
-    // due to the timeout but mint's node keeps the payment as in-flight (e.g. receiving node holds the invoice)
-    // In this case we need to keep such proofs as pending and not move them back to wallet as in other payment failures.    
-    const {pending: pendingByMint} = await walletStore.getSpentOrPendingProofsFromMint(
-        mintUrl,
-        unit,
-        proofsToMove as Proof[]
-    )
-
-    let amountPendingByMint: number = 0
-    let movedAmount: number = 0
-    const movedProofs: Proof[] = []
-
-    for (const proof of proofsToMove) {
-        // if proof to return to the wallet is tracked by mint as pending we do not move it from wallet's pending
-        if(pendingByMint.some(p => p.secret === proof.secret)){
-            // add it to the list of secrets so we can later handle them based on eventual lightning payment result
-            if(proofsStore.addToPendingByMint(proof as Proof)) {
-                amountPendingByMint += proof.amount
-            }
-        } else {
-            movedAmount += proof.amount
-            movedProofs.push(proof as Proof)
-        }
-    }
-
-    if(movedProofs.length > 0) {
-        // Add internal references
-        for (const proof of proofsToMove as Proof[]) {
-            proof.tId = transactionId
-            proof.mintUrl = mintUrl
-            proof.unit = unit
-        }
-        
-        // remove it from pending proofs in the wallet
-        proofsStore.removeProofs(movedProofs, true, true)
-        // add proofs back to the spendable wallet
-        proofsStore.addProofs(movedProofs)
-
-        log.trace('[_moveProofsFromPending]', 'Moved proofs back from pending to spendable', {amountToMove, amountPendingByMint, movedAmount})
-    }
-    
-    if(amountPendingByMint > 0 && amountPendingByMint !== amountToMove) {
-        // This should not happen, monitor
-        log.warn('[_moveProofsFromPending]', 'Not all proofs to be moved were pending by the mint')
-    }
-    
-    return {
-        amountToMove,
-        amountPendingByMint,
-        movedAmount
-    }
 }

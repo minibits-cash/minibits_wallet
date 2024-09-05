@@ -99,26 +99,27 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
 
     const onSavePublicRelay = function () {        
         try {
-          if(newPublicRelay && newPublicRelay.startsWith('wss://')) {
-              if(relaysStore.alreadyExists(newPublicRelay)) {
-                setInfo(translate('relayExists'))
-                return
-              }
-
-              relaysStore.addRelay({
-                url: newPublicRelay,
-                status: WebSocket.CLOSED
-              })
-              
-              toggleAddRelayModal()
-              onConnect()
-          } else {
-              throw new AppError(
-                Err.VALIDATION_ERROR, 
-                translate("invalidRelayUrl"), 
-                newPublicRelay
-              )
+          if(!newPublicRelay.startsWith('ws')) {
+            throw new AppError(
+              Err.VALIDATION_ERROR, 
+              translate("invalidRelayUrl"), 
+              newPublicRelay
+            )
           }
+
+          if(relaysStore.alreadyExists(newPublicRelay)) {
+            setInfo(translate('relayExists'))
+            return
+          }
+
+          relaysStore.addRelay({
+            url: newPublicRelay,
+            status: WebSocket.CLOSED
+          })
+          
+          toggleAddRelayModal()
+          onConnect()
+
         } catch(e: any) {
           handleError(e)
         }
@@ -257,7 +258,7 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
                         value={newPublicRelay}
                         autoCapitalize='none'
                         keyboardType='default'
-                        maxLength={64}
+                        maxLength={128}
                         placeholder='wss://...'
                         selectTextOnFocus={true}
                         style={[$relayInput, {backgroundColor: inputBg}]}

@@ -109,13 +109,17 @@ export const TransactionListItem = observer(function (
 
 
     const getLeftIcon = function(tx: Transaction) {
-      if([TransactionStatus.ERROR, TransactionStatus.EXPIRED, TransactionStatus.BLOCKED].includes(tx.status)) {
+      if([TransactionStatus.ERROR, TransactionStatus.EXPIRED, TransactionStatus.BLOCKED, TransactionStatus.REVERTED].includes(tx.status)) {
         return (<Icon containerStyle={$txIconContainer} icon="faBan" size={spacing.medium} color={txErrorColor}/>)
       }
 
-      if([TransactionType.TOPUP].includes(tx.type) && tx.status === TransactionStatus.PENDING) {
-        return (<Icon containerStyle={$txIconContainer} icon="faArrowTurnDown" size={spacing.medium} color={txPendingColor}/>)
+      if([TransactionStatus.PENDING].includes(tx.status)) {
+        return (<Icon containerStyle={$txIconContainer} icon="faClock" size={spacing.medium} color={txErrorColor}/>)
       }
+
+      /* if([TransactionType.TOPUP].includes(tx.type) && tx.status === TransactionStatus.PENDING) {
+        return (<Icon containerStyle={$txIconContainer} icon="faArrowTurnDown" size={spacing.medium} color={txPendingColor}/>)
+      } */
   
       if([TransactionType.RECEIVE, TransactionType.TOPUP].includes(tx.type)) {
         return (<Icon containerStyle={$txIconContainer} icon="faArrowTurnDown" size={spacing.medium} color={txReceiveColor}/>)

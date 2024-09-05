@@ -21,7 +21,6 @@ import AppError from '../utils/AppError'
 import EventEmitter from '../utils/eventEmitter'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {Database, log, WalletTask, WalletTaskResult} from '../services'
-import { getSnapshot } from 'mobx-state-tree'
 import { translate } from '../i18n'
 
 export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(function BackupScreen(_props) {
@@ -36,17 +35,16 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
     const [info, setInfo] = useState('')
     const [isBackupModalVisible, setIsBackupModalVisible] =
       useState<boolean>(false)
-    const [isHandleSpentFromSpendableSentToQueue, setIsHandleSpentFromSpendableSentToQueue] = useState<boolean>(false)
+    const [isSyncStateSentToQueue, setIsSyncStateSentToQueue] = useState<boolean>(false)
     const [backupResultMessage, setBackupResultMessage] = useState<string>()
     const [totalSpentCount, setTotalSpentCount] = useState<number>(0)
     const [totalSpentAmount, setTotalSpentAmount] = useState<number>(0)
 
-
     useEffect(() => {
-        const handleSpentByMintTaskResult = async (result: WalletTaskResult) => {
-            log.trace('handleSpentByMintTaskResult event handler triggered')
+        const removeSpentByMintTaskResult = async (result: WalletTaskResult) => {
+            log.trace('removeSpentByMintTaskResult event handler triggered')
 
-            if (!isHandleSpentFromSpendableSentToQueue) { return false }
+            if (!isSyncStateSentToQueue) { return false }
             
             setIsLoading(false)            
             // runs per each mint
@@ -61,12 +59,12 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
           setInfo(translate("noSpentEcashFound"))            
         }
         
-        EventEmitter.on('ev__handleSpentByMintTask_result', handleSpentByMintTaskResult)
+        EventEmitter.on('ev__syncStateWithMintTask_result', removeSpentByMintTaskResult)
         
         return () => {
-            EventEmitter.off('ev__handleSpentByMintTask_result', handleSpentByMintTaskResult)            
+            EventEmitter.off('ev__syncStateWithMintTask_result', removeSpentByMintTaskResult)            
         }
-    }, [isHandleSpentFromSpendableSentToQueue])
+    }, [isSyncStateSentToQueue])
 
     const toggleBackupSwitch = () => {
       try {
@@ -118,8 +116,8 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
 
     const checkSpent = async function () {
       setIsLoading(true)
-      setIsHandleSpentFromSpendableSentToQueue(true)
-      WalletTask.handleSpentFromSpendable()      
+      setIsSyncStateSentToQueue(true)
+      WalletTask.syncSpendableStateWithMints()      
     }
 
 
