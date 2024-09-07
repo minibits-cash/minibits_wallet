@@ -30,6 +30,7 @@ import {MintListItem} from './Mints/MintListItem'
 import { SvgXml } from 'react-native-svg'
 import { isStateTreeNode } from 'mobx-state-tree'
 import { MintKeyset } from '@cashu/cashu-ts'
+import { QRShareModal } from '../components/QRShareModal'
 
 
 
@@ -50,16 +51,22 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState(false)
     const [isAddMintVisible, setIsAddMintVisible] = useState(false)
+    const [isMintMenuVisible, setIsMintMenuVisible] = useState(false)
+    const [isShareModalVisible, setIsShareModalVisible] = useState(false)
 
 
     const toggleAddMintModal = async function () {
       if (isAddMintVisible) {
         setIsAddMintVisible(false)
         setMintUrl('')
+        setSelectedMint(undefined)
       } else {
         setIsAddMintVisible(true)
       }
     }
+
+    const toggleMintMenuModal = () => setIsMintMenuVisible(previousState => !previousState)
+    const toggleShareModal = () => setIsShareModalVisible(previousState => !previousState)
 
     const pasteMintUrl = async () => {
       const url = await Clipboard.getString()
@@ -115,12 +122,13 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
 
         try {          
           setIsLoading(true)
+          toggleMintMenuModal()
           await mintsStore.updateMint(selectedMint.mintUrl)          
           setInfo(translate("mintSettingsUpdated"))
         } catch (e: any) {          
           handleError(e)
         } finally {  
-          onMintUnselect()
+          setSelectedMint(undefined)          
           setIsLoading(false)
         }
     }
@@ -128,6 +136,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
 
     const updateMintUrlStart = async function () {
       if (!selectedMint) {return}
+      toggleMintMenuModal()
       toggleAddMintModal() // open
     }
 
@@ -196,6 +205,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                 onPress: () => {
                 try {
                     onMintUnselect()
+                    toggleMintMenuModal()
                     mintsStore.removeMint(selectedMint as Mint)
                     if (proofsByMint && proofsByMint.length > 0) {
                         proofsStore.removeProofs(proofsByMint)           
@@ -237,21 +247,20 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
       }
     }
 
-    const onCopyMintUrl = function () {        
-        try {
-            Clipboard.setString(selectedMint?.mintUrl as string)
-        } catch (e: any) {
-            setInfo(`Could not copy: ${e.message}`)
-        }
-    }
-
-
     const onMintSelect = function (mint: Mint) {
       setSelectedMint(mint)
+      toggleMintMenuModal()
     }
 
     const onMintUnselect = function () {
       setSelectedMint(undefined)
+      toggleMintMenuModal()
+    }
+
+    const onShare = function () {
+      if (!selectedMint) return
+      toggleMintMenuModal()
+      toggleShareModal()
     }
 
     const handleError = function (e: AppError) {
@@ -264,7 +273,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
     const inputBg = useThemeColor('background')
 
     return (
-      <Screen preset="auto" contentContainerStyle={$screen}>
+      <Screen preset="scroll" contentContainerStyle={$screen}>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text preset="heading" tx="manageMints" style={{color: 'white'}} />
         </View>
@@ -328,7 +337,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
           {isLoading && <Loading />}
         </View>
         <BottomModal
-          isVisible={selectedMint ? true : false}
+          isVisible={isMintMenuVisible ? true : false}
           style={{alignItems: 'stretch'}}          
           ContentComponent={
             <View style={{}}>
@@ -336,6 +345,13 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                 leftIcon="faInfoCircle"
                 onPress={gotoInfo}
                 tx='mintsScreen.mintInfo'
+                bottomSeparator={true}
+                style={{paddingHorizontal: spacing.medium}}
+              />
+              <ListItem
+                leftIcon="faQrcode"
+                onPress={onShare}
+                tx="mintsScreen.share"
                 bottomSeparator={true}
                 style={{paddingHorizontal: spacing.medium}}
               />
@@ -363,20 +379,6 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                   style={{paddingHorizontal: spacing.medium}}
                 />
               )}
-              {/*<ListItem
-                leftIcon="faPaintbrush"
-                onPress={() => Alert.alert('Not yet implemented')}
-                tx={'mintsScreen.setColor'}
-                bottomSeparator={true}
-                style={{paddingHorizontal: spacing.medium}}
-              />*/}
-              <ListItem
-                leftIcon="faCopy"
-                onPress={onCopyMintUrl}
-                tx='mintsScreen.copy'
-                bottomSeparator={true}
-                style={{paddingHorizontal: spacing.medium}}
-              />
               <ListItem
                 leftIcon='faGlobe'
                 onPress={updateMintUrlStart}
@@ -473,6 +475,16 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
           onBackButtonPress={toggleAddMintModal}
           onBackdropPress={toggleAddMintModal}          
         />
+        {selectedMint && (
+          <QRShareModal
+              url={selectedMint.mintUrl}
+              shareModalTx='mintsScreen.share'
+              subHeading={selectedMint?.shortname}
+              type='URL'
+              isVisible={isShareModalVisible}
+              onClose={toggleShareModal}
+          />
+        )}
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
       </Screen>
@@ -497,7 +509,7 @@ const $contentContainer: TextStyle = {
 
 const $actionCard: ViewStyle = {
   marginBottom: spacing.small,
-  marginTop: -spacing.extraLarge * 2,
+  marginTop: -spacing.extraLarge * 1.5,
   minHeight: 70,
   paddingVertical: 0,  
 }

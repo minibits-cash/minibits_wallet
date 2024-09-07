@@ -10,7 +10,7 @@ import {
   useColorScheme
 } from "react-native"
 import { colors, useThemeColor, spacing } from "../theme"
-import { Text, TextProps } from "./Text"
+import { $sizeStyles, Text, TextProps } from "./Text"
 
 type Presets = keyof typeof $containerPresets
 
@@ -38,7 +38,33 @@ interface CardProps extends TouchableOpacityProps {
    */
   RightComponent?: ReactElement
   /**
-   * The heading text to display if not using `headingTx`.
+   * The label text to display if not using `headingTx`.
+   */
+  label?: TextProps["text"]
+  /**
+   * Label text which is looked up via i18n.
+   */
+  labelTx?: TextProps["tx"]
+  /**
+   * Optional label options to pass to i18n. Useful for interpolation
+   * as well as explicitly setting locale or translation fallbacks.
+   */
+  labelTxOptions?: TextProps["txOptions"]
+  /**
+   * Style overrides for label text.
+   */
+  labelStyle?: StyleProp<TextStyle>
+  /**
+   * Pass any additional props directly to the label Text component.
+   */
+  LabelTextProps?: TextProps
+  /**
+   * Custom label component.
+   * Overrides all other `heading*` props.
+   */
+  LabelComponent?: ReactElement
+  /**
+   * Heading text.
    */
   heading?: TextProps["text"]
   /**
@@ -126,6 +152,7 @@ interface CardProps extends TouchableOpacityProps {
 export const Card = function (props: CardProps) {  
 
   const backgroundColor = useThemeColor('card')
+  const labelColor = useThemeColor('textDim')
 
   const {
     preset = "default",
@@ -135,9 +162,13 @@ export const Card = function (props: CardProps) {
     footer,
     footerTx,
     footerTxOptions,
+    label,
+    labelTx,
+    labelTxOptions,
     heading,
     headingTx,
     headingTxOptions,
+    LabelComponent,
     ContentComponent,
     HeadingComponent,
     FooterComponent,
@@ -148,28 +179,44 @@ export const Card = function (props: CardProps) {
     contentStyle: $contentStyleOverride,
     headingStyle: $headingStyleOverride,
     footerStyle: $footerStyleOverride,
+    labelStyle: $labelStyleOverride,
     ContentTextProps,
-    HeadingTextProps,
+    LabelTextProps,
+    HeadingTextProps,    
     FooterTextProps,
     ...WrapperProps
   } = props
   
   const isPressable = !!WrapperProps.onPress
+  const isLabelPresent = !!(LabelComponent || label || labelTx)
   const isHeadingPresent = !!(HeadingComponent || heading || headingTx)
   const isContentPresent = !!(ContentComponent || content || contentTx)
   const isFooterPresent = !!(FooterComponent || footer || footerTx)
 
+  const OuterWrapper = isLabelPresent ? View : Fragment
   const Wrapper: ComponentType<TouchableOpacityProps> = isPressable ? TouchableOpacity : View
   const HeaderContentWrapper = verticalAlignment === "force-footer-bottom" ? View : Fragment
 
   const $containerStyle = [$containerPresets[preset], { backgroundColor }, $containerStyleOverride]
-  const $headingStyle = [
+
+  const $labelStyle = [ 
+    $labelPresets[preset],       
+    $labelStyleOverride,
+    LabelTextProps?.style,
+    { 
+      color: labelColor,
+      marginHorizontal: spacing.extraSmall,
+      marginVertical: spacing.tiny,
+    }
+  ]
+
+  const $headingStyle = [    
     $headingPresets[preset],
     (isFooterPresent || isContentPresent) && { marginBottom: spacing.micro },
     $headingStyleOverride,
     HeadingTextProps?.style,
   ]
-  const $contentStyle = [
+  const $contentStyle = [    
     $contentPresets[preset],
     isHeadingPresent && { marginTop: spacing.small },
     isFooterPresent && { marginBottom: spacing.small },
@@ -190,76 +237,91 @@ export const Card = function (props: CardProps) {
   ]
 
   return (
-    <Wrapper
-      style={$containerStyle}
-      activeOpacity={0.8}
-      accessibilityRole={isPressable ? "button" : undefined}
-      {...WrapperProps}
-    >
-      {LeftComponent}
+    <OuterWrapper>
+      {LabelComponent ||
+        (isLabelPresent && (
+          <Text
+            //weight="bold"
+            text={label}
+            tx={labelTx}
+            txOptions={labelTxOptions}
+            {...LabelTextProps}
+            style={$labelStyle}
+          />
+        ))}
+      <Wrapper
+        style={$containerStyle}
+        activeOpacity={0.8}
+        accessibilityRole={isPressable ? "button" : undefined}
+        {...WrapperProps}
+      >
+        {LeftComponent}
 
-      <View style={$alignmentWrapperStyle}>
-        <HeaderContentWrapper>
-          {HeadingComponent ||
-            (isHeadingPresent && (
+        <View style={$alignmentWrapperStyle}>
+          <HeaderContentWrapper>
+            {HeadingComponent ||
+              (isHeadingPresent && (
+                <Text
+                  //weight="bold"
+                  text={heading}
+                  tx={headingTx}
+                  txOptions={headingTxOptions}
+                  {...HeadingTextProps}
+                  style={$headingStyle}
+                />
+              ))}
+
+            {ContentComponent ||
+              (isContentPresent && (
+                <Text
+                  //weight="normal"
+                  text={content}
+                  tx={contentTx}
+                  txOptions={contentTxOptions}
+                  {...ContentTextProps}
+                  style={$contentStyle}
+                />
+              ))}
+          </HeaderContentWrapper>
+
+          {FooterComponent ||
+            (isFooterPresent && (
               <Text
-                weight="bold"
-                text={heading}
-                tx={headingTx}
-                txOptions={headingTxOptions}
-                {...HeadingTextProps}
-                style={$headingStyle}
+                //weight="normal"
+                size="xs"
+                text={footer}
+                tx={footerTx}
+                txOptions={footerTxOptions}
+                {...FooterTextProps}
+                style={$footerStyle}
               />
             ))}
+        </View>
 
-          {ContentComponent ||
-            (isContentPresent && (
-              <Text
-                weight="normal"
-                text={content}
-                tx={contentTx}
-                txOptions={contentTxOptions}
-                {...ContentTextProps}
-                style={$contentStyle}
-              />
-            ))}
-        </HeaderContentWrapper>
-
-        {FooterComponent ||
-          (isFooterPresent && (
-            <Text
-              weight="normal"
-              size="xs"
-              text={footer}
-              tx={footerTx}
-              txOptions={footerTxOptions}
-              {...FooterTextProps}
-              style={$footerStyle}
-            />
-          ))}
-      </View>
-
-      {RightComponent}
-    </Wrapper>
+        {RightComponent}
+      </Wrapper>
+    </OuterWrapper>
   )
 }
 
 const $containerBase: ViewStyle = {
   borderRadius: spacing.medium,
-  padding: spacing.small,
+  paddingHorizontal: spacing.medium,
+  paddingVertical: spacing.small,
  // borderWidth: 1,
   shadowColor: colors.palette.neutral600,
   shadowOffset: { width: 0, height: 10 },
   shadowOpacity: 0.2,
   shadowRadius: 8,
   elevation: 5,
-  minHeight: verticalScale(86),
+  minHeight: verticalScale(64),
   flexDirection: "row",
 }
 
 const $alignmentWrapper: ViewStyle = {
   flex: 1,
-  alignSelf: "stretch",
+  // alignSelf: "stretch",
+  alignSelf: 'center'
 }
 
 const $alignmentWrapperFlexOptions = {
@@ -282,6 +344,11 @@ const $containerPresets = {
     $containerBase,
     { backgroundColor: colors.palette.neutral800, borderColor: colors.palette.neutral500 },
   ] as StyleProp<ViewStyle>,
+}
+
+const $labelPresets: Record<Presets, TextStyle> = {
+  default: {},
+  reversed: { color: colors.palette.neutral100 },
 }
 
 const $headingPresets: Record<Presets, TextStyle> = {

@@ -259,7 +259,7 @@ export const transferTask = async function (
 
             // Return tokens intended for payment to the wallet if payment failed with an error
             if (proofsToPay.length > 0) {
-                log.warn('[transfer]', 'Returning proofsToPay to the wallet likely after failed lightning payment.', proofsToPay.length)
+                log.warn('[transfer]', 'Returning proofsToPay to the wallet or keeping them pending if a mint keeps the payment in flight.', proofsToPay.length)
                 
                 // update transaction status and proofs state based on sync with the mint
                 const { pendingTransactionIds } = await WalletTask.syncStateWithMintSync({

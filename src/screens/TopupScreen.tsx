@@ -1299,18 +1299,18 @@ const $amountInput: TextStyle = {
 const $contentContainer: TextStyle = {
   flex: 1,
   padding: spacing.extraSmall,
-  marginTop: -spacing.extraLarge * 2,
+  marginTop: -spacing.extraLarge * 1.5,
 }
 
 const $memoCard: ViewStyle = {
   marginBottom: spacing.small,
+  minHeight: 80,
 }
 
 const $memoContainer: ViewStyle = {
   flex: 1,
   flexDirection: 'row',
-  justifyContent: 'center',
-  alignItems: 'center',
+  justifyContent: 'center',  
 }
 
 const $memoInput: TextStyle = {

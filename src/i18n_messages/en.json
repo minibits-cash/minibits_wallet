@@ -182,7 +182,8 @@
 		"removeMint": "Remove mint",
 		"rename": "Rename mint",
 		"setColor": "Change the mint's icon color",
-		"unblockMint": "Unblock receiving from this mint"
+		"unblockMint": "Unblock receiving from this mint",
+		"share": "Share Mint URL"
 	},
 	"missingEcashTokenToReceiveError": "Missing ecash token to receive.",
 	"missingLNURLParamsError": "Missing LNURL params.",
@@ -610,7 +611,9 @@
 		"deleteExpired": "Delete expired",
 		"deleteExpiredDesc": "This will delete %{count} expired transactions",
 		"deleteErrored": "Delete transactions with errors",
-		"deleteErroredDesc": "This will delete %{count} transactions with errors"
+		"deleteErroredDesc": "This will delete %{count} transactions with errors",
+		"deleteReverted": "Delete reverted",
+		"deleteRevertedDesc": "This will delete %{count} reverted transactions"
 	},
 	"updateModal": {
 		"title": "New Minibits version is available",

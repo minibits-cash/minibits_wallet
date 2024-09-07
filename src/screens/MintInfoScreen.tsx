@@ -11,6 +11,7 @@ import {
   Button,
   Card,
   ErrorModal,
+  Header,
   Icon,
   IconTypes,
   InfoModal,
@@ -33,6 +34,8 @@ import AppError, { Err } from '../utils/AppError'
 import { useHeader } from '../utils/useHeader'
 import { CurrencySign } from './Wallet/CurrencySign'
 import { SvgXml } from 'react-native-svg'
+import { CurrencyCode, formatCurrency } from '../services/wallet/currency'
+import { QRShareModal } from '../components/QRShareModal'
 
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -65,20 +68,221 @@ const contactIconMap: Record<string, IconTypes> = {
   'nostr': 'faCircleNodes'
 }
 
+export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer(function MintInfoScreen(_props) {
+  const { navigation, route } = _props
+  useHeader({
+    leftIcon: 'faArrowLeft',
+    onLeftPress: () => {
+      navigation.goBack()
+    },
+  })
+
+  const { mintsStore, walletStore } = useStores()
+  //const { walletStore } = nonPersistedStores
+
+  const [isLoading, setIsLoading] = useState(false)
+  const [mintInfo, setMintInfo] = useState<GetInfoResponse | undefined>()
+  const [mint, setMint] = useState<Mint>()
+  const [isLocalInfoVisible, setIsLocalInfoVisible] = useState<boolean>(false)
+  const [isShareModalVisible, setIsShareModalVisible] = useState(false)
+  
+  const [error, setError] = useState<AppError | undefined>()
+  const [info, setInfo] = useState('')
+
+  useEffect(() => {
+    const getInfo = async () => {
+      try {
+        if (!route.params || !route.params.mintUrl) {
+          throw new AppError(Err.VALIDATION_ERROR, 'Missing mintUrl')
+        }
+
+        log.trace('useEffect', { mintUrl: route.params.mintUrl })
+
+        setIsLoading(true)
+        const mint = mintsStore.findByUrl(route.params.mintUrl)
+
+        if (mint) {
+          setMint(mint)
+          const info: GetInfoResponse = await walletStore.getMintInfo(mint.mintUrl)
+          mint.setStatus(MintStatus.ONLINE)
+          if(info.name && info.name !== mint.shortname) {
+            await mint.setShortname()
+          }
+          setMintInfo(info as GetInfoResponse)          
+        } else {
+          throw new AppError(Err.VALIDATION_ERROR, 'Could not find mint', { mintUrl: route.params.mintUrl })
+        }
+
+        setIsLoading(false)
+      } catch (e: any) {
+        if (route.params.mintUrl) {
+          const mint = mintsStore.findByUrl(route.params.mintUrl)
+          if (mint) {
+            mint.setStatus(MintStatus.OFFLINE)
+          }
+        }
+        handleError(e)
+      }
+    }
+    getInfo()
+  }, [])
+
+  const toggleLocalInfo = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+    setIsLocalInfoVisible(!isLocalInfoVisible)
+  }
+
+  const toggleShareModal = () => setIsShareModalVisible(previousState => !previousState)
+
+  const gotoShare = function () {
+    toggleShareModal()
+  } 
+
+  const handleError = function (e: AppError): void {
+    setIsLoading(false)
+    setError(e)
+  }
+
+  /** memoized mint limit info */
+  const mintLimitInfo = useMemo(() => {
+    if (typeof mintInfo === 'undefined') return;
+    return getMintLimits(mintInfo)
+  }, [mintInfo])
+
+  const colorScheme = useColorScheme()
+  const textDim = useThemeColor('textDim')
+  const headerBg = useThemeColor('header')
+  const iconColor = useThemeColor('textDim')
+
+  return (
+    <Screen contentContainerStyle={$screen} preset="scroll">
+      <View style={[$headerContainer, {backgroundColor: headerBg, justifyContent: 'space-around', paddingBottom: spacing.huge}]}>
+        <View
+          style={{
+              marginEnd: spacing.small,
+              flex: 0,
+              borderRadius: spacing.small,
+              padding: spacing.extraSmall,
+              backgroundColor: colors.palette.orange600
+          }}
+        >
+          <SvgXml 
+              width={spacing.medium} 
+              height={spacing.medium} 
+              xml={MintIcon}
+              fill='white'
+          />
+          </View>
+        <Text preset='subheading' text={mintInfo?.name ?? mint?.shortname} style={{color: 'white'}}/>
+        {mint?.units && (
+          <View style={{flexDirection: 'row'}}>
+            {mint.units.map(unit => (
+              <CurrencySign                
+                //containerStyle={{marginTop: spacing.small}}
+                key={unit}
+                mintUnit={unit}
+              />
+            ))}
+          </View>
+        )}
+      </View>
+      <View style={$contentContainer}>
+        {isLoading ? (
+          <View style={{height: spacing.screenHeight * 0.4}}><Loading/></View>
+        ) : (
+        <>
+        {mintInfo?.motd && mintInfo?.motd !== 'Message to users' && <MOTDCard info={mintInfo} />}
+        {mintInfo && <DescriptionCard info={mintInfo} />}
+        <Card
+          label={"Mint URL"}          
+          HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
+          content={mint?.mintUrl}
+          RightComponent={
+            <View style={$rightContainer}>
+                <Button
+                    onPress={gotoShare}
+                    preset='secondary'
+                    LeftAccessory={() => <Icon icon='faQrcode' color={iconColor} />}
+                />                                                
+            </View>
+        }
+        />
+        {mintInfo && mintLimitInfo?.any && <MintLimitsCard info={mintInfo} limitInfo={mintLimitInfo}/>}
+        {mintInfo && <ContactCard info={mintInfo} popupMessage={setInfo} />}
+        <Card
+          labelTx={mintInfo && "mintInfo.keyValueInfoCardHeading"}
+          // HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
+          ContentComponent={
+            <>
+              {mintInfo && <MintInfoDetails info={mintInfo} popupMessage={setInfo} />}
+            </>
+          }
+        />
+        {mintInfo && <NutsCard info={mintInfo} />}
+        <Card
+          ContentComponent={
+            <>
+              <ListItem
+                tx="onDeviceInfo"
+                RightComponent={
+                  <View style={$rightContainer}>
+                    <Button
+                      onPress={toggleLocalInfo}
+                      text={isLocalInfoVisible ? translate("common.hide") : translate("common.show")}
+                      preset="secondary"
+                    />
+                  </View>
+                }
+              />
+              {isLocalInfoVisible && (
+                <JSONTree
+                  hideRoot
+                  data={getSnapshot(
+                    mintsStore.findByUrl(route.params?.mintUrl) as Mint,
+                  ) as any}
+                  theme={{
+                    scheme: 'default',
+                    base00: '#eee',
+                  }}
+                  invertTheme={colorScheme === 'light' ? false : true}
+                />
+              )}
+            </>
+          }
+        />
+        </>
+
+        )}        
+        <QRShareModal
+            url={route.params.mintUrl}
+            shareModalTx='mintsScreen.share'
+            subHeading={mintInfo?.name ?? translate('mintInfo.loadingNamePlaceholder')}
+            type='URL'
+            isVisible={isShareModalVisible}
+            onClose={toggleShareModal}
+          />
+        {error && <ErrorModal error={error} />}
+        {info && <InfoModal message={info} />}
+      </View>
+    </Screen>
+  )
+})
+
+
 function MOTDCard(props: {info: GetInfoResponse}) {
   const textDim = useThemeColor('textDim')
   return (
     <Card
       RightComponent={
         <View style={{justifyContent: 'center'}}>
-          <Icon icon="faCircleExclamation" color={textDim} size={20} />
+          <Icon icon="faCircleExclamation" color={'white'} size={20} />
         </View>
       }
-      headingTx="mintInfo.motd"
-      HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
+      // heading='Important'      
       ContentComponent={
         <Text style={{fontStyle: 'italic'}} text={props.info.motd} />
-      }
+      }      
+      style={{backgroundColor: colors.dark.warn}}
     />
   )
 }
@@ -87,16 +291,20 @@ function MintLimitsCard(props: { info: GetInfoResponse, limitInfo: ReturnType<ty
   if (props.limitInfo.mintSats === false && props.limitInfo.mintSats === false) return;
   log.trace('MintLimtsCard', props.limitInfo)
 
-  const limitText = (m: MethodLimit) => (
-    typeof m.min !== 'undefined' && typeof m.max !== 'undefined' ? `${m.min} – ${m.max}`
-    : typeof m.min !== 'undefined' && typeof m.max === 'undefined' ? `min: ${m.min}`
-    : typeof m.max !== 'undefined' && typeof m.min === 'undefined' ? `max: ${m.max}`
-    : void 0
-  )
+  const limitText = (m: MethodLimit) => {
+    const min = `${formatCurrency(m.min as number, CurrencyCode.SATS)}`
+    const max = `${formatCurrency(m.max as number, CurrencyCode.SATS)}`
+    
+    return (typeof m.min !== 'undefined' && typeof m.max !== 'undefined' ? `${min} – ${max}`
+    : typeof m.min !== 'undefined' && typeof m.max === 'undefined' ? `min: ${min}`
+    : typeof m.max !== 'undefined' && typeof m.min === 'undefined' ? `max: ${max}`
+    : void 0)
+  }
 
-  const LimitItem = (props: { m: MethodLimit, type: 'mint' | 'melt' }) => (<View style={$limitItem}>
+  const LimitItem = (props: { m: MethodLimit, type: 'mint' | 'melt' }) => (
+  <View style={$limitItem}>
     <Icon 
-      icon={props.type === 'mint' ? 'faCircleArrowUp' : 'faCircleArrowDown'} 
+      icon={props.type === 'mint' ? 'faCircleArrowDown' : 'faCircleArrowUp'} 
       color={colors.palette.success200} 
       size={16} 
       containerStyle={$nutIcon}
@@ -107,12 +315,12 @@ function MintLimitsCard(props: { info: GetInfoResponse, limitInfo: ReturnType<ty
   const textDim = useThemeColor('textDim')
 
   return (<Card
-    headingTx="mintInfo.mintMeltHeading"
-    HeadingTextProps={{ style: [$sizeStyles.sm, { color: textDim }] }}
+    labelTx="mintInfo.mintMeltHeading"
+    // HeadingTextProps={{ style: [$sizeStyles.sm, { color: textDim }] }}
     ContentComponent={<>
       <View style={$limitItemWrapper}>
-        <Text text="Deposit (Mint)" style={{ width: '50%' }} size='xs' />
-        <Text text="Withdraw (Melt)" style={{ width: '50%' }} size='xs' />
+        <Text text="Deposit (Mint)" style={{ width: '50%' }} />
+        <Text text="Withdraw (Melt)" style={{ width: '50%' }} />
       </View>
       <View style={$limitItemWrapper}>
         <LimitItem m={props.limitInfo.mintSats as MethodLimit} type="mint" />
@@ -125,8 +333,9 @@ function MintLimitsCard(props: { info: GetInfoResponse, limitInfo: ReturnType<ty
 function DescriptionCard(props: {info: GetInfoResponse}) {
   const textDim = useThemeColor('textDim')
   return (<Card
-    headingTx="mintInfo.descriptionHeading"
-    HeadingTextProps={{ style: [$sizeStyles.sm, { color: textDim }] }}
+    // labelTx="mintInfo.descriptionHeading"
+    //headingTx="mintInfo.descriptionHeading"
+    // HeadingTextProps={{ style: [$sizeStyles.sm, { color: textDim }] }}
     ContentComponent={
       props.info && props.info.description ? (
         <CollapsibleText
@@ -207,8 +416,8 @@ function NutsCard(props: {info: GetInfoResponse}) {
   const smallNutCols = 4
   return (
     <Card
-      headingTx="mintInfo.nutsHeading"
-      HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
+      labelTx="mintInfo.nutsHeading"
+      // HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
       ContentComponent={
         <View style={{flexDirection: 'row', flexWrap: 'wrap'}}>
           {supportedNutsDetailed.map(([nut, info]) => (
@@ -248,8 +457,8 @@ function ContactCard(props: { info: GetInfoResponse, popupMessage: (msg: string)
 
   return (
     <Card
-      headingTx="mintInfo.contactsHeading"
-      HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
+      labelTx="mintInfo.contactsHeading"
+      //HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
       ContentComponent={
         contacts.length === 0 ? (
           <Text
@@ -352,177 +561,7 @@ function getMintLimits(info: GetInfoResponse) {
   }
 }
 
-export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer(function MintInfoScreen(_props) {
-  const { navigation, route } = _props
-  useHeader({
-    leftIcon: 'faArrowLeft',
-    onLeftPress: () => {
-      navigation.goBack()
-    },
-  })
-
-  const { mintsStore, walletStore } = useStores()
-  //const { walletStore } = nonPersistedStores
-
-  const [isLoading, setIsLoading] = useState(false)
-  const [mintInfo, setMintInfo] = useState<GetInfoResponse | undefined>()
-  const [mint, setMint] = useState<Mint>()
-  const [isLocalInfoVisible, setIsLocalInfoVisible] = useState<boolean>(false)
-  
-  const [error, setError] = useState<AppError | undefined>()
-  const [info, setInfo] = useState('')
-
-  useEffect(() => {
-    const getInfo = async () => {
-      try {
-        if (!route.params || !route.params.mintUrl) {
-          throw new AppError(Err.VALIDATION_ERROR, 'Missing mintUrl')
-        }
-
-        log.trace('useEffect', { mintUrl: route.params.mintUrl })
-
-        setIsLoading(true)
-        const mint = mintsStore.findByUrl(route.params.mintUrl)
-
-        if (mint) {
-          const info: GetInfoResponse = await walletStore.getMintInfo(mint.mintUrl)
-          mint.setStatus(MintStatus.ONLINE)
-          if(info.name && info.name !== mint.shortname) {
-            await mint.setShortname()
-          }
-          setMintInfo(info as GetInfoResponse)
-          setMint(mint)
-        } else {
-          throw new AppError(Err.VALIDATION_ERROR, 'Could not find mint', { mintUrl: route.params.mintUrl })
-        }
-
-        setIsLoading(false)
-      } catch (e: any) {
-        if (route.params.mintUrl) {
-          const mint = mintsStore.findByUrl(route.params.mintUrl)
-          if (mint) {
-            mint.setStatus(MintStatus.OFFLINE)
-          }
-        }
-        handleError(e)
-      }
-    }
-    getInfo()
-  }, [])
-
-  const toggleLocalInfo = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-    setIsLocalInfoVisible(!isLocalInfoVisible)
-  }
-
-  const handleError = function (e: AppError): void {
-    setIsLoading(false)
-    setError(e)
-  }
-
-  /** memoized mint limit info */
-  const mintLimitInfo = useMemo(() => {
-    if (typeof mintInfo === 'undefined') return;
-    return getMintLimits(mintInfo)
-  }, [mintInfo])
-
-  const colorScheme = useColorScheme()
-  const textDim = useThemeColor('textDim')
-  return (
-    <Screen style={$screen} preset="scroll">
-      <AvatarHeader
-        encircle={false}        
-        fallbackIconComponent={
-          <SvgXml 
-              width={60} 
-              height={60} 
-              xml={MintIcon}
-              fill='white'
-          />
-        }
-        headerHeightModifier={0.26}
-        heading={mintInfo?.name ?? translate('mintInfo.loadingNamePlaceholder')}
-        text={route.params.mintUrl}>
-        {mint?.units ? (
-          <View style={{flexDirection: 'row'}}>
-            {mint.units.map(unit => (
-              <CurrencySign
-                textStyle={{fontSize: 16}}
-                containerStyle={{paddingLeft: 0, marginRight: spacing.small}}
-                key={unit}
-                mintUnit={unit}
-              />
-            ))}
-          </View>
-        ) : (
-          <Text
-            style={{fontStyle: 'italic'}}
-            tx="mintInfo.loadingUnitsPlaceholder"
-          />
-        )}
-      </AvatarHeader>
-      <View style={$contentContainer}>
-        {mintInfo?.motd && <MOTDCard info={mintInfo} />}
-        {mintInfo && mintLimitInfo?.any && <MintLimitsCard info={mintInfo} limitInfo={mintLimitInfo}/>}
-        {mintInfo && <>
-          <DescriptionCard info={mintInfo} />
-          <ContactCard info={mintInfo} popupMessage={setInfo} />
-        </>}
-        <Card
-          headingTx={mintInfo && "mintInfo.keyValueInfoCardHeading"}
-          HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
-          ContentComponent={
-            <>
-              {mintInfo && <MintInfoDetails info={mintInfo} popupMessage={setInfo} />}
-              {isLoading && (
-                <Loading
-                  style={{backgroundColor: 'transparent'}}
-                  statusMessage={translate('loadingPublicInfo')}
-                />
-              )}
-            </>
-          }
-        />
-        {mintInfo && <NutsCard info={mintInfo} />}
-        <Card
-          ContentComponent={
-            <>
-              <ListItem
-                tx="onDeviceInfo"
-                RightComponent={
-                  <View style={$rightContainer}>
-                    <Button
-                      onPress={toggleLocalInfo}
-                      text={isLocalInfoVisible ? translate("common.hide") : translate("common.show")}
-                      preset="secondary"
-                    />
-                  </View>
-                }
-              />
-              {isLocalInfoVisible && (
-                <JSONTree
-                  hideRoot
-                  data={getSnapshot(
-                    mintsStore.findByUrl(route.params?.mintUrl) as Mint,
-                  ) as any}
-                  theme={{
-                    scheme: 'default',
-                    base00: '#eee',
-                  }}
-                  invertTheme={colorScheme === 'light' ? false : true}
-                />
-              )}
-            </>
-          }
-        />
-        {error && <ErrorModal error={error} />}
-        {info && <InfoModal message={info} />}
-      </View>
-    </Screen>
-  )
-})
-
-const $screen: ViewStyle = { flex: 1, }
+const $screen: ViewStyle = { }
 const $nutIcon: ViewStyle = { paddingHorizontal: 0 }
 
 const $limitItem: ViewStyle = {
@@ -533,7 +572,7 @@ const $limitItem: ViewStyle = {
 }
 const $limitItemWrapper: ViewStyle = {
   flexDirection: 'row',
-  gap: spacing.extraSmall,
+  marginVertical: spacing.extraSmall  
 }
 
 const $listItem: ViewStyle = {
@@ -541,7 +580,14 @@ const $listItem: ViewStyle = {
   alignItems: 'center',
 }
 
+const $headerContainer: TextStyle = {  
+  alignItems: 'center',
+  // padding: spacing.tiny,  
+  height: spacing.screenHeight * 0.20,
+}
+
 const $contentContainer: TextStyle = {
+  marginTop: -spacing.extraLarge * 1.5,
   rowGap: spacing.small,
   flex: 1,
   padding: spacing.extraSmall,

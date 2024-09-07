@@ -66,6 +66,7 @@ const $memoContainer: ViewStyle = {
 
 const $memoCard: ViewStyle = {
   marginBottom: spacing.small,
+  minHeight: 80,
 }
 
 const $memoButton: ViewStyle = {

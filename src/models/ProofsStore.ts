@@ -27,6 +27,10 @@ export const ProofsStoreModel = types
             const proofs = isPending ? self.pendingProofs : self.proofs
             return proofs.find(proof => proof.secret === secret) || undefined
         },
+        getByTransactionId(tId: number, isPending: boolean = false): Proof[] {
+            const proofs = isPending ? self.pendingProofs : self.proofs
+            return proofs.filter(proof => proof.tId === tId)
+        }
     }))
     .views(self => ({
         getMintFromProof(proof: Proof): Mint | undefined {

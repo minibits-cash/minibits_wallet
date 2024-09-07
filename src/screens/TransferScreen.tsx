@@ -401,7 +401,9 @@ useEffect(() => {
     }
 
     // Subscribe to the task result event
-    EventEmitter.on('ev_transferTask_result', handleTransferTaskResult)        
+    if(isTransferTaskSentToQueue) {
+      EventEmitter.on('ev_transferTask_result', handleTransferTaskResult)        
+    }    
 
     // Unsubscribe from the task result event on component unmount
     return () => {
@@ -666,7 +668,7 @@ const iconColor = useThemeColor('textDim')
         <View style={$contentContainer}>
           {transactionStatus !== TransactionStatus.COMPLETED && (
             <Card
-              style={[$card, {minHeight: 50}]}
+              style={$memoCard}
               ContentComponent={
                 <>
                 <ListItem
@@ -941,7 +943,12 @@ const $commentInput: TextStyle = {
 const $contentContainer: TextStyle = {
     flex: 1,
     padding: spacing.extraSmall,
-    marginTop: -spacing.extraLarge * 2    
+    marginTop: -spacing.extraLarge * 1.5    
+}
+
+const $memoCard: ViewStyle = {
+  marginBottom: spacing.small,
+  minHeight: 80,
 }
 
 const $iconContainer: ViewStyle = {

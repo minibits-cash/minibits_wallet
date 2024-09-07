@@ -292,6 +292,13 @@ async function _runMigrations(rootStore: RootStore) {
             rootStore.setVersion(rootStoreModelVersion)
             log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
         }
+
+        if(currentVersion < 24) {
+            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v24`)            
+            userSettingsStore.setLogLevel(LogLevel.ERROR)
+            rootStore.setVersion(rootStoreModelVersion)
+            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+        }
     } catch (e: any) {
         throw new AppError(
         Err.STORAGE_ERROR,

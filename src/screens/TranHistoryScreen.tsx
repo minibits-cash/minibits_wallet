@@ -64,6 +64,7 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
     const [pendingDbCount, setPendingDbCount] = useState<number>(0)
     const [expiredDbCount, setExpiredDbCount] = useState<number>(0)
     const [erroredDbCount, setErroredDbCount] = useState<number>(0)
+    const [revertedDbCount, setRevertedDbCount] = useState<number>(0)
     const [isAll, setIsAll] = useState<boolean>(false)
     const [pendingIsAll, setPendingIsAll] = useState<boolean>(false)
 
@@ -73,6 +74,7 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
         const pendingCount = Database.getTransactionsCount(TransactionStatus.PENDING)
         const expiredCount = Database.getTransactionsCount(TransactionStatus.EXPIRED)
         const erroredCount = Database.getTransactionsCount(TransactionStatus.ERROR)
+        const revertedCount = Database.getTransactionsCount(TransactionStatus.REVERTED)
         
         log.trace('transaction counts', {count, pendingCount})
 
@@ -213,6 +215,24 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
     
             setDbCount(count)
             setErroredDbCount(erroredCount)
+            setIsLoading(false)
+        } catch (e: any) {
+            handleError(e)
+        }
+    }
+
+
+    const onDeleteReverted = function () {
+        try {
+            toggleDeleteModal()
+            setIsLoading(true)
+            transactionsStore.deleteByStatus(TransactionStatus.REVERTED)
+            
+            const count = Database.getTransactionsCount() // all
+            const revertedCount = Database.getTransactionsCount(TransactionStatus.REVERTED)
+    
+            setDbCount(count)
+            setRevertedDbCount(revertedCount)
             setIsLoading(false)
         } catch (e: any) {
             handleError(e)
@@ -373,6 +393,14 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
                     })}
                     leftIcon='faBug'                            
                     onPress={onDeleteErrored}                                      
+                />
+                <ListItem
+                    tx="tranHistory.deleteReverted"
+                    subText={translate("tranHistory.deleteRevertedDesc", {
+                      count: revertedDbCount
+                    })}
+                    leftIcon='faBan'                            
+                    onPress={onDeleteReverted}                                      
                 />
             </> 
           }

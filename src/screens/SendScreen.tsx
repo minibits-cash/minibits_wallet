@@ -976,7 +976,7 @@ const SendAsNostrDMBlock = observer(function (props: {
           <Text
             selectable
             text={props.encodedTokenToSend}
-            style={{color: tokenTextColor, paddingBottom: spacing.medium}}
+            style={{color: tokenTextColor, paddingBottom: spacing.medium, fontFamily: typography.code?.normal}}
             size="xxs"
           />
         </ScrollView>
@@ -1138,27 +1138,9 @@ const $amountInput: TextStyle = {
 const $contentContainer: TextStyle = {
     flex: 1,
     padding: spacing.extraSmall,
-    marginTop: -spacing.extraLarge * 2
+    marginTop: -spacing.extraLarge * 1.5
 }
 
-const $memoCard: ViewStyle = {
-  marginBottom: spacing.small,
-}
-
-const $memoContainer: ViewStyle = {
-  flex: 1,
-  flexDirection: 'row',
-  justifyContent: 'center',
-  alignItems: 'center',
-}
-
-const $memoInput: TextStyle = {
-  flex: 1,
-  borderRadius: spacing.small,
-  fontSize: 16,
-  textAlignVertical: 'center',
-  marginRight: spacing.small,
-}
 
 const $tokenContainer: ViewStyle = {
   borderRadius: spacing.small,

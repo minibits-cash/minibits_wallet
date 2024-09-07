@@ -276,7 +276,7 @@ const createClaim = async function (walletId: string, seedHash: string, pubkey: 
 }
 
 
-const fetchApi = async (url: string, options: MinibitsRequestOptions, timeout = 60000) => { //ms
+const fetchApi = async (url: string, options: MinibitsRequestOptions, timeout = 20000) => { //ms
     log.trace('[fetchApi] start', url)
     
     const controller = new AbortController()
@@ -285,7 +285,7 @@ const fetchApi = async (url: string, options: MinibitsRequestOptions, timeout = 
 
     const promise = fetch(url, {...options, body, headers})
     const kill = new Promise((resolve) => setTimeout(resolve, timeout))
-    const response: Response = await Promise.race([promise, kill]) as Response        
+    const response = await Promise.race([promise, kill]) as Response        
 
     if (!response) {
         controller.abort()

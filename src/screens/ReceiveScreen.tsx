@@ -283,7 +283,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
             <>
               {memo && transactionStatus !== TransactionStatus.COMPLETED && (
                 <Card
-                  style={[$card]}
+                  style={$memoCard}
                   ContentComponent={
                     <ListItem
                       text={memo}
@@ -295,7 +295,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                           color={iconColor}
                         />
                       }
-                      style={[$item, {marginTop: spacing.small}]}
+                      // style={[$item, {marginTop: spacing.small}]}
                     />
                   }
                 />
@@ -519,7 +519,7 @@ const $amountToReceive: TextStyle = {
 const $contentContainer: TextStyle = {
   flex: 1,
   padding: spacing.extraSmall,
-  marginTop: -spacing.extraLarge * 2,
+  marginTop: -spacing.extraLarge * 1.5,
   // alignItems: 'center',
 }
 
@@ -527,6 +527,11 @@ const $card: ViewStyle = {
   // marginTop: - spacing.extraLarge * 2,
   marginBottom: spacing.small,
   paddingTop: 0,
+}
+
+const $memoCard: ViewStyle = {
+  marginBottom: spacing.small,
+  minHeight: 80,
 }
 
 const $item: ViewStyle = {
