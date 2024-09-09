@@ -547,6 +547,14 @@ const _syncStateWithMintTask = async function (
 
                 transactionStateUpdates.push(...pendingStateUpdates)
 
+                // If we somehow found pending proofs inside spendable balance during cleanup from spent, move them to pending
+                if(!isPending) {
+                    // remove it from spendable proofs in the wallet
+                    proofsStore.removeProofs(newPendingByMintProofs as Proof[], false) // we clean spendable balance
+                    // add proofs to the pending wallet                
+                    proofsStore.addProofs(newPendingByMintProofs as Proof[], true)
+                }
+
                 // Update related transactions statuses
                 log.debug('[_syncStateWithMintTask]', 'Transaction id(s) to be pending', pendingTransactionIds.toString())
 
@@ -649,7 +657,7 @@ const _syncStateWithMintTask = async function (
                 // remove handled secrets from pendingByMint state
                 proofsStore.removeManyFromPendingByMint(secretsTobeMovedToSpendable)
             }
-        }      
+        }
         
         return {
             taskFunction: '_syncStateWithMintTask',

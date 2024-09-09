@@ -69,41 +69,47 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
     const [pendingIsAll, setPendingIsAll] = useState<boolean>(false)
 
     useEffect(() => {
-        setIsLoading(true)
-        const count = Database.getTransactionsCount() // all
-        const pendingCount = Database.getTransactionsCount(TransactionStatus.PENDING)
-        const expiredCount = Database.getTransactionsCount(TransactionStatus.EXPIRED)
-        const erroredCount = Database.getTransactionsCount(TransactionStatus.ERROR)
-        const revertedCount = Database.getTransactionsCount(TransactionStatus.REVERTED)
-        
-        log.trace('transaction counts', {count, pendingCount})
+        const init = async () => {     
+            setIsLoading(true)
+            const count = Database.getTransactionsCount() // all
+            const pendingCount = Database.getTransactionsCount(TransactionStatus.PENDING)
+            const expiredCount = Database.getTransactionsCount(TransactionStatus.EXPIRED)
+            const erroredCount = Database.getTransactionsCount(TransactionStatus.ERROR)
+            const revertedCount = Database.getTransactionsCount(TransactionStatus.REVERTED)
+            
+            log.trace('transaction counts', {count, pendingCount, erroredCount, revertedCount})
 
-        setDbCount(count)
-        setPendingDbCount(pendingCount)
-        setExpiredDbCount(expiredCount)
-        setErroredDbCount(erroredCount)
+            setDbCount(count)
+            setPendingDbCount(pendingCount)
+            setExpiredDbCount(expiredCount)
+            setErroredDbCount(erroredCount)
+            setRevertedDbCount(revertedCount)
 
-        setIsLoading(false)
+            setIsLoading(false)
 
-        if (count <= limit) {  
-            log.trace('setAll true')          
-            setIsAll(true)
+            if (count <= limit) {  
+                log.trace('setAll true')          
+                setIsAll(true)
+            }
+
+            if (pendingCount <= limit) {  
+                log.trace('setPendingAll true')          
+                setPendingIsAll(true)
+            }
+            // Run on component unmount (cleanup)
+            return () => {
+                /* When leaving screen we remove all transactions over maxTransactionsByMint
+                * from the transactionsStore that might have been sourced from sqlite db while browsing older records
+                */
+                for (const mint of mintsStore.allMints) {
+                    transactionsStore.removeOldByMint(mint.mintUrl)
+                    transactionsStore.removeAllWithoutCurrentMint() // avoid that tx from deleted mints remain in model forever
+                }            
+            }
         }
 
-        if (pendingCount <= limit) {  
-            log.trace('setPendingAll true')          
-            setPendingIsAll(true)
-        }
-        // Run on component unmount (cleanup)
-        return () => {
-            /* When leaving screen we remove all transactions over maxTransactionsByMint
-            * from the transactionsStore that might have been sourced from sqlite db while browsing older records
-            */
-            for (const mint of mintsStore.allMints) {
-                transactionsStore.removeOldByMint(mint.mintUrl)
-                transactionsStore.removeAllWithoutCurrentMint() // avoid that tx from deleted mints remain in model forever
-            }            
-        }
+        init()
+        return () => {}
     }, [])
 
     const toggleDeleteModal = () => {
@@ -143,7 +149,7 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
             const result = await Database.getTransactionsAsync(limit, pendingOffset, true) // pending
 
             if (result && result.length > 0) {
-                // Add new transaction to the transactions store so mobx refreshes UI
+                // Add new transaction to the transactions store so that mobx refreshes UI
                 transactionsStore.addTransactionsToModel(result._array)
 
                 setOffset(pendingOffset + result.length)

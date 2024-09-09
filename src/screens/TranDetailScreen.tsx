@@ -934,9 +934,65 @@ const SendInfoBlock = function (props: {
     colorScheme: 'light' | 'dark'
 }) {
     const {transaction, isDataParsable, copyToken, mint} = props
-    
-    const sendBg = useThemeColor('background')
-    const tokenTextColor = useThemeColor('textDim')
+    const {proofsStore, transactionsStore} = useStores()
+
+    const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
+    const [resultModalInfo, setResultModalInfo] = useState<
+      {status: TransactionStatus; message: string} | undefined
+    >()
+  
+    const toggleResultModal = () =>
+      setIsResultModalVisible(previousState => !previousState)    
+
+    const onRevertPendingSend = async function () {
+      try {
+        log.trace('[onRevertPendingSend]', {tId: transaction.id})
+        
+        const pendingProofs = proofsStore.getByTransactionId(transaction.id!, true)
+
+        if(pendingProofs.length === 0) {
+          const message = 'Could not get proofs related to the transaction from wallet state.'
+          throw new AppError(Err.VALIDATION_ERROR, message)          
+        }
+
+        const pendingProofsAmount = CashuUtils.getProofsAmount(pendingProofs)
+        
+        if(pendingProofsAmount !== transaction.amount) {
+          log.warn('[onRevertPendingSend]', 'pendingProofs amount is not equal transaction amount.', {
+            tId: transaction.id, 
+            pendingProofsAmount,
+            amount: transaction.amount
+          })         
+        }
+  
+        if(pendingProofs.length > 0) {          
+          // remove it from pending proofs in the wallet
+          proofsStore.removeProofs(pendingProofs, true, true)
+          // add proofs back to the spendable wallet                
+          proofsStore.addProofs(pendingProofs)
+        }
+        
+        const message = 'Ecash unclaimed by the payee has been returned to spendable balance.'
+  
+        const transactionDataUpdate = {
+          status: TransactionStatus.REVERTED,      
+          message,
+          createdAt: new Date(),
+        }
+  
+        await transactionsStore.updateStatuses(
+            [transaction.id!],
+            TransactionStatus.REVERTED,
+            JSON.stringify(transactionDataUpdate),
+        )
+  
+        setResultModalInfo({status: TransactionStatus.REVERTED, message})
+        toggleResultModal()
+      } catch (e: any) {
+        setResultModalInfo({status: TransactionStatus.ERROR, message: e.message})
+        toggleResultModal()
+      }
+    }
     
     return (
         <>
@@ -984,9 +1040,7 @@ const SendInfoBlock = function (props: {
                                 style={{marginVertical: spacing.small}}
                                 preset="secondary"
                                 tx="tranDetailScreen.revert"
-                                onPress={() =>
-                                  Alert.alert('Not yet implemented. Copy the token instead.')
-                                }
+                                onPress={onRevertPendingSend}
                             />
                             </View>
                         ) : (
@@ -1052,8 +1106,52 @@ const SendInfoBlock = function (props: {
               />
               )}
             </>
-        )}
-    </>
+          )}
+          <BottomModal
+            isVisible={isResultModalVisible ? true : false}          
+            ContentComponent={
+              <>
+                {resultModalInfo?.status === TransactionStatus.REVERTED && (
+                  <>
+                    <ResultModalInfo
+                      icon="faCheckCircle"
+                      iconColor={colors.palette.success200}
+                      title={'Transaction reverted'}
+                      message={resultModalInfo?.message}
+                    />
+                    <View style={$buttonContainer}>
+                      <Button
+                        preset="secondary"
+                        tx={'common.close'}
+                        onPress={toggleResultModal}
+                      />
+                    </View>
+                  </>
+                )}
+                {resultModalInfo?.status === TransactionStatus.ERROR && (
+                  <>
+                    <ResultModalInfo
+                      icon="faTriangleExclamation"
+                      iconColor={colors.palette.angry500}
+                      title={"Error"}
+                      message={resultModalInfo?.message as string}
+                    />
+                    <View style={$buttonContainer}>
+                      <Button
+                        preset="secondary"
+                        tx='common.close'
+                        onPress={toggleResultModal}
+                      />
+                    </View>
+                  </>
+                )}
+              </>
+            }
+            onBackButtonPress={toggleResultModal}
+            onBackdropPress={toggleResultModal}
+          />
+      </>
+      
   )
 }
 

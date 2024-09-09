@@ -57,6 +57,7 @@ export const transferTask = async function (
 
     let transactionId: number = 0
     let proofsToPay: ProofV3[] = []
+    let proofsToPayAmount: number = 0
 
     try {
         if (amountToTransfer + meltQuote.fee_reserve > mintBalanceToTransferFrom.balances[unit]!) {
@@ -125,12 +126,12 @@ export const transferTask = async function (
 
         proofsToPay = swapResult.proofs
         const {mintFeePaid, mintFeeReserve, isSwapNeeded} = swapResult
-        const proofsAmount = CashuUtils.getProofsAmount(proofsToPay)
+        proofsToPayAmount = CashuUtils.getProofsAmount(proofsToPay)
 
         // TODO in case of swap from inactive keysets, different meltFees might apply than above calculated meltFeeReserve
         // In such case, we might need to add / substract the fee difference to / from proofsToPay
 
-        log.debug('[transfer]', 'Prepared poofsToPay amount', proofsAmount)
+        log.debug('[transfer]', 'Prepared poofsToPay amount', {proofsToPayAmount, unit})
 
         // Update transaction status
         transactionData.push({
@@ -159,7 +160,7 @@ export const transferTask = async function (
             unit, 
             countOfInFlightProofs, 
             transactionId
-        )        
+        )
 
         const {isPaid, preimage, feeSavedProofs} = await walletStore.payLightningMelt(
             mintUrl,
@@ -257,11 +258,9 @@ export const transferTask = async function (
                 lockedProofsCounter.resetInFlight(transactionId as number)
             }
 
-            // Return tokens intended for payment to the wallet if payment failed with an error
+            // If Exception was trigerred most likely by walletStore.payLightningMelt()
             if (proofsToPay.length > 0) {
-                log.warn('[transfer]', 'Returning proofsToPay to the wallet or keeping them pending if a mint keeps the payment in flight.', proofsToPay.length)
-                
-                // update transaction status and proofs state based on sync with the mint
+                // check with the mint if proofs are not pending by mint, if yes, set transaction status pending (timeout-ed/hodled lightning payments)
                 const { pendingTransactionIds } = await WalletTask.syncStateWithMintSync({
                     mintUrl,
                     isPending: true
@@ -269,7 +268,9 @@ export const transferTask = async function (
                          
                 const transaction = transactionsStore.findById(transactionId)
 
-                if(transaction?.status === TransactionStatus.PENDING) {                    
+                if(transaction?.status === TransactionStatus.PENDING) {
+                    log.warn('[transfer]', 'proofsToPay from transfer with error are pending by mint', {proofsToPayAmount, unit})
+
                     return {
                         taskFunction: TRANSFER,
                         mintUrl,
@@ -279,6 +280,21 @@ export const transferTask = async function (
                         meltQuote,
                         nwcEvent
                     } as TransactionTaskResult
+                } else {
+                    log.warn('[transfer]', 'proofsToPay from transfer with error to be returned to spendable wallet', {proofsToPayAmount, unit})
+
+                    // remove it from pending proofs in the wallet
+                    proofsStore.removeProofs(proofsToPay as Proof[], true, true)
+                    // add proofs back to the spendable wallet with internal references
+                    const {addedAmount} = WalletUtils.addCashuProofs(
+                        mintUrl, 
+                        proofsToPay, 
+                        {
+                            unit,
+                            transactionId,
+                            isPending: false
+                        }
+                    )                    
                 }
             }
 

@@ -810,7 +810,7 @@ const getTransactionsAsync = async function (limit: number, offset: number, isPe
         const db = getInstance()
         const {rows} = await db.executeAsync(query, params)
 
-        // log.trace('Returned rows', rows?.length)
+        log.trace('[getTransactionsAsync], Returned rows', rows?.length)
         return rows
     } catch (e: any) {
         throw new AppError(
