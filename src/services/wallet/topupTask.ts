@@ -44,11 +44,11 @@ export const topupTask = async function (
         },
     ]
 
-    let transactionId: number = 0
+    let transaction: Transaction | undefined = undefined
     const mintUrl = mintBalanceToTopup.mintUrl
 
     try {
-        const newTransaction: Transaction = {
+        const newTransaction = {
             type: TransactionType.TOPUP,
             amount: amountToTopup,
             fee: 0,
@@ -59,8 +59,7 @@ export const topupTask = async function (
             status: TransactionStatus.DRAFT,
         }
         // store tx in db and in the model
-        const storedTransaction: TransactionRecord = await transactionsStore.addTransaction(newTransaction)
-        transactionId = storedTransaction.id as number        
+        transaction = await transactionsStore.addTransaction(newTransaction)        
 
         const {
             encodedInvoice, 
@@ -118,7 +117,7 @@ export const topupTask = async function (
             contactFrom,
             contactTo: contactTo || undefined,
             expiry: expiry || 600,
-            transactionId,
+            transactionId: transaction.id!,
             createdAt: timestamp ? new Date(timestamp * 1000) : new Date()
         }        
 
@@ -130,8 +129,7 @@ export const topupTask = async function (
             paymentRequest,
         })
 
-        const pendingTransaction = await transactionsStore.updateStatus(
-            transactionId,
+       transaction.setStatus(            
             TransactionStatus.PENDING,
             JSON.stringify(transactionData),
         )
@@ -152,25 +150,23 @@ export const topupTask = async function (
         return {
             taskFunction: TOPUP,
             mintUrl,
-            transaction: pendingTransaction,
+            transaction,
             message: '',
             encodedInvoice,
             paymentRequest,
             nwcEvent
         } as TransactionTaskResult
 
-    } catch (e: any) {
-        let errorTransaction: TransactionRecord | undefined = undefined
+    } catch (e: any) {        
 
-        if (transactionId > 0) {
+        if (transaction) {
             transactionData.push({
                 status: TransactionStatus.ERROR,
                 error: WalletUtils.formatError(e),
                 createdAt: new Date()
             })
 
-            errorTransaction = await transactionsStore.updateStatus(
-                transactionId,
+            transaction.setStatus(                
                 TransactionStatus.ERROR,
                 JSON.stringify(transactionData),
             )
@@ -180,7 +176,7 @@ export const topupTask = async function (
 
         return {
             taskFunction: TOPUP,
-            transaction: errorTransaction || undefined,
+            transaction,
             message: e.message,
             error: WalletUtils.formatError(e),
         } as TransactionTaskResult

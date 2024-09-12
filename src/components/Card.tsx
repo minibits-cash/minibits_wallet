@@ -241,7 +241,8 @@ export const Card = function (props: CardProps) {
       {LabelComponent ||
         (isLabelPresent && (
           <Text
-            //weight="bold"
+            size='xs' 
+            preset='formHelper'
             text={label}
             tx={labelTx}
             txOptions={labelTxOptions}

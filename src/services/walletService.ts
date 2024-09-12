@@ -77,7 +77,7 @@ type WalletTaskService = {
         encodedToken: string,
     ) => Promise<void>
     receiveOfflineComplete: (        
-        transaction: Transaction
+        transactionId: number
     ) => Promise<void>
     send: (
         mintBalanceToSendFrom: MintBalance,
@@ -219,13 +219,13 @@ const receiveOfflinePrepare = async function (
 
 
 const receiveOfflineComplete = async function (
-    transaction: Transaction
+    transactionId: number
 ): Promise<void> {
     const now = new Date().getTime()
     SyncQueue.addTask(
         `receiveOfflineCompleteTask-${now}`,             
         async () => await receiveOfflineCompleteTask(
-            transaction,            
+            transactionId            
         )
     )
     return
@@ -834,7 +834,7 @@ const _handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTas
             createdAt: new Date(),
         }
 
-        transactionsStore.updateStatuses(
+        await transactionsStore.updateStatuses(
             [transactionId],
             TransactionStatus.COMPLETED, // has been most likely DRAFT
             JSON.stringify(transactionDataUpdate),
@@ -917,8 +917,8 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
     let lockedProofsCounter: MintProofsCounter | undefined = undefined
 
     try {
-        if(!mintInstance || !mintQuote || !unit || !amount) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Missing mint or mint quote or mintUnit or amountToTopup', {mintUrl})
+        if(!mintInstance || !mintQuote || !unit || !amount || !transaction) {
+            throw new AppError(Err.VALIDATION_ERROR, 'Missing mint, mint quote, mintUnit, amountToTopup or transaction', {mintUrl})
         }
         
         const amountPreferences = getDefaultAmountPreference(amount)        
@@ -942,7 +942,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
                 log.debug('[_handlePendingTopupTask]', `Invoice expired, removing: ${pr.paymentHash}`)
 
                 // expire related tx - but only if it has not been completed before this check
-                if(transaction && transaction.status !== TransactionStatus.COMPLETED) {
+                if(transaction.status !== TransactionStatus.COMPLETED) {
                     const transactionDataUpdate = {
                         status: TransactionStatus.EXPIRED,
                         message: 'Invoice expired',                        
@@ -1035,21 +1035,20 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
             JSON.stringify(transactionDataUpdate),
         )
 
-        transactionsStore.updateSentFrom(
-            transactionId,
-            pr.contactTo?.nip05 as string // payemnt has been sent from payment request receiver
-        )
+        // payment has been sent from payment request receiver
+        if(pr.contactTo) {
+            transaction.setSentFrom(
+                pr.contactTo.nip05handle ?? pr.contactTo.name!
+            )
 
-        // Fire event that the TopupScreen can listen to // TODO replace by standard task result event
-        // EventEmitter.emit('ev_topupCompleted', {...pr})
+            transaction.setProfile(
+                JSON.stringify(getSnapshot(pr.contactTo)) 
+            )
+        }
         
         // Update tx with current total balance of topup unit/currency
         const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
-
-        await transactionsStore.updateBalanceAfter(
-            transactionId,
-            balanceAfter,
-        )     
+        transaction.setBalanceAfter(balanceAfter)     
     
         _sendTopupNotification(pr)
         paymentRequestsStore.removePaymentRequest(pr)        
@@ -1060,7 +1059,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
             unit,
             amount,
             paymentHash,
-            transaction: transactionsStore.findById(transactionId),
+            transaction,
             message: `Your invoice has been paid and your wallet balance credited with ${formatCurrency(amount, currencyCode)} ${currencyCode}.`,
         } as TransactionTaskResult
 
@@ -1075,7 +1074,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
             unit,
             amount,
             paymentHash,
-            transaction: transactionsStore.findById(transactionId),
+            transaction,
             error: {name: e.name, message: e.message, params: e.params || undefined},
             message: `_handlePendingTopupTask ended with error: ${e.message}`,                        
         } as TransactionTaskResult
@@ -1136,7 +1135,12 @@ const handleClaim = async function (): Promise<void> {
 }
 
 
-const _handleClaimTask = async function (params: {claimedToken: {token: string, zapSenderProfile?: string}}) {
+const _handleClaimTask = async function (params: {
+    claimedToken: {
+        token: string, 
+        zapSenderProfile?: string,
+        zapRequest?: string,
+    }}) {
     let decoded: TokenV3 | undefined = undefined
 
     try {
@@ -1164,16 +1168,23 @@ const _handleClaimTask = async function (params: {claimedToken: {token: string, 
             encodedToken,
         )
 
-        if(result && result.transaction && claimedToken.zapSenderProfile) {
+        if(result && result.transaction) {
+            const transaction = transactionsStore.findById(result.transaction.id!)
+            const {zapSenderProfile, zapRequest} = claimedToken
 
-            const {zapSenderProfile} = claimedToken
-            const zapSenderProfileData: NostrProfile = JSON.parse(zapSenderProfile)
-            const sentFrom = zapSenderProfileData.nip05 || zapSenderProfileData.name
-            
-            await transactionsStore.updateSentFrom(
-                result.transaction.id as number,
-                sentFrom as string
-            )
+            if(transaction) {
+                if (zapSenderProfile) {
+                    transaction.setProfile(zapSenderProfile as string)
+                    try {
+                        const profile: NostrProfile = JSON.parse(zapSenderProfile)
+                        transaction.setSentFrom(profile.nip05 ?? profile.name)
+                    } catch(e: any) {}
+                }
+
+                if (zapRequest) {
+                    transaction.setZapRequest(zapRequest as string)
+                }
+            }
         }
 
         return { 
@@ -1308,8 +1319,6 @@ const receiveEventsFromRelays = async function (): Promise<void> {
     }
 }
 
-
-
 const _handleReceivedEventTask = async function (event: NostrEvent): Promise<WalletTaskResult> {
     // decrypt message content
     const decrypted = await NostrClient.decryptNip04(event.pubkey, event.content)
@@ -1318,14 +1327,15 @@ const _handleReceivedEventTask = async function (event: NostrEvent): Promise<Wal
     
     // get sender profile and save it as a contact
     // this is not valid for events sent from LNURL bridge, that are sent and signed by a minibits server key
-    // and *** do not contain sentFrom ***
+    // and *** do not contain sentFrom *** // LEGACY, replaced by claim api
     let sentFromPubkey = event.pubkey
     let sentFrom = NostrClient.getFirstTagValue(event.tags, 'from')
     let sentFromNpub = NostrClient.getNpubkey(sentFromPubkey)
-    let contactFrom: Contact | undefined = undefined 
+    let contactFrom: Contact | undefined = undefined
+    let zapSenderProfile: NostrProfile | undefined = undefined 
     let sentFromPicture: string | undefined = undefined          
 
-    // add sender to contacts
+    // add ecash sender to the contacts
     if(sentFrom) {
         const sentFromName = NostrClient.getNameFromNip05(sentFrom as string)                                  
         
@@ -1346,7 +1356,31 @@ const _handleReceivedEventTask = async function (event: NostrEvent): Promise<Wal
             isExternalDomain: sentFrom.includes(MINIBITS_NIP05_DOMAIN) ? false : true                        
         } as Contact
         
-        contactsStore.addContact(contactFrom)
+        contactsStore.addContact(contactFrom)        
+    } else {
+        // Event was sent from Minibits server
+        const maybeZapSenderString = _extractZapSenderData(decrypted)
+
+        if(maybeZapSenderString) {
+            try {
+                zapSenderProfile = JSON.parse(maybeZapSenderString)            
+
+                if(zapSenderProfile) {
+                    sentFromPubkey = zapSenderProfile.pubkey // zap sender pubkey                
+                    sentFrom = zapSenderProfile.nip05 ?? zapSenderProfile.name                
+                    sentFromPicture = zapSenderProfile.picture
+                    const sentFromLud16 = zapSenderProfile.lud16
+                            
+                    // if we have such contact, set or update its lightning address by the one from profile
+                    const contactInstance = contactsStore.findByPubkey(sentFromPubkey)
+                    if(contactInstance && sentFromLud16) {                                        
+                        contactInstance.setLud16(sentFromLud16)
+                    }
+                }            
+            } catch (e: any) {
+                log.warn('[_handleReceivedEventTask]', 'Could not get sender from zapRequest', {message: e.message, maybeZapSenderString})
+            }
+        }
     }
 
     // parse incoming message
@@ -1370,12 +1404,30 @@ const _handleReceivedEventTask = async function (event: NostrEvent): Promise<Wal
             incoming.encoded as string,
         )
 
-        // If the decrypted DM contains zap request, payment is a zap coming from LNURL server. 
-        // We retrieve the sender, we do not save zap sender to contacts, just into tx details
+        // store contact or zapseder in tx details
+        if(transaction && sentFrom) {
+            if (contactFrom) {
+                transaction.setProfile(JSON.stringify(contactFrom))
+                transaction.setSentFrom(sentFrom)
+            }
+    
+            if (zapSenderProfile) {
+                transaction.setProfile(JSON.stringify(zapSenderProfile))
+                transaction.setSentFrom(sentFrom)
+            }
 
-        // We do it defensively only after cash is received
-        // and asynchronously so we speed up queue, as for zaps relay comm takes long
-        _sendReceiveNotification(event, decrypted, transaction as Transaction, receivedAmount) // TODO move to task result handler
+            const isZap = zapSenderProfile ? true : false
+
+            // We do it defensively only after cash is received
+            // and asynchronously so we speed up queue
+            _sendReceiveNotification(
+                receivedAmount,
+                transaction.unit,
+                isZap,
+                sentFrom,
+                sentFromPicture                
+            ) // TODO move to task result handler
+        }
 
         return {
             mintUrl: decoded.token[0].mint,
@@ -1388,7 +1440,7 @@ const _handleReceivedEventTask = async function (event: NostrEvent): Promise<Wal
                 decrypted,
                 transaction,
                 receivedAmount
-            }
+            } // not used`
         } as WalletTaskResult                  
     }
 
@@ -1457,62 +1509,27 @@ const _handleReceivedEventTask = async function (event: NostrEvent): Promise<Wal
 
 
 
-const _sendReceiveNotification = async function (
-    event: NostrEvent, 
-    decrypted: string, 
-    transaction: Transaction,
-    receivedAmount: number
+const _sendReceiveNotification = async function (    
+    receivedAmount: number,
+    unit: MintUnit,
+    isZap: boolean,
+    sentFrom: string,
+    sentFromPicture?: string
 ): Promise<void> {
-    let sentFromPubkey = event.pubkey
-    let sentFrom = NostrClient.getFirstTagValue(event.tags, 'from')
-    let sentFromPicture: string | undefined = undefined
-
-    if(transaction) {
-        await transactionsStore.updateSentFrom(
-            transaction.id as number,
-            sentFrom as string
-        ) 
-    }
-
-    // return if user has not allowed notifications
+    
     const enabled = await NotificationService.areNotificationsEnabled()
     if(!enabled) {
         return
     }
 
-    const maybeZapSenderString = _extractZapSenderData(decrypted)
-
-    if(maybeZapSenderString) {
-        try {
-            const zapSenderProfile: NostrProfile = JSON.parse(maybeZapSenderString)
-            
-
-            if(zapSenderProfile) {
-                sentFromPubkey = zapSenderProfile.pubkey // zap sender pubkey                
-                sentFrom = zapSenderProfile.nip05 || zapSenderProfile.name                
-                sentFromPicture = zapSenderProfile.picture
-                const sentFromLud16 = zapSenderProfile.lud16
-                        
-                // if we have such contact, set or update its lightning address by the one from profile
-                const contactInstance = contactsStore.findByPubkey(sentFromPubkey)
-                if(contactInstance && sentFromLud16) {                                        
-                    contactInstance.setLud16(sentFromLud16)
-                }                                      
-                
-            }            
-        } catch (e: any) {
-            log.warn('[_handleReceivedEventTask]', 'Could not get sender from zapRequest', {message: e.message, maybeZapSenderString})
-        }
-    }
-
     //
     // Send notification event
     //
-    const currencyCode = getCurrency(transaction.unit).code
+    const currencyCode = getCurrency(unit).code
     if(receivedAmount && receivedAmount > 0) {
         await NotificationService.createLocalNotification(
             `<b>⚡${formatCurrency(receivedAmount, currencyCode)} ${currencyCode}</b> received!`,
-            `${maybeZapSenderString ? 'Zap' : 'Ecash'} from <b>${sentFrom || 'unknown payer'}</b> is now in your wallet.`,
+            `${isZap ? 'Zap' : 'Ecash'} from <b>${sentFrom || 'unknown payer'}</b> is now in your wallet.`,
             sentFromPicture       
         ) 
     }

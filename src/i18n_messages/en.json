@@ -476,6 +476,7 @@
 		"revert": "Revert",
 		"sentFrom": "Sent from",
 		"sentTo": "Sent to",
+		"eventUrl": "Zapped note",
 		"status": "Status",
 		"topupTo": "Topup to",
 		"trasferredTo": "Paid to",
@@ -492,7 +493,8 @@
 		"invoiceToPay": "Invoice to pay",
 		"invoiceNotPaid": "Invoice not paid",
 		"invoiceExpired": "Invoice expired",
-		"topupError": "Topup error"
+		"topupError": "Topup error",
+		"proof": "Proof of payment"
 	},
 	"transactionCommon": {
 		"feePaid": "Paid fee",

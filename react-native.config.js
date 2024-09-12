@@ -3,5 +3,5 @@ module.exports = {
         automaticPodsInstallation: true,
         android:{}
     },
-    assets:['./assets/fonts/'],
+    assets:['./assets/fonts/', './assets/icons/'],
 }

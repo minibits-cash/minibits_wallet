@@ -265,14 +265,18 @@ const createClaim = async function (walletId: string, seedHash: string, pubkey: 
         batchFrom
     }        
 
-    const claimedInvoices: Array<{token: string, zapSenderProfile?: string}> = await fetchApi(url, {
+    const claimedTokens: Array<{
+        token: string, 
+        zapSenderProfile?: string, 
+        zapRequest?: string
+    }> = await fetchApi(url, {
         method,        
         body
     })
 
     log.debug(`[minibitsClient.createClaim] Got claim response`)
 
-    return claimedInvoices
+    return claimedTokens
 }
 
 

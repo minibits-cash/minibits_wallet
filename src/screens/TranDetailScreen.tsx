@@ -2,8 +2,11 @@ import {observer} from 'mobx-react-lite'
 import React, {FC, useCallback, useEffect, useRef, useState} from 'react'
 import {
   Alert,
+  Image,
   LayoutAnimation,
+  Linking,
   Platform,
+  Pressable,
   ScrollView,
   TextInput,
   TextStyle,
@@ -39,7 +42,7 @@ import {
 import AppError, {Err} from '../utils/AppError'
 import {log} from '../services/logService'
 import {isArray} from 'lodash'
-import {Database, TransactionTaskResult, WalletTask} from '../services'
+import {Database, NostrClient, NostrEvent, NostrProfile, TransactionTaskResult, WalletTask} from '../services'
 import {BackupProof, Proof} from '../models/Proof'
 import useColorScheme from '../theme/useThemeColor'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
@@ -73,9 +76,9 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
     const noteInputRef = useRef<TextInput>(null)
 
     const [transaction, setTransaction] = useState<Transaction>()
-    const [proofsByStatus, setProofsByStatus] = useState<
+    /* const [proofsByStatus, setProofsByStatus] = useState<
       ProofsByStatus | undefined
-    >(undefined)
+    >(undefined)*/
     const [error, setError] = useState<AppError | undefined>()
     const [isNoteModalVisible, setIsNoteModalVisible] = useState<boolean>(false)
     const [isDataParsable, setIsDataParsable] = useState<boolean>(true)    
@@ -120,7 +123,7 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
       }
     }, [route]))
 
-    useEffect(() => {
+    /* useEffect(() => {
       try {
         const {id} = route.params
 
@@ -152,7 +155,7 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
       } catch (e: any) {
         log.error(e.name, e.message)
       }
-    }, [])
+    }, []) */
 
     useEffect(() => {
       const focus = () => {
@@ -179,47 +182,44 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
     const saveNote = async function () {
       try {
         setIsNoteModalVisible(false)
-        await transactionsStore.saveNote(transaction?.id as number, note)
+        transaction!.setNote(note)
         setSavedNote(note)
       } catch (e: any) {
         handleError(e)
       }
     }
 
-    const copyAuditTrail = function (transaction: Transaction) {
-      try {
-        Clipboard.setString(JSON.stringify(getAuditTrail(transaction)))
+    const copyAuditTrail = function () {
+      try {        
+        if(transaction) Clipboard.setString(JSON.stringify(getAuditTrail(transaction)))
       } catch (e: any) {
         setInfo(translate("common.copyFailParam", { param: e.message }))
       }
     }
 
-    const copyToken = function (transaction: Transaction) {
-      try {
-          const encoded = getEncodedTokenToSend(transaction)
-
-          if (!encoded) {
-            throw new AppError(
-              Err.VALIDATION_ERROR,
-              'Could not get encoded ecash token from transaction',
-            )
-          }
-
-          Clipboard.setString(encoded)
-
-        } catch (e: any) {
-          setInfo(translate("common.copyFailParam", { param: e.message }))
-        }
+    const copyInputToken = function () {
+      try {        
+        if(transaction && transaction.inputToken) Clipboard.setString(transaction.inputToken)
+      } catch (e: any) {
+        setInfo(translate("common.copyFailParam", { param: e.message }))
+      }
     }
 
+    const copyOutputToken = function () {
+      try {        
+        if(transaction && transaction.outputToken) Clipboard.setString(transaction.outputToken)
+      } catch (e: any) {
+        setInfo(translate("common.copyFailParam", { param: e.message }))
+      }
+    }
 
-    const copyBackupProofs = function (proofsByStatus: ProofsByStatus) {
+    /* const copyBackupProofs = function (proofsByStatus: ProofsByStatus) {
         try {               
             Clipboard.setString(JSON.stringify(proofsByStatus))  
         } catch (e: any) {
           setInfo(translate("common.copyFailParam", { param: e.message }))
         }
-    }
+    } */
  
 
     const handleError = function (e: AppError): void {
@@ -340,8 +340,7 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
               {transaction.type === TransactionType.SEND && (
                 <SendInfoBlock
                   transaction={transaction}
-                  isDataParsable={isDataParsable}
-                  copyToken={copyToken}
+                  isDataParsable={isDataParsable}                  
                   mint={mint}
                   colorScheme={colorScheme}
                 />
@@ -365,7 +364,8 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
               )}
               {isDataParsable && (
                 <Card
-                  labelTx='tranDetailScreen.auditTrail'   
+                  labelTx='tranDetailScreen.auditTrail'
+                  style={$dataCard}   
                   ContentComponent={
                     <>
                       <ListItem
@@ -393,7 +393,7 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
                           />
                           <Button
                             preset="tertiary"
-                            onPress={() => copyAuditTrail(transaction)}
+                            onPress={copyAuditTrail}
                             tx="common.copy"
                             style={{
                               minHeight: 50,
@@ -409,7 +409,56 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
                   }
                 />
               )}
-              
+              {(
+                transaction.inputToken || 
+                transaction.outputToken) && 
+              (![
+                  TransactionStatus.REVERTED, 
+                  TransactionStatus.COMPLETED
+                ].includes(transaction.status)
+              ) && (
+                <Card
+                  label='Token tracking'   
+                  ContentComponent={
+                    <>
+                    {transaction.inputToken && (
+                      <ListItem
+                        text='Inputs'
+                        subText={transaction.inputToken}
+                        subTextEllipsizeMode='middle'
+                        subTextStyle={{fontFamily: typography.code?.normal}}
+                        RightComponent={
+                          <View style={$rightContainer}>
+                            <Button
+                              onPress={copyInputToken}
+                              text={translate("common.copy")}
+                              preset="secondary"
+                            />
+                          </View>
+                        }
+                    />
+                    )}
+                    {transaction.outputToken && (
+                      <ListItem
+                        text='Outputs'
+                        subText={transaction.outputToken}
+                        subTextEllipsizeMode='middle'
+                        subTextStyle={{fontFamily: typography.code?.normal}}
+                        RightComponent={
+                          <View style={$rightContainer}>
+                            <Button
+                              onPress={copyOutputToken}
+                              text={translate("common.copy")}
+                              preset="secondary"
+                            />
+                          </View>
+                        }
+                    />
+                    )}                        
+                  </>
+                  }
+                />
+              )}
               {/*proofsByStatus && (
                 <Card
                   labelTx='tranDetailScreen.backedUpEcash'
@@ -487,16 +536,120 @@ const ReceiveInfoBlock = function (props: {
         navigation,
         mint
     } = props
-
-    const isInternetReachable = useIsInternetReachable()
-    const encodedTokenToRetry = getEncodedTokenToRetry(transaction)  
+    
     const {transactionsStore} = useStores()
+    const [sentFromUrl, setSentFromUrl] = useState<string | undefined>()
+    const [eventUrl, setEventUrl] = useState<string | undefined>()
+    const [profilePicture, setProfilePicture] = useState<string | undefined>()
+    const [isRetriable, setIsRetriable] = useState(false)
     const [isReceiveTaskSentToQueue, setIsReceiveTaskSentToQueue] = useState<boolean>(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
     const [resultModalInfo, setResultModalInfo] = useState<
       {status: TransactionStatus; message: string} | undefined
-    >()
+    >()    
     const [isLoading, setIsLoading] = useState(false)
+    const urlPrefix: string = 'https://njump.me/'
+
+    useEffect(() => {
+      const extractZapUrls = async () => {        
+        if(!transaction || !transaction.zapRequest) {
+          return
+        }
+
+        if(transaction.sentFrom) {
+          setSentFromUrl(`${urlPrefix}${transaction.sentFrom}`)
+        }
+
+        try {
+          const zapRequestData: NostrEvent = JSON.parse(transaction.zapRequest)
+          const eventIdHex = NostrClient.getFirstTagValue(zapRequestData.tags, 'e')
+
+          if(eventIdHex) {
+
+            const nevent = NostrClient.neventEncode(eventIdHex)
+            setEventUrl(`${urlPrefix}${nevent}`)
+
+            log.trace('[extractZapUrls]', {eventIdHex, nevent})
+          }
+        } catch(e: any) {
+          return
+        }
+        
+        
+      }     
+      
+      extractZapUrls()
+    }, [])
+
+    useEffect(() => {
+      const extractPicture = async () => {        
+        if(!transaction || !transaction.profile) {
+          return
+        }        
+
+        try {
+          const profile: NostrProfile = JSON.parse(transaction.profile)
+
+          log.trace(profile)
+
+          if(profile && profile.picture) {
+            setProfilePicture(profile.picture)
+          }
+        } catch(e: any) {
+          return
+        }
+      }     
+      
+      extractPicture()
+    }, [])
+
+    useEffect(() => {
+      const canRetry = async () => {                 
+        if(![
+          TransactionStatus.ERROR, 
+          TransactionStatus.DRAFT, 
+          TransactionStatus.BLOCKED
+        ].includes(transaction.status)) {
+          return
+        }
+
+        // Make sure mint exists and is online
+        const {mintsStore} = useStores()              
+        const {mint} = transaction
+        const mintInstance = mintsStore.findByUrl(mint)
+        if(!mintInstance || mintInstance.status === MintStatus.OFFLINE) {
+            return
+        }
+
+        // make sure we have token to retry the receive
+        if(!transaction.inputToken) {
+          return
+        }
+
+        // In case of error status, allow retry for specific error messages
+        if(transaction.status === TransactionStatus.ERROR) {
+          const auditTrail = JSON.parse(transaction.data)
+          const errorRecord = auditTrail.find(
+            (record: any) => record.status === 'ERROR',
+          )              
+          
+          const {error} = errorRecord
+        
+          if(error && error.message) {
+              if(error.message.toLowerCase().includes('network request failed') || 
+                error.message.toLowerCase().includes('bad gateway') || 
+                error.message.toLowerCase().includes('outputs')) {                    
+                  setIsRetriable(true)
+              }
+  
+              return            
+          }
+        }
+        
+        setIsRetriable(true)        
+      }
+      canRetry()
+    }, [])
 
 
     useEffect(() => {
@@ -518,7 +671,7 @@ const ReceiveInfoBlock = function (props: {
                     createdAt: new Date(),
                 }
         
-                transactionsStore.updateStatuses(
+                await transactionsStore.updateStatuses(
                     [transaction.id as number],
                     TransactionStatus.EXPIRED,
                     JSON.stringify(transactionDataUpdate),
@@ -534,12 +687,14 @@ const ReceiveInfoBlock = function (props: {
             
         }
 
-        // Subscribe to the 'sendCompleted' event
-        EventEmitter.on('ev_receiveTask_result', handleReceiveTaskResult)
+        // Subscribe to the 'receiveTask' event
+        if(isReceiveTaskSentToQueue === true) {
+          EventEmitter.on('ev_receiveTask_result', handleReceiveTaskResult)
+        }        
 
-        // Unsubscribe from the 'sendCompleted' event on component unmount
+        // Unsubscribe from the 'receiveTask' event on component unmount
         return () => {
-            EventEmitter.off('ev_receiveTask_result', handleReceiveTaskResult)
+          EventEmitter.off('ev_receiveTask_result', handleReceiveTaskResult)
         }
     }, [isReceiveTaskSentToQueue])
 
@@ -548,14 +703,14 @@ const ReceiveInfoBlock = function (props: {
     setIsResultModalVisible(previousState => !previousState)
 
     const onRetryToReceive = async function () {                
-        if(!encodedTokenToRetry || !isInternetReachable) {
+        if(!isRetriable || !transaction.inputToken) {
             return
         }
         
         setIsLoading(true)     
 
         try {    
-            const tokenToRetry: TokenV3 = CashuUtils.decodeToken(encodedTokenToRetry)              
+            const tokenToRetry: TokenV3 = CashuUtils.decodeToken(transaction.inputToken)              
             const amountToReceive = CashuUtils.getTokenAmounts(tokenToRetry).totalAmount
             const memo = tokenToRetry.memo || ''
             
@@ -564,9 +719,8 @@ const ReceiveInfoBlock = function (props: {
                 tokenToRetry,
                 amountToReceive,
                 memo,
-                encodedTokenToRetry
-            )
- 
+                transaction.inputToken
+            ) 
 
         } catch (e: any) {
             setResultModalInfo({
@@ -581,8 +735,9 @@ const ReceiveInfoBlock = function (props: {
 
     const onGoBack = () => {
         navigation.goBack()
-    } 
-
+    }
+    
+    
     return (
     <>
         <Card
@@ -601,11 +756,47 @@ const ReceiveInfoBlock = function (props: {
                         value={transaction.memo as string}
                     />
                     {transaction.sentFrom && (
+                      <>
+                      {profilePicture ? (
+                        <View
+                          style={{flexDirection: 'row', justifyContent: 'space-between'}}
+                        >
+                          <TranItem
+                              label="tranDetailScreen.sentFrom"
+                              value={transaction.sentFrom}
+                              url={sentFromUrl}
+                          />
+                          <View style={$pictureContainer}>
+                            <Image 
+                              style={
+                                {
+                                  width: moderateVerticalScale(40),
+                                  height: moderateVerticalScale(40),
+                                  borderRadius: moderateVerticalScale(40) / 2,
+                                }
+                              } 
+                              source={{uri: profilePicture}}
+                              defaultSource={require('../../assets/icons/nostr.png')}
+                            />  
+                          </View> 
+                        </View>
+                      ) : (
                         <TranItem
                             label="tranDetailScreen.sentFrom"
-                            value={transaction.sentFrom as string}
+                            value={transaction.sentFrom}
+                            url={sentFromUrl}
                         />
-                    )}                    
+                      )}
+
+                      </>
+                    )} 
+                    {eventUrl && (
+                        <TranItem
+                            label="tranDetailScreen.eventUrl"
+                            value={`${eventUrl.substring(0,30)}...`}
+                            url={eventUrl}
+                        />
+                    )}                   
                     <TranItem
                         label="tranDetailScreen.type"
                         value={transaction.type as string}
@@ -616,7 +807,7 @@ const ReceiveInfoBlock = function (props: {
                       unit={transaction.unit}
                       isCurrency={true}
                     />
-                    {encodedTokenToRetry ? (
+                    {isRetriable ? (
                         <View
                         style={{flexDirection: 'row', justifyContent: 'space-between'}}>
                         <TranItem
@@ -637,12 +828,12 @@ const ReceiveInfoBlock = function (props: {
                         />
                     )}
                     {transaction.status === TransactionStatus.COMPLETED && (
-                    <TranItem
-                        label="tranDetailScreen.balanceAfter"
-                        value={transaction.balanceAfter || 0}
-                        unit={transaction.unit}
-                        isCurrency={true}
-                    />
+                      <TranItem
+                          label="tranDetailScreen.balanceAfter"
+                          value={transaction.balanceAfter || 0}
+                          unit={transaction.unit}
+                          isCurrency={true}
+                      />
                     )}
                     <TranItem
                         label="tranDetailScreen.createdAt"
@@ -776,7 +967,7 @@ const ReceiveOfflineInfoBlock = function (props: {
     const receiveOfflineComplete = async function () {
         setIsLoading(true)
         setIsReceiveOfflineCompleteTaskSentToQueue(true)   
-        WalletTask.receiveOfflineComplete(transaction)             
+        WalletTask.receiveOfflineComplete(transaction.id!)             
     }
 
     const onGoBack = () => {
@@ -827,10 +1018,12 @@ const ReceiveOfflineInfoBlock = function (props: {
                         label="tranDetailScreen.memoFromSender"
                         value={transaction.memo as string}
                     />
-                    <TranItem
-                        label="tranDetailScreen.sentFrom"
-                        value={transaction.sentFrom as string}
-                    />
+                    {transaction.sentFrom && (
+                        <TranItem
+                            label="tranDetailScreen.sentFrom"
+                            value={transaction.sentFrom}
+                        />
+                    )} 
                     <TranItem
                         label="tranDetailScreen.type"
                         value={transaction.type as string}
@@ -928,12 +1121,11 @@ const ReceiveOfflineInfoBlock = function (props: {
 
 const SendInfoBlock = function (props: {
     transaction: Transaction
-    isDataParsable: boolean
-    copyToken: any
+    isDataParsable: boolean    
     mint?: Mint
     colorScheme: 'light' | 'dark'
 }) {
-    const {transaction, isDataParsable, copyToken, mint} = props
+    const {transaction, isDataParsable, mint} = props
     const {proofsStore, transactionsStore} = useStores()
 
     const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
@@ -1016,7 +1208,7 @@ const SendInfoBlock = function (props: {
                         {transaction.sentTo && (
                             <TranItem
                                 label="tranDetailScreen.sentTo"
-                                value={transaction.sentTo as string}
+                                value={transaction.sentTo}
                             />
                         )}
                         <TranItem
@@ -1079,34 +1271,7 @@ const SendInfoBlock = function (props: {
                       <Text text={transaction.mint} />
                   )              
                 }
-            />
-            {isDataParsable && (
-            <>
-              {transaction.status === TransactionStatus.PENDING && (
-              <Card
-                  labelTx='tranDetailScreen.pendingToken'
-                  style={$dataCard}
-                  ContentComponent={
-                    <View style={$tokenContainer}>
-                        <Text
-                          text={getEncodedTokenToSend(transaction) as string}
-                          style={$tokenText} 
-                          numberOfLines={1}
-                          ellipsizeMode="middle"                         
-                        />
-                        <Button
-                          preset="secondary"
-                          style={$copyButton}
-                          tx='common.copy'
-                          onPress={() => copyToken(transaction)}
-                          
-                        />
-                    </View>
-                  }
-              />
-              )}
-            </>
-          )}
+            />            
           <BottomModal
             isVisible={isResultModalVisible ? true : false}          
             ContentComponent={
@@ -1256,7 +1421,7 @@ const TopupInfoBlock = function (props: {
                     {transaction.sentFrom && (
                         <TranItem
                             label="tranDetailScreen.sentFrom"
-                            value={transaction.sentFrom as string}
+                            value={transaction.sentFrom}
                         />
                     )}                    
                     <TranItem
@@ -1472,6 +1637,13 @@ const TransferInfoBlock = function (props: {
     }
   }
 
+  const copyProof = function () {
+    try {        
+      if(transaction && transaction.proof) Clipboard.setString(transaction.proof)
+    } catch (e: any) {      
+    }
+  }
+
   return (
     <>
       <Card
@@ -1494,8 +1666,8 @@ const TransferInfoBlock = function (props: {
             )}
             {transaction.sentTo && (
                 <TranItem
-                    label="tranDetailScreen.trasferredTo"
-                    value={transaction.sentTo as string}
+                    label="tranDetailScreen.sentTo"
+                    value={transaction.sentTo}
                 />
             )}
             <TranItem
@@ -1560,7 +1732,28 @@ const TransferInfoBlock = function (props: {
                   <Text text={transaction.mint} />
               )              
             }
-        />      
+        />
+        {transaction.proof && (
+          <Card
+              labelTx='tranDetailScreen.proof'
+              style={$dataCard}
+              ContentComponent={
+                <ListItem
+                  text={transaction.proof}
+                  textStyle={{fontFamily: typography.code!.normal}}
+                  RightComponent={
+                    <View style={$rightContainer}>
+                      <Button
+                        onPress={copyProof}
+                        text={translate("common.copy")}
+                        preset="secondary"                        
+                      />
+                    </View>
+                  }
+                />            
+              }
+          />
+        )}     
         <BottomModal
           isVisible={isResultModalVisible ? true : false}          
           ContentComponent={
@@ -1609,15 +1802,29 @@ const TransferInfoBlock = function (props: {
 }
 
 export const TranItem = function (props: {
-    label: TxKeyPath
+    label: TxKeyPath    
     value: string | number
     unit?: MintUnit
+    url?: string
     labelStyle?: TextStyle
     valueStyle?: TextStyle 
     isFirst?: boolean
     isLast?: boolean
-    isCurrency?: boolean
+    isCurrency?: boolean    
 }) {
+
+
+    const onPressUrl = function () {
+      if(!props.url) {
+        return
+      }
+
+      try {
+        Linking.openURL(props.url!);
+      } catch(e: any) {
+        log.error('[onPressUrl] Linking.openUrl ended with error', {url: props.url})
+      }
+    }
 
     const labelColor = useThemeColor('textDim')
     const margin = !props.isFirst ? {marginTop: spacing.small} : null
@@ -1629,9 +1836,17 @@ export const TranItem = function (props: {
                 tx={props.label}
             />
             {props.isCurrency && props.unit ? (
-              <Text style={props.valueStyle || {}} text={`${formatCurrency(props.value as number, getCurrency(props.unit).code)} ${getCurrency(props.unit).code}`} />            
+              <Text style={props.valueStyle ?? {}} text={`${formatCurrency(props.value as number, getCurrency(props.unit).code)} ${getCurrency(props.unit).code}`} />            
             ) : (
-              <Text style={props.valueStyle || {}} text={props.value as string} />
+              <>
+                {props.url ? (
+                  <Pressable onPress={onPressUrl}>
+                    <Text style={props.valueStyle ?? {textDecorationLine: 'underline'}} text={props.value as string} />
+                  </Pressable>
+                ) : (
+                  <Text style={props.valueStyle ?? {}} text={props.value as string} />
+                )}                
+              </>
             )}            
         </View>
     )
@@ -1657,7 +1872,7 @@ const getAuditTrail = function (transaction: Transaction) {
     }
 }
 
-const getEncodedTokenToSend = (
+/* const getEncodedTokenToSend = (
   transaction: Transaction,
 ): string | undefined => {
     try {
@@ -1675,68 +1890,7 @@ const getEncodedTokenToSend = (
         // silent
         return undefined
     }
-}
-
-
-const getEncodedTokenToRetry = (
-    transaction: Transaction,
-  ): string | undefined => {
-    try {
-        if(transaction.type !== (TransactionType.RECEIVE || TransactionType.RECEIVE_OFFLINE)) {
-            return undefined
-        }
-
-        if (transaction.status !== TransactionStatus.ERROR && 
-            transaction.status !== TransactionStatus.DRAFT &&
-            transaction.status !== TransactionStatus.BLOCKED) {
-            return undefined
-        }
-
-        const {mintsStore} = useStores()
-
-        // skip if mint is still offline
-        const {mint} = transaction
-        const mintInstance = mintsStore.findByUrl(mint)
-        if(!mintInstance || mintInstance.status === MintStatus.OFFLINE) {
-            return undefined
-        }
-
-        const data = JSON.parse(transaction.data)
-        const draftRecord = data.find(
-            (record: any) => record.status === 'DRAFT',
-        )
-
-        const encodedTokenToRetry: string = draftRecord.encodedToken
-
-        if(!encodedTokenToRetry) {return undefined}
-
-        // return token to retry if transaction somehow got stuck in DRAFT status or user blocked a mint and than changed his mind
-        // solves #57
-        if (transaction.status === TransactionStatus.DRAFT || transaction.status === TransactionStatus.BLOCKED){
-            return encodedTokenToRetry
-        }
-
-        const errorRecord = data.find(
-            (record: any) => record.status === 'ERROR',
-        )
-        
-        const {error} = errorRecord
-        
-        if(error && error.message) {
-            if(error.message.toLowerCase().includes('network request failed') || 
-              error.message.toLowerCase().includes('bad gateway') || 
-              error.message.toLowerCase().includes('outputs')) {                    
-                return encodedTokenToRetry
-            }
-
-            return undefined            
-        }            
-    } catch (e) {
-        // silent
-        return undefined
-    }
-}
-
+} */
 
 const getPaymentRequestToRetry = (
     transaction: Transaction,
@@ -1779,7 +1933,6 @@ const getPaymentRequestToRetry = (
         return undefined
     }
 }
-
 
 const $screen: ViewStyle = {}
 
@@ -1877,5 +2030,13 @@ const $qrCodeContainer: ViewStyle = {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+  }
+
+  const $pictureContainer: ViewStyle = {
+    flex: 0,
+    // borderRadius: spacing.small,
+    // padding: spacing.extraSmall,
+    alignSelf: 'center',
+    marginRight: spacing.small,
   }
 

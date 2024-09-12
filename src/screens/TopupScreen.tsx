@@ -548,9 +548,8 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
             updated[1].sentToRelays = relaysToShareTo
             updated[1].sentEvent = sentEvent
 
-            await transactionsStore.updateStatus(
-              // status does not change, just add event and relay info to tx.data
-              transactionId as number,
+            // status does not change, just add event and relay info to tx.data
+            transaction.setStatus(                            
               TransactionStatus.PENDING,
               JSON.stringify(updated),
             )
@@ -605,8 +604,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
           error: result,
         })
 
-        await transactionsStore.updateStatus(
-          transactionId as number,
+        transaction.setStatus(          
           TransactionStatus.ERROR,
           JSON.stringify(updated),
         )

@@ -56,9 +56,21 @@ export interface ListItemProps extends TouchableOpacityProps {
    */
   txOptions?: TextProps["txOptions"]
   /**
+   * Optional text ellipsize.
+   */
+  textEllipsizeMode?: 'head' | 'middle'| 'tail'| 'clip'
+  /**
+   * Optional subtext ellipsize.
+   */
+  subTextEllipsizeMode?: 'head' | 'middle'| 'tail'| 'clip'
+  /**
    * Optional text style override.
    */
   textStyle?: StyleProp<TextStyle>
+  /**
+   * Optional subtext style override.
+   */
+  subTextStyle?: StyleProp<TextStyle>
   /**
    * Pass any additional props directly to the Text component.
    */
@@ -149,7 +161,10 @@ export const ListItem = function (props: ListItemProps) {
     tx,
     subTx,
     txOptions,
+    textEllipsizeMode,
+    subTextEllipsizeMode,
     textStyle: $textStyleOverride,
+    subTextStyle: $subTextStyleOverride,
     containerStyle: $containerStyleOverride,
     ...TouchableOpacityProps
   } = props
@@ -159,7 +174,7 @@ export const ListItem = function (props: ListItemProps) {
   const separatorColor = useThemeColor('separator')
   const subTextColor = useThemeColor('textDim')
 
-  const $subTextStyles = [$subTextStyle, TextProps?.style]
+  const $subTextStyles = [$subTextStyle, $subTextStyleOverride, TextProps?.style]
 
   const $containerStyles = [
     topSeparator && $separatorTop, { borderTopColor: separatorColor },
@@ -185,16 +200,36 @@ export const ListItem = function (props: ListItemProps) {
           <>
         {(subText || subTx) ? (
           <>
-            <Text {...TextProps} tx={tx} text={text} txOptions={txOptions} style={$textStyles}>
-              {children}
-            </Text>
-            <Text {...TextProps} size="xs" tx={subTx} text={subText} txOptions={txOptions} style={[$subTextStyles, {color: subTextColor}]}>              
-            </Text>
+            {textEllipsizeMode ? (
+              <Text numberOfLines={1} ellipsizeMode={textEllipsizeMode} {...TextProps} tx={tx} text={text} txOptions={txOptions} style={$textStyles}>
+                {children}
+              </Text>
+            ) : (
+              <Text {...TextProps} tx={tx} text={text} txOptions={txOptions} style={$textStyles}>
+                {children}
+              </Text>              
+            )}
+
+            {subTextEllipsizeMode ? (
+              <Text numberOfLines={1} ellipsizeMode={subTextEllipsizeMode} {...TextProps} size="xs" tx={subTx} text={subText} txOptions={txOptions} style={[$subTextStyles, {color: subTextColor}]}>              
+              </Text>
+            ) : (
+              <Text {...TextProps} size="xs" tx={subTx} text={subText} txOptions={txOptions} style={[$subTextStyles, {color: subTextColor}]}>              
+              </Text>            
+            )}
           </>
         ) : (
-          <Text {...TextProps} tx={tx} text={text} txOptions={txOptions} style={$textStyles}>
-            {children}
-          </Text>  
+          <>
+          {textEllipsizeMode ? (
+            <Text numberOfLines={1} ellipsizeMode={textEllipsizeMode} {...TextProps} tx={tx} text={text} txOptions={txOptions} style={$textStyles}>
+              {children}
+            </Text>
+          ) : (
+            <Text {...TextProps} tx={tx} text={text} txOptions={txOptions} style={$textStyles}>
+              {children}
+            </Text>              
+          )}
+          </>
         )}
         {(BottomComponent) && (
           <View style={$bottomComponentContainer}>

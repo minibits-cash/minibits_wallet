@@ -215,6 +215,7 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
                   subText={`Environment: ${APP_ENV}
 Native version: ${NATIVE_VERSION_ANDROID}
 JS Bundle version: ${JS_BUNDLE_VERSION}
+DB version: ${Database.getDatabaseVersion().version}
 React Native: ${rnVersion}
 Commit: ${COMMIT}
 Sentry id: ${userSettingsStore.userSettings.walletId}

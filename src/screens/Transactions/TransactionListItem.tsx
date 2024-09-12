@@ -1,7 +1,7 @@
 import {formatDistance} from 'date-fns/formatDistance'
 import {observer} from 'mobx-react-lite'
 import React from 'react'
-import {TextStyle, View, ViewStyle} from 'react-native'
+import {Image, TextStyle, View, ViewStyle} from 'react-native'
 import {Icon, ListItem} from '../../components'
 import {
   Transaction,
@@ -12,6 +12,8 @@ import {colors, spacing, typography, useThemeColor} from '../../theme'
 import useIsInternetReachable from '../../utils/useIsInternetReachable'
 import {translate} from '../../i18n'
 import { CurrencyAmount } from '../Wallet/CurrencyAmount'
+import { NostrProfile } from '../../services'
+import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
 
 export interface TransactionListProps {
   transaction: Transaction
@@ -31,6 +33,15 @@ export const TransactionListItem = observer(function (
   const txPendingColor = useThemeColor('textDim')
   const isInternetReachable = useIsInternetReachable()
 
+  const getProfileName = function(profileString: string): string {
+    try {
+      const maybeProfile: NostrProfile = JSON.parse(profileString)
+      return maybeProfile.nip05 ?? maybeProfile.name      
+    } catch (e: any) {
+      return profileString 
+    }
+  }  
+
   const getText = function (tx: Transaction) {
     if (tx.noteToSelf) return tx.noteToSelf
     // if(tx.memo) return tx.memo
@@ -39,7 +50,7 @@ export const TransactionListItem = observer(function (
       case TransactionType.RECEIVE || TransactionType.RECEIVE_OFFLINE:
         if (tx.sentFrom) {
           if (!tx.memo || tx.memo.includes('Sent from Minibits')) {
-            return translate('transactionCommon.from', {sender: tx.sentFrom}).slice(0, 30)
+            return translate('transactionCommon.from', {sender: getProfileName(tx.sentFrom)}).slice(0, 30)
           }
         } else {
           return tx.memo ? tx.memo : translate('transactionCommon.youReceived')
@@ -48,19 +59,19 @@ export const TransactionListItem = observer(function (
         return (tx.memo
           ? tx.memo
           : tx.sentTo
-          ? translate('transactionCommon.sentTo', {receiver: tx.sentTo})
+          ? translate('transactionCommon.sentTo', {receiver: getProfileName(tx.sentTo)})
           : translate('transactionCommon.youSent')).slice(0, 30)
       case TransactionType.TOPUP:
         return (tx.memo
           ? tx.memo
           : tx.sentFrom
-          ? translate('transactionCommon.receivedFrom', {sender: tx.sentFrom})
+          ? translate('transactionCommon.receivedFrom', {sender: getProfileName(tx.sentFrom)})
           : translate('transactionCommon.youReceived')).slice(0, 30)
       case TransactionType.TRANSFER:
-        return (tx.memo
+        return (tx.memo && tx.memo !== 'LNbits'
           ? tx.memo
           : tx.sentTo
-          ? translate('transactionCommon.paidTo', {receiver: tx.sentTo})
+          ? translate('transactionCommon.paidTo', {receiver: getProfileName(tx.sentTo)})
           : translate('transactionCommon.youPaid')).slice(0, 30)
       default:
         return translate('transactionCommon.unknown')
@@ -116,23 +127,51 @@ export const TransactionListItem = observer(function (
       if([TransactionStatus.PENDING].includes(tx.status)) {
         return (<Icon containerStyle={$txIconContainer} icon="faClock" size={spacing.medium} color={txErrorColor}/>)
       }
-
-      /* if([TransactionType.TOPUP].includes(tx.type) && tx.status === TransactionStatus.PENDING) {
-        return (<Icon containerStyle={$txIconContainer} icon="faArrowTurnDown" size={spacing.medium} color={txPendingColor}/>)
-      } */
   
       if([TransactionType.RECEIVE, TransactionType.TOPUP].includes(tx.type)) {
+        if(tx.profile) {
+          const profilePicture = getProfilePicture(tx.profile)
+          if(profilePicture) {
+            return profilePicture
+          }
+        }
         return (<Icon containerStyle={$txIconContainer} icon="faArrowTurnDown" size={spacing.medium} color={txReceiveColor}/>)
       }
 
       if([TransactionType.RECEIVE_OFFLINE].includes(tx.type)) {
-        return (<Icon containerStyle={$txIconContainer} icon="faArrowTurnDown" size={spacing.medium} color={txPendingColor}/>)
+          return (<Icon containerStyle={$txIconContainer} icon="faArrowTurnDown" size={spacing.medium} color={txPendingColor}/>)        
       }
 
       return (<Icon containerStyle={$txIconContainer} icon="faArrowTurnUp" size={spacing.medium} color={txSendColor}/>)
     }
 
-    
+
+    const getProfilePicture = function(profileString: string): React.ReactElement | undefined {
+      try {
+        const profile: NostrProfile = JSON.parse(profileString)
+
+        if(profile && profile.picture) {
+          return (
+            <View style={$pictureContainer}>
+              <Image 
+                style={
+                  {
+                    width: moderateVerticalScale(34),
+                    height: moderateVerticalScale(34),
+                    borderRadius: moderateVerticalScale(34) / 2,
+                  }
+                } 
+                source={{uri: profile.picture}}
+                defaultSource={require('../../../assets/icons/nostr.png')}
+              />  
+            </View>  
+          )
+        } 
+      } catch (e: any) {}
+      
+      return undefined      
+    }
+  
   
     return (
       <ListItem
@@ -232,4 +271,12 @@ const $txIconContainer: ViewStyle = {
   padding: spacing.extraSmall,
   alignSelf: 'center',
   marginRight: spacing.medium,
+}
+
+const $pictureContainer: ViewStyle = {
+  flex: 0,
+  // borderRadius: spacing.small,
+  // padding: spacing.extraSmall,
+  alignSelf: 'center',
+  marginRight: spacing.small,
 }

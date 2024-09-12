@@ -299,7 +299,8 @@ export const WalletStoreModel = types
       }
     }))
     .actions(self => ({
-      receive: flow(function* receive(mintUrl: string,
+      receive: flow(function* receive(
+        mintUrl: string,
         unit: MintUnit,
         decodedToken: TokenV3,
         mintFeeReserve: number,

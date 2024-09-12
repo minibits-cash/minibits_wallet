@@ -288,7 +288,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
                 createdAt: new Date(),
               })
 
-              const newTransaction: Transaction = {
+              const newTransaction = {
                 type: TransactionType.RECEIVE,
                 amount,
                 fee: 0,
@@ -299,28 +299,24 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
                 status: TransactionStatus.PREPARED,
               }
 
-              const preparedTransaction: TransactionRecord = await transactionsStore.addTransaction(newTransaction)
-              const transactionId = preparedTransaction.id as number
+              const transaction = await transactionsStore.addTransaction(newTransaction)              
 
               const { amountToAdd, addedAmount } = WalletUtils.addCashuProofs(
                   mint,
                   proofsToImport,
                   {
                       unit: unit as MintUnit,
-                      transactionId,
+                      transactionId: transaction.id,
                       isPending: false
                   }            
               )                 
 
               if (amountToAdd !== addedAmount) {
-                  await transactionsStore.updateReceivedAmount(
-                      transactionId as number,
-                      addedAmount,
-                  )                       
+                  transaction.setReceivedAmount(addedAmount)                       
               }
 
               const balanceAfter = proofsStore.getUnitBalance(unit as MintUnit)?.unitBalance || 0
-              await transactionsStore.updateBalanceAfter(transactionId, balanceAfter)
+              transaction.setBalanceAfter(balanceAfter)
 
               // Finally, update completed transaction
               transactionData.push({
@@ -329,8 +325,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
                   createdAt: new Date(),
               })
 
-              await transactionsStore.updateStatus(
-                  transactionId,
+              transaction.setStatus(                  
                   TransactionStatus.COMPLETED,
                   JSON.stringify(transactionData),
               )               

@@ -353,8 +353,7 @@ useEffect(() => {
         setTransaction(transaction)
     
         if(transaction && lnurlPayParams && lnurlPayParams.address) {
-            await transactionsStore.updateSentTo( // set ln address to send to to the tx, could be elsewhere //
-                transaction.id as number,                    
+            transaction.setSentTo(                                 
                 lnurlPayParams.address as string
             )
         }

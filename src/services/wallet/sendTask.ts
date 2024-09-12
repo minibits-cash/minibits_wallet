@@ -1,8 +1,7 @@
 import {log} from '../logService'
 import {
   Transaction,
-  TransactionData,
-  TransactionRecord,
+  TransactionData,  
   TransactionStatus,
   TransactionType,
 } from '../../models/Transaction'
@@ -52,11 +51,11 @@ export const sendTask = async function (
             createdAt: new Date(),
         }
     ]
-
-    let transactionId: number = 0
+    
+    let transaction: Transaction | undefined = undefined
 
     try {
-        const newTransaction: Transaction = {
+        const newTransaction = {
             type: TransactionType.SEND,
             amount: amountToSend,
             fee: 0,
@@ -68,9 +67,11 @@ export const sendTask = async function (
         }
 
         // store tx in db and in the model
-        const storedTransaction: TransactionRecord =
-        await transactionsStore.addTransaction(newTransaction)
-        transactionId = storedTransaction.id as number
+        transaction = await transactionsStore.addTransaction(newTransaction)
+        
+        if(!transaction.id) {
+            throw new AppError(Err.VALIDATION_ERROR, 'Missing transaction id', {transaction})
+        }
 
         // get ready proofs to send and update proofs and pending proofs storage
         const {
@@ -83,7 +84,7 @@ export const sendTask = async function (
             amountToSend,
             unit,
             selectedProofs,
-            transactionId,
+            transaction.id,
         )
 
         // Update transaction status
@@ -95,13 +96,12 @@ export const sendTask = async function (
             createdAt: new Date(),
         })
 
-        await transactionsStore.updateStatus(
-            transactionId,
+        transaction.setStatus(        
             TransactionStatus.PREPARED,
             JSON.stringify(transactionData),
         )
 
-        // Create sendable encoded token v3
+        // Create sendable encoded tokenV3
         const tokenEntryToSend = {
             mint: mintUrl,
             proofs: proofsToSend,
@@ -111,30 +111,29 @@ export const sendTask = async function (
             memo = 'Sent from Minibits'
         }
 
-        const encodedTokenToSend = CashuUtils.encodeToken({
+        const outputToken = CashuUtils.encodeToken({
             token: [tokenEntryToSend as TokenEntryV3],
             unit,
             memo,
         })
 
-        // Update transaction status
+        transaction.setOutputToken(outputToken)
+        
         transactionData.push({
             status: TransactionStatus.PENDING,            
-            encodedTokenToSend,
             createdAt: new Date(),
         })
 
-        const pendingTransaction = await transactionsStore.updateStatus(
-            transactionId,
+        transaction.setStatus(            
             TransactionStatus.PENDING,
             JSON.stringify(transactionData),
         )
 
         const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
-        await transactionsStore.updateBalanceAfter(transactionId, balanceAfter)
+        transaction.setBalanceAfter(balanceAfter)
         
         if(mintFeePaid > 0) {
-            await transactionsStore.updateFee(transactionId, mintFeePaid)
+            transaction.setFee(mintFeePaid)
         }
 
         log.trace('[send] totalBalance after', balanceAfter)
@@ -158,24 +157,21 @@ export const sendTask = async function (
         return {
             taskFunction: 'sendTask',
             mintUrl,
-            transaction: pendingTransaction,
+            transaction,
             message: '',
-            encodedTokenToSend,
+            encodedTokenToSend: outputToken,
             mintFeePaid
         } as TransactionTaskResult
-    } catch (e: any) {
-        // Update transaction status if we have any
-        let errorTransaction: TransactionRecord | undefined = undefined        
 
-        if (transactionId > 0) {
+    } catch (e: any) {
+        if (transaction) {
             transactionData.push({
                 status: TransactionStatus.ERROR,
                 error: WalletUtils.formatError(e),
                 createdAt: new Date()
             })
 
-            errorTransaction = await transactionsStore.updateStatus(
-                transactionId,
+            transaction.setStatus(                
                 TransactionStatus.ERROR,
                 JSON.stringify(transactionData),
             )
@@ -184,7 +180,7 @@ export const sendTask = async function (
         return {
             taskFunction: 'sendTask',
             mintUrl,
-            transaction: errorTransaction || undefined,
+            transaction,
             message: e.message,
             error: WalletUtils.formatError(e),
         } as TransactionTaskResult

@@ -19,7 +19,7 @@ import { CashuUtils } from './cashu/cashuUtils'
 
 let _db: QuickSQLiteConnection
 
-const _dbVersion = 11 // Update this if db changes require migrations
+const _dbVersion = 13 // Update this if db changes require migrations
 
 const getInstance = function () {
   if (!_db) {
@@ -58,8 +58,13 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
         data TEXT,
         sentFrom TEXT,
         sentTo TEXT,
+        profile TEXT,
         memo TEXT,
         mint TEXT,
+        zapRequest TEXT,
+        inputToken TEXT,
+        outputToken TEXT,
+        proof TEXT,
         balanceAfter INTEGER,
         noteToSelf TEXT,
         tags TEXT,
@@ -240,6 +245,27 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
       ])
 
       log.info(`Prepared database migrations from ${currentVersion} -> 11`)
+    }
+
+    if (currentVersion < 13) {
+      migrationQueries.push([
+        `ALTER TABLE transactions
+        ADD COLUMN inputToken TEXT`,       
+    ], [
+        `ALTER TABLE transactions
+        ADD COLUMN outputToken TEXT`,   
+    ], [
+      `ALTER TABLE transactions
+      ADD COLUMN profile TEXT`,   
+    ], [
+        `ALTER TABLE transactions
+        ADD COLUMN proof TEXT`,   
+    ], [
+      `ALTER TABLE transactions
+      ADD COLUMN zapRequest TEXT`,   
+    ])
+
+      log.info(`Prepared database migrations from ${currentVersion} -> 13`)
     }
 
     // Update db version as a part of migration sqls
@@ -476,7 +502,7 @@ const getTransactionById = function (id: number) {
   }
 }
 
-const addTransactionAsync = async function (tx: Transaction) {
+const addTransactionAsync = async function (tx: Transaction): Promise<TransactionRecord> {
   try {
     const {type, amount, fee, unit, data, memo, mint, status} = tx
     const now = new Date()
@@ -504,7 +530,7 @@ const addTransactionAsync = async function (tx: Transaction) {
   }
 }
 
-const updateStatusAsync = async function (
+const updateStatus = function (
   id: number,
   status: TransactionStatus,
   data: string,
@@ -518,9 +544,9 @@ const updateStatusAsync = async function (
     const params = [status, data, id]
 
     const db = getInstance()
-    await db.executeAsync(query, params)
+    db.execute(query, params)
 
-    log.info('[updateStatusAsync]', `[${status}] Transaction status updated`, {id})
+    log.info('[updateStatus]', `[${status}] Transaction status updated`, {id})
 
     const updatedTx = getTransactionById(id as number)
 
@@ -575,7 +601,7 @@ const updateStatusesAsync = async function (
 
     const result2 = await _db.executeAsync(updateQuery, params)
 
-    log.info('[updateStatusAsync]', `[${status}] Transactions statuses updated.`, {numUpdates: result2.rowsAffected, status})
+    log.info('[updateStatusesAsync]', `[${status}] Transactions statuses updated.`, {numUpdates: result2.rowsAffected, status})
 
     return result2
   } catch (e: any) {
@@ -594,11 +620,11 @@ const expireAllAfterRecovery = async function () {
     `    
     const params = [TransactionStatus.EXPIRED]
     const result = await _db.executeAsync(updateQuery, params)
-    log.info('[expireAllAfterRecovery]', `Transactions statuses set to EXPITED.`)
+    log.info('[expireAllAfterRecovery]', `Transactions statuses set to EXPIRED.`)
     return result
 }
 
-const updateBalanceAfterAsync = async function (
+const updateBalanceAfter = function (
   id: number,
   balanceAfter: number,
 ) {
@@ -611,9 +637,9 @@ const updateBalanceAfterAsync = async function (
     const params = [balanceAfter, id]
 
     const db = getInstance()
-    await db.executeAsync(query, params)    
+    db.execute(query, params)    
     
-    log.debug('[updateBalanceAfterAsync]', 'Transaction balanceAfter updated', {id, balanceAfter})
+    log.debug('[updateBalanceAfter]', 'Transaction balanceAfter updated', {id, balanceAfter})
 
     const updatedTx = getTransactionById(id as number)
 
@@ -628,7 +654,7 @@ const updateBalanceAfterAsync = async function (
 }
 
 
-const updateFeeAsync = async function (id: number, fee: number) {
+const updateFee = function (id: number, fee: number) {
   try {
     const query = `
       UPDATE transactions
@@ -638,9 +664,9 @@ const updateFeeAsync = async function (id: number, fee: number) {
     const params = [fee, id]
 
     const db = getInstance()
-    await db.executeAsync(query, params)
+    db.execute(query, params)
 
-    log.debug('[updateFeeAsync]', 'Transaction fee updated', {id, fee})
+    log.debug('[updateFee]', 'Transaction fee updated', {id, fee})
 
     const updatedTx = getTransactionById(id as number)
 
@@ -655,7 +681,7 @@ const updateFeeAsync = async function (id: number, fee: number) {
 }
 
 
-const updateReceivedAmountAsync = async function (id: number, amount: number) {
+const updateReceivedAmount = function (id: number, amount: number) {
   try {
     const query = `
       UPDATE transactions
@@ -665,7 +691,7 @@ const updateReceivedAmountAsync = async function (id: number, amount: number) {
     const params = [amount, id]
 
     const db = getInstance()
-    await db.executeAsync(query, params)
+    db.execute(query, params)
 
     log.debug('[updateReceivedAmountAsync]', 'Transaction received amount updated', {id})
 
@@ -681,7 +707,7 @@ const updateReceivedAmountAsync = async function (id: number, amount: number) {
   }
 }
 
-const updateNoteAsync = async function (id: number, note: string) {
+const updateNote = function (id: number, note: string) {
   try {
     const query = `
       UPDATE transactions
@@ -691,9 +717,9 @@ const updateNoteAsync = async function (id: number, note: string) {
     const params = [note, id]
 
     const db = getInstance()
-    await db.executeAsync(query, params)
+    db.executeAsync(query, params)
     // DO NOT log to Sentry
-    log.debug('[updateNoteAsync]', 'Transaction note updated')
+    log.debug('[updateNote]', 'Transaction note updated')
 
     const updatedTx = getTransactionById(id as number)
 
@@ -708,7 +734,7 @@ const updateNoteAsync = async function (id: number, note: string) {
 }
 
 
-const updateSentFromAsync = async function (id: number, sentFrom: string) {
+const updateSentFrom = function (id: number, sentFrom: string) {
     try {
       const query = `
         UPDATE transactions
@@ -718,9 +744,9 @@ const updateSentFromAsync = async function (id: number, sentFrom: string) {
       const params = [sentFrom, id]
   
       const db = getInstance()
-      await db.executeAsync(query, params)
+      db.executeAsync(query, params)
 
-      log.debug('[updateSentFromAsync]', 'Transaction sentFrom updated', {id, sentFrom})
+      log.debug('[updateSentFrom]', 'Transaction sentFrom updated', {id, sentFrom})
   
       const updatedTx = getTransactionById(id as number)
   
@@ -735,7 +761,7 @@ const updateSentFromAsync = async function (id: number, sentFrom: string) {
 }
 
 
-const updateSentToAsync = async function (id: number, sentTo: string) {
+const updateSentTo = function (id: number, sentTo: string) {
     try {
       const query = `
         UPDATE transactions
@@ -745,7 +771,7 @@ const updateSentToAsync = async function (id: number, sentTo: string) {
       const params = [sentTo, id]
   
       const db = getInstance()
-      await db.executeAsync(query, params)
+      db.execute(query, params)
       
       log.debug('[updateSentToAsync]', 'Transaction sentTo updated', {id, sentTo})
   
@@ -759,6 +785,141 @@ const updateSentToAsync = async function (id: number, sentTo: string) {
         e.message,
       )
     }
+}
+
+
+const updateProfile = function (id: number, profile: string) {
+  try {
+    const query = `
+      UPDATE transactions
+      SET profile = ?
+      WHERE id = ?      
+    `
+    const params = [profile, id]
+
+    const db = getInstance()
+    db.execute(query, params)
+    
+    log.debug('[updateProfile]', 'Transaction sentTo updated', {id, profile})
+
+    const updatedTx = getTransactionById(id as number)
+
+    return updatedTx as TransactionRecord
+  } catch (e: any) {
+    throw new AppError(
+      Err.DATABASE_ERROR,
+      'Could not update transaction profile in database',
+      e.message,
+    )
+  }
+}
+
+
+const updateInputToken = function (id: number, inputToken: string) {
+  try {
+    const query = `
+      UPDATE transactions
+      SET inputToken = ?
+      WHERE id = ?      
+    `
+    const params = [inputToken, id]
+
+    const db = getInstance()
+    db.execute(query, params)
+    
+    log.debug('[updateInputToken]', 'Transaction outputToken updated', {id, inputToken})
+
+    const updatedTx = getTransactionById(id as number)
+
+    return updatedTx as TransactionRecord
+  } catch (e: any) {
+    throw new AppError(
+      Err.DATABASE_ERROR,
+      'Could not update transaction inputToken in database',
+      e.message,
+    )
+  }
+}
+
+
+const updateOutputToken = function (id: number, outputToken: string) {
+  try {
+    const query = `
+      UPDATE transactions
+      SET outputToken = ?
+      WHERE id = ?      
+    `
+    const params = [outputToken, id]
+
+    const db = getInstance()
+    db.execute(query, params)
+    
+    log.debug('[updateOutputToken]', 'Transaction outputToken updated', {id, outputToken})
+
+    const updatedTx = getTransactionById(id as number)
+
+    return updatedTx as TransactionRecord
+  } catch (e: any) {
+    throw new AppError(
+      Err.DATABASE_ERROR,
+      'Could not update transaction outputToken in database',
+      e.message,
+    )
+  }
+}
+
+
+const updateProof = function (id: number, proof: string) {
+  try {
+    const query = `
+      UPDATE transactions
+      SET proof = ?
+      WHERE id = ?      
+    `
+    const params = [proof, id]
+
+    const db = getInstance()
+    db.execute(query, params)
+    
+    log.debug('[updateProof]', 'Transaction proof updated', {id, proof})
+
+    const updatedTx = getTransactionById(id as number)
+
+    return updatedTx as TransactionRecord
+  } catch (e: any) {
+    throw new AppError(
+      Err.DATABASE_ERROR,
+      'Could not update transaction proof in database',
+      e.message,
+    )
+  }
+}
+
+
+const updateZapRequest = function (id: number, zapRequest: string) {
+  try {
+    const query = `
+      UPDATE transactions
+      SET zapRequest = ?
+      WHERE id = ?      
+    `
+    const params = [zapRequest, id]
+
+    const db = getInstance()
+    db.execute(query, params)
+    
+    log.debug('[updateProof]', 'Transaction zapRequest updated', {id, zapRequest})
+
+    const updatedTx = getTransactionById(id as number)
+
+    return updatedTx as TransactionRecord
+  } catch (e: any) {
+    throw new AppError(
+      Err.DATABASE_ERROR,
+      'Could not update transaction zapRequest in database',
+      e.message,
+    )
+  }
 }
 
 /* const cleanTransactionData = async function (transactionIds: number[]) {
@@ -1100,15 +1261,20 @@ export const Database = {
   getTransactionsCount,
   getTransactionById,
   addTransactionAsync,
-  updateStatusAsync,
+  updateStatus,
   expireAllAfterRecovery,
   updateStatusesAsync,
-  updateBalanceAfterAsync,
-  updateFeeAsync,
-  updateReceivedAmountAsync,
-  updateNoteAsync,
-  updateSentFromAsync,
-  updateSentToAsync,
+  updateBalanceAfter,
+  updateFee,
+  updateReceivedAmount,
+  updateNote,
+  updateSentFrom,
+  updateSentTo,
+  updateProfile,
+  updateZapRequest,
+  updateInputToken,
+  updateOutputToken,
+  updateProof,
   getTransactionsAsync,
   deleteTransactionsByStatus,
   getPendingAmount,

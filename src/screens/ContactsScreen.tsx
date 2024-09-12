@@ -125,7 +125,7 @@ export const LeftProfileHeader = observer(function (props: {
                             borderRadius: (walletProfileStore.isOwnProfile) ? 20 : 0,                                        
                         }
                     } 
-                    source={{uri: getImageSource(walletProfileStore.picture)}} 
+                    source={{uri: getImageSource(walletProfileStore.picture)}}                    
                 />                                    
             ) : (                
                 <View style={{opacity: 0.5}} >

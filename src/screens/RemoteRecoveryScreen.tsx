@@ -227,10 +227,10 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
         let alreadySpentAmount: number = 0        
         
         const transactionData: TransactionData[] = []            
-        let transactionId: number = 0
+        let transaction: Transaction | undefined = undefined
 
         const pendingTransactionData: TransactionData[] = []
-        let pendingTransactionId: number = 0
+        let pendingTransaction: Transaction | undefined = undefined
         let recoveredMint = mintsStore.findByUrl(selectedMintUrl as string)
 
         try {
@@ -294,7 +294,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                         createdAt: new Date(),
                     })
 
-                    const newTransaction: Transaction = {
+                    const newTransaction = {
                         type: TransactionType.RECEIVE,
                         amount,
                         fee: 0,
@@ -305,25 +305,20 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                         status: TransactionStatus.PREPARED,
                     }
 
-                    const draftTransaction: TransactionRecord = await transactionsStore.addTransaction(newTransaction)
-                    transactionId = draftTransaction.id as number
+                    transaction = await transactionsStore.addTransaction(newTransaction)                    
 
                     const { amountToAdd, addedAmount } = WalletUtils.addCashuProofs(
                         recoveredMint.mintUrl,
                         unspent,
                         {
                             unit: selectedKeyset.unit as MintUnit,
-                            transactionId: pendingTransactionId as number,
+                            transactionId: transaction.id,
                             isPending: false
                         }            
                     )                 
 
                     if (amountToAdd !== addedAmount) {
-                        await transactionsStore.updateReceivedAmount(
-                            transactionId as number,
-                            addedAmount,
-                        )
-
+                        transaction.setReceivedAmount(addedAmount)
                         recoveredAmount = addedAmount
                     }
 
@@ -334,14 +329,13 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                         createdAt: new Date(),
                     })
 
-                    await transactionsStore.updateStatus(
-                        transactionId,
+                    transaction.setStatus(                        
                         TransactionStatus.COMPLETED,
                         JSON.stringify(transactionData),
                     )
 
                     const balanceAfter = proofsStore.getUnitBalance(selectedKeyset.unit as MintUnit)?.unitBalance
-                    await transactionsStore.updateBalanceAfter(transactionId, balanceAfter || 0)
+                    transaction.setBalanceAfter(balanceAfter || 0)
                 }
             
                 if(pending && pending.length > 0) {
@@ -359,35 +353,31 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                         createdAt: new Date(),
                     })
 
-                    const newTransaction: Transaction = {
+                    const newTransaction = {
                         type: TransactionType.RECEIVE,
                         amount,
                         fee: 0,
                         unit: selectedKeyset?.unit as MintUnit,
-                        data: JSON.stringify(transactionData),
+                        data: JSON.stringify(pendingTransactionData),
                         memo: 'Wallet recovery - pending',
                         mint: recoveredMint.mintUrl,
                         status: TransactionStatus.PREPARED,
                     }
 
-                    const draftTransaction: TransactionRecord = await transactionsStore.addTransaction(newTransaction)
-                    pendingTransactionId = draftTransaction.id as number
+                    pendingTransaction = await transactionsStore.addTransaction(newTransaction)
 
                     const { amountToAdd, addedAmount } = WalletUtils.addCashuProofs(
                         recoveredMint.mintUrl,
                         pending,
                         {
                             unit: selectedKeyset?.unit as MintUnit,
-                            transactionId: pendingTransactionId as number,
+                            transactionId: pendingTransaction.id,
                             isPending: true
                         }            
                     )
 
                     if (amountToAdd !== addedAmount) {
-                        await transactionsStore.updateReceivedAmount(
-                            transactionId as number,
-                            addedAmount,
-                        )
+                        pendingTransaction.setReceivedAmount(addedAmount)
                     }
 
                     // Finally, update pending transaction
@@ -396,8 +386,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                         createdAt: new Date(),
                     })
 
-                    await transactionsStore.updateStatus(
-                        pendingTransactionId,
+                    pendingTransaction.setStatus(                        
                         TransactionStatus.PENDING,
                         JSON.stringify(pendingTransactionData),
                     )
@@ -413,29 +402,27 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
             log.error('[doRecovery]', {name: e.name, message: isObj(e.message) ? JSON.stringify(e.message) : e.message, params: e.params})
             errors.push({name: e.name, message: e.message}) // TODO this could now be single error as we do not loop anymore
 
-            if (transactionId > 0) {
+            if (transaction) {
                 transactionData.push({
                     status: TransactionStatus.ERROR,
                     error: WalletUtils.formatError(e),
                     createdAt: new Date(),
                 })
 
-                await transactionsStore.updateStatus(
-                    transactionId,
+                transaction.setStatus(                    
                     TransactionStatus.ERROR,
                     JSON.stringify(transactionData),
                 )
             }
 
-            if (pendingTransactionId > 0) {
+            if (pendingTransaction) {
                 pendingTransactionData.push({
                     status: TransactionStatus.ERROR,
                     error: WalletUtils.formatError(e),
                     createdAt: new Date(),
                 })
 
-                await transactionsStore.updateStatus(
-                    pendingTransactionId,
+                pendingTransaction.setStatus(                    
                     TransactionStatus.ERROR,
                     JSON.stringify(pendingTransactionData),
                 )

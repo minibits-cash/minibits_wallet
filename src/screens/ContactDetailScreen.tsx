@@ -212,7 +212,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                 />
             ) : (
                 <Card
-                    style={$card}
+                    style={[$card, {minHeight: 80}]}
                     ContentComponent={
                         <View style={$noteContainer}>    
                             <TextInput
