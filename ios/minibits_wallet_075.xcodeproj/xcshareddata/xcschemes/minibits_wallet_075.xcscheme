@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-               BuildableName = "minibits_wallet_075.app"
-               BlueprintName = "minibits_wallet_075"
-               ReferencedContainer = "container:minibits_wallet_075.xcodeproj">
+               BuildableName = "minibits_wallet.app"
+               BlueprintName = "minibits_wallet"
+               ReferencedContainer = "container:minibits_wallet.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -33,9 +33,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "00E356ED1AD99517003FC87E"
-               BuildableName = "minibits_wallet_075Tests.xctest"
-               BlueprintName = "minibits_wallet_075Tests"
-               ReferencedContainer = "container:minibits_wallet_075.xcodeproj">
+               BuildableName = "minibits_walletTests.xctest"
+               BlueprintName = "minibits_walletTests"
+               ReferencedContainer = "container:minibits_wallet.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -55,9 +55,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "minibits_wallet_075.app"
-            BlueprintName = "minibits_wallet_075"
-            ReferencedContainer = "container:minibits_wallet_075.xcodeproj">
+            BuildableName = "minibits_wallet.app"
+            BlueprintName = "minibits_wallet"
+            ReferencedContainer = "container:minibits_wallet.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -72,9 +72,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "minibits_wallet_075.app"
-            BlueprintName = "minibits_wallet_075"
-            ReferencedContainer = "container:minibits_wallet_075.xcodeproj">
+            BuildableName = "minibits_wallet.app"
+            BlueprintName = "minibits_wallet"
+            ReferencedContainer = "container:minibits_wallet.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

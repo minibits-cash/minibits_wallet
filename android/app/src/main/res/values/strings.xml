@@ -1,3 +1,4 @@
 <resources>
-    <string name="app_name">minibits_wallet_075</string>
+    <string name="app_name">Minibits</string>
+    <string moduleConfig="true" name="CodePushDeploymentKey">mockkey</string><!-- real key passed to codepush in .sync method -->
 </resources>

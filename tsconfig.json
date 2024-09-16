@@ -1,3 +1,12 @@
 {
-  "extends": "@react-native/typescript-config/tsconfig.json"
+  "extends": "@react-native/typescript-config/tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react",
+    "typeRoots": ["./src/utils/envtypes"],
+    "paths": {
+        "nostr-tools/*": ["./node_modules/nostr-tools/lib/types/*"]
+    },
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+  }
 }

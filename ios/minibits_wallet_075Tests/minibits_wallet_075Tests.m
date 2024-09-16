@@ -7,11 +7,11 @@
 #define TIMEOUT_SECONDS 600
 #define TEXT_TO_LOOK_FOR @"Welcome to React"
 
-@interface minibits_wallet_075Tests : XCTestCase
+@interface minibits_walletTests : XCTestCase
 
 @end
 
-@implementation minibits_wallet_075Tests
+@implementation minibits_walletTests
 
 - (BOOL)findSubviewInView:(UIView *)view matching:(BOOL (^)(UIView *view))test
 {

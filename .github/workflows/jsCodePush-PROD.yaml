@@ -1,0 +1,153 @@
+name: Minibits JS bundle code push
+
+# This workflow is manually triggered. Only if package.json version has changed it creates .env file,
+# builds new js bundle and pushes it to devices running app with TEST env and STAGING code push deployment key.
+# At the end it creates and pushes new version tag to github.
+on: workflow_dispatch
+
+jobs:
+  deploy-code-push:
+    runs-on: macos-latest
+    permissions:
+      id-token: write
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      
+      # Fetch javascript bundle version from package.json        
+      - name: Read package.json version and detect changes
+        id: version-check
+        uses: salsify/action-detect-and-tag-new-version@v2
+        with:
+          create-tag: false
+          
+      - name: Set versions
+        run: |-        
+          echo "PREV_JS_VERSION=${{steps.version-check.outputs.previous-version }}" >> $GITHUB_ENV
+          echo "CURRENT_JS_VERSION=${{steps.version-check.outputs.current-version }}" >> $GITHUB_ENV          
+
+      # Codepush build will continue only if version changed from previous commit  - TEMP SKIP CHECK  
+      - name: Detect version change
+        run: |
+          if [ "${{ env.PREV_JS_VERSION }}" != "${{ env.CURRENT_JS_VERSION }}" ]; then
+            echo "IS_VERSION_CHANGED=true" >> $GITHUB_ENV
+            echo "Detected version change"
+          else
+            echo "IS_VERSION_CHANGED=true" >> $GITHUB_ENV
+            echo "No version change, skipping further processing"
+          fi
+              
+      # Fetch native app versionName and versionCode from app/build.gradle                
+      - name: Get Android native version        
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
+        id: version-reader-android        
+        uses: michpohl/android-expose-version-name-action@v1.0.0
+        with:
+          path: android/app/build.gradle
+          expose-version-name: 'true' # sets ANDROID_VERSION_NAME to env
+      
+      # Get commit hash
+      - name: Get commit hash
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
+        id: commit-hash        
+        uses: pr-mpt/actions-commit-hash@v2
+        
+      - name: Set commit hash
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
+        run: |-          
+          echo "COMMIT_HASH=${{steps.commit-hash.outputs.short }}" >> $GITHUB_ENV
+
+      # Get commit message
+      - name: Get last commit message
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const response = await github.rest.repos.getCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha
+            });
+            const lastCommit = response.data.commit;
+            const message = lastCommit.message;
+            console.log(message);
+            core.exportVariable('COMMIT_MESSAGE', message);
+                    
+      # Create .env file            
+      - name: Generate .env        
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
+        run: |-
+          echo APP_ENV='PROD' >> .env          
+          echo SENTRY_DSN='${{ secrets.SENTRY_DSN }}' >> .env          
+          echo CODEPUSH_PRODUCTION_DEPLOYMENT_KEY='${{ secrets.CODEPUSH_PRODUCTION_DEPLOYMENT_KEY }}' >> .env
+          echo NATIVE_VERSION_ANDROID='${{ env.ANDROID_VERSION_NAME }}' >> .env
+          echo JS_BUNDLE_VERSION='${{ env.CURRENT_JS_VERSION }}' >> .env
+          echo MINIBITS_SERVER_API_KEY='${{ secrets.MINIBITS_SERVER_API_KEY }}' >> .env
+          echo MINIBIT_SERVER_NOSTR_PUBKEY='${{ secrets.MINIBIT_SERVER_NOSTR_PUBKEY }}' >> .env
+          echo MINIBITS_SERVER_API_HOST='https://api.minibits.cash' >> .env
+          echo MINIBITS_NIP05_DOMAIN='@minibits.cash' >> .env
+          echo MINIBITS_RELAY_URL='wss://relay.minibits.cash' >> .env
+          echo MINIBITS_MINT_URL='https://mint.minibits.cash/Bitcoin' >> .env          
+          echo COMMIT='${{ env.COMMIT_HASH }}' >> .env
+          
+      # Install dependecies from package.json
+      - name: Install app dependencies
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
+        uses: bahmutov/npm-install@v1.10.2
+        # with:
+        #   install-command: 'yarn install'
+
+      - name: Install Sentry CLI
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
+        run: npm install @sentry/cli --legacy-peer-deps
+          
+      # Code push with source maps export for Sentry
+      - name: Install AppCenter CLI
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
+        run: npm install -g appcenter-cli
+        
+      - name: Deploy to CodePush Android
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
+        run: appcenter codepush release-react -a minibits-cash/minibits_wallet_android -d Production --description '${{ env.COMMIT_MESSAGE }} (v${{ env.CURRENT_JS_VERSION }})' --sourcemap-output ./build/index.android.bundle.map --output-dir ./build
+        env:
+          APPCENTER_ACCESS_TOKEN: ${{ secrets.APPCENTER_ACCESS_TOKEN_ANDROID }}
+
+      # Upload source files to Sentry
+      - name: Upload source files to Sentry
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
+        run: |-                   
+          ./node_modules/.bin/sentry-cli login --auth-token ${{ secrets.SENTRY_AUTH_TOKEN }}
+          ./node_modules/.bin/sentry-cli releases \
+          files minibits_wallet_android@${{ env.CURRENT_JS_VERSION }} \
+          upload-sourcemaps \
+          --strip-prefix /build \
+          --dist ${{ env.ANDROID_VERSION_NAME }} \
+          --org ${{ secrets.SENTRY_ORG }} \
+          --project minibits-wallet \
+          ./build/index.android.bundle.map ./build/Codepush/index.android.bundle
+                           
+      
+      # Create the release tag in github repo  
+      - name: Create tag
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const tagPrefix = "v";            
+            const tagName = tagPrefix + process.env.CURRENT_JS_VERSION;            
+            github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `refs/tags/${tagName}`,
+              sha: context.sha
+            });
+            

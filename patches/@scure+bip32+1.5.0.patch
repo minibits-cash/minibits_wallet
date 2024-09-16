@@ -1,0 +1,57 @@
+diff --git a/node_modules/@scure/bip32/index.ts b/node_modules/@scure/bip32/index.ts
+index 51a702f..ac252b2 100644
+--- a/node_modules/@scure/bip32/index.ts
++++ b/node_modules/@scure/bip32/index.ts
+@@ -8,6 +8,7 @@ import { bytesToHex, concatBytes, createView, hexToBytes, utf8ToBytes } from '@n
+ import { secp256k1 as secp } from '@noble/curves/secp256k1';
+ import { mod } from '@noble/curves/abstract/modular';
+ import { createBase58check } from '@scure/base';
++import QuickCrypto from 'react-native-quick-crypto';
+ 
+ const Point = secp.ProjectivePoint;
+ const base58check = createBase58check(sha256);
+@@ -93,7 +94,9 @@ export class HDKey {
+         `HDKey: wrong seed length=${seed.length}. Should be between 128 and 512 bits; 256 bits is advised)`
+       );
+     }
+-    const I = hmac(sha512, MASTER_SECRET, seed);
++    //const I = hmac(sha512, MASTER_SECRET, seed);
++    console.log('[fromMasterSeed] Using patched hmac');
++    const I = new Uint8Array(QuickCrypto.createHmac('sha512', MASTER_SECRET).update(seed).digest());   
+     return new HDKey({
+       versions,
+       chainCode: I.slice(32),
+@@ -217,7 +220,11 @@ export class HDKey {
+       // Normal child: serP(point(kpar)) || ser32(index)
+       data = concatBytes(this.pubKey, data);
+     }
+-    const I = hmac(sha512, this.chainCode, data);
++
++    // const I = hmac(sha512, this.chainCode, data);    
++    console.log('[deriveChild] Using patched hmac');
++    const I = new Uint8Array(QuickCrypto.createHmac('sha512', this.chainCode).update(data).digest());    
++
+     const childTweak = bytesToNumber(I.slice(0, 32));
+     const chainCode = I.slice(32);
+     if (!secp.utils.isValidPrivateKey(childTweak)) {
+diff --git a/node_modules/@scure/bip32/package.json b/node_modules/@scure/bip32/package.json
+index 15a1215..1aea96c 100644
+--- a/node_modules/@scure/bip32/package.json
++++ b/node_modules/@scure/bip32/package.json
+@@ -6,15 +6,8 @@
+     "index.ts",
+     "./lib"
+   ],
+-  "main": "./lib/index.js",
+-  "module": "./lib/esm/index.js",
++  "main": "./index.ts",  
+   "types": "./lib/index.d.ts",
+-  "exports": {
+-    ".": {
+-      "import": "./lib/esm/index.js",
+-      "require": "./lib/index.js"
+-    }
+-  },
+   "dependencies": {
+     "@noble/curves": "~1.6.0",
+     "@noble/hashes": "~1.5.0",

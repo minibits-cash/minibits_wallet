@@ -1,0 +1,55 @@
+{
+	"common": {
+		"close": "Zavrieť",
+		"copyFailParam": "Nepodarilo sa skopírovať %{param}",
+		"notCreated": "Ešte nevytvorený",
+		"offlinePretty": "Vaše zariadenie je momentálne offline.",
+		"qr": "QR kód",
+		"resetDefault": "Obnoviť pôvodné nastavenia",
+		"sats": "SATS",
+		"share": "Zdieľať"
+	},
+	"manageMints": "Správa mintov",
+	"mintSettingsUpdated": "Aktualizované nastavenia mincovne",
+	"mintsScreen": {
+		"addMintMinibits": "Pridať Minibits mint"
+	},
+	"payCommon": {
+		"amountToPayLabel": "Suma na zaplatenie",
+		"receive": "Prijať",
+		"receiveEcash": "Prijať ecash",
+		"receiveOffline": "Prijať offline",
+		"send": "Poslať"
+	},
+	"sendScreen": {
+		"title": "Poslať"
+	},
+	"settingsScreen": {
+		"backupRecovery": "Zálohovanie a obnova",
+		"devOptions": "Vývojárske nastavenia",
+		"go": "Poďme na to!",
+		"mintsCount": {
+			"other": "%{{count}} minty"
+		},
+		"preferredUnit": "Preferovaná mena",
+		"privacy": "Ochrana osobných údajov",
+		"security": "Zabezbečenie",
+		"title": "Nastavenia",
+		"update": "Správca aktualizácií"
+	},
+	"tabNavigator": {
+		"contactsLabel": "Kontakty",
+		"settingsLabel": "Nastavenia",
+		"walletLabel": "Peňaženka"
+	},
+	"transferScreen": {
+		"noMintWithBalance": "Neexistuje žiaden mint so zostatkom %{unit} z ktorého je možné uskutočniť platbu.",
+		"requestInvoice": "Pokračovať"
+	},
+	"walletScreen": {
+		"sendEcash": "Poslať Ecash",
+		"sendEcashDesc": "Zdieľajte ecash alebo pošlite ecash jednému zo svojich kontaktov",
+		"receiveEcash": "Príjem Ecash"
+	},
+	"contactHasNoLightningAddrUseEcash": "Tento kontakt nemá Lightning adresu, namiesto toho pošlite ecash."
+}

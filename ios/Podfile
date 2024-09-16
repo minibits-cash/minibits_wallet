@@ -14,7 +14,7 @@ if linkage != nil
   use_frameworks! :linkage => linkage.to_sym
 end
 
-target 'minibits_wallet_075' do
+target 'minibits_wallet' do
   config = use_native_modules!
 
   use_react_native!(
@@ -23,7 +23,7 @@ target 'minibits_wallet_075' do
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
 
-  target 'minibits_wallet_075Tests' do
+  target 'minibits_walletTests' do
     inherit! :complete
     # Pods for testing
   end
