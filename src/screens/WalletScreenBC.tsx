@@ -16,7 +16,7 @@ import {
   ScrollView
 } from 'react-native'
 import codePush, { RemotePackage } from 'react-native-code-push'
-import {moderateScale, moderateVerticalScale, verticalScale} from '@gocodingnow/rn-size-matters'
+import {moderateVerticalScale, verticalScale} from '@gocodingnow/rn-size-matters'
 import { SvgXml } from 'react-native-svg'
 import {getUnixTime} from 'date-fns'
 import PagerView, { PagerViewOnPageScrollEventData } from 'react-native-pager-view'
@@ -59,12 +59,11 @@ import { round } from '../utils/number'
 import { IncomingParser } from '../services/incomingParser'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { CurrencySign } from './Wallet/CurrencySign'
-import { Currencies, MintUnit, getCurrency } from "../services/wallet/currency"
+import { MintUnit } from "../services/wallet/currency"
 import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import { LeftProfileHeader } from './ContactsScreen'
 import { maxTransactionsByUnit } from '../models/TransactionsStore'
 import { NotificationService } from '../services/notificationService'
-import { TabBar, TabView } from 'react-native-tab-view'
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView)
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
@@ -307,6 +306,13 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         const newMintUrl = scannedMintUrl || defaultMintUrl
         
         log.trace('newMintUrl', newMintUrl)
+
+        // if(newMintUrl.includes('.onion')) {
+        //     if(!userSettingsStore.isTorDaemonOn) {
+        //         setInfo('Please enable Tor daemon in Privacy settings before connecting to the mint using .onion address.')
+        //         return
+        //     }
+        // }
         
         if (mintsStore.alreadyExists(newMintUrl)) {
             const msg = translate('walletScreen.mintExists')
@@ -361,39 +367,144 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const gotoProfile = function () {
         navigation.navigate('ContactsNavigator', {screen: 'Profile', params: {}, initial: false})
     }
+    
+    /* Mints pager */    
+    
+    const width = spacing.screenWidth    
+    const scrollOffsetAnimatedValue = React.useRef(new Animated.Value(0)).current
+    const positionAnimatedValue = React.useRef(new Animated.Value(0)).current
+    const inputRange = [0, groupedMints.length]
+    const scrollX = Animated.add(
+        scrollOffsetAnimatedValue,
+        positionAnimatedValue
+    ).interpolate({
+        inputRange,
+        outputRange: [0, groupedMints.length * width],
+    })
+
+    const onPageScroll = React.useMemo(
+        () =>
+          Animated.event<PagerViewOnPageScrollEventData>(
+            [
+              {
+                nativeEvent: {
+                  offset: scrollOffsetAnimatedValue,
+                  position: positionAnimatedValue,
+                },
+              },
+            ],
+            {
+              useNativeDriver: false,
+            }
+          ),
+          
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        []
+    )
+
+
+    const onPageSelected = (e: any) => {
+        if(groupedMints.length === 0) {
+            return
+        }
+
+        const currentUnit = groupedMints[e.nativeEvent.position]?.unit
+        log.trace('[onPageSelected] currentUnit', currentUnit)
+
+        setCurrentUnit(currentUnit)
+
+        const preferredUnit = userSettingsStore.preferredUnit
+
+        if(currentUnit !== preferredUnit) { // prevents db write on first load
+            userSettingsStore.setPreferredUnit(currentUnit)
+        }        
+    }
 
     const handleError = function (e: AppError) {
       setIsLoading(false)
       setError(e)
     }
 
-    // Tab view by unit
-    const [routes] = useState(
-        groupedMints.map((mintUnit) => ({
-          key: mintUnit.unit,
-          title: getCurrency(mintUnit.unit).code,
-        }))
-    )
+    const balances = proofsStore.getBalances()
+    const screenBg = useThemeColor('background')
+    const mainButtonIcon = useThemeColor('button')
+    const mainButtonColor = useThemeColor('card')
 
-    const renderScene = function ({ route }: { route: { key: string } }) {
-        const unitMints = groupedMints.find((mintUnit) => mintUnit.unit === route.key);
-        
-        if (unitMints) {            
-            return (
-            <View key={unitMints.unit}>
+    return (        
+      <Screen contentContainerStyle={$screen}>
+            <Header 
+                LeftActionComponent={<LeftProfileHeader 
+                    gotoProfile={gotoProfile}
+                    isAvatarVisible={false}
+                />}
+                /*leftIcon='faListUl'
+                leftIconColor={colors.palette.primary100}                
+                onLeftPress={gotoTranHistory}*/
+                TitleActionComponent={!isInternetReachable ? (
+                        <Text   
+                            tx={'common.offline'}
+                            style={$offline}
+                            size='xxs'                          
+                        />
+                    ) : (
+                        groupedMints.length > 1 ? (
+                            <ScalingDot
+                                testID={'sliding-border'}                        
+                                data={groupedMints}
+                                inActiveDotColor={colors.palette.primary300}
+                                activeDotColor={colors.palette.primary100}
+                                activeDotScale={1}
+                                containerStyle={{marginBottom: -spacing.tiny}}
+                                //@ts-ignore
+                                scrollX={scrollX}
+                                dotSize={25}
+                            />
+                    ) : undefined
+                )}                
+                RightActionComponent={
+                <>
+                    {paymentRequestsStore.countNotExpired > 0 && (
+                        <Pressable 
+                            style={{flexDirection: 'row', alignItems:'center', marginRight: spacing.medium}}
+                            onPress={() => gotoPaymentRequests()}
+                        >
+                            <Icon icon='faPaperPlane' color={'white'}/>
+                            <Text text={`${paymentRequestsStore.countNotExpired}`} style={{color: 'white'}} />
+                        </Pressable>
+                    )}
+                </>
+                }                
+            />
+            {groupedMints.length === 0 && (
+                <>
+                    <ZeroBalanceBlock/>
+                    <View style={$contentContainer}>
+                        <PromoBlock addMint={addMint} />
+                    </View>
+                </>
+            )}
+            <AnimatedPagerView                            
+                initialPage={0}
+                ref={pagerRef}    
+                style={{flexGrow: 1}}                                                       
+                onPageScroll={onPageScroll}
+                onPageSelected={onPageSelected}                
+            >
+                {groupedMints.map((mints) => (
+                    <View key={mints.unit}>
                         <UnitBalanceBlock                            
-                            unitBalance={balances.unitBalances.find(balance => balance.unit === unitMints.unit)!}
+                            unitBalance={balances.unitBalances.find(balance => balance.unit === mints.unit)!}
                         />
                         <View style={$contentContainer}>
                             <MintsByUnitListItem                                    
-                                mintsByUnit={unitMints}                                
+                                mintsByUnit={mints}                                
                                 navigation={navigation}                                     
                             />                            
-                            {transactionsStore.recentByUnit(unitMints.unit).length > 0 &&  unitMints.mints.length  < 4 && (
+                            {transactionsStore.recentByUnit(mints.unit).length > 0 &&  mints.mints.length  < 4 && (
                                 <Card                                    
                                     ContentComponent={                                            
                                         <FlatList
-                                            data={transactionsStore.recentByUnit(unitMints.unit, maxTransactionsByUnit - unitMints.mints.length) as Transaction[]}
+                                            data={transactionsStore.recentByUnit(mints.unit, maxTransactionsByUnit - mints.mints.length) as Transaction[]}
                                             renderItem={({item, index}) => {
                                                 return (<TransactionListItem
                                                     key={item.id}
@@ -411,82 +522,9 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                 />
                             )}
                         </View>                        
-                    </View>
-          )
-        }
-        return null;
-    }
-
-    const tabWidth = moderateScale(80)
-
-    const renderTabBar = (props: any) => (
-        <View style={{backgroundColor: headerBg, marginTop: -spacing.extraSmall}}>
-            <View style={{width: routes.length * tabWidth, alignSelf: 'center', backgroundColor: headerBg}}>
-                <TabBar
-                key={props.key}
-                {...props}
-                tabStyle={{width: tabWidth}}
-                indicatorStyle={{ backgroundColor: activeTabIndicator }}
-                style={{backgroundColor: headerBg, shadowColor: 'transparent'}}
-                />
-            </View>
-        </View>
-    )
-
-
-    const [index, setIndex] = useState(0)
-    const headerBg = useThemeColor('header')
-    const activeTabIndicator = colors.palette.accent400
-    const balances = proofsStore.getBalances()
-    const screenBg = useThemeColor('background')
-    const mainButtonIcon = useThemeColor('button')
-    const mainButtonColor = useThemeColor('card')
-
-    return (        
-      <Screen contentContainerStyle={$screen}>
-            <Header 
-                LeftActionComponent={<LeftProfileHeader 
-                    gotoProfile={gotoProfile}
-                    isAvatarVisible={false}
-                />}                
-                TitleActionComponent={!isInternetReachable ? (
-                        <Text   
-                            tx={'common.offline'}
-                            style={$offline}
-                            size='xxs'                          
-                        />
-                    ) : ( undefined  )
-                }               
-                RightActionComponent={
-                <>
-                    {paymentRequestsStore.countNotExpired > 0 && (
-                        <Pressable 
-                            style={{flexDirection: 'row', alignItems:'center', marginRight: spacing.medium}}
-                            onPress={() => gotoPaymentRequests()}
-                        >
-                            <Icon icon='faPaperPlane' color={'white'}/>
-                            <Text text={`${paymentRequestsStore.countNotExpired}`} style={{color: 'white'}} />
-                        </Pressable>
-                    )}
-                </>
-                }                
-            />
-            {groupedMints.length === 0 ? (
-                <>
-                    <ZeroBalanceBlock/>
-                    <View style={$contentContainer}>
-                        <PromoBlock addMint={addMint} />
-                    </View>
-                </>
-            ) : (                
-                <TabView
-                    renderTabBar={renderTabBar}
-                    navigationState={{ index, routes }}
-                    renderScene={renderScene}
-                    onIndexChange={setIndex}
-                    initialLayout={{ width: routes.length * 100 }}                    
-                />
-            )}
+                    </View>     
+                ))}                       
+            </AnimatedPagerView>   
             <View style={$bottomContainer}>
                 <View style={$buttonContainer}>
                     <Button
@@ -621,13 +659,17 @@ const UnitBalanceBlock = observer(function (props: {
     // log.trace('[UnitBalanceBlock]', {unitBalance})
 
     return (
-        <View style={[$headerContainer, {backgroundColor: headerBg, paddingTop: spacing.medium}]}>
+        <View style={[$headerContainer, {backgroundColor: headerBg}]}>
+            <CurrencySign                
+                mintUnit={unitBalance.unit}
+                size='small'
+                textStyle={{color: balanceColor}}
+            />
             <CurrencyAmount
                 amount={unitBalance.unitBalance || 0}
                 mintUnit={unitBalance.unit}
-                symbolStyle={{fontSize: moderateVerticalScale(14), color: currencyColor, marginTop: spacing.small}}
+                symbolStyle={{display: 'none'}}
                 amountStyle={[$unitBalance, {color: balanceColor, marginTop: spacing.small}]}
-                containerStyle={{marginLeft: -spacing.medium}}
             />
         </View>
     )
@@ -891,7 +933,7 @@ const $screen: ViewStyle = {
 const $headerContainer: TextStyle = {
     alignItems: 'center',
     // padding: spacing.tiny,  
-    height: spacing.screenHeight * 0.30,
+    height: spacing.screenHeight * 0.20,
 }
 
 const $contentContainer: TextStyle = {

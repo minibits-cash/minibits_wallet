@@ -1,7 +1,7 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useCallback, useState} from 'react'
 import {TextStyle, View, ViewStyle } from 'react-native'
-import { TabView, SceneMap, Route, TabBarProps, TabBarItemProps, TabBar } from 'react-native-tab-view'
+import { TabView, Route, TabBar } from 'react-native-tab-view'
 import {colors, spacing, useThemeColor} from '../theme'
 import {Screen, Text} from '../components'
 import {RandomName} from './Contacts/RandomName'
@@ -43,6 +43,7 @@ export const WalletNameScreen: FC<WalletNameScreenProps> = observer(function Wal
 
     const renderTabBar = (props: any) => (
         <TabBar
+          key={props.key}
           {...props}
           indicatorStyle={{ backgroundColor: activeTabIndicator }}
           style={{ backgroundColor: headerBg }}

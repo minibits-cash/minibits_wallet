@@ -80,6 +80,7 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
 
     const renderTabBar = (props: any) => (
         <TabBar
+          key={props.key}
           {...props}
           indicatorStyle={{ backgroundColor: activeTabIndicator }}
           style={{ backgroundColor: headerBg }}

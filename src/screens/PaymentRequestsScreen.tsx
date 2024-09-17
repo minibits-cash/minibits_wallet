@@ -38,6 +38,7 @@ export const PaymentRequestsScreen: FC<PaymentRequestsScreenProps> = observer(fu
 
     const renderTabBar = (props: any) => (
         <TabBar
+          key={props.key}
           {...props}
           indicatorStyle={{ backgroundColor: activeTabIndicator }}
           style={{ backgroundColor: headerBg }}

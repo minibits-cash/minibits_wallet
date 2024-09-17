@@ -34,7 +34,7 @@ export type CurrencyList = Partial<Record<CurrencyCode, CurrencyData>>
 
 export const Currencies: CurrencyList = {
     SATS: {
-        symbol: 'SATS',
+        symbol: 'SAT',
         title: 'Satoshis',
         code: CurrencyCode.SATS,
         mintUnit: 'sat',
@@ -43,7 +43,7 @@ export const Currencies: CurrencyList = {
         mantissa: 0,
     },
     mSATS: {
-        symbol: 'mSATS',
+        symbol: 'mSAT',
         title: 'Milisatoshis',
         code: CurrencyCode.MSATS,
         mintUnit: 'msat',
