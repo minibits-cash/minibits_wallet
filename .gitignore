@@ -1,6 +1,7 @@
 # App specific
 .env
 google-services.json
+minibits-upload-key.keystore
 
 # OSX
 #
