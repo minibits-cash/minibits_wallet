@@ -42,6 +42,7 @@
     "i18n-js": "^4.4.3",
     "js-lnurl": "^0.6.0",
     "lodash.clonedeep": "^4.5.0",
+    "lodash.debounce": "4.0.8",
     "mobx": "^6.13.2",
     "mobx-react-lite": "^4.0.7",
     "mobx-state-tree": "^6.0.1",

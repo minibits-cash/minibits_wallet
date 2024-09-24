@@ -8823,7 +8823,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lodash.debounce@npm:^4.0.8":
+"lodash.debounce@npm:4.0.8, lodash.debounce@npm:^4.0.8":
   version: 4.0.8
   resolution: "lodash.debounce@npm:4.0.8"
   checksum: a3f527d22c548f43ae31c861ada88b2637eb48ac6aa3eb56e82d44917971b8aa96fbb37aa60efea674dc4ee8c42074f90f7b1f772e9db375435f6c83a19b3bc6
@@ -9394,6 +9394,7 @@ __metadata:
     jest: ^29.6.3
     js-lnurl: ^0.6.0
     lodash.clonedeep: ^4.5.0
+    lodash.debounce: 4.0.8
     metro-react-native-babel-preset: 0.76.7
     mobx: ^6.13.2
     mobx-react-lite: ^4.0.7

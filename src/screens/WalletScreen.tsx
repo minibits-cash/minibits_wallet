@@ -835,7 +835,7 @@ const MintsByUnitSummary = observer(function (props: {
     }, [])
     
     const {mintsByUnit} = props
-    const mintsCountText = `and ${mintsByUnit.mints.length} other${mintsByUnit.mints.length > 1 && 's'}`
+    const mintsCountText = `and ${mintsByUnit.mints.length - 1} other${mintsByUnit.mints.length - 1 > 1 ? 's' : ''}`
 
     return (
         <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>

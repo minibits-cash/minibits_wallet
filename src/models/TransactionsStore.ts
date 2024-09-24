@@ -22,7 +22,7 @@ import { Mint } from './Mint'
 export const maxTransactionsInModel = 10
 export const maxTransactionsByMint = 10
 export const maxTransactionsByHostname = 3
-export const maxTransactionsByUnit = 5
+export const maxTransactionsByUnit = 3
 
 export type GroupedByTimeAgo = {
     [timeAgo: string]: Transaction[];

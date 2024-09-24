@@ -201,8 +201,17 @@ const load = function (key: string): any | undefined {
  */
 const save = function (key: string, value: any): boolean {  
   try {
+    
     const storage = getInstance()
+    const start = performance.now()
+    
     storage.set(key, JSON.stringify(value))
+    
+    const end = performance.now()
+
+    // const dataSize = Buffer.byteLength(JSON.stringify(value), 'utf8')
+    // log.trace(`[mmkvStorage.save] Took ${end - start} ms to save ${dataSize} bytes.`)
+
     return true
   } catch (e: any) {
     throw new AppError(Err.DATABASE_ERROR, e.message)

@@ -14,6 +14,7 @@ import {
   IDisposer,
   onSnapshot,
 } from 'mobx-state-tree'
+import { debounce } from "lodash"
 import * as Sentry from '@sentry/react-native'
 import RNExitApp from 'react-native-exit-app'
 import type {RootStore} from '../RootStore'
@@ -78,9 +79,10 @@ export async function setupRootStore(rootStore: RootStore) {
         }
 
         // load the last known state from storage
-        restoredState = MMKVStorage.load(ROOT_STORAGE_KEY) || {}          
+        restoredState = MMKVStorage.load(ROOT_STORAGE_KEY) || {}
+        const dataSize = Buffer.byteLength(JSON.stringify(restoredState), 'utf8')         
         
-        // log.trace('[setupRootStore] loaded', {walletStore: restoredState.walletStore})
+        log.trace('[setupRootStore]', `restored state has ${dataSize} bytes.`)
         applySnapshot(rootStore, restoredState)        
         
     } catch (e: any) {        
@@ -92,9 +94,13 @@ export async function setupRootStore(rootStore: RootStore) {
         _disposer()
     }
 
-    // track changes & save to storage
-    _disposer = onSnapshot(rootStore, snapshot => {
+    // track changes & save snapshot to the storage not more then once per second
+    const saveSnapshot = debounce((snapshot) => {
         MMKVStorage.save(ROOT_STORAGE_KEY, snapshot)
+    }, 1000)
+
+    _disposer = onSnapshot(rootStore, snapshot => {        
+        saveSnapshot(snapshot)
         // log.trace('[setupRootStore] saved', {walletStore: snapshot.walletStore})
     })
 
