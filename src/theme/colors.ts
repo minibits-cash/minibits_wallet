@@ -172,14 +172,11 @@ export const colors = {
     statusBarOnModalOpen: '#214D96',
     statusBarOnLoading: '#346BC6',
     loadingIndicator: '#fff',
+    btc: '#f7931A',
+    usd: '#599D52',
+    eur: '#0002C8'
   },
   dark: {
-    /**
-     * The palette is available to use, but prefer using the name.
-     * This is only included for rare, one-off cases. Try to use
-     * semantic names as much as possible.
-     */
-    palette,
     /**
      * A helper for making something see-thru.
      */
@@ -274,6 +271,9 @@ export const colors = {
     statusBarOnModalOpen: '#162F83',
     statusBarOnLoading: '#2746B0',
     loadingIndicator: '#ccc',
+    btc: '#f7931A',
+    usd: '#599D52',
+    eur: '#0002C8'
   },
 }
 

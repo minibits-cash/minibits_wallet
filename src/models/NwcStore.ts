@@ -74,8 +74,9 @@ const nwcPngUrl = 'https://1044827509-files.gitbook.io/~/files/v0/b/gitbook-x-pr
 
 const getConnectionRelays = function () {
     const minibitsRelays = NostrClient.getMinibitsRelays()
-    const publicRelays = NostrClient.getDefaultRelays() 
-    return [...minibitsRelays, ...publicRelays]
+    // const publicRelays = NostrClient.getDefaultRelays() 
+    // return [...minibitsRelays, ...publicRelays]
+    return minibitsRelays
 }
 
 const getSupportedMethods = function () {

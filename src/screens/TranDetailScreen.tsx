@@ -1833,10 +1833,14 @@ export const TranItem = function (props: {
         <View>
             <Text
                 style={[props.labelStyle, {color: labelColor, fontSize: 14}, margin]}
-                tx={props.label}
+                tx={props.label}                
             />
             {props.isCurrency && props.unit ? (
-              <Text style={props.valueStyle ?? {}} text={`${formatCurrency(props.value as number, getCurrency(props.unit).code)} ${getCurrency(props.unit).code}`} />            
+              <Text 
+                style={props.valueStyle ?? {}} 
+                text={`${formatCurrency(props.value as number, getCurrency(props.unit).code)} ${getCurrency(props.unit).code}`} 
+                selectable={true}
+              />            
             ) : (
               <>
                 {props.url ? (
@@ -1844,7 +1848,11 @@ export const TranItem = function (props: {
                     <Text style={props.valueStyle ?? {textDecorationLine: 'underline'}} text={props.value as string} />
                   </Pressable>
                 ) : (
-                  <Text style={props.valueStyle ?? {}} text={props.value as string} />
+                  <Text 
+                    selectable={true}
+                    style={props.valueStyle ?? {}} 
+                    text={props.value as string} 
+                  />
                 )}                
               </>
             )}            

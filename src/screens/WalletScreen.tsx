@@ -12,15 +12,12 @@ import {
   FlatList,
   Pressable,
   Linking,
-  LayoutAnimation,
-  ScrollView
+  LayoutAnimation,  
 } from 'react-native'
 import codePush, { RemotePackage } from 'react-native-code-push'
 import {moderateScale, moderateVerticalScale, verticalScale} from '@gocodingnow/rn-size-matters'
 import { SvgXml } from 'react-native-svg'
 import {getUnixTime} from 'date-fns'
-import PagerView, { PagerViewOnPageScrollEventData } from 'react-native-pager-view'
-import { ScalingDot } from 'react-native-animated-pagination-dots'
 import {useThemeColor, spacing, colors, typography} from '../theme'
 import {
   Button,
@@ -59,23 +56,15 @@ import { round } from '../utils/number'
 import { IncomingParser } from '../services/incomingParser'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { CurrencySign } from './Wallet/CurrencySign'
-import { Currencies, MintUnit, getCurrency } from "../services/wallet/currency"
+import { MintUnit, getCurrency } from "../services/wallet/currency"
 import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import { LeftProfileHeader } from './ContactsScreen'
 import { maxTransactionsByUnit } from '../models/TransactionsStore'
-import { NotificationService } from '../services/notificationService'
-import { TabBar, TabView } from 'react-native-tab-view'
+import { NavigationState, Route, TabBar, TabView } from 'react-native-tab-view'
 
-const AnimatedPagerView = Animated.createAnimatedComponent(PagerView)
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
 
 interface WalletScreenProps extends WalletStackScreenProps<'Wallet'> {}
-
-type RelayStatus = {
-    relay: string, 
-    status: number, 
-    error?: string
-}
 
 export const WalletScreen: FC<WalletScreenProps> = observer(
   function WalletScreen({route, navigation}) {    
@@ -87,20 +76,29 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         userSettingsStore, 
         nwcStore,
         walletProfileStore
-    } = useStores()
-        
-    const pagerRef = useRef<PagerView>(null)
+    } = useStores()        
+    
     const appState = useRef(AppState.currentState)
     const isInternetReachable = useIsInternetReachable()
     const groupedMints: MintsByUnit[] = mintsStore.groupedByUnit
 
+    // Tab view by unit
+    const [routes] = useState(
+        groupedMints.map((mintUnit) => ({
+            key: mintUnit.unit,
+            title: getCurrency(mintUnit.unit).code,
+        }))
+    )
+    const [tabIndex, setTabIndex] = useState(0)
     const [currentUnit, setCurrentUnit] = useState<MintUnit>(groupedMints.length > 0 ? groupedMints[0].unit : 'sat')
+
     const [info, setInfo] = useState<string>('')
     const [defaultMintUrl, setDefaultMintUrl] = useState<string>(MINIBITS_MINT_URL)
     const [lastClaimCheck, setLastClaimCheck] = useState<number>(getUnixTime(new Date()))
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState<boolean>(false)
     
+    const [isMintsModalVisible, setIsMintsModalVisible] = useState<boolean>(false)
     const [isUpdateAvailable, setIsUpdateAvailable] = useState<boolean>(false)
     const [isUpdateModalVisible, setIsUpdateModalVisible] = useState<boolean>(false)
     const [isSendModalVisible, setIsSendModalVisible] = useState<boolean>(false)
@@ -164,10 +162,13 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             WalletTask.handleInFlight().catch(e => false)
             // Create websocket subscriptions to receive tokens or payment requests by NOSTR DMs                    
             WalletTask.receiveEventsFromRelays().catch(e => false)            
-            // log.trace('[getInitialData]', 'walletProfile', walletProfileStore) 
+            
+            // Set wallet tab to preferred unit
             const preferredUnit: MintUnit = userSettingsStore.preferredUnit
-            const pageIndex = groupedMints.findIndex((m) => m.unit === preferredUnit)
-            pagerRef.current && pagerRef.current.setPage(pageIndex)
+            const preferredTabIndex = routes.findIndex(route => route.key === preferredUnit)    
+            if(tabIndex !== preferredTabIndex) {
+                onTabChange(preferredTabIndex)
+            }
 
             // Create websocket subscriptions to receive NWC requests from remote wallets (if any)
             // go through websockets only if remote notifications not working as push data messages are
@@ -181,6 +182,24 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
         return () => {}
     }, [])
+
+
+    const onTabChange = (tabIndex: number) => {
+        if(groupedMints.length === 0) {
+            return
+        }
+
+        const currentUnit = routes[tabIndex].key 
+        log.trace('[onTabChange] currentUnit', currentUnit)
+
+        setCurrentUnit(currentUnit)
+        setTabIndex(tabIndex)
+
+        const preferredUnit = userSettingsStore.preferredUnit
+        if(currentUnit !== preferredUnit) { // prevents db write on first load
+            userSettingsStore.setPreferredUnit(currentUnit)
+        }        
+    }
 
 
     const handleDeeplink = async function ({url}: {url: string}) {
@@ -286,6 +305,11 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     }, [])
 
 
+    const toggleMintsModal = () => {
+        setIsMintsModalVisible(previousState => !previousState)
+    }
+
+
     const toggleUpdateModal = () => {
         setIsUpdateModalVisible(previousState => !previousState)
     }
@@ -325,16 +349,6 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         }
     }
 
-    const gotoSend = function () {
-        toggleSendModal()
-        navigation.navigate('Send', {unit: currentUnit})
-    }
-
-    const gotoLightningPay = async function () {
-        toggleSendModal()
-        navigation.navigate('LightningPay', {unit: currentUnit})
-    }
-
     const gotoScan = function () {
         navigation.navigate('Scan')
     }
@@ -342,11 +356,6 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const gotoTokenReceive = async function () {
         toggleReceiveModal()
         navigation.navigate('TokenReceive', {unit: currentUnit})
-    }
-
-    const gotoTopup = function () {
-        toggleReceiveModal()
-        navigation.navigate('Topup', {unit: currentUnit})
     }
 
     const gotoTranDetail = function (id: number) {
@@ -362,56 +371,120 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         navigation.navigate('ContactsNavigator', {screen: 'Profile', params: {}, initial: false})
     }
 
+    const gotoMintInfo = function (mintUrl: string) {
+        setIsMintsModalVisible(false)
+        navigation.navigate('SettingsNavigator', {
+            screen: 'MintInfo', 
+            params: {mintUrl}, 
+            initial: false
+        })
+    }
+
+    const gotoTopup = function (mintUrl?: string) {
+        if(mintUrl) {
+            setIsMintsModalVisible(false)
+            navigation.navigate('Topup', {                        
+                mintUrl,
+                unit: currentUnit
+            })
+        } else {
+            setIsReceiveModalVisible(false)
+            navigation.navigate('Topup', {                                        
+                unit: currentUnit
+            })
+        }
+    }
+
+
+    const gotoLightningPay = function (mintUrl?: string, ) {
+        if(mintUrl) {
+            setIsMintsModalVisible(false)
+            navigation.navigate('LightningPay', {
+                mintUrl,
+                unit: currentUnit
+            })
+        } else {
+            setIsSendModalVisible(false)
+            navigation.navigate('LightningPay', {                                        
+                unit: currentUnit
+            })
+        }        
+    }
+
+
+    const gotoSend = function () {
+        // log.trace('[gotoSend]', {currentUnit})
+        setIsSendModalVisible(false)
+        navigation.navigate('Send', {                                        
+            unit: currentUnit
+        })
+    }
+
     const handleError = function (e: AppError) {
       setIsLoading(false)
       setError(e)
     }
 
-    // Tab view by unit
-    const [routes] = useState(
-        groupedMints.map((mintUnit) => ({
-          key: mintUnit.unit,
-          title: getCurrency(mintUnit.unit).code,
-        }))
-    )
 
-    const renderScene = function ({ route }: { route: { key: string } }) {
-        const unitMints = groupedMints.find((mintUnit) => mintUnit.unit === route.key);
+    const renderUnitTabs = function ({ route }: { route: { key: string } }) {
+        const unitMints = groupedMints.find((mintUnit) => mintUnit.unit === route.key)
         
         if (unitMints) {            
             return (
-            <View key={unitMints.unit}>
-                        <UnitBalanceBlock                            
-                            unitBalance={balances.unitBalances.find(balance => balance.unit === unitMints.unit)!}
+            <>
+                <View style={[
+                    $headerContainer, {
+                        backgroundColor: headerBg, 
+                        paddingTop: spacing.medium
+                    }
+                ]}>
+                    <UnitBalanceBlock                            
+                        unitBalance={balances.unitBalances.find(balance => balance.unit === unitMints.unit)!}
+                    />
+                    <Pressable                         
+                        onPress={toggleMintsModal}
+                    >                        
+                        <MintsByUnitSummary 
+                            mintsByUnit={unitMints}
+                            navigation={navigation}
                         />
-                        <View style={$contentContainer}>
-                            <MintsByUnitListItem                                    
-                                mintsByUnit={unitMints}                                
-                                navigation={navigation}                                     
-                            />                            
-                            {transactionsStore.recentByUnit(unitMints.unit).length > 0 &&  unitMints.mints.length  < 4 && (
-                                <Card                                    
-                                    ContentComponent={                                            
-                                        <FlatList
-                                            data={transactionsStore.recentByUnit(unitMints.unit, maxTransactionsByUnit - unitMints.mints.length) as Transaction[]}
-                                            renderItem={({item, index}) => {
-                                                return (<TransactionListItem
-                                                    key={item.id}
-                                                    transaction={item}
-                                                    isFirst={index === 0}
-                                                    isTimeAgoVisible={true}
-                                                    gotoTranDetail={() => gotoTranDetail(item.id!)}
-                                                />)
-                                                }
-                                            }
-                                            // style={{ maxHeight: 300 - (mints.mints.length > 1 ? mints.mints.length * 38 : 0)}}
-                                        />                                            
-                                    }
-                                    style={[$card, {paddingTop: spacing.extraSmall}]}
+                    </Pressable>
+                </View>
+                <View style={$contentContainer}>                           
+                    {transactionsStore.recentByUnit(unitMints.unit).length > 0 ? (
+                        <Card                                    
+                            ContentComponent={                                            
+                                <FlatList
+                                    data={transactionsStore.recentByUnit(unitMints.unit, maxTransactionsByUnit) as Transaction[]}
+                                    renderItem={({item, index}) => {
+                                        return (
+                                            <TransactionListItem
+                                                key={item.id}
+                                                transaction={item}
+                                                isFirst={index === 0}
+                                                isTimeAgoVisible={true}
+                                                gotoTranDetail={() => gotoTranDetail(item.id!)}
+                                            />
+                                        )}
+                                    }                                        
+                                />                                            
+                            }
+                            style={[$card, {paddingTop: spacing.extraSmall}]}
+                        />
+                    ) : (
+                        <Card                                
+                            ContentComponent={
+                                <ListItem 
+                                    leftIcon='faArrowTurnDown'
+                                    text='Make your first transaction'
+                                    textStyle={{fontSize: moderateScale(14)}} 
                                 />
-                            )}
-                        </View>                        
-                    </View>
+                            }                                
+                            style={[$card, {paddingTop: spacing.extraSmall, minHeight: 80}]}
+                        />
+                    )}
+                </View>                
+            </>
           )
         }
         return null;
@@ -419,24 +492,40 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
     const tabWidth = moderateScale(80)
 
-    const renderTabBar = (props: any) => (
-        <View style={{backgroundColor: headerBg, marginTop: -spacing.extraSmall}}>
-            <View style={{width: routes.length * tabWidth, alignSelf: 'center', backgroundColor: headerBg}}>
-                <TabBar
-                key={props.key}
-                {...props}
-                tabStyle={{width: tabWidth}}
-                indicatorStyle={{ backgroundColor: activeTabIndicator }}
-                style={{backgroundColor: headerBg, shadowColor: 'transparent'}}
-                />
+    const getActiveTabColor = (state: NavigationState<Route>) => {
+        switch (state.routes[tabIndex].key) {
+            case 'usd':
+                return useThemeColor('usd')              
+            case 'eur':
+                return useThemeColor('eur')                 
+            default:
+                return useThemeColor('btc') 
+          }
+          
+    }
+
+    const renderTabBar = (props: any) => {
+        return(
+            <View style={{backgroundColor: headerBg, marginTop: -spacing.extraSmall}}>
+                <View style={{width: routes.length * tabWidth, alignSelf: 'center', backgroundColor: headerBg}}>
+                    <TabBar                        
+                        {...props}                        
+                        tabStyle={{width: tabWidth}}
+                        renderLabel={({ route, focused, color }) => (
+                            <CurrencySign
+                                mintUnit={route.key as MintUnit}
+                                containerStyle={focused ? {} : {opacity: 0.5}}
+                            />
+                        )}
+                        indicatorStyle={{ backgroundColor: getActiveTabColor(props.navigationState) }}                    
+                        style={{backgroundColor: headerBg, shadowColor: 'transparent'}}
+                    />
+                </View>
             </View>
-        </View>
-    )
-
-
-    const [index, setIndex] = useState(0)
-    const headerBg = useThemeColor('header')
-    const activeTabIndicator = colors.palette.accent400
+        )
+    }
+    
+    const headerBg = useThemeColor('header')    
     const balances = proofsStore.getBalances()
     const screenBg = useThemeColor('background')
     const mainButtonIcon = useThemeColor('button')
@@ -481,10 +570,10 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             ) : (                
                 <TabView
                     renderTabBar={renderTabBar}
-                    navigationState={{ index, routes }}
-                    renderScene={renderScene}
-                    onIndexChange={setIndex}
-                    initialLayout={{ width: routes.length * 100 }}                    
+                    navigationState={{ index: tabIndex, routes }}
+                    renderScene={renderUnitTabs}
+                    onIndexChange={onTabChange}
+                    initialLayout={{ width: spacing.screenWidth }}                    
                 />
             )}
             <View style={$bottomContainer}>
@@ -535,9 +624,24 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             {error && <ErrorModal error={error} />}
             {isLoading && <Loading />}
         <BottomModal
-          isVisible={isUpdateModalVisible ? true : false}
-          style={{alignItems: 'stretch'}}
-          ContentComponent={        
+            isVisible={isMintsModalVisible ? true : false}
+            style={{alignItems: 'stretch', padding: spacing.medium}}
+            ContentComponent={        
+                <MintsByUnitList                                    
+                    mintsByUnit={groupedMints}
+                    currentUnit={currentUnit}
+                    onTopup={gotoTopup}
+                    onLightningPay={gotoLightningPay}                    
+                    onMintInfo={gotoMintInfo}
+                />
+            }
+            onBackButtonPress={toggleMintsModal}
+            onBackdropPress={toggleMintsModal}
+        />
+        <BottomModal
+            isVisible={isUpdateModalVisible ? true : false}
+            style={{alignItems: 'stretch'}}
+            ContentComponent={        
             <ListItem
                 LeftComponent={
                     <View style={{marginRight: spacing.medium}}>                        
@@ -551,9 +655,9 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 subTx="updateModal.desc"
                 onPress={gotoUpdate}
             />
-          }
-          onBackButtonPress={toggleUpdateModal}
-          onBackdropPress={toggleUpdateModal}
+            }
+            onBackButtonPress={toggleUpdateModal}
+            onBackdropPress={toggleUpdateModal}
         />
         <BottomModal
           isVisible={isSendModalVisible ? true : false}
@@ -571,7 +675,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 leftIcon='faBolt'             
                 tx="walletScreen.payWithLightning"
                 subTx="walletScreen.payWithLightningDesc"
-                onPress={gotoLightningPay}
+                onPress={() => gotoLightningPay()}
             />
             </>      
           }
@@ -594,7 +698,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 leftIcon='faBolt'          
                 tx='walletScreen.topupWithLightning'
                 subTx="walletScreen.topupWithLightningDesc"
-                onPress={gotoTopup}
+                onPress={() => gotoTopup()}
             />
             </>      
           }
@@ -610,26 +714,32 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
 const UnitBalanceBlock = observer(function (props: {
     unitBalance: UnitBalance
-}) {
-    const headerBg = useThemeColor('header')
-    
+}) {    
     const balanceColor = 'white'
-    const currencyColor = colors.palette.primary200
+    const convertedBalanceColor = colors.palette.primary200
+    const currencyColor = colors.palette.primary200    
     const {unitBalance} = props
-    // const headerBg = getMintColor(unitBalance.unit)
-    
-    // log.trace('[UnitBalanceBlock]', {unitBalance})
 
     return (
-        <View style={[$headerContainer, {backgroundColor: headerBg, paddingTop: spacing.medium}]}>
+        <>
             <CurrencyAmount
                 amount={unitBalance.unitBalance || 0}
+                // amount={2487}
                 mintUnit={unitBalance.unit}
-                symbolStyle={{fontSize: moderateVerticalScale(14), color: currencyColor, marginTop: spacing.small}}
-                amountStyle={[$unitBalance, {color: balanceColor, marginTop: spacing.small}]}
-                containerStyle={{marginLeft: -spacing.medium}}
+                symbolStyle={{display: 'none'}}
+                amountStyle={[$unitBalance, {color: balanceColor}]}
+                containerStyle={{marginTop: spacing.medium}}
             />
-        </View>
+            <CurrencyAmount
+                amount={283}
+                mintUnit={'usd'}
+                symbolStyle={{color: currencyColor, marginTop: spacing.tiny}}
+                amountStyle={{color: convertedBalanceColor}}
+                // containerStyle={{marginLeft: -spacing.medium}}  
+                size='small'             
+            />
+
+        </>
     )
 })
 
@@ -700,9 +810,63 @@ const PromoBlock = function (props: {addMint: any}) {
 }
 
 
-const MintsByUnitListItem = observer(function (props: {
+const MintsByUnitSummary = observer(function (props: {
     mintsByUnit: MintsByUnit    
     navigation: any
+}) {
+    const {
+        mintsStore, 
+        proofsStore, 
+    } = useStores()    
+      
+    const [selectedMint, setSelectedMint] = useState<Mint | undefined>(undefined)
+
+    useEffect(() => {        
+        const setSelected  = async () => {            
+            const balance = proofsStore.getMintBalanceWithMaxBalance(props.mintsByUnit.unit)
+            if(!balance) return
+
+            const mint = mintsStore.findByUrl(balance?.mintUrl)            
+            setSelectedMint(mint)
+        }       
+        
+        setSelected()
+        return () => {}
+    }, [])
+    
+    const {mintsByUnit} = props
+    const mintsCountText = `and ${mintsByUnit.mints.length} other${mintsByUnit.mints.length > 1 && 's'}`
+
+    return (
+        <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
+            <View
+                style={{
+                    marginEnd: spacing.small,                    
+                    flex: 0,
+                    borderRadius: spacing.small,
+                    padding: spacing.extraSmall,
+                    backgroundColor: getMintColor(mintsByUnit.unit)
+                }}
+            >
+                <SvgXml 
+                    width={spacing.medium} 
+                    height={spacing.medium} 
+                    xml={MintIcon}
+                    fill='white'
+                />
+            </View>
+            <Text size='xs' style={{color: 'white'}} text={`${selectedMint?.shortname} ${mintsByUnit.mints.length > 1 ? mintsCountText : ''}`}/>
+        </View>
+    )
+})
+
+
+const MintsByUnitList = observer(function (props: {
+    mintsByUnit: MintsByUnit[]
+    currentUnit: MintUnit    
+    onTopup: Function
+    onLightningPay: Function    
+    onMintInfo: Function    
 }) {
     
     const [selectedMintUrl, setSelectedMintUrl] = useState<string | undefined>(undefined)
@@ -717,153 +881,113 @@ const MintsByUnitListItem = observer(function (props: {
         LayoutAnimation.easeInEaseOut()
         setSelectedMintUrl(mintUrl)        
     }
-
-    const gotoMintInfo = function (mintUrl: string) {
-        props.navigation.navigate('SettingsNavigator', {screen: 'MintInfo', params: {mintUrl}, initial: false})
-    }
-
-
-    const gotoTopup = function (unit: MintUnit, mintUrl: string) {
-        props.navigation.navigate('Topup', {                        
-            mintUrl,
-            unit
-        })
-    }
-
-
-    const gotoLightningPay = async function (unit: MintUnit, mintUrl: string, ) {
-        props.navigation.navigate('LightningPay', {
-            mintUrl,
-            unit
-        })
-    }
-
-
-    const gotoSend = async function (unit: MintUnit, mintUrl: string) {
-        props.navigation.navigate('Send', {
-            mintUrl,
-            unit
-        })
-    }
-
-    
+        
     const color = useThemeColor('textDim')
     const balanceColor = useThemeColor('amount')
     const {mintsByUnit} = props
-
-
-
-    /* const isSingleMint: boolean = mintsByUnit.mints.length === 1 || false
-    const singleMint: Mint = mintsByUnit.mints[0] */
-
+    const mintsByUnitCurrent = mintsByUnit.find((mintUnit) => mintUnit.unit === props.currentUnit)
 
     return (
-        <Card
-            verticalAlignment='force-footer-bottom'            
-            ContentComponent={
-                <ScrollView>
-                    {mintsByUnit.mints.map((mint: Mint) => (
-                        <View key={mint.mintUrl}>
-                        <ListItem                        
-                            text={mint.shortname}
-                            subText={mint.hostname}                    
-                            LeftComponent={
-                                <View
-                                    style={{
-                                        marginEnd: spacing.small,
-                                        flex: 0,
-                                        borderRadius: spacing.small,
-                                        padding: spacing.extraSmall,
-                                        backgroundColor: getMintColor(mintsByUnit.unit)
-                                    }}
-                                >
+        <>
+            {mintsByUnitCurrent!.mints.map((mint: Mint, index: number) => (
+                <View key={mint.mintUrl}>
+                <ListItem                        
+                    text={mint.shortname}
+                    subText={mint.hostname}                    
+                    LeftComponent={
+                        <View
+                            style={{
+                                marginEnd: spacing.small,
+                                flex: 0,
+                                borderRadius: spacing.small,
+                                padding: spacing.extraSmall,
+                                backgroundColor: getMintColor(mintsByUnitCurrent!.unit)
+                            }}
+                        >
+                            <SvgXml 
+                                width={spacing.medium} 
+                                height={spacing.medium} 
+                                xml={MintIcon}
+                                fill='white'
+                            />
+                        </View>
+                    }
+                    RightComponent={
+                        <CurrencyAmount 
+                            amount={mint.balances?.balances[mintsByUnitCurrent!.unit] || 0}
+                            mintUnit={mintsByUnitCurrent!.unit}
+                            size='medium'
+                        />                    
+                    }
+                    //topSeparator={true}
+                    style={$item}
+                    onPress={() => onSelectedMint(mint.mintUrl)}
+                    topSeparator={index !== 0 ?? true}
+                />
+                {selectedMintUrl === mint.mintUrl &&  (
+                    <View style={{flexDirection: 'row', marginBottom: spacing.small, justifyContent: 'flex-start'}}>
+                        <Button
+                            tx="walletScreen.topup"
+                            LeftAccessory={() => (
+                                <Icon
+                                icon='faPlus'
+                                color={color}
+                                size={spacing.small}                  
+                                />
+                            )}
+                            preset='secondary'
+                            textStyle={{fontSize: 14, color}}
+                            onPress={() => props.onTopup(mintsByUnitCurrent!.unit, mint.mintUrl)}
+                            style={{
+                                minHeight: moderateVerticalScale(40), 
+                                paddingVertical: moderateVerticalScale(spacing.tiny),
+                                marginRight: spacing.small
+                            }}                    
+                        />
+                        <Button
+                            tx="walletScreen.pay"
+                            LeftAccessory={() => (
+                                <Icon
+                                icon='faBolt'
+                                color={color}
+                                size={spacing.small}                  
+                                />
+                            )}
+                            textStyle={{fontSize: 14, color}}
+                            preset='secondary'
+                            onPress={() => props.onLightningPay(mintsByUnitCurrent!.unit, mint.mintUrl)}
+                            style={{
+                                minHeight: moderateVerticalScale(40), 
+                                paddingVertical: moderateVerticalScale(spacing.tiny),
+                                marginRight: spacing.small
+                            }}                    
+                        />
+                        <Button
+                            tx="wallerScreen.mintButton"
+                            LeftAccessory={() => (
+                                <View style={{marginHorizontal: spacing.extraSmall}}>
                                     <SvgXml 
-                                        width={spacing.medium} 
-                                        height={spacing.medium} 
+                                        width={spacing.small} 
+                                        height={spacing.small} 
                                         xml={MintIcon}
-                                        fill='white'
+                                        fill={color}
                                     />
                                 </View>
-                            }
-                            RightComponent={
-                                <CurrencyAmount 
-                                    amount={mint.balances?.balances[mintsByUnit.unit as MintUnit] || 0}
-                                    mintUnit={mintsByUnit.unit}
-                                    size='medium'
-                                />                    
-                            }
-                            //topSeparator={true}
-                            style={$item}
-                            onPress={() => onSelectedMint(mint.mintUrl)}
+                            )}
+                            textStyle={{fontSize: 14, color}}
+                            preset='secondary'
+                            onPress={() => props.onMintInfo(mint.mintUrl)}
+                            style={{
+                                minHeight: moderateVerticalScale(40), 
+                                paddingVertical: moderateVerticalScale(spacing.tiny),
+                                marginRight: spacing.small
+                            }}                    
                         />
-                        {selectedMintUrl === mint.mintUrl &&  (
-                            <View style={{flexDirection: 'row', marginBottom: spacing.small, justifyContent: 'flex-start'}}>
-                                <Button
-                                    tx="walletScreen.topup"
-                                    LeftAccessory={() => (
-                                        <Icon
-                                        icon='faPlus'
-                                        color={color}
-                                        size={spacing.small}                  
-                                        />
-                                    )}
-                                    preset='secondary'
-                                    textStyle={{fontSize: 14, color}}
-                                    onPress={() => gotoTopup(mintsByUnit.unit, mint.mintUrl)}
-                                    style={{
-                                        minHeight: moderateVerticalScale(40), 
-                                        paddingVertical: moderateVerticalScale(spacing.tiny),
-                                        marginRight: spacing.small
-                                    }}                    
-                                />
-                                <Button
-                                    tx="walletScreen.pay"
-                                    LeftAccessory={() => (
-                                        <Icon
-                                        icon='faBolt'
-                                        color={color}
-                                        size={spacing.small}                  
-                                        />
-                                    )}
-                                    textStyle={{fontSize: 14, color}}
-                                    preset='secondary'
-                                    onPress={() => gotoLightningPay(mintsByUnit.unit, mint.mintUrl)}
-                                    style={{
-                                        minHeight: moderateVerticalScale(40), 
-                                        paddingVertical: moderateVerticalScale(spacing.tiny),
-                                        marginRight: spacing.small
-                                    }}                    
-                                />
-                                <Button
-                                    tx="wallerScreen.mintButton"
-                                    LeftAccessory={() => (
-                                        <View style={{marginHorizontal: spacing.extraSmall}}>
-                                            <SvgXml 
-                                                width={spacing.small} 
-                                                height={spacing.small} 
-                                                xml={MintIcon}
-                                                fill={color}
-                                            />
-                                        </View>
-                                    )}
-                                    textStyle={{fontSize: 14, color}}
-                                    preset='secondary'
-                                    onPress={() => gotoMintInfo(mint.mintUrl)}
-                                    style={{
-                                        minHeight: moderateVerticalScale(40), 
-                                        paddingVertical: moderateVerticalScale(spacing.tiny),
-                                        marginRight: spacing.small
-                                    }}                    
-                                />
-                            </View>
-                        )}
-                        </View>
-                    ))}
-                </ScrollView>
-            }            
-            contentStyle={{color}}            
-            style={[$card, {maxHeight: spacing.screenHeight * 0.6}]}
-        />
+                    </View>
+                )}
+                </View>
+            ))}
+        </>
     )
 })
 
@@ -895,11 +1019,12 @@ const $headerContainer: TextStyle = {
 }
 
 const $contentContainer: TextStyle = {
-    marginTop: -spacing.extraLarge * 2,
+    marginTop: -spacing.extraLarge * 1.5,
+    // alignSelf: 'stretch',
     // padding: spacing.extraSmall,    
     // flex: 1,
     // paddingTop: spacing.extraSmall - 3,
-    // borderWidth: 5,
+    // borderWidth: 3,
     // borderColor: 'green',
 }
 

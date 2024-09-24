@@ -1,0 +1,26 @@
+diff --git a/node_modules/react-native-tab-view/src/TabBar.tsx b/node_modules/react-native-tab-view/src/TabBar.tsx
+index e8d0b4c..1c3c09f 100644
+--- a/node_modules/react-native-tab-view/src/TabBar.tsx
++++ b/node_modules/react-native-tab-view/src/TabBar.tsx
+@@ -364,8 +364,7 @@ export function TabBar<T extends Route>({
+ 
+   const renderItem = React.useCallback(
+     ({ item: route, index }: ListRenderItemInfo<T>) => {
+-      const props: TabBarItemProps<T> & { key: string } = {
+-        key: route.key,
++      const props: TabBarItemProps<T> = {        
+         position: position,
+         route: route,
+         navigationState: navigationState,
+@@ -446,9 +445,9 @@ export function TabBar<T extends Route>({
+         <>
+           {gap > 0 && index > 0 ? <Separator width={gap} /> : null}
+           {renderTabBarItem ? (
+-            renderTabBarItem(props)
++             renderTabBarItem({ key: route.key, ...props })
+           ) : (
+-            <TabBarItem {...props} />
++            <TabBarItem key={route.key} {...props} />
+           )}
+         </>
+       );

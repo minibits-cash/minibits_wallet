@@ -303,8 +303,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
               {transactionStatus !== TransactionStatus.COMPLETED && (
                 <Card
                 style={$card}
-                heading={'Receive to'}
-                headingStyle={{textAlign: 'center', padding: spacing.small}}
+                label={'Receive to'}                
                 ContentComponent={
                   <>
                     {CashuUtils.getMintsFromToken(token).map((mintUrl, index) => {
@@ -526,7 +525,7 @@ const $contentContainer: TextStyle = {
 const $card: ViewStyle = {
   // marginTop: - spacing.extraLarge * 2,
   marginBottom: spacing.small,
-  paddingTop: 0,
+  // paddingTop: 0,
 }
 
 const $memoCard: ViewStyle = {
