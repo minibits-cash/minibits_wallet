@@ -13,7 +13,7 @@ import useIsInternetReachable from '../../utils/useIsInternetReachable'
 import {translate} from '../../i18n'
 import { CurrencyAmount } from '../Wallet/CurrencyAmount'
 import { NostrProfile } from '../../services'
-import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
+import { moderateScale, moderateVerticalScale } from '@gocodingnow/rn-size-matters'
 
 export interface TransactionListProps {
   transaction: Transaction
@@ -254,7 +254,7 @@ const $item: ViewStyle = {
 
 const $mintText: TextStyle = {
   overflow: 'hidden',
-  fontSize: 14,
+  fontSize: moderateVerticalScale(14),
 }
 
 const $txContainer: ViewStyle = {

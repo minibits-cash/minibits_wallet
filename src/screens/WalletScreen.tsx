@@ -62,6 +62,7 @@ import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import { LeftProfileHeader } from './ContactsScreen'
 import { maxTransactionsByUnit } from '../models/TransactionsStore'
 import { NavigationState, Route, TabBar, TabView } from 'react-native-tab-view'
+import { NwcConnection, NwcConnectionModel } from '../models/NwcStore'
 
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
 
@@ -450,12 +451,12 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                         />
                     </Pressable>
                 </View>
-                <View style={$contentContainer}>                           
+                <View style={$tabContainer}>                           
                     {transactionsStore.recentByUnit(unitMints.unit).length > 0 ? (
                         <Card                                    
                             ContentComponent={                                            
                                 <FlatList
-                                    data={transactionsStore.recentByUnit(unitMints.unit, maxTransactionsByUnit) as Transaction[]}
+                                    data={transactionsStore.recentByUnit(unitMints.unit) as Transaction[]}
                                     renderItem={({item, index}) => {
                                         return (
                                             <TransactionListItem
@@ -469,15 +470,25 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                     }                                        
                                 />                                            
                             }
-                            style={[$card, {paddingTop: spacing.extraSmall}]}
+                            style={[$card, {paddingTop: spacing.extraSmall, maxHeight: spacing.screenHeight * 0.3}]}
                         />
                     ) : (
                         <Card                                
                             ContentComponent={
                                 <ListItem 
                                     leftIcon='faArrowTurnDown'
-                                    text='Make your first transaction'
-                                    textStyle={{fontSize: moderateScale(14)}} 
+                                    leftIconColor={colors.palette.green400}
+                                    text='Start by funding your wallet'
+                                    textStyle={{fontSize: moderateScale(14)}}
+                                    RightComponent={
+                                        <View style={$rightContainer}>
+                                            <Button 
+                                                preset='secondary'
+                                                text={`Topup`}
+                                                onPress={() => gotoTopup()}
+                                            />
+                                        </View>
+                                    }
                                 />
                             }                                
                             style={[$card, {paddingTop: spacing.extraSmall, minHeight: 80}]}
@@ -530,6 +541,10 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const screenBg = useThemeColor('background')
     const mainButtonIcon = useThemeColor('button')
     const mainButtonColor = useThemeColor('card')
+    const label = useThemeColor('textDim')
+
+    const isNwcVisible = nwcStore.all.some(c => c.remainingDailyLimit !== c.dailyLimit)
+    const nwcCardsData = nwcStore.all.filter(c => c.remainingDailyLimit !== c.dailyLimit)
 
     return (        
       <Screen contentContainerStyle={$screen}>
@@ -563,7 +578,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             {groupedMints.length === 0 ? (
                 <>
                     <ZeroBalanceBlock/>
-                    <View style={$contentContainer}>
+                    <View style={$promoContainer}>
                         <PromoBlock addMint={addMint} />
                     </View>
                 </>
@@ -573,10 +588,47 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                     navigationState={{ index: tabIndex, routes }}
                     renderScene={renderUnitTabs}
                     onIndexChange={onTabChange}
-                    initialLayout={{ width: spacing.screenWidth }}                    
+                    initialLayout={{ width: spacing.screenWidth }}
+                    //style={{borderWidth: 1, borderColor: 'red'}}                                       
                 />
             )}
-            <View style={$bottomContainer}>
+            <View style={[$bottomContainer, {maxHeight: spacing.screenHeight * 0.3}]}>
+                {isNwcVisible && (
+                    <View>
+                        <FlatList
+                            data={nwcCardsData}
+                            horizontal={true}
+                            renderItem={({item, index}) => {
+                                return (
+                                    <Card
+                                        HeadingComponent={<Text text={item.name} size='xs'/>}                                        
+                                        ContentComponent={
+                                            <>
+                                            <Text text='Spent today' size='xxs' preset='formHelper' style={{color: label}}/>
+                                            <CurrencyAmount 
+                                                amount={210}
+                                                currencyCode={CurrencyCode.SAT}
+                                                containerStyle={{marginLeft: -spacing.tiny, marginTop: spacing.small}}
+                                                size='medium'
+                                            />
+                                            </>
+                                        }
+                                        style={{
+                                            width: spacing.screenWidth * 0.3, 
+                                            height: spacing.screenWidth * 0.3,
+                                            marginRight: spacing.small,
+                                            marginVertical: spacing.small
+                                        }}                                        
+                                    />
+                                )}
+                            }
+                            style={{
+                                
+
+                            }}                                        
+                        />
+                    </View>
+                )}                
                 <View style={$buttonContainer}>
                     <Button
                         LeftAccessory={() => (
@@ -737,7 +789,8 @@ const UnitBalanceBlock = observer(function (props: {
                 symbolStyle={{display: 'none'}}
                 amountStyle={[$unitBalance, {color: balanceColor}]}
                 containerStyle={{marginTop: spacing.medium}}
-            />            
+            />
+            <View style={{height: moderateVerticalScale(40)}}>            
             {walletStore.exchangeRate && userSettingsStore.exchangeCurrency && ( 
                 <CurrencyAmount
                     amount={getConvertedBalance() ?? 0}
@@ -747,6 +800,7 @@ const UnitBalanceBlock = observer(function (props: {
                     size='small'             
                 />
             )}
+            </View>
         </>
     )
 })
@@ -846,7 +900,7 @@ const MintsByUnitSummary = observer(function (props: {
     const mintsCountText = `and ${mintsByUnit.mints.length - 1} other${mintsByUnit.mints.length - 1 > 1 ? 's' : ''}`
 
     return (
-        <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
+        <View style={{flexDirection: 'row', alignItems: 'center'}}>
             <View
                 style={{
                     marginEnd: spacing.small,                    
@@ -1022,17 +1076,27 @@ const $screen: ViewStyle = {
 const $headerContainer: TextStyle = {
     alignItems: 'center',
     // padding: spacing.tiny,  
-    height: spacing.screenHeight * 0.30,
+    height: spacing.screenHeight * 0.28,
 }
 
-const $contentContainer: TextStyle = {
+const $tabContainer: TextStyle = {
     marginTop: -spacing.extraLarge * 1.5,
     // alignSelf: 'stretch',
     // padding: spacing.extraSmall,    
     // flex: 1,
     // paddingTop: spacing.extraSmall - 3,
-    // borderWidth: 3,
+    // borderWidth: 1,
     // borderColor: 'green',
+}
+
+const $promoContainer: TextStyle = {
+    marginTop: -spacing.extraLarge * 1.5,
+}
+
+const $rightContainer: ViewStyle = {
+    padding: spacing.extraSmall,
+    alignSelf: 'center',
+    marginLeft: spacing.small,
 }
 
 const $card: ViewStyle = {    
@@ -1083,14 +1147,14 @@ const $balance: TextStyle = {
 }
 
 const $bottomContainer: ViewStyle = {  
-  // flex: 0.18,
+  flexGrow: 0,
   // justifyContent: 'flex-end',
-  // marginBottom: spacing.extraSmall,
+  marginHorizontal: spacing.extraSmall,
   // alignItems: 'center',
   // opacity: 0,
 }
 
-const $buttonContainer: ViewStyle = {
+const $buttonContainer: ViewStyle = {    
     flexDirection: 'row',    
     marginBottom: spacing.tiny,
     justifyContent: 'center',
