@@ -6,6 +6,7 @@ import {
     JS_BUNDLE_VERSION,    
 } from '@env'
 import { WalletProfile, WalletProfileRecord } from "../models/WalletProfileStore"
+import { CurrencyCode } from "./wallet/currency"
 
 
 type MinibitsRequestArgs = {
@@ -280,6 +281,20 @@ const createClaim = async function (walletId: string, seedHash: string, pubkey: 
 }
 
 
+const getExchangeRate = async function (currency: CurrencyCode) {    
+    const url = MINIBITS_SERVER_API_HOST + '/rate'      
+    const method = 'GET'    
+
+    const rate: {currency: CurrencyCode, rate: number} = await fetchApi(url + `/${currency}`, {
+        method,            
+    })
+
+    log.info(`[getExchangeRate] Got response`, rate)
+
+    return rate
+}
+
+
 const fetchApi = async (url: string, options: MinibitsRequestOptions, timeout = 20000) => { //ms
     log.trace('[fetchApi] start', url)
     
@@ -303,9 +318,9 @@ const fetchApi = async (url: string, options: MinibitsRequestOptions, timeout = 
         log.trace('[fetchApi] error responseJson', responseJson)
 
         if(error === Object(error)) {            
-            throw new AppError(error.name || Err.NETWORK_ERROR, error.message || '', {caller: 'fetchApi', message: error.params?.message || '', status: response.status})
+            throw new AppError(error.name || Err.NETWORK_ERROR, error.message || '', {caller: 'fetchApi', message: error.params?.message || '', status: response.status, url})
         } else {
-            throw new AppError(Err.NETWORK_ERROR, String(error), {caller: 'fetchApi', status: response.status})
+            throw new AppError(Err.NETWORK_ERROR, String(error), {caller: 'fetchApi', status: response.status, url})
         }        
     }
 
@@ -347,6 +362,7 @@ export const MinibitsClient = {
     createDonation,
     checkDonationPaid,
     createClaim,
+    getExchangeRate,
     getPublicHeaders,
     fetchApi,
 }

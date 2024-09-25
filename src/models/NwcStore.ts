@@ -251,7 +251,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             if(enabled) {
                 yield NotificationService.createLocalNotification(
                     `<b>${self.name}</b> - Nostr Wallet Connect`,
-                    `Invoice for ${result.transaction.amount} SATS paid${result.transaction.fee > 0 ? ', fee ' + result.transaction.fee + ' SATS' : ''}. Remaining today's limit is ${self.remainingDailyLimit} SATS`,
+                    `Invoice for ${result.transaction.amount} SAT paid${result.transaction.fee > 0 ? ', fee ' + result.transaction.fee + ' SAT' : ''}. Remaining today's limit is ${self.remainingDailyLimit} SAT`,
                     nwcPngUrl
                 )
             }
@@ -509,7 +509,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             }
 
             if(totalAmountToPay > self.remainingDailyLimit) {
-                const message = `Your remaining daily limit of ${self.remainingDailyLimit} SATS would be exceeded with this payment.`
+                const message = `Your remaining daily limit of ${self.remainingDailyLimit} SAT would be exceeded with this payment.`
                 return {
                     result_type: nwcRequest.method,
                     error: { code: 'QUOTA_EXCEEDED', message}

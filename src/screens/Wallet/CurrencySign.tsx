@@ -15,7 +15,7 @@ export const CurrencySign = function(props: {
   }
 ) {
     const {currencyCode, mintUnit, containerStyle, textStyle, size} = props
-    let code = currencyCode || CurrencyCode.SATS
+    let code = currencyCode || CurrencyCode.SAT
 
     if(!!mintUnit) {
         code = getCurrency(mintUnit).code

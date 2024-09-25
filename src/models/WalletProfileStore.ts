@@ -15,7 +15,7 @@ export type WalletProfile = {
     lud16?: string | null    
     device?: string | null
     isOwnProfile: boolean
-    isBatchClaimOn: boolean
+    // isBatchClaimOn: boolean
 }
 
 export type WalletProfileRecord = {  
@@ -41,7 +41,7 @@ export const WalletProfileStoreModel = types
         device: types.maybe(types.maybeNull(types.string)),
         seedHash: types.maybe(types.maybeNull(types.string)),
         isOwnProfile: types.optional(types.boolean, false),
-        isBatchClaimOn: types.optional(types.boolean, false), 
+        // isBatchClaimOn: types.maybe(types.boolean), // legacy, not used
     })
     .actions(self => ({  
         publishToRelays: flow(function* publishToRelays() {
@@ -275,11 +275,11 @@ export const WalletProfileStoreModel = types
         setSeedHash(seedHash: string) {   // used in migration to v8 model         
             self.seedHash = seedHash             
         },
-        setIsBatchClaimOn: (isBatchClaimOn: boolean) => {            
+        /* setIsBatchClaimOn: (isBatchClaimOn: boolean) => {            
             self.isBatchClaimOn = isBatchClaimOn            
             return isBatchClaimOn
         },
-        /* setPicture(picture: string) {            
+        setPicture(picture: string) {            
             self.picture = picture             
         }*/
     }))

@@ -236,11 +236,11 @@ export const NwcScreen: FC<SettingsScreenProps> = observer(
                                         BottomComponent={
                                         <View style={{flexDirection: 'column'}}>
                                             <Text 
-                                                text={`Daily limit ${item.dailyLimit} SATS`} 
+                                                text={`Daily limit ${item.dailyLimit} SAT`} 
                                                 style={$subText}
                                             />
                                             <Text 
-                                                text={`Remaining ${item.remainingDailyLimit} SATS`} 
+                                                text={`Remaining ${item.remainingDailyLimit} SAT`} 
                                                 style={$subText}
                                             />
                                         </View>}
@@ -356,13 +356,13 @@ export const NwcScreen: FC<SettingsScreenProps> = observer(
                         value={newConnectionDailyLimit}                        
                         keyboardType='numeric'
                         maxLength={8}
-                        placeholder='Enter daily limit in SATS'
+                        placeholder='Enter daily limit in satoshi'
                         selectTextOnFocus={true}
                         style={[$connInput, {backgroundColor: inputBg, borderBottomRightRadius: 0, borderTopRightRadius: 0}]}
                     />
                     <Button
                         preset='secondary'
-                        text="SATS"
+                        text="SAT"
                         style={{
                             borderTopLeftRadius: 0,
                             borderBottomLeftRadius: 0,  

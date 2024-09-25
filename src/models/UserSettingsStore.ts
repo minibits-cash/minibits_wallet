@@ -2,18 +2,19 @@ import {Instance, SnapshotOut, types, flow} from 'mobx-state-tree'
 import {Database} from '../services'
 import {MMKVStorage} from '../services'
 import {LogLevel} from '../services/log/logTypes'
-import { MintUnit } from '../services/wallet/currency'
+import { CurrencyCode, MintUnit } from '../services/wallet/currency'
 
 export type UserSettings = {
   id?: number   
   walletId: string | null
-  preferredUnit: MintUnit | null 
+  preferredUnit: MintUnit | null
+  exchangeCurrency: CurrencyCode | null 
   isOnboarded: boolean | 0 | 1
   isStorageEncrypted: boolean | 0 | 1
   isLocalBackupOn: boolean | 0 | 1
   isTorDaemonOn: boolean | 0 | 1
   isLoggerOn: boolean | 0 | 1   
-  // isBatchClaimOn: boolean | 0 | 1
+  isBatchClaimOn: boolean | 0 | 1
   logLevel: LogLevel
 }
 
@@ -22,11 +23,12 @@ export const UserSettingsStoreModel = types
     .props({                
         walletId: types.maybeNull(types.string),
         preferredUnit: types.optional(types.frozen<MintUnit>(), 'sat'),
+        exchangeCurrency: types.optional(types.frozen<CurrencyCode | null>(), CurrencyCode.USD),
         isOnboarded: types.optional(types.boolean, false),
         isStorageEncrypted: types.optional(types.boolean, false),
         isLocalBackupOn: types.optional(types.boolean, true),
         isTorDaemonOn: types.optional(types.boolean, false),
-        // isBatchClaimOn: types.optional(types.boolean, false),
+        isBatchClaimOn: types.optional(types.boolean, false),
         isLoggerOn: types.optional(types.boolean, true),
         logLevel: types.optional(types.frozen<LogLevel>(), LogLevel.ERROR)
     })
@@ -34,13 +36,14 @@ export const UserSettingsStoreModel = types
         loadUserSettings: () => {
             const {
                 walletId,   
-                preferredUnit,                              
+                preferredUnit,
+                exchangeCurrency,                              
                 isOnboarded, 
                 isStorageEncrypted, 
                 isLocalBackupOn,
                 isTorDaemonOn,
                 isLoggerOn,                                
-                // isBatchClaimOn,
+                isBatchClaimOn,
                 logLevel
             } = Database.getUserSettings()
             
@@ -49,16 +52,17 @@ export const UserSettingsStoreModel = types
             const booleanIsLocalBackupOn = isLocalBackupOn === 1            
             const booleanIsTorDaemonOn = isTorDaemonOn === 1
             const booleanIsLoggerOn = isLoggerOn === 1                        
-            // const booleanIsBatchClaimOn = isBatchClaimOn === 1            
+            const booleanIsBatchClaimOn = isBatchClaimOn === 1            
             
             self.walletId = walletId as string
-            self.preferredUnit = preferredUnit as MintUnit                        
+            self.preferredUnit = preferredUnit as MintUnit
+            self.exchangeCurrency = exchangeCurrency as CurrencyCode                        
             self.isOnboarded = booleanIsOnboarded as boolean
             self.isStorageEncrypted = booleanIsStorageEncrypted as boolean
             self.isLocalBackupOn = booleanIsLocalBackupOn as boolean
             self.isTorDaemonOn = booleanIsTorDaemonOn as boolean
             self.isLoggerOn = booleanIsLoggerOn as boolean                        
-            // self.isBatchClaimOn = booleanIsBatchClaimOn as boolean
+            self.isBatchClaimOn = booleanIsBatchClaimOn as boolean
             self.logLevel = logLevel as LogLevel
         },
         setWalletId: (walletId: string) => {
@@ -72,6 +76,12 @@ export const UserSettingsStoreModel = types
             self.preferredUnit = preferredUnit
             
             return preferredUnit
+        },
+        setExchangeCurrency: (exchangeCurrency: CurrencyCode | null) => {
+            Database.updateUserSettings({...self, exchangeCurrency})
+            self.exchangeCurrency = exchangeCurrency
+            
+            return exchangeCurrency
         },
         setIsOnboarded: (isOnboarded: boolean) => {
             Database.updateUserSettings({...self, isOnboarded})
@@ -103,17 +113,12 @@ export const UserSettingsStoreModel = types
             Database.updateUserSettings({...self, isLoggerOn})
             self.isLoggerOn = isLoggerOn            
             return isLoggerOn
-        },
-        /* setIsStorageMigrated: (isStorageMigrated: boolean) => {
-            Database.updateUserSettings({...self, isStorageMigrated})
-            self.isStorageMigrated = isStorageMigrated            
-            return isStorageMigrated
-        }, */
-        /* setIsBatchClaimOn: (isBatchClaimOn: boolean) => {
+        },        
+        setIsBatchClaimOn: (isBatchClaimOn: boolean) => {
             Database.updateUserSettings({...self, isBatchClaimOn})
             self.isBatchClaimOn = isBatchClaimOn            
             return isBatchClaimOn
-        },*/
+        },
         setLogLevel: (logLevel: LogLevel) => {
             Database.updateUserSettings({...self, logLevel})
             self.logLevel = logLevel            
@@ -126,10 +131,7 @@ export const UserSettingsStoreModel = types
         },
         get isAppStorageEncrypted() { // can not have the same name as model property
             return self.isStorageEncrypted
-        }, 
-        /* get isBatchClaimOn() {
-            return self.isBatchClaimOn
-        }, */
+        },
         get isTorOn() {
             return self.isTorDaemonOn
         },

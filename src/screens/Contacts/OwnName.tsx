@@ -347,7 +347,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                                             RightComponent={
                                                 <CurrencyAmount
                                                     amount={donationAmount}
-                                                    currencyCode={CurrencyCode.SATS}
+                                                    currencyCode={CurrencyCode.SAT}
                                                     size='medium'                                                    
                                                 /> 
                                             }
@@ -407,7 +407,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                                     </RNText>                                    
                                     <CurrencyAmount
                                         amount={DEFAULT_DONATION_AMOUNT}
-                                        currencyCode={CurrencyCode.SATS}
+                                        currencyCode={CurrencyCode.SAT}
                                         size='extraLarge'
                                         containerStyle={{alignSelf: 'center', marginTop: spacing.medium}}
                                     />                                    

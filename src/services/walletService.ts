@@ -141,6 +141,7 @@ export type ReceivedEventResult = {
 
 
 const {
+    userSettingsStore,
     walletProfileStore,
     mintsStore,
     proofsStore,
@@ -1136,7 +1137,7 @@ const handleClaim = async function (): Promise<void> {
     
     log.info('[handleClaim] start')
     const {walletId, seedHash, pubkey} = walletProfileStore
-    const {isBatchClaimOn} = walletProfileStore
+    const {isBatchClaimOn} = userSettingsStore
     let recoveredWalletId: string | null = null
 
     if(!seedHash || !pubkey) {

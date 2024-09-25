@@ -32,6 +32,7 @@ import {TransactionStatus, Transaction} from '../models/Transaction'
 import {useStores} from '../models'
 import {
   NostrClient,
+  NostrEvent,
   NostrProfile,
   NostrUnsignedEvent,
   TransactionTaskResult,
@@ -393,7 +394,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
           infoMessage(
             translate('payCommon.minimumWithdraw', {
               amount: roundUp(lnurlWithdrawParams?.minWithdrawable / 1000, 0),
-              currency: CurrencyCode.SATS,
+              currency: CurrencyCode.SAT,
             }),
           )
           return
@@ -524,7 +525,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
           created_at: Math.floor(Date.now() / 1000),
         }
 
-        const sentEvent: Event | undefined = await NostrClient.publish(
+        const sentEvent: NostrEvent | undefined = await NostrClient.publish(
           dmEvent,
           relaysToShareTo,
         )
@@ -1199,7 +1200,7 @@ const LnurlWithdrawBlock = observer(function (props: {
         tx="topup.withdrawalAvailable"
         subText={translate("topup.withdrawAvailableDesc", {
           amount: roundDown( props.lnurlWithdrawParams.maxWithdrawable / 1000, 0),
-          code: CurrencyCode.SATS
+          code: CurrencyCode.SAT
         })}
         topSeparator={true}
       />
@@ -1208,7 +1209,7 @@ const LnurlWithdrawBlock = observer(function (props: {
         leftIconColor={colors.palette.success200}
         text={translate("topup.invoiceCreatedParam", {
           amount: props.amountToTopup,
-          code: CurrencyCode.SATS
+          code: CurrencyCode.SAT
         })}
         subText={translate("topup.invoiceCreatedDescParam", {
           mintUrl: props.mintBalanceToTopup.mintUrl

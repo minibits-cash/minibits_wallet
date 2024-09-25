@@ -60,7 +60,7 @@
 		"reconnect": "Reconnect",
 		"reset": "Reset",
 		"resetDefault": "Reset to default",
-		"sats": "SATS",
+		"sats": "SAT",
 		"save": "Save",
 		"saveFailParam": "Failed to save %{param}",
 		"scan": "Scan",
@@ -415,6 +415,7 @@
 			"other": "{{count}} mints"
 		},
 		"preferredUnit": "Preferred unit",
+		"exchangeCurrency": "Balance conversion",
 		"privacy": "Privacy",
 		"security": "Security",
 		"title": "Settings",

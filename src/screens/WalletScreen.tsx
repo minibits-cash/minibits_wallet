@@ -18,6 +18,7 @@ import codePush, { RemotePackage } from 'react-native-code-push'
 import {moderateScale, moderateVerticalScale, verticalScale} from '@gocodingnow/rn-size-matters'
 import { SvgXml } from 'react-native-svg'
 import {getUnixTime} from 'date-fns'
+import { debounce } from "lodash"
 import {useThemeColor, spacing, colors, typography} from '../theme'
 import {
   Button,
@@ -38,7 +39,7 @@ import {useStores} from '../models'
 import {WalletStackScreenProps} from '../navigation'
 import {Mint, UnitBalance} from '../models/Mint'
 import {MintsByUnit} from '../models/MintsStore'
-import {log, NostrClient} from '../services'
+import {log, MinibitsClient, NostrClient} from '../services'
 import {Env} from '../utils/envtypes'
 import {Transaction} from '../models/Transaction'
 import {TransactionListItem} from './Transactions/TransactionListItem'
@@ -56,7 +57,7 @@ import { round } from '../utils/number'
 import { IncomingParser } from '../services/incomingParser'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { CurrencySign } from './Wallet/CurrencySign'
-import { MintUnit, getCurrency } from "../services/wallet/currency"
+import { CurrencyCode, MintUnit, MintUnitCurrencyPairs, convertToFromSats, getCurrency } from "../services/wallet/currency"
 import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import { LeftProfileHeader } from './ContactsScreen'
 import { maxTransactionsByUnit } from '../models/TransactionsStore'
@@ -75,7 +76,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         paymentRequestsStore, 
         userSettingsStore, 
         nwcStore,
-        walletProfileStore
+        walletProfileStore,
+        walletStore
     } = useStores()        
     
     const appState = useRef(AppState.currentState)
@@ -161,8 +163,11 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             // Auto-recover inflight proofs - do only on startup and before checkPendingReceived to prevent conflicts            
             WalletTask.handleInFlight().catch(e => false)
             // Create websocket subscriptions to receive tokens or payment requests by NOSTR DMs                    
-            WalletTask.receiveEventsFromRelays().catch(e => false)            
-            
+            WalletTask.receiveEventsFromRelays().catch(e => false)
+            // Get exchange rate
+            if(userSettingsStore.exchangeCurrency) {
+                walletStore.refreshExchangeRate(userSettingsStore.exchangeCurrency!)
+            }
             // Set wallet tab to preferred unit
             const preferredUnit: MintUnit = userSettingsStore.preferredUnit
             const preferredTabIndex = routes.findIndex(route => route.key === preferredUnit)    
@@ -218,9 +223,9 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     }
 
 
-    const handleClipboard = function (clipboard: string) {
+    /* const handleClipboard = function (clipboard: string) {
         log.trace('clipboard', clipboard, 'handleClipboard')
-    }
+    }*/
     
 
     const gotoUpdate = function() {
@@ -240,18 +245,15 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             }
 
             WalletTask.syncPendingStateWithMints().catch(e => false)               
-            WalletTask.handlePendingTopups().catch(e => false) 
+            WalletTask.handlePendingTopups().catch(e => false)
             
-            // check lnaddress claims max once per minute to decrease server load      
-            const nowInSec = getUnixTime(new Date())
+            debounce(() => WalletTask.handleClaim(), 60000) 
 
-            log.trace('[useFocusEffect]', {nowInSec, lastClaimCheck, delay: lastClaimCheck ? nowInSec - lastClaimCheck : undefined})
-
-            if(lastClaimCheck && nowInSec - lastClaimCheck > 60) {                
-                WalletTask.handleClaim().catch(e => false)
-                setLastClaimCheck(nowInSec)            
-            }
-            
+            if(userSettingsStore.exchangeCurrency) {                
+                debounce(() => walletStore.refreshExchangeRate(
+                    userSettingsStore.exchangeCurrency!
+                ), 60000)
+            }  
         }, [])
     )
 
@@ -282,14 +284,12 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                     WalletTask.syncPendingStateWithMints().catch(e => false) 
                     WalletTask.handlePendingTopups().catch(e => false)
 
-                    // check lnaddress claims max once per minute to decrease server load            
-                    const nowInSec = getUnixTime(new Date())
+                    debounce(() => WalletTask.handleClaim(), 60000) 
 
-                    // log.trace('[appState change]', {nowInSec, lastClaimCheck, delay: lastClaimCheck ? nowInSec - lastClaimCheck : undefined})
-
-                    if(lastClaimCheck && nowInSec - lastClaimCheck > 60) {                        
-                        WalletTask.handleClaim().catch(e => false)
-                        setLastClaimCheck(nowInSec)            
+                    if(userSettingsStore.exchangeCurrency) {                
+                        debounce(() => walletStore.refreshExchangeRate(
+                            userSettingsStore.exchangeCurrency!
+                        ), 60000)
                     }
 
                     // calls checkPendingReceived if re-connects
@@ -715,30 +715,38 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 const UnitBalanceBlock = observer(function (props: {
     unitBalance: UnitBalance
 }) {    
+    const {walletStore, userSettingsStore} = useStores()
     const balanceColor = 'white'
     const convertedBalanceColor = colors.palette.primary200
     const currencyColor = colors.palette.primary200    
     const {unitBalance} = props
+    
+    const getConvertedBalance = function () {
+        return convertToFromSats(
+            unitBalance.unitBalance, 
+            MintUnitCurrencyPairs[unitBalance.unit], 
+            walletStore.exchangeRate!
+        )
+    }
 
     return (
         <>
             <CurrencyAmount
-                amount={unitBalance.unitBalance || 0}
-                // amount={2487}
+                amount={unitBalance.unitBalance || 0}                
                 mintUnit={unitBalance.unit}
                 symbolStyle={{display: 'none'}}
                 amountStyle={[$unitBalance, {color: balanceColor}]}
                 containerStyle={{marginTop: spacing.medium}}
-            />
-            <CurrencyAmount
-                amount={283}
-                mintUnit={'usd'}
-                symbolStyle={{color: currencyColor, marginTop: spacing.tiny}}
-                amountStyle={{color: convertedBalanceColor}}
-                // containerStyle={{marginLeft: -spacing.medium}}  
-                size='small'             
-            />
-
+            />            
+            {walletStore.exchangeRate && userSettingsStore.exchangeCurrency && ( 
+                <CurrencyAmount
+                    amount={getConvertedBalance() ?? 0}
+                    currencyCode={unitBalance.unit === 'sat' ? userSettingsStore.exchangeCurrency : CurrencyCode.SAT}
+                    symbolStyle={{color: currencyColor, marginTop: spacing.tiny}}
+                    amountStyle={{color: convertedBalanceColor}}                        
+                    size='small'             
+                />
+            )}
         </>
     )
 })
@@ -1005,7 +1013,6 @@ export const getMintColor = function (unit: MintUnit) {
         return colors.palette.green400
     }
 }
-
 
 
 const $screen: ViewStyle = {

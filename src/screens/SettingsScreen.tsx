@@ -11,17 +11,18 @@ import {
 import codePush, { RemotePackage } from 'react-native-code-push'
 import {colors, spacing, useThemeColor} from '../theme'
 import {SettingsStackScreenProps} from '../navigation' // @demo remove-current-line
-import {ListItem, Screen, Text, Card, NwcIcon} from '../components'
+import {ListItem, Screen, Text, Card, NwcIcon, Button, BottomModal} from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import {translate} from '../i18n'
 import { log } from '../services'
 import {Env} from '../utils/envtypes'
 import { round } from '../utils/number'
-import { getCurrency } from '../services/wallet/currency'
+import { Currencies, CurrencyCode, getCurrency } from '../services/wallet/currency'
 import { getMintColor } from './WalletScreen'
 import { NotificationService } from '../services/notificationService'
 import { SvgXml } from 'react-native-svg'
+import { CurrencySign } from './Wallet/CurrencySign'
 
 
 interface SettingsScreenProps extends SettingsStackScreenProps<'Settings'> {}
@@ -38,12 +39,15 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
       relaysStore, 
       userSettingsStore, 
       walletProfileStore,
-      nwcStore
+      nwcStore,
+      walletStore
     } = useStores()
 
     const [isUpdateAvailable, setIsUpdateAvailable] = useState<boolean>(false)
     const [updateDescription, setUpdateDescription] = useState<string>('')    
+    
     const [updateSize, setUpdateSize] = useState<string>('')
+    const [isCurrencyModalVisible, setIsCurrencyModalVisible] = useState<boolean>(false)
     const [isNativeUpdateAvailable, setIsNativeUpdateAvailable] = useState<boolean>(false)
     const [areNotificationsEnabled, setAreNotificationsEnabled] = useState<boolean>(false)
 
@@ -120,6 +124,9 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
     }
   }, [])
 
+  const toggleCurrencyModal = () => {
+    setIsCurrencyModalVisible(previousState => !previousState)
+  }
 
     const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {            
       // silent
@@ -170,6 +177,43 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
     const gotoPreferredUnit = function() {
       Alert.alert('Preferred unit is set based on your Wallet screen.') 
     }
+    
+
+    const getRateColor = function () {
+      const currency = userSettingsStore.exchangeCurrency
+
+      if (currency === CurrencyCode.BTC) {
+          return colors.palette.orange600
+      }
+  
+      if (currency === CurrencyCode.EUR) {
+          return colors.palette.blue600
+      }
+  
+      if (currency === CurrencyCode.USD) {
+          return colors.palette.green400
+      }
+
+      return colors.palette.orange400
+    }
+
+    const onSelectCurrency = function(currency: CurrencyCode) {
+      const currentCurrency = userSettingsStore.exchangeCurrency
+      if(currentCurrency !== currency) {
+        userSettingsStore.setExchangeCurrency(currency)
+        walletStore.refreshExchangeRate(currency)
+      }
+      toggleCurrencyModal()  
+    }
+    
+    const onResetCurrency = function() {
+      const currentCurrency = userSettingsStore.exchangeCurrency
+      if(currentCurrency !== null) {
+        userSettingsStore.setExchangeCurrency(null)
+        walletStore.resetExchangeRate()
+      }
+      toggleCurrencyModal()  
+    } 
 
     const $itemRight = {color: useThemeColor('textDim')}
     const headerBg = useThemeColor('header')
@@ -206,21 +250,22 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                     onPress={gotoMints}
                 />
                 <ListItem
-                    tx='settingsScreen.preferredUnit'
+                    tx='settingsScreen.exchangeCurrency'
                     leftIcon='faMoneyBill1'
-                    leftIconColor={getMintColor(userSettingsStore.preferredUnit)}
+                    leftIconColor={getRateColor() as string}
                     leftIconInverse={true}
                     style={$item}
                     RightComponent={
                       <View style={$rightContainer}>
-                      <Text 
-                          style={$itemRight}
-                          text={getCurrency(userSettingsStore.preferredUnit).code}
+                      <Button 
+                          preset='tertiary'
+                          text={userSettingsStore.exchangeCurrency ?? 'None'}
+                          onPress={toggleCurrencyModal}
                       />
                       </View>
                     }
                     bottomSeparator={false}
-                    onPress={gotoPreferredUnit}
+                    onPress={toggleCurrencyModal}
                 />
               </>
             }
@@ -353,6 +398,36 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
           />
           
         </View>
+        <BottomModal
+          isVisible={isCurrencyModalVisible ? true : false}
+          style={{alignItems: 'stretch'}}
+          ContentComponent={  
+            <>
+            {[CurrencyCode.USD, CurrencyCode.EUR].map(code => 
+              <ListItem 
+                  key={code}  
+                  LeftComponent={
+                  <CurrencySign 
+                    currencyCode={code}
+                    containerStyle={{marginRight: spacing.large}}
+                  />
+                }            
+                  text={Currencies[code]?.title}
+                  onPress={() => onSelectCurrency(code)}
+                  bottomSeparator={true}
+              />
+            )}
+              <ListItem   
+                  leftIcon='faXmark'           
+                  text={'Do not load exchange rates'}
+                  onPress={onResetCurrency}
+                  bottomSeparator={true}
+              />
+            </>      
+          }
+          onBackButtonPress={toggleCurrencyModal}
+          onBackdropPress={toggleCurrencyModal}
+        />
       </Screen>
     )
   },

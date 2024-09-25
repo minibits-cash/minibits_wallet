@@ -240,7 +240,7 @@ useFocusEffect(
                 }
 
                 if(unit !== 'sat') {
-                    throw new AppError(Err.VALIDATION_ERROR, `Donations can currently be paid only with ${CurrencyCode.SATS} balances.`)
+                    throw new AppError(Err.VALIDATION_ERROR, `Donations can currently be paid only with ${CurrencyCode.SAT} balances.`)
                 }
 
                 log.trace('[handleDonation]', {encodedInvoice})
@@ -458,7 +458,7 @@ const onRequestLnurlInvoice = async function () { // onAmountEndEditing
     if (lnurlPayParams.minSendable && amount < lnurlPayParams.minSendable / 1000) {
       setInfo(translate('payCommon.minimumWithdraw', { 
         amount: roundUp(lnurlPayParams.minSendable / 1000, 0), 
-        currency: CurrencyCode.SATS 
+        currency: CurrencyCode.SAT 
       }))        
       return;
     }
@@ -466,7 +466,7 @@ const onRequestLnurlInvoice = async function () { // onAmountEndEditing
     if (lnurlPayParams.maxSendable && amount > lnurlPayParams.maxSendable / 1000) {       
       setInfo(translate("payCommon.maximumPay", { 
         amount: roundDown(lnurlPayParams.maxSendable / 1000, 0),
-        currency: CurrencyCode.SATS
+        currency: CurrencyCode.SAT
       }))          
       return;
     }

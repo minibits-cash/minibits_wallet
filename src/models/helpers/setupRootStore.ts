@@ -25,7 +25,7 @@ import { rootStoreModelVersion } from '../RootStore'
 import AppError, { Err } from '../../utils/AppError'
 import { LogLevel } from '../../services/log/logTypes'
 import { MintStatus } from '../Mint'
-import { WalletStoreModel } from '../WalletStore'
+import { CurrencyCode } from '../../services/wallet/currency'
 
 /**
  * The key we'll be saving our state as within storage.
@@ -80,9 +80,15 @@ export async function setupRootStore(rootStore: RootStore) {
 
         // load the last known state from storage
         restoredState = MMKVStorage.load(ROOT_STORAGE_KEY) || {}
+
+        // dirty mobx fix
+        restoredState.walletProfileStore.isBatchClaimOn = undefined
+        
         const dataSize = Buffer.byteLength(JSON.stringify(restoredState), 'utf8')         
         
         log.trace('[setupRootStore]', `restored state has ${dataSize} bytes.`)
+        // log.trace(restoredState)
+
         applySnapshot(rootStore, restoredState)        
         
     } catch (e: any) {        
@@ -208,7 +214,7 @@ async function _runMigrations(rootStore: RootStore) {
 
         if(currentVersion < 11) {
             log.trace(`Starting rootStore migrations from version v${currentVersion} -> v11`)            
-            userSettingsStore.setIsStorageMigrated(true)
+            // userSettingsStore.setIsStorageMigrated(true)
             rootStore.setVersion(rootStoreModelVersion)
             log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
         }
@@ -294,7 +300,7 @@ async function _runMigrations(rootStore: RootStore) {
 
         if(currentVersion < 23) {
             log.trace(`Starting rootStore migrations from version v${currentVersion} -> v23`)            
-            walletProfileStore.setIsBatchClaimOn(false)
+            // walletProfileStore.setIsBatchClaimOn(false)
             rootStore.setVersion(rootStoreModelVersion)
             log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
         }
@@ -302,6 +308,13 @@ async function _runMigrations(rootStore: RootStore) {
         if(currentVersion < 24) {
             log.trace(`Starting rootStore migrations from version v${currentVersion} -> v24`)            
             userSettingsStore.setLogLevel(LogLevel.ERROR)
+            rootStore.setVersion(rootStoreModelVersion)
+            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+        }
+
+        if(currentVersion < 25) {
+            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v25`)            
+            userSettingsStore.setExchangeCurrency(CurrencyCode.USD)
             rootStore.setVersion(rootStoreModelVersion)
             log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
         }

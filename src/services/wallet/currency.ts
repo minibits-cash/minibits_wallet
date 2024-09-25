@@ -2,13 +2,14 @@ import numbro from 'numbro'
 import { BtcIcon, EurIcon, UsdIcon } from '../../components'
 import AppError, { Err } from '../../utils/AppError'
 import { log } from '../logService'
+import { ExchangeRate } from '../../models/WalletStore'
 
 
 export type MintUnit = typeof MintUnits[number]
 export const MintUnits = ['btc', 'sat', 'msat', 'usd', 'eur'] as const
 
 export enum CurrencyCode {
-    BTC = 'BTC', SATS = 'SATS', MSATS = 'mSATS', EUR = 'EUR', GBP = 'GBP', 
+    BTC = 'BTC', SAT = 'SAT', MSAT = 'MSAT', EUR = 'EUR', GBP = 'GBP', 
     CZK = 'CZK', USD = 'USD', PLN = 'PLN', HUF = 'HUF', RON = 'RON',
 }
 
@@ -17,7 +18,7 @@ export type MintUnitCurrencyPair = {
 }
 
 export const MintUnitCurrencyPairs: MintUnitCurrencyPair = {
-  btc:CurrencyCode.BTC, sat:CurrencyCode.SATS, msat:CurrencyCode.MSATS, eur:CurrencyCode.EUR, usd:CurrencyCode.USD,
+  btc:CurrencyCode.BTC, sat:CurrencyCode.SAT, msat:CurrencyCode.MSAT, eur:CurrencyCode.EUR, usd:CurrencyCode.USD,
 }
 
 export interface CurrencyData {
@@ -33,19 +34,19 @@ export interface CurrencyData {
 export type CurrencyList = Partial<Record<CurrencyCode, CurrencyData>>
 
 export const Currencies: CurrencyList = {
-    SATS: {
+    SAT: {
         symbol: 'SAT',
         title: 'Satoshis',
-        code: CurrencyCode.SATS,
+        code: CurrencyCode.SAT,
         mintUnit: 'sat',
         icon: BtcIcon,
         precision: 1,
         mantissa: 0,
     },
-    mSATS: {
+    MSAT: {
         symbol: 'mSAT',
         title: 'Milisatoshis',
-        code: CurrencyCode.MSATS,
+        code: CurrencyCode.MSAT,
         mintUnit: 'msat',
         icon: BtcIcon,
         precision: 1,
@@ -143,4 +144,15 @@ export const getCurrency = (unit: MintUnit) => {
     }
 
     return currencyData as CurrencyData
+}
+
+export const convertToFromSats = (amount: number, currencyFrom: CurrencyCode, satExchangeRate: ExchangeRate) => {
+    // exchangeRate is always 1 fiat precision unit (cent) in SAT {currency: 'EUR', rate: 15.69} 
+
+    if(currencyFrom === CurrencyCode.SAT) {
+        return amount / satExchangeRate.rate
+    }
+
+    return amount * satExchangeRate.rate
+    
 }

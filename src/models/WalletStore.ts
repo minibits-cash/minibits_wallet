@@ -12,22 +12,29 @@ import {
   MintAllKeysets,
   MintActiveKeys
 } from '@cashu/cashu-ts'
+import { debounce } from "lodash"
 import { JS_BUNDLE_VERSION } from '@env'
-import {KeyChain} from '../services'
+import {KeyChain, MinibitsClient} from '../services'
 import {log} from '../services/logService'
 import AppError, { Err } from '../utils/AppError'
-import { MintUnit } from '../services/wallet/currency'
+import { Currencies, CurrencyCode, MintUnit } from '../services/wallet/currency'
 import { CashuUtils, ProofV3, TokenV3 } from '../services/cashu/cashuUtils'
 import { Proof } from './Proof'
 import { isObj } from '@cashu/cashu-ts/src/utils'
 import { Mint } from './Mint'
 import { getRootStore } from './helpers/getRootStore'
+import { getUnixTime } from 'date-fns/getUnixTime'
 
 /* 
    Not persisted, in-memory only model of the cashu-ts wallet instances and seed.
    It is instantiated on first use so that wallet retrieves fresh mint keysets, then cached, 
    so that new cashu-ts instances are re-used over app lifecycle. Seed is as well retrieved as needed and cached because retrieval from keychain might be slow.
 */
+
+export type ExchangeRate = {
+  currency: CurrencyCode, // 1 EUR, USD, ...
+  rate: number // in satoshis
+}
 
 export const WalletStoreModel = types
     .model('WalletStore', {        
@@ -36,6 +43,9 @@ export const WalletStoreModel = types
         seedWallets: types.array(types.frozen<CashuWallet>()),
         mnemonicPhrase: types.maybe(types.string),
         seedBase64: types.maybe(types.string),
+        exchangeRate: types.maybe(types.frozen<ExchangeRate>()),
+        // lastClaimCheck: types.maybe(types.number),
+        // lastRateCheck: types.maybe(types.number),
     })
     .views(self => ({
       getMintModelInstance(mintUrl: string) : Mint | undefined {
@@ -68,7 +78,23 @@ export const WalletStoreModel = types
         return optimalKeyset
       }, 
     }))     
-    .actions(self => ({  
+    .actions(self => ({
+      refreshExchangeRate: flow(function* refreshExchangeRate(currencyCode: CurrencyCode) {                    
+            const {rate, currency} = yield MinibitsClient.getExchangeRate(currencyCode)
+            const precision = Currencies[currencyCode]?.precision
+            
+            if(!precision) {
+              throw new AppError(Err.VALIDATION_ERROR, `Currency code ${currency} is not yet supported by Minibits. Submit request to add it on our Github.`)
+            }
+
+            self.exchangeRate = {
+              currency: currency,
+              rate: rate / precision
+            }
+      }),
+      resetExchangeRate () {
+        self.exchangeRate = undefined
+      },
       getMnemonic: flow(function* getMnemonic() {    
         if (self.mnemonicPhrase) {        
           log.trace('[getMnemonic]', 'returning cached mnemonic')
@@ -697,13 +723,14 @@ export const WalletStoreModel = types
         get seed() {
           return self.seedBase64
         }
-    })).postProcessSnapshot((snapshot) => {   // NOT persisted to storage!  
+    })).postProcessSnapshot((snapshot) => {   // NOT persisted to storage except last exchangeRate!  
       return {
           mints: [],
           seedWallets: [],
           wallets: [],
           mnemonicPhrase: undefined,
-          seedBase64: undefined
+          seedBase64: undefined,
+          exchangeRate: snapshot.exchangeRate
       }          
     })
 

@@ -292,8 +292,8 @@ function MintLimitsCard(props: { info: GetInfoResponse, limitInfo: ReturnType<ty
   log.trace('MintLimtsCard', props.limitInfo)
 
   const limitText = (m: MethodLimit) => {
-    const min = `${formatCurrency(m.min as number, CurrencyCode.SATS)}`
-    const max = `${formatCurrency(m.max as number, CurrencyCode.SATS)}`
+    const min = `${formatCurrency(m.min as number, CurrencyCode.SAT)}`
+    const max = `${formatCurrency(m.max as number, CurrencyCode.SAT)}`
     
     return (typeof m.min !== 'undefined' && typeof m.max !== 'undefined' ? `${min} – ${max}`
     : typeof m.min !== 'undefined' && typeof m.max === 'undefined' ? `min: ${min}`

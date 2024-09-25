@@ -22,7 +22,7 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
     const {npub, nip05} = walletProfileStore    
 
     const [isBatchClaimOn, setIsBatchClaimOn] = useState<boolean>(
-        walletProfileStore.isBatchClaimOn,
+        userSettingsStore.isBatchClaimOn,
     )
     const [isUpdateModalVisible, setIsUpdateModalVisible] = useState<boolean>(false)
     const [isShareModalVisible, setIsShareModalVisible] = useState<boolean>(false)
@@ -154,7 +154,7 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
     
     const toggleBatchClaimSwitch = () => {
         try {          
-          const result = walletProfileStore.setIsBatchClaimOn(!isBatchClaimOn)
+          const result = userSettingsStore.setIsBatchClaimOn(!isBatchClaimOn)
           setIsBatchClaimOn(result)
         } catch (e: any) {
           handleError(e)

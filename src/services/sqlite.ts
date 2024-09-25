@@ -16,10 +16,11 @@ import {log} from './logService'
 import {LogLevel} from './log/logTypes'
 import {BackupProof} from '../models/Proof'
 import { CashuUtils } from './cashu/cashuUtils'
+import { CurrencyCode } from './wallet/currency'
 
 let _db: QuickSQLiteConnection
 
-const _dbVersion = 13 // Update this if db changes require migrations
+const _dbVersion = 14 // Update this if db changes require migrations
 
 const getInstance = function () {
   if (!_db) {
@@ -76,10 +77,12 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
         `CREATE TABLE IF NOT EXISTS usersettings (
         id INTEGER PRIMARY KEY NOT NULL,      
         walletId TEXT,
-        preferredUnit TEXT,    
+        preferredUnit TEXT,
+        exchangeCurrency TEXT,    
         isOnboarded BOOLEAN,
         isStorageEncrypted BOOLEAN,
         isLocalBackupOn BOOLEAN,
+        isBatchClaimOn BOOLEAN,
         isTorDaemonOn BOOLEAN,
         isLoggerOn BOOLEAN,
         logLevel TEXT,
@@ -268,6 +271,18 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
       log.info(`Prepared database migrations from ${currentVersion} -> 13`)
     }
 
+    if (currentVersion < 14) {
+      migrationQueries.push([
+        `ALTER TABLE usersettings
+        ADD COLUMN exchangeCurrency`,   
+      ], [
+        `ALTER TABLE usersettings
+        ADD COLUMN isBatchClaimOn`,   
+      ])
+
+      log.info(`Prepared database migrations from ${currentVersion} -> 14`)
+    }
+
     // Update db version as a part of migration sqls
     migrationQueries.push([
       `INSERT OR REPLACE INTO dbversion (id, version, createdAt)
@@ -385,10 +400,12 @@ const getUserSettings = function (): UserSettings {
             const walletId = _generateWalletId()
             const defaultSettings = updateUserSettings({
                 walletId,
-                preferredUnit: 'sat',                              
+                preferredUnit: 'sat',
+                exchangeCurrency: CurrencyCode.USD,
                 isOnboarded: 0,
                 isStorageEncrypted: 0,
                 isLocalBackupOn: 1,
+                isBatchClaimOn: 1,
                 isTorDaemonOn: 0,
                 isLoggerOn: 1,                
                 logLevel: LogLevel.ERROR
@@ -413,25 +430,29 @@ const updateUserSettings = function (settings: UserSettings): UserSettings {
         const {
           walletId,
           preferredUnit,
+          exchangeCurrency,
           isOnboarded, 
           isStorageEncrypted, 
           isLocalBackupOn, 
+          isBatchClaimOn,
           isTorDaemonOn, 
           isLoggerOn,
           logLevel
         } = settings
 
         const query = `
-        INSERT OR REPLACE INTO usersettings (id, walletId, preferredUnit, isOnboarded, isStorageEncrypted, isLocalBackupOn, isTorDaemonOn, isLoggerOn, logLevel, createdAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)      
+        INSERT OR REPLACE INTO usersettings (id, walletId, preferredUnit, exchangeCurrency, isOnboarded, isStorageEncrypted, isLocalBackupOn, isBatchClaimOn, isTorDaemonOn, isLoggerOn, logLevel, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)      
         `
         const params = [
             1,
             walletId,
-            preferredUnit,                        
+            preferredUnit,
+            exchangeCurrency,                      
             isOnboarded,
             isStorageEncrypted,
             isLocalBackupOn,
+            isBatchClaimOn,
             isTorDaemonOn,
             isLoggerOn,
             logLevel,

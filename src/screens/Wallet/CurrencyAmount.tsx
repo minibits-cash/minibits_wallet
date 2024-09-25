@@ -18,9 +18,9 @@ export const CurrencyAmount = observer(function (props: {
   }) 
 {
     const {currencyCode, mintUnit, amount, symbolStyle, amountStyle, containerStyle, size} = props
-    let currencySymbol: string = Currencies.SATS!.symbol
+    let currencySymbol: string = Currencies.SAT!.symbol
     
-    let currencyCode2: CurrencyCode = Currencies.SATS!.code
+    let currencyCode2: CurrencyCode = Currencies.SAT!.code
 
     if(!!currencyCode) {
         currencySymbol = Currencies[currencyCode]!.symbol    
