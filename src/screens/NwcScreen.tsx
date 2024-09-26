@@ -175,7 +175,8 @@ export const NwcScreen: FC<SettingsScreenProps> = observer(
     const screenBg = useThemeColor('background')
     const mainButtonIcon = useThemeColor('button')
     const labelText = useThemeColor('textDim')
-    const $subText = {color: useThemeColor('textDim'), fontSize: 14}
+    const $subText = {color: useThemeColor('textDim'), fontSize: moderateVerticalScale(14)}
+    const headerTitle = useThemeColor('headerTitle')
     
     return (
       <Screen contentContainerStyle={$screen}>
@@ -183,7 +184,7 @@ export const NwcScreen: FC<SettingsScreenProps> = observer(
           <Text
             preset='heading'
             text='NWC'
-            style={{color: 'white'}}
+            style={{color: headerTitle}}
           />
         </View>
         <View style={$contentContainer}>            

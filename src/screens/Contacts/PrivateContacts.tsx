@@ -248,7 +248,7 @@ export const PrivateContacts = observer(function (props: {
     const iconColor = useThemeColor('textDim')
     const inputBg = useThemeColor('background')
     const mainButtonColor = useThemeColor('card')
-    const mainButtonIcon = useThemeColor('button')
+    const mainButtonIcon = useThemeColor('mainButtonIcon')
     const screenBg = useThemeColor('background')
 
     return (

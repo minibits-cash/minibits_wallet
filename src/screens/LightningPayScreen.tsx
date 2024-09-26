@@ -152,6 +152,8 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
     const inputBg = useThemeColor('background')
     const contactIcon = useThemeColor('button')
     const headerBg = useThemeColor('header')
+    const headerTitle = useThemeColor('headerTitle')
+    
 
     return (
         <Screen preset="fixed" contentContainerStyle={$screen}>
@@ -164,7 +166,7 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                 <Text
                     preset="heading"
                     tx="lightningPayScreen.payHeading"
-                    style={{color: 'white'}}
+                    style={{color: headerTitle}}
                 />                
             </View> 
             <View style={$contentContainer}>            

@@ -1,13 +1,13 @@
 import React from "react"
-import { TextStyle, View, ViewStyle } from "react-native"
-import { Button, Header, Icon, IconTypes, ListItem, Screen, Text } from "../../components"
-import { colors, spacing, typography, useThemeColor } from "../../theme"
+import { Header, Text } from "../../components"
+import { spacing, useThemeColor } from "../../theme"
 import { Mint } from "../../models/Mint"
 import { MintUnit } from "../../services/wallet/currency"
 import { CurrencySign } from "../Wallet/CurrencySign"
 import { CurrencyAmount } from "../Wallet/CurrencyAmount"
 import { observer } from "mobx-react-lite"
 import { StackNavigationProp } from "@react-navigation/stack"
+import { moderateScale } from "@gocodingnow/rn-size-matters"
 
 export const MintHeader = observer(function(props: {
     unit: MintUnit,
@@ -17,6 +17,21 @@ export const MintHeader = observer(function(props: {
 ) {
   
     const {mint, unit, navigation} = props
+
+    const getActiveUnitColor = () => {
+        switch (props.unit) {
+            case 'usd':
+                return useThemeColor('usd')              
+            case 'eur':
+                return useThemeColor('eur')                 
+            default:
+                return useThemeColor('btc') 
+          }
+          
+    }
+
+    const tabWidth = moderateScale(80)
+    const headerTitle = useThemeColor('headerTitle')
   
     return (
         <Header                
@@ -24,12 +39,18 @@ export const MintHeader = observer(function(props: {
                 <>
                     {mint && (<Text 
                         text={mint && mint.shortname} 
-                        style={{color: 'white'}}
+                        style={{color: headerTitle}}
                         size='xxs'
                     />)}
                     <CurrencySign 
                         mintUnit={unit && unit}
                         textStyle={{color: 'white'}}
+                        containerStyle={{
+                            borderBottomWidth: 2, 
+                            paddingVertical: mint ? spacing.tiny : spacing.small,                            
+                            borderBottomColor: getActiveUnitColor(),
+                            width: tabWidth
+                        }}
                     />
                 </>
             }

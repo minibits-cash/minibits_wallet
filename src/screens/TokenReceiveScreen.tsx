@@ -133,8 +133,7 @@ export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = fu
     const inputBg = useThemeColor('background')
     const contactIcon = useThemeColor('button')
     const headerBg = useThemeColor('header')
-    
-    
+    const headerTitle = useThemeColor('headerTitle')    
 
     return (
         <Screen preset="fixed" contentContainerStyle={$screen}>
@@ -147,7 +146,7 @@ export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = fu
                 <Text
                     preset="heading"
                     tx="payCommon.receiveEcash"
-                    style={{color: 'white'}}                    
+                    style={{color: headerTitle}}                    
                 />                
             </View> 
             <View style={$contentContainer}>            

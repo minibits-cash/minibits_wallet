@@ -3,12 +3,14 @@ import {Database} from '../services'
 import {MMKVStorage} from '../services'
 import {LogLevel} from '../services/log/logTypes'
 import { CurrencyCode, MintUnit } from '../services/wallet/currency'
+import { ThemeCode } from '../theme'
 
 export type UserSettings = {
   id?: number   
   walletId: string | null
   preferredUnit: MintUnit | null
   exchangeCurrency: CurrencyCode | null 
+  theme: ThemeCode | null
   isOnboarded: boolean | 0 | 1
   isStorageEncrypted: boolean | 0 | 1
   isLocalBackupOn: boolean | 0 | 1
@@ -24,6 +26,7 @@ export const UserSettingsStoreModel = types
         walletId: types.maybeNull(types.string),
         preferredUnit: types.optional(types.frozen<MintUnit>(), 'sat'),
         exchangeCurrency: types.optional(types.frozen<CurrencyCode | null>(), CurrencyCode.USD),
+        theme: types.optional(types.frozen<ThemeCode>(), ThemeCode.DEFAULT),
         isOnboarded: types.optional(types.boolean, false),
         isStorageEncrypted: types.optional(types.boolean, false),
         isLocalBackupOn: types.optional(types.boolean, true),
@@ -37,7 +40,8 @@ export const UserSettingsStoreModel = types
             const {
                 walletId,   
                 preferredUnit,
-                exchangeCurrency,                              
+                exchangeCurrency,
+                theme,                              
                 isOnboarded, 
                 isStorageEncrypted, 
                 isLocalBackupOn,
@@ -56,7 +60,8 @@ export const UserSettingsStoreModel = types
             
             self.walletId = walletId as string
             self.preferredUnit = preferredUnit as MintUnit
-            self.exchangeCurrency = exchangeCurrency as CurrencyCode                        
+            self.exchangeCurrency = exchangeCurrency as CurrencyCode
+            self.theme = theme as ThemeCode                        
             self.isOnboarded = booleanIsOnboarded as boolean
             self.isStorageEncrypted = booleanIsStorageEncrypted as boolean
             self.isLocalBackupOn = booleanIsLocalBackupOn as boolean
@@ -82,6 +87,12 @@ export const UserSettingsStoreModel = types
             self.exchangeCurrency = exchangeCurrency
             
             return exchangeCurrency
+        },
+        setTheme: (theme: ThemeCode) => {
+            Database.updateUserSettings({...self, theme})
+            self.theme = theme
+            
+            return theme
         },
         setIsOnboarded: (isOnboarded: boolean) => {
             Database.updateUserSettings({...self, isOnboarded})

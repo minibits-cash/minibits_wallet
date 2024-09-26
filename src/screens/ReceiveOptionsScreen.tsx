@@ -167,27 +167,4 @@ const $item: ViewStyle = {
   paddingLeft: 0,
 }
 
-const $iconContainer: ViewStyle = {
-  padding: spacing.extraSmall,
-  alignSelf: 'center',
-  marginRight: spacing.medium,
-}
 
-const $buttonContainer: ViewStyle = {
-  flexDirection: 'row',
-  alignSelf: 'center',
-}
-
-const $amountContainer: ViewStyle = {
-  alignItems: 'center',
-  justifyContent: 'center',
-}
-
-const $amountToReceive: TextStyle = {
-  flex: 1,
-  paddingTop: spacing.extraLarge + 10,
-  fontSize: 52,
-  fontWeight: '400',
-  textAlignVertical: 'center',
-  color: 'white',
-}

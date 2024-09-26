@@ -539,9 +539,10 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const headerBg = useThemeColor('header')    
     const balances = proofsStore.getBalances()
     const screenBg = useThemeColor('background')
-    const mainButtonIcon = useThemeColor('button')
+    const mainButtonIcon = useThemeColor('mainButtonIcon')
     const mainButtonColor = useThemeColor('card')
     const label = useThemeColor('textDim')
+    const headerTitle = useThemeColor('headerTitle')
 
     const isNwcVisible = nwcStore.all.some(c => c.remainingDailyLimit !== c.dailyLimit)
     const nwcCardsData = nwcStore.all.filter(c => c.remainingDailyLimit !== c.dailyLimit)
@@ -568,8 +569,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                             style={{flexDirection: 'row', alignItems:'center', marginRight: spacing.medium}}
                             onPress={() => gotoPaymentRequests()}
                         >
-                            <Icon icon='faPaperPlane' color={'white'}/>
-                            <Text text={`${paymentRequestsStore.countNotExpired}`} style={{color: 'white'}} />
+                            <Icon icon='faPaperPlane' color={headerTitle}/>
+                            <Text text={`${paymentRequestsStore.countNotExpired}`} style={{color: headerTitle}} />
                         </Pressable>
                     )}
                 </>
@@ -767,11 +768,11 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 const UnitBalanceBlock = observer(function (props: {
     unitBalance: UnitBalance
 }) {    
-    const {walletStore, userSettingsStore} = useStores()
-    const balanceColor = 'white'
-    const convertedBalanceColor = colors.palette.primary200
-    const currencyColor = colors.palette.primary200    
+    const {walletStore, userSettingsStore} = useStores()    
+    const convertedBalanceColor = useThemeColor('headerSubTitle')    
     const {unitBalance} = props
+    const headerTitle = useThemeColor('headerTitle')
+    const balanceColor = headerTitle
     
     const getConvertedBalance = function () {
         return convertToFromSats(
@@ -795,7 +796,7 @@ const UnitBalanceBlock = observer(function (props: {
                 <CurrencyAmount
                     amount={getConvertedBalance() ?? 0}
                     currencyCode={unitBalance.unit === 'sat' ? userSettingsStore.exchangeCurrency : CurrencyCode.SAT}
-                    symbolStyle={{color: currencyColor, marginTop: spacing.tiny}}
+                    symbolStyle={{color: convertedBalanceColor, marginTop: spacing.tiny}}
                     amountStyle={{color: convertedBalanceColor}}                        
                     size='small'             
                 />

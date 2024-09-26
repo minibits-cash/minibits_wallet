@@ -634,8 +634,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     }
 
     const headerBg = useThemeColor('header')
-    const satsColor = colors.palette.primary200
-    // const inputBg = useThemeColor('background')
+    const amountInputColor = useThemeColor('amountInput')
 
     return (
       <Screen preset="fixed" contentContainerStyle={$screen}>
@@ -651,7 +650,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                     onChangeText={amount => setAmountToSend(amount)}                
                     onEndEditing={onAmountEndEditing}
                     value={amountToSend}
-                    style={$amountInput}
+                    style={[$amountInput, {color: amountInputColor}]}
                     maxLength={9}
                     keyboardType="numeric"
                     selectTextOnFocus={true}
@@ -664,7 +663,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 <Text
                     size='sm'
                     text="Amount to send"
-                    style={{color: 'white', textAlign: 'center'}}
+                    style={{color: amountInputColor, textAlign: 'center'}}
                 />  
             </View>          
         </View>

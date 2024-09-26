@@ -104,11 +104,12 @@ export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = 
     }
     
     const headerBg = useThemeColor('header')
+    const headerTitle = useThemeColor('headerTitle')
 
     return (
       <Screen style={$screen}>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text preset="heading" tx='backupScreen.seedBackup' style={{color: 'white'}} />
+          <Text preset="heading" tx='backupScreen.seedBackup' style={{color: headerTitle}} />
         </View>
         <View style={$contentContainer}>
           <Card

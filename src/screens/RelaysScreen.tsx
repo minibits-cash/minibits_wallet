@@ -154,6 +154,7 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
     const mainButtonColor = useThemeColor('card')
     const screenBg = useThemeColor('background')
     const mainButtonIcon = useThemeColor('button')
+    const headerTitle = useThemeColor('headerTitle') 
     
     return (
       <Screen contentContainerStyle={$screen} preset='fixed'>
@@ -161,7 +162,7 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
           <Text
             preset='heading'
             text='Relays'
-            style={{color: 'white'}}
+            style={{color: headerTitle}}
           />
         </View>
         <View style={$contentContainer}>          

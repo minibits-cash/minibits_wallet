@@ -160,6 +160,7 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
     const headerBg = useThemeColor('header')
     const iconSelectedColor = useThemeColor('button')
     const iconColor = useThemeColor('textDim')
+    const headerTitle = useThemeColor('headerTitle')
 
     return (
       <Screen style={$screen} preset='auto'>
@@ -167,7 +168,7 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
           <Text
             preset="heading"
             tx="developerScreen.title"
-            style={{color: 'white'}}
+            style={{color: headerTitle}}
           />
         </View>
         <View style={$contentContainer}>

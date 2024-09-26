@@ -23,7 +23,7 @@ export const MintListItem = observer(function(props: {
     style?: ViewStyle
   }) {    
     
-    const iconSelectedColor = useThemeColor('button')
+    const iconSelectedColor = useThemeColor('mainButtonIcon')
     const iconColor = useThemeColor('textDim')
     const iconBlockedColor = colors.palette.angry500
 

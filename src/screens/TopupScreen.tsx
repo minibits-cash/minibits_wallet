@@ -657,9 +657,9 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
       }
     }
     
-    const headerBg = useThemeColor('header')
-    const satsColor = colors.palette.primary200
+    const headerBg = useThemeColor('header')    
     const placeholderTextColor = useThemeColor('textDim')
+    const amountInputColor = useThemeColor('amountInput')
 
     return (
       <Screen preset="fixed" contentContainerStyle={$screen}>
@@ -679,7 +679,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
               onChangeText={amount => setAmountToTopup(amount)}
               onEndEditing={onAmountEndEditing}
               value={amountToTopup}
-              style={$amountInput}
+              style={[$amountInput, {color: amountInputColor}]}
               maxLength={9}
               keyboardType="numeric"
               selectTextOnFocus={true}
@@ -690,7 +690,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
             <Text
               size="sm"
               text={getAmountTitle()}
-              style={{color: 'white', textAlign: 'center'}}
+              style={{color: amountInputColor, textAlign: 'center'}}
             />
           </View>
         </View>

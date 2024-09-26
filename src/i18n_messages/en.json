@@ -416,6 +416,7 @@
 		},
 		"preferredUnit": "Preferred unit",
 		"exchangeCurrency": "Balance conversion",
+		"theme": "Theme",
 		"privacy": "Privacy",
 		"security": "Security",
 		"title": "Settings",

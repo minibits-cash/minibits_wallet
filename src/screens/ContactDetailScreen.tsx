@@ -176,7 +176,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
     const headerBg = useThemeColor('header')    
     const screenBg = useThemeColor('background')
     const mainButtonColor = useThemeColor('card')
-    const mainButtonIcon = useThemeColor('button')
+    const mainButtonIcon = useThemeColor('mainButtonIcon')
     const mainButtonText = useThemeColor('text')
   
 

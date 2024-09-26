@@ -131,11 +131,12 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
     }
     
     const headerBg = useThemeColor('header')
+    const headerTitle = useThemeColor('headerTitle')
 
     return (
       <Screen contentContainerStyle={$screen}>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text preset="heading" tx="updateScreen.updateManagerTitle" style={{color: 'white'}} />
+          <Text preset="heading" tx="updateScreen.updateManagerTitle" style={{color: headerTitle}} />
         </View>
         <View style={$contentContainer}>
           <Card

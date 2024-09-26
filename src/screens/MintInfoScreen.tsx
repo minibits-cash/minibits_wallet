@@ -153,6 +153,7 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
   const textDim = useThemeColor('textDim')
   const headerBg = useThemeColor('header')
   const iconColor = useThemeColor('textDim')
+  const headerTitle = useThemeColor('headerTitle')
 
   return (
     <Screen contentContainerStyle={$screen} preset="scroll">
@@ -173,7 +174,7 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
               fill='white'
           />
           </View>
-        <Text preset='subheading' text={mintInfo?.name ?? mint?.shortname} style={{color: 'white'}}/>
+        <Text preset='subheading' text={mintInfo?.name ?? mint?.shortname} style={{color: headerTitle}}/>
         {mint?.units && (
           <View style={{flexDirection: 'row'}}>
             {mint.units.map(unit => (

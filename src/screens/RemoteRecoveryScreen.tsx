@@ -613,11 +613,12 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
     const numIconColor = useThemeColor('textDim')
     const textHint = useThemeColor('textDim')
     const inputBg = useThemeColor('background')
+    const headerTitle = useThemeColor('headerTitle')
 
     return (
       <Screen contentContainerStyle={$screen} preset="auto">
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
-            <Text preset="heading" text="Wallet recovery" style={{color: 'white', zIndex: 10}} />
+            <Text preset="heading" text="Wallet recovery" style={{color: headerTitle, zIndex: 10}} />
         </View>
 
         <View style={$contentContainer}>

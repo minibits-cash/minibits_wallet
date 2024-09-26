@@ -380,13 +380,11 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
       setError(e)
     }
 
-    const colorScheme = useColorScheme()
+    
     const headerBg = useThemeColor('header')
     const iconColor = useThemeColor('textDim')
-    const dateColor = useThemeColor('textDim')
-    const iconSelectedColor = useThemeColor('button')
     const activeIconColor = useThemeColor('button')
-    const hintColor = colors.palette.primary200
+    const headerTitle = useThemeColor('headerTitle')
 
 
   return (
@@ -395,7 +393,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
           <Text
             preset="heading"
             tx="recoveryTool"
-            style={{color: 'white'}}
+            style={{color: headerTitle}}
           />
         </View>
         <View style={$contentContainer}>

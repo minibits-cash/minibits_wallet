@@ -154,7 +154,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         log.trace('tokenAmounts', {tokenAmounts})
 
         if(!decoded.unit) {
-          setInfo(translate("decodedMissingCurrencyUnit", { unit: CurrencyCode.SATS }))
+          setInfo(translate("decodedMissingCurrencyUnit", { unit: CurrencyCode.SAT }))
           decoded.unit = 'sat'          
         }
 
@@ -243,7 +243,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
 
     const headerBg = useThemeColor('header')
     const iconColor = useThemeColor('textDim')
-    const satsColor = colors.palette.primary200
+    const amountInputColor = useThemeColor('amountInput')
 
     return (
       <Screen preset="auto" contentContainerStyle={$screen}>
@@ -256,8 +256,8 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
             {toNumber(receivedAmount) > 0 ? (
             <View style={$amountContainer}>
                 <TextInput                                        
-                    value={receivedAmount}
-                    style={$amountToReceive}
+                    value={receivedAmount}                    
+                    style={[$amountInput, {color: amountInputColor}]}
                     maxLength={9}                    
                     editable={false}
                 />
@@ -266,7 +266,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
             <View style={$amountContainer}>
                 <TextInput                                        
                     value={amountToReceive}
-                    style={$amountToReceive}
+                    style={[$amountInput, {color: amountInputColor}]}
                     maxLength={9}                    
                     editable={false}
                 />
@@ -275,7 +275,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
             <Text
                 size='sm'
                 tx={toNumber(receivedAmount) > 0 ? "receiveScreen.received" : "receiveScreen.toReceive"}
-                style={{color: 'white', textAlign: 'center'}}
+                style={{color: amountInputColor, textAlign: 'center'}}
             />
         </View>
         <View style={$contentContainer}>          
@@ -505,7 +505,7 @@ const $headerContainer: TextStyle = {
 const $amountContainer: ViewStyle = {
 }
 
-const $amountToReceive: TextStyle = {    
+const $amountInput: TextStyle = {    
     borderRadius: spacing.small,
     margin: 0,
     padding: 0,

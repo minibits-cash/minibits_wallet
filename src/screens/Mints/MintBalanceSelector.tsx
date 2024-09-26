@@ -76,8 +76,7 @@ export const MintBalanceSelector = observer(function (props: {
             <>
               <FlatList<MintBalance>
                   data={props.mintBalances}
-                  renderItem={({ item, index }) => { 
-                      log.trace({index})                               
+                  renderItem={({ item, index }) => {                       
                       return(
                           <MintListItem
                               key={item.mintUrl}

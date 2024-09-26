@@ -1,3 +1,20 @@
+import { ColorValue, useColorScheme } from 'react-native'
+
+export enum ThemeCode {
+  DEFAULT = 'default',
+  DARK = 'dark',
+  LIGHT = 'light',
+  GOLDEN = 'golden'  
+}
+
+export interface ThemeData {
+  code: ThemeCode,
+  title: string, 
+  color: string | ColorValue 
+}
+
+export type ThemeList = Partial<Record<ThemeCode, ThemeData>>
+
 const palette = {
   neutral100: '#FFFFFF',
   neutral200: '#F4F4F4',
@@ -18,6 +35,9 @@ const palette = {
   primary700: '#1939B7',
   primary800: '#102693',
   primary900: '#091A7A',
+
+  gold100: '#E4C19B',
+  gold200: '#D7A068',
 
   secondary100: '#54ACE7',
   secondary200: '#318BC8',
@@ -70,6 +90,7 @@ const palette = {
   iconViolet400: '#662482',
 } as const
 
+
 export const colors = {
   /**
    * The palette is available to use, but prefer using the name.
@@ -94,6 +115,10 @@ export const colors = {
      * Color for amounts and balances.
      */
     amount: palette.neutral800,
+    /**
+     * Color for amount input inside header.
+     */
+    amountInput: palette.neutral100,
     /**
      * Color for amounts and balances.
      */
@@ -127,9 +152,33 @@ export const colors = {
      */
     buttonTertiaryPressed: palette.neutral200,
     /**
+     * The default icon color of the main screen button.
+     */
+    mainButtonIcon: palette.success300,
+    /**
+     * The default icon color of the primary button.
+     */
+    buttonIcon: palette.neutral100,
+    /**
+     * The default icon color of the secondary button.
+     */
+    buttonSecondaryIcon: palette.neutral100,
+    /**
+     * The default icon color of the tertiary button.
+     */
+    buttonTertiaryIcon: palette.neutral100,
+    /**
      * The default color of the header and status bar.
      */
     header: palette.primary400,
+    /**
+     * The default color of the header title.
+     */
+    headerTitle: palette.neutral100,
+    /**
+     * The default color of the header sub title.
+     */
+    headerSubTitle: palette.primary200,
     /**
      * The default color of the bottom menu.
      */
@@ -141,7 +190,7 @@ export const colors = {
     /**
      * The main tinting color.
      */
-    tint: palette.primary400,
+    tint: palette.primary200,
     /**
      * A subtle color used for lines.
      */
@@ -194,6 +243,10 @@ export const colors = {
      */
     amount: palette.neutral200,
     /**
+     * Color for amount input inside header.
+     */
+    amountInput: palette.neutral100,
+    /**
      * Color for amounts and balances.
      */
     receivedAmount: palette.success200,
@@ -226,9 +279,33 @@ export const colors = {
      */
     buttonTertiaryPressed: palette.neutral700,
     /**
+     * The default icon color of the main screen button.
+     */
+    mainButtonIcon: palette.success300,
+    /**
+     * The default icon color of the primary button.
+     */
+    buttonIcon: palette.neutral100,
+    /**
+     * The default icon color of the secondary button.
+     */
+    buttonSecondaryIcon: palette.neutral100,
+    /**
+     * The default icon color of the tertiary button.
+     */
+    buttonTertiaryIcon: palette.neutral100,
+    /**
      * The default color of the header and status bar.
      */
     header: palette.primary600,
+    /**
+     * The default color of the header title.
+     */
+    headerTitle: palette.neutral100,
+    /**
+     * The default color of the header sub title.
+     */
+    headerSubTitle: palette.primary200,
     /**
      * The default color of the bottom menu.
      */
@@ -240,7 +317,7 @@ export const colors = {
     /**
      * The main tinting color.
      */
-    tint: palette.primary400,
+    tint: palette.primary200,
     /**
      * A subtle color used for lines.
      */
@@ -274,6 +351,159 @@ export const colors = {
     btc: '#f7931A',
     usd: '#599D52',
     eur: '#0002C8'
+  },
+  golden: {
+    /**
+     * A helper for making something see-thru.
+     */
+    transparent: 'rgba(0, 0, 0, 0)',
+    /**
+     * The default text color in many components.
+     */
+    text: palette.neutral200,
+    /**
+     * Secondary text information.
+     */
+    textDim: palette.neutral500,
+    /**
+     * Color for amounts and balances.
+     */
+    amount: palette.gold100,
+    /**
+     * Color for amount input inside header.
+     */
+    amountInput: palette.gold200,
+    /**
+     * Color for amounts and balances.
+     */
+    receivedAmount: palette.success200,
+    /**
+     * The default color of the screen background.
+     */
+    background: palette.neutral700,
+    /**
+     * The default bg color of the primary button.
+     */
+    button: palette.neutral900,
+    /**
+     * The default bg color of the primary button.
+     */
+    buttonPressed: palette.success200,
+    /**
+     * The default bg color of the primary button.
+     */
+    buttonSecondary: palette.neutral700,
+    /**
+     * The default bg color of the primary button.
+     */
+    buttonSecondaryPressed: palette.neutral600,
+    /**
+     * The default bg color of the primary button.
+     */
+    buttonTertiary: 'transparent',
+    /**
+     * The default bg color of the primary button.
+     */
+    buttonTertiaryPressed: palette.neutral700,
+    /**
+     * The default icon color of the main screen button.
+     */
+    mainButtonIcon: palette.gold200,
+    /**
+     * The default icon color of the primary button.
+     */
+    buttonIcon: palette.gold200,
+    /**
+     * The default icon color of the secondary button.
+     */
+    buttonSecondaryIcon: palette.gold100,
+    /**
+     * The default icon color of the tertiary button.
+     */
+    buttonTertiaryIcon: palette.gold100,
+    /**
+     * The default color of the header and status bar.
+     */
+    header: palette.neutral900,
+    /**
+     * The default color of the header title.
+     */
+    headerTitle: palette.gold200,
+    /**
+     * The default color of the header sub title.
+     */
+    headerSubTitle: palette.gold100,
+    /**
+     * The default color of the bottom menu.
+     */
+    menu: palette.neutral700,
+    /**
+     * The default border color.
+     */
+    border: palette.neutral400,
+    /**
+     * The main tinting color.
+     */
+    tint: palette.gold200,
+    /**
+     * A subtle color used for lines.
+     */
+    separator: palette.neutral700,
+    /**
+     * Error messages.
+     */
+    error: palette.angry500,
+    /**
+     * Error Background.
+     *
+     */
+    errorBackground: palette.angry100,
+    /**
+     * Info Background.
+     *
+     */
+    info: palette.success200,
+    /**
+     * Warning Background.
+     *
+     */
+    warn: palette.accent500,
+    /**
+     * The default card color.
+     */
+    card: palette.neutral800,
+    statusBarOnModalOpen: palette.neutral900,
+    statusBarOnLoading: palette.neutral900,
+    loadingIndicator: '#ccc',
+    btc: '#f7931A',
+    usd: '#599D52',
+    eur: '#0002C8'
+  },
+}
+
+
+// const colorScheme = useColorScheme()
+
+export const Themes: ThemeList = {
+  default: {
+    code: ThemeCode.DEFAULT,
+    title: 'Default',
+    color: palette.primary400
+  },
+  dark: {
+    code: ThemeCode.DARK,
+    title: 'Dark',
+    color: colors[ThemeCode.DARK].header
+  },
+  light: {
+    code: ThemeCode.LIGHT,
+    title: 'Light',
+    color: colors[ThemeCode.LIGHT].header
+  },
+  golden: {
+    code: ThemeCode.GOLDEN,
+    title: 'Golden',
+    color: palette.gold200
   },
 }
 

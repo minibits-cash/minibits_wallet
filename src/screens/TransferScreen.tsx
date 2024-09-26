@@ -622,6 +622,7 @@ const handleError = function(e: AppError): void {
 
 const headerBg = useThemeColor('header')
 const iconColor = useThemeColor('textDim')
+const amountInputColor = useThemeColor('amountInput')
 
 
     return (
@@ -642,7 +643,7 @@ const iconColor = useThemeColor('textDim')
               onChangeText={amount => setAmountToTransfer(amount)}
               // onEndEditing={onAmountEndEditing}
               value={amountToTransfer}
-              style={$amountInput}
+              style={[$amountInput, {color: amountInputColor}]}
               maxLength={9}
               keyboardType="numeric"
               selectTextOnFocus={true}
@@ -659,7 +660,7 @@ const iconColor = useThemeColor('textDim')
               <Text
                 size="sm"
                 tx="payCommon.amountToPayLabel"
-                style={{color: 'white', textAlign: 'center'}}
+                style={{color: amountInputColor, textAlign: 'center'}}
               />
             )}
           </View>

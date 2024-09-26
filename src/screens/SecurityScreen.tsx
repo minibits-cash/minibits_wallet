@@ -97,11 +97,12 @@ export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer
     }
     
     const headerBg = useThemeColor('header')
+    const headerTitle = useThemeColor('headerTitle')
 
     return (
       <Screen style={$screen}>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text preset="heading" text="Security" style={{color: 'white'}} />
+          <Text preset="heading" text="Security" style={{color: headerTitle}} />
         </View>
         <View style={$contentContainer}>
             <Card

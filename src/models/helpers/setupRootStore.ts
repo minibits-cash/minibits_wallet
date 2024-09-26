@@ -26,6 +26,7 @@ import AppError, { Err } from '../../utils/AppError'
 import { LogLevel } from '../../services/log/logTypes'
 import { MintStatus } from '../Mint'
 import { CurrencyCode } from '../../services/wallet/currency'
+import { ThemeCode } from '../../theme'
 
 /**
  * The key we'll be saving our state as within storage.
@@ -315,6 +316,13 @@ async function _runMigrations(rootStore: RootStore) {
         if(currentVersion < 25) {
             log.trace(`Starting rootStore migrations from version v${currentVersion} -> v25`)            
             userSettingsStore.setExchangeCurrency(CurrencyCode.USD)
+            rootStore.setVersion(rootStoreModelVersion)
+            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+        }
+
+        if(currentVersion < 26) {
+            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v26`)            
+            userSettingsStore.setTheme(ThemeCode.DEFAULT)
             rootStore.setVersion(rootStoreModelVersion)
             log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
         }

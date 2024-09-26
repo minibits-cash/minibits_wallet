@@ -222,11 +222,12 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
     
     const headerBg = useThemeColor('header')
     const iconColor = useThemeColor('textDim')
+    const headerTitle = useThemeColor('headerTitle') 
 
     return (
       <Screen style={$screen} preset='auto'>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text preset="heading" text="Privacy" style={{color: 'white'}} />
+          <Text preset="heading" text="Privacy" style={{color: headerTitle}} />
         </View>
         <View style={$contentContainer}>
             {/*<Card

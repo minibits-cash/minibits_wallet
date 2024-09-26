@@ -1,4 +1,5 @@
-import {colors} from '../theme'
+import { rootStoreInstance, useStores } from '../models'
+import {ThemeCode, colors} from '../theme'
 import {
   ColorSchemeName,
   useColorScheme as _useColorScheme,
@@ -13,8 +14,14 @@ export default function useColorScheme(): NonNullable<ColorSchemeName> {
 }
 
 export function useThemeColor(
-  colorName: keyof typeof colors.light & keyof typeof colors.dark,
+  colorName: keyof typeof colors.light & keyof typeof colors.dark & keyof typeof colors.golden,
 ) {
-  const colorScheme = useColorScheme()
-  return colors[colorScheme][colorName] as ColorValue
+  const { userSettingsStore } = rootStoreInstance
+  
+  if(userSettingsStore.theme === ThemeCode.DEFAULT) {
+    const colorScheme = useColorScheme()
+    return colors[colorScheme][colorName] as ColorValue
+  }
+
+  return colors[userSettingsStore.theme][colorName] as ColorValue  
 }

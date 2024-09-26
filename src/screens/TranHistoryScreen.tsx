@@ -252,8 +252,8 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
 
     const headerBg = useThemeColor('header')
     const iconColor = useThemeColor('textDim')    
-    const activeIconColor = useThemeColor('button')
-    const pendingBalance = proofsStore.getBalances().mintPendingBalances
+    const activeIconColor = useThemeColor('button')    
+    const headerTitle = useThemeColor('headerTitle')
 
     const sections = showPendingOnly ? Object.keys(transactionsStore.groupedPendingByTimeAgo).map((timeAgo) => ({
         title: timeAgo,
@@ -266,7 +266,7 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
     return (
       <Screen contentContainerStyle={$screen}>        
         <View style={[isHeaderVisible ? $headerContainer : $headerCollapsed, {backgroundColor: headerBg}]}>
-            <Text preset="heading" text="History" style={{color: 'white'}} />
+            <Text preset="heading" text="History" style={{color: headerTitle}} />
         </View>
             
         <View style={$contentContainer}>

@@ -250,6 +250,7 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
     }
     
   const colorScheme = useColorScheme()
+  const headerTitle = useThemeColor('headerTitle')
 
   return (
       <Screen contentContainerStyle={$screen} preset="auto">        
@@ -268,12 +269,12 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
             >              
               <CurrencySign 
                 mintUnit={transaction.unit}
-                textStyle={{color: 'white'}}              
+                textStyle={{color: headerTitle}}              
               />
               <Text
                   preset="heading"
                   text={getFormattedAmount()}
-                  style={$tranAmount}
+                  style={[$tranAmount, {color: headerTitle}]}
               />              
             </View>
             <View style={$contentContainer}>
@@ -1956,10 +1957,8 @@ const $contentContainer: TextStyle = {
 
 const $tranAmount: TextStyle = {
     fontSize: moderateVerticalScale(48),
-    lineHeight: moderateVerticalScale(48),
-    // marginTop: spacing.small,
-    marginLeft: -20,
-    color: 'white',
+    lineHeight: moderateVerticalScale(48),    
+    marginLeft: -20,    
 }
 
 const $actionCard: ViewStyle = {

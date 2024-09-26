@@ -9,13 +9,13 @@ import {
     CODEPUSH_PRODUCTION_DEPLOYMENT_KEY,
 } from '@env'
 import codePush, { RemotePackage } from 'react-native-code-push'
-import {colors, spacing, useThemeColor} from '../theme'
+import {ThemeCode, Themes, colors, spacing, useThemeColor} from '../theme'
 import {SettingsStackScreenProps} from '../navigation' // @demo remove-current-line
-import {ListItem, Screen, Text, Card, NwcIcon, Button, BottomModal} from '../components'
+import {ListItem, Screen, Text, Card, NwcIcon, Button, BottomModal, InfoModal} from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import {translate} from '../i18n'
-import { log } from '../services'
+import { Database, log } from '../services'
 import {Env} from '../utils/envtypes'
 import { round } from '../utils/number'
 import { Currencies, CurrencyCode, getCurrency } from '../services/wallet/currency'
@@ -48,8 +48,10 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
     
     const [updateSize, setUpdateSize] = useState<string>('')
     const [isCurrencyModalVisible, setIsCurrencyModalVisible] = useState<boolean>(false)
+    const [isThemeModalVisible, setIsThemeModalVisible] = useState<boolean>(false)
     const [isNativeUpdateAvailable, setIsNativeUpdateAvailable] = useState<boolean>(false)
     const [areNotificationsEnabled, setAreNotificationsEnabled] = useState<boolean>(false)
+    const [info, setInfo] = useState('')
 
     useEffect(() => {
         const checkForUpdate = async () => {
@@ -128,95 +130,110 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
     setIsCurrencyModalVisible(previousState => !previousState)
   }
 
-    const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {            
-      // silent
-      // setIsNativeUpdateAvailable(true)
-    }
+  const toggleThemeModal = () => {
+    setIsThemeModalVisible(previousState => !previousState)
+  }
 
-    const gotoMints = function() {
-      navigation.navigate('Mints', {})
-    }
+  const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {            
+    // silent
+    // setIsNativeUpdateAvailable(true)
+  }
 
-    const gotoSecurity = function() {
-      navigation.navigate('Security')
-    }    
-     
-    const gotoPrivacy = function() {
-        navigation.navigate('Privacy')
-    }
+  const gotoMints = function() {
+    navigation.navigate('Mints', {})
+  }
 
-    const gotoDevOptions = function() {
-      navigation.navigate('Developer')
-    }
-
-    const gotoRelays = function() {
-        navigation.navigate('Relays')
-      }
-
-    const gotoBackupRestore = function() {
-      navigation.navigate('Backup')
-    }
-
-    const gotoUpdate = function() {
-        navigation.navigate('Update', {
-            isNativeUpdateAvailable, 
-            isUpdateAvailable, 
-            updateDescription,
-            updateSize
-        })
-    }
-
-    const gotoNwc = function() {
-      navigation.navigate('Nwc')
-    } 
-
-    const openNotificationSettings = async function() {
-        await notifee.openNotificationSettings()        
-    }
-
-    const gotoPreferredUnit = function() {
-      Alert.alert('Preferred unit is set based on your Wallet screen.') 
-    }
+  const gotoSecurity = function() {
+    navigation.navigate('Security')
+  }    
     
+  const gotoPrivacy = function() {
+      navigation.navigate('Privacy')
+  }
 
-    const getRateColor = function () {
-      const currency = userSettingsStore.exchangeCurrency
+  const gotoDevOptions = function() {
+    navigation.navigate('Developer')
+  }
 
-      if (currency === CurrencyCode.BTC) {
-          return colors.palette.orange600
-      }
-  
-      if (currency === CurrencyCode.EUR) {
-          return colors.palette.blue600
-      }
-  
-      if (currency === CurrencyCode.USD) {
-          return colors.palette.green400
-      }
-
-      return colors.palette.orange400
+  const gotoRelays = function() {
+      navigation.navigate('Relays')
     }
 
-    const onSelectCurrency = function(currency: CurrencyCode) {
-      const currentCurrency = userSettingsStore.exchangeCurrency
-      if(currentCurrency !== currency) {
-        userSettingsStore.setExchangeCurrency(currency)
-        walletStore.refreshExchangeRate(currency)
-      }
-      toggleCurrencyModal()  
-    }
-    
-    const onResetCurrency = function() {
-      const currentCurrency = userSettingsStore.exchangeCurrency
-      if(currentCurrency !== null) {
-        userSettingsStore.setExchangeCurrency(null)
-        walletStore.resetExchangeRate()
-      }
-      toggleCurrencyModal()  
-    } 
+  const gotoBackupRestore = function() {
+    navigation.navigate('Backup')
+  }
 
-    const $itemRight = {color: useThemeColor('textDim')}
-    const headerBg = useThemeColor('header')
+  const gotoUpdate = function() {
+      navigation.navigate('Update', {
+          isNativeUpdateAvailable, 
+          isUpdateAvailable, 
+          updateDescription,
+          updateSize
+      })
+  }
+
+  const gotoNwc = function() {
+    navigation.navigate('Nwc')
+  } 
+
+  const openNotificationSettings = async function() {
+      await notifee.openNotificationSettings()        
+  }
+
+  const gotoPreferredUnit = function() {
+    Alert.alert('Preferred unit is set based on your Wallet screen.') 
+  }
+  
+
+  const getRateColor = function () {
+    const currency = userSettingsStore.exchangeCurrency
+
+    if (currency === CurrencyCode.BTC) {
+        return colors.palette.orange600
+    }
+
+    if (currency === CurrencyCode.EUR) {
+        return colors.palette.blue600
+    }
+
+    if (currency === CurrencyCode.USD) {
+        return colors.palette.green400
+    }
+
+    return colors.palette.orange400
+  }
+
+  const onSelectCurrency = function(currency: CurrencyCode) {
+    const currentCurrency = userSettingsStore.exchangeCurrency
+    if(currentCurrency !== currency) {
+      userSettingsStore.setExchangeCurrency(currency)
+      walletStore.refreshExchangeRate(currency)
+    }
+    toggleCurrencyModal()  
+  }
+  
+  const onResetCurrency = function() {
+    const currentCurrency = userSettingsStore.exchangeCurrency
+    if(currentCurrency !== null) {
+      userSettingsStore.setExchangeCurrency(null)
+      walletStore.resetExchangeRate()
+    }
+    toggleCurrencyModal()  
+  }
+
+  const onSelectTheme = function(theme: ThemeCode) {
+    const currentTheme = userSettingsStore.theme
+    if(currentTheme !== theme) {
+      // state update causes crash because of hooks
+      Database.updateUserSettings({...userSettingsStore, theme})
+      setInfo('Restart the wallet to apply new theme.')
+    }
+    toggleThemeModal()  
+  }
+
+  const $itemRight = {color: useThemeColor('textDim')}
+  const headerBg = useThemeColor('header')
+  const headerTitle = useThemeColor('headerTitle')
     
     return (
       <Screen contentContainerStyle={$screen} preset='auto'>
@@ -224,7 +241,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
           <Text
             preset='heading'
             tx='settingsScreen.title'
-            style={{color: 'white'}}
+            style={{color: headerTitle}}
           />
         </View>
         <View style={$contentContainer}>
@@ -257,15 +274,30 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                     style={$item}
                     RightComponent={
                       <View style={$rightContainer}>
-                      <Button 
-                          preset='tertiary'
+                      <Text                          
                           text={userSettingsStore.exchangeCurrency ?? 'None'}
-                          onPress={toggleCurrencyModal}
+                          style={$itemRight}
+                      />
+                      </View>
+                    }                    
+                    onPress={toggleCurrencyModal}
+                />
+                <ListItem
+                    tx='settingsScreen.theme'
+                    leftIcon='faPaintbrush'
+                    leftIconColor={headerBg as string}
+                    leftIconInverse={true}
+                    style={$item}
+                    RightComponent={
+                      <View style={$rightContainer}>
+                      <Text                          
+                          text={Themes[userSettingsStore.theme]!.title}
+                          style={$itemRight}
                       />
                       </View>
                     }
                     bottomSeparator={false}
-                    onPress={toggleCurrencyModal}
+                    onPress={toggleThemeModal}
                 />
               </>
             }
@@ -278,7 +310,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                     tx="pushNotifications"
                     subText={`Token: ${walletProfileStore.device?.slice(0, 10)}...`}
                     leftIcon='faPaperPlane'
-                    leftIconColor={colors.palette.green400}
+                    leftIconColor={colors.palette.focus200}
                     leftIconInverse={true}
                     style={$item}
                     RightComponent={
@@ -428,6 +460,28 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
           onBackButtonPress={toggleCurrencyModal}
           onBackdropPress={toggleCurrencyModal}
         />
+        <BottomModal
+          isVisible={isThemeModalVisible ? true : false}
+          style={{alignItems: 'stretch'}}
+          ContentComponent={  
+            <>
+            {[ThemeCode.DEFAULT, ThemeCode.DARK, ThemeCode.LIGHT, ThemeCode.GOLDEN].map(code =>               
+              <ListItem 
+                  key={code}  
+                  leftIconColor={Themes[code as ThemeCode]?.color as string}
+                  leftIconInverse={true} 
+                  leftIcon='faPaintbrush'
+                  text={Themes[code as ThemeCode]!.title}
+                  onPress={() => onSelectTheme(code as ThemeCode)}
+                  bottomSeparator={true}
+              />
+            )}              
+            </>      
+          }
+          onBackButtonPress={toggleThemeModal}
+          onBackdropPress={toggleThemeModal}
+        />
+        {info && <InfoModal message={info} />}
       </Screen>
     )
   },

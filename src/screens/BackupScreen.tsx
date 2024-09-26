@@ -138,6 +138,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
     }
 
     const headerBg = useThemeColor('header')
+    const headerTitle = useThemeColor('headerTitle')
 
     return (
       <Screen preset='auto' contentContainerStyle={$screen}>
@@ -146,7 +147,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
             onLeftPress={() => navigation.goBack()}                            
         /> 
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text preset="heading" text="Backup" style={{color: 'white'}} />
+          <Text preset="heading" text="Backup" style={{color: headerTitle}} />
         </View>
         <View style={$contentContainer}>
             <Card

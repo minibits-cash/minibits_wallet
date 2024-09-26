@@ -46,12 +46,13 @@ export const PaymentRequestsScreen: FC<PaymentRequestsScreenProps> = observer(fu
     )
 
     const headerBg = useThemeColor('header')
-    const activeTabIndicator = colors.palette.accent400   
+    const activeTabIndicator = colors.palette.accent400
+    const headerTitle = useThemeColor('headerTitle')  
 
     return (
         <Screen contentContainerStyle={$screen}>
             <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-                <Text preset="heading" tx="payCommon.paymentRequests" style={{color: 'white'}} />
+                <Text preset="heading" tx="payCommon.paymentRequests" style={{color: headerTitle}} />
             </View>
             <TabView
                 renderTabBar={renderTabBar}

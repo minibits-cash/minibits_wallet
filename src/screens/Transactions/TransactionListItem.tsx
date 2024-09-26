@@ -120,8 +120,12 @@ export const TransactionListItem = observer(function (
 
 
     const getLeftIcon = function(tx: Transaction) {
-      if([TransactionStatus.ERROR, TransactionStatus.EXPIRED, TransactionStatus.BLOCKED, TransactionStatus.REVERTED].includes(tx.status)) {
+      if([TransactionStatus.ERROR, TransactionStatus.EXPIRED, TransactionStatus.BLOCKED].includes(tx.status)) {
         return (<Icon containerStyle={$txIconContainer} icon="faBan" size={spacing.medium} color={txErrorColor}/>)
+      }
+
+      if([TransactionStatus.REVERTED].includes(tx.status)) {
+        return (<Icon containerStyle={$txIconContainer} icon="faArrowRotateLeft" size={spacing.medium} color={txErrorColor}/>)
       }
 
       if([TransactionStatus.PENDING].includes(tx.status)) {

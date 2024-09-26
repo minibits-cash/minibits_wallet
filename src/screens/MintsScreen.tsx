@@ -271,11 +271,12 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
     const headerBg = useThemeColor('header')
     const iconColor = useThemeColor('textDim')
     const inputBg = useThemeColor('background')
+    const headerTitle = useThemeColor('headerTitle')
 
     return (
       <Screen preset="scroll" contentContainerStyle={$screen}>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text preset="heading" tx="manageMints" style={{color: 'white'}} />
+          <Text preset="heading" tx="manageMints" style={{color: headerTitle}} />
         </View>
         <View style={$contentContainer}>
             <Card
