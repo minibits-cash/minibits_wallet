@@ -15,7 +15,7 @@ import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 import AppError, { Err } from '../utils/AppError'
-import { BottomModal, Button, ErrorModal, Icon, Text } from '../components'
+import { BottomModal, Button, ErrorModal, Icon, Screen, Text } from '../components'
 import { LnurlUtils } from '../services/lnurl/lnurlUtils'
 import { infoMessage } from '../utils/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
@@ -212,12 +212,13 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
     const inputBg = useThemeColor('background')
 
     return (shouldLoad ? (
-        <>
+        <Screen contentContainerStyle={$screen}>
             <Camera
                 cameraType={CameraType.Back}                      
                 scanBarcode
                 onReadCode={(event: any) => (isScanned ? undefined : onReadCode(event))}
-                hideControls            
+                hideControls
+                style={{flex: 1}}            
             />
             <View style={$bottomContainer}>                
                 {prevRouteName !== 'SendOptions' && (
@@ -235,9 +236,13 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                 )}                
             </View>            
             {error && <ErrorModal error={error} />}
-        </>
+        </Screen>
         ) : null
     )
+}
+
+const $screen: ViewStyle = {
+    flex: 1,
 }
 
 const $buttonContainer: ViewStyle = {

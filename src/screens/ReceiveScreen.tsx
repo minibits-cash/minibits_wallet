@@ -321,8 +321,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
                         return (
                           <MintListItem
                             key={mintUrl}
-                            mint={mint as Mint}
-                            separator={'top'}
+                            mint={mint as Mint}                            
                             isSelected={true}                            
                             isSelectable={true}
                           />

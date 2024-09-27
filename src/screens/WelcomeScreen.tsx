@@ -23,12 +23,15 @@ import {
   Button,
   ErrorModal,
   Icon,
+  InfoModal,
   Loading,
   Screen,
   Text,
 } from '../components'
 import {TxKeyPath, translate} from '../i18n'
 import AppError from '../utils/AppError'
+import { MINIBITS_MINT_URL } from '@env'
+import useIsInternetReachable from '../utils/useIsInternetReachable'
 
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView)
@@ -81,14 +84,27 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
       //StatusBarProps: {barStyle: 'dark-content'},
     })
 
-    const {userSettingsStore, relaysStore, walletProfileStore, walletStore} = useStores()
-    // const {walletStore} = nonPersistedStores
-    const [error, setError] = useState<AppError | undefined>()
-    const [isLoading, setIsLoading] = useState<boolean>(false)    
+    const {
+      userSettingsStore, 
+      relaysStore, 
+      walletProfileStore, 
+      walletStore, 
+      mintsStore
+    } = useStores()
 
+    const isInternetReachable = useIsInternetReachable()
+
+    const [error, setError] = useState<AppError | undefined>()
+    const [isLoading, setIsLoading] = useState<boolean>(false)
+    const [info, setInfo] = useState<string>('')
     
     const gotoWallet = async function () {
       try {
+          if(!isInternetReachable) { 
+            setInfo('Please make sure you are online to set up the new wallet.')
+            return
+          }
+          
           // do not overwrite if one was set during recovery
           setIsLoading(true)
           const mnemonic = await walletStore.getOrCreateMnemonic()
@@ -99,8 +115,10 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
             await walletProfileStore.create(walletId as string)                    
           }
 
-          userSettingsStore.setIsOnboarded(true)            
-          relaysStore.addDefaultRelays()
+          await mintsStore.addMint(MINIBITS_MINT_URL)            
+          relaysStore.addDefaultRelays()         
+          
+          userSettingsStore.setIsOnboarded(true)  
           navigation.navigate('Tabs')
           setIsLoading(false)
       } catch (e: any) {
@@ -247,6 +265,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
                 </View>
             </View>
             {error && <ErrorModal error={error} />}
+            {info && <InfoModal message={info} />}
             {isLoading && <Loading statusMessage={translate("welcomeScreen.generatingWalletSeedStatusMessage")} style={{backgroundColor: headerBg, opacity: 1}} textStyle={{color: 'white'}}/>}
         </Screen>
     )

@@ -342,7 +342,7 @@ export const PrivateContacts = observer(function (props: {
                   }
                   value={newContactName}
                   autoCapitalize="none"
-                  keyboardType="default"
+                  keyboardType="default"                  
                   maxLength={80}
                   selectTextOnFocus={true}
                   style={[
@@ -420,13 +420,15 @@ const $newContainer: TextStyle = {
 }
 
 const $contactInput: TextStyle = {
-    flex: 1,    
-    borderTopLeftRadius: spacing.extraSmall,
-    borderBottomLeftRadius: spacing.extraSmall,
-    fontSize: 16,
+    flex: 1,
+    // borderRadius: 0,
+    // borderBottomRightRadius: spacing.extraSmall,
+    // borderTopLeftRadius: spacing.extraSmall,
+    fontSize: moderateVerticalScale(16),
     padding: spacing.small,
     alignSelf: 'stretch',
     textAlignVertical: 'top',
+    // borderWidth: 1,
 }
 
 const $contactDomain: TextStyle = {    

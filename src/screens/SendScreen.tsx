@@ -24,8 +24,6 @@ import {
   ImageStyle,
   Image,
 } from 'react-native'
-import Clipboard from '@react-native-clipboard/clipboard'
-import QRCode from 'react-native-qrcode-svg'
 import {spacing, typography, useThemeColor, colors} from '../theme'
 import {WalletStackScreenProps} from '../navigation'
 import {
@@ -933,8 +931,11 @@ const SelectProofsBlock = observer(function (props: {
                     <Button
                         text={`Send to ${props.contactToSendTo.nip05}`}
                         preset='secondary'
-                        onPress={props.toggleNostrDMModal}
-                        style={{maxHeight: 50}}
+                        onPress={props.toggleNostrDMModal}                        
+                        style={{
+                            minHeight: moderateVerticalScale(40), 
+                            paddingVertical: moderateVerticalScale(spacing.tiny),
+                        }}
                         LeftAccessory={() => (
                             <Icon
                             icon='faPaperPlane'
@@ -947,8 +948,11 @@ const SelectProofsBlock = observer(function (props: {
                     <Button
                         text='Send to contact'
                         preset='secondary'
-                        onPress={props.gotoContacts}
-                        style={{maxHeight: 50}}
+                        onPress={props.gotoContacts}                        
+                        style={{
+                            minHeight: moderateVerticalScale(40), 
+                            paddingVertical: moderateVerticalScale(spacing.tiny),
+                        }}
                         LeftAccessory={() => (
                             <Icon
                             icon='faPaperPlane'
@@ -1215,7 +1219,7 @@ const $bottomContainer: ViewStyle = {
     right: 0,
     flex: 1,
     justifyContent: 'flex-end',
-    marginBottom: spacing.medium,
+    marginBottom: spacing.tiny,
     alignSelf: 'stretch',
     // opacity: 0,
   }

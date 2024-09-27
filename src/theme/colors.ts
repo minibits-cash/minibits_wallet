@@ -388,7 +388,7 @@ export const colors = {
     /**
      * The default bg color of the primary button.
      */
-    buttonPressed: palette.success200,
+    buttonPressed: palette.gold200,
     /**
      * The default bg color of the primary button.
      */

@@ -196,15 +196,11 @@ export const ProofsStoreModel = types
 
                 const rootStore = getRootStore(self)
                 const count = proofsToRemove.length
-                const {userSettingsStore} = rootStore
-
-                if (userSettingsStore.isLocalBackupOn === true) {
-                    // TODO refactor recovery to separate model method
-                    if(isRecoveredFromPending) { 
-                        Database.addOrUpdateProofs(proofsToRemove, false, false) // isPending = false, isSpent = false
-                    } else {
-                        Database.addOrUpdateProofs(proofsToRemove, false, true) // isPending = false, isSpent = true
-                    }                    
+                
+                if(isRecoveredFromPending) { 
+                    Database.addOrUpdateProofs(proofsToRemove, false, false) // isPending = false, isSpent = false
+                } else {
+                    Database.addOrUpdateProofs(proofsToRemove, false, true) // isPending = false, isSpent = true
                 }
 
                 proofsToRemove.map((proof) => {

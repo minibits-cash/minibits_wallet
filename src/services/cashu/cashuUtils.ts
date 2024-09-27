@@ -171,7 +171,7 @@ const encodeToken = function (token: TokenV3, version: 3 | 4 = 3): string {
         t: v4tokenEntries
       }
 
-      log.trace('[encodeToken]', {v4Token})
+      // log.trace('[encodeToken]', {v4Token})
 
       const encodedCbor = cbor.encode(v4Token)
       return 'cashuB' + base64urlFromBase64(encodeUint8toBase64(encodedCbor))

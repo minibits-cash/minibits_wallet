@@ -180,6 +180,11 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
 	const removeMint = async function () {
         if (!selectedMint) {return}
 
+        if(mintsStore.allMints.length === 1) {
+          setInfo('You need to keep at least 1 mint.')
+          return
+        }
+
         const proofsByMint = proofsStore.getByMint(selectedMint.mintUrl, {isPending: false})
         const pendingProofsByMint = proofsStore.getByMint(selectedMint.mintUrl, {isPending: true})
         let message: string = ''
@@ -205,7 +210,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(funct
                 onPress: () => {
                 try {
                     onMintUnselect()
-                    toggleMintMenuModal()
+                    setIsMintMenuVisible(false)
                     mintsStore.removeMint(selectedMint as Mint)
                     if (proofsByMint && proofsByMint.length > 0) {
                         proofsStore.removeProofs(proofsByMint)           

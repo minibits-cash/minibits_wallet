@@ -4,7 +4,8 @@ import {
     getSignature,
     SimplePool,
     validateEvent,    
-    utils
+    utils,
+    nip04
 } from 'nostr-tools'
 import type {
     Event as NostrEvent, 
@@ -158,24 +159,12 @@ const encryptNip04 = async function (
 ): Promise<string> {
     try {
         const  keys: KeyPair = await getOrCreateKeyPair()
+        const encryptedContent = await nip04.encrypt(keys.privateKey, receiverPubkey, content)        
 
-        const key = secp256k1.getSharedSecret(keys.privateKey, '02' + receiverPubkey)
-        const normalizedKey = getNormalizedX(key)  
-        const iv = QuickCrypto.randomFillSync(new Uint8Array(16))    
-    
-        const cipher = QuickCrypto.createCipheriv(
-            'aes-256-cbc',
-            Buffer.from(normalizedKey),
-            iv
-        )
+        return encryptedContent
 
-        let encryptedMessage = cipher.update(content, 'utf8', 'base64')
-        encryptedMessage += cipher.final('base64')
-        let ivBase64 = Buffer.from(iv.buffer).toString('base64')  
-    
-        return encryptedMessage + '?iv=' + ivBase64
     } catch (e: any) {
-        throw new AppError(Err.KEYCHAIN_ERROR, e.message)
+        throw new AppError(Err.CONNECTION_ERROR, e.message)
     }
 }
 
@@ -186,27 +175,11 @@ const decryptNip04 = async function(
 ): Promise<string> {
 
     const  keys: KeyPair = await getOrCreateKeyPair()
-    const key = secp256k1.getSharedSecret(keys.privateKey, '02' + senderPubKey)
-    const normalizedKey = getNormalizedX(key)
-  
-    const parts = encryptedContent.split('?')
-    if (parts.length !== 2) {
-        throw new Error('Invalid encrypted content format')
-    }
-  
-    const ciphertext = Buffer.from(parts[0], 'base64')
-    const iv = Buffer.from(parts[1].substring(3), 'base64') // remove 'iv='
-  
-    const decipher = QuickCrypto.createDecipheriv(
-        'aes-256-cbc',
-        Buffer.from(normalizedKey),
-        iv
-    )
-  
-    let decryptedText = decipher.update(ciphertext, 'base64', 'utf8')
-    decryptedText += decipher.final('utf8')
-    
-    return decryptedText as string
+    const decryptedContent = nip04.decrypt(keys.privateKey, senderPubKey, encryptedContent)
+
+    log.trace('[decryptNip04]', {decryptedContent})
+
+    return decryptedContent
 }
 
 

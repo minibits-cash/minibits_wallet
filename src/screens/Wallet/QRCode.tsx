@@ -34,6 +34,13 @@ export const QRCodeBlock = function (props: {
           
           if(decoded.token[0].proofs[0].id.startsWith('00')) {
             setKeysetFormat('hex')
+            try {
+              // make v4 default one
+              const encodedV4 = CashuUtils.encodeToken(decoded, 4)
+              setEncodedV4Token(encodedV4)
+            } catch (e: any) {
+              handleQrError(e)
+            }
           } else {
             setKeysetFormat('base64')
           }          
@@ -63,7 +70,7 @@ export const QRCodeBlock = function (props: {
             infoMessage(translate('share.cancelled'))          
         }
       } catch (e: any) {
-        setQrError(e)
+        handleQrError(e)
       }
     }
 
@@ -85,7 +92,7 @@ export const QRCodeBlock = function (props: {
           setEncodedV4Token(encodedV4)
         }
       } catch (e: any) {
-        setQrError(e)
+        handleQrError(e)
       }
     }
   
@@ -94,7 +101,7 @@ export const QRCodeBlock = function (props: {
       try {
         Clipboard.setString(encodedV4Token || qrCodeData as string)
       } catch (e: any) {
-        setQrError(e)
+        handleQrError(e)
       }
     }
   

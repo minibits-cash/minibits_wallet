@@ -39,7 +39,7 @@ import {useStores} from '../models'
 import {WalletStackScreenProps} from '../navigation'
 import {Mint, UnitBalance} from '../models/Mint'
 import {MintsByUnit} from '../models/MintsStore'
-import {Database, log, MinibitsClient, NostrClient} from '../services'
+import {log, NostrClient} from '../services'
 import {Env} from '../utils/envtypes'
 import {Transaction} from '../models/Transaction'
 import {TransactionListItem} from './Transactions/TransactionListItem'
@@ -60,11 +60,7 @@ import { CurrencySign } from './Wallet/CurrencySign'
 import { CurrencyCode, MintUnit, MintUnitCurrencyPairs, convertToFromSats, getCurrency } from "../services/wallet/currency"
 import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import { LeftProfileHeader } from './ContactsScreen'
-import { maxTransactionsByUnit } from '../models/TransactionsStore'
 import { NavigationState, Route, TabBar, TabView } from 'react-native-tab-view'
-import { NwcConnection, NwcConnectionModel } from '../models/NwcStore'
-import { getSnapshot } from 'mobx-state-tree'
-import { BackupProof, Proof } from '../models/Proof'
 
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
 
@@ -159,7 +155,11 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 return // skip further processing so that it does not slow down or clash deep link
             }
             
-            if(!isInternetReachable) { return }            
+            if(!isInternetReachable) { return }
+            
+            if(groupedMints.length === 0) {
+                await addMint()
+            }
 
             // check lnaddress claims on app start and set timestamp to trigger focus updates
             WalletTask.handleClaim().catch(e => setInfo(e.message))
@@ -438,7 +438,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 <View style={[
                     $headerContainer, {
                         backgroundColor: headerBg, 
-                        paddingTop: spacing.medium
+                        paddingTop: spacing.small,
                     }
                 ]}>
                     <UnitBalanceBlock                            
@@ -472,7 +472,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                     }                                        
                                 />                                            
                             }
-                            style={[$card, {paddingTop: spacing.extraSmall, maxHeight: spacing.screenHeight * 0.3}]}
+                            style={[$card, {paddingTop: spacing.extraSmall}]}
                         />
                     ) : (
                         <Card                                
@@ -506,20 +506,23 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const tabWidth = moderateScale(80)
 
     const getActiveTabColor = (state: NavigationState<Route>) => {
-        switch (state.routes[tabIndex].key) {
-            case 'usd':
-                return useThemeColor('usd')              
-            case 'eur':
-                return useThemeColor('eur')                 
-            default:
-                return useThemeColor('btc') 
-          }
-          
+        if(state && state.routes.length > 0) {
+            switch (state.routes[tabIndex].key) {
+                case 'usd':
+                    return useThemeColor('usd')              
+                case 'eur':
+                    return useThemeColor('eur')                 
+                default:
+                    return useThemeColor('btc') 
+            }
+        }
+
+        return useThemeColor('btc')
     }
 
     const renderTabBar = (props: any) => {
         return(
-            <View style={{backgroundColor: headerBg, marginTop: -spacing.extraSmall}}>
+            <View style={{backgroundColor: headerBg, marginTop: -spacing.small}}>
                 <View style={{width: routes.length * tabWidth, alignSelf: 'center', backgroundColor: headerBg}}>
                     <TabBar                        
                         {...props}                        
@@ -579,26 +582,19 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 </>
                 }                
             />
-            {groupedMints.length === 0 ? (
-                <>
-                    <ZeroBalanceBlock/>
-                    <View style={$promoContainer}>
-                        <PromoBlock addMint={addMint} />
-                    </View>
-                </>
-            ) : (                
+            {groupedMints.length > 0 && (                              
                 <TabView
                     renderTabBar={renderTabBar}
                     navigationState={{ index: tabIndex, routes }}
                     renderScene={renderUnitTabs}
                     onIndexChange={onTabChange}
                     initialLayout={{ width: spacing.screenWidth }}
-                    //style={{borderWidth: 1, borderColor: 'red'}}                                       
+                    // style={{borderWidth: 1, borderColor: 'red'}}                                       
                 />
             )}
-            <View style={[$bottomContainer, {maxHeight: spacing.screenHeight * 0.3}]}>
+            <View style={[$bottomContainer, {minHeight: spacing.screenHeight * 0.26}]}>
                 {isNwcVisible && (
-                    <View>
+                    <View style={{flex : 1, justifyContent: 'flex-start', marginBottom: spacing.medium}}>
                         <FlatList
                             data={nwcCardsData}
                             horizontal={true}
@@ -608,7 +604,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                         HeadingComponent={<Text text={item.name} size='xs'/>}                                        
                                         ContentComponent={
                                             <>
-                                            <Text text='Spent today' size='xxs' preset='formHelper' style={{color: label}}/>
+                                            <Text text='Spent today' size='xxs' preset='formHelper' style={{color: label, overflow: 'hidden'}}/>
                                             <CurrencyAmount 
                                                 amount={210}
                                                 currencyCode={CurrencyCode.SAT}
@@ -618,10 +614,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                             </>
                                         }
                                         style={{
-                                            width: spacing.screenWidth * 0.3, 
-                                            height: spacing.screenWidth * 0.3,
-                                            marginRight: spacing.small,
-                                            marginVertical: spacing.small
+                                            width: spacing.screenWidth * 0.28,
+                                            marginRight: spacing.small,                                                                                                                                 
                                         }}                                        
                                     />
                                 )}
@@ -639,12 +633,12 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                             <Icon
                                 icon='faArrowUp'
                                 size={spacing.medium}
-                                color={mainButtonIcon}
-                                //style={{paddingLeft: spacing.medium}}
+                                color={mainButtonIcon}                                
                             />
                         )}
                         onPress={toggleSendModal}                        
-                        style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonTopup]}
+                        style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonSend]}
+                        textStyle={{marginRight: spacing.tiny}}
                         preset='secondary'
                         tx='payCommon.send'
                     />             
@@ -667,11 +661,13 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                 icon='faArrowDown'
                                 size={spacing.medium}
                                 color={mainButtonIcon}
+                                containerStyle={{paddingLeft: spacing.tiny}}                               
                             />
                         )}
                         onPress={toggleReceiveModal}
                         tx='payCommon.receive'
-                        style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonPay]}
+                        style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonReceive]}
+                        textStyle={{marginLeft: spacing.tiny}}
                         preset='secondary'
                     /> 
                 </View>  
@@ -827,53 +823,6 @@ const ZeroBalanceBlock = function () {
     )
 }
 
-const PromoBlock = function (props: {addMint: any}) {
-    return (
-        <Card
-            HeadingComponent={
-            <View style={$promoIconContainer}>
-                <View
-                    style={{
-                        flex: 0,
-                        borderRadius: spacing.small,
-                        padding: spacing.extraSmall,
-                        backgroundColor: colors.palette.orange600
-                    }}
-                >
-                    <SvgXml 
-                        width={spacing.extraLarge} 
-                        height={spacing.extraLarge} 
-                        xml={MintIcon}
-                        fill='white'
-                    />
-                </View>
-            </View>
-            }
-            ContentComponent={
-            <View style={{flexDirection: 'row'}}>
-                <RNText style={$promoText}>
-                Add{' '}
-                <Text
-                    text='Minibits'
-                    style={{fontFamily: 'Gluten-Regular', fontSize: 18}}
-                />{' '}
-                as your first mint to start!
-                </RNText>
-            </View>
-            }
-            style={[$card, {marginTop: spacing.small}]}
-            FooterComponent={
-            <View style={{alignItems: 'center'}}>
-                <Button
-                    preset='default'
-                    onPress={props.addMint}
-                    tx="walletScreen.addFirstMint"
-                />
-            </View>
-            }            
-        />
-    )
-}
 
 
 const MintsByUnitSummary = observer(function (props: {
@@ -1150,29 +1099,28 @@ const $balance: TextStyle = {
   fontFamily: typography.primary?.medium,
 }
 
-const $bottomContainer: ViewStyle = {  
-  flexGrow: 0,
-  // justifyContent: 'flex-end',
-  marginHorizontal: spacing.extraSmall,
-  // alignItems: 'center',
+const $bottomContainer: ViewStyle = {
+  justifyContent: 'flex-end',
+  paddingHorizontal: spacing.extraSmall,
+  // alignSelf: 'stretch',  
   // opacity: 0,
 }
 
 const $buttonContainer: ViewStyle = {    
     flexDirection: 'row',    
-    marginBottom: spacing.tiny,
+    // marginBottom: spacing.tiny,
     justifyContent: 'center',
-    alignItems: 'center',    
+    alignItems: 'center',   
 }
 
-const $buttonTopup: ViewStyle = {
+const $buttonSend: ViewStyle = {
   borderTopLeftRadius: moderateVerticalScale(60 / 2),
   borderBottomLeftRadius: moderateVerticalScale(60 / 2),
   borderTopRightRadius: 0,
   borderBottomRightRadius: 0,  
-  width: moderateVerticalScale(150),
-  height: moderateVerticalScale(60),
-  marginRight: -25,  
+  width: moderateVerticalScale(130),
+  height: moderateVerticalScale(55),
+  marginRight: moderateVerticalScale(-25),  
 }
 
 const $buttonScan: ViewStyle = {
@@ -1182,14 +1130,14 @@ const $buttonScan: ViewStyle = {
   zIndex: 99,  
 }
 
-const $buttonPay: ViewStyle = {
+const $buttonReceive: ViewStyle = {
   borderTopLeftRadius: 0,
   borderBottomLeftRadius: 0,
   borderTopRightRadius: moderateVerticalScale(30),
   borderBottomRightRadius: moderateVerticalScale(30),
-  width: moderateVerticalScale(150),
-  height: moderateVerticalScale(60),
-  marginLeft: -25, 
+  width: moderateVerticalScale(130),
+  height: moderateVerticalScale(55),
+  marginLeft: moderateVerticalScale(-15), 
 }
 
 const $bottomModal: ViewStyle = {    
@@ -1206,5 +1154,5 @@ const $offline: TextStyle = {
     marginVertical: spacing.small,
     lineHeight: spacing.medium,    
     backgroundColor: colors.palette.orange400,
-    color: 'white',
+    color: 'white'
 }
