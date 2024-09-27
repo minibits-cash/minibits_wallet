@@ -4,9 +4,10 @@ import {
     types,
     isStateTreeNode,
     detach,
+    flow,
 } from 'mobx-state-tree'
 import {withSetPropAction} from './helpers/withSetPropAction'
-import {ProofModel, Proof} from './Proof'
+import {ProofModel, Proof, BackupProof} from './Proof'
 import {log} from '../services/logService'
 import {getRootStore} from './helpers/getRootStore'
 import AppError, {Err} from '../utils/AppError'
@@ -87,6 +88,43 @@ export const ProofsStoreModel = types
         },
     }))
     .actions(self => ({
+        // Proofs are not more persisted in mmkv storage but loaded from database on afterCreate model
+        loadProofsFromDatabase: flow(function* laodProofs() {             
+            
+            const unspentAndPendingProofs = yield Database.getProofs(true, true, false)            
+            
+            // Group into isUnspent and isPending
+            const groupedProofs = unspentAndPendingProofs.reduce(
+                (acc: {isPending: BackupProof[], isUnspent: BackupProof[]}, proof: BackupProof) => {
+                if (proof.isPending) {
+                    acc.isPending.push(proof);
+                } else {
+                    acc.isUnspent.push(proof);
+                }
+                return acc;
+                },
+                { isUnspent: [], isPending: [] } // Initialize the groups
+            )
+
+            const cleanProofs = (proofs: BackupProof[]) => {
+                return proofs.map(p => {
+                    // Destructure the unwanted properties and collect the rest in `cleaned`
+                    const { isPending, isSpent, updatedAt, ...cleaned } = p            
+                    // Return the cleaned object
+                    return cleaned as Proof
+                })
+            }
+
+            self.proofs.replace(cleanProofs(groupedProofs.isUnspent))
+            self.pendingProofs.replace(cleanProofs(groupedProofs.isPending))
+        }),
+    }))
+    .actions(self => ({
+        /*afterCreate() {
+            // not used to be able to load proofs without blocking app start
+            // Trigger the load proofs action when the store is initialized
+            self.loadProofsFromDatabase()
+        },*/
         addProofs(newProofs: Proof[], isPending: boolean = false): {addedAmount: number, addedProofs: Proof[]} {
             try {
                 const proofs = isPending ? self.pendingProofs : self.proofs
@@ -405,7 +443,13 @@ export const ProofsStoreModel = types
         getProofsSubset: (proofs: Proof[], proofsToRemove: Proof[]) => {
             return proofs.filter(proof => !proofsToRemove.includes(proof))
         },
-    }))
+    })).postProcessSnapshot((snapshot) => {   // NOT persisted to storage except last pendingByMintSecrets!  
+        return {
+            proofs: [],
+            pendingProofs: [],            
+            pendingByMintSecrets: snapshot.pendingByMintSecrets
+        }          
+    })
     
 
 export interface Proofs extends Instance<typeof ProofsStoreModel> {}

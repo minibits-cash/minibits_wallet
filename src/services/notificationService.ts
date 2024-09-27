@@ -10,6 +10,7 @@ import { NostrClient, NostrEvent, NostrProfile } from './nostrService'
 import AppError, { Err } from '../utils/AppError'
 import { Platform } from 'react-native'
 import { RootStoreModel, rootStoreInstance, setupRootStore } from '../models';
+import { ProofsStoreModel } from '../models/ProofsStore';
 
 export type NotifyReceiveToLnurlData = {
     type: 'NotifyReceiveToLnurlData',
@@ -90,11 +91,11 @@ const _receiveToLnurlHandler = async function(remoteData: NotifyReceiveToLnurlDa
 
 const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {   
     const {requestEvent} = remoteData.data
-    const {nwcStore} = rootStoreInstance
+    const {nwcStore, proofsStore} = rootStoreInstance
 
     // If app is killed, state is not loaded
     if(nwcStore.all.length === 0) {        
-        await setupRootStore(rootStoreInstance)
+        await setupRootStore(rootStoreInstance)        
     }
 
     log.trace('[_nwcRequestHandler]', {connections: nwcStore.all})

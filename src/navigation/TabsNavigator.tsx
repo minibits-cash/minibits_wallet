@@ -29,7 +29,7 @@ import {
   UpdateScreen,
   BackupScreen,
   RemoteBackupScreen,
-  LocalRecoveryScreen,
+  ExportEcashScreen,
   RelaysScreen,
   TranDetailScreen, 
   TranHistoryScreen,
@@ -287,7 +287,7 @@ export type SettingsStackParamList = {
   }
   Backup: undefined
   RemoteBackup: undefined
-  LocalRecovery: undefined
+  ExportEcash: undefined
   Developer: undefined
   Relays: undefined
   RemoteRecovery: {isAddressOnlyRecovery: boolean}
@@ -320,7 +320,7 @@ const SettingsNavigator = function SettingsNavigator() {
       <SettingsStack.Screen name="Update" component={UpdateScreen} />
       <SettingsStack.Screen name="Backup" component={BackupScreen} />
       <SettingsStack.Screen name="RemoteBackup" component={RemoteBackupScreen} />
-      <SettingsStack.Screen name="LocalRecovery" component={LocalRecoveryScreen} />
+      <SettingsStack.Screen name="ExportEcash" component={ExportEcashScreen} />
       <SettingsStack.Screen name="Developer" component={DeveloperScreen} />
       <SettingsStack.Screen name="Relays" component={RelaysScreen} />
       <SettingsStack.Screen name="RemoteRecovery" component={RemoteRecoveryScreen} />

@@ -103,7 +103,7 @@ export const UserSettingsStoreModel = types
             self.isLocalBackupOn = isLocalBackupOn            
             return isLocalBackupOn
         },
-        setIsStorageEncrypted: flow(function* setIsStorageEncryptedvalue(
+        setIsStorageEncrypted: flow(function* setIsStorageEncryptedvalue( // legacy, tobe removed
             isEncrypted: boolean,
         ) {
             if (isEncrypted) {
@@ -115,7 +115,7 @@ export const UserSettingsStoreModel = types
             self.isStorageEncrypted = isEncrypted            
             return isEncrypted
         }),
-        setIsTorDaemonOn: (isTorDaemonOn: boolean) => {
+        setIsTorDaemonOn: (isTorDaemonOn: boolean) => { // legacy, tobe removed
             Database.updateUserSettings({...self, isTorDaemonOn})
             self.isTorDaemonOn = isTorDaemonOn            
             return isTorDaemonOn

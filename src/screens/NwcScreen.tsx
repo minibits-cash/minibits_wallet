@@ -16,9 +16,9 @@ import { QRCodeBlock } from './Wallet/QRCode'
 import { CollapsibleText } from '../components/CollapsibleText'
 import { isSameDay } from 'date-fns/isSameDay'
 
-interface SettingsScreenProps extends SettingsStackScreenProps<'Nwc'> {}
+interface NwcScreenProps extends SettingsStackScreenProps<'Nwc'> {}
 
-export const NwcScreen: FC<SettingsScreenProps> = observer(
+export const NwcScreen: FC<NwcScreenProps> = observer(
   function NwcScreen(_props) {
 
     const {navigation} = _props

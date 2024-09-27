@@ -109,7 +109,7 @@ export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer
                 style={$card}
                 ContentComponent={
                 <>
-                    <ListItem
+                    {/*<ListItem
                         tx="securityScreen.encryptStorage"
                         subTx="securityScreen.encryptStorageDescription"
                         leftIcon={isStorageEncrypted ? 'faLock' : 'faLockOpen'}
@@ -128,7 +128,7 @@ export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer
                         </View>
                         }
                         style={$item}
-                    />
+                    />*/}
                     {isStorageEncrypted && (
                         <ListItem
                             tx="securityScreen.biometry"

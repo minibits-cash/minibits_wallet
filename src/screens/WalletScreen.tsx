@@ -39,7 +39,7 @@ import {useStores} from '../models'
 import {WalletStackScreenProps} from '../navigation'
 import {Mint, UnitBalance} from '../models/Mint'
 import {MintsByUnit} from '../models/MintsStore'
-import {log, MinibitsClient, NostrClient} from '../services'
+import {Database, log, MinibitsClient, NostrClient} from '../services'
 import {Env} from '../utils/envtypes'
 import {Transaction} from '../models/Transaction'
 import {TransactionListItem} from './Transactions/TransactionListItem'
@@ -63,6 +63,8 @@ import { LeftProfileHeader } from './ContactsScreen'
 import { maxTransactionsByUnit } from '../models/TransactionsStore'
 import { NavigationState, Route, TabBar, TabView } from 'react-native-tab-view'
 import { NwcConnection, NwcConnectionModel } from '../models/NwcStore'
+import { getSnapshot } from 'mobx-state-tree'
+import { BackupProof, Proof } from '../models/Proof'
 
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
 
@@ -97,7 +99,6 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
     const [info, setInfo] = useState<string>('')
     const [defaultMintUrl, setDefaultMintUrl] = useState<string>(MINIBITS_MINT_URL)
-    const [lastClaimCheck, setLastClaimCheck] = useState<number>(getUnixTime(new Date()))
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState<boolean>(false)
     
@@ -149,7 +150,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     // On app start
     useEffect(() => {
         // get deeplink if any
-        const getInitialData  = async () => {            
+        const getInitialData  = async () => {
+            // get deeplink data if any
             const url = await Linking.getInitialURL()
                                              
             if (url) {                            
@@ -525,6 +527,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                         renderLabel={({ route, focused, color }) => (
                             <CurrencySign
                                 mintUnit={route.key as MintUnit}
+                                textStyle={{color: 'white'}}
                                 containerStyle={focused ? {} : {opacity: 0.5}}
                             />
                         )}
@@ -796,7 +799,7 @@ const UnitBalanceBlock = observer(function (props: {
                 <CurrencyAmount
                     amount={getConvertedBalance() ?? 0}
                     currencyCode={unitBalance.unit === 'sat' ? userSettingsStore.exchangeCurrency : CurrencyCode.SAT}
-                    symbolStyle={{color: convertedBalanceColor, marginTop: spacing.tiny}}
+                    symbolStyle={{color: convertedBalanceColor, marginTop: spacing.tiny, fontSize: moderateVerticalScale(10)}}
                     amountStyle={{color: convertedBalanceColor}}                        
                     size='small'             
                 />

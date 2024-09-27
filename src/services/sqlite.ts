@@ -21,7 +21,7 @@ import { ThemeCode } from '../theme'
 
 let _db: QuickSQLiteConnection
 
-const _dbVersion = 15 // Update this if db changes require migrations
+const _dbVersion = 16 // Update this if db changes require migrations
 
 const getInstance = function () {
   if (!_db) {
@@ -99,6 +99,7 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
         C TEXT NOT NULL,
         unit TEXT,
         tId INTEGER,
+        mintUrl TEXT,
         isPending BOOLEAN,
         isSpent BOOLEAN,
         updatedAt TEXT      
@@ -292,6 +293,15 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
       ])
 
       log.info(`Prepared database migrations from ${currentVersion} -> 15`)
+    }
+
+    if (currentVersion < 16) {
+      migrationQueries.push([
+        `ALTER TABLE proofs
+        ADD COLUMN mintUrl`,   
+      ])
+
+      log.info(`Prepared database migrations from ${currentVersion} -> 16`)
     }
 
     // Update db version as a part of migration sqls
@@ -903,7 +913,7 @@ const updateOutputToken = function (id: number, outputToken: string) {
   }
 }
 
-
+// proof of payment, e.g. preimage
 const updateProof = function (id: number, proof: string) {
   try {
     const query = `
@@ -1073,8 +1083,8 @@ const addOrUpdateProof = function (
     const now = new Date()
 
     const query = `
-      INSERT OR REPLACE INTO proofs (id, amount, secret, C, tId, isPending, isSpent, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO proofs (id, amount, secret, C, tId, mintUrl, isPending, isSpent, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
     const params = [
       proof.id,
@@ -1082,6 +1092,7 @@ const addOrUpdateProof = function (
       proof.secret,
       proof.C,
       proof.tId,
+      proof.mintUrl,
       isPending,
       isSpent,
       now.toISOString(),
@@ -1090,7 +1101,7 @@ const addOrUpdateProof = function (
     const db = getInstance()
     const result = db.execute(query, params)
     // DO NOT log proof secrets to Sentry
-    log.info('[addOrUpdateProof]', `${isPending ? ' Pending' : ''} proof added or updated in the database backup`,
+    log.info('[addOrUpdateProof]', `${isPending ? ' Pending' : ''} proof added or updated in the database`,
       {id: result.insertId, tId: proof.tId, isPending, isSpent},
     )
 
@@ -1118,8 +1129,8 @@ const addOrUpdateProofs = function (
 
     for (const proof of proofs) {
       insertQueries.push([
-        ` INSERT OR REPLACE INTO proofs (id, amount, secret, C, unit, tId, isPending, isSpent, updatedAt)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ` INSERT OR REPLACE INTO proofs (id, amount, secret, C, unit, tId, mintUrl, isPending, isSpent, updatedAt)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           proof.id,
@@ -1128,6 +1139,7 @@ const addOrUpdateProofs = function (
           proof.C,
           proof.unit,
           proof.tId,
+          proof.mintUrl,
           isPending,
           isSpent,
           now.toISOString(),
@@ -1145,7 +1157,7 @@ const addOrUpdateProofs = function (
     // DO NOT log proof secrets to Sentry
     log.info('[addOrUpdateProofs]',
       `${rowsAffected}${isPending ? ' pending' : ''
-      } proofs were added or updated in the database backup`,
+      } proofs were added or updated in the database`,
       {isPending, isSpent}
     )
 
@@ -1154,6 +1166,31 @@ const addOrUpdateProofs = function (
     throw new AppError(
       Err.DATABASE_ERROR,
       'Could not store proofs into the database',
+      e.message,
+    )
+  }
+}
+
+// migration
+const updateProofsMintUrl = function (id: string, mintUrl: string) {
+  try {
+    const query = `
+      UPDATE proofs
+      SET mintUrl = ?
+      WHERE id = ?      
+    `
+    const params = [mintUrl, id]
+
+    const db = getInstance()
+    db.execute(query, params)
+    
+    log.debug('[updateMintUrl]', 'Proof mintUrl updated', {id, mintUrl})
+
+    
+  } catch (e: any) {
+    throw new AppError(
+      Err.DATABASE_ERROR,
+      'Could not update proof mintUrl in database',
       e.message,
     )
   }
@@ -1229,10 +1266,20 @@ const getProofs = async function (
             ORDER BY id DESC        
         `
     }
+    if (isUnspent && isPending) {
+      if (isPending) {
+        query = `
+            SELECT *
+            FROM proofs
+            WHERE isSpent = 0            
+            ORDER BY id DESC        
+        `
+    }
+  }
     
     const db = getInstance()
     const {rows} = await db.executeAsync(query)
-
+    
     return rows?._array as BackupProof[]
 
   } catch (e: any) {
@@ -1315,6 +1362,7 @@ export const Database = {
   getPendingAmount,
   addOrUpdateProof,
   addOrUpdateProofs,
+  updateProofsMintUrl,
   removeAllProofs,
   getProofById,
   getProofs,

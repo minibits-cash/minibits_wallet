@@ -54,6 +54,7 @@ export async function setupRootStore(rootStore: RootStore) {
             Sentry.setUser({ id: userSettings.walletId })
         }    
 
+        // legacy, encryption is sunset, to be replaced by opt-in biometric auth to read the seed
         if (userSettings.isStorageEncrypted) {
             try {
                 await MMKVStorage.initEncryption()
@@ -77,20 +78,26 @@ export async function setupRootStore(rootStore: RootStore) {
                     }
                 }  
             }      
-        }
+        } // legacy end
 
         // load the last known state from storage
+        const start = performance.now()
         restoredState = MMKVStorage.load(ROOT_STORAGE_KEY) || {}
-
-        // dirty mobx fix
-        restoredState.walletProfileStore.isBatchClaimOn = undefined
+        const mmkvLoaded = performance.now()
+        const dataSize = Buffer.byteLength(JSON.stringify(restoredState), 'utf8')        
         
-        const dataSize = Buffer.byteLength(JSON.stringify(restoredState), 'utf8')         
+        log.trace('[setupRootStore]', `Loading ${dataSize.toLocaleString()} bytes of state from MMKV took ${(mmkvLoaded - start).toLocaleString()} ms.`)
         
-        log.trace('[setupRootStore]', `restored state has ${dataSize} bytes.`)
-        // log.trace(restoredState)
-
         applySnapshot(rootStore, restoredState)        
+        
+        const stateHydrated = performance.now()
+        log.trace(`[setupRootStore] Hydrating rooStoreModel took ${stateHydrated - mmkvLoaded} ms.`)
+        
+        const {proofsStore} = rootStore
+        await proofsStore.loadProofsFromDatabase()
+        
+        const proofsLoaded = performance.now()
+        log.trace(`[setupRootStore] Loading proofs from DB and hydrating took ${proofsLoaded - stateHydrated} ms.`)
         
     } catch (e: any) {        
         log.error('[setupRootStore]', Err.STORAGE_ERROR, {message: e.message, params: e.params})
@@ -326,6 +333,30 @@ async function _runMigrations(rootStore: RootStore) {
             rootStore.setVersion(rootStoreModelVersion)
             log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
         }
+
+        if(currentVersion < 28) {
+            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v27`)
+            if(userSettingsStore.isStorageEncrypted) {
+                await userSettingsStore.setIsStorageEncrypted(false)
+            }
+            if(!userSettingsStore.isLocalBackupOn) {
+                const proofs = proofsStore.allProofs
+                const pendingProofs = proofsStore.pendingProofs
+
+                Database.addOrUpdateProofs(proofs, false, false)
+                Database.addOrUpdateProofs(pendingProofs, true, false)
+                userSettingsStore.setIsLocalBackupOn(true)
+            }
+            
+            for (const mint of mintsStore.allMints) {
+                for(const keysetId of mint.keysetIds) {
+                    Database.updateProofsMintUrl(keysetId, mint.mintUrl)
+                }                
+            }
+
+            rootStore.setVersion(rootStoreModelVersion)
+            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+        }
     } catch (e: any) {
         throw new AppError(
         Err.STORAGE_ERROR,
@@ -333,6 +364,5 @@ async function _runMigrations(rootStore: RootStore) {
         e.message,
         )    
     }
-
 
 }

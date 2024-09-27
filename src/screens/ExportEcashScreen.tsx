@@ -4,10 +4,8 @@ import {
   TextStyle,
   ViewStyle,
   View,
-  useColorScheme,
-  Alert,
 } from 'react-native'
-import {useThemeColor, spacing, colors, typography} from '../theme'
+import {useThemeColor, spacing, typography} from '../theme'
 import {
   Button,
   Icon,
@@ -28,27 +26,23 @@ import {BackupProof} from '../models/Proof'
 import { useStores } from '../models'
 import { CashuUtils, ProofV3, TokenV3 } from '../services/cashu/cashuUtils'
 import Clipboard from '@react-native-clipboard/clipboard'
-import { Transaction, TransactionData, TransactionRecord, TransactionStatus, TransactionType } from '../models/Transaction'
-import { WalletUtils } from '../services/wallet/utils'
-import { MintUnit, MintUnits, getCurrency } from '../services/wallet/currency'
+import { MintUnits, getCurrency } from '../services/wallet/currency'
 import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import { translate } from '../i18n'
 
-interface LocalRecoveryScreenProps
-  extends SettingsStackScreenProps<'LocalRecovery'> {}
+interface ExportEcashScreenProps extends SettingsStackScreenProps<'ExportEcash'> {}
 
 
-export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
-  function LocalRecoveryScreen(_props) {
+export const ExportEcashScreen: FC<ExportEcashScreenProps> =
+  function ExportEcash(_props) {
 
   const { navigation } = _props
-  const { mintsStore, proofsStore, transactionsStore } = useStores()
+  const { mintsStore } = useStores()
 
   useHeader({
       leftIcon: 'faArrowLeft',
       onLeftPress: () => navigation.goBack(),
     })
-
 
     const [showUnspentOnly, setShowUnspentOnly] = useState<boolean>(true)
     const [showPendingOnly, setShowPendingOnly] = useState<boolean>(false)
@@ -72,7 +66,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
       try {
             setIsLoading(true)
             // update empty unit fields to resolve v0.1.7 upgrade issue of backed up proofs not having unit migrated
-            await Database.updateProofsToDefaultUnit()
+            // await Database.updateProofsToDefaultUnit()
             const backupProofs = await Database.getProofs(isUnspent, isPending, isDeleted)
             setProofs(backupProofs)
             setIsLoading(false)
@@ -188,7 +182,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
     }
 
 
-    const onRecovery = async function () {
+    /* const onRecovery = async function () {
       if (!showUnspentOnly) {
         setInfo(translate("unspentOnlyRecoverable"))
         return
@@ -337,7 +331,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
       } catch (e: any) {
           handleError(e)
       }
-  }
+  } */
 
   const groupProofsByMint = function (proofs: BackupProof[]) {
     return proofs.reduce((acc: Record<string, BackupProof[]>, proof) => {
@@ -383,7 +377,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
     
     const headerBg = useThemeColor('header')
     const iconColor = useThemeColor('textDim')
-    const activeIconColor = useThemeColor('button')
+    const activeIconColor = useThemeColor('tint')
     const headerTitle = useThemeColor('headerTitle')
 
 
@@ -392,7 +386,7 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text
             preset="heading"
-            tx="recoveryTool"
+            tx="exportEcash"
             style={{color: headerTitle}}
           />
         </View>
@@ -474,44 +468,36 @@ export const LocalRecoveryScreen: FC<LocalRecoveryScreenProps> =
                 ))}
                 </>
               }
-              FooterComponent={
-                <View style={$buttonContainer}>
-                    <Button
-                        preset="tertiary"
-                        onPress={copyBackupProofs}
-                        tx="copyProofs"
-                        style={{
-                            minHeight: 25,
-                            paddingVertical: spacing.extraSmall,
-                            marginTop: spacing.small,
-                            marginRight: spacing.small                           
-                        }}
-                        textStyle={{fontSize: 14}}
-                    />
-                    <Button
-                        preset="tertiary"
-                        onPress={copyEncodedTokens}
-                        tx="copyAsEncodedTokens"
-                        style={{
-                            minHeight: 25,
-                            paddingVertical: spacing.extraSmall,
-                            marginTop: spacing.small,                            
-                        }}
-                        textStyle={{fontSize: 14}}
-                    />
-                </View>  
-              }
               style={[$card]}
             />
           )}
           <View style={$bottomContainer}>
+            <View style={$buttonContainer}>
+              <Button
+                  // preset="secondary"
+                  onPress={copyBackupProofs}
+                  tx="copyProofs"
+                  style={{                  
+                      marginRight: spacing.small                           
+                  }}
+                  textStyle={{fontSize: 14}}
+              />
+              <Button
+                  // preset="secondary"
+                  onPress={copyEncodedTokens}
+                  tx="copyAsEncodedTokens"                  
+                  textStyle={{fontSize: 14}}
+              />
+            </View>
+          </View>
+          {/* <View style={$bottomContainer}>
             <View style={$buttonContainer}>
               <Button 
                 onPress={onRecovery}
                 tx="recoverToWallet"
               />  
             </View>  
-          </View>          
+        </View> */}         
           {isLoading && <Loading />}
           {error && <ErrorModal error={error} />}
           {info && <InfoModal message={info} />}

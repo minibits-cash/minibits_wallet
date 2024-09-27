@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useCallback, useEffect, useRef, useState} from 'react'
-import {Alert, AppState, TextStyle, View, ViewStyle} from 'react-native'
+import {Alert, AppState, TextStyle, View, ViewStyle, useColorScheme} from 'react-native'
 import notifee from '@notifee/react-native'
 import messaging from '@react-native-firebase/messaging'
 import {
@@ -9,9 +9,10 @@ import {
     CODEPUSH_PRODUCTION_DEPLOYMENT_KEY,
 } from '@env'
 import codePush, { RemotePackage } from 'react-native-code-push'
+import { changeIcon, getIcon, resetIcon } from '@synonymdev/react-native-change-icon'
 import {ThemeCode, Themes, colors, spacing, useThemeColor} from '../theme'
 import {SettingsStackScreenProps} from '../navigation' // @demo remove-current-line
-import {ListItem, Screen, Text, Card, NwcIcon, Button, BottomModal, InfoModal} from '../components'
+import {ListItem, Screen, Text, Card, NwcIcon, Button, BottomModal, InfoModal, Icon} from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import {translate} from '../i18n'
@@ -44,7 +45,8 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
     } = useStores()
 
     const [isUpdateAvailable, setIsUpdateAvailable] = useState<boolean>(false)
-    const [updateDescription, setUpdateDescription] = useState<string>('')    
+    const [updateDescription, setUpdateDescription] = useState<string>('')
+    const [currentTheme, setCurrentTheme] = useState<ThemeCode>(userSettingsStore.theme)    
     
     const [updateSize, setUpdateSize] = useState<string>('')
     const [isCurrencyModalVisible, setIsCurrencyModalVisible] = useState<boolean>(false)
@@ -180,9 +182,9 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
       await notifee.openNotificationSettings()        
   }
 
-  const gotoPreferredUnit = function() {
+  /* const gotoPreferredUnit = function() {
     Alert.alert('Preferred unit is set based on your Wallet screen.') 
-  }
+  } */
   
 
   const getRateColor = function () {
@@ -221,19 +223,42 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
     toggleCurrencyModal()  
   }
 
-  const onSelectTheme = function(theme: ThemeCode) {
-    const currentTheme = userSettingsStore.theme
+  const onSelectTheme = async function(theme: ThemeCode) {    
     if(currentTheme !== theme) {
+      try {
       // state update causes crash because of hooks
       Database.updateUserSettings({...userSettingsStore, theme})
+      setCurrentTheme(theme)
+
+      const currentIcon = await getIcon()
+      log.trace('[onSelectTheme]', {currentIcon})
+
+      if(theme === ThemeCode.GOLDEN) {
+        await changeIcon('Golden')
+        const updatedIcon = await getIcon()
+        log.trace('[onSelectTheme]', {updatedIcon})
+      }
+
+      if(currentIcon !== 'Default') {
+        await changeIcon('Default')
+        const updatedIcon = await getIcon()
+        log.trace('[onSelectTheme]', {updatedIcon})
+      }      
+      
       setInfo('Restart the wallet to apply new theme.')
+      } catch (e: any) {
+        log.warn('[onSelectTheme]', e.message)
+      }
     }
+
     toggleThemeModal()  
   }
 
   const $itemRight = {color: useThemeColor('textDim')}
   const headerBg = useThemeColor('header')
-  const headerTitle = useThemeColor('headerTitle')
+  const headerTitle = useThemeColor('headerTitle')  
+  const colorScheme = useColorScheme()
+  const defaultThemeColor = colorScheme === 'dark' ? Themes[ThemeCode.DARK]?.color : Themes[ThemeCode.LIGHT]?.color
     
     return (
       <Screen contentContainerStyle={$screen} preset='auto'>
@@ -279,19 +304,20 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                           style={$itemRight}
                       />
                       </View>
-                    }                    
+                    }        
+                    bottomSeparator={true}            
                     onPress={toggleCurrencyModal}
                 />
                 <ListItem
                     tx='settingsScreen.theme'
                     leftIcon='faPaintbrush'
-                    leftIconColor={headerBg as string}
+                    leftIconColor={currentTheme === ThemeCode.DEFAULT ? defaultThemeColor as string : Themes[currentTheme as ThemeCode]?.color as string}
                     leftIconInverse={true}
                     style={$item}
                     RightComponent={
                       <View style={$rightContainer}>
                       <Text                          
-                          text={Themes[userSettingsStore.theme]!.title}
+                          text={Themes[currentTheme]!.title}
                           style={$itemRight}
                       />
                       </View>
@@ -462,19 +488,26 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
         />
         <BottomModal
           isVisible={isThemeModalVisible ? true : false}
-          style={{alignItems: 'stretch'}}
+          style={{alignItems: 'stretch', padding: spacing.small}}
           ContentComponent={  
             <>
-            {[ThemeCode.DEFAULT, ThemeCode.DARK, ThemeCode.LIGHT, ThemeCode.GOLDEN].map(code =>               
+            {[ThemeCode.DEFAULT, ThemeCode.DARK, ThemeCode.LIGHT, ThemeCode.GOLDEN].map(code => 
               <ListItem 
                   key={code}  
-                  leftIconColor={Themes[code as ThemeCode]?.color as string}
+                  leftIconColor={code === ThemeCode.DEFAULT ? defaultThemeColor as string : Themes[code as ThemeCode]?.color as string}
                   leftIconInverse={true} 
                   leftIcon='faPaintbrush'
                   text={Themes[code as ThemeCode]!.title}
                   onPress={() => onSelectTheme(code as ThemeCode)}
+                  RightComponent={
+                    <View style={$rightContainer}>
+                      {currentTheme === code && (
+                        <Icon icon='faCheckCircle' color={$itemRight.color} />
+                      )}
+                    </View>
+                  }
                   bottomSeparator={true}
-              />
+              />            
             )}              
             </>      
           }

@@ -20,7 +20,7 @@ import {useStores} from '../models'
 import AppError from '../utils/AppError'
 import EventEmitter from '../utils/eventEmitter'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
-import {Database, log, WalletTask, WalletTaskResult} from '../services'
+import {Database, log, SyncStateTaskResult, WalletTask, WalletTaskResult} from '../services'
 import { translate } from '../i18n'
 
 export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(function BackupScreen(_props) {
@@ -41,22 +41,32 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
     const [totalSpentAmount, setTotalSpentAmount] = useState<number>(0)
 
     useEffect(() => {
-        const removeSpentByMintTaskResult = async (result: WalletTaskResult) => {
+        const removeSpentByMintTaskResult = async (result: SyncStateTaskResult) => {
             log.trace('removeSpentByMintTaskResult event handler triggered')
 
             if (!isSyncStateSentToQueue) { return false }
             
             setIsLoading(false)            
             // runs per each mint
-            if (result && result.spentAmount > 0) {
+            if (result && result.transactionStateUpdates.length > 0) {
+
+                let totalSpentPerMint = 0
+
+                for (const update of result.transactionStateUpdates) {
+                    if(update.spentByMintAmount && update.spentByMintAmount > 0) {
+                    totalSpentPerMint += update.spentByMintAmount
+                    }                
+                }
+                
                 setTotalSpentAmount(prev => prev + result.spentAmount)
                 setTotalSpentCount(prev => prev + result.spentCount)
                 setInfo(
-                  translate("backupScreen.result", { proofCount: totalSpentCount, amount: totalSpentAmount })
+                    translate("backupScreen.result", { proofCount: totalSpentCount, amount: totalSpentAmount })
                 )
                 return
             }
-          setInfo(translate("noSpentEcashFound"))            
+
+            setInfo(translate("noSpentEcashFound"))            
         }
         
         EventEmitter.on('ev__syncStateWithMintTask_result', removeSpentByMintTaskResult)
@@ -66,7 +76,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
         }
     }, [isSyncStateSentToQueue])
 
-    const toggleBackupSwitch = () => {
+    /* const toggleBackupSwitch = () => {
       try {
         setIsLoading(true)
         const result = userSettingsStore.setIsLocalBackupOn(!isLocalBackupOn)
@@ -97,13 +107,13 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
       } catch (e: any) {
         handleError(e)
       }
-    }
+    }*/
 
     const toggleBackupModal = () =>
       setIsBackupModalVisible(previousState => !previousState)
 
-    const gotoLocalRecovery = function () {
-      navigation.navigate('LocalRecovery')
+    const gotoExportEcash = function () {
+      navigation.navigate('ExportEcash')
     }
 
     const gotoRemoteBackup = function () {
@@ -180,7 +190,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
                 style={$card}
                 HeadingComponent={
                 <>
-                    <ListItem
+                    {/*<ListItem
                     tx="backupScreen.localBackup"
                     subTx="backupScreen.localBackupDescription"
                     leftIcon='faDownload'
@@ -199,7 +209,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
                         </View>
                     }
                     style={$item}
-                    />
+                  />*/}
                     {isLocalBackupOn && (
                     <ListItem
                         tx="backupScreen.recoveryTool"
@@ -208,8 +218,8 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
                         leftIconColor={colors.palette.focus300}
                         leftIconInverse={true}
                         style={$item}
-                        onPress={gotoLocalRecovery}
-                        topSeparator={true}
+                        onPress={gotoExportEcash}
+                        // topSeparator={true}
                     />
                     )}                
                 </>
