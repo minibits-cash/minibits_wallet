@@ -35,11 +35,11 @@ export const CurrencySign = function(props: {
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
-            }, props.containerStyle || {}]}
+            }, containerStyle || {}]}
         >
         <SvgXml        
-            width={props.size && spacing[props.size] * 1.5 || spacing.small * 1.5}
-            height={props.size && spacing[props.size] * 1.5 || spacing.small * 1.5}
+            width={size && spacing[size] * 1.5 || spacing.small * 1.5}
+            height={size && spacing[size] * 1.5 || spacing.small * 1.5}
             style={{marginRight: spacing.tiny}}
             xml={Currencies[code]?.icon || null}            
         />
@@ -51,7 +51,7 @@ export const CurrencySign = function(props: {
                 fontFamily: typography.primary?.light,
                 lineHeight: props.size && spacing[props.size] * 1.5 || spacing.small * 1.5
 
-            }, props.textStyle || {}]}
+            }, textStyle || {}]}
         />
         </View>
     )

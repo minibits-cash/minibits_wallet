@@ -52,9 +52,8 @@ import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { Proof } from '../models/Proof'
 import { Contact, ContactType } from '../models/Contact'
 import { getImageSource, infoMessage } from '../utils/utils'
-import { NotificationService } from '../services/notificationService'
 import { SendOption } from './SendOptionsScreen'
-import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
+import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { MintUnit, formatCurrency, getCurrency } from "../services/wallet/currency"
 import { MintHeader } from './Mints/MintHeader'
 import { MintBalanceSelector } from './Mints/MintBalanceSelector'
@@ -933,8 +932,8 @@ const SelectProofsBlock = observer(function (props: {
                         preset='secondary'
                         onPress={props.toggleNostrDMModal}                        
                         style={{
-                            minHeight: moderateVerticalScale(40), 
-                            paddingVertical: moderateVerticalScale(spacing.tiny),
+                            minHeight: verticalScale(40), 
+                            paddingVertical: verticalScale(spacing.tiny),
                         }}
                         LeftAccessory={() => (
                             <Icon
@@ -950,8 +949,8 @@ const SelectProofsBlock = observer(function (props: {
                         preset='secondary'
                         onPress={props.gotoContacts}                        
                         style={{
-                            minHeight: moderateVerticalScale(40), 
-                            paddingVertical: moderateVerticalScale(spacing.tiny),
+                            minHeight: verticalScale(40), 
+                            paddingVertical: verticalScale(spacing.tiny),
                         }}
                         LeftAccessory={() => (
                             <Icon
@@ -1153,7 +1152,7 @@ const $amountInput: TextStyle = {
     borderRadius: spacing.small,
     margin: 0,
     padding: 0,
-    fontSize: moderateVerticalScale(48),
+    fontSize: verticalScale(48),
     fontFamily: typography.primary?.medium,
     textAlign: 'center',
     color: 'white',    

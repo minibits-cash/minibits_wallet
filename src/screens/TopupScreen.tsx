@@ -52,7 +52,6 @@ import {LNURLWithdrawParams} from 'js-lnurl'
 import {round, roundDown, roundUp, toNumber} from '../utils/number'
 import {LnurlClient, LnurlWithdrawResult} from '../services/lnurlService'
 import {
-  moderateVerticalScale,
   verticalScale,
 } from '@gocodingnow/rn-size-matters'
 import {
@@ -1289,7 +1288,7 @@ const $amountInput: TextStyle = {
   borderRadius: spacing.small,
   margin: 0,
   padding: 0,
-  fontSize: moderateVerticalScale(48),
+  fontSize: verticalScale(48),
   fontFamily: typography.primary?.medium,
   textAlign: 'center',
   color: 'white',

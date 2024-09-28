@@ -13,7 +13,7 @@ import useIsInternetReachable from '../../utils/useIsInternetReachable'
 import {translate} from '../../i18n'
 import { CurrencyAmount } from '../Wallet/CurrencyAmount'
 import { NostrProfile } from '../../services'
-import { moderateScale, moderateVerticalScale } from '@gocodingnow/rn-size-matters'
+import { moderateScale, verticalScale } from '@gocodingnow/rn-size-matters'
 
 export interface TransactionListProps {
   transaction: Transaction
@@ -83,7 +83,7 @@ export const TransactionListItem = observer(function (
       addSuffix: true,
     })
     let timeAgo = ''
-    if (isTimeAgoVisible) timeAgo = `${distance} · `
+    if (isTimeAgoVisible) timeAgo = `${distance.slice(0, 20)} · `
 
     switch (tx.status) {
       case TransactionStatus.COMPLETED:
@@ -160,9 +160,9 @@ export const TransactionListItem = observer(function (
               <Image 
                 style={
                   {
-                    width: moderateVerticalScale(34),
-                    height: moderateVerticalScale(34),
-                    borderRadius: moderateVerticalScale(34) / 2,
+                    width: verticalScale(34),
+                    height: verticalScale(34),
+                    borderRadius: verticalScale(34) / 2,
                   }
                 } 
                 source={{uri: profile.picture}}
@@ -258,7 +258,7 @@ const $item: ViewStyle = {
 
 const $mintText: TextStyle = {
   overflow: 'hidden',
-  fontSize: moderateVerticalScale(14),
+  fontSize: verticalScale(14),
 }
 
 const $txContainer: ViewStyle = {

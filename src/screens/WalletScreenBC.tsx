@@ -16,7 +16,7 @@ import {
   ScrollView
 } from 'react-native'
 import codePush, { RemotePackage } from 'react-native-code-push'
-import {moderateVerticalScale, verticalScale} from '@gocodingnow/rn-size-matters'
+import {verticalScale, verticalScale} from '@gocodingnow/rn-size-matters'
 import { SvgXml } from 'react-native-svg'
 import {getUnixTime} from 'date-fns'
 import PagerView, { PagerViewOnPageScrollEventData } from 'react-native-pager-view'
@@ -853,8 +853,8 @@ const MintsByUnitListItem = observer(function (props: {
                                     textStyle={{fontSize: 14, color}}
                                     onPress={() => gotoTopup(mintsByUnit.unit, mint.mintUrl)}
                                     style={{
-                                        minHeight: moderateVerticalScale(40), 
-                                        paddingVertical: moderateVerticalScale(spacing.tiny),
+                                        minHeight: verticalScale(40), 
+                                        paddingVertical: verticalScale(spacing.tiny),
                                         marginRight: spacing.small
                                     }}                    
                                 />
@@ -871,8 +871,8 @@ const MintsByUnitListItem = observer(function (props: {
                                     preset='secondary'
                                     onPress={() => gotoLightningPay(mintsByUnit.unit, mint.mintUrl)}
                                     style={{
-                                        minHeight: moderateVerticalScale(40), 
-                                        paddingVertical: moderateVerticalScale(spacing.tiny),
+                                        minHeight: verticalScale(40), 
+                                        paddingVertical: verticalScale(spacing.tiny),
                                         marginRight: spacing.small
                                     }}                    
                                 />
@@ -892,8 +892,8 @@ const MintsByUnitListItem = observer(function (props: {
                                     preset='secondary'
                                     onPress={() => gotoMintInfo(mint.mintUrl)}
                                     style={{
-                                        minHeight: moderateVerticalScale(40), 
-                                        paddingVertical: moderateVerticalScale(spacing.tiny),
+                                        minHeight: verticalScale(40), 
+                                        paddingVertical: verticalScale(spacing.tiny),
                                         marginRight: spacing.small
                                     }}                    
                                 />
@@ -953,12 +953,12 @@ const $card: ViewStyle = {
 
 const $cardHeading: TextStyle = {
   fontFamily: typography.primary?.medium,
-  fontSize: moderateVerticalScale(18),
+  fontSize: verticalScale(18),
 }
 
 const $unitBalance: TextStyle = {
-    fontSize: moderateVerticalScale(48),
-    lineHeight: moderateVerticalScale(48)
+    fontSize: verticalScale(48),
+    lineHeight: verticalScale(48)
 }
 
 const $promoIconContainer: ViewStyle = {
@@ -1008,29 +1008,29 @@ const $buttonContainer: ViewStyle = {
 }
 
 const $buttonTopup: ViewStyle = {
-  borderTopLeftRadius: moderateVerticalScale(60 / 2),
-  borderBottomLeftRadius: moderateVerticalScale(60 / 2),
+  borderTopLeftRadius: verticalScale(60 / 2),
+  borderBottomLeftRadius: verticalScale(60 / 2),
   borderTopRightRadius: 0,
   borderBottomRightRadius: 0,  
-  width: moderateVerticalScale(150),
-  height: moderateVerticalScale(60),
+  width: verticalScale(150),
+  height: verticalScale(60),
   marginRight: -25,  
 }
 
 const $buttonScan: ViewStyle = {
-  borderRadius: moderateVerticalScale(70 / 2),
-  width: moderateVerticalScale(70),
-  height: moderateVerticalScale(70),
+  borderRadius: verticalScale(70 / 2),
+  width: verticalScale(70),
+  height: verticalScale(70),
   zIndex: 99,  
 }
 
 const $buttonPay: ViewStyle = {
   borderTopLeftRadius: 0,
   borderBottomLeftRadius: 0,
-  borderTopRightRadius: moderateVerticalScale(30),
-  borderBottomRightRadius: moderateVerticalScale(30),
-  width: moderateVerticalScale(150),
-  height: moderateVerticalScale(60),
+  borderTopRightRadius: verticalScale(30),
+  borderBottomRightRadius: verticalScale(30),
+  width: verticalScale(150),
+  height: verticalScale(60),
   marginLeft: -25, 
 }
 

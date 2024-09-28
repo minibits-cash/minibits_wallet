@@ -20,7 +20,7 @@ import { CurrencyCode, MintUnit } from '../services/wallet/currency'
 import { useStores } from '../models'
 import { Mint } from '../models/Mint'
 import { MintHeader } from './Mints/MintHeader'
-import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
+import { verticalScale } from '@gocodingnow/rn-size-matters'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { translate } from '../i18n'
 
@@ -262,8 +262,8 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
                     preset='secondary'
                     onPress={gotoSend}
                     style={{
-                        minHeight: moderateVerticalScale(40), 
-                        paddingVertical: moderateVerticalScale(spacing.tiny),
+                        minHeight: verticalScale(40), 
+                        paddingVertical: verticalScale(spacing.tiny),
                         marginRight: spacing.tiny,
                         alignSelf: 'center',
                         marginTop: spacing.medium

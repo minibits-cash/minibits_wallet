@@ -11,7 +11,7 @@ import Clipboard from '@react-native-clipboard/clipboard'
 import { ContactType } from '../models/Contact'
 import { NostrClient, log } from '../services'
 import { getImageSource } from '../utils/utils'
-import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
+import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { ReceiveOption } from './ReceiveOptionsScreen'
 import { SendOption } from './SendOptionsScreen'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
@@ -270,7 +270,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                                 <Button
                                     tx="payCommon.requestPayment"
                                     style={{marginLeft: spacing.small, alignSelf: 'center', minHeight: verticalScale(20)}}
-                                    textStyle={{fontSize: moderateVerticalScale(14), lineHeight: moderateVerticalScale(16)}}
+                                    textStyle={{fontSize: verticalScale(14), lineHeight: verticalScale(16)}}
                                     onPress={gotoTopup}
                                     preset='tertiary'
                                 />
@@ -279,7 +279,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                                 <Button
                                     tx="payCommon.payToAddress"
                                     style={{marginLeft: spacing.small, alignSelf: 'center', minHeight: verticalScale(20)}}
-                                    textStyle={{fontSize: moderateVerticalScale(14), lineHeight: moderateVerticalScale(16)}}
+                                    textStyle={{fontSize: verticalScale(14), lineHeight: verticalScale(16)}}
                                     onPress={gotoTransfer}
                                     preset='tertiary'
                                 />
@@ -475,8 +475,8 @@ const $buttonScan: ViewStyle = {
 }
 
 const $buttonSend: ViewStyle = {
-  borderRadius: moderateVerticalScale(60 / 2),
-  height: moderateVerticalScale(60),
+  borderRadius: verticalScale(60 / 2),
+  height: verticalScale(60),
   minWidth: verticalScale(140),  
 }
 

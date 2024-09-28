@@ -49,7 +49,7 @@ import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import { CashuUtils, TokenV3 } from '../services/cashu/cashuUtils'
 import { Mint, MintStatus } from '../models/Mint'
-import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
+import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencySign } from './Wallet/CurrencySign'
 import { MintUnit, formatCurrency, getCurrency } from "../services/wallet/currency"
 import { PaymentRequest } from '../models/PaymentRequest'
@@ -771,9 +771,9 @@ const ReceiveInfoBlock = function (props: {
                             <Image 
                               style={
                                 {
-                                  width: moderateVerticalScale(40),
-                                  height: moderateVerticalScale(40),
-                                  borderRadius: moderateVerticalScale(40) / 2,
+                                  width: verticalScale(40),
+                                  height: verticalScale(40),
+                                  borderRadius: verticalScale(40) / 2,
                                 }
                               } 
                               source={{uri: profilePicture}}
@@ -1956,8 +1956,8 @@ const $contentContainer: TextStyle = {
 }
 
 const $tranAmount: TextStyle = {
-    fontSize: moderateVerticalScale(48),
-    lineHeight: moderateVerticalScale(48),    
+    fontSize: verticalScale(48),
+    lineHeight: verticalScale(48),    
     marginLeft: -20,    
 }
 

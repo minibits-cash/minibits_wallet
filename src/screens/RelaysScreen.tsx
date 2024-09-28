@@ -11,7 +11,7 @@ import {useStores} from '../models'
 import { Relay } from '../models/Relay'
 import AppError, { Err } from '../utils/AppError'
 import { log, WalletTask } from '../services'
-import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
+import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { translate } from '../i18n'
 import { NotificationService } from '../services/notificationService'
 
@@ -371,8 +371,8 @@ const $buttonContainer: ViewStyle = {
   }
   
   const $buttonNew: ViewStyle = {
-    borderRadius: moderateVerticalScale(60 / 2),
-    height: moderateVerticalScale(60),
+    borderRadius: verticalScale(60 / 2),
+    height: verticalScale(60),
     minWidth: verticalScale(120),  
   } 
 

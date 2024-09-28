@@ -15,9 +15,8 @@ import {
   LayoutAnimation,  
 } from 'react-native'
 import codePush, { RemotePackage } from 'react-native-code-push'
-import {moderateScale, moderateVerticalScale, verticalScale} from '@gocodingnow/rn-size-matters'
+import {moderateScale, verticalScale} from '@gocodingnow/rn-size-matters'
 import { SvgXml } from 'react-native-svg'
-import {getUnixTime} from 'date-fns'
 import { debounce } from "lodash"
 import {useThemeColor, spacing, colors, typography} from '../theme'
 import {
@@ -472,7 +471,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                     }                                        
                                 />                                            
                             }
-                            style={[$card, {paddingTop: spacing.extraSmall}]}
+                            style={[$card, {paddingVertical: spacing.extraSmall}]}
                         />
                     ) : (
                         <Card                                
@@ -522,7 +521,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
     const renderTabBar = (props: any) => {
         return(
-            <View style={{backgroundColor: headerBg, marginTop: -spacing.small}}>
+            <View style={{backgroundColor: headerBg, marginTop: -spacing.medium}}>
                 <View style={{width: routes.length * tabWidth, alignSelf: 'center', backgroundColor: headerBg}}>
                     <TabBar                        
                         {...props}                        
@@ -592,41 +591,41 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                     // style={{borderWidth: 1, borderColor: 'red'}}                                       
                 />
             )}
-            <View style={[$bottomContainer, {minHeight: spacing.screenHeight * 0.26}]}>
-                {isNwcVisible && (
-                    <View style={{flex : 1, justifyContent: 'flex-start', marginBottom: spacing.medium}}>
-                        <FlatList
-                            data={nwcCardsData}
-                            horizontal={true}
-                            renderItem={({item, index}) => {
-                                return (
-                                    <Card
-                                        HeadingComponent={<Text text={item.name} size='xs'/>}                                        
-                                        ContentComponent={
-                                            <>
-                                            <Text text='Spent today' size='xxs' preset='formHelper' style={{color: label, overflow: 'hidden'}}/>
-                                            <CurrencyAmount 
-                                                amount={210}
-                                                currencyCode={CurrencyCode.SAT}
-                                                containerStyle={{marginLeft: -spacing.tiny, marginTop: spacing.small}}
-                                                size='medium'
-                                            />
-                                            </>
-                                        }
-                                        style={{
-                                            width: spacing.screenWidth * 0.28,
-                                            marginRight: spacing.small,                                                                                                                                 
-                                        }}                                        
-                                    />
-                                )}
-                            }
-                            style={{
-                                
+            {isNwcVisible && (
+                <View style={$nwcContainer}>
+                    <FlatList
+                        data={nwcCardsData}
+                        horizontal={true}
+                        renderItem={({item, index}) => {
+                            return (
+                                <Card
+                                    HeadingComponent={<Text text={item.name} size='xs'/>}                                        
+                                    ContentComponent={
+                                        <>
+                                        <Text text='Spent today' size='xxs' preset='formHelper' style={{color: label, overflow: 'hidden'}}/>
+                                        <CurrencyAmount 
+                                            amount={item.dailyLimit - item.remainingDailyLimit}
+                                            currencyCode={CurrencyCode.SAT}
+                                            containerStyle={{marginLeft: -spacing.tiny, marginTop: spacing.small}}
+                                            size='medium'
+                                        />
+                                        </>
+                                    }
+                                    style={{
+                                        width: spacing.screenWidth * 0.28,
+                                        marginRight: spacing.small,                                                                                                                                 
+                                    }}                                        
+                                />
+                            )}
+                        }
+                        style={{
+                            
 
-                            }}                                        
-                        />
-                    </View>
-                )}                
+                        }}                                        
+                    />
+                </View>
+            )} 
+            <View style={[$bottomContainer]}>                               
                 <View style={$buttonContainer}>
                     <Button
                         LeftAccessory={() => (
@@ -790,12 +789,12 @@ const UnitBalanceBlock = observer(function (props: {
                 amountStyle={[$unitBalance, {color: balanceColor}]}
                 containerStyle={{marginTop: spacing.medium}}
             />
-            <View style={{height: moderateVerticalScale(40)}}>            
+            <View style={{height: verticalScale(40)}}>            
             {walletStore.exchangeRate && userSettingsStore.exchangeCurrency && ( 
                 <CurrencyAmount
                     amount={getConvertedBalance() ?? 0}
                     currencyCode={unitBalance.unit === 'sat' ? userSettingsStore.exchangeCurrency : CurrencyCode.SAT}
-                    symbolStyle={{color: convertedBalanceColor, marginTop: spacing.tiny, fontSize: moderateVerticalScale(10)}}
+                    symbolStyle={{color: convertedBalanceColor, marginTop: spacing.tiny, fontSize: verticalScale(10)}}
                     amountStyle={{color: convertedBalanceColor}}                        
                     size='small'             
                 />
@@ -954,8 +953,8 @@ const MintsByUnitList = observer(function (props: {
                             textStyle={{fontSize: 14, color}}
                             onPress={() => props.onTopup(mintsByUnitCurrent!.unit, mint.mintUrl)}
                             style={{
-                                minHeight: moderateVerticalScale(40), 
-                                paddingVertical: moderateVerticalScale(spacing.tiny),
+                                minHeight: verticalScale(40), 
+                                paddingVertical: verticalScale(spacing.tiny),
                                 marginRight: spacing.small
                             }}                    
                         />
@@ -972,8 +971,8 @@ const MintsByUnitList = observer(function (props: {
                             preset='secondary'
                             onPress={() => props.onLightningPay(mintsByUnitCurrent!.unit, mint.mintUrl)}
                             style={{
-                                minHeight: moderateVerticalScale(40), 
-                                paddingVertical: moderateVerticalScale(spacing.tiny),
+                                minHeight: verticalScale(40), 
+                                paddingVertical: verticalScale(spacing.tiny),
                                 marginRight: spacing.small
                             }}                    
                         />
@@ -993,8 +992,8 @@ const MintsByUnitList = observer(function (props: {
                             preset='secondary'
                             onPress={() => props.onMintInfo(mint.mintUrl)}
                             style={{
-                                minHeight: moderateVerticalScale(40), 
-                                paddingVertical: moderateVerticalScale(spacing.tiny),
+                                minHeight: verticalScale(40), 
+                                paddingVertical: verticalScale(spacing.tiny),
                                 marginRight: spacing.small
                             }}                    
                         />
@@ -1060,12 +1059,12 @@ const $card: ViewStyle = {
 
 const $cardHeading: TextStyle = {
   fontFamily: typography.primary?.medium,
-  fontSize: moderateVerticalScale(18),
+  fontSize: verticalScale(18),
 }
 
 const $unitBalance: TextStyle = {
-    fontSize: moderateVerticalScale(48),
-    lineHeight: moderateVerticalScale(48)
+    fontSize: verticalScale(48),
+    lineHeight: verticalScale(48)
 }
 
 const $promoIconContainer: ViewStyle = {
@@ -1083,61 +1082,50 @@ const $item: ViewStyle = {
   marginHorizontal: spacing.micro,
 }
 
-const $mintText: TextStyle = {
-  overflow: 'hidden',
-  fontSize: 14,
-}
 
-const $balanceContainer: ViewStyle = {
-  justifyContent: 'center',
-  alignSelf: 'center',
-  marginRight: spacing.extraSmall,
-}
-
-const $balance: TextStyle = {
-  fontSize: verticalScale(20),
-  fontFamily: typography.primary?.medium,
+const $nwcContainer: ViewStyle = {
+    justifyContent: 'flex-start',
+    paddingHorizontal: spacing.extraSmall,
 }
 
 const $bottomContainer: ViewStyle = {
   justifyContent: 'flex-end',
   paddingHorizontal: spacing.extraSmall,
-  // alignSelf: 'stretch',  
-  // opacity: 0,
+  marginTop: spacing.large,
+  marginBottom: 0
 }
 
 const $buttonContainer: ViewStyle = {    
     flexDirection: 'row',    
-    // marginBottom: spacing.tiny,
     justifyContent: 'center',
-    alignItems: 'center',   
+    alignItems: 'center',    
 }
 
 const $buttonSend: ViewStyle = {
-  borderTopLeftRadius: moderateVerticalScale(60 / 2),
-  borderBottomLeftRadius: moderateVerticalScale(60 / 2),
+  borderTopLeftRadius: verticalScale(60 / 2),
+  borderBottomLeftRadius: verticalScale(60 / 2),
   borderTopRightRadius: 0,
   borderBottomRightRadius: 0,  
-  width: moderateVerticalScale(130),
-  height: moderateVerticalScale(55),
-  marginRight: moderateVerticalScale(-25),  
+  width: verticalScale(130),
+  height: verticalScale(55),
+  marginRight: verticalScale(-25),  
 }
 
 const $buttonScan: ViewStyle = {
-  borderRadius: moderateVerticalScale(70 / 2),
-  width: moderateVerticalScale(70),
-  height: moderateVerticalScale(70),
+  borderRadius: verticalScale(70 / 2),
+  width: verticalScale(70),
+  height: verticalScale(70),
   zIndex: 99,  
 }
 
 const $buttonReceive: ViewStyle = {
   borderTopLeftRadius: 0,
   borderBottomLeftRadius: 0,
-  borderTopRightRadius: moderateVerticalScale(30),
-  borderBottomRightRadius: moderateVerticalScale(30),
-  width: moderateVerticalScale(130),
-  height: moderateVerticalScale(55),
-  marginLeft: moderateVerticalScale(-15), 
+  borderTopRightRadius: verticalScale(30),
+  borderBottomRightRadius: verticalScale(30),
+  width: verticalScale(130),
+  height: verticalScale(55),
+  marginLeft: verticalScale(-15), 
 }
 
 const $bottomModal: ViewStyle = {    

@@ -39,7 +39,7 @@ import { DecodedLightningInvoice, LightningUtils } from '../services/lightning/l
 import { SendOption } from './SendOptionsScreen'
 import { round, roundDown, roundUp, toNumber } from '../utils/number'
 import { LnurlClient, LNURLPayParams } from '../services/lnurlService'
-import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
+import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencyCode, MintUnit, getCurrency } from "../services/wallet/currency"
 import { FeeBadge } from './Wallet/FeeBadge'
 import { MeltQuoteResponse } from '@cashu/cashu-ts'
@@ -926,7 +926,7 @@ const $headerContainer: TextStyle = {
       borderRadius: spacing.small,
       margin: 0,
       padding: 0,
-      fontSize: moderateVerticalScale(48),
+      fontSize: verticalScale(48),
       fontFamily: typography.primary?.medium,
       textAlign: 'center',
       color: 'white',    

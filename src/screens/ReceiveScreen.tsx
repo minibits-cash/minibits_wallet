@@ -28,7 +28,7 @@ import {CashuUtils, TokenV3} from '../services/cashu/cashuUtils'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {MintListItem} from './Mints/MintListItem'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
-import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
+import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencyCode, MintUnit, formatCurrency, getCurrency } from "../services/wallet/currency"
 import { MintHeader } from './Mints/MintHeader'
 import { round, toNumber } from '../utils/number'
@@ -508,7 +508,7 @@ const $amountInput: TextStyle = {
     borderRadius: spacing.small,
     margin: 0,
     padding: 0,
-    fontSize: moderateVerticalScale(48),
+    fontSize: verticalScale(48),
     fontFamily: typography.primary?.medium,
     textAlign: 'center',
     color: 'white',    

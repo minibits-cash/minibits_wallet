@@ -1,4 +1,4 @@
-import { moderateVerticalScale } from "@gocodingnow/rn-size-matters"
+import { verticalScale } from "@gocodingnow/rn-size-matters"
 import { I18nOptions } from "i18n-js"
 import React from "react"
 import { StyleProp, Text as RNText, TextProps as RNTextProps, TextStyle } from "react-native"
@@ -76,13 +76,13 @@ export function Text(props: TextProps) {
 }
 
 export const $sizeStyles = {
-  xxl: { fontSize: moderateVerticalScale(36), lineHeight: moderateVerticalScale(44) } as TextStyle,
-  xl: { fontSize: moderateVerticalScale(24), lineHeight: moderateVerticalScale(34) } as TextStyle,
-  lg: { fontSize: moderateVerticalScale(20), lineHeight: moderateVerticalScale(32) } as TextStyle,
-  md: { fontSize: moderateVerticalScale(18), lineHeight: moderateVerticalScale(26) } as TextStyle,
-  sm: { fontSize: moderateVerticalScale(16), lineHeight: moderateVerticalScale(24) } as TextStyle,
-  xs: { fontSize: moderateVerticalScale(14), lineHeight: moderateVerticalScale(21) } as TextStyle,
-  xxs: { fontSize: moderateVerticalScale(12), lineHeight: moderateVerticalScale(18) } as TextStyle,
+  xxl: { fontSize: verticalScale(36), lineHeight: verticalScale(44) } as TextStyle,
+  xl: { fontSize: verticalScale(24), lineHeight: verticalScale(34) } as TextStyle,
+  lg: { fontSize: verticalScale(20), lineHeight: verticalScale(32) } as TextStyle,
+  md: { fontSize: verticalScale(18), lineHeight: verticalScale(26) } as TextStyle,
+  sm: { fontSize: verticalScale(16), lineHeight: verticalScale(24) } as TextStyle,
+  xs: { fontSize: verticalScale(14), lineHeight: verticalScale(21) } as TextStyle,
+  xxs: { fontSize: verticalScale(12), lineHeight: verticalScale(18) } as TextStyle,
 }
 
 

@@ -18,7 +18,7 @@ import { displayName as appName } from '../../app.json'
 import { ExtendedEdge, useSafeAreaInsetsStyle } from "../utils/useSafeAreaInsetsStyle"
 import { Icon, IconTypes } from "./Icon"
 import { Text, TextProps } from "./Text"
-import { moderateVerticalScale } from "@gocodingnow/rn-size-matters"
+import { verticalScale } from "@gocodingnow/rn-size-matters"
 
 export interface HeaderProps {
   /**

@@ -7,7 +7,7 @@ import {
   TextStyle,
   ViewStyle,
 } from "react-native"
-import {moderateScale, moderateVerticalScale, scale, verticalScale} from '@gocodingnow/rn-size-matters'
+import {moderateScale, scale, verticalScale} from '@gocodingnow/rn-size-matters'
 import { colors, spacing, typography, useThemeColor } from "../theme"
 import { Text, TextProps } from "./Text"
 
@@ -146,7 +146,7 @@ export function Button(props: ButtonProps) {
 
 
 const $baseViewStyle: ViewStyle = {
-  minHeight: moderateVerticalScale(50),
+  minHeight: verticalScale(50),
   borderRadius: spacing.extraSmall,
   justifyContent: "center",
   alignItems: "center",
@@ -158,8 +158,8 @@ const $baseViewStyle: ViewStyle = {
 }
 
 const $baseTextStyle: TextStyle = {
-  fontSize: moderateVerticalScale(16),
-  lineHeight: moderateVerticalScale(20),
+  fontSize: verticalScale(16),
+  lineHeight: verticalScale(20),
   fontFamily: typography.primary?.light,
   textAlign: "center",
   flexShrink: 1,

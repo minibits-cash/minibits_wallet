@@ -20,7 +20,7 @@ import { CurrencyCode, MintUnit } from '../services/wallet/currency'
 import { useStores } from '../models'
 import { Mint } from '../models/Mint'
 import { MintHeader } from './Mints/MintHeader'
-import { moderateVerticalScale } from '@gocodingnow/rn-size-matters'
+import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { translate } from '../i18n'
 
 
@@ -244,8 +244,8 @@ export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = fu
                     preset='secondary'
                     onPress={gotoTopup}
                     style={{
-                        minHeight: moderateVerticalScale(40), 
-                        paddingVertical: moderateVerticalScale(spacing.tiny),
+                        minHeight: verticalScale(40), 
+                        paddingVertical: verticalScale(spacing.tiny),
                         marginRight: spacing.tiny,
                         alignSelf: 'center',
                         marginTop: spacing.medium

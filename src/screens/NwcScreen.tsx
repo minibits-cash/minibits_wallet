@@ -10,7 +10,7 @@ import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import AppError, { Err } from '../utils/AppError'
 import { log } from '../services'
-import { moderateVerticalScale, verticalScale } from '@gocodingnow/rn-size-matters'
+import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { NwcConnection } from '../models/NwcStore'
 import { QRCodeBlock } from './Wallet/QRCode'
 import { CollapsibleText } from '../components/CollapsibleText'
@@ -175,7 +175,7 @@ export const NwcScreen: FC<NwcScreenProps> = observer(
     const screenBg = useThemeColor('background')
     const mainButtonIcon = useThemeColor('button')
     const labelText = useThemeColor('textDim')
-    const $subText = {color: useThemeColor('textDim'), fontSize: moderateVerticalScale(14)}
+    const $subText = {color: useThemeColor('textDim'), fontSize: verticalScale(14)}
     const headerTitle = useThemeColor('headerTitle')
     
     return (
@@ -466,8 +466,8 @@ const $buttonContainer: ViewStyle = {
   }
   
   const $buttonNew: ViewStyle = {
-    borderRadius: moderateVerticalScale(60 / 2),
-    height: moderateVerticalScale(60),
+    borderRadius: verticalScale(60 / 2),
+    height: verticalScale(60),
     minWidth: verticalScale(120),  
   } 
 

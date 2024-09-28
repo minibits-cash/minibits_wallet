@@ -1,7 +1,7 @@
 import {observer} from 'mobx-react-lite'
 import React, {useEffect, useRef, useState} from 'react'
 import {FlatList, TextInput, TextStyle, View, ViewStyle} from 'react-native'
-import {moderateVerticalScale, verticalScale} from '@gocodingnow/rn-size-matters'
+import {verticalScale} from '@gocodingnow/rn-size-matters'
 import {colors, spacing, useThemeColor} from '../../theme'
 import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
 import {useStores} from '../../models'
@@ -424,7 +424,7 @@ const $contactInput: TextStyle = {
     // borderRadius: 0,
     // borderBottomRightRadius: spacing.extraSmall,
     // borderTopLeftRadius: spacing.extraSmall,
-    fontSize: moderateVerticalScale(16),
+    fontSize: verticalScale(16),
     padding: spacing.small,
     alignSelf: 'stretch',
     textAlignVertical: 'top',
@@ -461,7 +461,7 @@ const $bottomContainer: ViewStyle = {
   }
   
   const $buttonNew: ViewStyle = {
-    borderRadius: moderateVerticalScale(60 / 2),
-    height: moderateVerticalScale(60),
+    borderRadius: verticalScale(60 / 2),
+    height: verticalScale(60),
     minWidth: verticalScale(120),  
   } 

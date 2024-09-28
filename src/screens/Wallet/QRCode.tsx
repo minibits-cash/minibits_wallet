@@ -4,7 +4,7 @@ import { infoMessage } from "../../utils/utils"
 import { Button, Card, Icon, ListItem } from "../../components"
 import QRCode from "react-native-qrcode-svg"
 import Clipboard from "@react-native-clipboard/clipboard"
-import { moderateVerticalScale } from "@gocodingnow/rn-size-matters"
+import { verticalScale } from "@gocodingnow/rn-size-matters"
 import { colors, spacing } from "../../theme"
 import { useEffect, useState } from "react"
 import { translate } from "../../i18n"
@@ -137,8 +137,8 @@ export const QRCodeBlock = function (props: {
                 textStyle={{color: colors.light.text, fontSize: 14}}
                 style={{
                     minWidth: 60, 
-                    minHeight: moderateVerticalScale(40), 
-                    paddingVertical: moderateVerticalScale(spacing.tiny),
+                    minHeight: verticalScale(40), 
+                    paddingVertical: verticalScale(spacing.tiny),
                     marginRight: spacing.small
                 }}  
             />
@@ -150,8 +150,8 @@ export const QRCodeBlock = function (props: {
                 textStyle={{color: colors.light.text, fontSize: 14}}
                 style={{
                     minWidth: 60, 
-                    minHeight: moderateVerticalScale(40),                    
-                    paddingVertical: moderateVerticalScale(spacing.tiny),
+                    minHeight: verticalScale(40),                    
+                    paddingVertical: verticalScale(spacing.tiny),
                     marginRight: spacing.small
                 }}  
             />
@@ -165,8 +165,8 @@ export const QRCodeBlock = function (props: {
                   pressedStyle={{backgroundColor: colors.light.buttonTertiaryPressed}}
                   style={{
                       minWidth: 60, 
-                      minHeight: moderateVerticalScale(40),                    
-                      paddingVertical: moderateVerticalScale(spacing.tiny),
+                      minHeight: verticalScale(40),                    
+                      paddingVertical: verticalScale(spacing.tiny),
                       marginRight: spacing.small
                   }}  
               /> 

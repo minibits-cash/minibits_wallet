@@ -78,6 +78,12 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
       const getNotificationPermission = async () => {
           try {
               const enabled = await NotificationService.areNotificationsEnabled()
+
+              if(enabled) {
+                await messaging().registerDeviceForRemoteMessages()        
+                const deviceToken = await messaging().getToken()
+              }
+              
               setAreNotificationsEnabled(enabled)              
           } catch (e: any) {
               log.info(e.name, e.message)
