@@ -112,22 +112,16 @@ export const WalletStoreModel = types
       }),
       resetExchangeRate () {
         self.exchangeRate = undefined
-      },
-      getIsAuthOnSetting() : boolean {
-        const userSettingsStore = getRootStore(self).userSettingsStore        
-        const {isAuthOn} = userSettingsStore
-        return isAuthOn      
-      },
+      }
     })) 
     .actions(self => ({
       getMnemonic: flow(function* getMnemonic() {    
         if (self.mnemonicPhrase) {        
           log.trace('[getMnemonic]', 'returning cached mnemonic')
-          return self.mnemonicPhrase
-        }
-    
-        const isAuthOn = self.getIsAuthOnSetting()
-        const mnemonic: string | undefined = yield KeyChain.loadMnemonic(isAuthOn)
+          return self.mnemonicPhrase     
+        }    
+        
+        const mnemonic: string | undefined = yield KeyChain.loadMnemonic()
     
         if (!mnemonic) {
             return undefined        
@@ -140,10 +134,9 @@ export const WalletStoreModel = types
         if (self.seedBase64) {        
           log.trace('[getSeed]', 'returning cached seed')
           return new Uint8Array(Buffer.from(self.seedBase64, 'base64'))
-        }
-    
-        const isAuthOn = self.getIsAuthOnSetting()
-        const seed = yield KeyChain.loadSeed(isAuthOn)
+        }    
+        
+        const seed = yield KeyChain.loadSeed()
     
         if (!seed) {
             return undefined        
@@ -161,15 +154,13 @@ export const WalletStoreModel = types
         mnemonic = yield self.getMnemonic() // returns cached or saved mnemonic   
     
         if (!mnemonic) {
-            const isAuthOn = self.getIsAuthOnSetting()
-            
             mnemonic = KeyChain.generateMnemonic() as string            
             const seed = deriveSeedFromMnemonic(mnemonic) // expensive            
                    
-            yield KeyChain.saveMnemonic(mnemonic, isAuthOn)
-            yield KeyChain.saveSeed(seed, isAuthOn)
+            yield KeyChain.saveMnemonic(mnemonic)
+            yield KeyChain.saveSeed(seed)
     
-            log.trace('[getOrCreateMnemonic]', 'Created and saved new mnemonic and seed', {isAuthOn})
+            log.trace('[getOrCreateMnemonic]', 'Created and saved new mnemonic and seed')
         }
          
         return mnemonic
