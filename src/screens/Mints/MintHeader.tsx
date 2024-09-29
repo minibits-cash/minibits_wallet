@@ -19,14 +19,16 @@ export const MintHeader = observer(function(props: {
     const {mint, unit, navigation} = props
 
     const getActiveUnitColor = () => {
-        switch (props.unit) {
+        /* switch (props.unit) {
             case 'usd':
                 return useThemeColor('usd')              
             case 'eur':
                 return useThemeColor('eur')                 
             default:
                 return useThemeColor('btc') 
-          }
+          } */
+
+          return useThemeColor('headerTitle') 
           
     }
 

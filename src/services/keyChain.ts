@@ -13,6 +13,7 @@ export enum KeyChainServiceName {
   NOSTR = 'app.minibits.nostr',
   SEED = 'app.minibits.seed',
   MNEMONIC = 'app.minibits.mnemonic',
+  AUTH = 'app.minibits.auth',
 }
 
 export type KeyPair = {
@@ -48,14 +49,14 @@ const generateMnemonic = function () {
 
 
 const saveMnemonic = async function (
-    mnemonic: string,  
+    mnemonic: string,      
   ): Promise<_Keychain.Result | false> {
     try {
       const result = await _Keychain.setGenericPassword(
           KeyChainServiceName.MNEMONIC,
           mnemonic,
           {
-              service: KeyChainServiceName.MNEMONIC,                          
+              service: KeyChainServiceName.MNEMONIC,                                 
           },
       )
   
@@ -76,9 +77,8 @@ const saveMnemonic = async function (
       log.trace('[loadMnemonic]', 'start')
 
       const result = await _Keychain.getGenericPassword({
-          service: KeyChainServiceName.MNEMONIC
-      })
-      
+          service: KeyChainServiceName.MNEMONIC,          
+      })      
   
       if (result) {
         const mnemonic = result.password
@@ -118,19 +118,19 @@ const removeMnemonic = async function (): Promise<boolean> {
  * @param seed The key to save.
  */
 const saveSeed = async function (
-    seed: Uint8Array,  
+    seed: Uint8Array     
   ): Promise<_Keychain.Result | false> {
     try {
     
       const seedStr: string = Buffer.from(seed).toString('base64')
 
-      log.trace('[saveSeed]', 'Saved seed base64', seedStr)
+      log.trace('[saveSeed]', 'Saved seed base64', {seedStr})
 
       const result = await _Keychain.setGenericPassword(
           KeyChainServiceName.SEED,
           seedStr,
           {
-              service: KeyChainServiceName.SEED,              
+              service: KeyChainServiceName.SEED                    
           },
       )
   
@@ -149,8 +149,9 @@ const saveSeed = async function (
   const loadSeed = async function (): Promise<Uint8Array | undefined> {    
     try {
       log.trace('[loadSeed]', 'start')
+      
       const result = await _Keychain.getGenericPassword({
-          service: KeyChainServiceName.SEED
+          service: KeyChainServiceName.SEED          
       })      
   
       if (result) {
@@ -166,6 +167,7 @@ const saveSeed = async function (
       throw new AppError(Err.KEYCHAIN_ERROR, e.message)
     }
 }
+
   /**
    * Hash seed that is used for wallet address recovery
    *
@@ -208,6 +210,137 @@ const removeSeed = async function (): Promise<boolean> {
     } catch (e: any) {
         throw new AppError(Err.KEYCHAIN_ERROR, e.message)
     }
+}
+
+
+/**
+ * AuthToken to trigger biometric auth on wallet start
+ *
+ * 
+ */
+const generateAuthToken = (): string => {
+  try {
+      const keyLength = 16 // Length of the encryption key in bytes
+      const encryptionKey = QuickCrypto.randomBytes(keyLength)
+      const uint8Array = new Uint8Array(encryptionKey)
+      const stringKey = fromByteArray(uint8Array)
+      const base64Key = btoa(stringKey)
+
+      log.trace('New Base64 encryptionKey created:', base64Key)
+
+      return base64Key
+  } catch (e: any) {
+      throw new AppError(Err.KEYCHAIN_ERROR, e.message, [e])
+  }
+}
+
+
+const getOrCreateAuthToken = async function (isAuthOn: boolean): Promise<string> {
+
+  let token: string | null = null
+
+  try {
+    token = (await loadAuthToken(isAuthOn)) as string
+
+      if (!token) {
+        token = generateAuthToken() as string
+        await saveAuthToken(token, isAuthOn)
+
+          log.info('[getOrCreateAuthToken]', 'Created and saved new authToken')
+      }
+
+      return token
+  } catch (e: any) {
+      throw e
+  }
+}
+
+
+const saveAuthToken = async function (
+  token: string,
+  isAuthOn: boolean
+): Promise<_Keychain.Result | false> {
+  try {
+    const result = await _Keychain.setGenericPassword(
+        KeyChainServiceName.AUTH, 
+        token, 
+        {
+            service: KeyChainServiceName.AUTH,
+            accessControl: isAuthOn ? _Keychain.ACCESS_CONTROL.BIOMETRY_ANY_OR_DEVICE_PASSCODE : undefined
+        }
+    )
+
+    log.trace('[saveAuthToken]', 'Saved authToken to the KeyChain.')
+
+    return result
+  } catch (e: any) {
+    throw new AppError(Err.KEYCHAIN_ERROR, e.message)
+  }
+}
+
+/**
+* Loads keypair from KeyChain/KeyStore
+*
+*
+*/
+const loadAuthToken = async function (isAuthOn: boolean): Promise<string | undefined> {
+  try {    
+      const result = await _Keychain.getGenericPassword({
+          service: KeyChainServiceName.AUTH, 
+          authenticationPrompt: isAuthOn ? {
+              title: 'Authentication required',
+              subtitle: '',
+              description: 'Your Minibits wallet requires authentication to get access.',
+              cancel: 'Cancel',
+          } : undefined
+      })
+
+      if (result) {
+          const token = result.password      
+          return token
+      }
+
+      log.trace('[loadAuthToken]', 'Did not find existing authToken in the KeyChain.')
+      return undefined
+  } catch (e: any) {
+      throw new AppError(Err.KEYCHAIN_ERROR, e.message, {caller: 'loadAuthToken', message: e.message})
+  }
+}
+
+
+/**
+* Removes key from KeyChain/KeyStore
+*
+* 
+*/
+const removeAuthToken = async function (): Promise<boolean> {
+  try {
+      const result = await _Keychain.resetGenericPassword({
+          service: KeyChainServiceName.AUTH
+      })
+
+      log.trace('[removeAuthToken]', 'Removed authToken.')
+      return result
+  } catch (e: any) {
+      throw new AppError(Err.KEYCHAIN_ERROR, e.message)
+  }
+}
+
+
+
+async function updateAuthSettings(isAuthOn: boolean) {
+  log.trace('[updateAuthSettings] to', {isAuthOn})
+
+  const authToken = await getOrCreateAuthToken(!isAuthOn) // current isAuthOn value 
+
+  if (authToken) {
+    try {
+      await removeAuthToken()
+      await saveAuthToken(authToken, isAuthOn)
+    } catch (error) {
+      console.error('Error updating biometric setting', error);
+    }
+  }
 }
 
 
@@ -394,7 +527,14 @@ export const KeyChain = {
     saveSeed,
     loadSeed,
     loadSeedHash,
+    updateAuthSettings,
     removeSeed,
+
+    generateAuthToken,
+    loadAuthToken,
+    saveAuthToken,
+    getOrCreateAuthToken,
+    removeAuthToken,
 
     generateNostrKeyPair,    
     saveNostrKeyPair,

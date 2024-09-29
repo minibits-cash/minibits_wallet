@@ -9,7 +9,7 @@ import {
     CODEPUSH_PRODUCTION_DEPLOYMENT_KEY,    
 } from '@env'
 import codePush from 'react-native-code-push'
-import messaging from '@react-native-firebase/messaging'
+import messaging, { isAutoInitEnabled } from '@react-native-firebase/messaging'
 import FlashMessage from "react-native-flash-message"
 import {
   initialWindowMetrics,
@@ -21,7 +21,7 @@ import {
 } from '@gocodingnow/rn-size-matters'
 import {AppNavigator} from './navigation'
 import {useInitialRootStore, useStores} from './models'
-import {Database} from './services'
+import {Database, KeyChain} from './services'
 import {ErrorBoundary} from './screens/ErrorScreen/ErrorBoundary'
 import Config from './config'
 import {log} from './services'
@@ -69,6 +69,13 @@ function App(props: AppProps) {
         
         // Syncs userSettings store with the database (needed?)
         userSettingsStore.loadUserSettings()
+
+        // Force auth if set in userSettings
+        log.trace('[useInitialRootStore]', {isAuthOn: userSettingsStore.isAuthOn})
+        if(userSettingsStore.isAuthOn) {
+            const authToken = await KeyChain.getOrCreateAuthToken(userSettingsStore.isAuthOn)
+            log.trace('[useInitialRootStore]', {authToken})
+        }
 
         // FCM push notifications - set or refresh device token on app start                
         await messaging().registerDeviceForRemoteMessages()        

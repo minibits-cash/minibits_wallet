@@ -78,13 +78,15 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
       const getNotificationPermission = async () => {
           try {
               const enabled = await NotificationService.areNotificationsEnabled()
+              setAreNotificationsEnabled(enabled)
 
-              if(enabled) {
+              if(enabled && !walletProfileStore.device) {
                 await messaging().registerDeviceForRemoteMessages()        
                 const deviceToken = await messaging().getToken()
-              }
-              
-              setAreNotificationsEnabled(enabled)              
+                if(deviceToken) {
+                  await walletProfileStore.setDevice(deviceToken)
+                }                
+              }             
           } catch (e: any) {
               log.info(e.name, e.message)
               return false // silent

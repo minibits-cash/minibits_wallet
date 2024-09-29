@@ -537,9 +537,9 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
             await walletProfileStore.recover(seedHash as string, newPublicKey)
 
             // align walletId in userSettings with recovered profile
-            userSettingsStore.setWalletId(walletProfileStore.walletId)
-            await KeyChain.saveMnemonic(mnemonic)
-            await KeyChain.saveSeed(seed as Uint8Array)
+            userSettingsStore.setWalletId(walletProfileStore.walletId)            
+            await KeyChain.saveMnemonic(mnemonic, userSettingsStore.isAuthOn)
+            await KeyChain.saveSeed(seed as Uint8Array, userSettingsStore.isAuthOn)
             
             await delay(1000)
             setStatusMessage(translate("recovery.completed"))
@@ -565,8 +565,8 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
             setStatusMessage(translate('recovery.recoveringAddress'))
             setIsLoading(true)
             
-            await KeyChain.saveMnemonic(mnemonic)
-            await KeyChain.saveSeed(seed as Uint8Array)
+            await KeyChain.saveMnemonic(mnemonic, userSettingsStore.isAuthOn)
+            await KeyChain.saveSeed(seed as Uint8Array, userSettingsStore.isAuthOn)
 
             // Wallet address recovery
             const seedHash = await KeyChain.loadSeedHash()

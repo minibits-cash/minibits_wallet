@@ -31,8 +31,8 @@ export const topupTask = async function (
     contactToSendTo?: Contact,
     nwcEvent?: NostrEvent
 ) : Promise<TransactionTaskResult> {
-    log.info('[topupTask]', 'mintBalanceToTopup', mintBalanceToTopup)
-    log.info('[topupTask]', 'amountToTopup', {amountToTopup, unit})
+    log.info('[topupTask]', {mintBalanceToTopup})
+    log.info('[topupTask]', {amountToTopup, unit})
 
     // create draft transaction
     const transactionData: TransactionData[] = [

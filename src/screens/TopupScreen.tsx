@@ -375,7 +375,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         const mantissa = getCurrency(unit).mantissa
         const amount = round(toNumber(amountToTopup) * precision, 0)
 
-        log.trace('[onAmountEndEditing]', amount)
+        log.trace('[onAmountEndEditing]', {amount, unit})
 
         if (!isInternetReachable) {
           setInfo(translate('common.offlinePretty'))
@@ -412,8 +412,8 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         setAmountToTopup(
           `${numbro(amountToTopup).format({
             thousandSeparated: true,
-            mantissa: getCurrency(unit).mantissa,
-          })}`,
+            mantissa,
+          })}`
         ) // round amount based on currency format
         setAvailableMintBalances(availableBalances)
 

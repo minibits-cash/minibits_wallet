@@ -24,6 +24,7 @@ import { isObj } from '@cashu/cashu-ts/src/utils'
 import { Mint } from './Mint'
 import { getRootStore } from './helpers/getRootStore'
 import { getUnixTime } from 'date-fns/getUnixTime'
+import { boolean } from 'mobx-state-tree/dist/internal'
 
 /* 
    Not persisted, in-memory only model of the cashu-ts wallet instances and seed.
@@ -77,31 +78,56 @@ export const WalletStoreModel = types
         
         return optimalKeyset
       }, 
-    }))     
+    }))
     .actions(self => ({
-      refreshExchangeRate: flow(function* refreshExchangeRate(currencyCode: CurrencyCode) {                    
-            const {rate, currency} = yield MinibitsClient.getExchangeRate(currencyCode)
-            const precision = Currencies[currencyCode]?.precision
-            
-            if(!precision) {
-              throw new AppError(Err.VALIDATION_ERROR, `Currency code ${currency} is not yet supported by Minibits. Submit request to add it on our Github.`)
-            }
+      getExchangeRate: flow(function* getExchangeRate(currencyCode: CurrencyCode) {
+        if (self.exchangeRate && self.exchangeRate.currency === currencyCode) {
+          return self.exchangeRate          
+        }
+        
+        const {rate, currency} = yield MinibitsClient.getExchangeRate(currencyCode)
+        const precision = Currencies[currencyCode]?.precision
+        
+        if(!precision) {
+          throw new AppError(Err.VALIDATION_ERROR, `Currency code ${currency} is not yet supported by Minibits. Submit request to add it on our Github.`)
+        }
 
-            self.exchangeRate = {
-              currency: currency,
-              rate: rate / precision
-            }
+        return {
+          currency: currency,
+          rate: rate / precision
+        }
+      }),
+      refreshExchangeRate: flow(function* refreshExchangeRate(currencyCode: CurrencyCode) {                    
+        const {rate, currency} = yield MinibitsClient.getExchangeRate(currencyCode)
+        const precision = Currencies[currencyCode]?.precision
+        
+        if(!precision) {
+          throw new AppError(Err.VALIDATION_ERROR, `Currency code ${currency} is not yet supported by Minibits. Submit request to add it on our Github.`)
+        }
+
+        self.exchangeRate = {
+          currency: currency,
+          rate: rate / precision
+        }
       }),
       resetExchangeRate () {
         self.exchangeRate = undefined
       },
+      getIsAuthOnSetting() : boolean {
+        const userSettingsStore = getRootStore(self).userSettingsStore        
+        const {isAuthOn} = userSettingsStore
+        return isAuthOn      
+      },
+    })) 
+    .actions(self => ({
       getMnemonic: flow(function* getMnemonic() {    
         if (self.mnemonicPhrase) {        
           log.trace('[getMnemonic]', 'returning cached mnemonic')
           return self.mnemonicPhrase
         }
     
-        const mnemonic: string | undefined = yield KeyChain.loadMnemonic()
+        const isAuthOn = self.getIsAuthOnSetting()
+        const mnemonic: string | undefined = yield KeyChain.loadMnemonic(isAuthOn)
     
         if (!mnemonic) {
             return undefined        
@@ -112,11 +138,12 @@ export const WalletStoreModel = types
       }),
       getSeed: flow(function* getSeed() {    
         if (self.seedBase64) {        
-          log.trace('[getMnemonic]', 'returning cached mnemonic')
+          log.trace('[getSeed]', 'returning cached seed')
           return new Uint8Array(Buffer.from(self.seedBase64, 'base64'))
         }
     
-        const seed = yield KeyChain.loadSeed()
+        const isAuthOn = self.getIsAuthOnSetting()
+        const seed = yield KeyChain.loadSeed(isAuthOn)
     
         if (!seed) {
             return undefined        
@@ -124,8 +151,9 @@ export const WalletStoreModel = types
     
         self.seedBase64 = Buffer.from(seed).toString('base64')
         return seed
-      }),
+      })
     }))
+
     .actions(self => ({  
       getOrCreateMnemonic: flow(function* getOrCreateMnemonic() {    
         let mnemonic: string | undefined = undefined
@@ -133,13 +161,15 @@ export const WalletStoreModel = types
         mnemonic = yield self.getMnemonic() // returns cached or saved mnemonic   
     
         if (!mnemonic) {
+            const isAuthOn = self.getIsAuthOnSetting()
+            
             mnemonic = KeyChain.generateMnemonic() as string            
             const seed = deriveSeedFromMnemonic(mnemonic) // expensive            
                    
-            yield KeyChain.saveMnemonic(mnemonic)
-            yield KeyChain.saveSeed(seed)
+            yield KeyChain.saveMnemonic(mnemonic, isAuthOn)
+            yield KeyChain.saveSeed(seed, isAuthOn)
     
-            log.trace('[getOrCreateMnemonic]', 'Created and saved new mnemonic and seed')
+            log.trace('[getOrCreateMnemonic]', 'Created and saved new mnemonic and seed', {isAuthOn})
         }
          
         return mnemonic

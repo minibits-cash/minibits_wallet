@@ -1,5 +1,5 @@
 import {Instance, SnapshotOut, types, flow} from 'mobx-state-tree'
-import {Database} from '../services'
+import {Database, KeyChain, log} from '../services'
 import {MMKVStorage} from '../services'
 import {LogLevel} from '../services/log/logTypes'
 import { CurrencyCode, MintUnit } from '../services/wallet/currency'
@@ -13,6 +13,7 @@ export type UserSettings = {
   theme: ThemeCode | null
   isOnboarded: boolean | 0 | 1
   isStorageEncrypted: boolean | 0 | 1
+  isAuthOn: boolean | 0 | 1
   isLocalBackupOn: boolean | 0 | 1
   isTorDaemonOn: boolean | 0 | 1
   isLoggerOn: boolean | 0 | 1   
@@ -28,7 +29,8 @@ export const UserSettingsStoreModel = types
         exchangeCurrency: types.optional(types.frozen<CurrencyCode | null>(), CurrencyCode.USD),
         theme: types.optional(types.frozen<ThemeCode>(), ThemeCode.DEFAULT),
         isOnboarded: types.optional(types.boolean, false),
-        isStorageEncrypted: types.optional(types.boolean, false),
+        isStorageEncrypted: types.optional(types.boolean, false), // legacy, not used now
+        isAuthOn: types.optional(types.boolean, false), 
         isLocalBackupOn: types.optional(types.boolean, true),
         isTorDaemonOn: types.optional(types.boolean, false),
         isBatchClaimOn: types.optional(types.boolean, false),
@@ -43,7 +45,8 @@ export const UserSettingsStoreModel = types
                 exchangeCurrency,
                 theme,                              
                 isOnboarded, 
-                isStorageEncrypted, 
+                isStorageEncrypted,
+                isAuthOn, 
                 isLocalBackupOn,
                 isTorDaemonOn,
                 isLoggerOn,                                
@@ -53,6 +56,7 @@ export const UserSettingsStoreModel = types
             
             const booleanIsOnboarded = isOnboarded === 1
             const booleanIsStorageEncrypted = isStorageEncrypted === 1
+            const booleanIsAuthOn = isAuthOn === 1
             const booleanIsLocalBackupOn = isLocalBackupOn === 1            
             const booleanIsTorDaemonOn = isTorDaemonOn === 1
             const booleanIsLoggerOn = isLoggerOn === 1                        
@@ -64,6 +68,7 @@ export const UserSettingsStoreModel = types
             self.theme = theme as ThemeCode                        
             self.isOnboarded = booleanIsOnboarded as boolean
             self.isStorageEncrypted = booleanIsStorageEncrypted as boolean
+            self.isAuthOn = booleanIsAuthOn as boolean
             self.isLocalBackupOn = booleanIsLocalBackupOn as boolean
             self.isTorDaemonOn = booleanIsTorDaemonOn as boolean
             self.isLoggerOn = booleanIsLoggerOn as boolean                        
@@ -103,17 +108,16 @@ export const UserSettingsStoreModel = types
             self.isLocalBackupOn = isLocalBackupOn            
             return isLocalBackupOn
         },
-        setIsStorageEncrypted: flow(function* setIsStorageEncryptedvalue( // legacy, tobe removed
-            isEncrypted: boolean,
+        setIsAuthOn: flow(function* setIsAuthOn(
+            isAuthOn: boolean,
         ) {
-            if (isEncrypted) {
-                yield MMKVStorage.encryptStorage()
-            } else {
-                MMKVStorage.decryptStorage()
+            log.trace(`[setIsAuthOn] from ${self.isAuthOn} to ${isAuthOn}`)
+            if (self.isAuthOn !== isAuthOn) {
+                yield KeyChain.updateAuthSettings(isAuthOn)
+                Database.updateUserSettings({...self, isAuthOn})
+                self.isAuthOn = isAuthOn
             }
-            Database.updateUserSettings({...self, isStorageEncrypted: isEncrypted})
-            self.isStorageEncrypted = isEncrypted            
-            return isEncrypted
+            return isAuthOn
         }),
         setIsTorDaemonOn: (isTorDaemonOn: boolean) => { // legacy, tobe removed
             Database.updateUserSettings({...self, isTorDaemonOn})

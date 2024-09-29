@@ -21,7 +21,7 @@ import { ThemeCode } from '../theme'
 
 let _db: QuickSQLiteConnection
 
-const _dbVersion = 16 // Update this if db changes require migrations
+const _dbVersion = 18 // Update this if db changes require migrations
 
 const getInstance = function () {
   if (!_db) {
@@ -83,6 +83,7 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
         theme TEXT,    
         isOnboarded BOOLEAN,
         isStorageEncrypted BOOLEAN,
+        isAuthOn BOOLEAN,
         isLocalBackupOn BOOLEAN,
         isBatchClaimOn BOOLEAN,
         isTorDaemonOn BOOLEAN,
@@ -304,6 +305,15 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
       log.info(`Prepared database migrations from ${currentVersion} -> 16`)
     }
 
+    if (currentVersion < 18) {
+      migrationQueries.push([
+        `ALTER TABLE usersettings
+        ADD COLUMN isAuthOn`,   
+      ])
+
+      log.info(`Prepared database migrations from ${currentVersion} -> 18`)
+    }
+
     // Update db version as a part of migration sqls
     migrationQueries.push([
       `INSERT OR REPLACE INTO dbversion (id, version, createdAt)
@@ -426,6 +436,7 @@ const getUserSettings = function (): UserSettings {
                 theme: ThemeCode.DEFAULT,
                 isOnboarded: 0,
                 isStorageEncrypted: 0,
+                isAuthOn: 0,
                 isLocalBackupOn: 1,
                 isBatchClaimOn: 1,
                 isTorDaemonOn: 0,
@@ -455,7 +466,8 @@ const updateUserSettings = function (settings: UserSettings): UserSettings {
           exchangeCurrency,
           theme,
           isOnboarded, 
-          isStorageEncrypted, 
+          isStorageEncrypted,
+          isAuthOn,
           isLocalBackupOn, 
           isBatchClaimOn,
           isTorDaemonOn, 
@@ -464,8 +476,8 @@ const updateUserSettings = function (settings: UserSettings): UserSettings {
         } = settings
 
         const query = `
-        INSERT OR REPLACE INTO usersettings (id, walletId, preferredUnit, exchangeCurrency, theme, isOnboarded, isStorageEncrypted, isLocalBackupOn, isBatchClaimOn, isTorDaemonOn, isLoggerOn, logLevel, createdAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)      
+        INSERT OR REPLACE INTO usersettings (id, walletId, preferredUnit, exchangeCurrency, theme, isOnboarded, isStorageEncrypted, isAuthOn, isLocalBackupOn, isBatchClaimOn, isTorDaemonOn, isLoggerOn, logLevel, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)      
         `
         const params = [
             1,
@@ -475,6 +487,7 @@ const updateUserSettings = function (settings: UserSettings): UserSettings {
             theme,                     
             isOnboarded,
             isStorageEncrypted,
+            isAuthOn,
             isLocalBackupOn,
             isBatchClaimOn,
             isTorDaemonOn,

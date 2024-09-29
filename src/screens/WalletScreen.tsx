@@ -505,7 +505,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const tabWidth = moderateScale(80)
 
     const getActiveTabColor = (state: NavigationState<Route>) => {
-        if(state && state.routes.length > 0) {
+        /* if(state && state.routes.length > 0) {
             switch (state.routes[tabIndex].key) {
                 case 'usd':
                     return useThemeColor('usd')              
@@ -514,14 +514,14 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 default:
                     return useThemeColor('btc') 
             }
-        }
+        }*/
 
-        return useThemeColor('btc')
+        return useThemeColor('headerTitle')
     }
 
     const renderTabBar = (props: any) => {
         return(
-            <View style={{backgroundColor: headerBg, marginTop: -spacing.medium}}>
+            <View style={{backgroundColor: headerBg, marginTop: -spacing.small}}>
                 <View style={{width: routes.length * tabWidth, alignSelf: 'center', backgroundColor: headerBg}}>
                     <TabBar                        
                         {...props}                        
@@ -533,7 +533,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                 containerStyle={focused ? {} : {opacity: 0.5}}
                             />
                         )}
-                        indicatorStyle={{ backgroundColor: getActiveTabColor(props.navigationState) }}                    
+                        indicatorStyle={{backgroundColor: getActiveTabColor(props.navigationState)}}                    
                         style={{backgroundColor: headerBg, shadowColor: 'transparent'}}
                     />
                 </View>
@@ -790,7 +790,9 @@ const UnitBalanceBlock = observer(function (props: {
                 containerStyle={{marginTop: spacing.medium}}
             />
             <View style={{height: verticalScale(40)}}>            
-            {walletStore.exchangeRate && userSettingsStore.exchangeCurrency && ( 
+            {walletStore.exchangeRate 
+            && (userSettingsStore.exchangeCurrency === getCurrency(unitBalance.unit).code || unitBalance.unit === 'sat')            
+            && ( 
                 <CurrencyAmount
                     amount={getConvertedBalance() ?? 0}
                     currencyCode={unitBalance.unit === 'sat' ? userSettingsStore.exchangeCurrency : CurrencyCode.SAT}

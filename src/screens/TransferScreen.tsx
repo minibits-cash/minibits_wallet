@@ -40,7 +40,7 @@ import { SendOption } from './SendOptionsScreen'
 import { round, roundDown, roundUp, toNumber } from '../utils/number'
 import { LnurlClient, LNURLPayParams } from '../services/lnurlService'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
-import { CurrencyCode, MintUnit, getCurrency } from "../services/wallet/currency"
+import { CurrencyCode, MintUnit, convertToFromSats, getCurrency } from "../services/wallet/currency"
 import { FeeBadge } from './Wallet/FeeBadge'
 import { MeltQuoteResponse } from '@cashu/cashu-ts'
 import { MintHeader } from './Mints/MintHeader'
@@ -65,7 +65,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     const amountInputRef = useRef<TextInput>(null)
     const lnurlCommentInputRef = useRef<TextInput>(null)
 
-    const {proofsStore, mintsStore, paymentRequestsStore, transactionsStore, walletStore} = useStores()
+    const {proofsStore, mintsStore, paymentRequestsStore, walletStore} = useStores()
     // const {walletStore} = nonPersistedStores
 
     const isInternetReachable = useIsInternetReachable()
@@ -77,7 +77,6 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     const [invoiceExpiry, setInvoiceExpiry] = useState<Date | undefined>()
     const [paymentHash, setPaymentHash] = useState<string | undefined>()
     const [lnurlPayParams, setLnurlPayParams] = useState<LNURLPayParams & {address?: string} | undefined>()
-    const [isWaitingForFees, setIsWaitingForFees] = useState<boolean>(false)
     const [meltQuote, setMeltQuote] = useState<MeltQuoteResponse | undefined>()
     const [finalFee, setFinalFee] = useState<number>(0)
     const [memo, setMemo] = useState('')
@@ -91,8 +90,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState(false)
-    const [isNotEnoughFunds, setIsNotEnoughFunds] = useState(false)
-    const [isPasteInvoiceModalVisible, setIsPasteInvoiceModalVisible] = useState(false)
+    const [isNotEnoughFunds, setIsNotEnoughFunds] = useState(false)    
     const [isInvoiceDonation, setIsInvoiceDonation] = useState(false)    
     const [isTransferTaskSentToQueue, setIsTransferTaskSentToQueue] = useState(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)
@@ -181,9 +179,11 @@ useFocusEffect(
             }                
         }
 
-        const handleLnurlPay = () => {
+        const handleLnurlPay = async () => {
             try {
-                const {lnurlParams} = route.params
+                const {lnurlParams, unit} = route.params
+
+                log.trace('[handleLnurlPay] start', {unit})
 
                 if (!lnurlParams) {                    
                     throw new AppError(Err.VALIDATION_ERROR, translate('missingLNURLParamsError'))
@@ -222,9 +222,31 @@ useFocusEffect(
                     }
                 }                
 
-                const amountSats = roundUp(lnurlParams.minSendable / 1000, 0)                
+                const amountSats = roundUp(lnurlParams.minSendable / 1000, 0)
+                
+                // Set minSendable into amountToTransfer in unit currency
+                if (unit !== 'sat') {
+                  const rate = await walletStore.getExchangeRate(getCurrency(unit).code)
+                  const amountUnit = convertToFromSats(amountSats, CurrencyCode.SAT, rate)
 
-                setAmountToTransfer(`${numbro(amountSats).format({thousandSeparated: true, mantissa: 0})}`)        
+                  log.trace('[handleLnurlPay] minSendable conversion from SAT', {amountSats, rate, amountUnit})
+
+                  setAmountToTransfer(`${numbro(amountUnit / getCurrency(unit).precision)
+                    .format({
+                      thousandSeparated: true, 
+                      mantissa: getCurrency(unit).mantissa
+                    })}`
+                  )
+
+                } else {
+                  setAmountToTransfer(`${numbro(amountSats)
+                    .format({
+                      thousandSeparated: true, 
+                      mantissa: 0
+                    })}`
+                  )        
+                }
+
                 setLnurlPayParams(lnurlParams)                
             } catch (e: any) {
                 handleError(e)
@@ -296,7 +318,12 @@ useEffect(() => {
             
             setIsLoading(false)
             setMeltQuote(quote)
-            setAmountToTransfer(`${numbro(quote.amount / getCurrency(unit).precision).format({thousandSeparated: true, mantissa: getCurrency(unit).mantissa})}`)
+            setAmountToTransfer(`${numbro(quote.amount / getCurrency(unit).precision)
+              .format({
+                thousandSeparated: true, 
+                mantissa: getCurrency(unit).mantissa
+              })}`
+            )
     
             const totalAmount = quote.amount + quote.fee_reserve
     
@@ -424,8 +451,7 @@ const resetState = function () {
     setTransactionStatus(undefined)
     setInfo('')
     setError(undefined)
-    setIsLoading(false)
-    setIsPasteInvoiceModalVisible(false)
+    setIsLoading(false)    
     setIsInvoiceDonation(false)
     setIsTransferTaskSentToQueue(false)
     setIsResultModalVisible(false)
@@ -440,22 +466,45 @@ const onMintBalanceSelect = function (balance: MintBalance) {
     setMintBalanceToTransferFrom(balance) // this triggers effect to get melt quote
 }
 
-// Amount is editable only in case of LNURL Pay, while invoice is not yet retrieved
-const onRequestLnurlInvoice = async function () { // onAmountEndEditing
-  try {
-    const precision = getCurrency(unit).precision    
-    const amount = round(toNumber(amountToTransfer) * precision, 0)
+const onAmountEndEditing = function () {
 
-    if (!amount || amount === 0) {
+  setAmountToTransfer(
+    `${numbro(amountToTransfer).format({
+      thousandSeparated: true,
+      mantissa: getCurrency(unit).mantissa
+    })}`
+  )
+}
+
+// Amount is editable only in case of LNURL Pay, while invoice is not yet retrieved
+const onRequestLnurlInvoice = async function () {
+  log.trace('[onRequestLnurlInvoice] start', {amountToTransfer, unit})
+  try {
+    const {precision, code: currencyCode} = getCurrency(unit)
+       
+    const amountUnit = round(toNumber(amountToTransfer) * precision, 0)
+
+    if (!amountUnit || amountUnit === 0) {
       setInfo(translate('payCommon.amountZeroOrNegative'))          
-      return;
+      return
     }
 
     if(!lnurlPayParams) {
-      throw new AppError(Err.VALIDATION_ERROR, 'Missing LNURL pay parameters', {caller: 'onAmountEndEditing'})
+      throw new AppError(Err.VALIDATION_ERROR, 'Missing LNURL pay parameters', {caller: 'onRequestLnurlInvoice'})
     }
 
-    if (lnurlPayParams.minSendable && amount < lnurlPayParams.minSendable / 1000) {
+    let amountSats = 0
+
+    if(unit !== 'sat') {
+      const rate = await walletStore.getExchangeRate(currencyCode)
+      amountSats = roundUp(convertToFromSats(amountUnit, currencyCode, rate), 0)
+
+      log.trace('[onRequestLnurlInvoice] converted amountToTransfer to SAT', {amountUnit, amountSats})
+    } else {
+      amountSats = amountUnit
+    }   
+
+    if (lnurlPayParams.minSendable && amountSats < lnurlPayParams.minSendable / 1000) {
       setInfo(translate('payCommon.minimumWithdraw', { 
         amount: roundUp(lnurlPayParams.minSendable / 1000, 0), 
         currency: CurrencyCode.SAT 
@@ -463,7 +512,7 @@ const onRequestLnurlInvoice = async function () { // onAmountEndEditing
       return;
     }
 
-    if (lnurlPayParams.maxSendable && amount > lnurlPayParams.maxSendable / 1000) {       
+    if (lnurlPayParams.maxSendable && amountSats > lnurlPayParams.maxSendable / 1000) {       
       setInfo(translate("payCommon.maximumPay", { 
         amount: roundDown(lnurlPayParams.maxSendable / 1000, 0),
         currency: CurrencyCode.SAT
@@ -473,12 +522,16 @@ const onRequestLnurlInvoice = async function () { // onAmountEndEditing
 
     if (lnurlPayParams.payerData) {
       setInfo(translate("transferScreen.LUD18unsupported"))
-    }        
-        
-    setAmountToTransfer(`${numbro(amountToTransfer).format({thousandSeparated: true, mantissa: getCurrency(unit).mantissa})}`)
+    }
 
     setIsLoading(true)
-    const encoded = await LnurlClient.getInvoice(lnurlPayParams, amount * 1000, lnurlPayCommentAllowed > 0 ? lnurlPayComment : void 0) 
+
+    const encoded = await LnurlClient.getInvoice(
+      lnurlPayParams, 
+      amountSats * 1000, 
+      lnurlPayCommentAllowed > 0 ? lnurlPayComment : void 0
+    )
+
     setIsLoading(false)
 
     if (encoded) return onEncodedInvoice(encoded)
@@ -641,7 +694,7 @@ const amountInputColor = useThemeColor('amountInput')
             <TextInput
               ref={amountInputRef}
               onChangeText={amount => setAmountToTransfer(amount)}
-              // onEndEditing={onAmountEndEditing}
+              onEndEditing={onAmountEndEditing}
               value={amountToTransfer}
               style={[$amountInput, {color: amountInputColor}]}
               maxLength={9}

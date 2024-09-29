@@ -386,10 +386,10 @@
 	},
 	"securityScreen": {
 		"biometry": "Biometric authentication",
-		"biometryAvailable": "Biometric authentication is now required for Minibits to start and unlock the encryption key.",
+		"biometryAvailable": "Biometric authentication is now required for Minibits to start.",
 		"biometryNone": "You have not setup biometric authentication or your device does not support it.",
-		"encryptStorage": "Encrypt storage",
-		"encryptStorageDescription": "Encrypt the storage that stores your ecash with the secret key generated on your device. Experimental, not recommended for every day use."
+		"biometricAuth": "Biometric authentication",
+		"biometricAuthDescription": "Require biometric authentication for Minibits to start. Do NOT turn on if you use Nostr Wallet Connect."
 	},
 	"sendScreen": {
 		"pasteToSend": "Paste",

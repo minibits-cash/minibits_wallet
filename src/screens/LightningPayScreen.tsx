@@ -150,7 +150,7 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
     const hintText = useThemeColor('textDim')
     const scanIcon = useThemeColor('text')    
     const inputBg = useThemeColor('background')
-    const contactIcon = useThemeColor('button')
+    const contactIcon = useThemeColor('headerTitle')
     const headerBg = useThemeColor('header')
     const headerTitle = useThemeColor('headerTitle')
     

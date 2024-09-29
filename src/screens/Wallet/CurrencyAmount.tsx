@@ -9,7 +9,7 @@ import { formatNumber } from "../../utils/number"
 
 export const CurrencyAmount = observer(function (props: {
     amount: number
-    currencyCode?: CurrencyCode,
+    currencyCode?: CurrencyCode | null,
     mintUnit?: MintUnit,
     containerStyle?: ViewStyle,
     symbolStyle?: TextStyle,

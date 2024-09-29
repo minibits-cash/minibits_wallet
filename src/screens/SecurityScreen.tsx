@@ -2,7 +2,7 @@ import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
 import {Switch, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
-import {SettingsStackScreenProps} from '../navigation' // @demo remove-current-line
+import {SettingsStackScreenProps} from '../navigation'
 import {
   Icon,
   ListItem,
@@ -32,64 +32,62 @@ export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer
     const {userSettingsStore} = useStores()
     const [info, setInfo] = useState('')
     const [isLoading, setIsLoading] = useState(false)
-    const [isStorageEncrypted, setIsStorageEncrypted] = useState<boolean>(
-        userSettingsStore.isStorageEncrypted,
+    const [isBiometricAuthOn, setIsBiometricAuthOn] = useState<boolean>(
+        userSettingsStore.isAuthOn,
     )
     const [biometryType, setBiometryType] = useState<BIOMETRY_TYPE | null>(null)
     const [error, setError] = useState<AppError | undefined>()
-    const [isEncryptionModalVisible, setIsEncryptionModalVisible] = useState<boolean>(false)
-    const [encryptionResultMessage, setEncryptionResultMessage] = useState<string>()
+    const [isAuthModalVisible, setIsAuthModalVisible] = useState<boolean>(false)
+    const [resultMessage, setResultMessage] = useState<string>()
 
     useEffect(() => {
         const getBiometry = async () => {
             const biometry: BIOMETRY_TYPE | null = await KeyChain.getSupportedBiometryType()
-            log.trace('supportedBiometryType', biometry, 'getBiometry')
+            log.trace('[getBiometry]', {biometry, isAuthOn: userSettingsStore.isAuthOn})
             setBiometryType(biometry)
         }
         
-        getBiometry()
-        
-        return () => {          
-        }
+        getBiometry()        
+        return () => {}
     }, [])
 
 
-    const toggleEncryptedSwitch = async () => {
+    const toggleBiometricAuthSwitch = async () => {
         try {
             setIsLoading(true)
             // check device has biometric support - disabled for testing
-             if(!isStorageEncrypted) {
+             if(!isBiometricAuthOn) {
                 const biometryType = await KeyChain.getSupportedBiometryType()
 
                 if(!biometryType) {
-                    setInfo('Your device does not support any biometric authentication to protect the encryption key.')
+                    setInfo('Your device does not support any biometric authentication method.')
                 }
             } 
 
-            const result = await userSettingsStore.setIsStorageEncrypted(
-                !isStorageEncrypted,
+            const result = await userSettingsStore.setIsAuthOn(
+                !isBiometricAuthOn,
             )
             
-            setIsStorageEncrypted(result)
+            setIsBiometricAuthOn(result)
             setIsLoading(false)
 
             if (result === true) {
-                setEncryptionResultMessage(
-                    'Storage has been AES encrypted with the key stored in the device secure keys storage.',
+                setResultMessage(
+                    'Biometric authentication to access the wallet has been turned on.',
                 )
-                toggleEncryptionModal()
+                toggleAuthModal()
                 return
             }
 
-            setEncryptionResultMessage('Storage encryption has been disabled.')
-            toggleEncryptionModal()
+            setResultMessage('Biometric authentication has been disabled.')
+            toggleAuthModal()
         } catch (e: any) {
             handleError(e)
         }
     }
 
-    const toggleEncryptionModal = () =>
-        setIsEncryptionModalVisible(previousState => !previousState)
+    const toggleAuthModal = () =>
+        setIsAuthModalVisible(previousState => !previousState)
 
     const handleError = function (e: AppError): void {
         setIsLoading(false)
@@ -109,12 +107,12 @@ export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer
                 style={$card}
                 ContentComponent={
                 <>
-                    {/*<ListItem
-                        tx="securityScreen.encryptStorage"
-                        subTx="securityScreen.encryptStorageDescription"
-                        leftIcon={isStorageEncrypted ? 'faLock' : 'faLockOpen'}
+                    <ListItem
+                        tx="securityScreen.biometricAuth"
+                        subTx="securityScreen.biometricAuthDescription"
+                        leftIcon={isBiometricAuthOn ? 'faLock' : 'faLockOpen'}
                         leftIconColor={
-                            isStorageEncrypted
+                            isBiometricAuthOn
                             ? colors.palette.success200
                             : colors.palette.neutral400
                         }
@@ -122,14 +120,14 @@ export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer
                         RightComponent={
                         <View style={$rightContainer}>
                             <Switch
-                            onValueChange={toggleEncryptedSwitch}
-                            value={isStorageEncrypted}
+                            onValueChange={toggleBiometricAuthSwitch}
+                            value={isBiometricAuthOn}
                             />
                         </View>
                         }
                         style={$item}
-                    />*/}
-                    {isStorageEncrypted && (
+                    />
+                    {/*isBiometricAuthOn && (
                         <ListItem
                             tx="securityScreen.biometry"
                             subTx={biometryType ? 'securityScreen.biometryAvailable' : 'securityScreen.biometryNone'}
@@ -139,30 +137,30 @@ export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer
                             style={$item}
                             topSeparator={true}
                         /> 
-                    )} 
+                    )*/} 
                 </>
                 }
             />            
           {isLoading && <Loading />}
         </View>
         <BottomModal
-            isVisible={isEncryptionModalVisible ? true : false}            
+            isVisible={isAuthModalVisible ? true : false}            
             ContentComponent={
                 <ResultModalInfo
-                    icon={isStorageEncrypted ? 'faLock' : 'faLockOpen'}
+                    icon={isBiometricAuthOn ? 'faLock' : 'faLockOpen'}
                     iconColor={
-                        isStorageEncrypted
+                        isBiometricAuthOn
                         ? colors.palette.success200
                         : colors.palette.neutral400
                     }
                     title={
-                        isStorageEncrypted ? 'Encryption is on' : 'Encryption is off'
+                        isBiometricAuthOn ? 'Authentication is on' : 'Authentication is off'
                     }
-                    message={encryptionResultMessage as string}
+                    message={resultMessage as string}
                 />
             }
-            onBackButtonPress={toggleEncryptionModal}
-            onBackdropPress={toggleEncryptionModal}
+            onBackButtonPress={toggleAuthModal}
+            onBackdropPress={toggleAuthModal}
         />        
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}      

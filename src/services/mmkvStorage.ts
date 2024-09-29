@@ -3,14 +3,14 @@ import {log} from './logService'
 import AppError, {Err} from '../utils/AppError'
 import {KeyChain} from './keyChain'
 import { ROOT_STORAGE_KEY } from '../models'
-import { Database } from './sqlite'
 
 const STORAGE_KEY = 'storage-v1'
-const ENCRYPTED_STORAGE_KEY = 'encrypted-storage-v1'
+const ENCRYPTED_STORAGE_KEY = 'encrypted-storage-v1' // legacy, not used now
 
 let _storage: MMKV | undefined
-let _encryptionKey: string | undefined
+let _encryptionKey: string | undefined  // legacy, not used now
 
+ // legacy, not used now
 const initEncryption = async function (): Promise<void> {
   if (!_encryptionKey) {
     try {
@@ -45,6 +45,7 @@ const getInstance = function () {
   return _storage
 }
 
+ // legacy, not used now
 const getOrCreateEncryptionKey = async function (): Promise<string> {
 
     let key: string | null = null
@@ -65,7 +66,7 @@ const getOrCreateEncryptionKey = async function (): Promise<string> {
     }
 }
 
-
+ // legacy, not used now
 const decryptStorage = function (): boolean {    
 
     if (_encryptionKey) {
@@ -88,6 +89,7 @@ const decryptStorage = function (): boolean {
     return false
 }
 
+ // legacy, not used now
 const encryptStorage = async function (): Promise<boolean> {    
 
     if (!_encryptionKey) {
