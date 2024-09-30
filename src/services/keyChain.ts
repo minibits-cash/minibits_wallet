@@ -288,7 +288,7 @@ const loadAuthToken = async function (isAuthOn: boolean): Promise<string | undef
       const result = await _Keychain.getGenericPassword({
           service: KeyChainServiceName.AUTH, 
           authenticationPrompt: isAuthOn ? {
-              title: 'Authentication required',
+              title: 'Please authenticate',
               subtitle: '',
               description: 'Your Minibits wallet requires authentication to get access.',
               cancel: 'Cancel',

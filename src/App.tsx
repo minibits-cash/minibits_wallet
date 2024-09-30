@@ -27,6 +27,10 @@ import Config from './config'
 import {log} from './services'
 import {Env} from './utils/envtypes'
 import AppError from './utils/AppError'
+import { Image, View } from 'react-native'
+import { Text } from './components'
+import RNExitApp from 'react-native-exit-app'
+
 
 // RN 0.73 screen rendering issue
 //import { enableFreeze, enableScreens  } from 'react-native-screens';
@@ -73,8 +77,25 @@ function App(props: AppProps) {
         // Force auth if set in userSettings
         log.trace('[useInitialRootStore]', {isAuthOn: userSettingsStore.isAuthOn})
         if(userSettingsStore.isAuthOn) {
-            const authToken = await KeyChain.getOrCreateAuthToken(userSettingsStore.isAuthOn)
-            log.trace('[useInitialRootStore]', {authToken})
+            try {
+                const authToken = await KeyChain.getOrCreateAuthToken(userSettingsStore.isAuthOn)
+                log.trace('[useInitialRootStore]', {authToken})
+            } catch (e: any) {
+                log.warn('[useInitialRootStore]', 'Authentication failed', {message: e.message})
+
+                if (e && typeof e === 'object') {
+                    const errString = JSON.stringify(e)                   
+            
+                    const isBackPressed = errString.includes('code: 10')
+                    const isCancellPressed = errString.includes('code: 13')
+                    const isIOSCancel = 'code' in e && String(e.code) === '-128'
+
+                    if(isCancellPressed || isBackPressed || isIOSCancel) {                        
+                        RNExitApp.exitApp()
+                    }
+                }  
+            }
+
         }
 
         // FCM push notifications - set or refresh device token on app start                
@@ -99,7 +120,13 @@ function App(props: AppProps) {
     
 
     if (!rehydrated) {    
-        return null
+        return (
+            <ErrorBoundary catchErrors={Config.catchErrors}>
+                <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+                    <Image source={require('../android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png')} />
+                </View>
+            </ErrorBoundary>
+        )
     } 
 
     return (
