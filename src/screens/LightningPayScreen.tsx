@@ -114,6 +114,8 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
         try {
             const result = IncomingParser.findAndExtract(lightningData)
 
+            log.trace('[onConfirm]', {mintUrl: mint?.mintUrl, unit, resultType: result.type})
+
             if(result.type === IncomingDataType.INVOICE) {
                 return IncomingParser.navigateWithIncomingData(result, navigation, unit, mint && mint.mintUrl)
             }

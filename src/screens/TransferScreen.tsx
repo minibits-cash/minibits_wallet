@@ -550,7 +550,11 @@ const ensureCommentNotTooLong = async function () {
 
 
 const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: string = '') {
-    log.trace("[onEncodedInvoice] start")
+    // Need to retrieve from params as they might not be set in state yet
+    // TODO fix this so that we kick this off only when state is set
+    const { mintUrl, unit } = route.params
+    log.trace("[onEncodedInvoice] start", {mintUrl, unit})
+    
     try {
         navigation.setParams({encodedInvoice: undefined})
         navigation.setParams({paymentRequest: undefined})
@@ -584,8 +588,7 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
           setMemo(lnurlPayComment)
         }
         
-        // We need to retrieve the quote first to know how much is needed to settle invoice in selected currency unit
-        const { mintUrl } = route.params
+        // We need to retrieve the quote first to know how much is needed to settle invoice in selected currency unit        
         const balanceToTransferFrom  = mintUrl ? 
             proofsStore.getMintBalance(mintUrl) : 
             proofsStore.getMintBalancesWithUnit(unit)[0]
