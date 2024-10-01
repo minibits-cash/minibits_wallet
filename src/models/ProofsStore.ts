@@ -88,7 +88,7 @@ export const ProofsStoreModel = types
         },
     }))
     .actions(self => ({
-        // Proofs are not more persisted in mmkv storage but loaded from database on afterCreate model
+        // Proofs are not more persisted in mmkv storage but loaded from database when hydrating the model
         loadProofsFromDatabase: flow(function* laodProofs() {             
             
             const unspentAndPendingProofs = yield Database.getProofs(true, true, false)            
@@ -120,11 +120,6 @@ export const ProofsStoreModel = types
         }),
     }))
     .actions(self => ({
-        /*afterCreate() {
-            // not used to be able to load proofs without blocking app start
-            // Trigger the load proofs action when the store is initialized
-            self.loadProofsFromDatabase()
-        },*/
         addProofs(newProofs: Proof[], isPending: boolean = false): {addedAmount: number, addedProofs: Proof[]} {
             try {
                 const proofs = isPending ? self.pendingProofs : self.proofs
@@ -177,10 +172,9 @@ export const ProofsStoreModel = types
                     }
                 }
         
-                log.debug('[addProofs]', `Added new ${addedProofs.length}${isPending ? ' pending' : ''} proofs to the ProofsStore`)
-                const userSettingsStore = getRootStore(self).userSettingsStore           
+                log.debug('[addProofs]', `Added new ${addedProofs.length}${isPending ? ' pending' : ''} proofs to the ProofsStore`)                           
     
-                if (userSettingsStore.isLocalBackupOn === true && addedProofs.length > 0) {
+                if (addedProofs.length > 0) {
                     Database.addOrUpdateProofs(addedProofs, isPending) // isSpent = false
                 }
     
@@ -193,8 +187,6 @@ export const ProofsStoreModel = types
         removeProofs(proofsToRemove: Proof[], isPending: boolean = false, isRecoveredFromPending: boolean = false) {
             try {                
                 const proofs = isPending ? self.pendingProofs : self.proofs
-
-                const rootStore = getRootStore(self)
                 const count = proofsToRemove.length
                 
                 if(isRecoveredFromPending) { 

@@ -153,6 +153,10 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 handleDeeplink({url})                
                 return // skip further processing so that it does not slow down or clash deep link
             }
+
+            if (nwcStore.all.length > 0) {
+                nwcStore.resetDailyLimits()
+            }
             
             if(!isInternetReachable) { return }
             

@@ -59,14 +59,8 @@ export const NwcScreen: FC<NwcScreenProps> = observer(
 
 
     useEffect(() => {
-        const resetDailyLimits = async () => {
-            // reset daily limits if day changed            
-            for (const c of nwcStore.nwcConnections) {
-                if(!isSameDay(c.currentDay, new Date())) {
-                    c.setRemainingDailyLimit(c.dailyLimit)
-                    c.setCurrentDay()
-                }
-            }
+        const resetDailyLimits = () => {
+            nwcStore.resetDailyLimits()
         } 
         resetDailyLimits()
     }, [])

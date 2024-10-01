@@ -657,6 +657,14 @@ export const NwcStoreModel = types
             yield targetConnection.handleTopupTaskResult(result)                
               
         }),
+        resetDailyLimits () {
+            for (const c of self.nwcConnections) {
+                if(!isSameDay(c.currentDay, new Date())) {
+                    c.setRemainingDailyLimit(c.dailyLimit)
+                    c.setCurrentDay()
+                }
+            }
+        }
     }))
     .actions(self => ({
         addConnection: flow(function* addConnection(name: string, dailyLimit: number) {
@@ -726,12 +734,7 @@ export const NwcStoreModel = types
             }
 
             // reset daily limits if day changed            
-            for (const c of self.nwcConnections) {
-                if(!isSameDay(c.currentDay, new Date())) {
-                    c.setRemainingDailyLimit(c.dailyLimit)
-                    c.setCurrentDay()
-                }
-            }            
+            self.resetDailyLimits()            
             
             try {
                 const since = Math.floor(Date.now() / 1000)
