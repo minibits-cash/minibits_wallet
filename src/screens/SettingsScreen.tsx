@@ -9,7 +9,6 @@ import {
     CODEPUSH_PRODUCTION_DEPLOYMENT_KEY,
 } from '@env'
 import codePush, { RemotePackage } from 'react-native-code-push'
-import { changeIcon, getIcon, resetIcon } from '@synonymdev/react-native-change-icon'
 import {ThemeCode, Themes, colors, spacing, useThemeColor} from '../theme'
 import {SettingsStackScreenProps} from '../navigation' // @demo remove-current-line
 import {ListItem, Screen, Text, Card, NwcIcon, Button, BottomModal, InfoModal, Icon} from '../components'
@@ -234,31 +233,14 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
   const onSelectTheme = async function(theme: ThemeCode) {    
     if(currentTheme !== theme) {
       try {
-      // state update causes crash because of hooks
-      Database.updateUserSettings({...userSettingsStore, theme})
-      setCurrentTheme(theme)
-
-      const currentIcon = await getIcon()
-      log.trace('[onSelectTheme]', {currentIcon})
-
-      if(theme === ThemeCode.GOLDEN) {
-        await changeIcon('Golden')
-        const updatedIcon = await getIcon()
-        log.trace('[onSelectTheme]', {updatedIcon})
-      }
-
-      if(currentIcon !== 'Default') {
-        await changeIcon('Default')
-        const updatedIcon = await getIcon()
-        log.trace('[onSelectTheme]', {updatedIcon})
-      }      
-      
-      setInfo('Restart the wallet to apply new theme.')
+        // state update causes crash because of hooks
+        Database.updateUserSettings({...userSettingsStore, theme})
+        setCurrentTheme(theme)
+        setInfo('Restart the wallet to apply new theme.')
       } catch (e: any) {
         log.warn('[onSelectTheme]', e.message)
       }
     }
-
     toggleThemeModal()  
   }
 

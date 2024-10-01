@@ -1,6 +1,6 @@
 {
   "name": "minibits_wallet",
-  "version": "0.1.9-beta.10",
+  "version": "0.1.9-beta.11",
   "private": true,
   "scripts": {
     "android:clean": "cd android && ./gradlew clean",
@@ -37,8 +37,7 @@
     "@react-navigation/native": "^6.1.18",
     "@react-navigation/native-stack": "^6.11.0",
     "@react-navigation/stack": "^6.4.1",
-    "@sentry/react-native": "^5.32.0",
-    "@synonymdev/react-native-change-icon": "^5.0.0",
+    "@sentry/react-native": "^5.32.0",    
     "date-fns": "^4.0.0",
     "i18n-js": "^4.4.3",
     "js-lnurl": "^0.6.0",
