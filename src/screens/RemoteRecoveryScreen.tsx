@@ -490,7 +490,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
             .update(seed)
             .digest('hex')
 
-            const currentSeedHash = await KeyChain.loadSeedHash()
+            // const currentSeedHash = await KeyChain.loadSeedHash()
 
             /* if(currentSeedHash === seedHash) {
               throw new AppError(Err.VALIDATION_ERROR, translate("recovery.seedFromCurrentDeviceError"))
