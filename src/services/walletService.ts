@@ -461,8 +461,7 @@ const _syncStateWithMintTask = async function (
             }
             
             // Convert the transactionStateMap to an array of transactionStateUpdate objects
-            const spentStateUpdates = Object.entries(transactionStateMap).map(([tId, spentByMintAmount]) => {
-                // fix: make sure whole amount is spent before completing the transnaction                 
+            const spentStateUpdates = Object.entries(transactionStateMap).map(([tId, spentByMintAmount]) => {                                 
                 const tx = transactionsStore.findById(Number(tId))                
 
                 if (tx) {

@@ -506,7 +506,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         return null;
     }
 
-    const tabWidth = moderateScale(80)
+    const tabWidth = moderateScale(75)
 
     const getActiveTabColor = (state: NavigationState<Route>) => {
         /* if(state && state.routes.length > 0) {

@@ -57,19 +57,19 @@ export const TransactionListItem = observer(function (
         }
       case TransactionType.SEND:
         return (tx.memo
-          ? tx.memo
+          ? tx.memo.slice(0, 30)
           : tx.sentTo
           ? translate('transactionCommon.sentTo', {receiver: getProfileName(tx.sentTo)})
           : translate('transactionCommon.youSent')).slice(0, 30)
       case TransactionType.TOPUP:
         return (tx.memo
-          ? tx.memo
+          ? tx.memo.slice(0, 30)
           : tx.sentFrom
           ? translate('transactionCommon.receivedFrom', {sender: getProfileName(tx.sentFrom)})
           : translate('transactionCommon.youReceived')).slice(0, 30)
       case TransactionType.TRANSFER:
         return (tx.memo && tx.memo !== 'LNbits'
-          ? tx.memo
+          ? tx.memo.slice(0, 30)
           : tx.sentTo
           ? translate('transactionCommon.paidTo', {receiver: getProfileName(tx.sentTo)})
           : translate('transactionCommon.youPaid')).slice(0, 30)
@@ -83,7 +83,7 @@ export const TransactionListItem = observer(function (
       addSuffix: true,
     })
     let timeAgo = ''
-    if (isTimeAgoVisible) timeAgo = `${distance.slice(0, 20)} · `
+    if (isTimeAgoVisible) timeAgo = `${distance.slice(0, 18)} · `
 
     switch (tx.status) {
       case TransactionStatus.COMPLETED:
@@ -91,7 +91,7 @@ export const TransactionListItem = observer(function (
           timeAgo +
           translate('transactionCommon.status.completedFee', {
             fee: (tx.fee && tx.fee > 0) ? ' · Fee ' + tx.fee : '',
-          })
+          }).slice(0, 30)
         )
       case TransactionStatus.DRAFT:
         return timeAgo + translate('transactionCommon.status.draft')

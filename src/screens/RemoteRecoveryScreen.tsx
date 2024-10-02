@@ -263,7 +263,7 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                 }                
             )
 
-            log.debug('[restore]', `Restored proofs`, proofs.length)                
+            //log.debug('[restore]', `Restored proofs`, proofs.length)                
             setStatusMessage(translate("recovery.foundProofsAmount", { amount: proofs.length }))
             
             if (proofs.length > 0) {
@@ -744,20 +744,21 @@ export const RemoteRecoveryScreen: FC<AppStackScreenProps<'RemoteRecovery'>> = o
                                     <>
                                         {mintsStore.mintCount > 0 && selectedMintUrl && (
                                         <>
-                                            <View style={$buttonContainer}> 
-                                                {(startIndex > 0 || totalRecoveredAmount > 0) && (
-                                                    <Button
-                                                        onPress={onComplete}
-                                                        tx="common.complete"
-                                                        style={{marginRight: spacing.small}}                                        
-                                                    />
-                                                )}               
+                                            <View style={$buttonContainer}>               
                                                 <Button
                                                     onPress={startRecovery}
                                                     tx={startIndex === 0 ? 'startRecovery' : 'nextInterval'}
                                                     preset={(startIndex === 0 ||  totalRecoveredAmount > 0) ? 'default' : 'secondary'}
+                                                    style={{marginRight: spacing.small}}
                                                     disabled={selectedMintUrl ? false : true}    
-                                                />                        
+                                                />
+                                                {(startIndex > 0 || totalRecoveredAmount > 0) && (
+                                                    <Button
+                                                        onPress={onComplete}
+                                                        tx="common.complete"                                                        
+                                                        preset='secondary'                                        
+                                                    />
+                                                )} 
                                             </View>
 
                                             <View style={$buttonContainer}>

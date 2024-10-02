@@ -467,7 +467,7 @@ export const WalletStoreModel = types
           try {
             log.trace('[WalletStore.getSpentOrPendingProofsFromMint] start', {mintUrl, unit})
             
-            const cashuWallet = yield self.getWallet(mintUrl, unit, {withSeed: true})    
+            const cashuWallet = yield self.getWallet(mintUrl, unit, {withSeed: false})    
             const spentPendingProofs = yield cashuWallet.checkProofsSpent(proofs) // seems to work for all units
         
             log.trace('[WalletStore.getSpentOrPendingProofsFromMint]', {mintUrl, spentPendingProofs})
@@ -583,7 +583,7 @@ export const WalletStoreModel = types
                 counter: options.counter,
                 pubkey: undefined                          
               }            
-          )
+          ) as Promise<{proofs: ProofV3[]}>
             
           
           log.info('[mintProofs]', {proofs})        
