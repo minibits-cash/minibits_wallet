@@ -100,14 +100,17 @@ jobs:
           
       # Install dependecies from package.json
       - name: Setup yarn
-        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
-        run: corepack enable  
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}     
+        run: |- 
+          corepack enable
+          corepack prepare yarn@3.6.4 --activate
+          yarn set version 3.6.4
 
       - name: Install app dependencies
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
         uses: bahmutov/npm-install@v1.10.2
-        # with:
-           # install-command: 'yarn '
+        with:
+          install-command: yarn
 
       - name: Apply patches
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
