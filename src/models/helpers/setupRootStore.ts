@@ -319,26 +319,12 @@ async function _runMigrations(rootStore: RootStore) {
             rootStore.setVersion(rootStoreModelVersion)
             log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
         }
-
-        if(currentVersion < 25) {
-            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v25`)            
-            userSettingsStore.setExchangeCurrency(CurrencyCode.USD)
-            rootStore.setVersion(rootStoreModelVersion)
-            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
-        }
-
-        if(currentVersion < 26) {
-            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v26`)            
-            userSettingsStore.setTheme(ThemeCode.DEFAULT)
-            rootStore.setVersion(rootStoreModelVersion)
-            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
-        }
-
         if(currentVersion < 28) {
             log.trace(`Starting rootStore migrations from version v${currentVersion} -> v27`)
-            if(userSettingsStore.isStorageEncrypted) {
-                await userSettingsStore.setIsStorageEncrypted(false)
-            }
+
+            userSettingsStore.setExchangeCurrency(CurrencyCode.USD)
+            userSettingsStore.setTheme(ThemeCode.DEFAULT)
+
             if(!userSettingsStore.isLocalBackupOn) {
                 const proofs = proofsStore.allProofs
                 const pendingProofs = proofsStore.pendingProofs

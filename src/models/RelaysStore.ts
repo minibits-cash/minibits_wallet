@@ -39,7 +39,7 @@ export const RelaysStoreModel = types
 
             const normalized = NostrClient.getNormalizedRelayUrl(relay.url)
 
-            if(!normalized.startsWith('wss://')) {
+            if(!normalized.startsWith('ws')) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Relay needs to communicate over secure websocket wss://', {caller: 'addRelay'})
             }
 
