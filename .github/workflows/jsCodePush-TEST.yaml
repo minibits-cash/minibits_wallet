@@ -110,19 +110,13 @@ jobs:
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
         run: yarn    
 
-      # - name: Install app dependencies
-      #  if: ${{ env.IS_VERSION_CHANGED == 'true' }}
-      #  uses: bahmutov/npm-install@v1.10.2
-      #  with:
-      #    install-command: yarn
-
       - name: Apply patches
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
         run: yarn postinstall  
         
       - name: Install Sentry CLI
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
-        run: npm install @sentry/cli --legacy-peer-deps
+        run: brew install getsentry/tools/sentry-cli
           
       # Code push with source maps export for Sentry
       - name: Install AppCenter CLI
@@ -139,8 +133,8 @@ jobs:
       - name: Upload source files to Sentry
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
         run: |-                   
-          ./node_modules/.bin/sentry-cli login --auth-token ${{ secrets.SENTRY_AUTH_TOKEN }}
-          ./node_modules/.bin/sentry-cli releases \
+          sentry-cli login --auth-token ${{ secrets.SENTRY_AUTH_TOKEN }}
+          sentry-cli releases \
           files minibits_wallet_android@${{ env.CURRENT_JS_VERSION }} \
           upload-sourcemaps \
           --strip-prefix /build \
