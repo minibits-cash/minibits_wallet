@@ -99,6 +99,10 @@ jobs:
           echo COMMIT='${{ env.COMMIT_HASH }}' >> .env
           
       # Install dependecies from package.json
+      - name: Setup yarn
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
+        run: corepack enable  
+        
       - name: Install app dependencies
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
         uses: bahmutov/npm-install@v1.10.2
