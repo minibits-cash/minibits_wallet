@@ -108,7 +108,7 @@ jobs:
 
       - name: Install app dependencies
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
-        run: yarn    
+        run: yarn
 
       # - name: Install app dependencies
       #  if: ${{ env.IS_VERSION_CHANGED == 'true' }}
