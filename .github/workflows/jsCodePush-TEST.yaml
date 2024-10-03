@@ -108,9 +108,13 @@ jobs:
 
       - name: Install app dependencies
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
-        uses: bahmutov/npm-install@v1.10.2
-        with:
-          install-command: yarn
+        run: yarn    
+
+      # - name: Install app dependencies
+      #  if: ${{ env.IS_VERSION_CHANGED == 'true' }}
+      #  uses: bahmutov/npm-install@v1.10.2
+      #  with:
+      #    install-command: yarn
 
       - name: Apply patches
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
