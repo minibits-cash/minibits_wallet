@@ -20,7 +20,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
       
       # Fetch javascript bundle version from package.json        
       - name: Read package.json version and detect changes
@@ -103,7 +103,11 @@ jobs:
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
         uses: bahmutov/npm-install@v1.10.2
         # with:
-        #   install-command: 'yarn install'
+           # install-command: 'yarn '
+
+      - name: Apply patches
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
+        run: yarn postinstall     
 
       - name: Install Sentry CLI
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}

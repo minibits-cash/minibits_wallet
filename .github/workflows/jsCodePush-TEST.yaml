@@ -105,6 +105,10 @@ jobs:
         # with:
         #   install-command: 'yarn install'
 
+      - name: Apply patches
+        if: ${{ env.IS_VERSION_CHANGED == 'true' }}
+        run: yarn postinstall  
+        
       - name: Install Sentry CLI
         if: ${{ env.IS_VERSION_CHANGED == 'true' }}
         run: npm install @sentry/cli --legacy-peer-deps
