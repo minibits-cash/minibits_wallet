@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
-import {Switch, TextStyle, View, ViewStyle} from 'react-native'
+import {TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {SettingsStackScreenProps} from '../navigation'
 import {
@@ -15,12 +15,11 @@ import {
   Button,
   Header,
 } from '../components'
-import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import AppError from '../utils/AppError'
 import EventEmitter from '../utils/eventEmitter'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
-import {Database, log, SyncStateTaskResult, WalletTask, WalletTaskResult} from '../services'
+import {log, SyncStateTaskResult, WalletTask, WalletTaskResult} from '../services'
 import { translate } from '../i18n'
 
 export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(function BackupScreen(_props) {
@@ -36,37 +35,34 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
     const [isBackupModalVisible, setIsBackupModalVisible] =
       useState<boolean>(false)
     const [isSyncStateSentToQueue, setIsSyncStateSentToQueue] = useState<boolean>(false)
-    const [backupResultMessage, setBackupResultMessage] = useState<string>()
-    const [totalSpentCount, setTotalSpentCount] = useState<number>(0)
-    const [totalSpentAmount, setTotalSpentAmount] = useState<number>(0)
-
+    const [backupResultMessage, setBackupResultMessage] = useState<string>()    
+    
     useEffect(() => {
         const removeSpentByMintTaskResult = async (result: SyncStateTaskResult) => {
-            log.trace('removeSpentByMintTaskResult event handler triggered')
+            log.trace('[removeSpentByMintTaskResult] event handler triggered')
 
             if (!isSyncStateSentToQueue) { return false }
             
             setIsLoading(false)            
+
             // runs per each mint
             if (result && result.transactionStateUpdates.length > 0) {
 
+                log.trace('[removeSpentByMintTaskResult]', {transactionStateUpdates: result.transactionStateUpdates})
+
                 let totalSpentPerMint = 0
 
-                for (const update of result.transactionStateUpdates) {
-                    if(update.spentByMintAmount && update.spentByMintAmount > 0) {
-                    totalSpentPerMint += update.spentByMintAmount
+                for (const update of result.transactionStateUpdates) {                    
+                    if(update.spentByMintAmount) {
+                      totalSpentPerMint += update.spentByMintAmount
                     }                
                 }
                 
-                setTotalSpentAmount(prev => prev + result.spentAmount)
-                setTotalSpentCount(prev => prev + result.spentCount)
-                setInfo(
-                    translate("backupScreen.result", { proofCount: totalSpentCount, amount: totalSpentAmount })
-                )
-                return
-            }
-
-            setInfo(translate("noSpentEcashFound"))            
+                setInfo(`Amount of removed spent proofs is ${totalSpentPerMint}`)
+                
+            } else {
+              setInfo(translate("noSpentEcashFound"))   
+            }        
         }
         
         EventEmitter.on('ev__syncStateWithMintTask_result', removeSpentByMintTaskResult)
@@ -76,38 +72,6 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
         }
     }, [isSyncStateSentToQueue])
 
-    /* const toggleBackupSwitch = () => {
-      try {
-        setIsLoading(true)
-        const result = userSettingsStore.setIsLocalBackupOn(!isLocalBackupOn)
-        setIsLocalBackupOn(result)
-
-        if (result === true) { 
-                    
-          log.trace('[toggleBackupSwitch]', JSON.stringify(proofsStore.getBalances()))
-          
-          if(proofsStore.allProofs.length > 0){
-            log.trace('[toggleBackupSwitch]', JSON.stringify(proofsStore.allProofs))
-            Database.addOrUpdateProofs(proofsStore.allProofs)
-          }
-          if(proofsStore.allPendingProofs.length > 0){
-            Database.addOrUpdateProofs(proofsStore.allPendingProofs, true)
-          }
-
-          setBackupResultMessage(translate("backupScreen.success"))
-          toggleBackupModal()
-          setIsLoading(false)
-          return
-        }
-
-        Database.removeAllProofs()
-        setIsLoading(false)
-        setBackupResultMessage(translate("backupScreen.deletedSuccess"))
-        toggleBackupModal()
-      } catch (e: any) {
-        handleError(e)
-      }
-    }*/
 
     const toggleBackupModal = () =>
       setIsBackupModalVisible(previousState => !previousState)

@@ -183,10 +183,15 @@ export const transferTask = async function (
         lockedProofsCounter.decreaseProofsCounter(countOfInFlightProofs)
 
         // update transaction status and proofs state based on sync with the mint
-        const { completedTransactionIds, transactionStateUpdates } = await WalletTask.syncStateWithMintSync({
-            mintUrl,
-            isPending: true
-        })        
+        // proofsToPay are clean ProofV3, not Proof models so we send all pending from state
+        const proofsToSync = proofsStore.getByMint(mintUrl, {isPending: true})
+        const { completedTransactionIds, transactionStateUpdates } = await WalletTask.syncStateWithMintSync(            
+            {
+                proofsToSync,
+                mintUrl,
+                isPending: true
+            }
+        )        
 
         if(!completedTransactionIds.includes(transaction.id)) {
             // silent
@@ -279,11 +284,17 @@ export const transferTask = async function (
 
             // If Exception was trigerred most likely by walletStore.payLightningMelt()
             if (proofsToPay.length > 0) {
-                // check with the mint if proofs are not pending by mint, if yes, set transaction status pending (timeout-ed/hodled lightning payments)
-                const { pendingTransactionIds } = await WalletTask.syncStateWithMintSync({
-                    mintUrl,
-                    isPending: true
-                })
+                // check with the mint if proofs are not pending by mint, if yes, 
+                // sync sets transaction status as PENDING (timeout-ed/hodled lightning payments)
+                const proofsToSync = proofsStore.getByMint(mintUrl, {isPending: true})
+
+                await WalletTask.syncStateWithMintSync(                   
+                    {
+                        proofsToSync,
+                        mintUrl,
+                        isPending: true
+                    }
+                )
                 
                 // force refresh just in case above method did not update the model?
                 const refreshed = transactionsStore.findById(transaction.id)

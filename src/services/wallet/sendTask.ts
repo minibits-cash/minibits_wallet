@@ -36,8 +36,8 @@ export const sendTask = async function (
     memo: string,
     selectedProofs: Proof[]
 ) : Promise<TransactionTaskResult> {
-    const mintUrl = mintBalanceToSendFrom.mintUrl
 
+    const mintUrl = mintBalanceToSendFrom.mintUrl
 
     log.trace('[send]', 'mintBalanceToSendFrom', mintBalanceToSendFrom)
     log.trace('[send]', 'amountToSend', {amountToSend, unit})    
@@ -140,6 +140,9 @@ export const sendTask = async function (
 
         // Start polling for accepted payment is it is not offline send
         if(selectedProofs.length === 0) {
+
+            const proofsToSync = proofsStore.getByMint(mintUrl, {isPending: true})
+
             poller(
                 `syncStateWithMintPoller-${mintUrl}`,
                 WalletTask.syncStateWithMint,
@@ -148,7 +151,7 @@ export const sendTask = async function (
                     maxPolls: 5,
                     maxErrors: 2
                 },
-                {mintUrl, isPending: true}
+                {proofsToSync, mintUrl, isPending: true}
             )
             .then(() => log.trace('[syncStateWithMintPoller]', 'polling completed', {mintUrl}))  
         }      
@@ -199,6 +202,7 @@ export const sendFromMint = async function (
     const mintUrl = mintBalance.mintUrl
     const mintInstance = mintsStore.findByUrl(mintUrl)
     let lockedProofsCounter: MintProofsCounter | undefined = undefined
+    let proofsToSendFrom: Proof[] = []   
     
     try {
         if (!mintInstance) {
@@ -224,7 +228,7 @@ export const sendFromMint = async function (
         if (totalAmountFromMint < amountToSend) {
             throw new AppError(
                 Err.VALIDATION_ERROR,
-                'There is not enough funds to send this amount',
+                'There is not enough funds to send this amount.',
                 {totalAmountFromMint, amountToSend, caller: 'sendFromMint'},
             )
         }
@@ -268,8 +272,7 @@ export const sendFromMint = async function (
          *  if we did not selected ecash but amount and we might need a swap of ecash by the mint to match exact amount        
          */
 
-        // Prioritize send from inactive keysets
-        let proofsToSendFrom: Proof[] = []   
+        // Prioritize send from inactive keysets        
         const inactiveKeysetIds = mintInstance?.keysets.filter((k: MintKeyset) => k.active === false).map((k: MintKeyset) => k.id)   
         const activeKeysetIds = mintInstance?.keysets.filter((k: MintKeyset) => k.active === true).map((k: MintKeyset) => k.id)
         
@@ -277,8 +280,21 @@ export const sendFromMint = async function (
         
         if(inactiveKeysetIds.length > 0) {
             
-            const proofsFromInactiveKeysets = proofsStore.getByMint(mintUrl, {isPending: false, unit, keysetIds: inactiveKeysetIds})
-            const proofsFromActiveKeysets = proofsStore.getByMint(mintUrl, {isPending: false, unit, keysetIds: activeKeysetIds})            
+            const proofsFromInactiveKeysets = proofsStore.getByMint(
+                mintUrl, {
+                    isPending: false, 
+                    unit, 
+                    keysetIds: inactiveKeysetIds
+                }
+            )
+
+            const proofsFromActiveKeysets = proofsStore.getByMint(
+                mintUrl, {
+                    isPending: false, 
+                    unit, 
+                    keysetIds: activeKeysetIds
+                }
+            )            
 
             if(proofsFromInactiveKeysets && proofsFromInactiveKeysets.length > 0) {
                 let proofsFromInactiveKeysetsAmount = CashuUtils.getProofsAmount(proofsFromInactiveKeysets)
@@ -344,7 +360,7 @@ export const sendFromMint = async function (
                 if(missingFeesAmount > remainingProofsAmount) {
                     throw new AppError(
                         Err.VALIDATION_ERROR,
-                        'There is not enough funds to send this payment with expected fees',
+                        'There is not enough funds to send this payment with expected fees.',
                         {totalAmountFromMint, amountToSend, mintFeeReserve},
                     )
                 }
@@ -420,7 +436,22 @@ export const sendFromMint = async function (
         } else if (returnedAmount === 0) {
         /* 
          *  SWAP not needed, all selected proofs will be sent
+         *  In this case we might make sure upfront those are not spent - not used now
          */
+            /* const syncResult = await WalletTask.syncStateWithMintSync(                
+                {
+                    proofsToSync: proofsToSendFrom,
+                    mintUrl,
+                    isPending: false
+                }                
+            )
+
+            if(syncResult.transactionStateUpdates.find(stateUpdate => 
+                stateUpdate.spentByMintAmount && 
+                stateUpdate.spentByMintAmount > 0)) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Spent ecash has been used as an input for this transaction, try again.')
+            }*/
+
             log.debug('[sendFromMint] Swap is not necessary, all proofsToSendFrom will be sent.')
             proofsToSend = [...proofsToSendFrom]
             
@@ -465,6 +496,17 @@ export const sendFromMint = async function (
         // release lock
         if(lockedProofsCounter) {
             lockedProofsCounter.resetInFlight(transactionId)
+        }
+        
+        // try to clean spent proofs if that was the swap error cause
+        if (e.params && e.params.message && e.params.message.includes('Token already spent')) {
+            await WalletTask.syncStateWithMintSync(                
+                {
+                    proofsToSync: proofsToSendFrom,
+                    mintUrl,
+                    isPending: false
+                }                
+            )
         }
 
         if (e instanceof AppError) {

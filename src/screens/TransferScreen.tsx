@@ -663,6 +663,18 @@ const increaseProofsCounterAndRetry = async function () {
     toggleResultModal() //close
   }
 }
+
+
+const retryAfterSpentCleaned = async function () {
+  try {
+    // retry transfer
+    transfer()
+  } catch (e: any) {            
+    handleError(e)
+  } finally {
+    toggleResultModal() //close
+  }
+}
     
 
 const onClose = function () {
@@ -917,8 +929,14 @@ const amountInputColor = useThemeColor('amountInput')
                         {resultModalInfo.message.includes('outputs have already been signed before') ? (
                             <Button
                                 preset="secondary"
-                                text={"Try again"}
+                                text={"Retry again"}
                                 onPress={increaseProofsCounterAndRetry}
+                            />
+                        ) : resultModalInfo.message.includes('Token already spent') ? (
+                            <Button
+                                preset="secondary"
+                                text={"Retry again"}
+                                onPress={retryAfterSpentCleaned}
                             />
                         ) : (
                             <Button

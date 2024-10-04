@@ -387,7 +387,7 @@ const getProofsToSend = function (requestedAmount: number, proofs: Proof[]): Pro
   if(requestedAmount > proofsAmount) {
     throw new AppError(
       Err.VALIDATION_ERROR, 
-      'There is not enough funds to send this amount', 
+      'There is not enough funds to send this amount.', 
       {requestedAmount, proofsAmount, caller: 'getProofsToSend'})
   }
   const exactMatch = findExactMatch(requestedAmount, proofs);

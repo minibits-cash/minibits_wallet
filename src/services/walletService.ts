@@ -36,15 +36,17 @@ type WalletTaskService = {
     syncSpendableStateWithMints: () => Promise<void>
     syncStateWithMint: (
         options: {
+            proofsToSync: Proof[],
             mintUrl: string, 
             isPending: boolean
         }
     ) => Promise<void>
-    syncStateWithMintSync: (
+    syncStateWithMintSync: (        
         options: {
+            proofsToSync: Proof[],
             mintUrl: string, 
             isPending: boolean
-        }
+        }        
     ) => Promise<SyncStateTaskResult>
     handleInFlight: ()        => Promise<void>
     handlePendingTopups: ()   => Promise<void>
@@ -118,7 +120,8 @@ export interface TransactionStateUpdate {
     spentByMintAmount?: number
     pendingByMintAmount?: number
     movedToSpendableAmount?: number,
-    updatedStatus: TransactionStatus    
+    message?: string 
+    updatedStatus: TransactionStatus,      
 }
 
 export interface SyncStateTaskResult extends WalletTaskResult {
@@ -289,21 +292,25 @@ const syncPendingStateWithMints = async function (): Promise<void> {
         return
     }
 
+    const isPending = true
+
     // group proofs by mint so that we do max one call per mint
     for (const mint of mintsStore.allMints) {
 
         if(pollerExists(`syncPendingStateWithMintPoller-${mint.mintUrl}`)) {
             log.trace('[syncPendingStateWithMint] Skipping, poller exists', {mintUrl: mint.mintUrl})
             continue
-        }        
-              
-        syncStateWithMint({mintUrl: mint.mintUrl, isPending: true}) // isPending = true
+        }
+        
+        const proofsToSync = proofsStore.getByMint(mint.mintUrl, {isPending})              
+        syncStateWithMint({proofsToSync, mintUrl: mint.mintUrl, isPending}) // isPending = true
     }
 }
 
 
 /*
  * Recover stuck wallet if tx error caused spent proof to remain in spendable state by the wallet.
+ * TODO batching
  */
 const syncSpendableStateWithMints = async function (): Promise<void> {
     log.trace('[syncSpendableStateWithMint] start')
@@ -311,46 +318,65 @@ const syncSpendableStateWithMints = async function (): Promise<void> {
         return
     }
 
+    const isPending = false
+    const maxBatchSize = 50
+
     // group proofs by mint so that we do max one call per mint
-    // does not depend on unit
-    for (const mint of mintsStore.allMints) {        
-        syncStateWithMint({mintUrl: mint.mintUrl, isPending: false})
+    // does not depend on unit, process in batches by 100
+    for (const mint of mintsStore.allMints) {
+        
+        const proofsToSync = proofsStore.getByMint(mint.mintUrl, { isPending })
+        const totalProofs = proofsToSync.length
+        
+        if (totalProofs > maxBatchSize) {
+          for (let i = 0; i < totalProofs; i += maxBatchSize) {
+            const batch = proofsToSync.slice(i, i + maxBatchSize)
+            syncStateWithMint({ proofsToSync: batch, mintUrl: mint.mintUrl, isPending: false });
+          }
+        } else {
+          // If the length is less than or equal to 100, run syncStateWithMint with all proofs.
+          syncStateWithMint({ proofsToSync, mintUrl: mint.mintUrl, isPending: false });
+        }
     }
 
     return    
 }
 
 /*
- * Pass _syncStateWithMintTask function into synchronous queue for safe processing without race conditions on proof counters.
+ * Pass _syncStateWithMintTask function into synchronous queue for safe processing without race conditions on proof counters. * 
  */
-const syncStateWithMint = async function (
+const syncStateWithMint = async function (    
     options: {
+        proofsToSync: Proof[],
         mintUrl: string,
         isPending: boolean
     }  
 ): Promise<void> {
-    const {mintUrl, isPending} = options
+    const {mintUrl, isPending, proofsToSync} = options
     log.trace('[syncStateWithMint] start', {mintUrl, isPending})
     const now = new Date().getTime()
 
     return SyncQueue.addTask(
         `_syncStateWithMintTask-${now}`,            
-        async () => await _syncStateWithMintTask({mintUrl, isPending})
+        async () => await _syncStateWithMintTask({proofsToSync, mintUrl, isPending})
     )    
 }
 
 
 // Use only within another queued task!
-const syncStateWithMintSync = async function (
+const syncStateWithMintSync = async function (    
     options: {
+        proofsToSync: Proof[],
         mintUrl: string,
         isPending: boolean
-    }  
-): Promise<SyncStateTaskResult> {
-    const {mintUrl, isPending} = options
-    log.trace('[syncStateWithMintSync] start', {mintUrl, isPending})
+    },
     
-    return await _syncStateWithMintTask({mintUrl, isPending})        
+): Promise<SyncStateTaskResult> {
+    const {mintUrl, isPending, proofsToSync} = options
+    
+    log.trace('[syncStateWithMintSync] start', {mintUrl, isPending, proofsToSyncCount: proofsToSync?.length})
+    
+    return await _syncStateWithMintTask({proofsToSync, mintUrl, isPending})        
 }
 
     
@@ -366,15 +392,18 @@ const syncStateWithMintSync = async function (
  *  It is a task function that should always be added to SyncQueue and not called directly
  *  
  *  @mintUrl URL of the mint to check for spent and pending proofs
- *  @isPending whether to work on proofs in spendable or pending state by the wallet
+ *  @isPending whether the proofs come from spendable or pending state by the wallet
+ *  @proofsToSync optional proofs to check the spent / pending status, otherwise all mint proofs are synced
  *  @returns WalletTaskResult
  */
 
-const _syncStateWithMintTask = async function (    
+const _syncStateWithMintTask = async function (            
     options: {  
+        proofsToSync: Proof[],
         mintUrl: string,           
         isPending: boolean
-    }): Promise<SyncStateTaskResult> {
+    }    
+): Promise<SyncStateTaskResult> {
 
     const transactionStateUpdates: TransactionStateUpdate[] = []
     const completedTransactionIds: number[] = []
@@ -382,16 +411,12 @@ const _syncStateWithMintTask = async function (
     const pendingTransactionIds: number[] = []
     const revertedTransactionIds: number[] = []
 
-    const {mintUrl, isPending} = options
-    const mint = mintsStore.findByUrl(mintUrl as string)
+    const {proofsToSync, mintUrl, isPending} = options
+    const mint = mintsStore.findByUrl(mintUrl as string)    
 
-    try {
-    
-        // select either spendable or pending proofs by the wallet
-        // all units      
-        const proofsFromMint = proofsStore.getByMint(mintUrl, {isPending})
+    try {        
 
-        if (proofsFromMint.length === 0) {
+        if (proofsToSync.length === 0) {
             const message = `No ${isPending ? 'pending' : ''} proofs found for mint, skipping mint call...`            
             log.trace('[_syncStateWithMintTask]', message, mintUrl)
 
@@ -412,7 +437,7 @@ const _syncStateWithMintTask = async function (
         } = await walletStore.getSpentOrPendingProofsFromMint(
             mintUrl,            
             mint && mint.units ? mint.units[0] : 'sat', // likely not to be unit-dependent
-            proofsFromMint
+            proofsToSync
         )
     
         if(mint) { 
@@ -434,7 +459,7 @@ const _syncStateWithMintTask = async function (
             // Clean pendingByMint secrets from state if proofs came back as spent by mint            
             if(proofsStore.pendingByMintSecrets.length > 0) {
                 const spentByMintSecrets = new Set(spentByMintProofs.map(proof => proof.secret))
-                const tobeRemoved =  proofsStore.pendingByMintSecrets.filter(secret => spentByMintSecrets.has(secret))
+                const tobeRemoved = proofsStore.pendingByMintSecrets.filter(secret => spentByMintSecrets.has(secret))
 
                 if(tobeRemoved.length > 0) {                    
                     proofsStore.removeManyFromPendingByMint(tobeRemoved)
@@ -445,8 +470,8 @@ const _syncStateWithMintTask = async function (
             const transactionStateMap: { [key: number]: number } = {}  
 
             for (const spent of spentByMintProofs) {
-                // Find the matching proof in the MST state by the secret
-                const spentProof = proofsStore.getBySecret(spent.secret, isPending)
+                // Find the matching proof
+                const spentProof = proofsToSync.find(proof => spent.secret === proof.secret)
                 
                 if (spentProof) {
                     // Get the transaction ID (tId) from the matching proof
@@ -471,10 +496,26 @@ const _syncStateWithMintTask = async function (
 
                         errorTransactionIds.push(Number(tId))
 
+                        // return unspent proofs from pending back to spendable
+                        if(isPending) {
+                            const unspentProofs = proofsToSync.filter(proof => 
+                                spentByMintProofs.find(spent => spent.secret !== proof.secret)
+                            )
+
+                            if(unspentProofs.length > 0) {
+                                log.trace('[_syncStateWithMintTask]', `Moving ${unspentProofs.length} unspent proofs from pending back to spendable.`)
+                                // remove it from pending proofs in the wallet
+                                proofsStore.removeProofs(unspentProofs, true, true)
+                                // add proofs back to the spendable wallet                
+                                proofsStore.addProofs(unspentProofs)
+                            }
+                        }
+
                         return {
                             tId: Number(tId),
                             amount: tx.amount,
                             spentByMintAmount: spentByMintAmount as number,
+                            message: 'Some spent ecash has been used as an input for this transaction.',
                             updatedStatus: TransactionStatus.ERROR
                         } as TransactionStateUpdate
 
@@ -562,8 +603,8 @@ const _syncStateWithMintTask = async function (
                 const transactionStateMap: { [key: number]: number } = {}  
 
                 for (const pending of newPendingByMintProofs) {
-                    // Find the matching proof in the MST state by the secret
-                    const pendingProof = proofsStore.getBySecret(pending.secret, true) // only pending
+                    // Find the matching pending proof
+                    const pendingProof = proofsToSync.find(proof => pending.secret === proof.secret)                    
                     
                     if (pendingProof) {
                         // Get the transaction ID (tId) from the matching proof
@@ -609,6 +650,7 @@ const _syncStateWithMintTask = async function (
                     const transactionDataUpdate = {
                         status: TransactionStatus.PENDING,
                         pendingStateUpdates,
+                        message: 'Ecash has been moved to pending while the mint waits for related lightning payment to settle.',
                         createdAt: new Date(),
                     }
 
@@ -719,7 +761,7 @@ const _syncStateWithMintTask = async function (
         // silent
         log.error('[_syncStateWithMintTask]', e.name, {message: e.message, mintUrl})        
     
-        if(mint && e.name === Err.MINT_ERROR && e.message.includes('netowrk')) { 
+        if(mint && e.name === Err.MINT_ERROR && e.message.includes('network')) { 
             mint.setStatus(MintStatus.OFFLINE)                
         }        
 

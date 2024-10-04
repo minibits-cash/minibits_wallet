@@ -290,54 +290,46 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
             if (!transactionId) return
             // Filter and handle event related only to this transactionId
-            if (result.completedTransactionIds.includes(transactionId)) {
+            if (result.completedTransactionIds && result.completedTransactionIds.includes(transactionId)) {
                 log.trace(
                     'Sent ecash has been claimed by the receiver for tx',
                     transactionId,
                 )
 
-                const amountSentInt = round(toNumber(amountToSend) * getCurrency(unit).precision, 0)
+                const amountSentInt = round(toNumber(amountToSend) * getCurrency(unit).precision, 0)                
                 
-                // Send to contact flow alredy shows one modal
-                setIsNostrDMModalVisible(false)
-                setIsProofSelectorModalVisible(false)
                 setResultModalInfo({
                     status: TransactionStatus.COMPLETED,
                     title:  '🚀 That was fast!',                   
                     message: `${formatCurrency(amountSentInt, getCurrency(unit).code)} ${getCurrency(unit).code} were received by the payee.`,
                 })                
-                setTransactionStatus(TransactionStatus.COMPLETED)                
-                setIsResultModalVisible(true)
+                setTransactionStatus(TransactionStatus.COMPLETED)
             }
 
-            // sync check might end woth error in case tx proofs spentAmount !== tx amount
-            if (result.errorTransactionIds.includes(transactionId)) {
+            // sync check might end with error in case tx proofs spentAmount !== tx amount
+            if (result.errorTransactionIds && 
+                result.errorTransactionIds.includes(transactionId)) {
+
                 log.trace(
                     'Error when completing the send tx',
-                    transactionId,
+                    {transactionId},
                 )
 
-                const statusUpdate = result.transactionStateUpdates.find(update => update.tId === transactionId)
-                let message = ''
-                if(statusUpdate && 
-                   statusUpdate.spentByMintAmount &&                   
-                   statusUpdate.spentByMintAmount < toNumber(amountToSend)){
-                   message = 'Your wallet used some spent proofs as inputs for this transaction, try again.'
-                } else {
-                   message = JSON.stringify(statusUpdate)
-                }
-                
-                // Send to contact flow alredy shows one modal
-                setIsNostrDMModalVisible(false)
-                setIsProofSelectorModalVisible(false)
+                const statusUpdate = result.transactionStateUpdates.find(update => update.tId === transactionId)                
+                const message = statusUpdate?.message || 'Error when completing the transaction.'
+
                 setResultModalInfo({
                     status: TransactionStatus.ERROR,
                     title:  'Send failed',                   
                     message,
                 })                
-                setTransactionStatus(TransactionStatus.ERROR)                
-                setIsResultModalVisible(true)
+                setTransactionStatus(TransactionStatus.ERROR)
             }
+
+            // Send to contact flow alredy shows one modal
+            setIsNostrDMModalVisible(false)
+            setIsProofSelectorModalVisible(false)
+            setIsResultModalVisible(true)
         }
 
         // Subscribe to the '_syncStateWithMintTask' event
@@ -460,6 +452,18 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
         // retry send
         onMintBalanceConfirm()
+        } catch (e: any) {            
+            handleError(e)
+        } finally {
+            toggleResultModal() //close
+        }
+    }
+
+
+    const retryAfterSpentCleaned = async function () {
+        try {
+            // retry send
+            onMintBalanceConfirm()
         } catch (e: any) {            
             handleError(e)
         } finally {
@@ -823,8 +827,14 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                         {resultModalInfo.message.includes('outputs have already been signed before') ? (
                             <Button
                                 preset="secondary"
-                                text={"Try again"}
+                                text={"Retry again"}
                                 onPress={increaseProofsCounterAndRetry}
+                            />
+                        ) : resultModalInfo.message.includes('Token already spent') || resultModalInfo.message.includes('Some spent ecash') ? (
+                            <Button
+                                preset="secondary"
+                                text={"Retry again"}
+                                onPress={retryAfterSpentCleaned}
                             />
                         ) : (
                             <Button

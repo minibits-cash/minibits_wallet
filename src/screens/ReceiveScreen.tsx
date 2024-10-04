@@ -281,12 +281,12 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         <View style={$contentContainer}>          
           {token && toNumber(amountToReceive) > 0 && (
             <>
-              {memo && transactionStatus !== TransactionStatus.COMPLETED && (
+              {transactionStatus !== TransactionStatus.COMPLETED && (
                 <Card
                   style={$memoCard}
                   ContentComponent={
                     <ListItem
-                      text={memo}
+                      text={memo || 'No description'}
                       LeftComponent={
                         <Icon
                           containerStyle={$iconContainer}

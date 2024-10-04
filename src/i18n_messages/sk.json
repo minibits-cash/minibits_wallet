@@ -19,7 +19,7 @@
 		"remoteBackupDescription": "Mnemonická veta kóduje tvoj seed kľúč do 12 slov a umožňuje ti obnoviť tvoj ecash ak stratíš svoj mobil.",
 		"removeSpentCoins": "Odstráň minutý ecash",
 		"removeSpentCoinsDescription": "V prípade SEND a TRANSFER chyby, minutý ecash môže ostať v tvojej peňaženke. Toto zablokuje ďalšie transakcie s mintom. Tento nástroj odstráni minutý ecash z peňaženky.",
-		"result": "%{proofCount} ecash bankoviek v sume %{amount} boli odstránené z peňaženky.",
+		"result": "Minuté ecash bankovky boli odstránené z peňaženky.",
 		"seedBackup": "Záloha seed kľúča",
 		"success": "Tvoje Minibits bankovky boli zálohované do lokálnej databázy. Nové bankovky budú zálohované automaticky.",
 		"remoteBackup": "Záloha seed kľúča"

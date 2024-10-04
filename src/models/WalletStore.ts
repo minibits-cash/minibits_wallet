@@ -453,8 +453,7 @@ export const WalletStoreModel = types
               {
                 message: e.message,            
                 mintUrl,
-                caller: 'WalletStore.sendFromMint', 
-                proofsToSendFrom, 
+                caller: 'WalletStore.sendFromMint',                 
               }
             )
           }              
@@ -671,7 +670,7 @@ export const WalletStoreModel = types
               Err.MINT_ERROR, 
               message,
               {
-                  message: isObj(e.message) ? JSON.stringify(e.message) : e.message,
+                  message: e.message,
                   caller: 'payLightningMelt', 
                   mintUrl            
               }

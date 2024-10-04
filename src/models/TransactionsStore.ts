@@ -73,24 +73,7 @@ export const TransactionsStoreModel = types
                 return groups
             }, {})
         },   
-        findById(id: number) {
-            let tx = self.transactions.find(tx => tx.id === id)
 
-            // Search the db and add if tx is not in the state
-            if(!tx) {
-                const dbTransaction = Database.getTransactionById(id)
-
-                if(dbTransaction) {
-                    const createdAt = new Date(dbTransaction.createdAt)
-                    const inStoreTransaction = {...dbTransaction, createdAt}
-    
-                    tx = TransactionModel.create(inStoreTransaction)
-                    self.transactions.push(tx)
-                }
-            }
-
-            return tx
-        },
         recentByHostname(mintHostname: string) {            
             return this.all.filter(t => getHostname(t.mint as string) === mintHostname).slice(0, maxTransactionsByHostname)
         },
@@ -121,6 +104,25 @@ export const TransactionsStoreModel = types
         }  
     }))
     .actions(self => ({
+        findById(id: number) {
+            
+            let tx = self.transactions.find(tx => tx.id === id)
+
+            // Search the db and add if tx is not in the state
+            if(!tx) {
+                const dbTransaction = Database.getTransactionById(id)
+
+                if(dbTransaction) {
+                    const createdAt = new Date(dbTransaction.createdAt)
+                    const inStoreTransaction = {...dbTransaction, createdAt}
+    
+                    tx = TransactionModel.create(inStoreTransaction)
+                    self.transactions.push(tx)
+                }
+            }
+
+            return tx
+        },
         removeOldTransactions: () => { // not used
             const numTransactions = self.count
 

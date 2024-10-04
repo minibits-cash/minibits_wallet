@@ -20,7 +20,7 @@
 		"remoteBackupDescription": "Mnemonic phrase encodes your seed and allows you to recover your ecash balance in case of device loss.",
 		"removeSpentCoins": "Remove spent ecash",
 		"removeSpentCoinsDescription": "In case of a SEND or TRANSFER transaction error, spent ecash may remain in your wallet. This blocks further transactions with the mint, making the wallet unusable. This tool removes spent ecash from the wallet.",
-		"result": "%{proofCount} ecash proofs, %{amount} in total were removed from the wallet.",
+		"result": "Spent ecash proofs were removed from the wallet.",
 		"seedBackup": "Seed backup",
 		"success": "Your minibits tokens were backed up to local database. New tokens will be backed up automatically.",
 		"remoteBackup": "Seed backup"
