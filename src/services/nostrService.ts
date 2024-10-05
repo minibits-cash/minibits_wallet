@@ -84,7 +84,7 @@ const reconnectToRelays = async function () {
 
     // recreate subscriptions if all relays down
     if(relaysStore.connectedCount === 0) {
-        WalletTask.syncPendingStateWithMints().catch(e => false)
+        WalletTask.receiveEventsFromRelays().catch(e => false)
     }
 
     const pool = getRelayPool()    

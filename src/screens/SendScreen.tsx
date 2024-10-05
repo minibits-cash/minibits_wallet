@@ -297,13 +297,16 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 )
 
                 const amountSentInt = round(toNumber(amountToSend) * getCurrency(unit).precision, 0)                
-                
+
+                setIsNostrDMModalVisible(false)
+                setIsProofSelectorModalVisible(false)
                 setResultModalInfo({
                     status: TransactionStatus.COMPLETED,
                     title:  '🚀 That was fast!',                   
                     message: `${formatCurrency(amountSentInt, getCurrency(unit).code)} ${getCurrency(unit).code} were received by the payee.`,
                 })                
                 setTransactionStatus(TransactionStatus.COMPLETED)
+                setIsResultModalVisible(true)
             }
 
             // sync check might end with error in case tx proofs spentAmount !== tx amount
@@ -318,18 +321,16 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 const statusUpdate = result.transactionStateUpdates.find(update => update.tId === transactionId)                
                 const message = statusUpdate?.message || 'Error when completing the transaction.'
 
+                setIsNostrDMModalVisible(false)
+                setIsProofSelectorModalVisible(false)
                 setResultModalInfo({
                     status: TransactionStatus.ERROR,
                     title:  'Send failed',                   
                     message,
                 })                
                 setTransactionStatus(TransactionStatus.ERROR)
-            }
-
-            // Send to contact flow alredy shows one modal
-            setIsNostrDMModalVisible(false)
-            setIsProofSelectorModalVisible(false)
-            setIsResultModalVisible(true)
+                setIsResultModalVisible(true)
+            }            
         }
 
         // Subscribe to the '_syncStateWithMintTask' event

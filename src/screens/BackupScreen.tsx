@@ -35,7 +35,8 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
     const [isBackupModalVisible, setIsBackupModalVisible] =
       useState<boolean>(false)
     const [isSyncStateSentToQueue, setIsSyncStateSentToQueue] = useState<boolean>(false)
-    const [backupResultMessage, setBackupResultMessage] = useState<string>()    
+    const [backupResultMessage, setBackupResultMessage] = useState<string>()
+    const [totalSpentAmount, setTotalSpentAmount] = useState<number>(0)   
     
     useEffect(() => {
         const removeSpentByMintTaskResult = async (result: SyncStateTaskResult) => {
@@ -57,12 +58,9 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
                       totalSpentPerMint += update.spentByMintAmount
                     }                
                 }
-                
-                setInfo(`Amount of removed spent proofs is ${totalSpentPerMint}`)
-                
-            } else {
-              setInfo(translate("noSpentEcashFound"))   
-            }        
+
+                setTotalSpentAmount(prev => prev + totalSpentPerMint)
+            }       
         }
         
         EventEmitter.on('ev__syncStateWithMintTask_result', removeSpentByMintTaskResult)
@@ -71,6 +69,20 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
             EventEmitter.off('ev__syncStateWithMintTask_result', removeSpentByMintTaskResult)            
         }
     }, [isSyncStateSentToQueue])
+
+
+    useEffect(() => {
+      const showSpentEcashResult = () => {
+          log.trace('[showSpentEcashResult] got update', {totalSpentAmount})
+
+          if (totalSpentAmount === 0) { return false }
+
+          setInfo(`Removed spent ecash with amount ${totalSpentAmount}.`)                
+      }
+      
+      showSpentEcashResult()
+
+  }, [totalSpentAmount])
 
 
     const toggleBackupModal = () =>

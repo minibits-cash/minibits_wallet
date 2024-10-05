@@ -110,11 +110,7 @@ export const NwcScreen: FC<NwcScreenProps> = observer(
         if(!isRemoteDataPushEnabled) {
             setSelectedConnection(undefined)        
             nwcStore.receiveNwcEvents()   
-            setInfo(`
-                Your device can not receive background push messages. This is essential to recieve NWC commands. 
-                As a fallback, Minibits subscribed to Nostr relays to receive the commands. 
-                However, this will stop working when app is in the background or off.
-            `)
+            setInfo(`Your device can not receive background push messages. This is essential to recieve NWC commands. As a fallback, Minibits subscribed to Nostr relays to receive the commands. However, this will stop working when app is in the background or off.`)
         }
     }
 
