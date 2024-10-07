@@ -36,7 +36,6 @@ Mints
 Receive ecash
 - [x] Scan QR code of a ecash token
 - [x] Paste ecash token from the clipboard
-- [x] Notification on received payment (app needs to be in foreground)
 - [x] Receive Nostr zaps or Lightning payments to minibits.cash address
 - [x] Receive ecash from another wallet over NOSTR message sent to minibits.cash address
 - [x] Receive ecash in person while being offline, redeem later (MVP version)

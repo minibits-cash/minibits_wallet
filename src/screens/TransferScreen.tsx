@@ -653,7 +653,7 @@ const increaseProofsCounterAndRetry = async function () {
     )
     const mintInstance = mintsStore.findByUrl(mintBalanceToTransferFrom?.mintUrl as string)
     const counter = mintInstance!.getProofsCounterByKeysetId!(walletInstance.keys.id)
-    counter!.increaseProofsCounter(50)
+    counter!.increaseProofsCounter(20)
 
     // retry transfer
     transfer()

@@ -18,7 +18,9 @@ import Config from "../config"
 import {
   WelcomeScreen,
   RemoteRecoveryScreen,
-  MintsScreen
+  MintsScreen,
+  RecoveryOptionsScreen,
+  LocalRecoveryScreen
 } from "../screens"
 import { useStores } from "../models"
 import { TabsNavigator, TabsParamList  } from "./TabsNavigator"
@@ -40,7 +42,9 @@ import { colors, useThemeColor } from "../theme"
  */
 export type AppStackParamList = {
   Welcome: undefined
-  RemoteRecovery: {isAddressOnlyRecovery: boolean}
+  RecoveryOptions: undefined
+  RemoteRecovery: {isAddressRecovery: boolean}
+  LocalRecovery: undefined
   Mints: {}
   Tabs: NavigatorScreenParams<TabsParamList>  
 }
@@ -75,7 +79,9 @@ const AppStack = observer(function AppStack() {
         ) : (
         <>
             <Stack.Screen name="Welcome" component={WelcomeScreen} />
+            <Stack.Screen name="RecoveryOptions" component={RecoveryOptionsScreen} />
             <Stack.Screen name="RemoteRecovery" component={RemoteRecoveryScreen} />
+            <Stack.Screen name="LocalRecovery" component={LocalRecoveryScreen} />
             <Stack.Screen name="Mints" component={MintsScreen} />
             <Stack.Screen name="Tabs" component={TabsNavigator}/>
         </>

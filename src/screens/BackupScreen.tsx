@@ -97,7 +97,7 @@ export const BackupScreen: FC<SettingsStackScreenProps<'Backup'>> = observer(fun
     }
 
     const gotoRemoteRecovery = function () {
-      navigation.navigate('RemoteRecovery', {isAddressOnlyRecovery: true})
+      navigation.navigate('AppStack', {screen: 'RemoteRecovery', params: {isAddressOnlyRecovery: true}})
     }
 
     const checkSpent = async function () {

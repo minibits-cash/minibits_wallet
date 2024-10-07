@@ -1,4 +1,11 @@
 {
+	"recoveryOptions": {
+		"title": "Recovery options",
+		"local": "Import backup",
+		"localDescription": "Import backup exported from another Minibits wallet. Easy option if you move to a new device.",
+		"remote": "Recover from seed",
+		"remoteDescription": "Use 12 word seed phrase to re-create your lost ecash with assistance of mints. Use in case of device loss."		
+	},
 	"addMints": "Add mints",
 	"amount": {
 		"requested": "Requested amount",
@@ -577,29 +584,29 @@
 	"welcomeScreen": {
 		"page1": {
 			"bullet1": "Minibits follows the Cashu protocol, where mints back ecash with Bitcoin.",
-			"bullet2": "Ecash is issued or exchanged back to Bitcoin instantly through Lightning payments.",
-			"bullet3": "Ecash tokens are stored on-device; mints do not keep ledger or wallet balances.",
-			"final": "No Watson, there is no blockchain.",
+			"bullet2": "Ecash is issued or converted back to Bitcoin instantly via Lightning payments.",
+			"bullet3": "Ecash tokens are stored on-device; mints do not maintain ledgers or wallet balances.",
+			"final": "No Watson, there's no blockchain.",
 			"heading": "Welcome",
-			"intro": "Minibits is an ecash and Lightning wallet with a focus on performance and usability. Ecash is a bearer token issued by custodians known as mints."
+			"intro": "Minibits is an ecash and Lightning wallet focused on ease of use and security. Ecash is a digitally signed token issued by custodians known as mints."
 		},
 		"page2": {
-			"bullet1": "Minibits provides sharable wallet identifiers using NOSTR addresses. Like account numbers, just better.",
-			"bullet2": "Try in-person sends while devices are offline - ecash settles when back online (Proof of concept).",
-			"bullet3": "You can opt-in for storage encryption and biometric authentication.",
-			"final": "Minibits is free and open-source software; find us on Github for the roadmap and contributions.",
+			"bullet1": "Minibits provides a free Lightning address that also allows instant ecash transfers over Nostr.",
+			"bullet2": "First-class support for sending and receiving zaps on Nostr, including Nostr Wallet Connect.",
+			"bullet3": "Realtime encrypted push notifications and support for ecash issued in currencies other than Bitcoin.",
+			"final": "Minibits is free, open-source software. Find us on GitHub for our roadmap and contributions.",
 			"heading": "Why Minibits?",
-			"intro": "Minibits' aim is to research how Lightning and ecash can be integrated into a seamless and instant experience that can work at scale and still provide good privacy."
+			"intro": "Minibits aims to explore how ecash can help people use Bitcoin by offering frictionless onboarding, low fees, ease of use, and strong privacy."
 		},
 		"page3": {
-			"bullet1": "Mints are, by design, custodial services. Run your own or use them only for research and testing purposes.",
-			"bullet2": "Ecash is stored on your device, so the loss of the device means the loss of ecash unless you safely store your seed phrase.",
-			"bullet3": "Minibits provides its own mint that you can use for testing purposes with small amounts. It is operated on a best-effort basis and without any guarantees.",
+			"bullet1": "Mints are custodial by design. Run your own or use them only for research and testing.",
+			"bullet2": "Ecash is stored on your device. If lost, ecash is lost unless you safely back up your seed phrase.",
+			"bullet3": "Minibits offers its own mint for testing with small amounts. It operates on a best-effort basis with no guarantees.",
 			"final": "Now, let's move some ecash!",
 			"go": "Let's go!",
-			"heading": "Do not forget",
-			"intro": "Both the Cashu protocol and the Minibits wallet are still experimental, and by using them, you accept known and unknown risks."
-		},
+			"heading": "Don't forget",
+			"intro": "Both the Cashu protocol and the Minibits wallet are experimental. By using them, you accept known and unknown risks."
+		},	
 		"lastPageConfirmButton": "Got it, take me to the wallet",
 		"lastPageRecoverLostWalletButton": "Recover lost wallet",
 		"generatingWalletSeedStatusMessage": "Creating wallet seed, this takes a while..."

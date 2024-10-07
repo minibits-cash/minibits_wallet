@@ -40,6 +40,7 @@ import {
   ReceiveOption,
   SendOption,
   TokenReceiveScreen,
+  RecoveryOptionsScreen,
   RemoteRecoveryScreen,
   NwcScreen,
 } from "../screens"
@@ -290,9 +291,11 @@ export type SettingsStackParamList = {
   ExportEcash: undefined
   Developer: undefined
   Relays: undefined
-  RemoteRecovery: {isAddressOnlyRecovery: boolean}
+  // RecoveryOptions: undefined
+  // RemoteRecovery: {isAddressOnlyRecovery: boolean}
   WalletNavigator: {screen: string} 
   ContactsNavigator: {screen: string}
+  AppStack: {screen: string, params: any}  
   Nwc: undefined
 }
 
@@ -323,7 +326,8 @@ const SettingsNavigator = function SettingsNavigator() {
       <SettingsStack.Screen name="ExportEcash" component={ExportEcashScreen} />
       <SettingsStack.Screen name="Developer" component={DeveloperScreen} />
       <SettingsStack.Screen name="Relays" component={RelaysScreen} />
-      <SettingsStack.Screen name="RemoteRecovery" component={RemoteRecoveryScreen} />
+      {/*<SettingsStack.Screen name="RecoveryOptions" component={RecoveryOptionsScreen} />
+      <SettingsStack.Screen name="RemoteRecovery" component={RemoteRecoveryScreen} />*/}
       <SettingsStack.Screen name="Nwc" component={NwcScreen} />
     </SettingsStack.Navigator>
   )

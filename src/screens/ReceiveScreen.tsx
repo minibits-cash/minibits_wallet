@@ -203,7 +203,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
 
         const mintInstance = mintsStore.findByUrl(mint)
         const counter = mintInstance!.getProofsCounterByKeysetId!(walletInstance.keys.id)
-        counter!.increaseProofsCounter(50)
+        counter!.increaseProofsCounter(20)
 
         // retry receive
         receiveToken()

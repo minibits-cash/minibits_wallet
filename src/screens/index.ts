@@ -1,4 +1,7 @@
 export * from './WelcomeScreen'
+export * from './RecoveryOptionsScreen'
+export * from './RemoteRecoveryScreen'
+export * from './LocalRecoveryScreen'
 
 // WalletNavigator
 export * from './WalletScreen'
@@ -32,7 +35,6 @@ export * from './PrivacyScreen'
 export * from './UpdateScreen'
 export * from './BackupScreen'
 export * from './RemoteBackupScreen'
-export * from './RemoteRecoveryScreen'
 export * from './ExportEcashScreen'
 export * from './DeveloperScreen'
 export * from './RelaysScreen'

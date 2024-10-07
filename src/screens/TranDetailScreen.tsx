@@ -481,11 +481,12 @@ const ReceiveInfoBlock = function (props: {
         mint
     } = props
     
-    const {transactionsStore, mintsStore} = useStores()
+    const {transactionsStore, mintsStore, walletStore} = useStores()
     const [sentFromUrl, setSentFromUrl] = useState<string | undefined>()
     const [eventUrl, setEventUrl] = useState<string | undefined>()
     const [profilePicture, setProfilePicture] = useState<string | undefined>()
     const [isRetriable, setIsRetriable] = useState(false)
+    const [isCounterIncreaseNeeded, setIsCounterIncreaseNeeded] = useState(false)
     const [isReceiveTaskSentToQueue, setIsReceiveTaskSentToQueue] = useState<boolean>(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
     const [resultModalInfo, setResultModalInfo] = useState<
@@ -583,7 +584,11 @@ const ReceiveInfoBlock = function (props: {
               if(error.message.toLowerCase().includes('network') || 
                 error.message.toLowerCase().includes('gateway') || 
                 error.message.toLowerCase().includes('outputs')) {                    
-                  setIsRetriable(true)                  
+                  setIsRetriable(true)
+                  
+                  if(error.message.toLowerCase().includes('outputs')) {
+                    setIsCounterIncreaseNeeded(true)
+                  }
               } else {
                 return
               }
@@ -646,6 +651,20 @@ const ReceiveInfoBlock = function (props: {
     const toggleResultModal = () =>
     setIsResultModalVisible(previousState => !previousState)
 
+
+    const increaseProofsCounter = async function (tokenToRetry: TokenV3) {      
+        const {mint} = transaction
+        const walletInstance = await walletStore.getWallet(
+            mint, 
+            tokenToRetry.unit as MintUnit, 
+            {withSeed: true}
+        )
+
+        const mintInstance = mintsStore.findByUrl(mint)
+        const counter = mintInstance!.getProofsCounterByKeysetId!(walletInstance.keys.id)
+        counter!.increaseProofsCounter(20)
+    }
+
     const onRetryToReceive = async function () {                
         if(!isRetriable || !transaction.inputToken) {
             return
@@ -657,6 +676,10 @@ const ReceiveInfoBlock = function (props: {
             const tokenToRetry: TokenV3 = CashuUtils.decodeToken(transaction.inputToken)              
             const amountToReceive = CashuUtils.getTokenAmounts(tokenToRetry).totalAmount
             const memo = tokenToRetry.memo || ''
+
+            if(isCounterIncreaseNeeded) {              
+              increaseProofsCounter(tokenToRetry)
+            }
             
             setIsReceiveTaskSentToQueue(true)
             WalletTask.receive(
