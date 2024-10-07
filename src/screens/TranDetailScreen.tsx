@@ -583,8 +583,9 @@ const ReceiveInfoBlock = function (props: {
               if(error.message.toLowerCase().includes('network') || 
                 error.message.toLowerCase().includes('gateway') || 
                 error.message.toLowerCase().includes('outputs')) {                    
-                  setIsRetriable(true)
-                  return
+                  setIsRetriable(true)                  
+              } else {
+                return
               }
           }
         }
