@@ -6,8 +6,7 @@ import {
   LayoutAnimation,
   Linking,
   Platform,
-  Pressable,
-  ScrollView,
+  Pressable,  
   TextInput,
   TextStyle,
   UIManager,
@@ -42,8 +41,8 @@ import {
 import AppError, {Err} from '../utils/AppError'
 import {log} from '../services/logService'
 import {isArray} from 'lodash'
-import {Database, NostrClient, NostrEvent, NostrProfile, TransactionTaskResult, WalletTask} from '../services'
-import {BackupProof, Proof} from '../models/Proof'
+import {NostrClient, NostrEvent, NostrProfile, TransactionTaskResult, WalletTask} from '../services'
+import {Proof} from '../models/Proof'
 import useColorScheme from '../theme/useThemeColor'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
@@ -122,40 +121,7 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
         handleError(e)
       }
     }, [route]))
-
-    /* useEffect(() => {
-      try {
-        const {id} = route.params
-
-        if (userSettingsStore.isLocalBackupOn === false) {
-            return
-        }
-
-        const proofs = Database.getProofsByTransaction(id)
-
-        if (proofs.length  === 0) {
-            return
-        }
-        
-        const proofsByStatus = proofs.reduce(
-            (result: ProofsByStatus, proof: BackupProof) => {
-            if (proof.isSpent) {
-                result.isSpent.push(proof)
-            } else if (proof.isPending) {
-                result.isPending.push(proof)
-            } else {
-                result.isReceived.push(proof)
-            }
-            return result
-            },
-            {isReceived: [], isPending: [], isSpent: []},
-        )            
-        setProofsByStatus(proofsByStatus)          
-        
-      } catch (e: any) {
-        log.error(e.name, e.message)
-      }
-    }, []) */
+    
 
     useEffect(() => {
       const focus = () => {
@@ -213,44 +179,35 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
       }
     }
 
-    /* const copyBackupProofs = function (proofsByStatus: ProofsByStatus) {
-        try {               
-            Clipboard.setString(JSON.stringify(proofsByStatus))  
-        } catch (e: any) {
-          setInfo(translate("common.copyFailParam", { param: e.message }))
-        }
-    } */
- 
-
     const handleError = function (e: AppError): void {
       setIsNoteModalVisible(false)
       setError(e)
     }
 
 
-  const headerBg = useThemeColor('header')
-  const iconColor = useThemeColor('textDim')
-  const inputBg = useThemeColor('background')
-    
-  const getFormattedAmount = function(): string {
-      if (!transaction) { return '' }
+    const headerBg = useThemeColor('header')
+    const iconColor = useThemeColor('textDim')
+    const inputBg = useThemeColor('background')
+        
+    const getFormattedAmount = function(): string {
+        if (!transaction) { return '' }
 
-      switch (transaction?.type) {
-        case TransactionType.RECEIVE || TransactionType.RECEIVE_OFFLINE:
-          return `+${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
-        case TransactionType.SEND:
-          return `-${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
-        case TransactionType.TOPUP:
-          return `+${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
-        case TransactionType.TRANSFER:
-          return `-${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
-        default:
-          return `${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
-      }
-    }
-    
-  const colorScheme = useColorScheme()
-  const headerTitle = useThemeColor('headerTitle')
+        switch (transaction?.type) {
+            case TransactionType.RECEIVE || TransactionType.RECEIVE_OFFLINE:
+            return `+${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
+            case TransactionType.SEND:
+            return `-${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
+            case TransactionType.TOPUP:
+            return `+${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
+            case TransactionType.TRANSFER:
+            return `-${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
+            default:
+            return `${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
+        }
+        }
+        
+    const colorScheme = useColorScheme()
+    const headerTitle = useThemeColor('headerTitle')
 
   return (
       <Screen contentContainerStyle={$screen} preset="auto">        
@@ -302,20 +259,6 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
                       // bottomSeparator={true}
                       onPress={toggleNoteModal}
                     />
-                    {/*<ListItem
-                      tx="tranDetailScreen.addTags"
-                      LeftComponent={
-                        <Icon
-                          containerStyle={$iconContainer}
-                          icon="faTags"
-                          size={spacing.medium}
-                          color={iconColor}
-                        />
-                      }
-                      style={$item}
-                      bottomSeparator={false}
-                      onPress={() => Alert.alert('Not yet implemented')}
-                    />*/}
                   </>
                 }
               />
@@ -538,7 +481,7 @@ const ReceiveInfoBlock = function (props: {
         mint
     } = props
     
-    const {transactionsStore} = useStores()
+    const {transactionsStore, mintsStore} = useStores()
     const [sentFromUrl, setSentFromUrl] = useState<string | undefined>()
     const [eventUrl, setEventUrl] = useState<string | undefined>()
     const [profilePicture, setProfilePicture] = useState<string | undefined>()
@@ -615,7 +558,7 @@ const ReceiveInfoBlock = function (props: {
         }
 
         // Make sure mint exists and is online
-        const {mintsStore} = useStores()              
+                 
         const {mint} = transaction
         const mintInstance = mintsStore.findByUrl(mint)
         if(!mintInstance || mintInstance.status === MintStatus.OFFLINE) {
@@ -627,7 +570,7 @@ const ReceiveInfoBlock = function (props: {
           return
         }
 
-        // In case of error status, allow retry for specific error messages
+        // In case of error status, allow the retry for specific error messages
         if(transaction.status === TransactionStatus.ERROR) {
           const auditTrail = JSON.parse(transaction.data)
           const errorRecord = auditTrail.find(
@@ -637,17 +580,16 @@ const ReceiveInfoBlock = function (props: {
           const {error} = errorRecord
         
           if(error && error.message) {
-              if(error.message.toLowerCase().includes('network request failed') || 
-                error.message.toLowerCase().includes('bad gateway') || 
+              if(error.message.toLowerCase().includes('network') || 
+                error.message.toLowerCase().includes('gateway') || 
                 error.message.toLowerCase().includes('outputs')) {                    
                   setIsRetriable(true)
+                  return
               }
-  
-              return            
           }
         }
-        
-        setIsRetriable(true)        
+        // Allow the retry for other defined statuses
+        setIsRetriable(true)
       }
       canRetry()
     }, [])
@@ -1328,7 +1270,7 @@ const TopupInfoBlock = function (props: {
     colorScheme: 'dark' | 'light'
     navigation: any
 }) {
-  const {transaction, isDataParsable, colorScheme, navigation, mint} = props
+  const {transaction, navigation, mint} = props
   const {mintsStore} = useStores()
   
   // retrieve pr from transaction as it might have been expired and removed from storage
@@ -1340,7 +1282,7 @@ const TopupInfoBlock = function (props: {
   const [resultModalInfo, setResultModalInfo] = useState<
     {status: TransactionStatus; message: string} | undefined
   >()
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)  
 
   useFocusEffect(useCallback(() => {
       const handlePendingTopupTaskResult = async (result: TransactionTaskResult) => {
@@ -1376,7 +1318,7 @@ const TopupInfoBlock = function (props: {
       }
   }, [isPendingTopupTaskSentToQueue]))
 
-
+  
   const toggleResultModal = () =>
       setIsResultModalVisible(previousState => !previousState)
 
