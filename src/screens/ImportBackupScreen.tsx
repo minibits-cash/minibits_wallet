@@ -4,7 +4,7 @@ import {FlatList, LayoutAnimation, Platform, Pressable, Switch, TextInput, TextS
 import {validateMnemonic} from '@scure/bip39'
 import QuickCrypto from 'react-native-quick-crypto'
 import { wordlist } from '@scure/bip39/wordlists/english'
-import {colors, spacing, useThemeColor} from '../theme'
+import {colors, spacing, typography, useThemeColor} from '../theme'
 import {AppStackScreenProps} from '../navigation' // @demo remove-current-line
 import {
   Icon,
@@ -25,6 +25,7 @@ import { KeyChain, log, MinibitsClient, NostrClient } from '../services'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { useStores } from '../models'
 import { MintListItem } from './Mints/MintListItem'
+import {MnemonicInput} from './Recovery/MnemonicInput'
 import { Mint } from '../models/Mint'
 import { MintKeyset } from '@cashu/cashu-ts'
 import { CashuUtils } from '../services/cashu/cashuUtils'
@@ -46,10 +47,8 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
-const RESTORE_INDEX_INTERVAL = 50
-
-export const LocalRecoveryScreen: FC<AppStackScreenProps<'LocalRecovery'>> = observer(
-  function LocalRecoveryScreen(_props) {
+export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = observer(
+  function ImportBackupScreen(_props) {
     const {navigation, route} = _props    
     useHeader({
         leftIcon: 'faArrowLeft',
@@ -68,28 +67,22 @@ export const LocalRecoveryScreen: FC<AppStackScreenProps<'LocalRecovery'>> = obs
     } = useStores()
     
     const mnemonicInputRef = useRef<TextInput>(null)
-    const indexInputRef = useRef<TextInput>(null)
+    const backupInputRef = useRef<TextInput>(null)
 
     const [info, setInfo] = useState('')    
-    const [mnemonic, setMnemonic] = useState<string>('')        
     const [mnemonicExists, setMnemonicExists] = useState(false)
-    const [isValidMnemonic, setIsValidMnemonic] = useState(false)
+    const [mnemonic, setMnemonic] = useState<string>('')    
+    const [isValidMnemonic, setIsValidMnemonic] = useState(false)    
     const [seed, setSeed] = useState<Uint8Array>()
+    const [backup, setBackup] = useState<string>('')
+    const [isValidBackup, setIsValidBackup] = useState(false)    
+    const [walletSnapshot, setWalletSnapshot] = useState<any | undefined>(undefined) // type tbd
     const [profileToRecover, setProfileToRecover] = useState<WalletProfileRecord | undefined>(undefined)
-    const [selectedMintUrl, setSelectedMintUrl] = useState<string | undefined>()
-    const [selectedKeyset, setSelectedKeyset] = useState<MintKeyset | undefined>()
-    const [selectedMintKeysets, setSelectedMintKeysets] = useState<MintKeyset[]>([])
-    const [startIndexString, setStartIndexString] = useState<string>('0')
-    const [startIndex, setStartIndex] = useState<number>(0) // start of interval of indexes of proofs to recover
-    const [endIndex, setEndIndex] = useState<number>(RESTORE_INDEX_INTERVAL) // end of interval
-    const [isLoading, setIsLoading] = useState(false)
-    const [error, setError] = useState<AppError | undefined>()
-    const [isErrorsModalVisible, setIsErrorsModalVisible] = useState(false)
-    const [isIndexModalVisible, setIsIndexModalVisible] = useState(false)
-    const [isKeysetModalVisible, setIsKeysetModalVisible] = useState(false)
+    const [selectedMintUrl, setSelectedMintUrl] = useState<string | undefined>()    
+    const [isLoading, setIsLoading] = useState(false)    
+    const [error, setError] = useState<AppError | undefined>()        
     const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus, message: string} | undefined>()
-    const [isResultModalVisible, setIsResultModalVisible] = useState(false)
-    const [lastRecoveredAmount, setLastRecoveredAmount] = useState<number>(0)
+    const [isResultModalVisible, setIsResultModalVisible] = useState(false)    
     const [totalRecoveredAmount, setTotalRecoveredAmount] = useState<number>(0)
     const [recoveryErrors, setRecoveryErrors] = useState<AppError[]>([])
     const [statusMessage, setStatusMessage] = useState<string>()
@@ -120,35 +113,14 @@ export const LocalRecoveryScreen: FC<AppStackScreenProps<'LocalRecovery'>> = obs
     }
 
 
-    const toggleErrorsModal = () => {
-        setIsErrorsModalVisible(previousState => !previousState)
-    }
-
-
-    const onPaste = async function () {
-        try {
-            const maybeMnemonic = await Clipboard.getString()
-
-            if(!maybeMnemonic) {
-              throw new AppError(Err.VALIDATION_ERROR, translate('backupScreen.missingMnemonicError'))
-            }
-
-            const cleanedMnemonic = maybeMnemonic.replace(/\s+/g, ' ').trim()
-
-            setMnemonic(cleanedMnemonic)
-        } catch (e: any) {
-            handleError(e)
-        }
-    }
-
-
-    const onConfirm = async function () {
+    const onConfirmMnemonic = async function () {
         try {
             setStatusMessage(translate("derivingSeedStatus"))
             
             if(!mnemonic) {
               throw new AppError(Err.VALIDATION_ERROR, translate('backupScreen.missingMnemonicError'))
             }
+
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
             setIsLoading(true)
 
@@ -156,77 +128,89 @@ export const LocalRecoveryScreen: FC<AppStackScreenProps<'LocalRecovery'>> = obs
               throw new AppError(Err.VALIDATION_ERROR, translate("recoveryInvalidMnemonicError"))
             }          
 
-            setTimeout(() => {
-                const start = performance.now()
-
-                const binarySeed = deriveSeedFromMnemonic(mnemonic) // expensive
-
-                const end = performance.now()
-                console.log(`[onConfirm] deriveSeedFromMnemonic took ${end - start} ms.`)
-        
-                setSeed(binarySeed)
-                setIsValidMnemonic(true)
-                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-                setIsLoading(false)
-            }, 200)
+            const start = performance.now()
+            const binarySeed = deriveSeedFromMnemonic(mnemonic) // expensive
+            const end = performance.now()
+            console.log(`[onConfirm] deriveSeedFromMnemonic took ${end - start} ms.`)
+    
+            setSeed(binarySeed)
+            setIsValidMnemonic(true)
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+            setIsLoading(false)
         } catch (e: any) {
           handleError(e)
         }
     }
 
-    const onBack = function (): void {
-        return navigation.goBack()
-    }
 
-
-    const onAddMints = function (): void {
-        return navigation.navigate('Mints', {})
-    }
-
-
-    const onMintSelect = async function (mint: Mint) {
+    const onPasteBackup = async function () {
         try {
-            setSelectedMintUrl(mint.mintUrl)
-            const allKeysets = getSnapshot(mint.keysets!)
-            const defaultKeyset = walletStore.getOptimalKeyset(mint, 'sat')
-         
-            setSelectedKeyset(defaultKeyset)
-            setSelectedMintKeysets(allKeysets)
-            setStartIndex(0)
-            setEndIndex(RESTORE_INDEX_INTERVAL)
+            const maybeBackup = await Clipboard.getString()
+
+            if(!maybeBackup) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Copy and paste the wallet backup.')
+            }
+
+            const cleaned = maybeBackup.trim()
+            
+            setBackup(cleaned)
         } catch (e: any) {
             handleError(e)
         }
     }
 
-    const toggleIndexModal = () => {
-        setIsIndexModalVisible(previousState => !previousState)
+
+    const validateBackup = async function () {
+        try {
+            // serialize
+
+            // try to load as json            
+
+            // validate against types (version?)
+            return true
+        } catch (e: any) {
+            handleError(e)
+        }
     }
 
 
-    const toggleKeysetModal = () => {
-        setIsKeysetModalVisible(previousState => !previousState)
+    const onConfirmBackup = async function () {
+        try {
+            if(!backup) {
+              throw new AppError(Err.VALIDATION_ERROR, 'Missing backup')
+            }
+
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+            setIsLoading(true)
+
+            if (!validateBackup()) {
+              throw new AppError(Err.VALIDATION_ERROR, translate("recoveryInvalidMnemonicError"))
+            }
+            
+            // const walletSnapshot = JSON.parse(backup)
+            const walletSnapshot = backup
+    
+            setWalletSnapshot(walletSnapshot)
+            setIsValidBackup(true)
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+            setIsLoading(false)
+        } catch (e: any) {
+          handleError(e)
+        }
     }
 
 
-    const onResetStartIndex = function () {
-        setStartIndex(parseInt(startIndexString))
-        setEndIndex(parseInt(startIndexString) + RESTORE_INDEX_INTERVAL)
-        toggleIndexModal()
+    const onBack = function (): void {
+        return navigation.goBack()
     }
 
     
-    const startRecovery = async function () {
-        if(!selectedMintUrl) {
-          setInfo(translate("recovery.selectMintFrom"))
-          return
-        }
+    const startImport = async function () {
+
         setStatusMessage(translate("recovery.starting"))
         setIsLoading(true)        
         // setTimeout(() => doRecovery(), 100)        
-    }
-
-    
+    }    
 
 
     const handleError = function (e: AppError): void {
@@ -243,47 +227,50 @@ export const LocalRecoveryScreen: FC<AppStackScreenProps<'LocalRecovery'>> = obs
     return (
       <Screen contentContainerStyle={$screen} preset="auto">
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
-            <Text preset="heading" text="Local recovery" style={{color: headerTitle, zIndex: 10}} />
+            <Text preset="heading" text="Import backup" style={{color: headerTitle, zIndex: 10}} />
         </View>
-
         <View style={$contentContainer}>            
+            <MnemonicInput                
+                mnemonic={mnemonic}
+                isValidMnemonic={isValidMnemonic}
+                setMnemonic={setMnemonic}
+                onConfirm={onConfirmMnemonic}
+                onError={handleError}
+            />
+            {isValidMnemonic && !isValidBackup && (
                 <Card
                     style={$card}
                     ContentComponent={
                         <ListItem
-                            tx="recoveryInsertMnemonic"
-                            subTx={true 
-                              ? 'recoveryInsertMnemonicDescAddrOnly' 
-                              : 'recoveryInsertMnemonicDesc'
-                            }
-                            LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='1'/></View>}                  
+                            text="Insert wallet backup"
+                            subText={'Paste the backup exported from previous wallet.'}
+                            LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='2'/></View>}                  
                             style={$item}                            
                         /> 
                     }
                     FooterComponent={
                         <>
                         <TextInput
-                            ref={mnemonicInputRef}
-                            onChangeText={(mnemonic: string) => setMnemonic(mnemonic)}
-                            value={mnemonic}
+                            ref={backupInputRef}
+                            onChangeText={(backup: string) => setBackup(backup)}
+                            value={backup}
                             numberOfLines={3}
                             multiline={true}
                             autoCapitalize='none'
-                            keyboardType='default'
-                            maxLength={150}
-                            placeholder={translate("mnemonicPhrasePlaceholder")}
+                            keyboardType='default'                            
+                            placeholder={'Paste your backup'}
                             selectTextOnFocus={true}                    
-                            style={[$mnemonicInput, {backgroundColor: inputBg, flexWrap: 'wrap'}]}
+                            style={[$backupInput, {backgroundColor: inputBg, flexWrap: 'wrap'}]}
                         />
                         <View style={$buttonContainer}>
-                            {mnemonic ? (
+                            {backup ? (
                                 <Button
-                                    onPress={onConfirm}
+                                    onPress={onConfirmBackup}
                                     tx='common.confirm'                        
                                 />
                             ) : (
                                 <Button
-                                    onPress={onPaste}
+                                    onPress={onPasteBackup}
                                     tx='common.paste'                        
                                 />
                             )
@@ -292,7 +279,38 @@ export const LocalRecoveryScreen: FC<AppStackScreenProps<'LocalRecovery'>> = obs
                         </>
                     }           
                 />
-        </View>        
+            )}
+            {isValidMnemonic && isValidBackup && (
+                <Card
+                    style={$card}
+                    ContentComponent={
+                        <ListItem
+                            text='Wallet backup'
+                            subText={`${backup.slice(0, 100)}...`}
+                            subTextStyle={{fontFamily: typography.code?.normal}}
+                            LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='2'/></View>}                  
+                            style={$item}                            
+                        /> 
+                    }        
+                />
+            )}
+        </View>
+        {isValidMnemonic && isValidBackup && (
+        <View style={$bottomContainer}>
+            <View style={$buttonContainer}>
+                    <Button                        
+                        text={`Import wallet`}
+                        LeftAccessory={() => (
+                            <Icon
+                                icon='faDownload'                            
+                                size={spacing.medium}                  
+                            />
+                        )}
+                        onPress={startImport}                                               
+                    />                
+            </View>            
+        </View>    
+        )} 
         <BottomModal
           isVisible={isResultModalVisible ? true : false}          
           ContentComponent={
@@ -328,7 +346,7 @@ export const LocalRecoveryScreen: FC<AppStackScreenProps<'LocalRecovery'>> = obs
                       <Button
                         preset="secondary"
                         tx="showErrors"
-                        onPress={toggleErrorsModal}
+                        //onPress={toggleErrorsModal}
                       />
                     </View>
                   </>
@@ -377,6 +395,10 @@ const $contentContainer: TextStyle = {
     padding: spacing.extraSmall,  
 }
 
+const $bottomContainer: ViewStyle = {
+    marginBottom: spacing.extraLarge   
+}
+
 const $indexContainer: TextStyle = {
     padding: spacing.small,
     alignItems: 'center',
@@ -395,10 +417,11 @@ const $numIcon: ViewStyle = {
     marginRight: spacing.medium
 }
 
-const $mnemonicInput: TextStyle = {
-    // flex: 1,    
+const $backupInput: TextStyle = {
+    flex: 1,    
     borderRadius: spacing.small,    
     fontSize: 16,
+    fontFamily: typography.code?.normal,
     padding: spacing.small,
     alignSelf: 'stretch',
     textAlignVertical: 'top',

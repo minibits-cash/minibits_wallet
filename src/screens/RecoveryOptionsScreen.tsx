@@ -39,8 +39,8 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
     }
 
 
-    const gotoLocalRecovery = function () {
-        navigation.navigate('LocalRecovery')
+    const gotoImportBackup = function () {
+        navigation.navigate('ImportBackup')
     }
 
 
@@ -69,18 +69,18 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
                 ContentComponent={
                     <>
                     <ListItem
-                        tx="recoveryOptions.local"
-                        subTx="recoveryOptions.localDescription"
+                        tx="recoveryOptions.import"
+                        subTx="recoveryOptions.importDescription"
                         leftIcon='faDownload'
                         leftIconColor={colors.palette.focus300}
                         leftIconInverse={true}
                         style={$item}
                         bottomSeparator={true}
-                        onPress={gotoLocalRecovery}
+                        onPress={gotoImportBackup}
                     />                 
                     <ListItem
-                        tx="recoveryOptions.remote"
-                        subTx="recoveryOptions.remoteDescription"
+                        tx="recoveryOptions.seed"
+                        subTx="recoveryOptions.seedDescription"
                         leftIcon='faUpRightFromSquare'
                         leftIconColor={colors.palette.blue200}
                         leftIconInverse={true}                        

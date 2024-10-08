@@ -20,7 +20,7 @@ import {
   RemoteRecoveryScreen,
   MintsScreen,
   RecoveryOptionsScreen,
-  LocalRecoveryScreen
+  ImportBackupScreen
 } from "../screens"
 import { useStores } from "../models"
 import { TabsNavigator, TabsParamList  } from "./TabsNavigator"
@@ -44,7 +44,7 @@ export type AppStackParamList = {
   Welcome: undefined
   RecoveryOptions: undefined
   RemoteRecovery: {isAddressRecovery: boolean}
-  LocalRecovery: undefined
+  ImportBackup: undefined
   Mints: {}
   Tabs: NavigatorScreenParams<TabsParamList>  
 }
@@ -81,7 +81,7 @@ const AppStack = observer(function AppStack() {
             <Stack.Screen name="Welcome" component={WelcomeScreen} />
             <Stack.Screen name="RecoveryOptions" component={RecoveryOptionsScreen} />
             <Stack.Screen name="RemoteRecovery" component={RemoteRecoveryScreen} />
-            <Stack.Screen name="LocalRecovery" component={LocalRecoveryScreen} />
+            <Stack.Screen name="ImportBackup" component={ImportBackupScreen} />
             <Stack.Screen name="Mints" component={MintsScreen} />
             <Stack.Screen name="Tabs" component={TabsNavigator}/>
         </>
