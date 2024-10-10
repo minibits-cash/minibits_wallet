@@ -115,7 +115,10 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
             await walletProfileStore.create(walletId as string)                    
           }
 
-          await mintsStore.addMint(MINIBITS_MINT_URL)            
+          if(!mintsStore.mintExists(MINIBITS_MINT_URL)) {
+            await mintsStore.addMint(MINIBITS_MINT_URL)            
+          }
+          
           relaysStore.addDefaultRelays()         
           
           userSettingsStore.setIsOnboarded(true)  

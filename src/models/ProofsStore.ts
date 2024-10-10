@@ -265,6 +265,9 @@ export const ProofsStoreModel = types
         get proofsCount() {
             return self.proofs.length
         },
+        get pendingProofsCount() {
+            return self.pendingProofs.length
+        },
         get allProofs() {
             return self.proofs
         },

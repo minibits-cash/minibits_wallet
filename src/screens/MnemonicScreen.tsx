@@ -26,7 +26,7 @@ import { translate } from '../i18n'
 import { useStores } from '../models'
 
 
-export const RemoteBackupScreen: FC<SettingsStackScreenProps<'RemoteBackup'>> = observer(function RemoteBackupScreen(_props) {
+export const MnemonicScreen: FC<SettingsStackScreenProps<'Mnemonic'>> = observer(function MnemonicScreen(_props) {
     const {navigation, route} = _props    
     useHeader({
         leftIcon: 'faArrowLeft',

@@ -14,6 +14,10 @@ import {
 import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
 import AppError from '../utils/AppError'
+import { useStores } from '../models'
+import { SyncStateTaskResult, WalletTask } from '../services/walletService'
+import EventEmitter from '../utils/eventEmitter'
+import { translate } from '../i18n'
 
 export enum RecoveryOption {
     SEND_TOKEN = 'SEND_TOKEN',
@@ -30,12 +34,65 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
     useHeader({
       leftIcon: 'faArrowLeft',
       onLeftPress: () => navigation.goBack(),
-    })
- 
+    }) 
+    
+    const {mintsStore} = useStores()
+    const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<AppError | undefined>()
+    const [info, setInfo] = useState('')
+    const [isSyncStateSentToQueue, setIsSyncStateSentToQueue] = useState<boolean>(false)    
+    const [totalSpentAmount, setTotalSpentAmount] = useState<number>(0)   
+
+
+    useEffect(() => {
+      const removeSpentByMintTaskResult = async (result: SyncStateTaskResult) => {
+          log.trace('[removeSpentByMintTaskResult] event handler triggered')
+
+          if (!isSyncStateSentToQueue) { return false }
+          
+          setIsLoading(false)            
+
+          // runs per each mint
+          if (result && result.transactionStateUpdates.length > 0) {
+
+              log.trace('[removeSpentByMintTaskResult]', {transactionStateUpdates: result.transactionStateUpdates})
+
+              let totalSpentPerMint = 0
+
+              for (const update of result.transactionStateUpdates) {                    
+                  if(update.spentByMintAmount) {
+                    totalSpentPerMint += update.spentByMintAmount
+                  }                
+              }
+
+              setTotalSpentAmount(prev => prev + totalSpentPerMint)
+          }       
+      }
+      
+      EventEmitter.on('ev__syncStateWithMintTask_result', removeSpentByMintTaskResult)
+      
+      return () => {
+          EventEmitter.off('ev__syncStateWithMintTask_result', removeSpentByMintTaskResult)            
+      }
+  }, [isSyncStateSentToQueue])
+
+
+
+  useEffect(() => {
+    const showSpentEcashResult = () => {
+        log.trace('[showSpentEcashResult] got update', {totalSpentAmount})
+
+        if (totalSpentAmount === 0) { return false }
+
+        setInfo(`Removed spent ecash with amount ${totalSpentAmount}.`)                
+    }
+    
+    showSpentEcashResult()
+
+  }, [totalSpentAmount])
 
     const gotoRemoteRecovery = function () {
-        navigation.navigate('RemoteRecovery', {isAddressRecovery: false})
+        navigation.navigate('RemoteRecovery', {isAddressOnlyRecovery: false})
     }
 
 
@@ -44,7 +101,22 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
     }
 
 
+    const checkSpent = async function () {
+      setIsLoading(true)
+      setIsSyncStateSentToQueue(true)
+      WalletTask.syncSpendableStateWithMints()      
+    }
 
+
+    const increaseCounters = async function () {
+      const increaseAmount = 50
+      for (const mint of mintsStore.allMints) {
+        for(const counter of mint.proofsCounters) {
+          counter.increaseProofsCounter(increaseAmount)
+        }            
+      }  
+      setInfo(translate("recoveryIndexesIncSuccess", { indCount: increaseAmount }))
+    }
 
     const handleError = function (e: AppError): void {
       log.error(e.name, e.message)
@@ -55,7 +127,7 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
     const subtitleColor = useThemeColor('textDim')
 
     return (
-      <Screen preset="auto" contentContainerStyle={$screen}>
+      <Screen preset="scroll" contentContainerStyle={$screen}>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
             <Text
               preset="heading"
@@ -63,7 +135,8 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
               style={{color: 'white'}}
             />
         </View>
-        <View style={$contentContainer}>                  
+        <View style={$contentContainer}>  
+        {route.params && route.params.fromScreen !== 'Settings' && (                
             <Card
                 style={$ecashCard}
                 ContentComponent={
@@ -90,6 +163,60 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
                     </>
               }
             />
+          )}
+          {route.params && route.params.fromScreen === 'Settings' && (
+            <>
+              <Card
+                style={$card}
+                HeadingComponent={
+                <>                
+                    <ListItem
+                        tx="backupScreen.removeSpentCoins"
+                        subTx="backupScreen.removeSpentCoinsDescription"
+                        leftIcon='faRecycle'
+                        leftIconColor={colors.palette.secondary300}
+                        leftIconInverse={true}
+                        RightComponent={
+                            <View style={$rightContainer}>
+                                <Button
+                                    onPress={checkSpent}
+                                    text='Remove'
+                                    preset='secondary'                                           
+                                /> 
+                            </View>                           
+                        }
+                        style={$item}                        
+                    />                    
+                </>
+                }
+              /> 
+              <Card
+                  style={$card}
+                  HeadingComponent={
+                  <>                
+                      <ListItem
+                          tx="increaseRecoveryIndexes"
+                          subTx="increaseRecoveryIndexesDesc"
+                          leftIcon='faArrowUp'
+                          leftIconColor={colors.palette.success300}
+                          leftIconInverse={true}
+                          RightComponent={
+                              <View style={$rightContainer}>
+                                  <Button
+                                      onPress={increaseCounters}
+                                      text='Increase'
+                                      preset='secondary'                                           
+                                  /> 
+                              </View>                           
+                          } 
+                          style={$item}                        
+                      />
+                  </>
+                  }
+              />
+              </>
+            )}
+            
         </View>
       </Screen>
     )
@@ -108,20 +235,32 @@ const $headerContainer: TextStyle = {
 
 const $contentContainer: TextStyle = {
   // flex: 1,
+  marginTop: -spacing.extraLarge * 2,
   padding: spacing.extraSmall,
   // alignItems: 'center',
 }
 
 const $ecashCard: ViewStyle = {
-  marginTop: -spacing.extraLarge * 2,
+  // marginTop: -spacing.extraLarge * 1.5,
   marginBottom: spacing.small,
   // paddingTop: 0,
+}
+
+const $card: ViewStyle = {
+  marginBottom: spacing.small,
+}
+
+const $rightContainer: ViewStyle = {
+  // padding: spacing.extraSmall,
+  // alignSelf: 'center',
+  marginLeft: spacing.tiny,
+  marginRight: -10
 }
 
 const $lightningCard: ViewStyle = {
     marginVertical: spacing.small,    
     // paddingTop: 0,
-  }
+}
 
 const $item: ViewStyle = {
   paddingHorizontal: spacing.small,

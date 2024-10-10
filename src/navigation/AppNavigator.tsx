@@ -42,8 +42,8 @@ import { colors, useThemeColor } from "../theme"
  */
 export type AppStackParamList = {
   Welcome: undefined
-  RecoveryOptions: undefined
-  RemoteRecovery: {isAddressRecovery: boolean}
+  RecoveryOptions: {fromScreen: string}
+  RemoteRecovery: {isAddressOnlyRecovery: boolean}
   ImportBackup: undefined
   Mints: {}
   Tabs: NavigatorScreenParams<TabsParamList>  
@@ -74,7 +74,7 @@ const AppStack = observer(function AppStack() {
         contentStyle: {backgroundColor: bgColor}   
       }}
     >
-        {userSettingsStore.isUserOnboarded ? (
+        {/*userSettingsStore.isUserOnboarded ? (
             <Stack.Screen name="Tabs" component={TabsNavigator} />
         ) : (
         <>
@@ -83,9 +83,21 @@ const AppStack = observer(function AppStack() {
             <Stack.Screen name="RemoteRecovery" component={RemoteRecoveryScreen} />
             <Stack.Screen name="ImportBackup" component={ImportBackupScreen} />
             <Stack.Screen name="Mints" component={MintsScreen} />
-            <Stack.Screen name="Tabs" component={TabsNavigator}/>
+            <Stack.Screen name="Tabs" component={TabsNavigator} />
         </>
-        )}      
+        )*/} 
+        {userSettingsStore.isUserOnboarded && (
+          <Stack.Screen name="Tabs" component={TabsNavigator} />
+        )}
+        <Stack.Screen name="Welcome" component={WelcomeScreen} />
+        <Stack.Screen name="RecoveryOptions" component={RecoveryOptionsScreen} />
+        <Stack.Screen name="RemoteRecovery" component={RemoteRecoveryScreen} />
+        <Stack.Screen name="ImportBackup" component={ImportBackupScreen} />
+        <Stack.Screen name="Mints" component={MintsScreen} />
+        {!userSettingsStore.isUserOnboarded && (
+          <Stack.Screen name="Tabs" component={TabsNavigator} />
+        )}
+             
     </Stack.Navigator>
   )
 })

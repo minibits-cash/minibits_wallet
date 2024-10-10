@@ -61,6 +61,10 @@ export const MintsStoreModel = types
     }))
     .actions(withSetPropAction)
     .actions(self => ({
+        mintExists: (mintUrl: string | URL) => {
+            const mint = self.mints.find(m => m.mintUrl === mintUrl)
+            if(mint) {return true} else {return false}
+        },
         addOrUpdateCounterBackup(mintToRemove: Mint) {
             try {
                 const existingIndex = self.counterBackups.findIndex(
@@ -105,6 +109,10 @@ export const MintsStoreModel = types
         addMint: flow(function* addMint(mintUrl: string) {
             if(!mintUrl.includes('.onion') && !mintUrl.startsWith('https')) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Mint URL needs to start with https.')
+            }
+
+            if(self.mintExists(mintUrl)) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Mint URL already exists.', {mintUrl})
             }
 
             log.trace('[addMint] start')

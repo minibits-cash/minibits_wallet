@@ -55,7 +55,7 @@ export async function setupRootStore(rootStore: RootStore) {
         }    
 
         // legacy, encryption is sunset, to be replaced by opt-in biometric auth to read the seed
-        if (userSettings.isStorageEncrypted) {
+        /* if (userSettings.isStorageEncrypted) {
             try {
                 await MMKVStorage.initEncryption()
             } catch (e: any) {
@@ -78,7 +78,7 @@ export async function setupRootStore(rootStore: RootStore) {
                     }
                 }  
             }      
-        } // legacy end
+        }*/ // legacy end
 
         // load the last known state from storage
         const start = performance.now()

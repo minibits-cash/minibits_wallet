@@ -4,7 +4,9 @@ import {
   TextStyle,
   ViewStyle,
   View,
+  Switch,
 } from 'react-native'
+import {btoa, fromByteArray} from 'react-native-quick-base64'
 import {useThemeColor, spacing, typography} from '../theme'
 import {
   Button,
@@ -20,102 +22,157 @@ import {
 import {SettingsStackScreenProps} from '../navigation'
 import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
-import {Database} from '../services'
 import AppError from '../utils/AppError'
-import {BackupProof} from '../models/Proof'
+import { Proof } from '../models/Proof'
 import { useStores } from '../models'
 import { CashuUtils, ProofV3, TokenV3 } from '../services/cashu/cashuUtils'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { MintUnits, getCurrency } from '../services/wallet/currency'
 import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import { translate } from '../i18n'
+import { ProofsStoreSnapshot } from '../models/ProofsStore'
+import { getSnapshot } from 'mobx-state-tree'
+import { ContactsStoreSnapshot } from '../models/ContactsStore'
+import { MintsStoreSnapshot } from '../models/MintsStore'
+import { TransactionsStoreSnapshot } from '../models/TransactionsStore'
 
-interface ExportEcashScreenProps extends SettingsStackScreenProps<'ExportEcash'> {}
+interface ExportBackupScreenProps extends SettingsStackScreenProps<'ExportBackup'> {}
 
 
-export const ExportEcashScreen: FC<ExportEcashScreenProps> =
-  function ExportEcash(_props) {
+export const ExportBackupScreen: FC<ExportBackupScreenProps> =
+    function ExportBackup(_props) {
 
-  const { navigation } = _props
-  const { mintsStore } = useStores()
+    const { navigation } = _props
+    const { 
+        mintsStore, 
+        contactsStore, 
+        transactionsStore, 
+        proofsStore 
+    } = useStores()
 
-  useHeader({
-      leftIcon: 'faArrowLeft',
-      onLeftPress: () => navigation.goBack(),
+    useHeader({
+        leftIcon: 'faArrowLeft',
+        onLeftPress: () => navigation.goBack(),
     })
 
-    const [showUnspentOnly, setShowUnspentOnly] = useState<boolean>(true)
-    const [showPendingOnly, setShowPendingOnly] = useState<boolean>(false)
-    const [showSpentOnly, setShowSpentOnly] = useState<boolean>(false)
-    const [proofs, setProofs] = useState<BackupProof[]>([])
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState(false)
+    const [isEcashInBackup, setIsEcashInBackup] = useState(false)
+    const [isMintsInBackup, setIsMintsInBackup] = useState(false)
+    const [isContactsInBackup, setIsContactsInBackup] = useState(false)
+    const [isTransactionsInBackup, setIsTransactionsInBackup] = useState(false)
     
     useEffect(() => {
-      getProofsList(true, false, false)
-      // Run on component unmount (cleanup)
-      return () => {}
+        const loadProofs = async () => {            
+            setIsLoading(true)
+            // full refresh of proofs from DB in case the state is broken
+            await proofsStore.loadProofsFromDatabase()
+            setIsLoading(false)
+        }
+
+        loadProofs()
+        return () => {}
     }, [])
 
-    const getProofsList = async function (
-        isUnspent: boolean,
-        isPending: boolean,
-        isDeleted: boolean,
-    ) {
-      try {
-            setIsLoading(true)
-            // update empty unit fields to resolve v0.1.7 upgrade issue of backed up proofs not having unit migrated
-            // await Database.updateProofsToDefaultUnit()
-            const backupProofs = await Database.getProofs(isUnspent, isPending, isDeleted)
-            setProofs(backupProofs)
-            setIsLoading(false)
-           
-      } catch (e: any) {
-        handleError(e)
-      }
+    
+    const toggleBackupEcashSwitch = () =>
+        setIsEcashInBackup(previousState => !previousState)
+
+    
+    const toggleBackupMintsSwitch = () =>
+        setIsMintsInBackup(previousState => !previousState)
+
+    
+    const toggleBackupContanctsSwitch = () =>
+        setIsContactsInBackup(previousState => !previousState)
+
+    
+    const toggleBackupTransactionsSwitch = () =>
+        setIsTransactionsInBackup(previousState => !previousState)
+
+
+    const copyBackup = function () {
+        try {       
+            let Proofs: ProofsStoreSnapshot = {
+                proofs: [], 
+                pendingProofs: [], 
+                pendingByMintSecrets: []
+            }
+
+            let Mints: MintsStoreSnapshot = {
+                mints: [], 
+                blockedMintUrls: [], 
+                counterBackups: []
+            }
+
+            let Contacts: ContactsStoreSnapshot = {
+                contacts: [], 
+                publicPubkey: undefined, 
+                selectedContact: undefined, 
+                receivedEventIds: [], 
+                lastPendingReceivedCheck: undefined
+            }            
+
+            let Transactions: TransactionsStoreSnapshot = {
+                transactions: []
+            }
+
+            if(isEcashInBackup) {
+                Proofs = getSnapshot(proofsStore)                
+            }
+
+            if(isMintsInBackup) {                
+                Mints = getSnapshot(mintsStore)
+            }
+
+            if(isContactsInBackup) {
+                Contacts = getSnapshot(contactsStore)
+            }
+
+            if(isTransactionsInBackup) {
+                Transactions = getSnapshot(transactionsStore)
+            }
+
+            const base64Encoded = btoa(JSON.stringify({Proofs, Mints, Contacts, Transactions}))            
+            Clipboard.setString(base64Encoded)
+
+        } catch (e: any) {
+            setInfo(`Could not encode and copy wallet backup: ${e.message}`)
+        }
     }
 
-    const toggleShowUnspentOnly = () =>
-        setShowUnspentOnly(previousState => {
-            if (!previousState) { // if on
-                getProofsList(true, false, false)
-                setShowSpentOnly(false)
-                setShowPendingOnly(false)
-            }
 
-            return !previousState
-    })
-    
-    const toggleShowPendingOnly = () =>
-        setShowPendingOnly(previousState => {
-            if (!previousState) { // if on
-                getProofsList(false, true, false)
-                setShowUnspentOnly(false)
-                setShowSpentOnly(false)
-            }
-    
-            return !previousState
-    })
-
-    const toggleShowSpentOnly = async () =>
-        setShowSpentOnly(previousState => {
-            if (!previousState) { // if on
-                getProofsList(false, false, true)
-                setShowUnspentOnly(false)
-                setShowPendingOnly(false)
-            }
-    
-            return !previousState
-    })
-
-
-    const copyBackupProofs = function () {
-        try {               
-            Clipboard.setString(JSON.stringify(proofs))  
-        } catch (e: any) {
-            setInfo(`Could not copy: ${e.message}`)
+    const groupProofsByMint = function (proofs: Proof[]) {
+      return proofs.reduce((acc: Record<string, Proof[]>, proof) => {
+        
+        const proofMint = CashuUtils.getMintFromProof(proof, mintsStore.allMints)
+        // Check if there's already an array for this keyset, if not, create one
+        if(!proofMint) {
+          return acc
         }
+  
+        if (!acc[proofMint.mintUrl]) {
+          acc[proofMint.mintUrl] = []
+        }                 
+        
+        // Push the object into the array corresponding to its keyset
+        acc[proofMint.mintUrl].push(proof)
+        return acc
+      }, {})
+    }
+  
+    const groupProofsByKeysets = function (proofsByMint: Proof[]) {
+      return proofsByMint.reduce((acc: Record<string, Proof[]>, proof) => {
+        // Check if there's already an array for this keyset, if not, create one
+        if (!acc[proof.id as string]) {
+          acc[proof.id] = []
+        }                 
+        
+        // Push the object into the array corresponding to its keyset
+        acc[proof.id].push(proof)
+        return acc;
+      }, {})
     }
 
 
@@ -128,7 +185,7 @@ export const ExportEcashScreen: FC<ExportEcashScreenProps> =
               setInfo(translate("missingMintsForProofsUserMessage"))
             }
 
-            const groupedByMint = groupProofsByMint(proofs)
+            const groupedByMint = groupProofsByMint(proofsStore.proofs)
 
             for (const mint in groupedByMint) { 
               
@@ -177,7 +234,8 @@ export const ExportEcashScreen: FC<ExportEcashScreenProps> =
             setIsLoading(false)
 
         } catch (e: any) {
-            setInfo(translate('common.copyFailParam', { param: e.message }))
+            handleError(e)
+            // setInfo(translate('common.copyFailParam', { param: e.message }))
         }
     }
 
@@ -333,41 +391,6 @@ export const ExportEcashScreen: FC<ExportEcashScreenProps> =
       }
   } */
 
-  const groupProofsByMint = function (proofs: BackupProof[]) {
-    return proofs.reduce((acc: Record<string, BackupProof[]>, proof) => {
-      
-      const proofMint = CashuUtils.getMintFromProof(proof, mintsStore.allMints)
-      // Check if there's already an array for this keyset, if not, create one
-      if(!proofMint) {
-        return acc
-      }
-
-      if (!acc[proofMint.mintUrl]) {
-        acc[proofMint.mintUrl] = []
-      }                 
-      
-      // Push the object into the array corresponding to its keyset
-      acc[proofMint.mintUrl].push(proof)
-      return acc
-    }, {})
-  }
-
-  const groupProofsByKeysets = function (proofsByMint: BackupProof[]) {
-    return proofsByMint.reduce((acc: Record<string, BackupProof[]>, proof) => {
-      // Check if there's already an array for this keyset, if not, create one
-      if (!acc[proof.id as string]) {
-        acc[proof.id] = []
-      }                 
-      
-      // Push the object into the array corresponding to its keyset
-      acc[proof.id].push(proof)
-      return acc;
-    }, {})
-  }
-
-
-
-
 
     const handleError = function (e: AppError): void {
       setIsLoading(false)
@@ -386,72 +409,79 @@ export const ExportEcashScreen: FC<ExportEcashScreenProps> =
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text
             preset="heading"
-            tx="exportEcash"
+            tx="exportBackup"
             style={{color: headerTitle}}
           />
         </View>
         <View style={$contentContainer}>
-          <Card
-            style={$actionCard}
-            ContentComponent={
-              <>
-                <ListItem
-                  tx="transactionCommon.status.unspent"
-                  LeftComponent={
-                    <Icon
-                      containerStyle={$iconContainer}
-                      icon="faCoins"
-                      size={spacing.medium}
-                      color={showUnspentOnly ? activeIconColor : iconColor}
-                    />
-                  }
-                  style={$item}
-                  onPress={toggleShowUnspentOnly}
-                  // bottomSeparator={true}
-                />
-                <ListItem
-                  tx="transactionCommon.status.pending"
-                  LeftComponent={
-                    <Icon
-                      containerStyle={$iconContainer}
-                      icon="faPaperPlane"
-                      size={spacing.medium}
-                      color={showPendingOnly ? activeIconColor : iconColor}
-                    />
-                  }
-                  style={$item}
-                  onPress={toggleShowPendingOnly}
-                  // bottomSeparator={true}
-                />
-                <ListItem
-                  tx="transactionCommon.status.spent"
-                  LeftComponent={
-                    <Icon
-                      containerStyle={$iconContainer}
-                      icon="faBan"
-                      size={spacing.medium}
-                      color={showSpentOnly ? activeIconColor : iconColor}
-                    />
-                  }
-                  style={$item}
-                  onPress={toggleShowSpentOnly}
-                />
-              </>
-            }
-          />
-          {proofs && (
             <Card
               ContentComponent={
                 <>
-                <ListItem
-                  tx="numberOfBackedupProofs"
-                  RightComponent={
-                    <Text text={`${proofs.length}`} style={{marginRight: spacing.small}} />
-                  }   
-                  textStyle={{marginLeft: spacing.extraSmall}}  
-                  bottomSeparator                       
-                />
-                {Object.values(MintUnits).map(unit => 
+                {proofsStore.proofsCount + proofsStore.pendingProofsCount > 0 && (
+                    <ListItem
+                        text="Backup ecash"
+                        subText={`Number of proofs: ${proofsStore.proofsCount + proofsStore.pendingProofsCount}`}
+                        RightComponent={
+                        <View style={$rightContainer}>
+                        <Switch
+                            onValueChange={toggleBackupEcashSwitch}
+                            value={isEcashInBackup}
+                        />
+                        </View>
+                    }
+                        // textStyle={{marginLeft: spacing.extraSmall}}  
+                        topSeparator                       
+                    />
+                )}
+                {mintsStore.mintCount > 0 && (
+                    <ListItem
+                    text="Backup mints"
+                    subText={`Number of mints: ${mintsStore.mintCount}`}
+                    RightComponent={
+                    <View style={$rightContainer}>
+                    <Switch
+                        onValueChange={toggleBackupMintsSwitch}
+                        value={isMintsInBackup}
+                    />
+                    </View>
+                    }
+                    // textStyle={{marginLeft: spacing.extraSmall}}  
+                    topSeparator                       
+                    />
+                )}  
+                {contactsStore.count > 0 && (
+                    <ListItem
+                    text="Backup contacts"
+                    subText={`Number of contacts: ${contactsStore.count}`}
+                    RightComponent={
+                        <View style={$rightContainer}>
+                        <Switch
+                            onValueChange={toggleBackupContanctsSwitch}
+                            value={isContactsInBackup}
+                        />
+                        </View>
+                    }
+                    // textStyle={{marginLeft: spacing.extraSmall}}  
+                    topSeparator                       
+                    />
+                )}
+                {contactsStore.count > 0 && (
+                    <ListItem
+                    text="Backup recent transactions"
+                    subText={`Number of transactions: ${transactionsStore.count}`}
+                    RightComponent={
+                        <View style={$rightContainer}>
+                        <Switch
+                            onValueChange={toggleBackupTransactionsSwitch}
+                            value={isTransactionsInBackup}
+                        />
+                        </View>
+                    }
+                    // textStyle={{marginLeft: spacing.extraSmall}}  
+                    topSeparator                       
+                    />
+                )}
+                {/*Object.values(MintUnits).map(unit => 
                   proofs.some(p => p.unit === unit) && (
                     <ListItem
                       key={unit}
@@ -465,39 +495,33 @@ export const ExportEcashScreen: FC<ExportEcashScreenProps> =
                         />
                       }                            
                     />
-                ))}
+                ))*/}
                 </>
               }
               style={[$card]}
             />
-          )}
+          
           <View style={$bottomContainer}>
             <View style={$buttonContainer}>
-              <Button
-                  // preset="secondary"
-                  onPress={copyBackupProofs}
-                  tx="copyProofs"
-                  style={{                  
-                      marginRight: spacing.small                           
-                  }}
-                  textStyle={{fontSize: 14}}
-              />
-              <Button
-                  // preset="secondary"
-                  onPress={copyEncodedTokens}
-                  tx="copyAsEncodedTokens"                  
-                  textStyle={{fontSize: 14}}
-              />
+                <Button                  
+                    onPress={copyBackup}
+                    text="Copy backup"
+                    style={{                  
+                        marginRight: spacing.small                           
+                    }}                  
+                />
             </View>
-          </View>
-          {/* <View style={$bottomContainer}>
-            <View style={$buttonContainer}>
-              <Button 
-                onPress={onRecovery}
-                tx="recoverToWallet"
-              />  
-            </View>  
-        </View> */}         
+            {proofsStore.proofsCount > 0 && (
+                <View style={$buttonContainer}>
+                    <Button
+                        preset="tertiary"
+                        onPress={copyEncodedTokens}
+                        tx="copyAsEncodedTokens"                  
+                        textStyle={{fontSize: 14}}
+                    />
+                </View>
+            )}            
+          </View>        
           {isLoading && <Loading />}
           {error && <ErrorModal error={error} />}
           {info && <InfoModal message={info} />}
@@ -514,7 +538,7 @@ const $screen: ViewStyle = {
 const $headerContainer: TextStyle = {
   alignItems: 'center',
   paddingBottom: spacing.medium,
-  height: spacing.screenHeight * 0.20,
+  height: spacing.screenHeight * 0.10,
 }
 
 const $contentContainer: TextStyle = {
@@ -553,7 +577,12 @@ const $item: ViewStyle = {
   marginHorizontal: spacing.micro,
 }
 
-
+const $rightContainer: ViewStyle = {
+  padding: spacing.extraSmall,
+  // alignSelf: 'center',
+  marginLeft: spacing.tiny,
+  marginRight: -10
+}
 
 const $bottomContainer: ViewStyle = { 
   marginBottom: spacing.medium,

@@ -23,6 +23,7 @@ import { getMintColor } from './WalletScreen'
 import { NotificationService } from '../services/notificationService'
 import { SvgXml } from 'react-native-svg'
 import { CurrencySign } from './Wallet/CurrencySign'
+import { CommonActions } from '@react-navigation/native'
 
 
 interface SettingsScreenProps extends SettingsStackScreenProps<'Settings'> {}
@@ -168,8 +169,17 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
       navigation.navigate('Relays')
     }
 
-  const gotoBackupRestore = function() {
-    navigation.navigate('Backup')
+  const gotoBackupOptions = function() {
+    navigation.navigate('BackupOptions')
+  }
+
+  const gotoRecoveryOptions = function() {
+    navigation.getParent()!.dispatch(
+      CommonActions.navigate({
+        name: 'RecoveryOptions',
+        params: {fromScreen: 'Settings'},
+      }
+    ))
   }
 
   const gotoUpdate = function() {
@@ -390,14 +400,29 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
             ContentComponent={
               <>
                 <ListItem
-                    tx='settingsScreen.backupRecovery'
+                    text='Backup'
                     leftIcon='faCloudArrowUp'
                     leftIconColor={colors.palette.angry300}
                     leftIconInverse={true}
                     style={$item}
                     bottomSeparator={true}
-                    onPress={gotoBackupRestore}
+                    onPress={gotoBackupOptions}
                 />
+                <ListItem
+                    text='Recovery'
+                    leftIcon='faRotate'
+                    leftIconColor={colors.palette.iconGreyBlue400}
+                    leftIconInverse={true}
+                    style={$item}                    
+                    onPress={gotoRecoveryOptions}
+                />                
+              </>
+            }
+          />
+          <Card
+            style={[$card, {marginTop: spacing.large}]}
+            ContentComponent={
+              <>
                 <ListItem
                     tx='settingsScreen.security'
                     leftIcon='faShieldHalved'

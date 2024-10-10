@@ -27,9 +27,9 @@ import {
   SecurityScreen,
   PrivacyScreen,
   UpdateScreen,
-  BackupScreen,
-  RemoteBackupScreen,
-  ExportEcashScreen,
+  MnemonicScreen,
+  BackupOptionsScreen,  
+  ExportBackupScreen,
   RelaysScreen,
   TranDetailScreen, 
   TranHistoryScreen,
@@ -40,8 +40,6 @@ import {
   ReceiveOption,
   SendOption,
   TokenReceiveScreen,
-  RecoveryOptionsScreen,
-  RemoteRecoveryScreen,
   NwcScreen,
 } from "../screens"
 import { Contact } from "../models/Contact"
@@ -286,16 +284,13 @@ export type SettingsStackParamList = {
     updateDescription: string,
     updateSize: string,
   }
-  Backup: undefined
-  RemoteBackup: undefined
-  ExportEcash: undefined
+  BackupOptions: undefined
+  Mnemonic: undefined
+  ExportBackup: undefined
   Developer: undefined
-  Relays: undefined
-  // RecoveryOptions: undefined
-  // RemoteRecovery: {isAddressOnlyRecovery: boolean}
+  Relays: undefined    
   WalletNavigator: {screen: string} 
-  ContactsNavigator: {screen: string}
-  AppStack: {screen: string, params: any}  
+  ContactsNavigator: {screen: string}  
   Nwc: undefined
 }
 
@@ -321,13 +316,11 @@ const SettingsNavigator = function SettingsNavigator() {
       <SettingsStack.Screen name="Security" component={SecurityScreen} />
       <SettingsStack.Screen name="Privacy" component={PrivacyScreen} />
       <SettingsStack.Screen name="Update" component={UpdateScreen} />
-      <SettingsStack.Screen name="Backup" component={BackupScreen} />
-      <SettingsStack.Screen name="RemoteBackup" component={RemoteBackupScreen} />
-      <SettingsStack.Screen name="ExportEcash" component={ExportEcashScreen} />
+      <SettingsStack.Screen name="BackupOptions" component={BackupOptionsScreen} />
+      <SettingsStack.Screen name="Mnemonic" component={MnemonicScreen} />
+      <SettingsStack.Screen name="ExportBackup" component={ExportBackupScreen} />
       <SettingsStack.Screen name="Developer" component={DeveloperScreen} />
       <SettingsStack.Screen name="Relays" component={RelaysScreen} />
-      {/*<SettingsStack.Screen name="RecoveryOptions" component={RecoveryOptionsScreen} />
-      <SettingsStack.Screen name="RemoteRecovery" component={RemoteRecoveryScreen} />*/}
       <SettingsStack.Screen name="Nwc" component={NwcScreen} />
     </SettingsStack.Navigator>
   )
