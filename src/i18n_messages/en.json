@@ -1,10 +1,10 @@
 {
 	"recoveryOptions": {
 		"title": "Recovery options",
-		"import": "Import backup",
-		"importDescription": "Import backup exported from another Minibits wallet. Easy option if you move to a new device.",
-		"seed": "Recover from seed",
-		"seedDescription": "Use 12 word seed phrase to re-create your lost ecash with assistance of mints. Use in case of device loss."		
+		"fromBackup": "Recover from backup",
+		"fromBackupDescription": "Import backup exported from another Minibits wallet. Easy option if you move to a new device.",
+		"fromSeed": "Recover from seed",
+		"fromSeedDescription": "Use 12 word seed phrase to re-create your lost ecash with assistance of mints. Use in case of device loss."		
 	},
 	"addMints": "Add mints",
 	"amount": {
@@ -26,7 +26,7 @@
 		"recoveryToolDescription": "Filter and export all ecash from local database grouped by mint keysets.",
 		"remoteBackupDescription": "Seed phrase encodes your seed and allows you to recover your ecash balance in case of device loss.",
 		"removeSpentCoins": "Remove spent ecash",
-		"removeSpentCoinsDescription": "In case of a SEND or TRANSFER transaction error, spent ecash may remain in your wallet. This blocks further transactions with the mint, making the wallet unusable. This tool removes spent ecash from the wallet.",
+		"removeSpentCoinsDescription": "Spent ecash may remain in your wallet due to a bug or incomplete transaction. This tool removes spent ecash from the wallet.",
 		"result": "Spent ecash proofs were removed from the wallet.",
 		"seedBackup": "Seed backup",
 		"success": "Your minibits tokens were backed up to local database. New tokens will be backed up automatically.",
@@ -152,7 +152,7 @@
 	"factoryResetSuccess": "Factory reset completed, please restart immediately.",
 	"factoryResetUserConfirmDesc": "All application data will be deleted. Are you sure you want to perform a factory reset?",
 	"increaseRecoveryIndexes": "Increase recovery indexes",
-	"increaseRecoveryIndexesDesc": "After incomplete recovery from seed or other rare issue, you may encounter 'duplicate outputs' error when trying to send. This resets your recovery indexes to higher value in order to resolve the issue.",
+	"increaseRecoveryIndexesDesc": "After incomplete recovery from seed or other issue, you may encounter 'duplicate outputs' error. This tool resolves the issue.",
 	"invalidRelayUrl": "Invalid relay URL.",
 	"lightningAddress": "Lightning address",
 	"lightningInvoiceSharedWaiting": "Lightning invoice has been shared, waiting to be paid by receiver.",

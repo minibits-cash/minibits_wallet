@@ -27,8 +27,6 @@ import { Proof } from '../models/Proof'
 import { useStores } from '../models'
 import { CashuUtils, ProofV3, TokenV3 } from '../services/cashu/cashuUtils'
 import Clipboard from '@react-native-clipboard/clipboard'
-import { MintUnits, getCurrency } from '../services/wallet/currency'
-import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import { translate } from '../i18n'
 import { ProofsStoreSnapshot } from '../models/ProofsStore'
 import { getSnapshot } from 'mobx-state-tree'
@@ -58,10 +56,10 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState(false)
-    const [isEcashInBackup, setIsEcashInBackup] = useState(false)
-    const [isMintsInBackup, setIsMintsInBackup] = useState(false)
-    const [isContactsInBackup, setIsContactsInBackup] = useState(false)
-    const [isTransactionsInBackup, setIsTransactionsInBackup] = useState(false)
+    const [isEcashInBackup, setIsEcashInBackup] = useState(true)
+    const [isMintsInBackup, setIsMintsInBackup] = useState(true)
+    const [isContactsInBackup, setIsContactsInBackup] = useState(true)
+    const [isTransactionsInBackup, setIsTransactionsInBackup] = useState(true)
     
     useEffect(() => {
         const loadProofs = async () => {            
@@ -94,19 +92,19 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
 
     const copyBackup = function () {
         try {       
-            let Proofs: ProofsStoreSnapshot = {
+            let exportedProofsStore: ProofsStoreSnapshot = {
                 proofs: [], 
                 pendingProofs: [], 
                 pendingByMintSecrets: []
             }
 
-            let Mints: MintsStoreSnapshot = {
+            let exportedMintsStore: MintsStoreSnapshot = {
                 mints: [], 
                 blockedMintUrls: [], 
                 counterBackups: []
             }
 
-            let Contacts: ContactsStoreSnapshot = {
+            let exportedContactsStore: ContactsStoreSnapshot = {
                 contacts: [], 
                 publicPubkey: undefined, 
                 selectedContact: undefined, 
@@ -114,27 +112,36 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
                 lastPendingReceivedCheck: undefined
             }            
 
-            let Transactions: TransactionsStoreSnapshot = {
+            let exportedTransactionsStore: TransactionsStoreSnapshot = {
                 transactions: []
             }
 
             if(isEcashInBackup) {
-                Proofs = getSnapshot(proofsStore)                
+              exportedProofsStore = getSnapshot(proofsStore)                
             }
 
             if(isMintsInBackup) {                
-                Mints = getSnapshot(mintsStore)
+              exportedMintsStore = getSnapshot(mintsStore)
             }
 
             if(isContactsInBackup) {
-                Contacts = getSnapshot(contactsStore)
+              exportedContactsStore = getSnapshot(contactsStore)
             }
 
             if(isTransactionsInBackup) {
-                Transactions = getSnapshot(transactionsStore)
+              exportedTransactionsStore = getSnapshot(transactionsStore)
             }
 
-            const base64Encoded = btoa(JSON.stringify({Proofs, Mints, Contacts, Transactions}))            
+            const exportedSnapshot = {
+              proofsStore: exportedProofsStore, 
+              mintsStore: exportedMintsStore, 
+              contactsStore: exportedContactsStore, 
+              transactionsStore: exportedTransactionsStore
+            }
+
+            log.trace({exportedSnapshot})
+
+            const base64Encoded = btoa(JSON.stringify(exportedSnapshot))            
             Clipboard.setString(base64Encoded)
 
         } catch (e: any) {
@@ -234,8 +241,7 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
             setIsLoading(false)
 
         } catch (e: any) {
-            handleError(e)
-            // setInfo(translate('common.copyFailParam', { param: e.message }))
+            handleError(e)            
         }
     }
 
@@ -398,18 +404,17 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
     }
 
     
-    const headerBg = useThemeColor('header')
-    const iconColor = useThemeColor('textDim')
-    const activeIconColor = useThemeColor('tint')
+    const headerBg = useThemeColor('header')    
+    const hint = useThemeColor('textDim')    
     const headerTitle = useThemeColor('headerTitle')
 
 
-  return (
-      <Screen style={$screen} preset="auto">
+    return (
+      <Screen contentContainerStyle={$screen} preset="scroll">
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text
             preset="heading"
-            tx="exportBackup"
+            text="Wallet backup"
             style={{color: headerTitle}}
           />
         </View>
@@ -419,90 +424,84 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
                 <>
                 {proofsStore.proofsCount + proofsStore.pendingProofsCount > 0 && (
                     <ListItem
-                        text="Backup ecash"
+                        text="Ecash proofs"
                         subText={`Number of proofs: ${proofsStore.proofsCount + proofsStore.pendingProofsCount}`}
                         RightComponent={
-                        <View style={$rightContainer}>
-                        <Switch
-                            onValueChange={toggleBackupEcashSwitch}
-                            value={isEcashInBackup}
-                        />
-                        </View>
-                    }
-                        // textStyle={{marginLeft: spacing.extraSmall}}  
+                          <View style={$rightContainer}>
+                            <Switch
+                                onValueChange={toggleBackupEcashSwitch}
+                                value={isEcashInBackup}
+                            />
+                          </View>
+                        }                        
                         topSeparator                       
                     />
                 )}
                 {mintsStore.mintCount > 0 && (
                     <ListItem
-                    text="Backup mints"
-                    subText={`Number of mints: ${mintsStore.mintCount}`}
-                    RightComponent={
-                    <View style={$rightContainer}>
-                    <Switch
-                        onValueChange={toggleBackupMintsSwitch}
-                        value={isMintsInBackup}
-                    />
-                    </View>
-                    }
-                    // textStyle={{marginLeft: spacing.extraSmall}}  
-                    topSeparator                       
+                      text="Mints"
+                      subText={`Number of mints: ${mintsStore.mintCount}`}
+                      RightComponent={
+                        <View style={$rightContainer}>
+                          <Switch
+                              onValueChange={toggleBackupMintsSwitch}
+                              value={isMintsInBackup}
+                          />
+                        </View>
+                      }                       
+                      topSeparator                       
                     />
                 )}  
                 {contactsStore.count > 0 && (
                     <ListItem
-                    text="Backup contacts"
-                    subText={`Number of contacts: ${contactsStore.count}`}
-                    RightComponent={
-                        <View style={$rightContainer}>
-                        <Switch
-                            onValueChange={toggleBackupContanctsSwitch}
-                            value={isContactsInBackup}
-                        />
-                        </View>
-                    }
-                    // textStyle={{marginLeft: spacing.extraSmall}}  
-                    topSeparator                       
+                      text="Contacts"
+                      subText={`Number of contacts: ${contactsStore.count}`}
+                      RightComponent={
+                          <View style={$rightContainer}>
+                          <Switch
+                              onValueChange={toggleBackupContanctsSwitch}
+                              value={isContactsInBackup}
+                          />
+                          </View>
+                      }                      
+                      topSeparator                       
                     />
                 )}
                 {contactsStore.count > 0 && (
                     <ListItem
-                    text="Backup recent transactions"
-                    subText={`Number of transactions: ${transactionsStore.count}`}
-                    RightComponent={
-                        <View style={$rightContainer}>
-                        <Switch
-                            onValueChange={toggleBackupTransactionsSwitch}
-                            value={isTransactionsInBackup}
-                        />
-                        </View>
-                    }
-                    // textStyle={{marginLeft: spacing.extraSmall}}  
-                    topSeparator                       
+                      text="Recent transactions"
+                      subText={`Number of transactions: ${transactionsStore.count}`}
+                      RightComponent={
+                          <View style={$rightContainer}>
+                          <Switch
+                              onValueChange={toggleBackupTransactionsSwitch}
+                              value={isTransactionsInBackup}
+                          />
+                          </View>
+                      }                    
+                      topSeparator                       
                     />
                 )}
-                {/*Object.values(MintUnits).map(unit => 
-                  proofs.some(p => p.unit === unit) && (
-                    <ListItem
-                      key={unit}
-                      text={getCurrency(unit).code}
-                      textStyle={{marginLeft: spacing.extraSmall}}
-                      RightComponent={
-                        <CurrencyAmount 
-                          amount={CashuUtils.getProofsAmount(proofs.filter(p => p.unit === unit))} 
-                          mintUnit={unit}
-                          containerStyle={{marginRight: spacing.extraSmall}} 
-                        />
-                      }                            
-                    />
-                ))*/}
                 </>
               }
               style={[$card]}
-            />
-          
+            />          
           <View style={$bottomContainer}>
-            <View style={$buttonContainer}>
+            <View style={{
+                flexDirection: 'row', 
+                alignItems: 'center', 
+                marginBottom: spacing.small,
+                marginRight: spacing.small
+              }}
+            >
+              <Icon icon='faInfoCircle' />
+              <Text 
+                style={{color: hint, flexWrap: 'wrap'}} 
+                size='xs' 
+                text='You still need your seed phrase when using this backup to recover wallet.'
+              />
+            </View>
+            <View style={$buttonContainer}>              
                 <Button                  
                     onPress={copyBackup}
                     text="Copy backup"
@@ -510,27 +509,30 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
                         marginRight: spacing.small                           
                     }}                  
                 />
-            </View>
-            {proofsStore.proofsCount > 0 && (
-                <View style={$buttonContainer}>
-                    <Button
-                        preset="tertiary"
-                        onPress={copyEncodedTokens}
-                        tx="copyAsEncodedTokens"                  
-                        textStyle={{fontSize: 14}}
-                    />
-                </View>
-            )}            
+            </View>            
           </View>        
           {isLoading && <Loading />}
           {error && <ErrorModal error={error} />}
           {info && <InfoModal message={info} />}
         </View>
+        <View style={$bottomContainer}>
+          {proofsStore.proofsCount > 0 && (
+              <View style={$buttonContainer}>
+                  <Button
+                      preset="tertiary"
+                      onPress={copyEncodedTokens}
+                      tx="copyAsEncodedTokens"                  
+                      textStyle={{fontSize: 14}}
+                  />
+              </View>
+          )}            
+        </View> 
       </Screen>
     )
-  }
+}
 
 const $screen: ViewStyle = {
+  flex: 1
   // borderWidth: 1,
   // borderColor: 'red'
 }
@@ -538,18 +540,13 @@ const $screen: ViewStyle = {
 const $headerContainer: TextStyle = {
   alignItems: 'center',
   paddingBottom: spacing.medium,
-  height: spacing.screenHeight * 0.10,
+  height: spacing.screenHeight * 0.20,
 }
 
 const $contentContainer: TextStyle = {
-  // minHeight: spacing.screenHeight * 0.5,
-  padding: spacing.extraSmall,
-}
-
-const $actionCard: ViewStyle = {
-  marginBottom: spacing.extraSmall,
+  flex: 1,  
   marginTop: -spacing.extraLarge * 2,
-  paddingTop: 0,
+  padding: spacing.extraSmall,
 }
 
 const $card: ViewStyle = {

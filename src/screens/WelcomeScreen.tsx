@@ -132,7 +132,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
 
     const gotoRecovery = async function () {
         try {            
-            navigation.navigate('RecoveryOptions')
+            navigation.navigate('RecoveryOptions', {})
         } catch (e: any) {
             handleError(e)
         }      
@@ -244,7 +244,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
                                 onPress={gotoRecovery}
                                 preset='tertiary'
                                 tx="welcomeScreen.lastPageRecoverLostWalletButton"
-                                LeftAccessory={() => {return<Icon icon='faRotate'/>}}
+                                LeftAccessory={() => {return<Icon icon='faHeartPulse'/>}}
                                 style={{marginTop: spacing.medium}}
                             />
                         </ScrollView>
@@ -308,9 +308,8 @@ const $itemIcon: ViewStyle = {
 const $buttonContainer: ViewStyle = {    
     alignSelf: 'center',
     marginTop: spacing.large,
-    paddingHorizontal: spacing.large,
-  }
-
+    paddingHorizontal: spacing.large,    
+}
 
 const $welcomeHeading: TextStyle = {
   marginBottom: spacing.medium,

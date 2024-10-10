@@ -91,14 +91,19 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
 
   }, [totalSpentAmount])
 
-    const gotoRemoteRecovery = function () {
-        navigation.navigate('RemoteRecovery', {isAddressOnlyRecovery: false})
+    const gotoSeedRecovery = function () {
+        navigation.navigate('SeedRecovery')
     }
 
 
     const gotoImportBackup = function () {
-        navigation.navigate('ImportBackup')
+        navigation.navigate('ImportBackup', {isAddressOnlyRecovery: false})
     }
+
+
+    const gotoAddressRecovery = function () {
+      navigation.navigate('ImportBackup', {isAddressOnlyRecovery: true})
+  }
 
 
     const checkSpent = async function () {
@@ -142,8 +147,8 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
                 ContentComponent={
                     <>
                     <ListItem
-                        tx="recoveryOptions.import"
-                        subTx="recoveryOptions.importDescription"
+                        tx="recoveryOptions.fromBackup"
+                        subTx="recoveryOptions.fromBackupDescription"
                         leftIcon='faDownload'
                         leftIconColor={colors.palette.focus300}
                         leftIconInverse={true}
@@ -152,13 +157,13 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
                         onPress={gotoImportBackup}
                     />                 
                     <ListItem
-                        tx="recoveryOptions.seed"
-                        subTx="recoveryOptions.seedDescription"
-                        leftIcon='faUpRightFromSquare'
+                        tx="recoveryOptions.fromSeed"
+                        subTx="recoveryOptions.fromSeedDescription"
+                        leftIcon='faSeedling'
                         leftIconColor={colors.palette.blue200}
                         leftIconInverse={true}                        
                         style={$item}
-                        onPress={gotoRemoteRecovery}
+                        onPress={gotoSeedRecovery}
                     />   
                     </>
               }
@@ -169,25 +174,36 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
               <Card
                 style={$card}
                 HeadingComponent={
-                <>                
-                    <ListItem
-                        tx="backupScreen.removeSpentCoins"
-                        subTx="backupScreen.removeSpentCoinsDescription"
-                        leftIcon='faRecycle'
-                        leftIconColor={colors.palette.secondary300}
-                        leftIconInverse={true}
-                        RightComponent={
-                            <View style={$rightContainer}>
-                                <Button
-                                    onPress={checkSpent}
-                                    text='Remove'
-                                    preset='secondary'                                           
-                                /> 
-                            </View>                           
-                        }
-                        style={$item}                        
-                    />                    
-                </>
+                <ListItem
+                  tx="walletAddressRecovery"
+                  subTx="walletAddressRecoveryDesc"
+                  leftIcon='faCircleUser'
+                  leftIconColor={colors.palette.iconGreyBlue400}
+                  leftIconInverse={true}
+                  style={$item}
+                  onPress={gotoAddressRecovery}
+                />}
+              />
+              <Card
+                style={$card}
+                HeadingComponent={                               
+                  <ListItem
+                      tx="backupScreen.removeSpentCoins"
+                      subTx="backupScreen.removeSpentCoinsDescription"
+                      leftIcon='faRecycle'
+                      leftIconColor={colors.palette.secondary300}
+                      leftIconInverse={true}
+                      RightComponent={
+                        <View style={$rightContainer}>
+                            <Button
+                              onPress={checkSpent}
+                              text='Remove'
+                              preset='secondary'                                           
+                            /> 
+                        </View>                           
+                      }
+                      style={$item}                        
+                  />
                 }
               /> 
               <Card
@@ -224,7 +240,7 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
 )
 
 const $screen: ViewStyle = {
-  flex: 1,
+  // flex: 1,
 }
 
 const $headerContainer: TextStyle = {

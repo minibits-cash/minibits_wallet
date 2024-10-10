@@ -402,7 +402,7 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                 <ListItem
                     text='Backup'
                     leftIcon='faCloudArrowUp'
-                    leftIconColor={colors.palette.angry300}
+                    leftIconColor={colors.palette.success300}
                     leftIconInverse={true}
                     style={$item}
                     bottomSeparator={true}
@@ -410,8 +410,8 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
                 />
                 <ListItem
                     text='Recovery'
-                    leftIcon='faRotate'
-                    leftIconColor={colors.palette.iconGreyBlue400}
+                    leftIcon='faHeartPulse'
+                    leftIconColor={colors.palette.angry300}
                     leftIconInverse={true}
                     style={$item}                    
                     onPress={gotoRecoveryOptions}

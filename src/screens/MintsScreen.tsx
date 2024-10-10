@@ -34,7 +34,9 @@ import { QRShareModal } from '../components/QRShareModal'
 
 
 
-export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(function MintsScreen({route, navigation}) {    
+export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(
+  function MintsScreen({route, navigation}) {
+        
     useHeader({
       leftIcon: 'faArrowLeft',
       onLeftPress: () => navigation.goBack(),

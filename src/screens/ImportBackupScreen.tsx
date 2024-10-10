@@ -1,7 +1,8 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useRef, useState} from 'react'
-import {FlatList, LayoutAnimation, Platform, Pressable, Switch, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
+import {LayoutAnimation, Platform, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
 import {validateMnemonic} from '@scure/bip39'
+import { btoa, atob } from 'react-native-quick-base64'
 import QuickCrypto from 'react-native-quick-crypto'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import {colors, spacing, typography, useThemeColor} from '../theme'
@@ -36,12 +37,16 @@ import { deriveSeedFromMnemonic } from '@cashu/cashu-ts'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 import { delay } from '../utils/utils'
 import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
-import { scale } from '@gocodingnow/rn-size-matters'
+import { scale, verticalScale } from '@gocodingnow/rn-size-matters'
 import { WalletUtils } from '../services/wallet/utils'
 import { MintUnit, formatCurrency, getCurrency } from '../services/wallet/currency'
 import { isObj } from '@cashu/cashu-ts/src/utils'
 import { WalletProfileRecord } from '../models/WalletProfileStore'
 import { translate } from '../i18n'
+import { ProofsStoreSnapshot } from '../models/ProofsStore'
+import { MintsStoreSnapshot } from '../models/MintsStore'
+import { ContactsStoreSnapshot } from '../models/ContactsStore'
+import { TransactionsStoreSnapshot } from '../models/TransactionsStore'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
@@ -69,6 +74,7 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
     const mnemonicInputRef = useRef<TextInput>(null)
     const backupInputRef = useRef<TextInput>(null)
 
+    const [isAddressOnlyRecovery, setIsAddressOnlyRecovery] = useState(route.params.isAddressOnlyRecovery ? true : false)
     const [info, setInfo] = useState('')    
     const [mnemonicExists, setMnemonicExists] = useState(false)
     const [mnemonic, setMnemonic] = useState<string>('')    
@@ -78,13 +84,10 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
     const [isValidBackup, setIsValidBackup] = useState(false)    
     const [walletSnapshot, setWalletSnapshot] = useState<any | undefined>(undefined) // type tbd
     const [profileToRecover, setProfileToRecover] = useState<WalletProfileRecord | undefined>(undefined)
-    const [selectedMintUrl, setSelectedMintUrl] = useState<string | undefined>()    
     const [isLoading, setIsLoading] = useState(false)    
     const [error, setError] = useState<AppError | undefined>()        
     const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus, message: string} | undefined>()
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)    
-    const [totalRecoveredAmount, setTotalRecoveredAmount] = useState<number>(0)
-    const [recoveryErrors, setRecoveryErrors] = useState<AppError[]>([])
     const [statusMessage, setStatusMessage] = useState<string>()
 
     useEffect(() => {
@@ -160,43 +163,49 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
     }
 
 
-    const validateBackup = async function () {
-        try {
-            // serialize
+    const getWalletSnapshot = function () {
+      try {
+          // decode
+          const decoded = atob(backup)
+          // try to load as json
+          const snapshot = JSON.parse(decoded) as {
+            proofsStore: ProofsStoreSnapshot,
+            mintsStore: MintsStoreSnapshot,
+            contactsStore: ContactsStoreSnapshot,
+            transactionsStore: TransactionsStoreSnapshot
+          }
 
-            // try to load as json            
+          // log.trace('[getWalletSnapshot]', {snapshot})
+          
+          if(!snapshot.proofsStore || !snapshot.mintsStore || !snapshot.contactsStore || !snapshot.transactionsStore) {
+            throw new Error('Wrong backup format.')
+          }
 
-            // validate against types (version?)
-            return true
-        } catch (e: any) {
-            handleError(e)
-        }
+          return snapshot
+      } catch (e: any) {        
+        throw new AppError(Err.VALIDATION_ERROR, `Invalid backup: ${e.message}`)
+      }
     }
 
 
     const onConfirmBackup = async function () {
-        try {
-            if(!backup) {
-              throw new AppError(Err.VALIDATION_ERROR, 'Missing backup')
-            }
+      try {
+          if(!backup) {
+            throw new AppError(Err.VALIDATION_ERROR, 'Missing backup.')
+          }
 
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-            setIsLoading(true)
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+          setIsLoading(true)
 
-            if (!validateBackup()) {
-              throw new AppError(Err.VALIDATION_ERROR, translate("recoveryInvalidMnemonicError"))
-            }
-            
-            // const walletSnapshot = JSON.parse(backup)
-            const walletSnapshot = backup
-    
-            setWalletSnapshot(walletSnapshot)
-            setIsValidBackup(true)
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-            setIsLoading(false)
-        } catch (e: any) {
-          handleError(e)
-        }
+          const snapshot = getWalletSnapshot() // throws
+
+          setWalletSnapshot(snapshot)
+          setIsValidBackup(true)
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+          setIsLoading(false)
+      } catch (e: any) {
+        handleError(e)
+      }
     }
 
 
@@ -206,12 +215,80 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
 
     
     const startImport = async function () {
-
         setStatusMessage(translate("recovery.starting"))
         setIsLoading(true)        
         // setTimeout(() => doRecovery(), 100)        
-    }    
+    }
+    
+    
+    const onFindWalletAddress = async () => {
+      try {
+          if(!seed || !mnemonic) {
+            throw new AppError(Err.VALIDATION_ERROR, translate("backupScreen.missingMnemonicOrSeedError"))
+          }
 
+          const seedHash = QuickCrypto.createHash('sha256')
+          .update(seed)
+          .digest('hex')
+          
+          const profile = await MinibitsClient.getWalletProfileBySeedHash(seedHash as string)            
+
+          // Skip external profiles beacause we do not control keys
+          if(profile) {
+              log.info('[onCheckWalletAddress] profileToRecover', {profile})                
+
+              if(profile.nip05.includes(MINIBITS_NIP05_DOMAIN)) {                                    
+                  setProfileToRecover(profile)
+              } else {
+                  setInfo(translate("recovery.ownKeysImportAgain", { addr: profile.nip05 }))
+                  await delay(4000)
+              }
+          } else {
+            setInfo(translate("recovery.noWalletForSeedError"))
+          }     
+      } catch (e: any) {
+          handleError(e)
+      }
+    }
+
+
+    const onCompleteAddress = async () => {
+      try {
+          if(!seed || !mnemonic || !profileToRecover) {
+              throw new AppError(Err.VALIDATION_ERROR, translate("recovery.missingMnemonicSeedProfileError"))
+          }
+
+          setStatusMessage(translate("recovery.recoveringAddress"))
+          setIsLoading(true)
+
+          const seedHash = QuickCrypto.createHash('sha256')
+          .update(seed)
+          .digest('hex')
+
+          // get nostr key from current on device profile
+          const {publicKey: newPublicKey} = await NostrClient.getOrCreateKeyPair()
+          
+          // delete orphaned server profile then update server profile with seedHash with pubkey + update on device wallet name and address
+          await walletProfileStore.recover(seedHash as string, newPublicKey)
+
+          // align walletId in userSettings with recovered profile
+          userSettingsStore.setWalletId(walletProfileStore.walletId)            
+          await KeyChain.saveMnemonic(mnemonic)
+          await KeyChain.saveSeed(seed as Uint8Array)
+          
+          await delay(1000)
+          setStatusMessage(translate("recovery.completed"))
+          await delay(2000)
+          
+
+          userSettingsStore.setIsOnboarded(true)
+          setStatusMessage('')
+          setIsLoading(false)
+          navigation.goBack()     
+      } catch (e: any) {
+          handleError(e)
+      }
+    }
 
     const handleError = function (e: AppError): void {
         setIsLoading(false)
@@ -224,20 +301,58 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
     const inputBg = useThemeColor('background')
     const headerTitle = useThemeColor('headerTitle')
 
+    if(false) {
+      return (
+        <Screen contentContainerStyle={$screen} preset="auto">
+            <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
+                <Text preset="heading" text="Wallet recovery" style={{color: headerTitle, zIndex: 10}} />
+            </View>
+            <View style={$contentContainer}>                
+                <Card
+                    style={$card}
+                    ContentComponent={
+                        <ListItem
+                            tx="recovery.mnemonicCollision"
+                            subTx="recovery.mnemonicCollisionDesc"
+                            leftIcon='faTriangleExclamation'
+                            // leftIconColor='red'                  
+                            style={$item}                    
+                            bottomSeparator={true}
+                        /> 
+                    }
+                    FooterComponent={
+                        <View style={$buttonContainer}>               
+                            <Button
+                                onPress={onBack}
+                                tx='common.back'
+                                preset='secondary'                      
+                            />                        
+                        </View>                    
+                    }          
+                />
+            </View>
+        </Screen>
+      )
+  } else {
     return (
-      <Screen contentContainerStyle={$screen} preset="auto">
+      <Screen contentContainerStyle={$screen} preset="scroll">
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
-            <Text preset="heading" text="Import backup" style={{color: headerTitle, zIndex: 10}} />
+            <Text 
+              preset="heading" 
+              text={isAddressOnlyRecovery ? "Recover address" : "Import backup"} 
+              style={{color: headerTitle, zIndex: 10}} 
+            />
         </View>
         <View style={$contentContainer}>            
-            <MnemonicInput                
+            <MnemonicInput   
+                ref={mnemonicInputRef}             
                 mnemonic={mnemonic}
                 isValidMnemonic={isValidMnemonic}
                 setMnemonic={setMnemonic}
                 onConfirm={onConfirmMnemonic}
                 onError={handleError}
             />
-            {isValidMnemonic && !isValidBackup && (
+            {isValidMnemonic && !isValidBackup && !isAddressOnlyRecovery && (
                 <Card
                     style={$card}
                     ContentComponent={
@@ -254,7 +369,7 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
                             ref={backupInputRef}
                             onChangeText={(backup: string) => setBackup(backup)}
                             value={backup}
-                            numberOfLines={3}
+                            numberOfLines={5}
                             multiline={true}
                             autoCapitalize='none'
                             keyboardType='default'                            
@@ -280,7 +395,7 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
                     }           
                 />
             )}
-            {isValidMnemonic && isValidBackup && (
+            {isValidMnemonic && isValidBackup && !isAddressOnlyRecovery && (
                 <Card
                     style={$card}
                     ContentComponent={
@@ -294,20 +409,64 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
                     }        
                 />
             )}
+            {isValidMnemonic && profileToRecover && isAddressOnlyRecovery && (
+              <Card
+                style={$card}
+                ContentComponent={
+                    <ListItem
+                        text={profileToRecover.nip05}
+                        subTx="profileToRecoverDesc"
+                        LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='2'/></View>}                  
+                        style={$item}                            
+                    /> 
+                  }        
+              />
+            )}
         </View>
-        {isValidMnemonic && isValidBackup && (
+        {isValidMnemonic && (
         <View style={$bottomContainer}>
             <View style={$buttonContainer}>
-                    <Button                        
-                        text={`Import wallet`}
+                {isAddressOnlyRecovery ? (
+                  <>
+                    {profileToRecover ? (
+                      <Button                      
+                      tx="recovery.completeCTA"
+                        style={{marginRight: spacing.small}}
                         LeftAccessory={() => (
+                          <Icon
+                              icon='faCircleUser'                            
+                              size={spacing.medium}                  
+                          />
+                        )}
+                        onPress={onCompleteAddress}                                    
+                    />
+                    ) : (
+                      <Button                      
+                          tx="recovery.findAddressCTA"
+                          style={{marginRight: spacing.small}}
+                          LeftAccessory={() => (
                             <Icon
-                                icon='faDownload'                            
+                                icon='faCircleUser'                            
                                 size={spacing.medium}                  
                             />
-                        )}
-                        onPress={startImport}                                               
-                    />                
+                          )}
+                          onPress={onFindWalletAddress}                                       
+                      />
+                    )}                    
+                  </>                  
+                ) : (
+                  <Button                        
+                    text={`Import wallet`}
+                    LeftAccessory={() => (
+                      <Icon
+                          icon='faDownload'                            
+                          size={spacing.medium}                  
+                      />
+                    )}
+                    onPress={startImport}                                               
+                  />
+                )}
+                
             </View>            
         </View>    
         )} 
@@ -379,6 +538,7 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
         {isLoading && <Loading statusMessage={statusMessage} textStyle={{color: 'white'}} style={{backgroundColor: headerBg, opacity: 1}}/>}    
       </Screen>
     )
+  }
 })
 
 const $screen: ViewStyle = {flex: 1}
@@ -418,11 +578,12 @@ const $numIcon: ViewStyle = {
 }
 
 const $backupInput: TextStyle = {
-    flex: 1,    
+    //flex: 1,    
     borderRadius: spacing.small,    
     fontSize: 16,
     fontFamily: typography.code?.normal,
     padding: spacing.small,
+    maxHeight: verticalScale(120),
     alignSelf: 'stretch',
     textAlignVertical: 'top',
 }

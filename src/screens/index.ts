@@ -1,6 +1,7 @@
+// AppStack
 export * from './WelcomeScreen'
 export * from './RecoveryOptionsScreen'
-export * from './RemoteRecoveryScreen'
+export * from './SeedRecoveryScreen'
 export * from './ImportBackupScreen'
 
 // WalletNavigator

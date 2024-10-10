@@ -4,7 +4,6 @@ import QuickCrypto from 'react-native-quick-crypto'
 import { generateNewMnemonic } from '@cashu/cashu-ts'
 import { generatePrivateKey, getPublicKey } from 'nostr-tools'
 import {btoa, fromByteArray} from 'react-native-quick-base64'
-import {rootStoreInstance} from '../models'
 import {log} from './logService'
 
 

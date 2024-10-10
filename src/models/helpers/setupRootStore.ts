@@ -54,32 +54,6 @@ export async function setupRootStore(rootStore: RootStore) {
             Sentry.setUser({ id: userSettings.walletId })
         }    
 
-        // legacy, encryption is sunset, to be replaced by opt-in biometric auth to read the seed
-        /* if (userSettings.isStorageEncrypted) {
-            try {
-                await MMKVStorage.initEncryption()
-            } catch (e: any) {
-                log.error('[setupRootStore]', 'Encryption init failed', {message: e.message})
-
-                if (e && typeof e === 'object') {
-                    const errString = JSON.stringify(e)                   
-            
-                    const isBackPressed = errString.includes('code: 10')
-                    const isCancellPressed = errString.includes('code: 13')
-                    const isIOSCancel = 'code' in e && String(e.code) === '-128'                   
-            
-                    // In case user cancels / fails the fingerprint auth, empty app state is loaded.
-                    // If a user updates the empty app state, it is stored unencrypted and returned after restart as primary one,
-                    // making encrypted data inaccessible or later overwritten.
-                    // Therefore this ugly app exit on unsuccessful auth.
-            
-                    if(isCancellPressed || isBackPressed || isIOSCancel) {                        
-                        RNExitApp.exitApp()
-                    }
-                }  
-            }      
-        }*/ // legacy end
-
         // load the last known state from storage
         const start = performance.now()
         restoredState = MMKVStorage.load(ROOT_STORAGE_KEY) || {}
@@ -88,6 +62,8 @@ export async function setupRootStore(rootStore: RootStore) {
         
         log.trace('[setupRootStore]', `Loading ${dataSize.toLocaleString()} bytes of state from MMKV took ${(mmkvLoaded - start).toLocaleString()} ms.`)
         
+        log.trace({restoredState})
+
         applySnapshot(rootStore, restoredState)        
         
         const stateHydrated = performance.now()

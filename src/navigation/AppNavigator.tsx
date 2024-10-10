@@ -17,7 +17,7 @@ import React from "react"
 import Config from "../config"
 import {
   WelcomeScreen,
-  RemoteRecoveryScreen,
+  SeedRecoveryScreen,
   MintsScreen,
   RecoveryOptionsScreen,
   ImportBackupScreen
@@ -42,9 +42,9 @@ import { colors, useThemeColor } from "../theme"
  */
 export type AppStackParamList = {
   Welcome: undefined
-  RecoveryOptions: {fromScreen: string}
-  RemoteRecovery: {isAddressOnlyRecovery: boolean}
-  ImportBackup: undefined
+  RecoveryOptions: {fromScreen?: string}
+  SeedRecovery: undefined
+  ImportBackup: {isAddressOnlyRecovery: boolean}
   Mints: {}
   Tabs: NavigatorScreenParams<TabsParamList>  
 }
@@ -74,24 +74,12 @@ const AppStack = observer(function AppStack() {
         contentStyle: {backgroundColor: bgColor}   
       }}
     >
-        {/*userSettingsStore.isUserOnboarded ? (
-            <Stack.Screen name="Tabs" component={TabsNavigator} />
-        ) : (
-        <>
-            <Stack.Screen name="Welcome" component={WelcomeScreen} />
-            <Stack.Screen name="RecoveryOptions" component={RecoveryOptionsScreen} />
-            <Stack.Screen name="RemoteRecovery" component={RemoteRecoveryScreen} />
-            <Stack.Screen name="ImportBackup" component={ImportBackupScreen} />
-            <Stack.Screen name="Mints" component={MintsScreen} />
-            <Stack.Screen name="Tabs" component={TabsNavigator} />
-        </>
-        )*/} 
         {userSettingsStore.isUserOnboarded && (
           <Stack.Screen name="Tabs" component={TabsNavigator} />
         )}
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="RecoveryOptions" component={RecoveryOptionsScreen} />
-        <Stack.Screen name="RemoteRecovery" component={RemoteRecoveryScreen} />
+        <Stack.Screen name="SeedRecovery" component={SeedRecoveryScreen} />
         <Stack.Screen name="ImportBackup" component={ImportBackupScreen} />
         <Stack.Screen name="Mints" component={MintsScreen} />
         {!userSettingsStore.isUserOnboarded && (

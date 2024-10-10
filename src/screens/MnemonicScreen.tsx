@@ -117,7 +117,7 @@ export const MnemonicScreen: FC<SettingsStackScreenProps<'Mnemonic'>> = observer
             ContentComponent={
                 <ListItem
                     tx="backupScreen.mnemonicTitle"
-                    subTx="backupScreen.mnemonicDesc"
+                    subTx="backupScreen.mnemonicDescription"
                     leftIcon='faInfoCircle'
                     leftIconColor={colors.palette.iconYellow300}
                     leftIconInverse={true}                  
