@@ -25,11 +25,11 @@ Platform support
 - [ ] Other then EN languange support
 
 Mints
-- [x] Multiple currency units issued by mints [✨ New!]
+- [x] Multiple currency units issued by mints
 - [x] Add multiple mints
 - [x] Remove mints
 - [x] Block receiving from mint
-- [x] Show mint balances grouped by currency units [✨ New!]
+- [x] Show mint balances grouped by currency units
 - [x] Handle mint keys rotation (not tested)
 - [x] Mint status and information screen
 
@@ -66,8 +66,8 @@ Transaction history
 - [x] Unified transaction history for all kinds of transactions
 - [x] Audit trail of transaction events
 - [x] Filter pending transactions
-- [x] Retry after recoverable transaction errors [✨ New!]
-- [ ] Revert pending transaction in 1 click (get back tokens not claimed by receiver)
+- [x] Retry after recoverable transaction errors
+- [x] Revert pending transaction in 1 click (get back tokens not claimed by receiver) [✨ New!]
 - [ ] Tags and related filtering of transactions
 - [x] Delete incomplete and failed transactions from history
 
@@ -82,12 +82,14 @@ Contacts
 
 Backup and recovery
 - [x] Local append-only backup of all ecash in a database separate from wallet storage
-- [x] Recovery tool to recover ecash from local backup
-- [x] Recover wallet in case spent ecash remain in the wallet due to an exception during a transaction
-- [x] Off-device backup and recovery using 12 words menmonic phrase 
-- [x] Retry transaction after recoverable errors [✨ New!]
+- [x] Export wallet backup with ecash, mints, contacts and recent transactions [✨ New!]
+- [x] Recovery of ecash using 12 words menmonic phrase in case of lost device
+- [x] Recovery by importing wallet backup [✨ New!]
+- [x] Move wallet address from another device using the seed phrase
+- [x] Recover wallet in case spent ecash remains in the wallet
+- [x] Retry transaction after recoverable errors
 - [x] Auto-recover funds if wallet failed to receive ecash issued by mint due to network or device failure
-- [x] Smooth migration to another device - recovery of wallet address without balances using mnemonic phrase [✨ New!]
+
 
 Interoperability
 - [x] Nostr Wallet Connect - lets you initiate payments from another app, such as Nostr client [✨ New!]
@@ -95,10 +97,9 @@ Interoperability
 
 
 Security and Privacy
-- [x] Optional AES encryption of wallet storage using a key stored in the device secure key storage
-- [x] Use device biometry to login (if storage encryption is on)
+- [x] Use device biometry to login
 - [ ] Connect to the mints on .onion Tor addresses using own Tor daemon [discontinued from v0.1.7]
-- [x] Connect to the mints on .onion Tor addresses using Orbot [✨ New!]
+- [x] Connect to the mints on .onion Tor addresses using Orbot
 
 Self-funding
 - [X] Donation for custom wallet name
