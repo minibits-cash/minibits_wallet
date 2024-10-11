@@ -60,7 +60,7 @@ export const BackupOptionsScreen: FC<SettingsStackScreenProps<'BackupOptions'>> 
                     tx="backupScreen.mnemonicTitle"
                     subTx="backupScreen.mnemonicDescription"
                     leftIcon='faSeedling'
-                    leftIconColor={colors.palette.blue200}
+                    leftIconColor={colors.palette.orange400}
                     leftIconInverse={true}
                     style={$item}
                     onPress={gotoMnemonic}                    

@@ -68,8 +68,9 @@ function App(props: AppProps) {
         // This runs after the root store has been initialized and rehydrated from storage.
 
         // Creates and opens a sqlite database that stores transactions history and user settings.
-        // It triggers db migrations if database version has changed.        
-        Database.getDatabaseVersion()
+        // It triggers db migrations if database version has changed. 
+        const db = Database.getInstance()       
+        Database.getDatabaseVersion(db)
         
         // Syncs userSettings store with the database (needed?)
         userSettingsStore.loadUserSettings()

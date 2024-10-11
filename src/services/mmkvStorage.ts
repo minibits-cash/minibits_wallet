@@ -241,6 +241,7 @@ const clearAll = function (): void {
   try {
     const storage = getInstance()
     storage.clearAll()
+    log.trace('[clearAll] Wallet state cleared.')
   } catch (e: any) {
     throw new AppError(Err.DATABASE_ERROR, e.message)
   }

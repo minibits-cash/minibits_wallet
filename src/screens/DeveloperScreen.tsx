@@ -35,6 +35,8 @@ import {MMKVStorage} from '../services'
 import {maxTransactionsInModel} from '../models/TransactionsStore'
 import { LogLevel } from '../services/log/logTypes'
 import { getSnapshot } from 'mobx-state-tree'
+import { delay } from '../utils/delay'
+import RNExitApp from 'react-native-exit-app'
 
 // refresh
 
@@ -50,6 +52,7 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
     const [isLoading, setIsLoading] = useState(false)
     const [rnVersion, setRnVersion] = useState<string>('')
     const [walletStateSize, setWalletStateSize] = useState<number>(0)
+    const [dbVersion, setDbVersion] = useState<number>(0)
     const [isLogLevelSelectorVisible, setIsLogLevelSelectorVisible] = useState<boolean>(false)
     const [selectedLogLevel, setSelectedLogLevel] = useState<LogLevel>(userSettingsStore.logLevel)
     const [error, setError] = useState<AppError | undefined>()
@@ -62,6 +65,10 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
             // log.info('[SNAPSHOT]', {snapshot})
             const stateSize = Buffer.byteLength(JSON.stringify(snapshot), 'utf8')
 
+            const db = Database.getInstance()
+            const {version} = Database.getDatabaseVersion(db)
+
+            setDbVersion(version)
             setWalletStateSize(stateSize)
             setRnVersion(rn)
         }
@@ -143,6 +150,8 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
                   Database.getInstance()
                   setIsLoading(false)
                   setInfo(translate("factoryResetSuccess"))
+                  await delay(1000)
+                  RNExitApp.exitApp()
                 } catch (e: any) {
                   handleError(e)
                 }
@@ -187,20 +196,6 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
                   bottomSeparator={true}
                   onPress={toggleLogLevelSelector}
                 />
-                {/*<ListItem
-                  tx="developerScreen.transactions"
-                  subText={translate(
-                    'developerScreen.transactionsDescription',
-                    {count: transactionsStore.count},
-                  )}
-                  leftIcon='faDownload'
-                  leftIconColor={colors.palette.iconYellow300}
-                  leftIconInverse={true}
-                  RightComponent={<View style={$rightContainer} />}
-                  style={$item}
-                  bottomSeparator={true}
-                  onPress={syncTransactionsFromDb}
-                />*/}
                 <ListItem
                   tx="showOnboarding"
                   subTx="showOnboardingDesc"
@@ -223,7 +218,7 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
                   subText={`Environment: ${APP_ENV}
 Native version: ${NATIVE_VERSION_ANDROID}
 JS Bundle version: ${JS_BUNDLE_VERSION}
-DB version: ${Database.getDatabaseVersion().version}
+DB version: ${dbVersion}
 State size: ${walletStateSize.toLocaleString()} bytes
 React Native: ${rnVersion}
 Commit: ${COMMIT}

@@ -32,7 +32,7 @@ import { Proof } from '../models/Proof'
 import { Transaction, TransactionData, TransactionRecord, TransactionStatus, TransactionType } from '../models/Transaction'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import { deriveSeedFromMnemonic } from '@cashu/cashu-ts'
-import { MINIBITS_NIP05_DOMAIN } from '@env'
+import { MINIBITS_MINT_URL, MINIBITS_NIP05_DOMAIN } from '@env'
 import { delay } from '../utils/utils'
 import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
 import { scale } from '@gocodingnow/rn-size-matters'
@@ -143,31 +143,23 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
 
     const onConfirm = async function () {
         try {
-            setStatusMessage(translate("derivingSeedStatus"))
-            
             if(!mnemonic) {
               throw new AppError(Err.VALIDATION_ERROR, translate('backupScreen.missingMnemonicError'))
-            }
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-            setIsLoading(true)
+            }           
 
             if (!validateMnemonic(mnemonic, wordlist)) {
               throw new AppError(Err.VALIDATION_ERROR, translate("recoveryInvalidMnemonicError"))
-            }          
+            }
+            
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)            
 
-            setTimeout(() => {
-                const start = performance.now()
-
-                const binarySeed = deriveSeedFromMnemonic(mnemonic) // expensive
-
-                const end = performance.now()
-                console.log(`[onConfirm] deriveSeedFromMnemonic took ${end - start} ms.`)
-        
-                setSeed(binarySeed)
-                setIsValidMnemonic(true)
-                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-                setIsLoading(false)
-            }, 200)
+            const start = performance.now()
+            const binarySeed = deriveSeedFromMnemonic(mnemonic)
+            const end = performance.now()
+            console.log(`[onConfirm] deriveSeedFromMnemonic took ${end - start} ms.`)
+    
+            setSeed(binarySeed)
+            setIsValidMnemonic(true)            
         } catch (e: any) {
           handleError(e)
         }
@@ -487,12 +479,10 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
 
             setStatusMessage(translate('recovery.recoveringAddress'))
             setIsLoading(true)
-            
-            await KeyChain.saveMnemonic(mnemonic)
-            await KeyChain.saveSeed(seed as Uint8Array)
 
-            // Wallet address recovery
-            const seedHash = await KeyChain.loadSeedHash()
+            const seedHash = QuickCrypto.createHash('sha256')
+            .update(seed)
+            .digest('hex')
 
             log.trace('[onComplete]', 'getWalletProfileBySeedHash')
             const profileToRecover = await MinibitsClient.getWalletProfileBySeedHash(seedHash as string)            
@@ -508,19 +498,27 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
                     await walletProfileStore.recover(seedHash as string, newPublicKey)
                     // Align walletId in userSettings with recovered profile
                     userSettingsStore.setWalletId(walletProfileStore.walletId)                    
-                    await delay(1000)
-                    setStatusMessage(translate('recovery.completed'))
-                    await delay(2000)
+                    
+                    
                 } else {
                   setInfo(translate("recovery.ownKeysImportAgain", { addr: profileToRecover.nip05 }))
-                  await delay(5000)
+                  await delay(4000)
                 }
             }
 
             userSettingsStore.setIsOnboarded(true)
+            await KeyChain.saveMnemonic(mnemonic)
+            await KeyChain.saveSeed(seed as Uint8Array)
+
+            if(!mintsStore.mintExists(MINIBITS_MINT_URL)) {
+                await mintsStore.addMint(MINIBITS_MINT_URL)            
+            }
+            
+            setStatusMessage(translate('recovery.completed'))
+            await delay(2000)
             setStatusMessage('')
             setIsLoading(false)
-            navigation.navigate('Tabs')        
+            navigation.navigate('Tabs', {screen: 'WalletNavigator', params: {screen: 'Wallet', params: {}}})        
         } catch (e: any) {
             handleError(e)
         }

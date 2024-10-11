@@ -46,7 +46,7 @@ export const RelaysStoreModel = types
             relay.url = normalized
 
             if(self.alreadyExists(relay.url)) {
-                log.warn('[addRelay] Relay already exists', {relay})
+                log.info('[addRelay] Relay already exists', {relay})
                 return
             }
 

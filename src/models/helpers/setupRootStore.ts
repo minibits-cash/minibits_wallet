@@ -16,9 +16,8 @@ import {
 } from 'mobx-state-tree'
 import { debounce } from "lodash"
 import * as Sentry from '@sentry/react-native'
-import RNExitApp from 'react-native-exit-app'
 import type {RootStore} from '../RootStore'
-import {KeyChain, MinibitsClient, MMKVStorage, NostrClient} from '../../services'
+import {KeyChain, MinibitsClient, MMKVStorage} from '../../services'
 import {Database} from '../../services'
 import { log } from  '../../services/logService'
 import { rootStoreModelVersion } from '../RootStore'
@@ -62,7 +61,7 @@ export async function setupRootStore(rootStore: RootStore) {
         
         log.trace('[setupRootStore]', `Loading ${dataSize.toLocaleString()} bytes of state from MMKV took ${(mmkvLoaded - start).toLocaleString()} ms.`)
         
-        log.trace({restoredState})
+        // log.trace({restoredState})
 
         applySnapshot(rootStore, restoredState)        
         

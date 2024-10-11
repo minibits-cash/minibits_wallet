@@ -309,7 +309,7 @@
 		"changeWalletaddress": "Change wallet address",
 		"changeWalletaddressSubtext": "Change unique wallet address. Select one of randomly generated or choose your own."
 	},
-	"profileToRecoverDesc": "This is the wallet address linked to your seed. If you press Complete, your wallet profile will reset to above seed and address.",
+	"profileToRecoverDesc": "This is the wallet address linked to your seed. If you continue, your wallet profile will reset to above seed and address.",
 	"pushNotifications": "Push notifications",
 	"qr": {
 		"fail": "Could not display QR code, use option to copy or send the token to the payee wallet address."

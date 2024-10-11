@@ -6,7 +6,7 @@ import { btoa, atob } from 'react-native-quick-base64'
 import QuickCrypto from 'react-native-quick-crypto'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import {colors, spacing, typography, useThemeColor} from '../theme'
-import {AppStackScreenProps} from '../navigation' // @demo remove-current-line
+import {AppStackScreenProps, goBack} from '../navigation' // @demo remove-current-line
 import {
   Icon,
   ListItem,
@@ -17,30 +17,21 @@ import {
   ErrorModal,
   InfoModal,
   BottomModal,
-  Button,
-  $sizeStyles,
+  Button,  
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import AppError, { Err } from '../utils/AppError'
-import { KeyChain, log, MinibitsClient, NostrClient } from '../services'
+import { Database, KeyChain, log, MinibitsClient, NostrClient } from '../services'
 import Clipboard from '@react-native-clipboard/clipboard'
-import { useStores } from '../models'
-import { MintListItem } from './Mints/MintListItem'
+import { rootStoreInstance, useStores } from '../models'
 import {MnemonicInput} from './Recovery/MnemonicInput'
-import { Mint } from '../models/Mint'
-import { MintKeyset } from '@cashu/cashu-ts'
-import { CashuUtils } from '../services/cashu/cashuUtils'
-import { Proof } from '../models/Proof'
-import { Transaction, TransactionData, TransactionRecord, TransactionStatus, TransactionType } from '../models/Transaction'
+import { TransactionData, TransactionStatus } from '../models/Transaction'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import { deriveSeedFromMnemonic } from '@cashu/cashu-ts'
-import { MINIBITS_NIP05_DOMAIN } from '@env'
+import { MINIBITS_MINT_URL, MINIBITS_NIP05_DOMAIN } from '@env'
 import { delay } from '../utils/utils'
-import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
-import { scale, verticalScale } from '@gocodingnow/rn-size-matters'
-import { WalletUtils } from '../services/wallet/utils'
-import { MintUnit, formatCurrency, getCurrency } from '../services/wallet/currency'
-import { isObj } from '@cashu/cashu-ts/src/utils'
+import { applySnapshot} from 'mobx-state-tree'
+import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { WalletProfileRecord } from '../models/WalletProfileStore'
 import { translate } from '../i18n'
 import { ProofsStoreSnapshot } from '../models/ProofsStore'
@@ -66,7 +57,8 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
         mintsStore, 
         proofsStore, 
         userSettingsStore, 
-        transactionsStore, 
+        transactionsStore,
+        contactsStore, 
         walletProfileStore, 
         walletStore
     } = useStores()
@@ -82,7 +74,12 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
     const [seed, setSeed] = useState<Uint8Array>()
     const [backup, setBackup] = useState<string>('')
     const [isValidBackup, setIsValidBackup] = useState(false)    
-    const [walletSnapshot, setWalletSnapshot] = useState<any | undefined>(undefined) // type tbd
+    const [walletSnapshot, setWalletSnapshot] = useState<{
+      proofsStore: ProofsStoreSnapshot,
+      mintsStore: MintsStoreSnapshot,
+      contactsStore: ContactsStoreSnapshot,
+      transactionsStore: TransactionsStoreSnapshot
+    } | undefined>(undefined) // type tbd
     const [profileToRecover, setProfileToRecover] = useState<WalletProfileRecord | undefined>(undefined)
     const [isLoading, setIsLoading] = useState(false)    
     const [error, setError] = useState<AppError | undefined>()        
@@ -115,17 +112,14 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
         setIsResultModalVisible(previousState => !previousState)        
     }
 
-
+    // Used by both Wallet address and Import backup flows
     const onConfirmMnemonic = async function () {
         try {
-            setStatusMessage(translate("derivingSeedStatus"))
-            
             if(!mnemonic) {
               throw new AppError(Err.VALIDATION_ERROR, translate('backupScreen.missingMnemonicError'))
             }
 
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-            setIsLoading(true)
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)            
 
             if (!validateMnemonic(mnemonic, wordlist)) {
               throw new AppError(Err.VALIDATION_ERROR, translate("recoveryInvalidMnemonicError"))
@@ -137,15 +131,13 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
             console.log(`[onConfirm] deriveSeedFromMnemonic took ${end - start} ms.`)
     
             setSeed(binarySeed)
-            setIsValidMnemonic(true)
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-            setIsLoading(false)
+            setIsValidMnemonic(true)            
         } catch (e: any) {
           handleError(e)
         }
     }
 
-
+    // Used by Import backup flow
     const onPasteBackup = async function () {
         try {
             const maybeBackup = await Clipboard.getString()
@@ -162,7 +154,7 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
         }
     }
 
-
+    // Used by Import backup flow
     const getWalletSnapshot = function () {
       try {
           // decode
@@ -187,22 +179,19 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
       }
     }
 
-
+    // Used by Import backup flow
     const onConfirmBackup = async function () {
       try {
           if(!backup) {
             throw new AppError(Err.VALIDATION_ERROR, 'Missing backup.')
           }
 
-          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-          setIsLoading(true)
-
           const snapshot = getWalletSnapshot() // throws
 
           setWalletSnapshot(snapshot)
           setIsValidBackup(true)
-          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-          setIsLoading(false)
+
+          await onFindWalletAddress()
       } catch (e: any) {
         handleError(e)
       }
@@ -213,19 +202,15 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
         return navigation.goBack()
     }
 
-    
-    const startImport = async function () {
-        setStatusMessage(translate("recovery.starting"))
-        setIsLoading(true)        
-        // setTimeout(() => doRecovery(), 100)        
-    }
-    
-    
+    // Used by both Wallet address and Import backup flows
     const onFindWalletAddress = async () => {
       try {
           if(!seed || !mnemonic) {
             throw new AppError(Err.VALIDATION_ERROR, translate("backupScreen.missingMnemonicOrSeedError"))
           }
+
+          setStatusMessage(translate('recovery.recoveringAddress'))
+          setIsLoading(true)
 
           const seedHash = QuickCrypto.createHash('sha256')
           .update(seed)
@@ -244,14 +229,68 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
                   await delay(4000)
               }
           } else {
-            setInfo(translate("recovery.noWalletForSeedError"))
-          }     
+            if(isAddressOnlyRecovery) {
+              setInfo(translate("recovery.noWalletForSeedError"))
+            }
+          }
+          
+          setStatusMessage('')
+          setIsLoading(false)
       } catch (e: any) {
           handleError(e)
       }
     }
 
+    // Used by Import backup flow
+    const importWallet = async function () {
+      try {
+        if(!walletSnapshot) {
+          throw new AppError(Err.VALIDATION_ERROR, 'Missing wallet spnapshot decoded from backup.')
+        }
 
+        setStatusMessage(translate("recovery.starting"))
+        setIsLoading(true)        
+      
+        // import wallet snapshot into the state        
+        const rootStore = rootStoreInstance
+        
+        log.trace('Before import', {rootStore})
+        log.trace('Snapshot ot be imported', {walletSnapshot})
+
+        applySnapshot(proofsStore, walletSnapshot.proofsStore)
+        applySnapshot(mintsStore, walletSnapshot.mintsStore)
+        applySnapshot(contactsStore, walletSnapshot.contactsStore)
+        applySnapshot(transactionsStore, walletSnapshot.transactionsStore)
+
+        log.trace('After import', {rootStore})
+
+        // import proofs into the db
+        if(proofsStore.proofsCount > 0) {
+          Database.addOrUpdateProofs(proofsStore.allProofs, false, false)
+        }
+        
+        if(proofsStore.pendingProofsCount > 0) {
+          Database.addOrUpdateProofs(proofsStore.allPendingProofs, true, false)
+        }
+
+        if(!mintsStore.mintExists(MINIBITS_MINT_URL)) {
+          await mintsStore.addMint(MINIBITS_MINT_URL)            
+        }      
+        
+        if(profileToRecover) {
+          // If wallet profile has been found on server, recover wallet address
+          await onCompleteAddress()
+        } else {
+          // If there is no profile go back to the welcome screen to create a new one
+          goBack()
+        }
+      } catch (e: any) {
+        handleError(e)
+      }               
+    } 
+
+
+    // Used by both Wallet address and Import backup flows
     const onCompleteAddress = async () => {
       try {
           if(!seed || !mnemonic || !profileToRecover) {
@@ -265,7 +304,7 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
           .update(seed)
           .digest('hex')
 
-          // get nostr key from current on device profile
+          // get nostr key from current on device profile (if we recover to existing wallet in Settings) or create new one (if we recover to new install)
           const {publicKey: newPublicKey} = await NostrClient.getOrCreateKeyPair()
           
           // delete orphaned server profile then update server profile with seedHash with pubkey + update on device wallet name and address
@@ -275,16 +314,19 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
           userSettingsStore.setWalletId(walletProfileStore.walletId)            
           await KeyChain.saveMnemonic(mnemonic)
           await KeyChain.saveSeed(seed as Uint8Array)
-          
-          await delay(1000)
-          setStatusMessage(translate("recovery.completed"))
-          await delay(2000)
-          
-
           userSettingsStore.setIsOnboarded(true)
+          
+          setStatusMessage(translate('recovery.completed'))
+          await delay(1000)
           setStatusMessage('')
           setIsLoading(false)
-          navigation.goBack()     
+
+          if(isAddressOnlyRecovery) {
+            // go back to Settings
+            navigation.goBack()       
+          } else {
+            navigation.navigate('Tabs', {screen: 'WalletNavigator', params: {screen: 'Wallet', params: {}}})
+          }          
       } catch (e: any) {
           handleError(e)
       }
@@ -301,7 +343,7 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
     const inputBg = useThemeColor('background')
     const headerTitle = useThemeColor('headerTitle')
 
-    if(false) {
+    if(mnemonicExists && !isAddressOnlyRecovery) {
       return (
         <Screen contentContainerStyle={$screen} preset="auto">
             <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
@@ -340,7 +382,7 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
             <Text 
               preset="heading" 
               text={isAddressOnlyRecovery ? "Recover address" : "Import backup"} 
-              style={{color: headerTitle, zIndex: 10}} 
+              style={{color: headerTitle, textAlign: 'center'}}               
             />
         </View>
         <View style={$contentContainer}>            
@@ -369,7 +411,7 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
                             ref={backupInputRef}
                             onChangeText={(backup: string) => setBackup(backup)}
                             value={backup}
-                            numberOfLines={5}
+                            numberOfLines={3}
                             multiline={true}
                             autoCapitalize='none'
                             keyboardType='default'                            
@@ -401,7 +443,7 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
                     ContentComponent={
                         <ListItem
                             text='Wallet backup'
-                            subText={`${backup.slice(0, 100)}...`}
+                            subText={`${backup.slice(0, 50)}...`}
                             subTextStyle={{fontFamily: typography.code?.normal}}
                             LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='2'/></View>}                  
                             style={$item}                            
@@ -409,14 +451,14 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
                     }        
                 />
             )}
-            {isValidMnemonic && profileToRecover && isAddressOnlyRecovery && (
+            {isValidMnemonic && profileToRecover && (
               <Card
                 style={$card}
                 ContentComponent={
                     <ListItem
                         text={profileToRecover.nip05}
                         subTx="profileToRecoverDesc"
-                        LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='2'/></View>}                  
+                        LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text={isAddressOnlyRecovery ? '2' : '3'}/></View>}
                         style={$item}                            
                     /> 
                   }        
@@ -455,16 +497,21 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
                     )}                    
                   </>                  
                 ) : (
-                  <Button                        
-                    text={`Import wallet`}
-                    LeftAccessory={() => (
-                      <Icon
-                          icon='faDownload'                            
-                          size={spacing.medium}                  
+                  <>
+                    {isValidBackup && (
+                      <Button                        
+                        text={`Import wallet`}
+                        LeftAccessory={() => (
+                          <Icon
+                              icon='faDownload'                            
+                              size={spacing.medium}                  
+                          />
+                        )}
+                        onPress={importWallet}                                               
                       />
                     )}
-                    onPress={startImport}                                               
-                  />
+                  </>
+
                 )}
                 
             </View>            

@@ -96,6 +96,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
 
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState<boolean>(false)
+    const [statusMessage, setStatusMessage] = useState<string>('')
     const [info, setInfo] = useState<string>('')
     
     const gotoWallet = async function () {
@@ -107,10 +108,13 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
           
           // do not overwrite if one was set during recovery
           setIsLoading(true)
-          const mnemonic = await walletStore.getOrCreateMnemonic()
+          setStatusMessage('Setting wallet seed...')
+
+          await walletStore.getOrCreateMnemonic()
 
           // move new profile creation to the app start so that device token can register
-          if(!walletProfileStore.pubkey || !walletProfileStore.picture) {            
+          if(!walletProfileStore.pubkey || !walletProfileStore.picture) {
+            setStatusMessage('Creating wallet profile...')
             const walletId = userSettingsStore.walletId
             await walletProfileStore.create(walletId as string)                    
           }
@@ -121,9 +125,12 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
           
           relaysStore.addDefaultRelays()         
           
-          userSettingsStore.setIsOnboarded(true)  
-          navigation.navigate('Tabs')
+          userSettingsStore.setIsOnboarded(true)
+          setStatusMessage('')
           setIsLoading(false)
+
+          navigation.navigate('Tabs', {screen: 'WalletNavigator', params: {screen: 'Wallet', params: {}}})
+
       } catch (e: any) {
           handleError(e)
       }      
@@ -269,7 +276,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
             </View>
             {error && <ErrorModal error={error} />}
             {info && <InfoModal message={info} />}
-            {isLoading && <Loading statusMessage={translate("welcomeScreen.generatingWalletSeedStatusMessage")} style={{backgroundColor: headerBg, opacity: 1}} textStyle={{color: 'white'}}/>}
+            {isLoading && <Loading statusMessage={statusMessage} style={{backgroundColor: headerBg, opacity: 1}} textStyle={{color: 'white'}}/>}
         </Screen>
     )
   }

@@ -122,7 +122,7 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
       log.info('[_createOrUpdateSchema] New database schema created')
     }
 
-    const {version} = getDatabaseVersion()    
+    const {version} = getDatabaseVersion(db)    
     log.info('[_createOrUpdateSchema]', `Device database version: ${version}`)
 
     // Trigger migrations if there is versions mismatch
@@ -143,7 +143,7 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
 
 const _runMigrations = function (db: QuickSQLiteConnection) {
     const now = new Date()
-    const {version} = getDatabaseVersion()    
+    const {version} = getDatabaseVersion(db)    
 
     let currentVersion = version
     let migrationQueries: SQLBatchTuple[] = []
@@ -383,12 +383,12 @@ const cleanAll = function () {
 }
 
 
-const getDatabaseVersion = function (): {version: number} {
+const getDatabaseVersion = function (db: QuickSQLiteConnection): {version: number} {
   try {
     const query = `
       SELECT version FROM dbVersion
     `
-    const db = getInstance()
+        
     const {rows} = db.execute(query)
 
     if (!rows?.item(0)) {
@@ -1166,7 +1166,8 @@ const addOrUpdateProofs = function (
     const db = getInstance()
     const {rowsAffected} = db.executeBatch(insertQueries)
 
-    const totalAmount = CashuUtils.getProofsAmount(proofs)
+    // const totalAmount = CashuUtils.getProofsAmount(proofs)
+    
     // DO NOT log proof secrets to Sentry
     log.info('[addOrUpdateProofs]',
       `${rowsAffected}${isPending ? ' pending' : ''

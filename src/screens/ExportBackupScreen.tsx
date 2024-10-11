@@ -64,8 +64,11 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
     useEffect(() => {
         const loadProofs = async () => {            
             setIsLoading(true)
+            // log.trace('[loadProofs]', {proofs: proofsStore.proofs})
             // full refresh of proofs from DB in case the state is broken
             await proofsStore.loadProofsFromDatabase()
+
+            // log.trace('[loadProofs]', {refreshedProofs: proofsStore.proofs})
             setIsLoading(false)
         }
 
@@ -117,7 +120,14 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
             }
 
             if(isEcashInBackup) {
-              exportedProofsStore = getSnapshot(proofsStore)                
+              // This is emptied in snapshot postprocess!
+              exportedProofsStore = {
+                proofs: getSnapshot(proofsStore.proofs),
+                pendingProofs: getSnapshot(proofsStore.pendingProofs),
+                pendingByMintSecrets: getSnapshot(proofsStore.pendingByMintSecrets)
+              }
+
+              // log.trace({exportedProofsStore})               
             }
 
             if(isMintsInBackup) {                
