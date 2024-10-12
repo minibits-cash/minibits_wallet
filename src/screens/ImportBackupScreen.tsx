@@ -77,8 +77,7 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
     const [walletSnapshot, setWalletSnapshot] = useState<{
       proofsStore: ProofsStoreSnapshot,
       mintsStore: MintsStoreSnapshot,
-      contactsStore: ContactsStoreSnapshot,
-      transactionsStore: TransactionsStoreSnapshot
+      contactsStore: ContactsStoreSnapshot,      
     } | undefined>(undefined) // type tbd
     const [profileToRecover, setProfileToRecover] = useState<WalletProfileRecord | undefined>(undefined)
     const [isLoading, setIsLoading] = useState(false)    
@@ -140,6 +139,8 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
     // Used by Import backup flow
     const onPasteBackup = async function () {
         try {
+            setStatusMessage('Inserting backup...')
+            setIsLoading(true)
             const maybeBackup = await Clipboard.getString()
 
             if(!maybeBackup) {
@@ -149,6 +150,8 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
             const cleaned = maybeBackup.trim()
             
             setBackup(cleaned)
+            setStatusMessage('')
+            setIsLoading(false)
         } catch (e: any) {
             handleError(e)
         }
@@ -163,13 +166,12 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
           const snapshot = JSON.parse(decoded) as {
             proofsStore: ProofsStoreSnapshot,
             mintsStore: MintsStoreSnapshot,
-            contactsStore: ContactsStoreSnapshot,
-            transactionsStore: TransactionsStoreSnapshot
+            contactsStore: ContactsStoreSnapshot,            
           }
 
           // log.trace('[getWalletSnapshot]', {snapshot})
           
-          if(!snapshot.proofsStore || !snapshot.mintsStore || !snapshot.contactsStore || !snapshot.transactionsStore) {
+          if(!snapshot.proofsStore || !snapshot.mintsStore || !snapshot.contactsStore) {
             throw new Error('Wrong backup format.')
           }
 
@@ -259,8 +261,7 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
 
         applySnapshot(proofsStore, walletSnapshot.proofsStore)
         applySnapshot(mintsStore, walletSnapshot.mintsStore)
-        applySnapshot(contactsStore, walletSnapshot.contactsStore)
-        applySnapshot(transactionsStore, walletSnapshot.transactionsStore)
+        applySnapshot(contactsStore, walletSnapshot.contactsStore)        
 
         log.trace('After import', {rootStore})
 
@@ -341,6 +342,7 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
     const numIconColor = useThemeColor('textDim')
     const textHint = useThemeColor('textDim')
     const inputBg = useThemeColor('background')
+    const loadingBg = useThemeColor('background')
     const headerTitle = useThemeColor('headerTitle')
 
     if(mnemonicExists && !isAddressOnlyRecovery) {
@@ -582,7 +584,7 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
         />             
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
-        {isLoading && <Loading statusMessage={statusMessage} textStyle={{color: 'white'}} style={{backgroundColor: headerBg, opacity: 1}}/>}    
+        {isLoading && <Loading statusMessage={statusMessage} textStyle={{color: 'white'}} style={{backgroundColor: loadingBg, opacity: 1}}/>}    
       </Screen>
     )
   }

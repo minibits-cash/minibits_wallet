@@ -32,7 +32,7 @@ import { ProofsStoreSnapshot } from '../models/ProofsStore'
 import { getSnapshot } from 'mobx-state-tree'
 import { ContactsStoreSnapshot } from '../models/ContactsStore'
 import { MintsStoreSnapshot } from '../models/MintsStore'
-import { TransactionsStoreSnapshot } from '../models/TransactionsStore'
+import { Database } from '../services'
 
 interface ExportBackupScreenProps extends SettingsStackScreenProps<'ExportBackup'> {}
 
@@ -44,7 +44,6 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
     const { 
         mintsStore, 
         contactsStore, 
-        transactionsStore, 
         proofsStore 
     } = useStores()
 
@@ -59,12 +58,21 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
     const [isEcashInBackup, setIsEcashInBackup] = useState(true)
     const [isMintsInBackup, setIsMintsInBackup] = useState(true)
     const [isContactsInBackup, setIsContactsInBackup] = useState(true)
-    const [isTransactionsInBackup, setIsTransactionsInBackup] = useState(true)
+    
     
     useEffect(() => {
         const loadProofs = async () => {            
             setIsLoading(true)
-            // log.trace('[loadProofs]', {proofs: proofsStore.proofs})
+
+            // fix if rootStore migration failed and some proofs are missing urls
+            if (proofsStore.allProofs.some(proof => proof.mintUrl.length === 0 )) {
+              for (const mint of mintsStore.allMints) {
+                for(const keysetId of mint.keysetIds) {
+                    Database.updateProofsMintUrl(keysetId, mint.mintUrl)
+                }                
+              }
+            }
+
             // full refresh of proofs from DB in case the state is broken
             await proofsStore.loadProofsFromDatabase()
 
@@ -87,10 +95,6 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
     
     const toggleBackupContanctsSwitch = () =>
         setIsContactsInBackup(previousState => !previousState)
-
-    
-    const toggleBackupTransactionsSwitch = () =>
-        setIsTransactionsInBackup(previousState => !previousState)
 
 
     const copyBackup = function () {
@@ -115,10 +119,6 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
                 lastPendingReceivedCheck: undefined
             }            
 
-            let exportedTransactionsStore: TransactionsStoreSnapshot = {
-                transactions: []
-            }
-
             if(isEcashInBackup) {
               // This is emptied in snapshot postprocess!
               exportedProofsStore = {
@@ -138,15 +138,10 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
               exportedContactsStore = getSnapshot(contactsStore)
             }
 
-            if(isTransactionsInBackup) {
-              exportedTransactionsStore = getSnapshot(transactionsStore)
-            }
-
             const exportedSnapshot = {
               proofsStore: exportedProofsStore, 
               mintsStore: exportedMintsStore, 
-              contactsStore: exportedContactsStore, 
-              transactionsStore: exportedTransactionsStore
+              contactsStore: exportedContactsStore,
             }
 
             log.trace({exportedSnapshot})
@@ -474,21 +469,6 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
                           />
                           </View>
                       }                      
-                      topSeparator                       
-                    />
-                )}
-                {contactsStore.count > 0 && (
-                    <ListItem
-                      text="Recent transactions"
-                      subText={`Number of transactions: ${transactionsStore.count}`}
-                      RightComponent={
-                          <View style={$rightContainer}>
-                          <Switch
-                              onValueChange={toggleBackupTransactionsSwitch}
-                              value={isTransactionsInBackup}
-                          />
-                          </View>
-                      }                    
                       topSeparator                       
                     />
                 )}
