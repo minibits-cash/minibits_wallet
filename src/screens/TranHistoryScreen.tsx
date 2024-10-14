@@ -398,7 +398,8 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
                       count: erroredDbCount
                     })}
                     leftIcon='faBug'                            
-                    onPress={onDeleteErrored}                                      
+                    onPress={onDeleteErrored}
+                    bottomSeparator={true}                                    
                 />
                 <ListItem
                     tx="tranHistory.deleteReverted"

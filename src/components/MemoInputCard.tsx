@@ -4,6 +4,7 @@ import {spacing, useThemeColor} from '../theme'
 import {Button} from './Button'
 import {Card} from './Card'
 import {translate} from '../i18n'
+import { verticalScale } from '@gocodingnow/rn-size-matters'
 
 interface MemoInputProps {
   memo: string
@@ -67,17 +68,17 @@ const $memoContainer: ViewStyle = {
 
 const $memoCard: ViewStyle = {
   marginBottom: spacing.small,
-  minHeight: 80,
+  minHeight: verticalScale(80),
 }
 
 const $memoButton: ViewStyle = {
-  maxHeight: 50,
+  maxHeight: verticalScale(50),
 }
 
 const $memoInput: TextStyle = {
   flex: 1,
   borderRadius: spacing.small,
-  fontSize: 16,
+  fontSize: verticalScale(16),
   textAlignVertical: 'center',
   marginRight: spacing.small,
 }

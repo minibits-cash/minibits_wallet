@@ -79,11 +79,10 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
       ProofsByStatus | undefined
     >(undefined)*/
     const [error, setError] = useState<AppError | undefined>()
-    const [isNoteModalVisible, setIsNoteModalVisible] = useState<boolean>(false)
+    const [isNoteEditing, setIsNoteEditing] = useState(transaction?.noteToSelf ? false : true)
     const [isDataParsable, setIsDataParsable] = useState<boolean>(true)    
     const [info, setInfo] = useState('')
-    const [note, setNote] = useState<string>('')
-    const [savedNote, setSavedNote] = useState<string>('')
+    const [note, setNote] = useState<string>('')    
     const [mint, setMint] = useState<Mint | undefined>()
     const [isAuditTrailVisible, setIsAuditTrailVisible] = useState<boolean>(false)
 
@@ -96,7 +95,7 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
       try {
         const {id} = route.params        
         const tx = transactionsStore.findById(id)
-        log.trace('Transaction loaded', {id: tx?.id, unit: tx?.unit})
+        log.trace('Transaction loaded', {id: tx?.id, unit: tx?.unit, note: tx?.noteToSelf})
 
       if (!tx) {
           throw new AppError(
@@ -116,43 +115,34 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
         setMint(mintInstance)
       }
 
+      if(tx.noteToSelf) {
+        setNote(tx.noteToSelf)
+      }
+      
       setTransaction(tx as Transaction)
       } catch (e: any) {
         handleError(e)
       }
     }, [route]))
-    
-
-    useEffect(() => {
-      const focus = () => {
-        noteInputRef && noteInputRef.current
-          ? noteInputRef.current.focus()
-          : false
-      }
-
-      if (isNoteModalVisible) {
-        setTimeout(() => focus(), 100)
-      }
-    }, [isNoteModalVisible])
 
 
-
-  const toggleNoteModal = function () {
-      if (isNoteModalVisible) {
-        setIsNoteModalVisible(false)
-      } else {
-        setIsNoteModalVisible(true)
-      }
-    }
-
-    const saveNote = async function () {
-      try {
-        setIsNoteModalVisible(false)
+    const onNoteSave = async function () {
+      try {        
         transaction!.setNote(note)
-        setSavedNote(note)
+        setIsNoteEditing(false)        
       } catch (e: any) {
         handleError(e)
       }
+    }
+
+    const onNoteEdit = function () {        
+      setIsNoteEditing(true)
+
+      setTimeout(() => {
+          noteInputRef && noteInputRef.current
+          ? noteInputRef.current.focus()
+          : false
+      }, 100)
     }
 
     const copyAuditTrail = function () {
@@ -179,9 +169,8 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
       }
     }
 
-    const handleError = function (e: AppError): void {
-      setIsNoteModalVisible(false)
-      setError(e)
+    const handleError = function (e: AppError): void {      
+      setError(e)      
     }
 
 
@@ -238,31 +227,44 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
               <Card
                 style={$actionCard}
                 ContentComponent={
-                  <>
-                    <ListItem
-                      text={
-                        transaction.noteToSelf
-                          ? transaction.noteToSelf
-                          : savedNote
-                          ? savedNote
-                          : translate("tranDetailScreen.addYourNote")
-                      }
-                      LeftComponent={
-                        <Icon
-                          containerStyle={$iconContainer}
-                          icon="faPencil"
-                          size={spacing.medium}
-                          color={iconColor}
+                    <View style={$noteContainer}>    
+                        <TextInput
+                            ref={noteInputRef}
+                            onChangeText={note => setNote(note)}                                    
+                            value={`${note}`}
+                            style={$noteInput}
+                            onEndEditing={onNoteSave}
+                            maxLength={200}
+                            keyboardType="default"
+                            selectTextOnFocus={true}
+                            placeholder={translate("privateNotePlaceholder")}
+                            editable={
+                                isNoteEditing
+                                ? true
+                                : false
+                            }
                         />
-                      }
-                      style={$item}
-                      // bottomSeparator={true}
-                      onPress={toggleNoteModal}
-                    />
-                  </>
+                        {isNoteEditing ? (
+                            <Button
+                                preset="secondary"
+                                style={$noteButton}
+                                tx="common.save"
+                                onPress={onNoteSave}
+                                
+                            />
+                        ) : (
+                            <Button
+                                preset="secondary"
+                                style={$noteButton}
+                                tx="common.edit"
+                                onPress={onNoteEdit}
+                                
+                            />
+                        )}
+                    
+                    </View>
                 }
               />
-
               {transaction.type === TransactionType.RECEIVE && (
                 <ReceiveInfoBlock
                   transaction={transaction}
@@ -402,66 +404,10 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
                   </>
                   }
                 />
-              )}
-              {/*proofsByStatus && (
-                <Card
-                  labelTx='tranDetailScreen.backedUpEcash'
-                  style={$dataCard}
-                  ContentComponent={
-                    <>
-                      <JSONTree
-                        hideRoot
-                        data={proofsByStatus}
-                        theme={{
-                          scheme: 'default',
-                          base00: '#eee',
-                        }}
-                        invertTheme={colorScheme === 'light' ? false : true}
-                      />
-                    </>
-                  }
-                  FooterComponent={
-                    <Button
-                        preset="tertiary"
-                        onPress={() => copyBackupProofs(proofsByStatus)}
-                        tx="common.copy"
-                        style={{
-                            minHeight: 25,
-                            paddingVertical: spacing.extraSmall,
-                            marginTop: spacing.small,
-                            alignSelf: 'center',
-                        }}
-                        textStyle={{fontSize: 14}}
-                    />  
-                  }
-                />
-              )*/}
+              )}              
             </View>
           </>
-        )}
-        <BottomModal
-          isVisible={isNoteModalVisible}
-          ContentComponent={
-            <View style={$noteContainer}>
-              <Text tx="tranDetailScreen.addYourNote" preset="subheading" />
-              <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                <TextInput
-                  ref={noteInputRef}
-                  onChangeText={note => setNote(note)}
-                  value={note}
-                  style={[$noteInput, {backgroundColor: inputBg}]}
-                  maxLength={200}
-                />
-                <Button
-                  tx="common.save"
-                  onPress={saveNote}
-                />
-              </View>
-            </View>
-          }
-          onBackButtonPress={toggleNoteModal}
-          onBackdropPress={toggleNoteModal}
-        />
+        )}        
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
       </Screen>
@@ -1919,6 +1865,7 @@ const $headerContainer: TextStyle = {
 const $contentContainer: TextStyle = {
     // flex: 1,
     padding: spacing.extraSmall,
+    marginTop: -spacing.extraLarge * 1.5,
 }
 
 const $tranAmount: TextStyle = {
@@ -1928,9 +1875,9 @@ const $tranAmount: TextStyle = {
 }
 
 const $actionCard: ViewStyle = {
-    marginBottom: spacing.extraSmall,
-    marginTop: -spacing.extraLarge * 1.5,
+    marginBottom: spacing.extraSmall,    
     paddingVertical: 0,
+    minHeight: verticalScale(80)
 }
 
 const $dataCard: ViewStyle = {
@@ -1939,31 +1886,24 @@ const $dataCard: ViewStyle = {
     // paddingTop: spacing.extraSmall,
 }
 
-const $item: ViewStyle = {
-    paddingHorizontal: spacing.small,
-    paddingLeft: 0,
+const $noteContainer: ViewStyle = {
+  flex: 1,
+  flexDirection: 'row',
+  justifyContent: 'center',
+  alignItems: 'center',
 }
 
-
-const $iconContainer: ViewStyle = {
-    padding: spacing.extraSmall,
-    alignSelf: 'center',
-    marginRight: spacing.medium,
-}
-
-const $noteContainer: TextStyle = {
-    padding: spacing.small,
-    alignItems: 'center',
+const $noteButton: ViewStyle = {
+  maxHeight: verticalScale(50),
+  minWidth: verticalScale(70),
 }
 
 const $noteInput: TextStyle = {
-    flex: 1,
-    margin: spacing.small,
-    borderRadius: spacing.extraSmall,
-    fontSize: 16,
-    padding: spacing.small,
-    alignSelf: 'stretch',
-    textAlignVertical: 'top',
+  flex: 1,
+  borderRadius: spacing.small,
+  fontSize: verticalScale(16),
+  textAlignVertical: 'center',
+  marginRight: spacing.small,  
 }
 
 const $buttonContainer: ViewStyle = {

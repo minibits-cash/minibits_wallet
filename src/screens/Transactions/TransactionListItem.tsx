@@ -53,25 +53,25 @@ export const TransactionListItem = observer(function (
             return translate('transactionCommon.from', {sender: getProfileName(tx.sentFrom)}).slice(0, 30)
           }
         } else {
-          return tx.memo ? tx.memo : translate('transactionCommon.youReceived')
+          return tx.memo ? tx.memo.slice(0, 30) : translate('transactionCommon.youReceived').slice(0, 30)
         }
       case TransactionType.SEND:
         return (tx.memo
           ? tx.memo.slice(0, 30)
           : tx.sentTo
-          ? translate('transactionCommon.sentTo', {receiver: getProfileName(tx.sentTo)})
+          ? translate('transactionCommon.sentTo', {receiver: getProfileName(tx.sentTo)}).slice(0, 30)
           : translate('transactionCommon.youSent')).slice(0, 30)
       case TransactionType.TOPUP:
         return (tx.memo
           ? tx.memo.slice(0, 30)
           : tx.sentFrom
-          ? translate('transactionCommon.receivedFrom', {sender: getProfileName(tx.sentFrom)})
+          ? translate('transactionCommon.receivedFrom', {sender: getProfileName(tx.sentFrom)}).slice(0, 30)
           : translate('transactionCommon.youReceived')).slice(0, 30)
       case TransactionType.TRANSFER:
         return (tx.memo && tx.memo !== 'LNbits'
           ? tx.memo.slice(0, 30)
           : tx.sentTo
-          ? translate('transactionCommon.paidTo', {receiver: getProfileName(tx.sentTo)})
+          ? translate('transactionCommon.paidTo', {receiver: getProfileName(tx.sentTo)}).slice(0, 30)
           : translate('transactionCommon.youPaid')).slice(0, 30)
       default:
         return translate('transactionCommon.unknown')

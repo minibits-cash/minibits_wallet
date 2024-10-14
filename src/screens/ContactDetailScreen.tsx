@@ -111,7 +111,6 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
             ? noteInputRef.current.focus()
             : false
         }, 100)
-
     }
 
     const onCopyNpub = function () {        
@@ -155,7 +154,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
     const saveToPrivateContacts = async function () {
         if(contact.type === ContactType.PUBLIC) {            
             contactsStore.addContact({...contact})
-            toggleContactModal()            
+            setIsContactModalVisible(false)            
             setInfo('Contact saved.')
         }
     }
@@ -183,7 +182,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
     const {type, name, display_name, npub, nip05, picture, about, lud16} = contact
     
     return (
-      <Screen contentContainerStyle={$screen} preset='auto'>        
+      <Screen contentContainerStyle={$screen} preset='scroll'>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
             {picture ? (
                 <View style={{borderRadius: 48, overflow: 'hidden'}}>
@@ -212,7 +211,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                 />
             ) : (
                 <Card
-                    style={[$card, {minHeight: 80}]}
+                    style={[$card, {minHeight: verticalScale(80)}]}
                     ContentComponent={
                         <View style={$noteContainer}>    
                             <TextInput
@@ -253,18 +252,18 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                     }
                 />
             )}
+            {lud16 && (
             <Card
-                style={[$card, {marginTop: spacing.small}]}                
+                labelTx='lightningAddress'
+                style={$card}
+                labelStyle={{marginTop: spacing.small}}                
                 ContentComponent={
-                    <>
-                    {lud16 && (
+                    <>                        
                         <ListItem                                    
-                            text={lud16}
-                            subTx='lightningAddress'                  
-                            leftIcon='faBolt'
-                            leftIconColor={colors.palette.orange200}                          
-                        />
-                        )}
+                                text={lud16}                                
+                                leftIcon='faBolt'
+                                leftIconColor={colors.palette.orange200}                          
+                        />                        
                         <ListItem                                                                
                             LeftComponent={
                                 <Button
@@ -275,7 +274,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                                     preset='tertiary'
                                 />
                             }
-                            RightComponent={lud16 ? (
+                            RightComponent={
                                 <Button
                                     tx="payCommon.payToAddress"
                                     style={{marginLeft: spacing.small, alignSelf: 'center', minHeight: verticalScale(20)}}
@@ -283,14 +282,24 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                                     onPress={gotoTransfer}
                                     preset='tertiary'
                                 />
-                            ) : undefined}
-                            topSeparator={lud16 ? true : false}                             
+                            }
+                            topSeparator
                         />                        
                     </>
                 }
-            />            
+            />
+            )}            
         </View>
         <View style={[$bottomContainer]}>
+            {type === ContactType.PUBLIC &&  contact.nip05 && (                
+                <Button
+                    tx="saveContactPrivate"   
+                    style={{marginLeft: spacing.small, alignSelf: 'center', minHeight: verticalScale(20)}}
+                    textStyle={{fontSize: verticalScale(14), lineHeight: verticalScale(16)}}                                     
+                    onPress={saveToPrivateContacts}
+                    preset='tertiary'                    
+                />
+            )}
             <View style={$buttonContainer}>
                 {contact.nip05 ? (
                     <Button
@@ -352,7 +361,7 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                     />
                 </>
             )}
-            {type === ContactType.PUBLIC && (                
+            {type === ContactType.PUBLIC &&  contact.nip05 && (                
                 <ListItem
                     tx="saveContactPrivate"
                     subText={translate('saveContactPrivateDesc', { nip05: contact.nip05 })}
@@ -401,15 +410,15 @@ const $noteContainer: ViewStyle = {
 const $noteInput: TextStyle = {
     flex: 1,
     borderRadius: spacing.small,
-    fontSize: 16,
+    fontSize: verticalScale(16),
     textAlignVertical: 'center',
-    marginRight: spacing.small,
+    marginRight: spacing.small,    
 }
 
 
 const $noteButton: ViewStyle = {
-    maxHeight: 50,
-    minWidth: 70,
+    maxHeight: verticalScale(50),
+    minWidth: verticalScale(70),
 }
 
 
@@ -437,7 +446,7 @@ const $qrCodeContainer: ViewStyle = {
 }
 
 const $card: ViewStyle = {
-    // marginVertical: 0,
+    paddingVertical: 0,
 }
 
 const $item: ViewStyle = {

@@ -63,21 +63,24 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
     useEffect(() => {
         const loadProofs = async () => {            
             setIsLoading(true)
-
-            // fix if rootStore migration failed and some proofs are missing urls
-            if (proofsStore.allProofs.some(proof => proof.mintUrl.length === 0 )) {
-              for (const mint of mintsStore.allMints) {
-                for(const keysetId of mint.keysetIds) {
-                    Database.updateProofsMintUrl(keysetId, mint.mintUrl)
-                }                
+            try {
+              // fix if rootStore migration failed and some proofs are missing urls
+              if (proofsStore.allProofs.some(proof => proof.mintUrl.length === 0 )) {
+                for (const mint of mintsStore.allMints) {
+                  for(const keysetId of mint.keysetIds) {
+                      Database.updateProofsMintUrl(keysetId, mint.mintUrl)
+                  }                
+                }
               }
-            }
 
-            // full refresh of proofs from DB in case the state is broken
-            await proofsStore.loadProofsFromDatabase()
+              // full refresh of proofs from DB in case the state is broken
+              await proofsStore.loadProofsFromDatabase()
 
-            // log.trace('[loadProofs]', {refreshedProofs: proofsStore.proofs})
-            setIsLoading(false)
+              // log.trace('[loadProofs]', {refreshedProofs: proofsStore.proofs})
+              setIsLoading(false)
+            } catch (e: any) {
+              handleError(e)
+            }            
         }
 
         loadProofs()
@@ -480,15 +483,15 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
             <View style={{
                 flexDirection: 'row', 
                 alignItems: 'center', 
-                marginBottom: spacing.small,
-                marginRight: spacing.small
+                marginBottom: spacing.small,     
+                paddingRight: spacing.medium           
               }}
             >
               <Icon icon='faInfoCircle' />
               <Text 
-                style={{color: hint, flexWrap: 'wrap'}} 
+                style={{color: hint}} 
                 size='xs' 
-                text='You still need your seed phrase when using this backup to recover wallet.'
+                text='You will still need your seed phrase when using this backup to recover your wallet.'
               />
             </View>
             <View style={$buttonContainer}>              
@@ -572,6 +575,5 @@ const $rightContainer: ViewStyle = {
 }
 
 const $bottomContainer: ViewStyle = { 
-  marginBottom: spacing.medium,
-  
+  marginHorizontal: spacing.medium,  
 }

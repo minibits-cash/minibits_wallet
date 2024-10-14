@@ -50,6 +50,7 @@
 		"copyFailParam": "Couldn't copy %{param}",
 		"create": "Create",
 		"disabled": "Disabled",
+		"edit": "Edit",
 		"enabled": "Enabled",
 		"hideMore": "Collapse",
 		"import": "Import",
@@ -142,7 +143,7 @@
 		"resetDescription": "This will wipe out all local data from storage and from the local database. Do only during development or testing.",
 		"title": "Developer options",
 		"transactions": "Sync recent transactions",
-		"transactionsDescription": "There are {{count}} recent transactions cached in the app's fast storage. Resetting will reload them from the app's database. Do only during development or testing."
+		"transactionsDescription": "There are %{count} recent transactions cached in the app's fast storage. Resetting will reload them from the app's database. Do only during development or testing."
 	},
 	"errorScreen": {
 		"friendlySubtitle": "Unfortunately, the Minibits app encountered an unexpected error. Please contact us at support@minibits.cash or raise an issue on Github.",
@@ -293,7 +294,7 @@
 	"privateKey": "Private key",
 	"privateNotePlaceholder": "Your private note",
 	"profileMissingAddressError": "Missing address",
-	"profileMissingNostrAddress": "This profile does not have nostr address to send ecash to.",
+	"profileMissingNostrAddress": "This profile does not have a Nostr address.",
 	"profileOnboarding": {
 		"desc": "Your minibits.cash wallet address allows you to receive encrypted ecash over Nostr. Simultaneously, it serves as your Lightning address, enabling you to receive payments from any Lightning wallet or zaps on the Nostr social network.",
 		"minibitsDesc": "Share your wallet address to receive encrypted ecash over Nostr. This also serves as your Lightning address, enabling you to receive payments from any Lightning wallet or zaps on the Nostr social network.",
@@ -318,8 +319,8 @@
 	"receiveScreen": {
 		"memoFromSender": "Memo from sender",
 		"newMintsAdded": {
-			"one": "{{count}} mint has been added to your wallet",
-			"other": "{{count}} mints have been added to your wallet"
+			"one": "%{count} mint has been added to your wallet",
+			"other": "%{count} mints have been added to your wallet"
 		},
 		"pasteoReceiveDescription": "Paste ecash token to receive it into your wallet.",
 		"pasteToReceive": "Paste",
@@ -419,8 +420,8 @@
 		"devOptions": "Developer options",
 		"go": "Let's go!",
 		"mintsCount": {
-			"one": "{{count}} mint",
-			"other": "{{count}} mints"
+			"one": "%{count} mint",
+			"other": "%{count} mints"
 		},
 		"preferredUnit": "Preferred unit",
 		"exchangeCurrency": "Balance conversion",
