@@ -311,7 +311,7 @@ async function _runMigrations(rootStore: RootStore) {
             
             for (const mint of mintsStore.allMints) {
                 for(const keysetId of mint.keysetIds) {
-                    Database.updateProofsMintUrl(keysetId, mint.mintUrl)
+                    Database.updateProofsMintUrlMigration(keysetId, mint.mintUrl)
                 }                
             }
 

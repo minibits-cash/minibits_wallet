@@ -65,12 +65,20 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
             setIsLoading(true)
             try {
               // fix if rootStore migration failed and some proofs are missing urls
-              if (proofsStore.allProofs.some(proof => proof.mintUrl.length === 0 )) {
+              if (proofsStore.allProofs.some(proof => !proof.mintUrl)) {
                 for (const mint of mintsStore.allMints) {
                   for(const keysetId of mint.keysetIds) {
-                      Database.updateProofsMintUrl(keysetId, mint.mintUrl)
+                      const proofsByKeysetId = proofsStore.proofs.filter(proof => proof.id === keysetId)
+
+                      for(const proof of proofsByKeysetId) {
+                        proof.setMintUrl(mint.mintUrl)
+                      }
+
+                      Database.updateProofsMintUrlMigration(keysetId, mint.mintUrl)
                   }                
                 }
+
+                setInfo('Repaired missing mintUrl params.')
               }
 
               // full refresh of proofs from DB in case the state is broken

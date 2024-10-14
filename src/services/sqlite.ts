@@ -1186,7 +1186,7 @@ const addOrUpdateProofs = function (
 }
 
 // migration
-const updateProofsMintUrl = function (id: string, mintUrl: string) {
+const updateProofsMintUrlMigration = function (id: string, mintUrl: string) {
   try {
     const query = `
       UPDATE proofs
@@ -1199,6 +1199,31 @@ const updateProofsMintUrl = function (id: string, mintUrl: string) {
     db.execute(query, params)
     
     log.debug('[updateMintUrl]', 'Proof mintUrl updated', {id, mintUrl})
+
+    
+  } catch (e: any) {
+    throw new AppError(
+      Err.DATABASE_ERROR,
+      'Could not update proof mintUrl in database',
+      e.message,
+    )
+  }
+}
+
+
+const updateProofsMintUrl = function (currentMintUrl: string, updatedMintUrl: string) {
+  try {
+    const query = `
+      UPDATE proofs
+      SET mintUrl = ?
+      WHERE mintUrl = ?      
+    `
+    const params = [updatedMintUrl, currentMintUrl]
+
+    const db = getInstance()
+    db.execute(query, params)
+    
+    log.debug('[updateMintUrl]', 'Proof mintUrl updated', {currentMintUrl, updatedMintUrl})
 
     
   } catch (e: any) {
@@ -1376,6 +1401,7 @@ export const Database = {
   getPendingAmount,
   addOrUpdateProof,
   addOrUpdateProofs,
+  updateProofsMintUrlMigration,
   updateProofsMintUrl,
   removeAllProofs,
   getProofById,

@@ -89,7 +89,7 @@ export const ProofsStoreModel = types
     }))
     .actions(self => ({
         // Proofs are not more persisted in mmkv storage but loaded from database when hydrating the model
-        loadProofsFromDatabase: flow(function* laodProofs() {             
+        loadProofsFromDatabase: flow(function* loadProofsFromDatabase() {             
             
             const unspentAndPendingProofs = yield Database.getProofs(true, true, false)            
             
@@ -234,7 +234,7 @@ export const ProofsStoreModel = types
             secrets.replace(secrets.filter(secret => !secretsToRemove.includes(secret)))
             log.trace('[removeManyFromPendingByMint]', 'Secrets removed from pending by mint', {secretsToRemove, remaining: secrets})
         },
-        removeOnLocalRecovery(proofsToRemove: ProofV3[], isPending: boolean = false) {
+        /* removeOnLocalRecovery(proofsToRemove: ProofV3[], isPending: boolean = false) {
             const proofs = isPending ? self.pendingProofs : self.proofs
 
             proofsToRemove.map((proof) => {
@@ -245,20 +245,22 @@ export const ProofsStoreModel = types
             }) 
 
             proofs.replace(proofs.filter(proof => !proofsToRemove.some(removed => removed.secret === proof.secret)))
-        },
+        },*/
         updateMintUrl(currentMintUrl: string, updatedMintUrl: string) {
             log.trace('[proofStore.updateMintUrl] start')
             for (const proof of self.proofs) {
                 if(proof.mintUrl === currentMintUrl) {
-                    proof.setMintUrl(updatedMintUrl)
-                }                
+                    proof.setMintUrl(updatedMintUrl)                    
+                }
             }
 
             for (const proof of self.pendingProofs) {
                 if(proof.mintUrl === currentMintUrl) {
-                    proof.setMintUrl(updatedMintUrl)
+                    proof.setMintUrl(updatedMintUrl)                    
                 } 
             }
+
+            Database.updateProofsMintUrl(currentMintUrl, updatedMintUrl)
         },
     }))
     .views(self => ({
