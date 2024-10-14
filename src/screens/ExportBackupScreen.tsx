@@ -54,6 +54,7 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
 
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
+    const [orphanedProofs, setOrphanedProofs] = useState<Proof[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [isEcashInBackup, setIsEcashInBackup] = useState(true)
     const [isMintsInBackup, setIsMintsInBackup] = useState(true)
@@ -64,25 +65,14 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
         const loadProofs = async () => {            
             setIsLoading(true)
             try {
-              // fix if rootStore migration failed and some proofs are missing urls
-              if (proofsStore.allProofs.some(proof => !proof.mintUrl)) {
-                for (const mint of mintsStore.allMints) {
-                  for(const keysetId of mint.keysetIds) {
-                      const proofsByKeysetId = proofsStore.proofs.filter(proof => proof.id === keysetId)
-
-                      for(const proof of proofsByKeysetId) {
-                        proof.setMintUrl(mint.mintUrl)
-                      }
-
-                      Database.updateProofsMintUrlMigration(keysetId, mint.mintUrl)
-                  }                
-                }
-
-                setInfo('Repaired missing mintUrl params.')
-              }
-
               // full refresh of proofs from DB in case the state is broken
               await proofsStore.loadProofsFromDatabase()
+              
+              const orphaned = proofsStore.allProofs.filter(proof => !proof.mintUrl)
+              if (orphaned.length > 0) {                
+                setOrphanedProofs(orphaned)
+                setInfo(`Found ${orphaned.length} orphaned proofs not belonging to any active mint. Those won't be included to the backup, but you can copy them separately.`)
+              }
 
               // log.trace('[loadProofs]', {refreshedProofs: proofsStore.proofs})
               setIsLoading(false)
@@ -109,7 +99,9 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
 
 
     const copyBackup = function () {
-        try {       
+        try {     
+            setIsLoading(true)  
+
             let exportedProofsStore: ProofsStoreSnapshot = {
                 proofs: [], 
                 pendingProofs: [], 
@@ -132,13 +124,15 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
 
             if(isEcashInBackup) {
               // This is emptied in snapshot postprocess!
+              const proofsSnapshot = getSnapshot(proofsStore.proofs)              
+              // Do not include orphaned proofs as they can not be imported without mintUrl
+              const cleaned = proofsSnapshot.filter(p => p.mintUrl && p.mintUrl.length > 0)
+
               exportedProofsStore = {
-                proofs: getSnapshot(proofsStore.proofs),
+                proofs: cleaned,
                 pendingProofs: getSnapshot(proofsStore.pendingProofs),
                 pendingByMintSecrets: getSnapshot(proofsStore.pendingByMintSecrets)
-              }
-
-              // log.trace({exportedProofsStore})               
+              }              
             }
 
             if(isMintsInBackup) {                
@@ -159,9 +153,11 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
 
             const base64Encoded = btoa(JSON.stringify(exportedSnapshot))            
             Clipboard.setString(base64Encoded)
+            setIsLoading(false)  
 
         } catch (e: any) {
             setInfo(`Could not encode and copy wallet backup: ${e.message}`)
+            setIsLoading(false)  
         }
     }
 
@@ -259,6 +255,13 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
         } catch (e: any) {
             handleError(e)            
         }
+    }
+
+
+    const copyOrphanedProofs = function() {
+      if(orphanedProofs.length > 0) {
+        Clipboard.setString(JSON.stringify(orphanedProofs))
+      }      
     }
 
 
@@ -524,6 +527,12 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
                       onPress={copyEncodedTokens}
                       tx="copyAsEncodedTokens"                  
                       textStyle={{fontSize: 14}}
+                  />
+                  <Button
+                      preset="tertiary"
+                      onPress={copyOrphanedProofs}
+                      text="Copy orphaned proofs"                  
+                      textStyle={{fontSize: 14, marginLeft: spacing.small}}
                   />
               </View>
           )}            
