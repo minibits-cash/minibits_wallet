@@ -31,6 +31,8 @@ import { MintUnit, formatCurrency, getCurrency } from './wallet/currency'
 import { MinibitsClient } from './minibitsService'
 
 
+export const MAX_SWAP_INPUT_SIZE = 50
+
 type WalletTaskService = {
     syncPendingStateWithMints: ()   => Promise<void>
     syncSpendableStateWithMints: () => Promise<void>
@@ -71,6 +73,12 @@ type WalletTaskService = {
         memo: string,
         encodedToken: string,
     ) => Promise<void>
+    receiveBatch: (
+        token: TokenV3,
+        amountToReceive: number,
+        memo: string,
+        encodedToken: string,
+    ) => Promise<void>
     receiveOfflinePrepare: (
         token: TokenV3,
         amountToReceive: number,
@@ -87,6 +95,7 @@ type WalletTaskService = {
         memo: string,
         selectedProofs: Proof[]
     ) => Promise<void>
+    sendAll: () => Promise<void>
     topup: (
         mintBalanceToTopup: MintBalance,
         amountToTopup: number,
@@ -202,6 +211,65 @@ const receive = async function (
     return
 }
 
+/* 
+ * Receive big tokens in batches to keep mint load reasonable. 
+ * Used when optimizing wallet proof amounts but might become the default. 
+ */
+const receiveBatch = async function  (
+    token: TokenV3,
+    amountToReceive: number,
+    memo: string,
+    encodedToken: string,
+) {    
+    const maxBatchSize = MAX_SWAP_INPUT_SIZE
+    const mintUrl = token.token[0].mint
+    const proofsToReceive = token.token.flatMap(entry => entry.proofs)
+    const unit = token.unit
+        
+    if (proofsToReceive.length > maxBatchSize) {
+
+        let index =0
+        for (let i = 0; i < proofsToReceive.length; i += maxBatchSize) {
+
+            index++
+            const batch = proofsToReceive.slice(i, i + maxBatchSize)
+            const batchAmount = CashuUtils.getProofsAmount(batch)
+
+            const batchToken: TokenV3 = {
+                token: [
+                    {
+                        mint: mintUrl,
+                        proofs: batch
+                    }
+                ],
+                memo: `${memo} #${index}`,
+                unit
+            }
+
+            const batchEncodedToken = CashuUtils.encodeToken(batchToken)
+
+            // Queued WalletTask
+            receive(
+                batchToken,
+                batchAmount,
+                `${memo} #${index}`,
+                batchEncodedToken,
+            )                
+        }
+
+    } else {
+        // If the length is less than or equal to 100, do normal receive
+        receive(
+            token,
+            amountToReceive,
+            memo,
+            encodedToken,
+        )
+    }
+}
+    
+
+
 
 const receiveOfflinePrepare = async function (
     token: TokenV3,
@@ -257,6 +325,39 @@ const send = async function (
     )
     return
 }
+
+
+/*
+ * sendAll moves all proofs to pending to prepare to swap them for standard amount preference 
+ * This decreases the total number of proofs held by the wallet. Used to optimize exported backup size.
+ */
+const sendAll = async function (): Promise<void> {
+    log.trace('[sendAll] start')
+    if (mintsStore.mintCount === 0) {
+        return
+    }
+
+    // Move all proofs by mint units to pending as in offline mode (do not ask for swap)
+    for (const mint of mintsStore.allMints) {
+
+        for (const unit of mint.units) {
+            const proofsToOptimize = proofsStore.getByMint(mint.mintUrl, { isPending: false, unit })            
+            const proofsAmount = CashuUtils.getProofsAmount(proofsToOptimize)
+            const mintBalance = mint.balances            
+
+            // Queued WalletTask.send
+            send(
+                mintBalance!,
+                proofsAmount,
+                unit,
+                `Optimize proof amounts`,
+                proofsToOptimize // forces offline mode
+            ) 
+        }
+    }
+}
+
+    
 
 
 const topup = async function (
@@ -1642,7 +1743,6 @@ const _extractZapSenderData = function (str: string) {
 }
 
 
-
 export const WalletTask: WalletTaskService = {
     syncPendingStateWithMints,
     syncSpendableStateWithMints,
@@ -1654,9 +1754,11 @@ export const WalletTask: WalletTaskService = {
     handleClaim,
     receiveEventsFromRelays,
     receive,
+    receiveBatch,
     receiveOfflinePrepare,
     receiveOfflineComplete,        
     send,
+    sendAll,
     transfer,    
     topup,
 }

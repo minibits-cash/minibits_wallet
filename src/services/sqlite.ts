@@ -885,7 +885,7 @@ const updateInputToken = function (id: number, inputToken: string) {
     const db = getInstance()
     db.execute(query, params)
     
-    log.debug('[updateInputToken]', 'Transaction outputToken updated', {id, inputToken})
+    log.debug('[updateInputToken]', 'Transaction inputToken updated in database', {id})
 
     const updatedTx = getTransactionById(id as number)
 

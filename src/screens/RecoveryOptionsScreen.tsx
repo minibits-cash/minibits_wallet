@@ -69,7 +69,9 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
           }       
       }
       
-      EventEmitter.on('ev__syncStateWithMintTask_result', removeSpentByMintTaskResult)
+      if(isSyncStateSentToQueue) {
+        EventEmitter.on('ev__syncStateWithMintTask_result', removeSpentByMintTaskResult)
+      }
       
       return () => {
           EventEmitter.off('ev__syncStateWithMintTask_result', removeSpentByMintTaskResult)            

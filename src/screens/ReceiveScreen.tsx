@@ -19,7 +19,7 @@ import {
 import {Mint} from '../models/Mint'
 import {Transaction, TransactionStatus} from '../models/Transaction'
 import {useStores} from '../models'
-import {TransactionTaskResult, WalletTask} from '../services'
+import {MAX_SWAP_INPUT_SIZE, TransactionTaskResult, WalletTask} from '../services'
 import {log} from '../services/logService'
 import AppError, { Err } from '../utils/AppError'
 import EventEmitter from '../utils/eventEmitter'
@@ -45,6 +45,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
     const [encodedToken, setEncodedToken] = useState<string | undefined>()
     const [amountToReceive, setAmountToReceive] = useState<string>('0')
     const [unit, setUnit] = useState<MintUnit>('sat')
+    const [totalReceived, setTotalReceived] = useState<number>(0)
     const [receivedAmount, setReceivedAmount] = useState<string>('0')
     const [transactionStatus, setTransactionStatus] = useState<
       TransactionStatus | undefined
@@ -103,14 +104,17 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
             }
     
             if (receivedAmount && receivedAmount > 0) {
+                // accumulate received amount in case of multiple receives in batch
+                setTotalReceived(prev => prev + receivedAmount)
+
                 const currency = getCurrency(unit)
-                setReceivedAmount(`${numbro(receivedAmount / currency.precision).format({thousandSeparated: true, mantissa: currency.mantissa})}`)                
+                setReceivedAmount(`${numbro(totalReceived / currency.precision).format({thousandSeparated: true, mantissa: currency.mantissa})}`)                
             }    
             
             setIsResultModalVisible(true)            
         }
 
-        // Subscribe to the 'sendCompleted' event
+        
         if(isReceiveTaskSentToQueue) {
           EventEmitter.on('ev_receiveTask_result', handleReceiveTaskResult)
           EventEmitter.on('ev_receiveOfflinePrepareTask_result', handleReceiveTaskResult)
@@ -122,6 +126,20 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
             EventEmitter.off('ev_receiveOfflinePrepareTask_result', handleReceiveTaskResult)
         }
     }, [isReceiveTaskSentToQueue])
+
+
+    useEffect(() => {
+      const updateReceivedAmount = async () => {
+          log.trace('[updateTotalReceived] start')
+
+          const currency = getCurrency(unit)
+          setReceivedAmount(`${numbro(totalReceived / currency.precision).format({thousandSeparated: true, mantissa: currency.mantissa})}`)                
+      }        
+      
+      if(totalReceived > 0) {
+        updateReceivedAmount()
+      }
+    }, [totalReceived])
 
     const resetState = function () {
         setToken(undefined)
@@ -174,17 +192,31 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
 
 
     const receiveToken = async function () {
-        setIsLoading(true)       
-        setIsReceiveTaskSentToQueue(true) 
+
+        setIsLoading(true)
+        setIsReceiveTaskSentToQueue(true)
 
         const amountToReceiveInt = round(toNumber(amountToReceive) * getCurrency(unit).precision, 0)
+        const proofsCount = token!.token.flatMap(entry => entry.proofs).length
 
-        WalletTask.receive(
+        if(proofsCount > MAX_SWAP_INPUT_SIZE) {
+
+          WalletTask.receiveBatch(
             token as TokenV3,
             amountToReceiveInt,
             memo,
             encodedToken as string,
-        )        
+          )
+
+        } else {
+
+          WalletTask.receive(
+            token as TokenV3,
+            amountToReceiveInt,
+            memo,
+            encodedToken as string,
+          ) 
+        }
     }
 
 

@@ -119,9 +119,8 @@ export const receiveTask = async function (
         // Increase the proofs counter before the mint call so that in case the response
         // is not received our recovery index counts for sigs the mint has already issued
         const amountPreferences = getDefaultAmountPreference(amountToReceive)        
-        const countOfInFlightProofs = CashuUtils.getAmountPreferencesCount(amountPreferences)
-        const tokenEntries: TokenEntryV3[] = token.token
-        const proofsToReceive = tokenEntries[0].proofs as ProofV3[]
+        const countOfInFlightProofs = CashuUtils.getAmountPreferencesCount(amountPreferences)        
+        const proofsToReceive = token.token.flatMap(entry => entry.proofs)
         const mintFeeReserve = mintInstance.getMintFeeReserve(proofsToReceive)        
         
         log.trace('[receiveTask]', 'amountPreferences', {amountPreferences, transactionId: transaction.id})

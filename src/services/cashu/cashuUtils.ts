@@ -382,6 +382,11 @@ const findMinExcess = function (requestedAmount: number, proofs: Proof[]): Proof
   return selectedProofs;
 }
 
+/* 
+ * This function attempts to find exact match combination of proofs for a transaction amount. 
+ * If not found, minimal number of proofs exceeding the amount is selected
+ * It is intended to minimize number of swaps and possible fees.
+ */
 const getProofsToSend = function (requestedAmount: number, proofs: Proof[]): Proof[] {
   const proofsAmount = getProofsAmount(proofs)
   if(requestedAmount > proofsAmount) {
@@ -399,6 +404,7 @@ const getProofsToSend = function (requestedAmount: number, proofs: Proof[]): Pro
   log.trace('[getProofsToSend] no exact match, fallback to findMinExcess')
   return findMinExcess(requestedAmount, proofs);
 }
+
 
 /**
  * removes a set of tokens from another set of tokens, and returns the remaining.
