@@ -31,7 +31,8 @@ import { MintUnit, formatCurrency, getCurrency } from './wallet/currency'
 import { MinibitsClient } from './minibitsService'
 
 
-export const MAX_SWAP_INPUT_SIZE = 50
+export const MAX_SWAP_INPUT_SIZE = 100
+export const MAX_SYNC_INPUT_SIZE = 200 // 1000 hard mint limit
 
 type WalletTaskService = {
     syncPendingStateWithMints: ()   => Promise<void>
@@ -339,20 +340,41 @@ const sendAll = async function (): Promise<void> {
 
     // Move all proofs by mint units to pending as in offline mode (do not ask for swap)
     for (const mint of mintsStore.allMints) {
+        // Do not create a pending transaction above mint's spent sync (check) limit as it becomes stuck pending
+        // As well keep tokens reasonably sized so that a device can keep related transaction in the state / load it from DB
+        const maxBatchSize = MAX_SWAP_INPUT_SIZE
 
         for (const unit of mint.units) {
-            const proofsToOptimize = proofsStore.getByMint(mint.mintUrl, { isPending: false, unit })            
-            const proofsAmount = CashuUtils.getProofsAmount(proofsToOptimize)
-            const mintBalance = mint.balances            
+            const proofsToOptimize = proofsStore.getByMint(mint.mintUrl, { isPending: false, unit })
+            const totalProofsCount = proofsToOptimize.length            
+            const mintBalance = mint.balances
+            
+            if (totalProofsCount > maxBatchSize) {
+                let index = 0
+                for (let i = 0; i < totalProofsCount; i += maxBatchSize) {
+                    index++
+                    const batch = proofsToOptimize.slice(i, i + maxBatchSize)
+                    const batchAmount = CashuUtils.getProofsAmount(batch)
 
-            // Queued WalletTask.send
-            send(
-                mintBalance!,
-                proofsAmount,
-                unit,
-                `Optimize proof amounts`,
-                proofsToOptimize // forces offline mode
-            ) 
+                    send(
+                        mintBalance!,
+                        batchAmount,
+                        unit,
+                        `Optimize ecash #${index}`,
+                        batch // forces offline mode
+                    )
+                }
+            } else {
+                // If the length is less than or equal to limit, run with all proofs.
+                const proofsAmount = CashuUtils.getProofsAmount(proofsToOptimize)         
+                send(
+                    mintBalance!,
+                    proofsAmount,
+                    unit,
+                    `Optimize ecash`,
+                    proofsToOptimize // forces offline mode
+                )
+            }
         }
     }
 }
@@ -394,6 +416,7 @@ const syncPendingStateWithMints = async function (): Promise<void> {
     }
 
     const isPending = true
+    // const maxBatchSize = MAX_CHECK_INPUT_SIZE
 
     // group proofs by mint so that we do max one call per mint
     for (const mint of mintsStore.allMints) {
@@ -403,8 +426,9 @@ const syncPendingStateWithMints = async function (): Promise<void> {
             continue
         }
         
-        const proofsToSync = proofsStore.getByMint(mint.mintUrl, {isPending})              
-        syncStateWithMint({proofsToSync, mintUrl: mint.mintUrl, isPending}) // isPending = true
+        const proofsToSync = proofsStore.getByMint(mint.mintUrl, {isPending})
+        const totalProofs = proofsToSync.length
+        syncStateWithMint({ proofsToSync, mintUrl: mint.mintUrl, isPending })
     }
 }
 
@@ -420,23 +444,22 @@ const syncSpendableStateWithMints = async function (): Promise<void> {
     }
 
     const isPending = false
-    const maxBatchSize = 50
+    const maxBatchSize = MAX_SYNC_INPUT_SIZE
 
     // group proofs by mint so that we do max one call per mint
     // does not depend on unit, process in batches by 100
-    for (const mint of mintsStore.allMints) {
-        
+    for (const mint of mintsStore.allMints) {        
         const proofsToSync = proofsStore.getByMint(mint.mintUrl, { isPending })
-        const totalProofs = proofsToSync.length
+        const totalProofsCount = proofsToSync.length
         
-        if (totalProofs > maxBatchSize) {
-          for (let i = 0; i < totalProofs; i += maxBatchSize) {
+        if (totalProofsCount > maxBatchSize) {
+          for (let i = 0; i < totalProofsCount; i += maxBatchSize) {
             const batch = proofsToSync.slice(i, i + maxBatchSize)
-            syncStateWithMint({ proofsToSync: batch, mintUrl: mint.mintUrl, isPending: false });
+            syncStateWithMint({ proofsToSync: batch, mintUrl: mint.mintUrl, isPending });
           }
         } else {
           // If the length is less than or equal to 100, run syncStateWithMint with all proofs.
-          syncStateWithMint({ proofsToSync, mintUrl: mint.mintUrl, isPending: false });
+          syncStateWithMint({ proofsToSync, mintUrl: mint.mintUrl, isPending });
         }
     }
 

@@ -12,7 +12,7 @@ import {
     MintKeyset,
 } from '@cashu/cashu-ts'
 import { getDefaultAmountPreference, isObj } from '@cashu/cashu-ts/src/utils'
-import { TransactionTaskResult, WalletTask } from '../walletService'
+import { MAX_SWAP_INPUT_SIZE, TransactionTaskResult, WalletTask } from '../walletService'
 import { MintBalance, MintProofsCounter } from '../../models/Mint'
 import { Proof } from '../../models/Proof'
 import { poller } from '../../utils/poller'
@@ -242,7 +242,17 @@ export const sendFromMint = async function (
 
         if(selectedProofsAmount > 0) {            
             if(amountToSend !== selectedProofsAmount) { // failsafe for some unknown ecash selection UX error
-                throw new AppError(Err.VALIDATION_ERROR, 'Requested amount to send does not equal sum of ecash denominations provided.')
+                throw new AppError(
+                    Err.VALIDATION_ERROR, 
+                    'Requested amount to send does not equal sum of ecash denominations provided.'
+                )
+            }
+
+            if(selectedProofs.length > MAX_SWAP_INPUT_SIZE) {
+                throw new AppError(
+                    Err.VALIDATION_ERROR, 
+                    `Number of proofs is above max of ${MAX_SWAP_INPUT_SIZE}. Visit Backup to optimize, then try again.`
+                )
             }
 
             for (const proof of selectedProofs) {                
@@ -434,25 +444,17 @@ export const sendFromMint = async function (
             lockedProofsCounter.resetInFlight(transactionId)
             
         } else if (returnedAmount === 0) {
-        /* 
-         *  SWAP not needed, all selected proofs will be sent
-         *  In this case we might make sure upfront those are not spent - not used now
-         */
-            /* const syncResult = await WalletTask.syncStateWithMintSync(                
-                {
-                    proofsToSync: proofsToSendFrom,
-                    mintUrl,
-                    isPending: false
-                }                
-            )
-
-            if(syncResult.transactionStateUpdates.find(stateUpdate => 
-                stateUpdate.spentByMintAmount && 
-                stateUpdate.spentByMintAmount > 0)) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Spent ecash has been used as an input for this transaction, try again.')
-            }*/
 
             log.debug('[sendFromMint] Swap is not necessary, all proofsToSendFrom will be sent.')
+
+            // If we selected whole balance, check if it is not above limit acceptable by wallet and mints.
+            if(proofsToSendFrom.length > MAX_SWAP_INPUT_SIZE) {
+                throw new AppError(
+                    Err.VALIDATION_ERROR, 
+                    `Number of proofs is above max of ${MAX_SWAP_INPUT_SIZE}. Visit Backup to optimize, then try again.`
+                )
+            }
+
             proofsToSend = [...proofsToSendFrom]
             
         } else {

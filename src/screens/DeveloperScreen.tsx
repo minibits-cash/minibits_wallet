@@ -37,6 +37,7 @@ import { LogLevel } from '../services/log/logTypes'
 import { getSnapshot } from 'mobx-state-tree'
 import { delay } from '../utils/delay'
 import RNExitApp from 'react-native-exit-app'
+import { TransactionStatus } from '../models/Transaction'
 
 // refresh
 
@@ -47,7 +48,7 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
       onLeftPress: () => navigation.goBack(),
     })
 
-    const {transactionsStore, userSettingsStore} = useStores()
+    const {transactionsStore, userSettingsStore, proofsStore} = useStores()
 
     const [isLoading, setIsLoading] = useState(false)
     const [rnVersion, setRnVersion] = useState<string>('')
@@ -75,7 +76,7 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
         init()
     }, [])
 
-    // Reset of whole model state and reload from DB
+    // Reset of transaction model state and reload from DB
     const syncTransactionsFromDb = async function () {
       setIsLoading(true)
       try {
@@ -102,6 +103,48 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
       } catch (e: any) {
         handleError(e)
       }
+    }
+
+
+    const deletePending = async function () {
+      Alert.alert(
+        translate("common.confirmAlertTitle"),
+        "This action can not be undone. Use only in development or testing.",
+        [
+          {
+            text: translate('common.cancel'),
+            style: 'cancel',
+            onPress: () => { /* Action canceled */ },
+          },
+          {
+            text: translate('common.confirm'),
+            onPress: async () => {
+              try {
+                setIsLoading(true)
+                const rows = Database.deleteTransactionsByStatus(TransactionStatus.PENDING)
+        
+                const pending = proofsStore.allPendingProofs
+                const pendingCount = proofsStore.pendingProofsCount.valueOf()
+
+                if(pendingCount > 0) {
+                  proofsStore.removeProofs(pending, true, false) // remove pending proofs and spend the in db
+                }                
+                
+                if(rows?.length && rows.length > 0) {
+                  await syncTransactionsFromDb()
+                }
+
+                setIsLoading(false)
+                setInfo(`Removed ${rows?.length || 0} transactions from the database and ${pendingCount} proofs from the wallet state`)
+                
+              } catch (e: any) {
+                handleError(e)
+              }
+            },
+          },
+        ],
+      )
+      
     }
 
 
@@ -180,9 +223,31 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
             style={{color: headerTitle}}
           />
         </View>
-        <View style={$contentContainer}>
+        <View style={$contentContainer}>          
           <Card
-            style={$card}
+            style={[$card]}
+            HeadingComponent={
+                <ListItem
+                  tx="developerScreen.info"
+                  subText={`Environment: ${APP_ENV}
+Native version: ${NATIVE_VERSION_ANDROID}
+JS Bundle version: ${JS_BUNDLE_VERSION}
+DB version: ${dbVersion}
+State size: ${walletStateSize.toLocaleString()} bytes
+React Native: ${rnVersion}
+Commit: ${COMMIT}
+Sentry id: ${userSettingsStore.userSettings.walletId}
+                  `}
+                  leftIcon='faInfoCircle'
+                  leftIconColor={colors.palette.iconGreen300}
+                  leftIconInverse={true}                  
+                  RightComponent={<View style={$rightContainer} />}
+                  style={$item}
+                /> 
+            }
+            />
+          <Card
+            style={[$card, {marginTop: spacing.medium}]}
             HeadingComponent={
               <>
                 <ListItem
@@ -211,30 +276,21 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
             }
           />
           <Card
-            style={[$card, {marginTop: spacing.medium}]}
+            label='Danger zone'
+            labelStyle={{marginTop: spacing.medium}}
+            style={[$card]}
             HeadingComponent={
+              <>
                 <ListItem
-                  tx="developerScreen.info"
-                  subText={`Environment: ${APP_ENV}
-Native version: ${NATIVE_VERSION_ANDROID}
-JS Bundle version: ${JS_BUNDLE_VERSION}
-DB version: ${dbVersion}
-State size: ${walletStateSize.toLocaleString()} bytes
-React Native: ${rnVersion}
-Commit: ${COMMIT}
-Sentry id: ${userSettingsStore.userSettings.walletId}
-                  `}
-                  leftIcon='faInfoCircle'
-                  leftIconColor={colors.palette.iconGreen300}
-                  leftIconInverse={true}                  
+                  text="Force delete pending"
+                  subText="Removes ecash from pending state and deletes all pending transactions."
+                  leftIcon='faClock'
+                  leftIconColor={colors.palette.accent400}
+                  leftIconInverse={true}
                   RightComponent={<View style={$rightContainer} />}
-                  style={$item}
-                /> 
-            }
-            />
-          <Card
-            style={[$card, {marginTop: spacing.medium}]}
-            HeadingComponent={
+                  style={$item}                  
+                  onPress={deletePending}
+                />
                 <ListItem
                   tx="developerScreen.reset"
                   subTx="developerScreen.resetDescription"
@@ -244,7 +300,9 @@ Sentry id: ${userSettingsStore.userSettings.walletId}
                   RightComponent={<View style={$rightContainer} />}
                   style={$item}                  
                   onPress={factoryReset}
+                  topSeparator
                 />  
+              </>
             }
             />
         </View>

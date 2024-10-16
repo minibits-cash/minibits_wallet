@@ -42,7 +42,7 @@ import { verticalScale } from '@gocodingnow/rn-size-matters'
 
 interface ExportBackupScreenProps extends SettingsStackScreenProps<'ExportBackup'> {}
 
-const OPTIMIZE_FROM_PROOFS_COUNT = 100
+const OPTIMIZE_FROM_PROOFS_COUNT = 5
 
 export const ExportBackupScreen: FC<ExportBackupScreenProps> =
     function ExportBackup(_props) {
@@ -65,6 +65,7 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
     const [isLoading, setIsLoading] = useState(false)
     const [isSendAllSentToQueue, setIsSendAllSentToQueue] = useState<boolean>(false)
     const [isReceiveBatchSentToQueue, setIsReceiveBatchSentToQueue] = useState<boolean>(false)
+    const [totalProofsCount, setTotalProofsCount] = useState<number>(0)
     const [totalSentProofsCount, setTotalSentProofsCount] = useState<number>(0)
     const [totalReceiveErrorCount, setTotalReceiveErrorCount] = useState<number>(0)
     const [totalReceiveCompleteCount, setTotalReceiveCompleteCount] = useState<number>(0)
@@ -85,12 +86,14 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
               await proofsStore.loadProofsFromDatabase()
               
               const orphaned = proofsStore.allProofs.filter(proof => !proof.mintUrl)
+
               if (orphaned.length > 0) {                
                 setOrphanedProofs(orphaned)
                 setInfo(`Found ${orphaned.length} orphaned proofs not belonging to any active mint. Those won't be included to the backup, but you can copy them separately.`)
               }
 
               // log.trace('[loadProofs]', {refreshedProofs: proofsStore.proofs})
+              setTotalProofsCount(proofsStore.proofsCount)
               setIsLoading(false)
             } catch (e: any) {
               handleError(e)
@@ -135,7 +138,7 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
       }  
       
       return () => {
-          EventEmitter.off('ev_sendTask_result', handleSendAllResult)            
+        EventEmitter.off('ev_sendTask_result', handleSendAllResult)            
       }
   }, [isSendAllSentToQueue])
 
@@ -151,12 +154,16 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
       if (error) {
           setTotalReceiveErrorCount(prev => prev + 1)          
       } else {
-          setTotalReceiveCompleteCount(prev => prev + 1)
-      }         
+          setTotalReceiveCompleteCount(prev => prev + 1)          
+      }
     }
     
     if(isReceiveBatchSentToQueue) {
       EventEmitter.on('ev_receiveTask_result', handleReceiveTaskResult)      
+    }
+
+    return () => {
+      EventEmitter.off('ev_receiveTask_result', handleReceiveTaskResult)            
     }
 
   }, [isReceiveBatchSentToQueue])
@@ -169,12 +176,12 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
       
       setIsLoading(false)
         
-      const currentProofsCount = proofsStore.proofsCount
+      const currentProofsCount = proofsStore.proofsCount      
 
       let message = `Original proofs count: ${totalSentProofsCount}, Optimized proofs count: ${currentProofsCount}`
 
       if (totalReceiveErrorCount > 0) {
-        message += `, errors: ${totalReceiveErrorCount}`
+        message += `, Errors: ${totalReceiveErrorCount}`
       } 
       
       setResultModalInfo({
@@ -185,15 +192,18 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
       setIsResultModalVisible(true)            
     }
     
-    if(totalReceiveCompleteCount > 0 || totalReceiveCompleteCount > 0) {
+    if(totalReceiveCompleteCount > 0 || totalReceiveErrorCount > 0) {
       showProofOptimizationResult()
     }    
 
   }, [totalReceiveErrorCount, totalReceiveCompleteCount])
 
 
-    const toggleResultModal = () =>
-      setIsResultModalVisible(previousState => !previousState)
+    const toggleResultModal = () => {
+        setIsResultModalVisible(previousState => !previousState)
+        WalletTask.syncPendingStateWithMints()
+    }
+      
     
 
     const toggleBackupEcashSwitch = () =>
@@ -221,7 +231,9 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
           {
             text: translate('common.confirm'),
             onPress: async () => {
-              // Moves all wallet proofs to pending in transactions split by mints and by units and in offline mode
+              // Moves all wallet proofs to pending in transactions 
+              // split by mints and by units and in offline mode.
+              // Supports batching in case proofs count is above limit.
               setIsLoading(true)
               setIsSendAllSentToQueue(true)
               WalletTask.sendAll()
@@ -578,27 +590,27 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
             <Card
               ContentComponent={
                 <>
-                {proofsStore.proofsCount + proofsStore.pendingProofsCount > 0 && (
+                {totalProofsCount > 0 && (
                     <ListItem
-                        text="Ecash proofs"
-                        subText={`Number of proofs: ${proofsStore.proofsCount + proofsStore.pendingProofsCount}`}
-                        RightComponent={
-                          <View style={$rightContainer}>
-                            {proofsStore.proofsCount > OPTIMIZE_FROM_PROOFS_COUNT && (
-                              <Button
-                                preset='secondary'
-                                onPress={optimizeProofAmountsStart}
-                                textStyle={{lineHeight: verticalScale(16), fontSize: verticalScale(14)}}
-                                style={{minHeight: verticalScale(40), paddingVertical: verticalScale(spacing.tiny)}}
-                                text={'Optimize'}
-                              />
-                            )}
-                            <Switch
-                                onValueChange={toggleBackupEcashSwitch}
-                                value={isEcashInBackup}
+                      text="Ecash proofs"
+                      subText={`Number of proofs: ${proofsStore.proofsCount}`}
+                      RightComponent={
+                        <View style={$rightContainer}>
+                          {proofsStore.proofsCount > OPTIMIZE_FROM_PROOFS_COUNT && (
+                            <Button
+                              preset='secondary'
+                              onPress={optimizeProofAmountsStart}
+                              textStyle={{lineHeight: verticalScale(16), fontSize: verticalScale(14)}}
+                              style={{minHeight: verticalScale(40), paddingVertical: verticalScale(spacing.tiny)}}
+                              text={'Optimize'}
                             />
-                          </View>
-                        }                     
+                          )}
+                          <Switch
+                              onValueChange={toggleBackupEcashSwitch}
+                              value={isEcashInBackup}
+                          />
+                        </View>
+                      }
                     />
                 )}
                 {mintsStore.mintCount > 0 && (
@@ -613,7 +625,7 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
                           />
                         </View>
                       }                       
-                      topSeparator={proofsStore.proofsCount + proofsStore.pendingProofsCount > 0 ? true : false}                      
+                      topSeparator={totalProofsCount > 0 ? true : false}                      
                     />
                 )}  
                 {contactsStore.count > 0 && (

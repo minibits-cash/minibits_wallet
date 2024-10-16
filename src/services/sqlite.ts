@@ -1060,7 +1060,7 @@ const getPendingAmount = function () {
 }
 
 
-const deleteTransactionsByStatus = async function (status: TransactionStatus) {
+const deleteTransactionsByStatus = function (status: TransactionStatus) {
     try {
       const query = `
         DELETE FROM transactions
