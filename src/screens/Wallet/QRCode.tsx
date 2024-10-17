@@ -1,10 +1,11 @@
 import React from 'react'
-import { Share, View, ViewStyle } from "react-native"
+import { ActivityIndicator, Share, View, ViewStyle } from "react-native"
+import { UR, UREncoder } from '@gandlaf21/bc-ur';
 import { infoMessage } from "../../utils/utils"
-import { Button, Card, Icon, ListItem } from "../../components"
+import { Button, Card, Icon, ListItem, Loading } from "../../components"
 import QRCode from "react-native-qrcode-svg"
 import Clipboard from "@react-native-clipboard/clipboard"
-import { verticalScale } from "@gocodingnow/rn-size-matters"
+import { moderateScale, verticalScale } from "@gocodingnow/rn-size-matters"
 import { colors, spacing } from "../../theme"
 import { useEffect, useState } from "react"
 import { translate } from "../../i18n"
@@ -12,6 +13,10 @@ import { CashuUtils, TokenV3 } from "../../services/cashu/cashuUtils"
 import { log } from "../../services"
 
 export type QRCodeBlockTypes = 'EncodedV3Token' | 'EncodedV4Token' | 'Bolt11Invoice' | 'URL' | 'NWC'
+
+const ANIMATED_QR_FRAGMENT_LENGTH = 150
+const ANIMATED_QR_INTERVAL = 250
+
 export const QRCodeBlock = function (props: {  
     qrCodeData: string    
     title: string
@@ -25,6 +30,10 @@ export const QRCodeBlock = function (props: {
     const [encodedV4Token, setEncodedV4Token] = useState<string | undefined>()
     const [decodedV3Token, setDecodedV3Token] = useState<TokenV3>()
     const [keysetFormat, setKeysetFormat] = useState<'hex' | 'base64' | undefined>()
+    const [isLoadingQRCode, setIsLoadingQRCode] = useState<boolean>(false)
+    const [isQRCodeError, setIsQRCodeError] = useState<boolean>(false)
+    const [isAnimating, setIsAnimating] = useState<boolean>(false)
+    const [qrCodeChunk, setQrCodeChunk] = useState<string | undefined>()
     
     useEffect(() => {
       const detectKeysetFormat = () => {
@@ -49,9 +58,45 @@ export const QRCodeBlock = function (props: {
 
       detectKeysetFormat()
       return () => {}
-  }, [])
+    }, [])
+
+
+    useEffect(() => {
+      let qrCodeInterval: NodeJS.Timeout
+
+      if (isAnimating) {
+        setIsLoadingQRCode(true)
+        try {          
+          const buffer = Buffer.from(qrCodeData)
+          const ur = UR.fromBuffer(buffer)
+          const firstSeqNum = 0
+
+          const encoder = new UREncoder(ur, ANIMATED_QR_FRAGMENT_LENGTH, firstSeqNum)        
+          
+          qrCodeInterval = setInterval(() => {
+            setIsLoadingQRCode(false)            
+            setQrCodeChunk(encoder.nextPart())
+            // log.trace(encoder.nextPart())            
+          }, ANIMATED_QR_INTERVAL)
+
+          
+        } catch (e: any) {
+          handleQrError(e)
+        }
+      }
+
+      // Cleanup function that runs on component unmount or when the interval needs to stop
+      return () => {
+        if (qrCodeInterval) {
+          clearInterval(qrCodeInterval)
+        }
+      }
+    }, [isAnimating, qrCodeData])
+
+
 
     const handleQrError = function (error: Error) {
+        stopAnimatedQRcode()
         setQrError(error)
     }
   
@@ -95,6 +140,25 @@ export const QRCodeBlock = function (props: {
         handleQrError(e)
       }
     }
+
+
+    const startAnimatedQRcode = () => {
+      setIsAnimating(true)
+    }
+
+
+    const stopAnimatedQRcode = () => {
+      setIsAnimating(false)
+    }
+
+
+    const switchToAnimatedQRcodeOnError = () => {
+      setIsQRCodeError(true)
+      startAnimatedQRcode()
+    }
+
+
+    const toggleQRcodeAnimation = () => setIsAnimating(previousState => !previousState)
   
   
     const onCopy = function () {
@@ -104,7 +168,9 @@ export const QRCodeBlock = function (props: {
         handleQrError(e)
       }
     }
-  
+
+    const qrCodeSize = size || spacing.screenWidth - spacing.large * 2
+      
     return (
       <Card
         heading={title}
@@ -121,10 +187,31 @@ export const QRCodeBlock = function (props: {
           />
         ) : (
           <View style={$qrCodeContainer}>
-              <QRCode 
-                  size={size || spacing.screenWidth - spacing.large * 2} value={encodedV4Token || qrCodeData} 
-                  onError={(error: any) => handleQrError(error)}
-              />
+            {isLoadingQRCode ? (
+              <View style={{
+                width: qrCodeSize,
+                height: qrCodeSize,
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <ActivityIndicator color={colors.palette.neutral300} animating size="large" />
+              </View>
+            ) : (
+              <>
+              {isAnimating ? (
+                <QRCode 
+                  size={qrCodeSize} value={qrCodeChunk} 
+                  onError={handleQrError}
+                />
+              ) : (
+                <QRCode 
+                    size={qrCodeSize} value={encodedV4Token || qrCodeData} 
+                    onError={switchToAnimatedQRcodeOnError}
+                />
+              )}
+              </>
+            )}
+            
           </View>              
         )}
         FooterComponent={
@@ -133,13 +220,12 @@ export const QRCodeBlock = function (props: {
                 text="Share"
                 preset="tertiary" 
                 onPress={onShareToApp}
-                LeftAccessory={() => <Icon icon='faShareFromSquare' size={spacing.small} color={colors.light.text} />}
+                LeftAccessory={() => <Icon icon='faShareNodes' size={spacing.small} color={colors.light.text} />}
                 textStyle={{color: colors.light.text, fontSize: 14}}
-                style={{
-                    minWidth: 60, 
+                pressedStyle={{backgroundColor: colors.light.buttonTertiaryPressed}}
+                style={{                    
                     minHeight: verticalScale(40), 
-                    paddingVertical: verticalScale(spacing.tiny),
-                    marginRight: spacing.small
+                    paddingVertical: verticalScale(spacing.tiny)                    
                 }}  
             />
             <Button 
@@ -148,29 +234,41 @@ export const QRCodeBlock = function (props: {
                 onPress={onCopy}
                 LeftAccessory={() => <Icon icon='faCopy' size={spacing.small} color={colors.light.text} />}
                 textStyle={{color: colors.light.text, fontSize: 14}}
-                style={{
-                    minWidth: 60, 
+                pressedStyle={{backgroundColor: colors.light.buttonTertiaryPressed}}
+                style={{                     
                     minHeight: verticalScale(40),                    
-                    paddingVertical: verticalScale(spacing.tiny),
-                    marginRight: spacing.small
+                    paddingVertical: verticalScale(spacing.tiny)                    
                 }}  
             />
-            {type === 'EncodedV3Token' && keysetFormat === 'hex' && (
-              <Button 
+            {type === 'EncodedV3Token' && keysetFormat === 'hex' && !isAnimating && (
+              <Button
                   preset="tertiary" 
-                  text={`${encodedV4Token ? 'Legacy' : 'New'} format`}
+                  text={`${encodedV4Token ? 'Old' : 'New'}`}
                   onPress={switchTokenEncoding}
-                  LeftAccessory={() => <Icon icon='faMoneyBill1' size={spacing.small} color={colors.light.text} />}
+                  LeftAccessory={() => <Icon icon='faMoneyBill1' size={spacing.small} color={colors.light.text}/>}
                   textStyle={{color: colors.light.text, fontSize: 14}}
                   pressedStyle={{backgroundColor: colors.light.buttonTertiaryPressed}}
-                  style={{
-                      minWidth: 60, 
+                  style={{                       
                       minHeight: verticalScale(40),                    
-                      paddingVertical: verticalScale(spacing.tiny),
-                      marginRight: spacing.small
+                      paddingVertical: verticalScale(spacing.tiny),                      
                   }}  
               /> 
-            )}          
+            )}
+            {type === 'EncodedV3Token' && !isQRCodeError && (
+              <Button
+                  preset="tertiary" 
+                  text={`${isAnimating ? 'Static' : 'Animate'}`}
+                  onPress={toggleQRcodeAnimation}
+                  LeftAccessory={() => <Icon icon='faQrcode' size={spacing.small} color={colors.light.text} />}
+                  textStyle={{color: colors.light.text, fontSize: 14}}
+                  pressedStyle={{backgroundColor: colors.light.buttonTertiaryPressed}}
+                  style={{                      
+                      minHeight: verticalScale(40),                    
+                      paddingVertical: verticalScale(spacing.tiny),
+                      paddingHorizontal: spacing.tiny                     
+                  }}  
+              /> 
+            )}           
         </View>
         }
       />

@@ -15,6 +15,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@apocentre/alias-sampling@npm:^0.5.3":
+  version: 0.5.3
+  resolution: "@apocentre/alias-sampling@npm:0.5.3"
+  checksum: 0b339b25ab7a30f6332f322be5c796d2db582365f7531e22d579d16a8fc562cb0f4fba4b93e7afafe9b368a40b91660c6547e1650e72feebbc7615a1ef5accbe
+  languageName: node
+  linkType: hard
+
 "@babel/code-frame@npm:^7.0.0, @babel/code-frame@npm:^7.12.13, @babel/code-frame@npm:^7.24.7":
   version: 7.24.7
   resolution: "@babel/code-frame@npm:7.24.7"
@@ -2329,6 +2336,21 @@ __metadata:
     react-native: ">= 0.67"
     react-native-svg: ">= 11.x"
   checksum: c6675e6a9ddb8eee7561ba41dcdf5318094f1d115a35319127bc46c008f93a614a7c24df4362d27499676efb039de74c1c5a1969caa224cf004ac60a7f387a34
+  languageName: node
+  linkType: hard
+
+"@gandlaf21/bc-ur@npm:^1.1.12":
+  version: 1.1.12
+  resolution: "@gandlaf21/bc-ur@npm:1.1.12"
+  dependencies:
+    "@apocentre/alias-sampling": ^0.5.3
+    "@noble/hashes": ^1.3.3
+    bignumber.js: ^9.0.1
+    buffer: ^6.0.3
+    cbor-sync: ^1.0.4
+    cborg: ^4.0.9
+    jsbi: 3.1.5
+  checksum: 4f9ee030fce9c219166c07e6f202044340569e09c1bda1f06e7a9e3787307736b9f82f1a9f45b4e2be1ffe431ab96022b1061e0550aff2d8e1b9b18f42b32e94
   languageName: node
   linkType: hard
 
@@ -4855,7 +4877,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"bignumber.js@npm:*, bignumber.js@npm:^8 || ^9":
+"bignumber.js@npm:*, bignumber.js@npm:^8 || ^9, bignumber.js@npm:^9.0.1":
   version: 9.1.2
   resolution: "bignumber.js@npm:9.1.2"
   checksum: 582c03af77ec9cb0ebd682a373ee6c66475db94a4325f92299621d544aa4bd45cb45fd60001610e94aef8ae98a0905fa538241d9638d4422d57abbeeac6fadaf
@@ -5087,6 +5109,22 @@ __metadata:
   version: 1.0.30001660
   resolution: "caniuse-lite@npm:1.0.30001660"
   checksum: 8b2c5de2f5facd31980426afbba68238270984acfe8c1ae925b8b6480448eea2fae292f815674617e9170c730c8a238d7cc0db919f184dc0e3cd9bec18f5e5ad
+  languageName: node
+  linkType: hard
+
+"cbor-sync@npm:^1.0.4":
+  version: 1.0.4
+  resolution: "cbor-sync@npm:1.0.4"
+  checksum: 147834c64b43511b2ea601f02bc2cc4190ec8d41a7b8dc3e9037c636b484ca2124bc7d49da7a0f775ea5153ff799d57e45992816851dbb1d61335f308a0d0120
+  languageName: node
+  linkType: hard
+
+"cborg@npm:^4.0.9":
+  version: 4.2.4
+  resolution: "cborg@npm:4.2.4"
+  bin:
+    cborg: lib/bin.js
+  checksum: bc48b2730f17eeef02677cdbe75e417487995328141445400334adcff8a3faa506e781ca19edf0fb06d5af46ec6279ba49be111e3efbec7d5666acec34ff6609
   languageName: node
   linkType: hard
 
@@ -8513,6 +8551,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"jsbi@npm:3.1.5":
+  version: 3.1.5
+  resolution: "jsbi@npm:3.1.5"
+  checksum: 5e7db1d5f4b615b5ebf24ad30122fc0bdf76f8b78a331e2ab0896208cc2a955107f65ecca897fde1da81a097e0bc9069fa67b5c67fab2f4fbeeca47cad64c715
+  languageName: node
+  linkType: hard
+
 "jsbn@npm:1.1.0":
   version: 1.1.0
   resolution: "jsbn@npm:1.1.0"
@@ -9365,6 +9410,7 @@ __metadata:
     "@fortawesome/free-regular-svg-icons": ^6.6.0
     "@fortawesome/free-solid-svg-icons": ^6.6.0
     "@fortawesome/react-native-fontawesome": ^0.3.2
+    "@gandlaf21/bc-ur": ^1.1.12
     "@gandlaf21/bolt11-decode": ^3.1.1
     "@gocodingnow/rn-size-matters": ^0.0.4
     "@notifee/react-native": ^9.0.2

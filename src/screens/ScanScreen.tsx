@@ -10,12 +10,13 @@ import {
 } from 'react-native'
 import {WalletStackScreenProps} from '../navigation'
 import {Camera, CameraType} from 'react-native-camera-kit'
+import { URDecoder } from '@gandlaf21/bc-ur'
 import {spacing, typography, useThemeColor} from '../theme'
 import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 import AppError, { Err } from '../utils/AppError'
-import { BottomModal, Button, ErrorModal, Icon, Screen, Text } from '../components'
+import { BottomModal, Button, ErrorModal, Header, Icon, Screen, Text } from '../components'
 import { LnurlUtils } from '../services/lnurl/lnurlUtils'
 import { infoMessage } from '../utils/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
@@ -30,21 +31,13 @@ const hasAndroidCameraPermission = async () => {
 
 export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScreen(_props) {
     const {navigation} = _props
-    useHeader({
-        title: 'Scan QR code',
-        titleStyle: {fontFamily: typography.primary?.medium},
-        leftIcon: 'faArrowLeft',
-        onLeftPress: () => navigation.goBack(),
-    })
-
-    const addressInputRef = useRef<TextInput>(null)
     const {userSettingsStore} = useStores()
 
-    const [shouldLoad, setShouldLoad] = useState<boolean>(false)    
+    const [shouldLoad, setShouldLoad] = useState<boolean>(false)        
     const [isScanned, setIsScanned] = useState<boolean>(false)
     const [prevRouteName, setPrevRouteName] = useState<string>('')
-    const [lnurlAddress, setLnurlAddress] = useState<string | undefined>(undefined)
-    const [isLnurlAddressModalVisible, setIsLnurlddressModalVisible] = useState<boolean>(false)
+    const [urDecoder, setUrDecoder] = useState<URDecoder | undefined>(undefined)
+    const [urDecoderProgress, setUrDecoderProgress] = useState<number>(0)
     const [error, setError] = useState<AppError | undefined>()
 
     useEffect(() => {
@@ -53,30 +46,52 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
           
           const routes = navigation.getState()?.routes
           let prevRoute: string = ''
+
           if(routes.length >= 2) {
             prevRoute = routes[routes.length - 2].name
               log.trace('prevRouteName', prevRoute)
               setPrevRouteName(prevRoute)
           }
+
+          const decoder = new URDecoder()
+          setUrDecoder(decoder)
         }
         load()
     }, [])
 
-    const toggleLnurlAddressModal = () => {
-        if (isLnurlAddressModalVisible === false) {       
-            setTimeout(() => {
-                addressInputRef && addressInputRef.current
-                ? addressInputRef.current.focus()
-                : false
-            }, 500)
-        }
-        setIsLnurlddressModalVisible(previousState => !previousState)
-    }
 
     const onReadCode = async function(event: any) {
-        setIsScanned(true)
         const scanned = event.nativeEvent.codeStringValue
-        log.trace('Scanned', scanned)
+        
+        if (scanned.toLowerCase().startsWith("ur:")) {
+            if(!urDecoder) { return }
+
+            urDecoder.receivePart(scanned)
+            setUrDecoderProgress(Math.floor(urDecoder.estimatedPercentComplete() * 100))
+
+            if (!urDecoder.isComplete()) {
+				return;
+			}
+
+            if (urDecoder.isSuccess()) {
+                setIsScanned(true) 
+                setUrDecoderProgress(0)
+
+                const ur = urDecoder.resultUR()
+                const decodedBuffer = ur.decodeCBOR()                
+
+                const decodedData = Buffer.from(decodedBuffer).toString('utf8')
+
+                log.trace('Scanned animated', {scanned: decodedData})
+
+                return onIncomingData(decodedData)
+            } else {
+                setError(new AppError(Err.SCAN_ERROR, urDecoder.resultError()))
+            }
+        }
+
+        setIsScanned(true)        
+        log.trace('Scanned', {scanned})
 
         return onIncomingData(scanned)
     }
@@ -208,11 +223,19 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
         setError(e)
     }
 
-    const hintText = useThemeColor('textDim')
-    const inputBg = useThemeColor('background')
 
-    return (shouldLoad ? (
+    if(!shouldLoad) {
+        return null
+    }
+    
+    return (
         <Screen contentContainerStyle={$screen}>
+            <Header 
+                title={urDecoderProgress > 0 ? `Progress ${urDecoderProgress} %`: 'Scan QR code'}
+                titleStyle={{fontFamily: typography.primary?.medium}}
+                leftIcon='faArrowLeft'
+                onLeftPress={() => navigation.goBack()}
+            />
             <Camera
                 cameraType={CameraType.Back}                      
                 scanBarcode
@@ -233,11 +256,10 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                             style={{marginTop: spacing.medium, minWidth: 120}}                        
                         />
                     </View>
-                )}                
+                )} 
             </View>            
             {error && <ErrorModal error={error} />}
-        </Screen>
-        ) : null
+        </Screen>  
     )
 }
 

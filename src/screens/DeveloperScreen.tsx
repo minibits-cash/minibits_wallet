@@ -121,21 +121,20 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
             onPress: async () => {
               try {
                 setIsLoading(true)
-                const rows = Database.deleteTransactionsByStatus(TransactionStatus.PENDING)
+                transactionsStore.deleteByStatus(TransactionStatus.PENDING)
         
                 const pending = proofsStore.allPendingProofs
                 const pendingCount = proofsStore.pendingProofsCount.valueOf()
 
                 if(pendingCount > 0) {
-                  proofsStore.removeProofs(pending, true, false) // remove pending proofs and spend the in db
-                }                
-                
-                if(rows?.length && rows.length > 0) {
-                  await syncTransactionsFromDb()
+                  // remove pending proofs from state and move them to spent in the db
+                  proofsStore.removeProofs(pending, true, false) 
                 }
 
+                await syncTransactionsFromDb()                
+
                 setIsLoading(false)
-                setInfo(`Removed ${rows?.length || 0} transactions from the database and ${pendingCount} proofs from the wallet state`)
+                setInfo(`Removed pending transactions from the database and ${pendingCount} proofs from the wallet state`)
                 
               } catch (e: any) {
                 handleError(e)

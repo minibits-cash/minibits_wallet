@@ -18,6 +18,7 @@ export enum Err {
   POLLING_ERROR = 'POLLING_ERROR',
   SERVER_ERROR = 'SERVER_ERROR',
   LOCKED_ERROR = 'LOCKED_ERROR',
+  SCAN_ERROR = 'SCAN_ERROR'
 }
 
 export interface IAppError {

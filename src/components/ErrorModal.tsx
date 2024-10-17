@@ -58,9 +58,9 @@ export const ErrorModal: FC<ErrorModalProps> = function ({ error }) {
                     <Icon icon="faInfoCircle" size={spacing.large} color="white" />
                     <Text style={{ color: 'white', marginLeft: spacing.small }}>{error.name}</Text>                
                 </View>
-                <View>
+                <ScrollView>
                     <Text style={{ color: 'white', marginBottom: spacing.small }}>{error.message}</Text>
-                </View>
+                </ScrollView>
                 {error.params && isObj(error.params) && (
                     <>
                         {isParamsVisible ? (
