@@ -1253,6 +1253,7 @@ const SendInfoBlock = function (props: {
             onBackButtonPress={toggleResultModal}
             onBackdropPress={toggleResultModal}
           />
+          {isLoading && <Loading />}
       </>
       
   )

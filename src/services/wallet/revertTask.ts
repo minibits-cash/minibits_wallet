@@ -103,7 +103,7 @@ try {
           unit            
       })
       // Remove original pending proofs
-      proofsStore.removeProofs(pendingProofs, true, true)
+      proofsStore.removeProofs(pendingProofs, true, false)
      
       // add fresh proofs to spendable wallet
       const { addedAmount: receivedAmount } = WalletUtils.addCashuProofs(

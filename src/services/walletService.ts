@@ -415,7 +415,7 @@ const revert = async function (
     transaction: Transaction
 ): Promise<void> {
     const now = new Date().getTime()
-    SyncQueue.addTask(
+    SyncQueue.addPrioritizedTask(
         `revertTask-${now}`,            
         async () => await revertTask(transaction)
     )
