@@ -1115,6 +1115,7 @@ const SendInfoBlock = function (props: {
         }
 
         WalletTask.revert(transaction)
+        setIsLoading(true)
         setIsRevertTaskSentToQueue(true)
 
       } catch (e: any) {
