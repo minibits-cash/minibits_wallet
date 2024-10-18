@@ -35,6 +35,7 @@ Mints
 
 Receive ecash
 - [x] Scan QR code of a ecash token
+- [x] Animated QR codes support for large tokens [✨ New!]
 - [x] Paste ecash token from the clipboard
 - [x] Receive Nostr zaps or Lightning payments to minibits.cash address
 - [x] Receive ecash from another wallet over NOSTR message sent to minibits.cash address
@@ -44,19 +45,19 @@ Receive ecash
 Send ecash
 - [x] Share ecash token to send through another app
 - [x] Show ecash token as a QR code
-- [x] Notification on payment received by the payee (app needs to come to foreground)
+- [x] Show large ecash token as an animated QR code [✨ New!]
 - [x] Send ecash to contact (minibits.cash or another NOSTR address)
 - [ ] Lock ecash sent offline to the receiver wallet key
 
 Top up wallet
 - [x] Show QR code with bitcoin Lightning invoice to pay
 - [x] Share encoded bitcoin Lightning invoice to pay
-- [x] Share payment request with contact over NOSTR message
+- [x] Share payment request with a contact over NOSTR message
 - [x] Top up balance with LNURL Withdraw
 
 Pay / Cash out from wallet
 - [x] One click ZAPS - tip users of NOSTR social network
-- [x] Paste or scan and settle bitcoin Lightning invoice with your ecash
+- [x] Pay bitcoin Lightning invoice with your ecash
 - [x] Pay payment request received from another contact
 - [x] Pay to LNURL Pay static links / codes
 - [x] Pay to Lightning address

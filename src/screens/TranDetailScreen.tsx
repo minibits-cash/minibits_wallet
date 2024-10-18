@@ -865,11 +865,13 @@ const ReceiveOfflineInfoBlock = function (props: {
         }
 
         // Subscribe to the 'sendCompleted' event
-        EventEmitter.on('ev_receiveOfflineCompleteTask', handleReceiveOfflineCompleteTaskResult)
+        if(isReceiveOfflineCompleteTaskSentToQueue) {
+          EventEmitter.on('ev_receiveOfflineCompleteTask_result', handleReceiveOfflineCompleteTaskResult)
+        }        
 
         // Unsubscribe from the 'sendCompleted' event on component unmount
         return () => {
-            EventEmitter.off('ev_receiveOfflineCompleteTask', handleReceiveOfflineCompleteTaskResult)
+            EventEmitter.off('ev_receiveOfflineCompleteTask_result', handleReceiveOfflineCompleteTaskResult)
         }
     }, [isReceiveOfflineCompleteTaskSentToQueue])
 
@@ -1038,20 +1040,62 @@ const SendInfoBlock = function (props: {
     mint?: Mint
     colorScheme: 'light' | 'dark'
 }) {
-    const {transaction, isDataParsable, mint} = props
-    const {proofsStore, transactionsStore} = useStores()
+    const {transaction, mint} = props
+    const {proofsStore} = useStores()
 
     const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
+    const [isRevertTaskSentToQueue, setIsRevertTaskSentToQueue] = useState<boolean>(false)
     const [resultModalInfo, setResultModalInfo] = useState<
       {status: TransactionStatus; message: string} | undefined
     >()
+    const [isLoading, setIsLoading] = useState(false)  
+    
+    
+    useEffect(() => {
+      const handleRevertTaskResult = async (result: TransactionTaskResult) => {
+          log.trace('handleRevertTaskResult event handler triggered')
+          
+          setIsLoading(false)
+
+          if (result.error) {
+              setResultModalInfo({
+                  status: result.transaction?.status as TransactionStatus,
+                  message: result.error.message,
+              })
+          } else {
+              setResultModalInfo({
+                  status: result.transaction?.status as TransactionStatus,
+                  message: result.message,
+              })
+          }
+          setIsLoading(false)
+          toggleResultModal() 
+      }
+
+      // Subscribe to the 'sendCompleted' event
+      if(isRevertTaskSentToQueue) {
+        EventEmitter.on('ev_revertTask_result', handleRevertTaskResult)
+      }        
+
+      // Unsubscribe from the 'sendCompleted' event on component unmount
+      return () => {
+        EventEmitter.off('ev_revertTask_result', handleRevertTaskResult)
+      }
+  }, [isRevertTaskSentToQueue])
   
+    
     const toggleResultModal = () =>
       setIsResultModalVisible(previousState => !previousState)    
+
 
     const onRevertPendingSend = async function () {
       try {
         log.trace('[onRevertPendingSend]', {tId: transaction.id})
+
+        if(!mint) {
+          const message = 'Could not get the mint.'
+          throw new AppError(Err.VALIDATION_ERROR, message)          
+        }
         
         const pendingProofs = proofsStore.getByTransactionId(transaction.id!, true)
 
@@ -1069,30 +1113,10 @@ const SendInfoBlock = function (props: {
             amount: transaction.amount
           })         
         }
-  
-        if(pendingProofs.length > 0) {          
-          // remove it from pending proofs in the wallet
-          proofsStore.removeProofs(pendingProofs, true, true)
-          // add proofs back to the spendable wallet                
-          proofsStore.addProofs(pendingProofs)
-        }
-        
-        const message = 'Ecash unclaimed by the payee has been returned to spendable balance.'
-  
-        const transactionDataUpdate = {
-          status: TransactionStatus.REVERTED,      
-          message,
-          createdAt: new Date(),
-        }
-  
-        await transactionsStore.updateStatuses(
-            [transaction.id!],
-            TransactionStatus.REVERTED,
-            JSON.stringify(transactionDataUpdate),
-        )
-  
-        setResultModalInfo({status: TransactionStatus.REVERTED, message})
-        toggleResultModal()
+
+        WalletTask.revert(transaction)
+        setIsRevertTaskSentToQueue(true)
+
       } catch (e: any) {
         setResultModalInfo({status: TransactionStatus.ERROR, message: e.message})
         toggleResultModal()

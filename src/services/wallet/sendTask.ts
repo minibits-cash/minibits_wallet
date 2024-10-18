@@ -375,8 +375,8 @@ export const sendFromMint = async function (
                 }
             )
 
-            returnedProofs = sendResult.returnedProofs
-            proofsToSend = sendResult.proofsToSend
+            returnedProofs = sendResult.returnedProofs // TODO types - these are ProofsV3 indeed
+            proofsToSend = sendResult.proofsToSend // TODO types - these are ProofsV3 indeed
             mintFeePaid = sendResult.mintFeePaid
 
             // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs        

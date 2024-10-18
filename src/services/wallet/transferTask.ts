@@ -277,10 +277,6 @@ export const transferTask = async function (
 
     } catch (e: any) {
         if (transaction) {            
-            // release lock  
-            if(lockedProofsCounter) {
-                lockedProofsCounter.resetInFlight(transaction.id)
-            }
 
             // If Exception was trigerred most likely by walletStore.payLightningMelt()
             if (proofsToPay.length > 0) {
@@ -328,6 +324,11 @@ export const transferTask = async function (
                         }
                     )                    
                 }
+            }
+
+            // release lock  
+            if(lockedProofsCounter) {
+                lockedProofsCounter.resetInFlight(transaction.id)
             }
 
             transactionData.push({

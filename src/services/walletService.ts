@@ -29,6 +29,7 @@ import { WalletUtils } from './wallet/utils'
 import { NotificationService } from './notificationService'
 import { MintUnit, formatCurrency, getCurrency } from './wallet/currency'
 import { MinibitsClient } from './minibitsService'
+import { revertTask } from './wallet/revertTask'
 
 
 export const MAX_SWAP_INPUT_SIZE = 100
@@ -104,6 +105,9 @@ type WalletTaskService = {
         memo: string,
         contactToSendTo?: Contact,
         nwcEvent?: NostrEvent
+    ) => Promise<void>
+    revert: (
+        transaction: Transaction
     ) => Promise<void>
 }
 
@@ -401,6 +405,19 @@ const topup = async function (
             contactToSendTo,
             nwcEvent
         )
+    )
+    return
+}
+
+
+
+const revert = async function (
+    transaction: Transaction
+): Promise<void> {
+    const now = new Date().getTime()
+    SyncQueue.addTask(
+        `revertTask-${now}`,            
+        async () => await revertTask(transaction)
     )
     return
 }
@@ -1784,4 +1801,5 @@ export const WalletTask: WalletTaskService = {
     sendAll,
     transfer,    
     topup,
+    revert
 }
