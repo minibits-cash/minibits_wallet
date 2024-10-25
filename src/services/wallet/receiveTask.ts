@@ -201,7 +201,8 @@ export const receiveTask = async function (
         transactionData.push({
             status: TransactionStatus.COMPLETED,            
             receivedAmount,
-            unit,            
+            unit,
+            counter: lockedProofsCounter.counter,          
             createdAt: new Date(),
         })
 

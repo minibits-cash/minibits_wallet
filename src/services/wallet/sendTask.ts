@@ -78,7 +78,8 @@ export const sendTask = async function (
             proofs: proofsToSend, 
             mintFeePaid, 
             mintFeeReserve, 
-            isSwapNeeded
+            isSwapNeeded,
+            counter
         } = await sendFromMint(
             mintBalanceToSendFrom,
             amountToSend,
@@ -120,7 +121,8 @@ export const sendTask = async function (
         transaction.setOutputToken(outputToken)
         
         transactionData.push({
-            status: TransactionStatus.PENDING,            
+            status: TransactionStatus.PENDING,
+            counter,           
             createdAt: new Date(),
         })
 
@@ -391,7 +393,8 @@ export const sendFromMint = async function (
                     unit,
                     transactionId,
                     isPending: false
-                })
+                }
+            )
                 
             // release lock
             lockedProofsCounter.resetInFlight(transactionId)
@@ -407,7 +410,7 @@ export const sendFromMint = async function (
             if(proofsToSendFrom.length > MAX_SWAP_INPUT_SIZE) {
                 throw new AppError(
                     Err.VALIDATION_ERROR, 
-                    `Number of proofs is above max of ${MAX_SWAP_INPUT_SIZE}. Visit Backup to optimize, then try again.`
+                    `Number of proofs is above max of ${MAX_SWAP_INPUT_SIZE}. Visit Backup to optimize your wallet, then try again.`
                 )
             }
 
@@ -446,7 +449,8 @@ export const sendFromMint = async function (
             proofs: cleanedProofsToSend as ProofV3[], 
             mintFeeReserve, 
             mintFeePaid,
-            isSwapNeeded
+            isSwapNeeded,
+            counter: lockedProofsCounter?.counter
         }
   } catch (e: any) {
         // release lock

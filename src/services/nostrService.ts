@@ -175,7 +175,7 @@ const decryptNip04 = async function(
 ): Promise<string> {
 
     const  keys: KeyPair = await getOrCreateKeyPair()
-    const decryptedContent = nip04.decrypt(keys.privateKey, senderPubKey, encryptedContent)
+    const decryptedContent = await nip04.decrypt(keys.privateKey, senderPubKey, encryptedContent)
 
     log.trace('[decryptNip04]', {decryptedContent})
 

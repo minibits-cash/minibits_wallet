@@ -360,7 +360,7 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
                 transaction.outputToken) && 
               (![
                   TransactionStatus.REVERTED, 
-                  TransactionStatus.COMPLETED
+                  //TransactionStatus.COMPLETED
                 ].includes(transaction.status)
               ) && (
                 <Card

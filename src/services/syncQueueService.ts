@@ -1,14 +1,8 @@
 import { Task, TaskId, TaskQueue, TaskStatus } from "simple-js-task-queue"
-import {rootStoreInstance} from '../models'
 import {log} from './logService'
 import EventEmitter from '../utils/eventEmitter'
 import { TransactionTaskResult, WalletTaskResult } from "./walletService"
-import { Err } from "../utils/AppError"
-import { MintStatus } from "../models/Mint"
 
-const {
-    mintsStore,    
-} = rootStoreInstance
 
 let _queue: any = undefined
 // const start = new Date().getTime()

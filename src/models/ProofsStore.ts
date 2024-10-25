@@ -195,13 +195,11 @@ export const ProofsStoreModel = types
                     Database.addOrUpdateProofs(proofsToRemove, false, true) // isPending = false, isSpent = true
                 }
 
-                proofsToRemove.map((proof) => {
-                    if (isStateTreeNode(proof)) {
-                        // proofInstances?.push(proof)
+                proofsToRemove.forEach((proof) => {
+                    if (isStateTreeNode(proof)) {                        
                         detach(proof) // vital
                     } else {
-                        const proofInstance = self.getProofInstance(proof, isPending)
-                        // proofInstances?.push(proofInstance as Proof)
+                        const proofInstance = self.getProofInstance(proof, isPending)                        
                         if(proofInstance) {
                             detach(proofInstance) // vital
                         }

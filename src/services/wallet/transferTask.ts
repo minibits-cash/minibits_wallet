@@ -99,12 +99,12 @@ export const transferTask = async function (
         // calculate fees charged by mint for melt transaction to prepare enough proofs
         const proofsFromMint = proofsStore.getByMint(mintUrl, {isPending: false, unit}) as Proof[]  
 
-        let proofsToSendFrom = CashuUtils.getProofsToSend(
+        let proofsToMelt = CashuUtils.getProofsToSend(
             amountToTransfer + meltQuote.fee_reserve,
             proofsFromMint
         )
 
-        let meltFeeReserve = mintInstance.getMintFeeReserve(proofsToSendFrom) 
+        let meltFeeReserve = mintInstance.getMintFeeReserve(proofsToMelt) 
 
         log.trace('[transfer]', {            
             meltFeeReserve,
@@ -128,7 +128,7 @@ export const transferTask = async function (
         // TODO in case of swap from inactive keysets, different meltFees might apply than above calculated meltFeeReserve
         // In such case, we might need to add / substract the fee difference to / from proofsToPay
 
-        log.debug('[transfer]', 'Prepared poofsToPay amount', {proofsToPayAmount, unit})
+        log.debug('[transfer]', 'Prepared poofsToPay proofs', {proofsToPayAmount, unit})
 
         // Update transaction status
         transactionData.push({
@@ -200,7 +200,7 @@ export const transferTask = async function (
 
         // some unknown error because failed payment throws
         if (!isPaid) {
-            throw new AppError(Err.MINT_ERROR, 'Lightning payment is not paid', {isPaid})
+            throw new AppError(Err.MINT_ERROR, 'Lightning payment is not paid event the payLightningMelt succeeded', {isPaid})
         }
 
         // If real fees were less then estimated, cash the returned savings.
@@ -251,6 +251,7 @@ export const transferTask = async function (
             lightningFeeReserve: meltQuote.fee_reserve,
             lightningFeePaid,
             preimage,
+            counter: lockedProofsCounter.counter,
             createdAt: new Date(),
         })
 

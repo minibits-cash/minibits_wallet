@@ -10,6 +10,8 @@ import {
   Screen,
   ListItem,
   Text,
+  ErrorModal,
+  InfoModal,
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
@@ -41,7 +43,8 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
     const [error, setError] = useState<AppError | undefined>()
     const [info, setInfo] = useState('')
     const [isSyncStateSentToQueue, setIsSyncStateSentToQueue] = useState<boolean>(false)    
-    const [totalSpentAmount, setTotalSpentAmount] = useState<number>(0)   
+    const [totalSpentAmount, setTotalSpentAmount] = useState<number>(0)
+    const [syncErrors, setSyncErrors] = useState<AppError[]>([])   
 
 
     useEffect(() => {
@@ -53,20 +56,27 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
           setIsLoading(false)            
 
           // runs per each mint
+          if (result.error && result.error) {
+            setSyncErrors(prev => [...prev, result.error!])
+          }
+
           if (result && result.transactionStateUpdates.length > 0) {
 
-              log.trace('[removeSpentByMintTaskResult]', {transactionStateUpdates: result.transactionStateUpdates})
+            log.trace('[removeSpentByMintTaskResult]', {transactionStateUpdates: result.transactionStateUpdates})
 
-              let totalSpentPerMint = 0
+            let totalSpentPerMint = 0
 
-              for (const update of result.transactionStateUpdates) {                    
-                  if(update.spentByMintAmount) {
-                    totalSpentPerMint += update.spentByMintAmount
-                  }                
-              }
-
-              setTotalSpentAmount(prev => prev + totalSpentPerMint)
-          }       
+            for (const update of result.transactionStateUpdates) {                    
+              if(update.spentByMintAmount) {
+                totalSpentPerMint += update.spentByMintAmount
+              }                
+            }
+            setTotalSpentAmount(prev => prev + totalSpentPerMint)
+          }
+          
+          if(totalSpentAmount === 0 && result.transactionStateUpdates.length === 0) {
+            setInfo('Spent ecash has not been found in the wallet.')
+          }
       }
       
       if(isSyncStateSentToQueue) {
@@ -74,7 +84,7 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
       }
       
       return () => {
-          EventEmitter.off('ev__syncStateWithMintTask_result', removeSpentByMintTaskResult)            
+        EventEmitter.off('ev__syncStateWithMintTask_result', removeSpentByMintTaskResult)            
       }
   }, [isSyncStateSentToQueue])
 
@@ -82,24 +92,38 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
 
   useEffect(() => {
     const showSpentEcashResult = () => {
-        log.trace('[showSpentEcashResult] got update', {totalSpentAmount})
+      log.trace('[showSpentEcashResult] got update', {totalSpentAmount})
 
-        if (totalSpentAmount === 0) { return false }
+      if (totalSpentAmount === 0) { return false }
 
-        setInfo(`Removed spent ecash with amount ${totalSpentAmount}.`)                
+      setInfo(`Removed spent ecash with amount ${totalSpentAmount}.`)                
     }
     
     showSpentEcashResult()
 
   }, [totalSpentAmount])
 
+
+  useEffect(() => {
+    const showSyncErrors = () => {
+      log.trace('[showSyncErrors] got update', {syncErrors})
+
+      if (syncErrors.length === 0) { return false }
+
+      setError(syncErrors[syncErrors.length - 1])                
+    }
+    
+    showSyncErrors()
+
+  }, [syncErrors])
+
     const gotoSeedRecovery = function () {
-        navigation.navigate('SeedRecovery')
+      navigation.navigate('SeedRecovery')
     }
 
 
     const gotoImportBackup = function () {
-        navigation.navigate('ImportBackup', {isAddressOnlyRecovery: false})
+      navigation.navigate('ImportBackup', {isAddressOnlyRecovery: false})
     }
 
 
@@ -116,7 +140,7 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
 
 
     const increaseCounters = async function () {
-      const increaseAmount = 50
+      const increaseAmount = 20
       for (const mint of mintsStore.allMints) {
         for(const counter of mint.proofsCounters) {
           counter.increaseProofsCounter(increaseAmount)
@@ -233,9 +257,10 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
                   }
               />
               </>
-            )}
-            
+            )}            
         </View>
+        {error && <ErrorModal error={error} />}
+        {info && <InfoModal message={info} />}
       </Screen>
     )
   },

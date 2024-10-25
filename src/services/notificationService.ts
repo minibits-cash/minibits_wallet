@@ -31,7 +31,7 @@ export type NotifyNwcRequestData = {
 
 // Remote notification receive handler
 const onForegroundNotification = async function(remoteMessage: FirebaseMessagingTypes.RemoteMessage) {
-    log.trace('[onForegroundReceiveNotification]', {remoteMessage})
+    log.trace('[onForegroundNotification]', {remoteMessage})
     try {
 
         const remoteData = await _getRemoteData(remoteMessage)
@@ -56,7 +56,7 @@ const onForegroundNotification = async function(remoteMessage: FirebaseMessaging
 }
 
 const onBackgroundNotification = async function(remoteMessage: FirebaseMessagingTypes.RemoteMessage) {
-    log.trace('[onBackgroundReceiveNotification]', {remoteMessage})
+    log.trace('[onBackgroundNotification]', {remoteMessage})
     try {
 
         const remoteData = await _getRemoteData(remoteMessage)
@@ -91,7 +91,7 @@ const _receiveToLnurlHandler = async function(remoteData: NotifyReceiveToLnurlDa
 
 const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {   
     const {requestEvent} = remoteData.data
-    const {nwcStore, proofsStore} = rootStoreInstance
+    const {nwcStore} = rootStoreInstance
 
     // If app is killed, state is not loaded
     if(nwcStore.all.length === 0) {        

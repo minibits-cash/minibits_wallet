@@ -124,6 +124,7 @@ try {
           status: TransactionStatus.REVERTED,            
           mintFeeReserve,
           mintFeePaid,
+          counter: lockedProofsCounter.counter,
           createdAt: new Date(),
       })
 
