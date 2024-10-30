@@ -67,7 +67,8 @@ export const topupTask = async function (
         } = await walletStore.createLightningMintQuote(
             mintUrl, 
             unit, 
-            amountToTopup
+            amountToTopup,
+            memo
         )
 
         const decodedInvoice = LightningUtils.decodeInvoice(encodedInvoice)

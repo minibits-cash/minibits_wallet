@@ -494,6 +494,7 @@ export const WalletStoreModel = types
         mintUrl: string,
         unit: MintUnit,
         amount: number,
+        description?: string,
       ) {
         try {
           const cashuMint = yield self.getMint(mintUrl)
@@ -502,7 +503,8 @@ export const WalletStoreModel = types
             quote: mintQuote,      
           } = yield cashuMint.createMintQuote({
             unit, 
-            amount
+            amount,
+            description
           })
       
           log.info('[createLightningMintQuote]', {encodedInvoice, mintQuote})
