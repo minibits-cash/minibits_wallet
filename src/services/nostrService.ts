@@ -1,20 +1,12 @@
-import {
-    nip19,    
-    getEventHash,
-    getSignature,
-    SimplePool,
-    validateEvent,    
-    utils,
-    nip04
-} from 'nostr-tools'
-import type {
-    Event as NostrEvent, 
-    Filter as NostrFilter, 
-    Kind as NostrKind,
-    UnsignedEvent as NostrUnsignedEvent,
-} from 'nostr-tools'
-import QuickCrypto from 'react-native-quick-crypto'
-import {secp256k1} from '@noble/curves/secp256k1'
+import type { Event as NostrEvent, UnsignedEvent as NostrUnsignedEvent } from 'nostr-tools/core' 
+import { validateEvent, finalizeEvent } from 'nostr-tools'
+import type { Filter as NostrFilter } from 'nostr-tools/filter'
+import { nip19 } from 'nostr-tools'
+import { nip04 } from 'nostr-tools'
+import { utils as NostrUtils } from 'nostr-tools'
+import { SimplePool } from 'nostr-tools'
+import { hexToBytes } from '@noble/hashes/utils'
+import { kinds as NostrKinds } from 'nostr-tools'
 import {
     MINIBITS_RELAY_URL,    
 } from '@env'
@@ -27,11 +19,9 @@ import { WalletTask } from './walletService'
 
 export {     
     NostrEvent, 
-    NostrFilter, 
-    NostrKind,  
+    NostrFilter,     
     NostrUnsignedEvent,   
 }
-
 
 export type NostrProfile = {
     pubkey: string
@@ -59,15 +49,15 @@ const _minibitsRelays: string[] = [MINIBITS_RELAY_URL]
 
 let _pool: any = undefined
 
-const {relaysStore} = rootStoreInstance
+const {walletProfileStore, nwcStore} = rootStoreInstance
 
 const getRelayPool = function () {
     if(!_pool) {
-        _pool = new SimplePool({eoseSubTimeout: 10000})
-        return _pool
+        _pool = new SimplePool()
+        return _pool as SimplePool
     }
 
-    return _pool
+    return _pool as SimplePool
 }
 
 
@@ -80,34 +70,32 @@ const getMinibitsRelays = function () {
 }
 
 
-const reconnectToRelays = async function () {    
+const reconnectToRelays = async function () {
+    const pool = getRelayPool()
+    const connections = pool.listConnectionStatus()
+
+    log.trace('[reconnectToRelays] Current statuses', {connections: Object.fromEntries(connections)})
+
+    let isRefreshSubNeeded: boolean = false
+
+    for (const conn of connections) {        
+        if(conn[1] === false) {
+            pool.ensureRelay(conn[0])
+            isRefreshSubNeeded = true
+        }
+    }  
 
     // recreate subscriptions if all relays down
-    if(relaysStore.connectedCount === 0) {
+    if(isRefreshSubNeeded) {
+        log.trace('[reconnectToRelays] Refreshing Nostr subscriptions')
         WalletTask.receiveEventsFromRelays().catch(e => false)
-    }
 
-    const pool = getRelayPool()    
-    const relaysConnections = pool._conn
-
-    // if just some are disconnected, reconnect them
-    // unclear if it does something else then green ticks in relay screen
-    if (relaysConnections) {
-        for (const url in relaysConnections) {
-            if (relaysConnections.hasOwnProperty(url)) {
-                const relay = relaysConnections[url]
-    
-                if(relaysStore.findByUrl(url)?.status === WebSocket.CLOSED) {                    
-                    await relay.connect()                    
-                }          
-            }            
+        if(!walletProfileStore.device) {
+            nwcStore.receiveNwcEvents()
         }
-    }
+    }     
 }
 
-/* const getRandom = function(list: string[]) {
-    return list[Math.floor((Math.random()*list.length))]
-} */
 
 const getOrCreateKeyPair = async function (): Promise<KeyPair> {
     let keyPair: KeyPair | null = null
@@ -190,30 +178,29 @@ const publish = async function (
 
     const  keys: KeyPair = await getOrCreateKeyPair()    
     
-    const signed = {...event} as NostrEvent
-
+    /* const signed = {...event} as NostrEvent
     signed.created_at = Math.floor(Date.now() / 1000) 
     signed.id = getEventHash(signed)    
-    signed.sig = getSignature(signed, keys.privateKey)    
+    signed.sig = getSignature(signed, keys.privateKey) */
+    
+    const privateKeyBytes = hexToBytes(keys.privateKey)
+    const finalEvent = finalizeEvent(event, privateKeyBytes)
 
-    if(!validateEvent(signed)) {
-        throw new AppError(Err.VALIDATION_ERROR, 'Event is invalid and could not be published', signed)
+    if(!validateEvent(finalEvent)) {
+        throw new AppError(Err.VALIDATION_ERROR, 'Event is invalid and could not be published', {finalEvent})
     }
     
     // log.trace('Event to be published', signed, 'publish')
 
     const pool = getRelayPool()
-    let pubs = pool.publish(relays, signed)
-    await delay(1000)
-    // await Promise.all(pubs)
+    await Promise.any(pool.publish(relays, finalEvent))    
 
     const published = await pool.get(relays, {
-        ids: [signed.id]
+        ids: [finalEvent.id]
     }) as NostrEvent
-
     
     if(published) {
-        log.trace('[NostrClient.publish] Event successfully published', {published})        
+        log.trace('[NostrClient.publish] Event successfully published')        
         return published
     }
     
@@ -223,14 +210,14 @@ const publish = async function (
 
 const getEvent = async function (    
     relays: string[],
-    filters: NostrFilter[]
+    filter: NostrFilter
 ): Promise<NostrEvent | null> {   
     
     const pool = getRelayPool()    
-    const event = await pool.get(relays, filters) as NostrEvent
+    const event = await pool.get(relays, filter) as NostrEvent
 
     if(event) {
-        log.trace('Event received', event, 'getEvent')        
+        log.trace('[getEvent] Event received', {event})        
         return event
     }
 
@@ -241,11 +228,11 @@ const getEvent = async function (
 
 const getEvents = async function (    
     relays: string[],
-    filters: NostrFilter[]
+    filter: NostrFilter
 ): Promise<NostrEvent[]> {   
     
     const pool = getRelayPool()    
-    const events: NostrEvent[] = await pool.list(relays, filters)    
+    const events: NostrEvent[] = await pool.querySync(relays, filter)    
 
     if(events && events.length > 0) {       
         return events
@@ -336,12 +323,12 @@ const getNip05PubkeyAndRelays = async function (nip05: string) {
 const getProfileFromRelays = async function (pubkey: string, relays: string[]): Promise<NostrProfile | undefined> {
 
     // get profile from the relays for pubkey linked to nip05
-    const filters: NostrFilter[] = [{
+    const filter: NostrFilter = {
         authors: [pubkey],
-        kinds: [0],            
-    }]
+        kinds: [NostrKinds.Metadata],            
+    }
 
-    const events = await NostrClient.getEvents(relays, filters)
+    const events = await NostrClient.getEvents(relays, filter)
 
     
     if(!events || events.length === 0) {
@@ -448,7 +435,7 @@ const deleteKeyPair = async function (): Promise<void> {
 
 const getNormalizedRelayUrl = function (url: string): string {
     try {
-        return utils.normalizeURL(url)
+        return NostrUtils.normalizeURL(url)
     } catch (e: any) {
         throw new AppError(Err.VALIDATION_ERROR, `Invalid relay URL: ${e.message}`)
     }

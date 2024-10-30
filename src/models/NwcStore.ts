@@ -7,6 +7,7 @@ import {
     isStateTreeNode,
     detach,  
 } from 'mobx-state-tree'
+import { kinds as NostrKinds } from 'nostr-tools'
 import {withSetPropAction} from './helpers/withSetPropAction'
 import {log} from '../services/logService'
 import EventEmitter from '../utils/eventEmitter'
@@ -39,12 +40,6 @@ type NwcError = {
       code: string,
       message: string
     }
-}
-  
-const NwcKind = {
-    info: 13194,
-    request: 23194,
-    response: 23195
 }
 
 type NwcRequest = {
@@ -162,7 +157,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
 
         const responseEvent: NostrUnsignedEvent = {
             pubkey: self.walletPubkey,            
-            kind: NwcKind.response,
+            kind: NostrKinds.NWCWalletResponse,
             tags: [["p", requestEvent.pubkey], ["e", requestEvent.id]],
             content: encryptedContent,
             created_at: Math.floor(Date.now() / 1000)
@@ -684,18 +679,18 @@ export const NwcStoreModel = types
 
             self.nwcConnections.push(newConnection)
 
-            const filters = [{            
-                kinds: [NwcKind.info],
+            const filter = {            
+                kinds: [NostrKinds.NWCWalletInfo],
                 authors: [newConnection.walletPubkey],                
-            }]
+            }
 
             // Not sure we should publish that as we are not always on, TBD
-            const existingInfoEvent = yield NostrClient.getEvent(newConnection.connectionRelays, filters)
+            const existingInfoEvent = yield NostrClient.getEvent(newConnection.connectionRelays, filter)
 
             if(!existingInfoEvent) {
                 // publish info replacable event // seems to be a relict replaced by get_info request?
                 const infoEvent: NostrUnsignedEvent = {
-                    kind: NwcKind.info,
+                    kind: NostrKinds.NWCWalletInfo,
                     pubkey: newConnection.walletPubkey,
                     tags: [],                        
                     content: self.supportedMethods.join(' '),
@@ -738,42 +733,41 @@ export const NwcStoreModel = types
             
             try {
                 const since = Math.floor(Date.now() / 1000)
-                const connectionsPubkeys = self.nwcConnections.map(c => c.connectionPubkey)                
+                const connectionsPubkeys = self.nwcConnections.map(c => c.connectionPubkey)
+                let eventsBatch: NostrEvent[] = []               
         
-                const filters = [{            
-                    kinds: [NwcKind.request],
+                const filter = [{            
+                    kinds: [NostrKinds.NWCWalletRequest],
                     authors: connectionsPubkeys,
                     "#p": [self.walletPubkey],
                     since
                 }]    
                 
-                const pool = NostrClient.getRelayPool()        
-                const sub = pool.sub(self.connectionRelays , filters)
-    
-                let eventsBatch: NostrEvent[] = []
+                const pool = NostrClient.getRelayPool()   
                 
-                sub.on('event', async (event: NostrEvent) => { 
-                    if (event.kind != NwcKind.request) {
-                        return
-                    }                    
-        
-                    eventsBatch.push(event)
-                    
-                    // find connection the nwc request is sent to
-                    const targetConnection = self.nwcConnections.find(c => 
-                        c.connectionPubkey === event.pubkey
-                    )
-
-                    if(!targetConnection) {
-                        throw new AppError(Err.VALIDATION_ERROR, 'Missing connection matching event pubkey', {pubkey: event.pubkey})
+                const sub = pool.subscribeMany(self.connectionRelays , filter, {
+                    onevent(event) {
+                        if (event.kind != NostrKinds.NWCWalletRequest) {
+                            return
+                        }                    
+            
+                        eventsBatch.push(event)
+                        
+                        // find connection the nwc request is sent to
+                        const targetConnection = self.nwcConnections.find(c => 
+                            c.connectionPubkey === event.pubkey
+                        )
+    
+                        if(!targetConnection) {
+                            throw new AppError(Err.VALIDATION_ERROR, 'Missing connection matching event pubkey', {pubkey: event.pubkey})
+                        }
+                        // dispatch to correct connection
+                        targetConnection.handleRequest(event)
+                    },
+                    oneose() {
+                        log.trace('[receiveNwcEvents]', `Eose: Got ${eventsBatch.length} NWC events`)
+                        eventsBatch = []
                     }
-                    // dispatch to correct connection
-                    await targetConnection.handleRequest(event)
-                })        
-        
-                sub.on('eose', async () => {
-                    log.trace('[receiveNwcEvents]', `Eose: Got ${eventsBatch.length} NWC events`)
-                    eventsBatch = []
                 })
                 
                 EventEmitter.on('ev_transferTask_result', self.handleTransferResult)

@@ -2,7 +2,8 @@ import * as _Keychain from 'react-native-keychain'
 import AppError, {Err} from '../utils/AppError'
 import QuickCrypto from 'react-native-quick-crypto'
 import { generateNewMnemonic } from '@cashu/cashu-ts'
-import { generatePrivateKey, getPublicKey } from 'nostr-tools'
+import { bytesToHex } from '@noble/hashes/utils'
+import { generateSecretKey, getPublicKey } from 'nostr-tools'
 import {btoa, fromByteArray} from 'react-native-quick-base64'
 import {log} from './logService'
 
@@ -345,8 +346,9 @@ async function updateAuthSettings(isAuthOn: boolean) {
 
 const generateNostrKeyPair = function () {
     try {
-        const privateKey = generatePrivateKey() // hex string
-        const publicKey = getPublicKey(privateKey)
+        const privateKeyBytes = generateSecretKey() // Uint8Array
+        const privateKey = bytesToHex(privateKeyBytes)
+        const publicKey = getPublicKey(privateKeyBytes)
 
         log.trace('New HEX Nostr keypair created:', publicKey, privateKey)
 
@@ -392,7 +394,7 @@ const loadNostrKeyPair = async function (): Promise<KeyPair | undefined> {
         })
 
         if (result) {
-            const keyPair = JSON.parse(result.password)
+            const keyPair: KeyPair = JSON.parse(result.password)
             return keyPair
         }
         log.trace('[loadNostrKeyPair]', 'Did not find existing keyPair in the KeyChain')

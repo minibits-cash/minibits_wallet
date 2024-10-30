@@ -1,5 +1,6 @@
 import {isBefore} from 'date-fns'
 import {getSnapshot} from 'mobx-state-tree'
+import { kinds as NostrKinds } from 'nostr-tools'
 import {log} from './logService'
 import {Proof} from '../models/Proof'
 import {
@@ -1464,11 +1465,11 @@ const receiveEventsFromRelays = async function (): Promise<void> {
     try {            
         const { lastPendingReceivedCheck } = contactsStore
 
-        const filter = [{            
-            kinds: [4],
+        const filter = {            
+            kinds: [NostrKinds.EncryptedDirectMessage],
             "#p": [walletProfileStore.pubkey],
             since: lastPendingReceivedCheck || 0
-        }]
+        }
 
         contactsStore.setLastPendingReceivedCheck()         
         const pool = NostrClient.getRelayPool()
@@ -1479,71 +1480,57 @@ const receiveEventsFromRelays = async function (): Promise<void> {
         }
         
         let relaysToConnect = relaysStore.allUrls
-
-        const sub = pool.sub(relaysToConnect , filter)
-        const relaysConnections = pool._conn        
-
-        // update single relay instances status
-        for (const url in relaysConnections) {
-            if (relaysConnections.hasOwnProperty(url)) {
-                const relay = relaysConnections[url]                
-
-                relay.on('error', (error: string) => {
-                    const relayInstance = relaysStore.findByUrl(relay.url)
-                    relayInstance?.setStatus(relay.status)
-                    relayInstance?.setError(relay.error)
-                })
-
-                relay.on('connect', () => {  
-                    const relayInstance = relaysStore.findByUrl(relay.url)
-                    relayInstance?.setStatus(relay.status)                    
-                })
-
-                relay.on('disconnect', () => {                    
-                    const relayInstance = relaysStore.findByUrl(relay.url)
-                    relayInstance?.setStatus(relay.status)  
-                })
-            }            
-        }
-
         let eventsBatch: NostrEvent[] = []
-        
-        sub.on('event', async (event: NostrEvent) => {            
-            // ignore all kinds of duplicate events
-            if(eventsBatch.some(ev => ev.id === event.id)) {
-                log.warn(
-                    Err.ALREADY_EXISTS_ERROR, 
-                    'Duplicate event received by this subscription, skipping...', 
-                    {id: event.id, created_at: event.created_at}
-                )
-                return
-            }                
 
-            if(contactsStore.eventAlreadyReceived(event.id)) {
-                log.warn(
-                    Err.ALREADY_EXISTS_ERROR, 
-                    'Event has been processed in the past, skipping...', 
-                    {id: event.id, created_at: event.created_at}
+        const sub = pool.subscribeMany(relaysToConnect , [filter], {
+            onevent(event) {
+                // ignore all kinds of duplicate events
+                if(eventsBatch.some(ev => ev.id === event.id)) {
+                    log.warn(
+                        Err.ALREADY_EXISTS_ERROR, 
+                        'Duplicate event received by this subscription, skipping...', 
+                        {id: event.id, created_at: event.created_at}
+                    )
+                    return
+                }                
+
+                if(contactsStore.eventAlreadyReceived(event.id)) {
+                    log.warn(
+                        Err.ALREADY_EXISTS_ERROR, 
+                        'Event has been processed in the past, skipping...', 
+                        {id: event.id, created_at: event.created_at}
+                    )
+                    return
+                }
+                
+                eventsBatch.push(event)
+                contactsStore.addReceivedEventId(event.id)
+                // move window to receive events to the last event created_at to avoid recive it again
+                contactsStore.setLastPendingReceivedCheck(event.created_at)
+
+                const now = new Date().getTime()
+                SyncQueue.addTask(       
+                    `_handleReceivedEventTask-${now}`,          
+                    async () => await _handleReceivedEventTask(event)                
                 )
-                return
+            },
+            oneose() {
+                log.trace('[receiveEventsFromRelays]', `Eose: Got ${eventsBatch.length} receive events`)
+                
+                const connections = pool.listConnectionStatus()                
+                for (const conn of connections) {
+                    const relayInstance = relaysStore.findByUrl(conn[0])
+                    if(conn[1] === true) {
+                        log.trace('[receiveEventsFromRelays] Connection is OPEN', {conn: conn[0]})             
+                        relayInstance?.setStatus(WebSocket.OPEN)
+                    } else {
+                        log.trace('[receiveEventsFromRelays] Connection is CLOSED', {conn: conn[0]})             
+                        relayInstance?.setStatus(WebSocket.CLOSED)
+                    }
+                }                
             }
-
-            // eventsQueue.push(event)
-            eventsBatch.push(event)
-            contactsStore.addReceivedEventId(event.id)
-            // move window to receive events to the last event created_at to avoid recive it again
-            contactsStore.setLastPendingReceivedCheck(event.created_at)
-
-            const now = new Date().getTime()
-            SyncQueue.addTask(       
-                `_handleReceivedEventTask-${now}`,          
-                async () => await _handleReceivedEventTask(event)                
-            )
-        })        
-
-        sub.on('eose', async () => {
-            log.trace('[receiveEventsFromRelays]', `Eose: Got ${eventsBatch.length} receive events`)
-        })        
+        })
+        
     } catch (e: any) {
         log.error(e.name, e.message)
         return

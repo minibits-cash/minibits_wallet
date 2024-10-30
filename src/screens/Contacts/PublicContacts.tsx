@@ -2,8 +2,9 @@ import {observer} from 'mobx-react-lite'
 import React, {useEffect, useRef, useState} from 'react'
 import {FlatList, Image, InteractionManager, LayoutAnimation, Platform, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
+import { kinds as NostrKinds } from 'nostr-tools'
 import Clipboard from '@react-native-clipboard/clipboard'
-import {colors, spacing, typography, useThemeColor} from '../../theme'
+import {colors, spacing, useThemeColor} from '../../theme'
 import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
 import {useStores} from '../../models'
 import {NostrClient, NostrEvent, NostrFilter, NostrProfile} from '../../services'
@@ -122,13 +123,13 @@ export const PublicContacts = observer(function (props: {
             return
         }
         
-         const filters: NostrFilter[] = [{
+         const filter: NostrFilter = {
             authors: [contactsStore.publicPubkey],
-            kinds: [0, 3],            
-        }]        
+            kinds: [NostrKinds.Metadata, NostrKinds.Contacts],            
+        }
           
         log.trace('[subscribeToOwnProfileAndPubkeys] getEvents')
-        const events: NostrEvent[] = await NostrClient.getEvents(relaysStore.allPublicUrls, filters)
+        const events: NostrEvent[] = await NostrClient.getEvents(relaysStore.allPublicUrls, filter)
         log.trace(events)
 
         for (const event of events) {
@@ -136,7 +137,7 @@ export const PublicContacts = observer(function (props: {
                 continue
             }
 
-            if(event.kind === 0) {
+            if(event.kind === NostrKinds.Metadata) {
                 try {
                     const profile: NostrProfile = JSON.parse(event.content)
                     profile.pubkey = contactsStore.publicPubkey as string // pubkey might not be in ev.content
@@ -148,7 +149,7 @@ export const PublicContacts = observer(function (props: {
                 }
             }
             
-            if(event.kind === 3) {
+            if(event.kind === NostrKinds.Contacts) {
                 const pubkeys = event.tags
                     .filter((item) => item[0] === "p")
                     .map((item) => item[1])
@@ -166,17 +167,17 @@ export const PublicContacts = observer(function (props: {
                 return
             }
 
-            const filters: NostrFilter[] = [{
+            const filter: NostrFilter = {
                 authors: followingPubkeys,
-                kinds: [0],
+                kinds: [NostrKinds.Metadata],
                 limit: maxContactsToLoad,            
-            }]
+            }
 
             log.trace('[loadProfiles] Starting following profiles subscription...')
                                     
             setIsLoading(true)
 
-            const events: NostrEvent[] = await NostrClient.getEvents(relaysStore.allPublicUrls, filters)   
+            const events: NostrEvent[] = await NostrClient.getEvents(relaysStore.allPublicUrls, filter)   
 
             let following: NostrProfile[] = []
 

@@ -72,7 +72,7 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
     }
 
     const onConnect = async function () {
-        log.trace('onConnect')    
+        log.trace('[onConnect]')    
         
         // Full force re-subscription, not just reconnect
         WalletTask.receiveEventsFromRelays().catch(e => false)

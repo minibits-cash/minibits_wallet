@@ -24,6 +24,7 @@ import {
   ImageStyle,
   Image,
 } from 'react-native'
+import { kinds as NostrKinds } from 'nostr-tools'
 import {spacing, typography, useThemeColor, colors} from '../theme'
 import {WalletStackScreenProps} from '../navigation'
 import {
@@ -511,7 +512,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             // log.trace('Relays', relaysToShareTo)          
 
             const dmEvent: NostrUnsignedEvent = {
-                kind: 4,
+                kind: NostrKinds.EncryptedDirectMessage,
                 pubkey: senderPubkey,
                 tags: [['p', receiverPubkey as string], ['from', walletProfileStore.nip05]],
                 content: encryptedContent,

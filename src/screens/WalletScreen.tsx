@@ -18,7 +18,6 @@ import {
 import codePush, { RemotePackage } from 'react-native-code-push'
 import {moderateScale, verticalScale} from '@gocodingnow/rn-size-matters'
 import { SvgXml } from 'react-native-svg'
-import { debounce } from "lodash"
 import {useThemeColor, spacing, colors, typography} from '../theme'
 import {
   Button,
@@ -70,6 +69,7 @@ interface WalletScreenProps extends WalletStackScreenProps<'Wallet'> {}
 export const WalletScreen: FC<WalletScreenProps> = observer(
   function WalletScreen({route, navigation}) {    
     const {
+        relaysStore,
         mintsStore, 
         proofsStore, 
         transactionsStore, 
@@ -298,6 +298,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         const handleAppStateChange = (nextAppState: AppStateStatus) => {
             if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
                 if (!isInternetReachable) {
+                    relaysStore.resetStatuses()
                     return
                 }
 
@@ -473,7 +474,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                     }
                 ]}>
                     <UnitBalanceBlock                            
-                        unitBalance={balances.unitBalances.find(balance => balance.unit === unitMints.unit)!}
+                        unitBalance={balances.unitBalances.find((balance) => balance.unit === unitMints.unit)!}
                     />
                     <Pressable                         
                         onPress={toggleMintsModal}

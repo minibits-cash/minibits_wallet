@@ -14,6 +14,7 @@ import {
   Image,
   ImageStyle,
 } from 'react-native'
+import { kinds as NostrKinds } from 'nostr-tools'
 import {spacing, useThemeColor, colors, typography} from '../theme'
 import {WalletStackScreenProps} from '../navigation'
 import {
@@ -514,7 +515,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         // log.trace('Relays', relaysToShareTo)
 
         const dmEvent: NostrUnsignedEvent = {
-          kind: 4,
+          kind: NostrKinds.EncryptedDirectMessage,
           pubkey: senderPubkey,
           tags: [
             ['p', receiverPubkey as string],

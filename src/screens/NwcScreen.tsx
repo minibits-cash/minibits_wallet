@@ -105,7 +105,7 @@ export const NwcScreen: FC<NwcScreenProps> = observer(
     }
 
     const onConnect = async function () {
-        log.trace('onConnect') 
+        log.trace('[onConnect]') 
         
         if(!isRemoteDataPushEnabled) {
             setSelectedConnection(undefined)        
