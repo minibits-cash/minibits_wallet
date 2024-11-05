@@ -597,6 +597,9 @@ const _syncStateWithMintTask = async function (
 
         // 1. Complete transactions with their proofs becoming spent by mint
         if (spentByMintProofs.length  > 0) {
+
+            // Remove spent proofs model instances
+            proofsStore.removeProofs(spentByMintProofs as Proof[], isPending)
             
             // Clean pendingByMint secrets from state if proofs came back as spent by mint            
             if(proofsStore.pendingByMintSecrets.length > 0) {
@@ -628,13 +631,13 @@ const _syncStateWithMintTask = async function (
             }
             
             // Convert the transactionStateMap to an array of transactionStateUpdate objects
-            const spentStateUpdates = Object.entries(transactionStateMap).map(([tId, spentByMintAmount]) => {                                 
+            const spentStateUpdates = Object.entries(transactionStateMap).map(([tId, spentByMintTxAmount]) => {                                 
                 const tx = transactionsStore.findById(Number(tId))                
 
                 if (tx) {
                     // spent amount does not cover matched tx amount 
                     // means that some spent proofs were used as inputs into the send
-                    if(spentByMintAmount < tx.amount) {
+                    if(spentByMintTxAmount < tx.amount) {
 
                         errorTransactionIds.push(Number(tId))
 
@@ -656,7 +659,7 @@ const _syncStateWithMintTask = async function (
                         return {
                             tId: Number(tId),
                             amount: tx.amount,
-                            spentByMintAmount: spentByMintAmount as number,
+                            spentByMintAmount: spentByMintTxAmount as number,
                             message: 'Some spent ecash has been used as an input for this transaction.',
                             updatedStatus: TransactionStatus.ERROR
                         } as TransactionStateUpdate
@@ -668,7 +671,7 @@ const _syncStateWithMintTask = async function (
                         return {
                             tId: Number(tId),
                             amount: tx.amount,
-                            spentByMintAmount: spentByMintAmount as number,
+                            spentByMintAmount: spentByMintTxAmount as number,
                             updatedStatus: TransactionStatus.COMPLETED
                         } as TransactionStateUpdate
                     }
@@ -683,9 +686,6 @@ const _syncStateWithMintTask = async function (
             log.trace('[_syncStateWithMintTask]', {spentStateUpdates})
 
             transactionStateUpdates.push(...spentStateUpdates)
-
-            // Remove spent proofs model instances
-            proofsStore.removeProofs(spentByMintProofs as Proof[], isPending)
 
             // Update related transactions statuses
             log.debug('[_syncStateWithMintTask]', 'Transaction id(s) to complete', completedTransactionIds.toString())

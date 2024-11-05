@@ -10,18 +10,16 @@ import {colors, spacing, useThemeColor} from '../theme'
 import {log} from '../services/logService'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 import AppError, { Err } from '../utils/AppError'
-import { Button, Card, ErrorModal, Header, Icon, ListItem, ScanIcon, Screen, Text } from '../components'
-import { LnurlUtils } from '../services/lnurl/lnurlUtils'
+import { Button, Card, ErrorModal, Icon, ListItem, ScanIcon, Screen, Text } from '../components'
 import { infoMessage } from '../utils/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { SvgXml } from 'react-native-svg'
-import { SendOption } from './SendOptionsScreen'
-import { CurrencyCode, MintUnit } from '../services/wallet/currency'
 import { useStores } from '../models'
 import { Mint } from '../models/Mint'
 import { MintHeader } from './Mints/MintHeader'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { translate } from '../i18n'
+import { MintUnit } from '../services/wallet/currency'
 
 
 export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = function TokenReceiveScreen(_props) {
@@ -88,7 +86,7 @@ export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = fu
 
     const gotoScan = async function () {
         tokenInputRef.current?.blur()
-        navigation.navigate('Scan')
+        navigation.navigate('Scan', {mintUrl: mint?.mintUrl, unit})
     }
 
 

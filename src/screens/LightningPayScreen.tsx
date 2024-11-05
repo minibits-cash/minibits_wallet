@@ -94,7 +94,7 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
 
     const gotoScan = async function () {
         lightningInputRef.current?.blur()
-        navigation.navigate('Scan')
+        navigation.navigate('Scan', {mintUrl: mint?.mintUrl, unit})
     }
 
 

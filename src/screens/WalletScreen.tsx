@@ -385,7 +385,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     }
 
     const gotoScan = function () {
-        navigation.navigate('Scan')
+        navigation.navigate('Scan', {unit: currentUnit})
     }
 
     const gotoTokenReceive = async function () {
@@ -431,7 +431,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     }
 
 
-    const gotoLightningPay = function (mintUrl?: string, ) {
+    const gotoLightningPay = function (mintUrl?: string) {
+        log.trace({mintUrl})
         if(mintUrl) {
             setIsMintsModalVisible(false)
             navigation.navigate('LightningPay', {
@@ -986,7 +987,7 @@ const MintsByUnitList = observer(function (props: {
                             )}
                             preset='secondary'
                             textStyle={{fontSize: 14, color}}
-                            onPress={() => props.onTopup(mintsByUnitCurrent!.unit, mint.mintUrl)}
+                            onPress={() => props.onTopup(mint.mintUrl)}
                             style={{
                                 minHeight: verticalScale(40), 
                                 paddingVertical: verticalScale(spacing.tiny),
@@ -1004,7 +1005,7 @@ const MintsByUnitList = observer(function (props: {
                             )}
                             textStyle={{fontSize: 14, color}}
                             preset='secondary'
-                            onPress={() => props.onLightningPay(mintsByUnitCurrent!.unit, mint.mintUrl)}
+                            onPress={() => props.onLightningPay(mint.mintUrl)}
                             style={{
                                 minHeight: verticalScale(40), 
                                 paddingVertical: verticalScale(spacing.tiny),

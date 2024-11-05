@@ -453,7 +453,7 @@ export const WalletStoreModel = types
               {
                 message: e.message,            
                 mintUrl,
-                caller: 'WalletStore.sendFromMint',                 
+                caller: 'WalletStore.send',                 
               }
             )
           }              
@@ -648,7 +648,7 @@ export const WalletStoreModel = types
         try {    
           const cashuWallet: CashuWallet = yield self.getWallet(mintUrl, unit, {withSeed: true}) // with seed
       
-          const {isPaid, preimage, change: feeSavedProofs}: MeltTokensResponse =
+          const meltResponse: MeltTokensResponse =
             yield cashuWallet.meltTokens(
               lightningMeltQuote,
               proofsToPayFrom,
@@ -658,13 +658,10 @@ export const WalletStoreModel = types
               }        
             )
           
-          log.trace('[payLightningMelt]', {isPaid, preimage, feeSavedProofs})
+          log.trace('[payLightningMelt]', {meltResponse})
           // we normalize naming of returned parameters
-          return {
-            feeSavedProofs,
-            isPaid,
-            preimage,      
-          }
+          return meltResponse
+
         } catch (e: any) {
           let message = 'Lightning payment failed.'
           if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;

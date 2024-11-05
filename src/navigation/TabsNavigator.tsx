@@ -143,7 +143,10 @@ export type WalletStackParamList = {
       contact?: Contact,
       mintUrl?: string,      
     }
-    Scan: undefined
+    Scan: {
+      unit: MintUnit    
+      mintUrl?: string,      
+    },
     LightningPay: {
       unit: MintUnit    
       mintUrl?: string,      

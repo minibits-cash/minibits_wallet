@@ -22,6 +22,8 @@ import { infoMessage } from '../utils/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { useStores } from '../models'
 import { translate } from '../i18n'
+import { MintUnit } from '../services/wallet/currency'
+import { Mint } from '../models/Mint'
 
 const hasAndroidCameraPermission = async () => {
     const cameraPermission = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA)
@@ -30,14 +32,16 @@ const hasAndroidCameraPermission = async () => {
 
 
 export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScreen(_props) {
-    const {navigation} = _props
-    const {userSettingsStore} = useStores()
+    const {navigation, route} = _props
+    const {mintsStore} = useStores()
 
     const [shouldLoad, setShouldLoad] = useState<boolean>(false)        
     const [isScanned, setIsScanned] = useState<boolean>(false)
     const [prevRouteName, setPrevRouteName] = useState<string>('')
     const [urDecoder, setUrDecoder] = useState<URDecoder | undefined>(undefined)
     const [urDecoderProgress, setUrDecoderProgress] = useState<number>(0)
+    const [unit, setUnit] = useState<MintUnit>('sat')
+    const [mint, setMint] = useState<Mint | undefined>(undefined) 
     const [error, setError] = useState<AppError | undefined>()
 
     useEffect(() => {
@@ -58,6 +62,29 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
         }
         load()
     }, [])
+
+
+    useEffect(() => {
+        const setUnitAndMint = () => {
+            try {
+                const {unit, mintUrl} = route.params
+                if (!unit) throw new AppError(Err.VALIDATION_ERROR, 'Missing mint unit in route params');
+
+                setUnit(unit)
+
+                if (mintUrl) {
+                  const mint = mintsStore.findByUrl(mintUrl)    
+                  setMint(mint)
+                }
+
+            } catch (e: any) {
+                handleError(e)
+            }
+        }
+
+        setUnitAndMint()        
+        return () => {}
+    }, [])  
 
 
     const onReadCode = async function(event: any) {
@@ -98,15 +125,13 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
 
 
     const onIncomingData = async function(incoming: any) {
-        
-        const {preferredUnit: unit} = userSettingsStore
 
         switch (prevRouteName) {
             case 'TokenReceive':  
                 log.trace('TokenReceive')
                 try {     
                     const tokenResult = IncomingParser.findAndExtract(incoming, IncomingDataType.CASHU)
-                    return IncomingParser.navigateWithIncomingData(tokenResult, navigation, unit)
+                    return IncomingParser.navigateWithIncomingData(tokenResult, navigation, unit, mint && mint.mintUrl)
                     
                 } catch (e: any) {
                     const maybeLnurl = LnurlUtils.findEncodedLnurl(incoming)
@@ -120,23 +145,13 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                                 await IncomingParser.navigateWithIncomingData({
                                     type: IncomingDataType.LNURL,
                                     encoded: encodedLnurl
-                                }, navigation, unit)
+                                }, navigation, unit, mint && mint.mintUrl)
                             }
                             return
                         } catch (e2: any) {
                             handleError(e2)
                             break
                         }
-                    }
-
-                    // temp validation
-                    if(incoming.startsWith('ur:bytes')) {
-                        log.trace('[findAndExtract] Got animated QR', incoming)
-
-                        e.params = incoming
-                        e.message = 'Minibits does not yet support animated QR codes.'
-                        handleError(e)
-                        break
                     }
 
                     e.params = incoming
@@ -147,7 +162,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
             case 'LightningPay':     
                 try {               
                     const invoiceResult = IncomingParser.findAndExtract(incoming, IncomingDataType.INVOICE)
-                    return IncomingParser.navigateWithIncomingData(invoiceResult, navigation, unit)
+                    return IncomingParser.navigateWithIncomingData(invoiceResult, navigation, unit, mint && mint.mintUrl)
                     
                 } catch (e: any) {
                     const maybeLnurlAddress = LnurlUtils.findEncodedLnurlAddress(incoming)
@@ -161,7 +176,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                                 await IncomingParser.navigateWithIncomingData({
                                     type: IncomingDataType.LNURL_ADDRESS,
                                     encoded: validAddress
-                                }, navigation, unit)    
+                                }, navigation, unit, mint && mint.mintUrl)    
                             }
                             return          
                         } catch (e3: any) {
@@ -181,7 +196,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                                 await IncomingParser.navigateWithIncomingData({
                                     type: IncomingDataType.LNURL,
                                     encoded: encodedLnurl
-                                }, navigation, unit)
+                                }, navigation, unit, mint && mint.mintUrl)
                             }
                             return
                         } catch (e2: any) {
@@ -198,7 +213,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                 try {
                 // generic scan button on wallet screen
                   const incomingData = IncomingParser.findAndExtract(incoming)              
-                  return IncomingParser.navigateWithIncomingData(incomingData, navigation, unit)   
+                  return IncomingParser.navigateWithIncomingData(incomingData, navigation, unit, mint && mint.mintUrl)   
                 } catch (e: any) {
                   e.name = Err.VALIDATION_ERROR
                   e.params = {caller: 'onIncomingData', clipboard: incoming.slice(0, 100)}
