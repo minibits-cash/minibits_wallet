@@ -146,8 +146,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     }
 
     // On app start
-    useEffect(() => {
-        // get deeplink if any
+    useEffect(() => {        
         const getInitialData  = async () => {
             // get deeplink data if any
             const url = await Linking.getInitialURL()
@@ -465,6 +464,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const renderUnitTabs = function ({ route }: { route: { key: string } }) {
         const unitMints = groupedMints.find((mintUnit) => mintUnit.unit === route.key)
         
+        // log.trace('[renderUnitTabs]', {recentByUnit: transactionsStore.getRecentByUnit(unitMints!.unit), unit: unitMints!.unit})
+        
         if (unitMints) {            
             return (
             <>
@@ -487,11 +488,11 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                     </Pressable>
                 </View>
                 <View style={$tabContainer}>                           
-                    {transactionsStore.recentByUnit(unitMints.unit).length > 0 ? (
+                    {transactionsStore.getRecentByUnit(unitMints.unit).length > 0 ? (
                         <Card                                    
                             ContentComponent={                                            
                                 <FlatList
-                                    data={transactionsStore.recentByUnit(unitMints.unit) as Transaction[]}
+                                    data={transactionsStore.getRecentByUnit(unitMints.unit) as Transaction[]}
                                     renderItem={({item, index}) => {
                                         return (
                                             <TransactionListItem

@@ -54,8 +54,8 @@ export enum TransactionStatus {
 }
 
 export const TransactionModel = types
-    .model('Transaction', {
-        id: types.number,
+    .model('Transaction', {        
+        id: types.identifierNumber,
         type: types.frozen<TransactionType>(),
         amount: types.integer,
         fee: types.optional(types.integer, 0),

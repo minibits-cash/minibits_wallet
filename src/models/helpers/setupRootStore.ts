@@ -55,14 +55,13 @@ export async function setupRootStore(rootStore: RootStore) {
 
         // load the last known state from storage
         const start = performance.now()
-        restoredState = MMKVStorage.load(ROOT_STORAGE_KEY) || {}
-        const mmkvLoaded = performance.now()
+        restoredState = MMKVStorage.load(ROOT_STORAGE_KEY) || {}        
+        const mmkvLoaded = performance.now()        
         const dataSize = Buffer.byteLength(JSON.stringify(restoredState), 'utf8')        
         
-        log.trace('[setupRootStore]', `Loading ${dataSize.toLocaleString()} bytes of state from MMKV took ${(mmkvLoaded - start).toLocaleString()} ms.`)
+        log.trace({restoredState})
+        log.trace('[setupRootStore]', `Loading ${dataSize.toLocaleString()} bytes of state from MMKV took ${(mmkvLoaded - start).toLocaleString()} ms.`)        
         
-        // log.trace({restoredState})
-
         applySnapshot(rootStore, restoredState)        
         
         const stateHydrated = performance.now()
@@ -129,123 +128,7 @@ async function _runMigrations(rootStore: RootStore) {
     
     let currentVersion = rootStore.version
 
-    try {
-
-        if(currentVersion < 6) {
-            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v6`)
-            userSettingsStore.setLogLevel(LogLevel.ERROR)
-            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
-            rootStore.setVersion(rootStoreModelVersion)
-        }
-
-
-        if(currentVersion < 7) {
-            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v7`)
-            for (const mint of mintsStore.allMints) {
-                mint.setStatus(MintStatus.ONLINE)
-            }
-            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
-            rootStore.setVersion(rootStoreModelVersion)
-        }
-
-
-        if(currentVersion < 8) {
-            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v8`)
-            const seedHash = await KeyChain.loadSeedHash()        
-
-            if(seedHash && walletProfileStore.pubkey) {
-                await MinibitsClient.migrateSeedHash(
-                    walletProfileStore.pubkey, 
-                    {
-                        seedHash
-                    }
-                )
-
-                walletProfileStore.setSeedHash(seedHash)
-                log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
-                rootStore.setVersion(rootStoreModelVersion)
-            }
-        }
-
-        if(currentVersion < 9) {
-            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v9`)
-            
-            for (const mint of mintsStore.allMints) {
-                try {
-                    await mint.setShortname()
-                } catch (e: any) {
-                    continue
-                }
-            }
-
-            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
-            rootStore.setVersion(rootStoreModelVersion)
-        }
-
-        if(currentVersion < 10) {
-            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v10`)
-            
-            for (const contact of contactsStore.all) {
-                if(contact.isExternalDomain === false) {
-                    contact.setLud16(contact.nip05 as string)
-                }
-            }
-
-            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
-            rootStore.setVersion(rootStoreModelVersion)
-        }
-
-        if(currentVersion < 11) {
-            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v11`)            
-            // userSettingsStore.setIsStorageMigrated(true)
-            rootStore.setVersion(rootStoreModelVersion)
-            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
-        }
-
-        if(currentVersion < 12) {
-            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v12`)            
-            
-            for (const mint of mintsStore.allMints) {
-                try {                    
-                    mint.addUnit('sat')
-                    mint.resetCounters()
-                } catch (e: any) {
-                    continue
-                }
-            }
-
-            rootStore.setVersion(rootStoreModelVersion)
-            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
-        }
-        
-        if(currentVersion < 13) {
-            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v13`)
-
-            userSettingsStore.setPreferredUnit('sat')
-            
-            for (const proof of proofsStore.allProofs) {
-                try {
-                    if(!proof.unit) {
-                        proof.setUnit('sat')
-                    }                                    
-                } catch (e: any) {
-                    continue
-                }
-            }
-
-            for (const tx of transactionsStore.all) {
-                try {
-                    if(!tx.unit) {
-                        tx.setUnit('sat')
-                    }                                    
-                } catch (e: any) {
-                    continue
-                }
-            }
-
-            rootStore.setVersion(rootStoreModelVersion)
-            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
-        }
+    try {       
         
         if(currentVersion < 14) {
             log.trace(`Starting rootStore migrations from version v${currentVersion} -> v14`)
@@ -295,7 +178,7 @@ async function _runMigrations(rootStore: RootStore) {
             log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
         }
         if(currentVersion < 28) {
-            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v27`)
+            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v28`)
 
             userSettingsStore.setExchangeCurrency(CurrencyCode.USD)
             userSettingsStore.setTheme(ThemeCode.DEFAULT)
@@ -314,6 +197,14 @@ async function _runMigrations(rootStore: RootStore) {
                     Database.updateProofsMintUrlMigration(keysetId, mint.mintUrl)
                 }                
             }
+
+            rootStore.setVersion(rootStoreModelVersion)
+            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+        }
+        if(currentVersion < 29) {
+            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v29`)
+
+            transactionsStore.addRecentByUnit()
 
             rootStore.setVersion(rootStoreModelVersion)
             log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)

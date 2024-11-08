@@ -27,24 +27,24 @@ import {
 import {TransactionsStackScreenProps} from '../navigation'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
-import {GroupedByTimeAgo, maxTransactionsInModel} from '../models/TransactionsStore'
 import {Database, log} from '../services'
 import AppError from '../utils/AppError'
 import {TransactionListItem} from './Transactions/TransactionListItem'
 import { Transaction, TransactionStatus } from '../models/Transaction'
 import { height } from '@fortawesome/free-solid-svg-icons/faWallet'
 import { translate } from '../i18n'
+import { maxTransactionsInHistory } from '../models/TransactionsStore'
 
 if (Platform.OS === 'android' &&
   UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 // Number of transactions held in TransactionsStore model
-const limit = maxTransactionsInModel
+const limit = maxTransactionsInHistory
 
 export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> = observer(function TranHistoryScreen(_props) {
     const {navigation} = _props
-    const {transactionsStore, proofsStore, mintsStore} = useStores()
+    const {transactionsStore, mintsStore} = useStores()
     useHeader({
       leftIcon: 'faArrowLeft',
       onLeftPress: () => navigation.goBack(),
@@ -58,9 +58,7 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
     const [isLoading, setIsLoading] = useState(false)
     const [isHeaderVisible, setIsHeaderVisible] = useState(true)
     const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false)
-    const [offset, setOffset] = useState<number>(transactionsStore.count) // load from db those that are not already displayed
-    const [pendingOffset, setPendingOffset] = useState<number>(transactionsStore.pending.length) // load from db those that are not already displayed
-    const [dbCount, setDbCount] = useState<number>(0)
+    const [totalDbCount, setTotalDbCount] = useState<number>(0)
     const [pendingDbCount, setPendingDbCount] = useState<number>(0)
     const [expiredDbCount, setExpiredDbCount] = useState<number>(0)
     const [erroredDbCount, setErroredDbCount] = useState<number>(0)
@@ -71,106 +69,111 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
     useEffect(() => {
         const init = async () => {     
             setIsLoading(true)
-            const count = Database.getTransactionsCount() // all
-            const pendingCount = Database.getTransactionsCount(TransactionStatus.PENDING)
-            const expiredCount = Database.getTransactionsCount(TransactionStatus.EXPIRED)
-            const erroredCount = Database.getTransactionsCount(TransactionStatus.ERROR)
-            const revertedCount = Database.getTransactionsCount(TransactionStatus.REVERTED)
+            const countByStatus = Database.getTransactionsCount()            
             
-            log.trace('transaction counts', {count, pendingCount, erroredCount, revertedCount})
+            log.trace('Database transaction counts', {countByStatus})
+            
+            setPendingDbCount(countByStatus[TransactionStatus.PENDING] || 0)
+            setExpiredDbCount(countByStatus[TransactionStatus.EXPIRED] || 0)
+            setErroredDbCount(countByStatus[TransactionStatus.ERROR] || 0)
+            setRevertedDbCount(countByStatus[TransactionStatus.REVERTED] || 0)
+            setTotalDbCount(countByStatus.total)
 
-            setDbCount(count)
-            setPendingDbCount(pendingCount)
-            setExpiredDbCount(expiredCount)
-            setErroredDbCount(erroredCount)
-            setRevertedDbCount(revertedCount)
+            // Preload transactions to model in case they are not there
+            if(countByStatus.total > 0) {
+                if(transactionsStore.historyCount === 0) {
+                    transactionsStore.addToHistory(limit, 0, false)                    
+                }
+
+                if(transactionsStore.recentByUnit.length === 0) {                    
+                    transactionsStore.addRecentByUnit()                    
+                }
+            }
 
             setIsLoading(false)
 
-            if (count <= limit) {  
-                log.trace('setAll true')          
+            if (countByStatus.total <= limit) {  
+                log.trace('[init] setAll true')          
                 setIsAll(true)
             }
 
-            if (pendingCount <= limit) {  
+            /* if (countByStatus[TransactionStatus.PENDING] <= limit) {  
                 log.trace('setPendingAll true')          
                 setPendingIsAll(true)
-            }
-            // Run on component unmount (cleanup)
-            return () => {
-                /* When leaving screen we remove all transactions over maxTransactionsByMint
-                * from the transactionsStore that might have been sourced from sqlite db while browsing older records
-                */
-                for (const mint of mintsStore.allMints) {
-                    transactionsStore.removeOldByMint(mint.mintUrl)
-                    transactionsStore.removeAllWithoutCurrentMint() // avoid that tx from deleted mints remain in model forever
-                }            
-            }
+            }*/
         }
 
         init()
-        return () => {}
+        return () => {
+            if(showPendingOnly) {
+                // Full clean if filtered, next visit will reload from db
+                transactionsStore.removeAllHistory()
+            } else {
+                // Keep recent in history to load fast on next visit                                
+                transactionsStore.pruneHistory() 
+            }
+            // general cleanup - avoid that tx from deleted mints remain in state forever          
+            transactionsStore.pruneRecentWithoutCurrentMint()
+        }
     }, [])
 
     const toggleDeleteModal = () => {
         setIsDeleteModalVisible(previousState => !previousState)
     }
 
-    // TODO debug
-    const getTransactionsList = async function () {
+    
+    const addTransactionsToList = function () {
         setIsLoading(true)
         try {
-            const result = await Database.getTransactionsAsync(limit, offset)
+            transactionsStore.addToHistory(limit, transactionsStore.historyCount, false)            
 
-            if (result && result.length > 0) {
-                // Add new transaction to the transactions store so mobx refreshes UI
-                transactionsStore.addTransactionsToModel(result._array)
+            log.trace('[addTransactionsToList]', {
+                currentOffset: transactionsStore.historyCount,                
+                totalDbCount
+            })
 
-                setOffset(offset + result.length)
-
-                log.trace({storeCount: transactionsStore.count, dbCount})
-                if (transactionsStore.count >= dbCount) {
-                    log.trace('[getTransactionsList] setAll true')
-                    setIsAll(true)
-                }
-            }
+            if (transactionsStore.historyCount >= totalDbCount) {
+                log.trace('[getTransactionsList] setAll true')
+                setIsAll(true)
+            }            
 
             setIsLoading(false)
         } catch (e: any) {
             handleError(e)
         }
-    }
+    }   
+    
 
-
-    // TODO debug
-    const getPendingTransactionsList = async function () {
+    const addPendingTransactionsToList = function () {
         setIsLoading(true)
         try {
-            const result = await Database.getTransactionsAsync(limit, pendingOffset, true) // pending
+            transactionsStore.addToHistory(limit, transactionsStore.historyCount, true)            
 
-            if (result && result.length > 0) {
-                // Add new transaction to the transactions store so that mobx refreshes UI
-                transactionsStore.addTransactionsToModel(result._array)
+            log.trace('[addTransactionsToList] onlyPending', {
+                currentOffset: transactionsStore.historyCount,                
+                pendingDbCount
+            })
 
-                setOffset(pendingOffset + result.length)
-
-                if (transactionsStore.pending.length === pendingDbCount) {
-                    log.trace('[getTransactionsList] setAll true')
-                    setPendingIsAll(true)
-                }
-            }
+            if (transactionsStore.historyCount >= pendingDbCount) {
+                log.trace('[getTransactionsList] onlyPending setAll true')
+                setPendingIsAll(true)
+            }            
 
             setIsLoading(false)
         } catch (e: any) {
             handleError(e)
         }
-    }
+    }  
+    
 
-    const toggleShowPendingOnly = async function () {
-        if (showPendingOnly) {            
+    const toggleShowPendingOnly = function () {
+        if (showPendingOnly) {        
+            transactionsStore.removeAllHistory()            
+            addTransactionsToList()         
             setShowPendingOnly(false)
         } else {
-            await getPendingTransactionsList()
+            transactionsStore.removeAllHistory()            
+            addPendingTransactionsToList() // hydrate with onlyPending = true
             setShowPendingOnly(true)
         }
     }
@@ -192,57 +195,22 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
     }
 
 
-    const onDeleteExpired = function () {
+    const onDelete = function (status: TransactionStatus) {
         try {
             toggleDeleteModal()
             setIsLoading(true)
-            transactionsStore.deleteByStatus(TransactionStatus.EXPIRED)
-            
-            const count = Database.getTransactionsCount() // all            
-            const expiredCount = Database.getTransactionsCount(TransactionStatus.EXPIRED)
-    
-            setDbCount(count)            
-            setExpiredDbCount(expiredCount)            
+            transactionsStore.deleteByStatus(status)            
+            const countByStatus = Database.getTransactionsCount()
+
+            setPendingDbCount(countByStatus[TransactionStatus.PENDING] || 0)
+            setExpiredDbCount(countByStatus[TransactionStatus.EXPIRED] || 0)
+            setErroredDbCount(countByStatus[TransactionStatus.ERROR] || 0)
+            setRevertedDbCount(countByStatus[TransactionStatus.REVERTED] || 0)
+            setTotalDbCount(countByStatus.total)           
             setIsLoading(false)
         } catch (e: any) {
             handleError(e)
         }        
-    }
-
-
-    const onDeleteErrored = function () {
-        try {
-            toggleDeleteModal()
-            setIsLoading(true)
-            transactionsStore.deleteByStatus(TransactionStatus.ERROR)
-            
-            const count = Database.getTransactionsCount() // all
-            const erroredCount = Database.getTransactionsCount(TransactionStatus.ERROR)
-    
-            setDbCount(count)
-            setErroredDbCount(erroredCount)
-            setIsLoading(false)
-        } catch (e: any) {
-            handleError(e)
-        }
-    }
-
-
-    const onDeleteReverted = function () {
-        try {
-            toggleDeleteModal()
-            setIsLoading(true)
-            transactionsStore.deleteByStatus(TransactionStatus.REVERTED)
-            
-            const count = Database.getTransactionsCount() // all
-            const revertedCount = Database.getTransactionsCount(TransactionStatus.REVERTED)
-    
-            setDbCount(count)
-            setRevertedDbCount(revertedCount)
-            setIsLoading(false)
-        } catch (e: any) {
-            handleError(e)
-        }
     }
 
     const handleError = function (e: AppError): void {
@@ -255,12 +223,12 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
     const activeIconColor = useThemeColor('button')    
     const headerTitle = useThemeColor('headerTitle')
 
-    const sections = showPendingOnly ? Object.keys(transactionsStore.groupedPendingByTimeAgo).map((timeAgo) => ({
+    const sections = showPendingOnly ? Object.keys(transactionsStore.historyPendingByTimeAgo).map((timeAgo) => ({
         title: timeAgo,
-        data: transactionsStore.groupedPendingByTimeAgo[timeAgo],
-    })) : Object.keys(transactionsStore.groupedByTimeAgo).map((timeAgo) => ({
+        data: transactionsStore.historyPendingByTimeAgo[timeAgo],
+    })) : Object.keys(transactionsStore.historyByTimeAgo).map((timeAgo) => ({
         title: timeAgo,
-        data: transactionsStore.groupedByTimeAgo[timeAgo],
+        data: transactionsStore.historyByTimeAgo[timeAgo],
     }))
 
     return (
@@ -277,12 +245,12 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
                         <ListItem
                             text={showPendingOnly 
                               ? translate("tranHistory.showingPaginationPending", {
-                                amount: transactionsStore.pending.length,
+                                amount: transactionsStore.pendingHistoryCount,
                                 total: pendingDbCount
                               }) 
                               : translate("tranHistory.showingPaginationTotal", {
-                                amount: transactionsStore.count,
-                                total: dbCount
+                                amount: transactionsStore.historyCount,
+                                total: totalDbCount
                               })
                             }
                             LeftComponent={
@@ -299,7 +267,7 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
                         />
                         <ListItem
                         text={translate("tranHistory.pendingParam", {
-                          param: transactionsStore.pending.length
+                          param: transactionsStore.pendingHistoryCount
                         })}
                         LeftComponent={
                             <Icon
@@ -350,7 +318,7 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
                             ) : (
                                 <Button
                                     preset="secondary"
-                                    onPress={getTransactionsList}
+                                    onPress={addTransactionsToList}
                                     tx="tranHistory.viewMore"
                                     style={{minHeight: 25, paddingVertical: spacing.tiny}}
                                     textStyle={{fontSize: 14}}
@@ -389,7 +357,7 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
                       count: expiredDbCount
                     })}
                     leftIcon='faRotate'
-                    onPress={onDeleteExpired}
+                    onPress={() => onDelete(TransactionStatus.EXPIRED)}
                     bottomSeparator={true}
                 /> 
                 <ListItem
@@ -398,7 +366,7 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
                       count: erroredDbCount
                     })}
                     leftIcon='faBug'                            
-                    onPress={onDeleteErrored}
+                    onPress={() => onDelete(TransactionStatus.ERROR)}
                     bottomSeparator={true}                                    
                 />
                 <ListItem
@@ -407,7 +375,7 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
                       count: revertedDbCount
                     })}
                     leftIcon='faBan'                            
-                    onPress={onDeleteReverted}                                      
+                    onPress={() => onDelete(TransactionStatus.REVERTED)}                                    
                 />
             </> 
           }

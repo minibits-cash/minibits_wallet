@@ -19,9 +19,7 @@ import { formatDistance } from 'date-fns'
 import { MintUnit } from '../services/wallet/currency'
 import { Mint } from './Mint'
 
-export const maxTransactionsInModel = 10
-export const maxTransactionsByMint = 10
-export const maxTransactionsByHostname = 3
+export const maxTransactionsInHistory = 10
 export const maxTransactionsByUnit = 3
 
 export type GroupedByTimeAgo = {
@@ -30,191 +28,222 @@ export type GroupedByTimeAgo = {
 
 export const TransactionsStoreModel = types
     .model('TransactionsStore', {
-        transactions: types.array(TransactionModel),
+        transactionsMap:  types.map(TransactionModel),    
+        history:  types.array(types.safeReference(TransactionModel, { acceptsUndefined: false })),
+        recentByUnit: types.array(types.safeReference(TransactionModel, { acceptsUndefined: false })),        
     })
     .actions(withSetPropAction)
     .views(self => ({
-        get all() {
-            return self.transactions
+        get pendingHistory() {
+            return self.history            
+            .slice()
+            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+            .filter(t => t.status === TransactionStatus.PENDING)
+        },
+        get historyByTimeAgo() {
+            return self.history
+            .slice()
+            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+            .reduce((groups: GroupedByTimeAgo, transaction: Transaction) => {
+                const timeAgo = formatDistance(transaction.createdAt as Date, new Date(), {addSuffix: true})  
+                if (!groups[timeAgo]) {
+                    groups[timeAgo] = []
+                }
+                groups[timeAgo].push(transaction)
+                return groups
+            }, {})
+        },
+        get historyPendingByTimeAgo() {
+            return this.pendingHistory.reduce((groups: GroupedByTimeAgo, transaction: Transaction) => {
+                const timeAgo = formatDistance(transaction.createdAt as Date, new Date(), {addSuffix: true})  
+                if (!groups[timeAgo]) {
+                    groups[timeAgo] = []
+                }
+                groups[timeAgo].push(transaction)
+                return groups
+            }, {})
+        },
+        get historyCount() {
+            return self.history.length
+        },
+        get pendingHistoryCount() {
+            return this.pendingHistory.length
+        },
+        getRecentByUnit(unit: MintUnit) {
+            return self.recentByUnit
                 .slice()
-                .sort((a, b) => {
-                    // Sort by createdAt timestamp
-                    if (a.createdAt && b.createdAt) {
-                        return b.createdAt.getTime() - a.createdAt.getTime()
-                    }
-            }) as Transaction[]
+                .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+                .filter(t => t.unit === unit)           
         },
-        get count() {
-            return self.transactions.length
-        },
-        get recent() {
-            return this.all.slice(0, 3) // Return the first 3 transactions
-        },
-        get pending() {
-            return this.all.filter(t => t.status === TransactionStatus.PENDING)
-        },
-        get groupedByTimeAgo() {
-            return this.all.reduce((groups: GroupedByTimeAgo, transaction: Transaction) => {
-                const timeAgo = formatDistance(transaction.createdAt as Date, new Date(), {addSuffix: true})  
-                if (!groups[timeAgo]) {
-                    groups[timeAgo] = []
-                }
-                groups[timeAgo].push(transaction)
-                return groups
-            }, {})
-        },
-        get groupedPendingByTimeAgo() {
-            return this.pending.reduce((groups: GroupedByTimeAgo, transaction: Transaction) => {
-                const timeAgo = formatDistance(transaction.createdAt as Date, new Date(), {addSuffix: true})  
-                if (!groups[timeAgo]) {
-                    groups[timeAgo] = []
-                }
-                groups[timeAgo].push(transaction)
-                return groups
-            }, {})
-        },   
-
-        recentByHostname(mintHostname: string) {            
-            return this.all.filter(t => getHostname(t.mint as string) === mintHostname).slice(0, maxTransactionsByHostname)
-        },
-        recentByUnit(unit: MintUnit, count?: number) {
-            if (!count || count > maxTransactionsByUnit) {
-                count = maxTransactionsByUnit
-            }
-                      
-            return this.all.filter(t => t.unit === unit).slice(0, count)
-        },
-        recentByHostnameGroupedByTimeAgo(mintHostname: string) {
-            const recentByHostname = this.recentByHostname(mintHostname)
-
-            return recentByHostname.reduce((groups: GroupedByTimeAgo, transaction: Transaction) => {
-                const timeAgo = formatDistance(transaction.createdAt as Date, new Date(), {addSuffix: true})  
-                if (!groups[timeAgo]) {
-                    groups[timeAgo] = []
-                }
-                groups[timeAgo].push(transaction)
-                return groups
-            }, {})
-        },
-        getByMint(mintUrl: string) {
-            return this.all.filter(t => t.mint === mintUrl)
-        },
-        countByMint(mintUrl: string) {
-            return this.getByMint(mintUrl).length
-        }  
-    }))
+        countRecentByUnit(unit: MintUnit) {
+           return this.getRecentByUnit(unit).length
+        }
+    }))    
     .actions(self => ({
-        findById(id: number) {
-            
-            let tx = self.transactions.find(tx => tx.id === id)
+        findById(id: number) {            
+            let transaction = self.transactionsMap.get(id)
 
             // Search the db and add if tx is not in the state
-            if(!tx) {
+            if(!transaction) {
                 const dbTransaction = Database.getTransactionById(id)
 
                 if(dbTransaction) {
-                    const createdAt = new Date(dbTransaction.createdAt)
+                    const createdAt = new Date(dbTransaction.createdAt)                    
                     const inStoreTransaction = {...dbTransaction, createdAt}
-    
-                    tx = TransactionModel.create(inStoreTransaction)
-                    self.transactions.push(tx)
+                    const {id} = dbTransaction    
+                    
+                    self.transactionsMap.set(id, inStoreTransaction)
+                    transaction = self.transactionsMap.get(id)                    
                 }
             }
 
-            return tx
+            return transaction
         },
-        removeOldTransactions: () => { // not used
-            const numTransactions = self.count
+        /*pruneTransactionsMap() {
+            // Clean up transactionMap: remove transactions not in history or recentByUnit
+            self.transactionsMap.forEach((_, transactionId) => {
+                const isInHistory = self.history.some(t => t.id === transactionId)
+                const isInRecentByUnit = self.recentByUnit.some(t => t.id === transactionId)
 
-            // If there are more than 10 transactions, delete the older ones
-            if (numTransactions > maxTransactionsInModel) {
-                self.transactions
-                .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-                .splice(maxTransactionsInModel) // Remove transactions beyond the desired number to keep
-
-                log.debug('[removeOldTransactions]', `${
-                    numTransactions - maxTransactionsInModel
-                    } transaction(s) removed from TransactionsStore`,
-                )
-            }
-        },
-        removeOldByMint: (mintUrl: string) => {
-            const numByMint = self.countByMint(mintUrl)            
+                // If the transaction is not in history or recentByUnit, remove it from transactionMap
+                if (!isInHistory && !isInRecentByUnit) {
+                    self.transactionsMap.delete(transactionId as string)
+                    log.trace(`[pruneTransactionsMap] Transaction ${transactionId} pruned from the map`)
+                } else {
+                    log.trace(`[pruneTransactionsMap] Transaction ${transactionId} kept in the map`)
+                }
+            })
+        },*/
+        pruneRecentByUnit(unit: MintUnit) {
+            const unitCount = self.countRecentByUnit(unit)
             
-            if (numByMint > maxTransactionsByMint) {
-                const transactionsToRemove = self.getByMint(mintUrl)
-                .slice()
-                .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-                .slice(maxTransactionsByMint)
-                
-                transactionsToRemove.map((t) => {                    
-                    detach(t)                                       
-                }) 
+            log.trace('[pruneRecentByUnit]', {unit, unitCount})
+            
+            if (unitCount > maxTransactionsByUnit) {
+                const transactionsToRemove = self.getRecentByUnit(unit)
+                    .slice()
+                    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+                    .splice(maxTransactionsByUnit)
 
-                self.transactions.replace(self.transactions.filter(t => !transactionsToRemove.some(removed => removed.id === t.id)))
+                self.recentByUnit.replace(self.recentByUnit.filter(t => !transactionsToRemove.some(removed => removed.id === t.id)))
 
-                const txByMintAfterDelete = self.countByMint(mintUrl)
-                const txTotalAfterDelete = self.count
-
-                log.trace('[removeOldByMint]', {txByMintAfterDelete, txTotalAfterDelete})
+                log.trace('[pruneRecentByUnit]', `${transactionsToRemove.length} pruned from recentByUnit`)                
             }
         },
-        removeAllWithoutCurrentMint: () => {
+        pruneRecentWithoutCurrentMint() {
             const rootStore = getRootStore(self)                
             const {mintsStore} = rootStore
 
-            const transactionsToRemove = self.transactions.filter(transaction => {
+            const transactionsToRemove = self.recentByUnit.filter(transaction => {
                 // Check if the mint property of the transaction does not exist in the mints array
                 return !mintsStore.allMints.some((mint: Mint) => mint.mintUrl === transaction.mint);
-            });
+            })
 
-            self.transactions.replace(self.transactions.filter(t => !transactionsToRemove.some(removed => removed.id === t.id)))
+            self.recentByUnit.replace(self.recentByUnit.filter(t => !transactionsToRemove.some(removed => removed.id === t.id)))
             
-            const txTotalAfterDelete = self.count
+            log.trace('[pruneRecentWithoutCurrentMint]', `${transactionsToRemove.length} pruned from recentByUnit`)            
+        },
+        pruneHistory() {
+            // Step 1: Trim history to keep only the MAX_HISTORY_TRANSACTIONS most recent
+            if (self.history.length > maxTransactionsInHistory) {
+                const transactionsToRemove = self.history
+                    .slice()
+                    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+                    .splice(maxTransactionsInHistory)
 
-            log.trace('[removeAllWithoutCurrentMint]', {deleted: transactionsToRemove.length, txTotalAfterDelete})
-            
-        }         
+                self.history.replace(self.history.filter(t => !transactionsToRemove.some(removed => removed.id === t.id)))
+
+                log.trace('[pruneHistory]', `${transactionsToRemove.length} pruned from history`)                
+            }
+        },
+        removeAllHistory() {            
+            self.history.clear()            
+            log.debug('[removeAllHistory]', 'Removed all transactions from history')
+        },
+        removeAllRecentByUnit() {            
+            self.recentByUnit.clear()            
+            log.debug('[removeAllRecentByUnit]', 'Removed all transactions from recentByUnit')
+        },
+        removeAllTransactions() {            
+            self.recentByUnit.clear()
+            self.history.clear()
+            self.transactionsMap.clear()
+            log.debug('[removeAllTransactions]', 'Removed all transactions from TransactionsStore')
+        },
     }))
     .actions(self => ({
         addTransaction: flow(function* addTransaction(newTransaction){
             // First let's store the transaction into the database
-            const dbTransaction: TransactionRecord = yield Database.addTransactionAsync(newTransaction)
+            const dbTransaction: TransactionRecord = yield Database.addTransactionAsync(newTransaction)            
 
             // Add the new transaction to the transactions store
-            const createdAt = new Date(dbTransaction.createdAt)
+            const createdAt = new Date(dbTransaction.createdAt)            
             const inStoreTransaction = {...dbTransaction, createdAt}
+            const {id} = dbTransaction
 
-            const transactionInstance = TransactionModel.create(inStoreTransaction)
-            self.transactions.push(transactionInstance)
+            if (!self.transactionsMap.has(id)) {                        
+                self.transactionsMap.set(id, inStoreTransaction)
+            } 
+
+            const reference = self.transactionsMap.get(id)
+            self.history.unshift(reference!)
+            self.recentByUnit.unshift(reference!)
 
             log.debug('[addTransaction]', 'New transaction added to the TransactionsStore')
 
-            // Purge the oldest transaction from cache, but keep some for each mint
-            self.removeOldByMint(newTransaction.mint)
+            // Purge the oldest references from cache, but keep some for each mint
+            self.pruneRecentByUnit(newTransaction.unit)
+            self.pruneHistory()
 
-            return transactionInstance as Transaction
+            return reference as Transaction
         }),
-        addTransactionsToModel: (dbTransactions: TransactionRecord[]) => {
-            // This adds to model only. Used to have observable UI in tx history loaded from database.
-            const inStoreTransactions: Transaction[] = []
+        addToHistory(limit: number, offset: number, onlyPending: boolean){
+            // Appends transaction to the map and adds reference to history from database.
+            const result = Database.getTransactions(limit, offset, onlyPending)
+            log.trace('[addToHistory] dbResult ids', {ids: result?._array.map(t => t.id)})            
 
-            for (const dbTransaction of dbTransactions) {
-                const createdAt = new Date(dbTransaction.createdAt)
-                const inStoreTransaction = {...dbTransaction, createdAt}
+            if (result && result.length > 0) {
+                for (const dbTransaction of result._array) {
+                    const createdAt = new Date(dbTransaction.createdAt)                    
+                    const inStoreTransaction = {...dbTransaction, createdAt}
+                    const {id} = dbTransaction
 
-                if(self.findById(inStoreTransaction.id as number)) {
-                    log.trace('[addTransactionsToModel] Transaction already exists in the model, skipping...')
-                    continue
-                }   
-                
-                const transactionInstance = TransactionModel.create(inStoreTransaction)
-                inStoreTransactions.push(transactionInstance as Transaction)
+                    if (!self.transactionsMap.has(id)) {                        
+                        self.transactionsMap.set(id, inStoreTransaction)
+                        log.trace('[addToHistory]', `${id} added to transactionsMap`)
+                    }        
+                    
+                    const reference = self.transactionsMap.get(id)        
+                    
+                    if (!self.history.find(t => t.id === id)) {
+                        self.history.push(reference!)
+                        log.trace('[addToHistory]', `${onlyPending ? 'Pending reference' : 'Reference'} ${id} added to history`)
+                    }                    
+                }
             }
+        },
+        addRecentByUnit() {
+            // Rehydrates recent from database.
+            const dbTransactions = Database.getRecentTransactionsByUnit(maxTransactionsByUnit)           
 
-            self.transactions.push(...inStoreTransactions)
-
-            log.debug('[addTransactionsToModel]', `${inStoreTransactions.length} new transactions added to TransactionsStore`)
+            if (dbTransactions && dbTransactions.length > 0) {
+                for (const dbTransaction of dbTransactions) {
+                    const createdAt = new Date(dbTransaction.createdAt)                    
+                    const inStoreTransaction = {...dbTransaction, createdAt} as Transaction
+                    const {id} = dbTransaction
+    
+                    if (!self.transactionsMap.has(id)) {                        
+                        self.transactionsMap.set(id, inStoreTransaction)
+                    }        
+                    
+                    const reference = self.transactionsMap.get(id)        
+                    
+                    if (!self.recentByUnit.find(t => t.id === id)) {
+                        self.recentByUnit.push(reference!)
+                        log.trace('[addRecentByUnit]', `Transaction ${inStoreTransaction.id} added to recentByUnit`)
+                    }                    
+                }
+            }            
         },
         updateStatuses: flow(function* updateStatuses(
             ids: number[],
@@ -226,7 +255,7 @@ export const TransactionsStoreModel = types
 
             // Update the model status and amend related tx data
             for (const id of ids) {
-                const transactionInstance = self.findById(id)
+                const transactionInstance = self.transactionsMap.get(id)
 
                 if (transactionInstance) {
                     transactionInstance.status = status
@@ -235,36 +264,50 @@ export const TransactionsStoreModel = types
                     const updatedData = JSON.parse(transactionInstance.data)
                     updatedData.push(JSON.parse(data))
                     transactionInstance.data = JSON.stringify(updatedData)
+                }               
 
-                    log.debug('[updateStatuses]', 'Transaction statuses and data updated in TransactionsStore', {ids, status})
-                }
+                log.trace('[updateStatuses]', 'Transaction statuses and data updated in TransactionsStore', {ids, status})
             }
-        }),
-        expireAllAfterRecovery: flow(function* expireAllAfterRecovery() {
-            // Update status in database
-            yield Database.expireAllAfterRecovery()
+        }),       
+        deleteByStatus(status: TransactionStatus){            
 
-            // Update the model statuses
-            for (const t of self.all) {
-                t.setIsExpired()
-            }
-        }),        
-        deleteByStatus: (status: TransactionStatus) => {            
-            for (const transaction of self.transactions) {
-                if(transaction.status === status) {
-                    detach(transaction)                    
+            self.transactionsMap.forEach((transaction, transactionId) => {
+                if (transaction.status === status) {
+                    self.transactionsMap.delete(transactionId as string)
                 }
-            }
-            
-            self.transactions.replace(self.transactions.filter(t => t.status !== status))
+            })
 
             return Database.deleteTransactionsByStatus(status)
-        },
-        removeAllTransactions() {
-            self.transactions.clear()
-            log.debug('[removeAllTransactions]', 'Removed all transactions from TransactionsStore')
-        },
-    }))
+        }
+    })).postProcessSnapshot((snapshot) => {
+        // Trim history if it exceeds the limit
+        let prunedHistory = snapshot.history
+
+        if (snapshot.history.length > maxTransactionsInHistory) {            
+            // Keep only the most recent transactions within the limit
+            const orderedHistory = [...snapshot.history].sort((a, b) => (b as number) - (a as number))
+            prunedHistory = orderedHistory.slice(0, maxTransactionsInHistory)            
+        }
+
+        // Clean up transactionMap: remove transactions not in history or recentByUnit
+        const prunedTransactionsMap = Object.fromEntries(
+            Object.entries(snapshot.transactionsMap).filter(([transactionId]) => 
+                prunedHistory.includes(parseInt(transactionId)) ||
+                snapshot.recentByUnit.includes(parseInt(transactionId))
+            )
+        )
+
+        // Return the new snapshot with the trimmed history and filtered transactionMap
+        const prunedSnapshot = {
+            ...snapshot,
+            history: prunedHistory,
+            transactionsMap: prunedTransactionsMap
+        }
+
+        console.log('[postProcessSnapshot]', {prunedSnapshot})
+
+        return prunedSnapshot
+    })
 
     const getHostname = function (mintUrl: string) {
         try {

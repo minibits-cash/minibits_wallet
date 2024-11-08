@@ -32,12 +32,12 @@ import {translate} from '../i18n'
 import AppError from '../utils/AppError'
 import {Database, KeyChain, NostrClient, log} from '../services'
 import {MMKVStorage} from '../services'
-import {maxTransactionsInModel} from '../models/TransactionsStore'
 import { LogLevel } from '../services/log/logTypes'
 import { getSnapshot } from 'mobx-state-tree'
 import { delay } from '../utils/delay'
 import RNExitApp from 'react-native-exit-app'
 import { TransactionStatus } from '../models/Transaction'
+import { maxTransactionsInHistory } from '../models/TransactionsStore'
 
 // refresh
 
@@ -77,11 +77,11 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
     }, [])
 
     // Reset of transaction model state and reload from DB
-    const syncTransactionsFromDb = async function () {
+    const syncTransactionsFromDb = function () {
       setIsLoading(true)
       try {
-        const result = await Database.getTransactionsAsync(
-          maxTransactionsInModel,
+        const result = Database.getTransactions(
+          maxTransactionsInHistory,
           0,
         )
 
@@ -89,8 +89,10 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
             // remove all from the transactionsStore model
             transactionsStore.removeAllTransactions()
 
-            // Add last 10 from database
-            transactionsStore.addTransactionsToModel(result._array)
+            // Add last 10 to history
+            transactionsStore.addToHistory(maxTransactionsInHistory, 0, false)
+            // Add recent by unit
+            transactionsStore.addRecentByUnit()
 
             setIsLoading(false)
             setInfo(translate('resetCompletedDetail', { transCount: result.length }))
@@ -131,7 +133,7 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
                   proofsStore.removeProofs(pending, true, false) 
                 }
 
-                await syncTransactionsFromDb()                
+                syncTransactionsFromDb()                
 
                 setIsLoading(false)
                 setInfo(`Removed pending transactions from the database and ${pendingCount} proofs from the wallet state`)
@@ -142,8 +144,7 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
             },
           },
         ],
-      )
-      
+      )      
     }
 
 
@@ -254,8 +255,7 @@ Sentry id: ${userSettingsStore.userSettings.walletId}
                   subText={userSettingsStore.logLevel.toUpperCase()}
                   leftIcon='faListUl'
                   leftIconColor={colors.palette.iconMagenta200}
-                  leftIconInverse={true}
-                  RightComponent={<View style={$rightContainer} />}
+                  leftIconInverse={true}                  
                   style={$item}
                   bottomSeparator={true}
                   onPress={toggleLogLevelSelector}
@@ -263,14 +263,22 @@ Sentry id: ${userSettingsStore.userSettings.walletId}
                 <ListItem
                   tx="showOnboarding"
                   subTx="showOnboardingDesc"
-                  leftIcon='faRotate'
+                  leftIcon='faInfoCircle'
                   leftIconColor={colors.light.tint}
-                  leftIconInverse={true}
-                  RightComponent={<View style={$rightContainer} />}
-                  style={$item}                  
+                  leftIconInverse={true}                  
+                  style={$item}     
+                  bottomSeparator={true}             
                   onPress={() => userSettingsStore.setIsOnboarded(false)}
                 /> 
-              
+                <ListItem
+                  text="Resync transactions"
+                  subText="Refresh recent transactions history from database."
+                  leftIcon='faRotate'
+                  leftIconColor={colors.palette.blue200}
+                  leftIconInverse={true}                  
+                  style={$item}                  
+                  onPress={syncTransactionsFromDb}
+                /> 
               </>
             }
           />

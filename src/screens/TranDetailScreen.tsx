@@ -75,9 +75,6 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
     const noteInputRef = useRef<TextInput>(null)
 
     const [transaction, setTransaction] = useState<Transaction>()
-    /* const [proofsByStatus, setProofsByStatus] = useState<
-      ProofsByStatus | undefined
-    >(undefined)*/
     const [error, setError] = useState<AppError | undefined>()
     const [isNoteEditing, setIsNoteEditing] = useState(transaction?.noteToSelf ? false : true)
     const [isDataParsable, setIsDataParsable] = useState<boolean>(true)    

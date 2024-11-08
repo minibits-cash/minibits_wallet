@@ -16,7 +16,7 @@ import {log} from './logService'
 import {LogLevel} from './log/logTypes'
 import {BackupProof} from '../models/Proof'
 import { CashuUtils } from './cashu/cashuUtils'
-import { CurrencyCode } from './wallet/currency'
+import { CurrencyCode, MintUnit } from './wallet/currency'
 import { ThemeCode } from '../theme'
 
 let _db: QuickSQLiteConnection
@@ -517,31 +517,140 @@ const updateUserSettings = function (settings: UserSettings): UserSettings {
  * Transactions
  */
 
-const getTransactionsCount = function (status?: TransactionStatus) {
-    let query: string = ''
-    let params
-    try {
-        query = `
-            SELECT COUNT(*) FROM transactions
-        `
+const getTransactions = function (limit: number, offset: number, onlyPending: boolean = false) {
+  let query: string = ''
+  try {
+      query = `
+      SELECT *
+      FROM transactions 
+      ORDER BY id DESC
+      LIMIT ? OFFSET ?
+      `
 
-        if(status) {
-            query = `
-                SELECT COUNT(*) 
-                FROM transactions
-                WHERE status = ?
-            `
-            params = [status]
-        }
+      if(onlyPending) {
+          query = `
+          SELECT *
+          FROM transactions
+          WHERE status = 'PENDING'
+          ORDER BY id DESC
+          LIMIT ? OFFSET ?
+          `
+      }
 
-        const db = getInstance()
-        const {rows} = db.execute(query, params)
-            
-        return rows?.item(0)['COUNT(*)'] as number
-    } catch (e: any) {
-      throw new AppError(Err.DATABASE_ERROR, 'Transaction count error', e.message)
-    }
+      const params = [limit, offset]
+
+      // log.trace(query, params)
+
+      const db = getInstance()
+      const {rows} = db.execute(query, params)
+
+      log.trace(`[getTransactions], Returned ${rows?.length} rows`)
+      return rows
+  } catch (e: any) {
+      throw new AppError(
+      Err.DATABASE_ERROR,
+      'Transactions could not be retrieved from the database',
+      e.message,
+      )
+  }
 }
+
+const getTransactionsCount = function (status?: TransactionStatus) {
+  let query: string
+  let params: any[] = []
+
+  try {
+      if (status) {
+          // Query to get the count for a specific status along with the total
+          query = `
+              WITH total_count AS (
+                  SELECT COUNT(*) AS total FROM transactions
+              )
+              SELECT status, COUNT(*) AS count, (SELECT total FROM total_count) AS total
+              FROM transactions
+              WHERE status = ?
+              GROUP BY status
+          `
+          params = [status]
+      } else {
+          // Query to get the count per status along with the total
+          query = `
+              WITH total_count AS (
+                  SELECT COUNT(*) AS total FROM transactions
+              )
+              SELECT status, COUNT(*) AS count, (SELECT total FROM total_count) AS total
+              FROM transactions
+              GROUP BY status
+          `
+      }
+
+      const db = getInstance()
+      const { rows } = db.execute(query, params)
+      
+      // Convert rows to an object with status counts and a total count
+      if(rows) {
+        const counts: Record<string, number> = { total: 0 }
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows.item(i)
+            counts[row.status] = row.count
+            counts.total = row.total
+        }
+        return counts
+      } else {
+        return {total: 0}
+      }
+      
+  } catch (e: any) {
+      throw new AppError(Err.DATABASE_ERROR, 'Transaction count error', e.message)
+  }
+}
+
+
+const getRecentTransactionsByUnit = (countRecent: number) => {
+  try {
+      const query = `
+          SELECT *
+          FROM (
+              SELECT *,
+                  ROW_NUMBER() OVER (PARTITION BY unit ORDER BY createdAt DESC) as row_num
+              FROM transactions
+          )
+          WHERE row_num <= ?
+          ORDER BY unit, createdAt DESC
+      `
+
+      const params = [countRecent]
+      const db = getInstance()
+      const { rows } = db.execute(query, params)     
+      
+      return rows?._array
+      
+  } catch (e: any) {
+      throw new AppError(Err.DATABASE_ERROR, 'Error retrieving last 3 transactions by unit', e.message)
+  }
+}
+
+
+
+const getPendingAmount = function () {
+  try {
+    const query = `
+    SELECT 
+    SUM(amount) 
+    FROM transactions 
+    WHERE status = ?
+    `
+    const params = [TransactionStatus.PENDING]
+
+    const db = getInstance()
+    const {rows} = db.execute(query, params)
+
+    return rows?.item(0)['SUM(amount)']
+  } catch (e: any) {
+    throw new AppError(Err.DATABASE_ERROR, 'Transaction not found', e.message)
+  }
+}
+
 
 const getTransactionById = function (id: number) {
   try {
@@ -1002,63 +1111,6 @@ const updateZapRequest = function (id: number, zapRequest: string) {
   }
 } */
 
-const getTransactionsAsync = async function (limit: number, offset: number, isPending: boolean = false) {
-    let query: string = ''
-    try {
-        query = `
-        SELECT *
-        FROM transactions 
-        ORDER BY id DESC
-        LIMIT ? OFFSET ?
-        `
-
-        if(isPending) {
-            query = `
-            SELECT *
-            FROM transactions
-            WHERE status = 'PENDING'
-            ORDER BY id DESC
-            LIMIT ? OFFSET ?
-            `
-        }
-
-        const params = [limit, offset]
-
-        // log.trace(query, params)
-
-        const db = getInstance()
-        const {rows} = await db.executeAsync(query, params)
-
-        log.trace('[getTransactionsAsync], Returned rows', rows?.length)
-        return rows
-    } catch (e: any) {
-        throw new AppError(
-        Err.DATABASE_ERROR,
-        'Transactions could not be retrieved from the database',
-        e.message,
-        )
-    }
-}
-
-const getPendingAmount = function () {
-  try {
-    const query = `
-    SELECT 
-    SUM(amount) 
-    FROM transactions 
-    WHERE status = ?
-    `
-    const params = [TransactionStatus.PENDING]
-
-    const db = getInstance()
-    const {rows} = db.execute(query, params)
-
-    return rows?.item(0)['SUM(amount)']
-  } catch (e: any) {
-    throw new AppError(Err.DATABASE_ERROR, 'Transaction not found', e.message)
-  }
-}
-
 
 const deleteTransactionsByStatus = function (status: TransactionStatus) {
     try {
@@ -1381,7 +1433,9 @@ export const Database = {
   updateUserSettings,
   getTransactionsCount,
   getTransactionById,
-  addTransactionAsync,
+  getRecentTransactionsByUnit,
+  getTransactions,
+  addTransactionAsync,  
   updateStatus,
   expireAllAfterRecovery,
   updateStatusesAsync,
@@ -1395,8 +1449,7 @@ export const Database = {
   updateZapRequest,
   updateInputToken,
   updateOutputToken,
-  updateProof,
-  getTransactionsAsync,
+  updateProof,  
   deleteTransactionsByStatus,
   getPendingAmount,
   addOrUpdateProof,
