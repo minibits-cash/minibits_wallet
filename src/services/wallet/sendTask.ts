@@ -140,7 +140,7 @@ export const sendTask = async function (
 
         log.trace('[send] totalBalance after', balanceAfter)
 
-        // Start polling for accepted payment is it is not offline send
+        // Start polling for accepted payment it is not an offline send
         if(selectedProofs.length === 0) {
 
             const proofsToSync = proofsStore.getByMint(mintUrl, {isPending: true})
@@ -214,7 +214,7 @@ export const sendFromMintSync = async function (
             )
         }        
              
-        const proofsFromMint = proofsStore.getByMint(mintUrl, {isPending: false, unit}) as Proof[]        
+        const proofsFromMint = proofsStore.getByMint(mintUrl, {isPending: false, unit})       
         
         log.debug('[sendFromMintSync]', 'proofsFromMint count', {mintBalance: mintBalance.balances[unit], amountToSend})
 
@@ -399,7 +399,7 @@ export const sendFromMintSync = async function (
             // release lock
             lockedProofsCounter.resetInFlight(transactionId)
             
-        } else if (returnedAmount === 0) {
+        } else {
         /* 
          *  SWAP is NOT needed, we've found denominations that match exact amount
          *  
@@ -416,9 +416,7 @@ export const sendFromMintSync = async function (
 
             proofsToSend = [...proofsToSendFrom]
             
-        } else {
-            throw new AppError(Err.VALIDATION_ERROR, 'Amount to keep can not be negative')
-        }        
+        }      
 
         // remove used proofs and move sent proofs to pending
         proofsStore.removeProofs(proofsToSendFrom)

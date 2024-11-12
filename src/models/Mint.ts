@@ -15,9 +15,7 @@ import { MintUnit, MintUnits } from '../services/wallet/currency'
 import { getRootStore } from './helpers/getRootStore'
 import { generateId } from '../utils/utils'
 import { ProofV3 } from '../services/cashu/cashuUtils'
-import { RootStoreModel } from './RootStore'
-import { MintsStoreModel } from './MintsStore'
-import { WalletStoreModel } from './WalletStore'
+import { Proof } from './Proof'
 
 
 export type MintBalance = {
@@ -367,7 +365,7 @@ export const MintModel = types
             
             self.proofsCounters = cast(self.proofsCounters)
         },
-        getMintFeeReserve(proofs: ProofV3[]): number {
+        getMintFeeReserve(proofs: ProofV3[] | Proof[]): number {
             // Find the corresponding keyset for each proof and sum the input fees
             const totalInputFees = proofs.reduce((sum, proof) => {
               const keyset = self.keysets.find(k => k.id === proof.id)

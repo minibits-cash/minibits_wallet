@@ -434,7 +434,7 @@ const syncPendingStateWithMints = async function (): Promise<void> {
     }
 
     const isPending = true
-    // const maxBatchSize = MAX_CHECK_INPUT_SIZE
+    const maxBatchSize = MAX_SYNC_INPUT_SIZE
 
     // group proofs by mint so that we do max one call per mint
     for (const mint of mintsStore.allMints) {
@@ -445,8 +445,17 @@ const syncPendingStateWithMints = async function (): Promise<void> {
         }
         
         const proofsToSync = proofsStore.getByMint(mint.mintUrl, {isPending})
-        const totalProofs = proofsToSync.length
-        syncStateWithMint({ proofsToSync, mintUrl: mint.mintUrl, isPending })
+        const totalProofsCount = proofsToSync.length
+
+        if (totalProofsCount > maxBatchSize) {
+            for (let i = 0; i < totalProofsCount; i += maxBatchSize) {
+              const batch = proofsToSync.slice(i, i + maxBatchSize)
+              syncStateWithMint({ proofsToSync: batch, mintUrl: mint.mintUrl, isPending })
+            }
+        } else {
+            // If the length is less than or equal to 100, run syncStateWithMint with all proofs.
+            syncStateWithMint({ proofsToSync, mintUrl: mint.mintUrl, isPending });
+        }        
     }
 }
 
@@ -473,7 +482,7 @@ const syncSpendableStateWithMints = async function (): Promise<void> {
         if (totalProofsCount > maxBatchSize) {
           for (let i = 0; i < totalProofsCount; i += maxBatchSize) {
             const batch = proofsToSync.slice(i, i + maxBatchSize)
-            syncStateWithMint({ proofsToSync: batch, mintUrl: mint.mintUrl, isPending });
+            syncStateWithMint({ proofsToSync: batch, mintUrl: mint.mintUrl, isPending })
           }
         } else {
           // If the length is less than or equal to 100, run syncStateWithMint with all proofs.
@@ -495,7 +504,7 @@ const syncStateWithMint = async function (
     }  
 ): Promise<void> {
     const {mintUrl, isPending, proofsToSync} = options
-    log.trace('[syncStateWithMint] start', {mintUrl, isPending})
+    log.trace('[syncStateWithMint] start', {mintUrl, isPending, proofsToSyncCount: proofsToSync.length})
     const now = new Date().getTime()
 
     return SyncQueue.addTask(
@@ -516,7 +525,7 @@ const syncStateWithMintSync = async function (
 ): Promise<SyncStateTaskResult> {
     const {mintUrl, isPending, proofsToSync} = options
     
-    log.trace('[syncStateWithMintSync] start', {mintUrl, isPending, proofsToSyncCount: proofsToSync?.length})
+    log.trace('[syncStateWithMintSync] start', {mintUrl, isPending, proofsToSyncCount: proofsToSync.length})
     
     return await _syncStateWithMintTask({proofsToSync, mintUrl, isPending})        
 }
@@ -636,7 +645,7 @@ const _syncStateWithMintTask = async function (
 
                 if (tx) {
                     // spent amount does not cover matched tx amount 
-                    // means that some spent proofs were used as inputs into the send
+                    // means that some spent proofs were used as inputs into the swap / melt
                     if(spentByMintTxAmount < tx.amount) {
 
                         errorTransactionIds.push(Number(tId))
@@ -679,7 +688,8 @@ const _syncStateWithMintTask = async function (
 
                 return {
                     tId: Number(tId),
-                    updatedStatus: TransactionStatus.ERROR
+                    updatedStatus: TransactionStatus.ERROR,
+                    message: 'Could not find transaction in the database.'
                 } as TransactionStateUpdate
             })
 

@@ -304,7 +304,7 @@ export const TransactionsStoreModel = types
             transactionsMap: prunedTransactionsMap
         }
 
-        console.log('[postProcessSnapshot]', {prunedSnapshot})
+        // console.log('[postProcessSnapshot]', {prunedSnapshot})
 
         return prunedSnapshot
     })

@@ -59,7 +59,7 @@ export async function setupRootStore(rootStore: RootStore) {
         const mmkvLoaded = performance.now()        
         const dataSize = Buffer.byteLength(JSON.stringify(restoredState), 'utf8')        
         
-        log.trace({restoredState})
+        // log.trace({restoredState})
         log.trace('[setupRootStore]', `Loading ${dataSize.toLocaleString()} bytes of state from MMKV took ${(mmkvLoaded - start).toLocaleString()} ms.`)        
         
         applySnapshot(rootStore, restoredState)        
@@ -83,11 +83,12 @@ export async function setupRootStore(rootStore: RootStore) {
     }
 
     // track changes & save snapshot to the storage not more then once per second
-    const saveSnapshot = debounce((snapshot) => {
+    const saveSnapshot = debounce((snapshot) => {        
         MMKVStorage.save(ROOT_STORAGE_KEY, snapshot)
     }, 1000)
 
-    _disposer = onSnapshot(rootStore, snapshot => {        
+    _disposer = onSnapshot(rootStore, snapshot => {
+        // log.trace('[setupRootStore] onSnapshot *** MMKV SHOULD SAVE ***')        
         saveSnapshot(snapshot)
         // log.trace('[setupRootStore] saved', {walletStore: snapshot.walletStore})
     })

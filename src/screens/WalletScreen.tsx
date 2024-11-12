@@ -63,6 +63,8 @@ import { NavigationState, Route, TabBar, TabView } from 'react-native-tab-view'
 import { getUnixTime } from 'date-fns/getUnixTime'
 
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
+const PENDING_CHECK_INTERVAL = 30
+const CLAIM_CHECK_INTERVAL = 60
 
 interface WalletScreenProps extends WalletStackScreenProps<'Wallet'> {}
 
@@ -98,8 +100,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const [defaultMintUrl, setDefaultMintUrl] = useState<string>(MINIBITS_MINT_URL)
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState<boolean>(false)
-    const [lastClaimCheck, setLastClaimCheck] = useState<number>(getUnixTime(new Date()))
-    const [lastPendingCheck, setLastPendingCheck] = useState<number>(getUnixTime(new Date()))
+    const [lastClaimCheck, setLastClaimCheck] = useState<number>(0)
+    const [lastPendingCheck, setLastPendingCheck] = useState<number>(0)
     const [isMintsModalVisible, setIsMintsModalVisible] = useState<boolean>(false)
     const [isUpdateAvailable, setIsUpdateAvailable] = useState<boolean>(false)
     const [isUpdateModalVisible, setIsUpdateModalVisible] = useState<boolean>(false)
@@ -165,17 +167,12 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             if(groupedMints.length === 0) {
                 await addMint()
             }
-
-            // check lnaddress claims on app start and set timestamp to trigger focus updates
-            WalletTask.handleClaim().catch(e => setInfo(e.message))
-            // Auto-recover inflight proofs - do only on startup and before checkPendingReceived to prevent conflicts            
+            
+            // Only once on startup - auto-recover inflight proofs            
             WalletTask.handleInFlight().catch(e => false)
-            // Create websocket subscriptions to receive tokens or payment requests by NOSTR DMs                    
-            WalletTask.receiveEventsFromRelays().catch(e => false)
-            // Get exchange rate
-            if(userSettingsStore.exchangeCurrency) {
-                walletStore.refreshExchangeRate(userSettingsStore.exchangeCurrency!)
-            }
+            // Only once on startup - Create websocket subscriptions to receive tokens or payment requests by NOSTR DMs                    
+            WalletTask.receiveEventsFromRelays().catch(e => false)            
+
             // Set wallet tab to preferred unit
             const preferredUnit: MintUnit = userSettingsStore.preferredUnit
             const preferredTabIndex = routes.findIndex(route => route.key === preferredUnit)    
@@ -253,16 +250,18 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             }
 
             const nowInSec = getUnixTime(new Date())
-            // log.trace('[useFocusEffect]', {nowInSec, lastClaimCheck, delay: lastClaimCheck ? nowInSec - lastClaimCheck : undefined})
+            log.trace('[useFocusEffect] Start', {secsFromLastPending: nowInSec - lastPendingCheck, secsFromLastClaim: nowInSec - lastClaimCheck})
             
-            if(lastPendingCheck && nowInSec - lastPendingCheck > 10) {
+            // On startup and on re-focus if some secs passed
+            if(nowInSec - lastPendingCheck > PENDING_CHECK_INTERVAL) {
+                setLastPendingCheck(nowInSec) 
                 WalletTask.syncPendingStateWithMints().catch(e => false)               
                 WalletTask.handlePendingTopups().catch(e => false)
             } else {
                 log.trace('[useFocusEffect] Skipping pending checks...')
             }
 
-            if(lastClaimCheck && nowInSec - lastClaimCheck > 60) {
+            if(nowInSec - lastClaimCheck > CLAIM_CHECK_INTERVAL) {
                 setLastClaimCheck(nowInSec)                       
                 WalletTask.handleClaim().catch(e => false) 
                 
@@ -276,7 +275,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             } 
 
   
-        }, [lastClaimCheck, isInternetReachable, userSettingsStore.exchangeCurrency])
+        }, [lastPendingCheck, lastClaimCheck, isInternetReachable, userSettingsStore.exchangeCurrency])
     )
 
   
@@ -303,16 +302,17 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
                 const nowInSec = getUnixTime(new Date())
 
-                // log.trace('[appState]', { nowInSec, lastClaimCheck, delay: lastClaimCheck ? nowInSec - lastClaimCheck : undefined });
+                log.trace('[handleAppStateChange] Start', {secsFromLastPending: nowInSec - lastPendingCheck, secsFromLastClaim: nowInSec - lastClaimCheck})
     
-                if (lastPendingCheck && nowInSec - lastPendingCheck > 10) {
+                if (nowInSec - lastPendingCheck > PENDING_CHECK_INTERVAL) {
+                    setLastPendingCheck(nowInSec)  
                     WalletTask.syncPendingStateWithMints().catch(e => false)
                     WalletTask.handlePendingTopups().catch(e => false)
                 } else {
                     log.trace('[handleAppStateChange] Skipping pending checks...')
                 }               
     
-                if(lastClaimCheck && nowInSec - lastClaimCheck > 60) {
+                if(nowInSec - lastClaimCheck > CLAIM_CHECK_INTERVAL) {
                     setLastClaimCheck(nowInSec)                       
                     WalletTask.handleClaim().catch(e => false) 
                     
@@ -336,7 +336,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         return () => {
             subscription.remove();  // Ensure cleanup to avoid multiple listeners
         };
-    }, [lastClaimCheck, lastPendingCheck, isInternetReachable, userSettingsStore.exchangeCurrency])
+    }, [lastPendingCheck, lastClaimCheck, isInternetReachable, userSettingsStore.exchangeCurrency])
 
 
     const toggleMintsModal = () => {

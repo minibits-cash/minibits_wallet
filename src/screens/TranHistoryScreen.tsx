@@ -267,7 +267,7 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
                         />
                         <ListItem
                         text={translate("tranHistory.pendingParam", {
-                          param: transactionsStore.pendingHistoryCount
+                          param: pendingDbCount
                         })}
                         LeftComponent={
                             <Icon

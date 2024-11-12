@@ -97,7 +97,7 @@ export const transferTask = async function (
         }
 
         // calculate fees charged by mint for melt transaction to prepare enough proofs
-        const proofsFromMint = proofsStore.getByMint(mintUrl, {isPending: false, unit}) as Proof[]  
+        const proofsFromMint = proofsStore.getByMint(mintUrl, {isPending: false, unit})
 
         let proofsToMelt = CashuUtils.getProofsToSend(
             amountToTransfer + meltQuote.fee_reserve,
@@ -120,9 +120,14 @@ export const transferTask = async function (
             [],
             transaction.id,
         )
+         
+        const {
+            proofs: proofsToPay, 
+            mintFeePaid, 
+            mintFeeReserve, 
+            isSwapNeeded
+        } = swapResult
 
-        proofsToPay = swapResult.proofs
-        const {mintFeePaid, mintFeeReserve, isSwapNeeded} = swapResult
         proofsToPayAmount = CashuUtils.getProofsAmount(proofsToPay)
 
         // TODO in case of swap from inactive keysets, different meltFees might apply than above calculated meltFeeReserve
@@ -135,6 +140,7 @@ export const transferTask = async function (
             status: TransactionStatus.PREPARED,
             mintFeeReserve,
             mintFeePaid,
+            proofsToPayAmount,
             isSwapNeeded,
             createdAt: new Date(),
         })
@@ -182,28 +188,14 @@ export const transferTask = async function (
 
         lockedProofsCounter.decreaseProofsCounter(countOfInFlightProofs)
 
-        // update transaction status and proofs state based on sync with the mint
-        // proofsToPay are clean ProofV3, not Proof models so we send all pending from state
-        /* const proofsToSync = proofsStore.getByMint(mintUrl, {isPending: true})
-        const { completedTransactionIds, transactionStateUpdates } = await WalletTask.syncStateWithMintSync(            
-            {
-                proofsToSync,
-                mintUrl,
-                isPending: true
-            }
-        )
-
-        if(!completedTransactionIds.includes(transaction.id)) {
-            // silent
-            log.warn('[transfer] payLightningMelt call suceeded but proofs were not spent by mint', {transactionStateUpdates})
-        }*/
-
-        // If real fees were less then estimated, cash the returned savings.
-
         if (state === MeltQuoteState.PAID) {
+            log.trace('[transfer] Invoice PAID', {state, preimage})
+            // Spend pending proofs that were used to settle the lightning invoice
+            proofsStore.removeProofs(proofsToPay as Proof[], true, false)
+
             let lightningFeePaid = meltQuote.fee_reserve
 
-            if (feeSavedProofs.length) {            
+            if (feeSavedProofs.length > 0) {            
                 const {addedAmount: feeSaved} = WalletUtils.addCashuProofs(
                     mintUrl, 
                     feeSavedProofs, 

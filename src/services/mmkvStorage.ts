@@ -212,7 +212,7 @@ const save = function (key: string, value: any): boolean {
     const end = performance.now()
 
     // const dataSize = Buffer.byteLength(JSON.stringify(value), 'utf8')
-    // log.trace(`[mmkvStorage.save] Took ${end - start} ms to save ${dataSize} bytes.`)
+    // log.trace(`[mmkvStorage.save] *** MMKV REAL SAVE *** Took ${end - start} ms to save ${dataSize} bytes.`)
 
     return true
   } catch (e: any) {
