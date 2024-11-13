@@ -94,47 +94,47 @@ export const TransactionModel = types
             // Update in the model
             self.status = status
             self.data = data 
-            log.debug('[setStatus]', 'Transaction status and data updated', {id: self.id, status})            
+            log.trace('[setStatus]', 'Transaction status and data updated', {id: self.id, status})            
         },
         setBalanceAfter(balanceAfter: number) {            
             Database.updateBalanceAfter(self.id!, balanceAfter)            
             self.balanceAfter = balanceAfter
-            log.debug('[setBalanceAfter]', 'Transaction balanceAfter updated', {id: self.id, balanceAfter})
+            log.trace('[setBalanceAfter]', 'Transaction balanceAfter updated', {id: self.id, balanceAfter})
         },
         setFee(fee: number) {            
             Database.updateFee(self.id!, fee)            
             self.fee = fee
-            log.debug('[setFee]', 'Transaction fee updated', {id: self.id, fee})
+            log.trace('[setFee]', 'Transaction fee updated', {id: self.id, fee})
         },
         setReceivedAmount(amount: number) {            
             Database.updateReceivedAmount(self.id!, amount)
             self.amount = amount
-            log.debug('[setReceivedAmount]', 'Transaction amount updated', {id: self.id, amount})
+            log.trace('[setReceivedAmount]', 'Transaction amount updated', {id: self.id, amount})
         },
         setNote(note: string) {            
             Database.updateNote(self.id!, note)            
             self.noteToSelf = note
-            log.debug('[saveNote]', 'Transaction note updated', {id: self.id, note})
+            log.trace('[saveNote]', 'Transaction note updated', {id: self.id, note})
         },
         setZapRequest(zapRequest: string) {
             Database.updateZapRequest(self.id!, zapRequest)            
             self.zapRequest = zapRequest
-            log.debug('[setZapRequest]', 'Transaction zapRequest updated', {id: self.id, zapRequest})
+            log.trace('[setZapRequest]', 'Transaction zapRequest updated', {id: self.id, zapRequest})
         }, 
         setSentFrom(sentFrom: string) {
             Database.updateSentFrom(self.id!, sentFrom)            
             self.sentFrom = sentFrom
-            log.debug('[setSentFrom]', 'Transaction sentFrom updated', {id: self.id, sentFrom})
+            log.trace('[setSentFrom]', 'Transaction sentFrom updated', {id: self.id, sentFrom})
         },
         setSentTo(sentTo: string) {
             Database.updateSentTo(self.id!, sentTo)            
             self.sentTo = sentTo
-            log.debug('[setSentTo]', 'Transaction sentTo updated', {id: self.id, sentTo})
+            log.trace('[setSentTo]', 'Transaction sentTo updated', {id: self.id, sentTo})
         }, 
         setProfile(profile: string) {
             Database.updateProfile(self.id!, profile)            
             self.profile = profile
-            log.debug('[setProfile]', 'Transaction profile updated', {id: self.id, profile})
+            log.trace('[setProfile]', 'Transaction profile updated', {id: self.id, profile})
         }, 
         setInputToken(inputToken: string) {
             Database.updateInputToken(self.id!, inputToken)            
@@ -144,12 +144,12 @@ export const TransactionModel = types
         setOutputToken(outputToken: string) {
             Database.updateOutputToken(self.id!, outputToken)            
             self.outputToken = outputToken
-            log.debug('[setOutputToken]', 'Transaction outputToken updated', {id: self.id, outputToken})
+            log.trace('[setOutputToken]', 'Transaction outputToken updated', {id: self.id, outputToken})
         },
         setProof(proof: string) {
             Database.updateProof(self.id!, proof)            
             self.proof = proof
-            log.debug('[setProof]', 'Transaction proof updated', {id: self.id, proof})
+            log.trace('[setProof]', 'Transaction proof updated', {id: self.id, proof})
         },             
   }))   
     

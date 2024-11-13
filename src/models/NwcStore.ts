@@ -33,6 +33,7 @@ import { NotificationService } from '../services/notificationService'
 import { roundUp } from '../utils/number'
 import { PaymentRequest } from './PaymentRequest'
 import { PaymentRequests } from './PaymentRequestsStore'
+import { transaction } from 'mobx'
 
 type NwcError = {
     result_type: string,
@@ -207,7 +208,8 @@ export const NwcConnectionModel = types.model('NwcConnection', {
     handleTransferTaskResult: flow(function* handleTransferTaskResult(result: TransactionTaskResult) {
         log.debug('[handleTransferTaskResult] Got transfer task result', {
             connection: self.name, 
-            meltQuote: result.meltQuote?.quote,            
+            meltQuote: result.meltQuote?.quote,
+            txId: result.transaction?.id
         })
 
         if(result.meltQuote?.quote === self.lastMeltQuoteId) {
@@ -336,7 +338,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
     handleListTransactions (nwcRequest: NwcRequest): NwcResponse {
         const rootStore = getRootStore(self)
         const {transactionsStore} = rootStore
-        const lightningTransactions = transactionsStore.all.filter(
+        const lightningTransactions = transactionsStore.history.filter(
             t => (t.type === TransactionType.TOPUP || 
             t.type === TransactionType.TRANSFER) && 
             t.status === TransactionStatus.COMPLETED

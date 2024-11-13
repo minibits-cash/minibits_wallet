@@ -73,11 +73,13 @@ export const transferTask = async function (
 
         // store tx in db and in the model
         transaction = await transactionsStore.addTransaction(newTransaction)
+        const transactionId = transaction.id
         
         if (amountToTransfer + meltQuote.fee_reserve > mintBalanceToTransferFrom.balances[unit]!) {
             throw new AppError(
                 Err.VALIDATION_ERROR, 
-                'Mint balance is insufficient to cover the amount to transfer with the expected Lightning fees.'
+                'Mint balance is insufficient to cover the amount to transfer with the expected Lightning fees.',
+                {transactionId}
             )
         }
     
@@ -85,14 +87,14 @@ export const transferTask = async function (
             throw new AppError(
                 Err.VALIDATION_ERROR, 
                 'This invoice has already expired and can not be paid.', 
-                {invoiceExpiry}
+                {invoiceExpiry, transactionId}
             )
         }
 
         if (!mintInstance) {
             throw new AppError(
                 Err.VALIDATION_ERROR,
-                'Could not find mint', {mintUrl}
+                'Could not find mint', {mintUrl, transactionId}
             )
         }
 
@@ -118,7 +120,7 @@ export const transferTask = async function (
             amountToTransfer + meltQuote.fee_reserve + meltFeeReserve,
             unit,
             [],
-            transaction.id,
+            transactionId,
         )
          
         const {
@@ -133,7 +135,11 @@ export const transferTask = async function (
         // TODO in case of swap from inactive keysets, different meltFees might apply than above calculated meltFeeReserve
         // In such case, we might need to add / substract the fee difference to / from proofsToPay
 
-        log.debug('[transfer]', 'Prepared poofsToPay proofs', {proofsToPayAmount, unit})
+        log.debug('[transfer]', 'Prepared poofsToPay proofs', {
+            proofsToPayAmount, 
+            unit, 
+            transactionId
+        })
 
         // Update transaction status
         transactionData.push({
@@ -187,9 +193,18 @@ export const transferTask = async function (
         )    
 
         lockedProofsCounter.decreaseProofsCounter(countOfInFlightProofs)
+        // release lock
+        lockedProofsCounter.resetInFlight(transaction.id)
 
         if (state === MeltQuoteState.PAID) {
-            log.trace('[transfer] Invoice PAID', {state, preimage})
+            
+            log.debug('[transfer] Invoice PAID', {
+                state, 
+                meltQuote, 
+                preimage, 
+                transactionId
+            })
+
             // Spend pending proofs that were used to settle the lightning invoice
             proofsStore.removeProofs(proofsToPay as Proof[], true, false)
 
@@ -220,9 +235,6 @@ export const transferTask = async function (
     
                 lightningFeePaid = meltQuote.fee_reserve - feeSaved            
             }
-    
-            // release lock
-            lockedProofsCounter.resetInFlight(transaction.id)
     
             // Save preimage
             if(preimage) {
@@ -264,13 +276,43 @@ export const transferTask = async function (
                 preimage,
                 nwcEvent
             } as TransactionTaskResult
+
+        } else if(state === MeltQuoteState.PENDING) {
+
+            log.debug('[transfer] Invoice PENDING', {
+                state, 
+                meltQuote, 
+                preimage, 
+                transactionId
+            })
+
+            return {
+                taskFunction: TRANSFER,
+                mintUrl,
+                transaction,
+                message: `Lightning payment did not complete in time. Your ecash will remain pending until the payment completes or fails.`,                
+                mintFeePaid,
+                meltQuote,
+                preimage,
+                nwcEvent
+            } as TransactionTaskResult
+
         } else {
             // throw so that proper state of proofs is synced inside the catch block
-            throw new AppError(Err.MINT_ERROR, 'Lightning payment has not been paid.', {state})
+            throw new AppError(Err.MINT_ERROR, 'Lightning payment has not been paid.', {
+                state, 
+                transactionId
+            })
         }
 
     } catch (e: any) {
-        if (transaction) {            
+        if (transaction) { 
+            // release lock  
+            if(lockedProofsCounter) {
+                lockedProofsCounter.resetInFlight(transaction.id)
+            }
+            
+            let message = e.message
 
             // If Exception was trigerred most likely by walletStore.payLightningMelt()
             if (proofsToPay.length > 0) {
@@ -290,20 +332,20 @@ export const transferTask = async function (
                 const refreshed = transactionsStore.findById(transaction.id)
 
                 if(refreshed?.status === TransactionStatus.PENDING) {
-                    log.warn('[transfer]', 'proofsToPay from transfer with error are pending by mint', {proofsToPayAmount, unit})
+                    log.warn('[transfer]', 'proofsToPay from transfer with error are pending by mint', {
+                        proofsToPayAmount, 
+                        unit,
+                        transactionId: transaction.id
+                    })
 
-                    return {
-                        taskFunction: TRANSFER,
-                        mintUrl,
-                        transaction,
-                        message: 'Lightning payment did not complete in time. Your ecash will remain pending until the payment completes or fails.',
-                        error: WalletUtils.formatError(e),
-                        meltQuote,
-                        nwcEvent
-                    } as TransactionTaskResult
+                    message = 'Lightning payment did not complete in time. Your ecash will remain pending until the payment completes or fails.'
 
                 } else {
-                    log.warn('[transfer]', 'proofsToPay from transfer with error to be returned to spendable wallet', {proofsToPayAmount, unit})
+                    log.warn('[transfer]', 'proofsToPay from transfer with error to be returned to spendable wallet', {
+                        proofsToPayAmount, 
+                        unit,
+                        transactionId: transaction.id
+                    })
 
                     // remove it from pending proofs in the wallet
                     proofsStore.removeProofs(proofsToPay as Proof[], true, true)
@@ -318,11 +360,6 @@ export const transferTask = async function (
                         }
                     )                    
                 }
-            }
-
-            // release lock  
-            if(lockedProofsCounter) {
-                lockedProofsCounter.resetInFlight(transaction.id)
             }
 
             transactionData.push({

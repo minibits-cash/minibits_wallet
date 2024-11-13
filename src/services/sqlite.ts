@@ -683,7 +683,7 @@ const addTransactionAsync = async function (tx: Transaction): Promise<Transactio
     const db = getInstance()
     const result = await db.executeAsync(query, params)
 
-    log.info('[addTransactionAsync]', 'New transaction added to the database', {type, mint, status})
+    log.info('[addTransactionAsync]', 'New transaction added to the database', {id: result.insertId, type, mint, status})
 
     const newTx = getTransactionById(result.insertId as number)
 
@@ -713,7 +713,7 @@ const updateStatus = function (
     const db = getInstance()
     db.execute(query, params)
 
-    log.info('[updateStatus]', `[${status}] Transaction status updated`, {id})
+    log.info('[updateStatus]', `Transaction status updated in the database`, {id, status})
 
     const updatedTx = getTransactionById(id as number)
 
@@ -768,7 +768,7 @@ const updateStatusesAsync = async function (
 
     const result2 = await _db.executeAsync(updateQuery, params)
 
-    log.info('[updateStatusesAsync]', `[${status}] Transactions statuses updated.`, {numUpdates: result2.rowsAffected, status})
+    log.info('[updateStatusesAsync]', `Transactions statuses updated in the database`, {numUpdates: result2.rowsAffected, status})
 
     return result2
   } catch (e: any) {
@@ -833,7 +833,7 @@ const updateFee = function (id: number, fee: number) {
     const db = getInstance()
     db.execute(query, params)
 
-    log.debug('[updateFee]', 'Transaction fee updated', {id, fee})
+    log.debug('[updateFee]', 'Transaction fee updated in the database', {id, fee})
 
     const updatedTx = getTransactionById(id as number)
 
@@ -860,7 +860,7 @@ const updateReceivedAmount = function (id: number, amount: number) {
     const db = getInstance()
     db.execute(query, params)
 
-    log.debug('[updateReceivedAmountAsync]', 'Transaction received amount updated', {id})
+    log.debug('[updateReceivedAmountAsync]', 'Transaction received amount updated in the database', {id, amount})
 
     const updatedTx = getTransactionById(id as number)
 
@@ -886,7 +886,7 @@ const updateNote = function (id: number, note: string) {
     const db = getInstance()
     db.executeAsync(query, params)
     // DO NOT log to Sentry
-    log.debug('[updateNote]', 'Transaction note updated')
+    log.trace('[updateNote]', 'Transaction note updated in the database', {id, note})
 
     const updatedTx = getTransactionById(id as number)
 
@@ -913,7 +913,7 @@ const updateSentFrom = function (id: number, sentFrom: string) {
       const db = getInstance()
       db.executeAsync(query, params)
 
-      log.debug('[updateSentFrom]', 'Transaction sentFrom updated', {id, sentFrom})
+      log.trace('[updateSentFrom]', 'Transaction sentFrom updated in the database', {id, sentFrom})
   
       const updatedTx = getTransactionById(id as number)
   
@@ -940,7 +940,7 @@ const updateSentTo = function (id: number, sentTo: string) {
       const db = getInstance()
       db.execute(query, params)
       
-      log.debug('[updateSentToAsync]', 'Transaction sentTo updated', {id, sentTo})
+      log.trace('[updateSentToAsync]', 'Transaction sentTo updated in the database', {id, sentTo})
   
       const updatedTx = getTransactionById(id as number)
   
@@ -967,7 +967,7 @@ const updateProfile = function (id: number, profile: string) {
     const db = getInstance()
     db.execute(query, params)
     
-    log.debug('[updateProfile]', 'Transaction sentTo updated', {id, profile})
+    log.trace('[updateProfile]', 'Transaction sentTo updated in the database', {id, profile})
 
     const updatedTx = getTransactionById(id as number)
 
@@ -994,7 +994,7 @@ const updateInputToken = function (id: number, inputToken: string) {
     const db = getInstance()
     db.execute(query, params)
     
-    log.debug('[updateInputToken]', 'Transaction inputToken updated in database', {id})
+    log.debug('[updateInputToken]', 'Transaction inputToken updated in the database', {id})
 
     const updatedTx = getTransactionById(id as number)
 
@@ -1021,7 +1021,7 @@ const updateOutputToken = function (id: number, outputToken: string) {
     const db = getInstance()
     db.execute(query, params)
     
-    log.debug('[updateOutputToken]', 'Transaction outputToken updated', {id, outputToken})
+    log.debug('[updateOutputToken]', 'Transaction outputToken updated in the database', {id, outputToken})
 
     const updatedTx = getTransactionById(id as number)
 
@@ -1048,7 +1048,7 @@ const updateProof = function (id: number, proof: string) {
     const db = getInstance()
     db.execute(query, params)
     
-    log.debug('[updateProof]', 'Transaction proof updated', {id, proof})
+    log.debug('[updateProof]', 'Transaction proof updated in the database', {id, proof})
 
     const updatedTx = getTransactionById(id as number)
 
@@ -1075,7 +1075,7 @@ const updateZapRequest = function (id: number, zapRequest: string) {
     const db = getInstance()
     db.execute(query, params)
     
-    log.debug('[updateProof]', 'Transaction zapRequest updated', {id, zapRequest})
+    log.trace('[updateProof]', 'Transaction zapRequest updated in the database', {id, zapRequest})
 
     const updatedTx = getTransactionById(id as number)
 

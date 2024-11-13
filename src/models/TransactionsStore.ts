@@ -189,7 +189,7 @@ export const TransactionsStoreModel = types
             self.history.unshift(reference!)
             self.recentByUnit.unshift(reference!)
 
-            log.debug('[addTransaction]', 'New transaction added to the TransactionsStore')
+            log.debug('[addTransaction]', 'New transaction added to the TransactionsStore', {id})
 
             // Purge the oldest references from cache, but keep some for each mint
             self.pruneRecentByUnit(newTransaction.unit)

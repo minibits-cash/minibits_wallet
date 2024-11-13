@@ -210,18 +210,22 @@ export const sendFromMintSync = async function (
         if (!mintInstance) {
             throw new AppError(
                 Err.VALIDATION_ERROR,
-                'Could not find mint', {mintUrl}
+                'Could not find mint', {mintUrl, transactionId}
             )
         }        
              
         const proofsFromMint = proofsStore.getByMint(mintUrl, {isPending: false, unit})       
         
-        log.debug('[sendFromMintSync]', 'proofsFromMint count', {mintBalance: mintBalance.balances[unit], amountToSend})
+        log.debug('[sendFromMintSync]', 'proofsFromMint count', {
+            mintBalance: mintBalance.balances[unit], 
+            amountToSend, transactionId
+        })
 
         if (proofsFromMint.length < 1) {
             throw new AppError(
                 Err.VALIDATION_ERROR,
                 'Could not find ecash for the selected mint',
+                {transactionId}
             )
         }
 
@@ -231,7 +235,7 @@ export const sendFromMintSync = async function (
             throw new AppError(
                 Err.VALIDATION_ERROR,
                 'There is not enough funds to send this amount.',
-                {totalAmountFromMint, amountToSend, caller: 'sendFromMintSync'},
+                {totalAmountFromMint, amountToSend, transactionId, caller: 'sendFromMintSync'},
             )
         }
 
@@ -246,14 +250,16 @@ export const sendFromMintSync = async function (
             if(amountToSend !== selectedProofsAmount) { // failsafe for some unknown ecash selection UX error
                 throw new AppError(
                     Err.VALIDATION_ERROR, 
-                    'Requested amount to send does not equal sum of ecash denominations provided.'
+                    'Requested amount to send does not equal sum of ecash denominations provided.',
+                    {transactionId}
                 )
             }
 
             if(selectedProofs.length > MAX_SWAP_INPUT_SIZE) {
                 throw new AppError(
                     Err.VALIDATION_ERROR, 
-                    `Number of proofs is above max of ${MAX_SWAP_INPUT_SIZE}. Visit Backup to optimize, then try again.`
+                    `Number of proofs is above max of ${MAX_SWAP_INPUT_SIZE}. Visit Backup to optimize, then try again.`,
+                    {transactionId}
                 )
             }
 
@@ -325,7 +331,7 @@ export const sendFromMintSync = async function (
             // This is expected to get back from mint as a split remainder - we deduct fee that a mint will keep
             returnedAmount = proofsToSendFromAmount - amountToSend - mintFeeReserve
 
-            log.debug('[sendFromMintSync] Swap is needed.', {mintFeeReserve, returnedAmount})
+            log.debug('[sendFromMintSync] Swap is needed.', {mintFeeReserve, returnedAmount, transactionId})
             
             // if we did not selected enough proofs to cover the fees we need some more
             if(returnedAmount < 0) {
@@ -404,13 +410,14 @@ export const sendFromMintSync = async function (
          *  SWAP is NOT needed, we've found denominations that match exact amount
          *  
          */
-            log.debug('[sendFromMintSync] Swap is not necessary, all proofsToSendFrom will be sent.')
+            log.debug('[sendFromMintSync] Swap is not necessary, all proofsToSendFrom will be sent.', {transactionId})
 
             // If we selected whole balance, check if it is not above limit acceptable by wallet and mints.
             if(proofsToSendFrom.length > MAX_SWAP_INPUT_SIZE) {
                 throw new AppError(
                     Err.VALIDATION_ERROR, 
-                    `Number of proofs is above max limit of ${MAX_SWAP_INPUT_SIZE}. Visit Backup to optimize your wallet, then try again.`
+                    `Number of proofs is above max limit of ${MAX_SWAP_INPUT_SIZE}. Visit Backup to optimize your wallet, then try again.`,
+                    {transactionId}
                 )
             }
 
