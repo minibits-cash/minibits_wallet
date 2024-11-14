@@ -54,7 +54,7 @@ export const MintProofsCounterModel = types.model('MintProofsCounter', {
         self.counter = inFlightTo // temp increase of main counter value
         self.inFlightTid = inFlightTid
 
-        log.trace('[setInFlight]', 'Lock and inflight indexes were set', self)
+        log.trace('[setInFlight]', 'Lock and inflight indexes were set', {inFlightTid})
     },
     resetInFlight(inFlightTid: number) {
         self.inFlightFrom = undefined
@@ -66,7 +66,7 @@ export const MintProofsCounterModel = types.model('MintProofsCounter', {
     increaseProofsCounter(numberOfProofs: number) {
         if(isNaN(self.counter)) self.counter = 0
         self.counter += numberOfProofs
-        log.trace('[increaseProofsCounter]', 'Increased proofsCounter', {numberOfProofs, counter: self.counter})
+        log.info('[increaseProofsCounter]', 'Increased proofsCounter', {numberOfProofs, counter: self.counter})
     },
     decreaseProofsCounter(numberOfProofs: number) {
         self.counter -= numberOfProofs
@@ -167,7 +167,6 @@ export const MintModel = types
                 self.proofsCounters.push(counter)
                 self.proofsCounters = cast(self.proofsCounters)
             }
-
             
         },
         removeProofsCounter(counter: MintProofsCounter) {
@@ -198,15 +197,20 @@ export const MintModel = types
     }))
     .actions(self => ({
         createProofsCounter(keyset: CashuMintKeyset) {
+            const existing = self.getProofsCounter(keyset.id)
 
-            const newCounter = MintProofsCounterModel.create({
-                keyset: keyset.id,
-                unit: keyset.unit as MintUnit,
-                counter: 0,                    
-            })
+            if(!existing) {
+                const newCounter = MintProofsCounterModel.create({
+                    keyset: keyset.id,
+                    unit: keyset.unit as MintUnit,
+                    counter: 0,                    
+                })
+    
+                self.addProofsCounter(newCounter)
+                return newCounter
+            }
 
-            self.addProofsCounter(newCounter)
-            return self.getProofsCounter(keyset.id)
+            return existing
         }
     }))
     .actions(self => ({ 
@@ -292,10 +296,10 @@ export const MintModel = types
             const counter = self.proofsCounters.find(p => p.keyset === keysetId)
             if(!counter) {
                 const keyset = self.keysets.find(k => k.id === keysetId)
-                if(keyset) {
-                    return self.createProofsCounter(keyset)
+                if(!keyset) {
+                    throw new AppError(Err.VALIDATION_ERROR, 'Missing keyset.')                    
                 }
-                throw new AppError(Err.VALIDATION_ERROR, 'Missing keyset.')
+                return self.createProofsCounter(keyset)
             }
 
             return counter

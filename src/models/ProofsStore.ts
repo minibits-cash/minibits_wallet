@@ -140,6 +140,10 @@ export const ProofsStoreModel = types
                 const mintsStore = getRootStore(self).mintsStore
                 const mintInstance = mintsStore.findByUrl(newProofs[0].mintUrl as string)
 
+                if(!mintInstance) {
+                    throw new AppError(Err.STORAGE_ERROR, 'Could not find mint', {mintUrl: newProofs[0].mintUrl})
+                }
+
                 for (const [keysetId, keysetProofs] of proofsByKeysetId.entries()) {                    
 
                     for (const proof of keysetProofs) { 
@@ -165,14 +169,12 @@ export const ProofsStoreModel = types
                     }
                     
                     // Find the corresponding counter for this keysetId
-                    const proofsCounter = mintInstance?.getProofsCounterByKeysetId(keysetId)
-                    if (proofsCounter) {
-                        // Increment the counter by the number of proofs to insert
-                        proofsCounter.increaseProofsCounter(keysetProofs.length) 
-                    }
-                }
-        
-                log.debug('[addProofs]', `Added new ${addedProofs.length}${isPending ? ' pending' : ''} proofs to the ProofsStore`)                           
+                    const proofsCounter = mintInstance.getProofsCounterByKeysetId(keysetId)
+                    // Increment the counter by the number of proofs to insert
+                    proofsCounter.increaseProofsCounter(keysetProofs.length)                    
+                }        
+                
+                log.info('[addProofs]', `Added new ${addedProofs.length}${isPending ? ' pending' : ''} proofs to the ProofsStore`)                           
     
                 if (addedProofs.length > 0) {
                     Database.addOrUpdateProofs(addedProofs, isPending) // isSpent = false

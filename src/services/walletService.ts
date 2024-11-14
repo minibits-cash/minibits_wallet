@@ -1413,6 +1413,7 @@ const _handleClaimTask = async function (params: {
         if(result && result.transaction) {
             const transaction = transactionsStore.findById(result.transaction.id!)
             const {zapSenderProfile, zapRequest} = claimedToken
+            let message: string = ''
 
             if(transaction) {
                 if (zapSenderProfile) {
@@ -1432,10 +1433,12 @@ const _handleClaimTask = async function (params: {
         return { 
             mintUrl: decoded.token[0].mint,
             taskFunction: '_handleClaimTask',
-            message: 'Ecash sent to your lightning address has been received.',
+            message: result.error ? result.error.message : 'Ecash sent to your lightning address has been received.',
+            error: result.error || undefined,
             proofsCount: decoded.token[0].proofs.length,
             proofsAmount: result.transaction?.amount,
         } as WalletTaskResult
+        
     } catch (e: any) {
         log.error(e.name, e.message)
 

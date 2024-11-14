@@ -50,7 +50,8 @@ export const transferTask = async function (
             amountToTransfer,
             unit,
             meltQuote,
-            encodedInvoice,            
+            encodedInvoice,
+            isNwc: nwcEvent ? true : false,           
             createdAt: new Date(),
         }
     ]
@@ -127,7 +128,8 @@ export const transferTask = async function (
             proofs: proofsToPay, 
             mintFeePaid, 
             mintFeeReserve, 
-            isSwapNeeded
+            isSwapNeeded,
+            counter
         } = swapResult
 
         proofsToPayAmount = CashuUtils.getProofsAmount(proofsToPay)
@@ -135,10 +137,12 @@ export const transferTask = async function (
         // TODO in case of swap from inactive keysets, different meltFees might apply than above calculated meltFeeReserve
         // In such case, we might need to add / substract the fee difference to / from proofsToPay
 
-        log.debug('[transfer]', 'Prepared poofsToPay proofs', {
+        log.info('[transfer]', 'Prepared poofsToPay proofs', {
             proofsToPayAmount, 
             unit, 
-            transactionId
+            transactionId,
+            isSwapNeeded,
+            counter
         })
 
         // Update transaction status
@@ -148,6 +152,7 @@ export const transferTask = async function (
             mintFeePaid,
             proofsToPayAmount,
             isSwapNeeded,
+            counter,
             createdAt: new Date(),
         })
 
@@ -194,8 +199,8 @@ export const transferTask = async function (
 
         lockedProofsCounter.decreaseProofsCounter(countOfInFlightProofs)
         // release lock
-        lockedProofsCounter.resetInFlight(transaction.id)
-
+        lockedProofsCounter.resetInFlight(transactionId)
+        
         if (state === MeltQuoteState.PAID) {
             
             log.debug('[transfer] Invoice PAID', {
@@ -277,7 +282,7 @@ export const transferTask = async function (
                 nwcEvent
             } as TransactionTaskResult
 
-        } else if(state === MeltQuoteState.PENDING) {
+        } else if(state === MeltQuoteState.PENDING) {            
 
             log.debug('[transfer] Invoice PENDING', {
                 state, 

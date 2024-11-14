@@ -29,15 +29,12 @@ const lockAndSetInFlight = async function (
     const walletInstance = await walletStore.getWallet(mint.mintUrl, unit, {withSeed: true})
     const currentCounter = mint.getProofsCounterByKeysetId!(walletInstance.keys.id)
 
+    log.info('[lockAndSetInFlight] Before lock', {transactionId, counter: currentCounter.counter})
+
     if(!currentCounter) {
         throw new AppError(Err.VALIDATION_ERROR, 'Missing ProofsCounter.')
     }
 
-    // log.trace('[lockAndSetInFlight] proofsCounter before lock', {currentCounter})
-
-    if(!retryCount) {
-        retryCount = 10
-    }
     
     // deprecated, should not be necessary anymore with serial task queue processing
     if(currentCounter && currentCounter.inFlightTid && currentCounter.inFlightTid !== transactionId) {
@@ -49,8 +46,8 @@ const lockAndSetInFlight = async function (
 
         await delay(1000)
 
-        if (retryCount < 50) {
-            // retry to acquire lock, increment the count of retries up to 50 seconds
+        if (retryCount < 10) {
+            // retry to acquire lock, increment the count of retries up to 10 seconds
             return lockAndSetInFlight(
                 mint,
                 unit,
