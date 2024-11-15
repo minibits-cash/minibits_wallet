@@ -99,6 +99,46 @@ export const transferTask = async function (
             )
         }
 
+        // if previous transaction got interrupted by android background processing, resync their proofs state with the mint
+        // unfinished transactions cause outputs already signed error
+        const previousTransaction = transactionsStore.findById(transactionId - 1)
+
+        // if zap remained stuck in DRAFT
+        if(previousTransaction 
+            && previousTransaction.status === TransactionStatus.DRAFT
+            && previousTransaction.type === TransactionType.TRANSFER
+        ) {
+            log.error(`[transfer] Previous TRANSFER transaction ${previousTransaction.id} is stuck in DRAFT status.`)
+            // we check if proofsCounter is locked so we very likely fired swap request            
+            const proofsCounter = mintInstance.findInFlightProofsCounterByTId(previousTransaction.id)
+
+            if(proofsCounter && proofsCounter.inFlightTid === previousTransaction.id) {
+                log.error(`[transfer] Found previous DARFT TRANSFER locked proofsCounter.`, {proofsCounter, prevId: previousTransaction.id})
+                await WalletTask.handleInFlightSync(mintInstance)
+            }
+        }
+
+        // if zap remained stuck in PREPARED we sync pending proofs so that we set proofsCounters to correct values
+        if(previousTransaction 
+            && previousTransaction.status === TransactionStatus.PREPARED
+            && previousTransaction.type === TransactionType.TRANSFER
+        ) {
+            log.error(`[transfer] Previous TRANSFER transaction ${previousTransaction.id} is stuck in PREPARED status.`)
+            const proofsCounter = mintInstance.findInFlightProofsCounterByTId(previousTransaction.id)
+
+            if(proofsCounter && proofsCounter.inFlightTid === previousTransaction.id) {
+                log.error(`[transfer] Found previous PREPARED TRANSFER locked proofsCounter.`, {proofsCounter, prevId: previousTransaction.id})
+                await WalletTask.handleInFlightSync(mintInstance)
+            }
+            
+            const proofsToSync = proofsStore.getByTransactionId(previousTransaction.id, true) // pending
+            log.error(`[transfer] Syncing PREPARED TRANSFER pending proofs with the mint.`, {prevId: previousTransaction.id, proofsToSyncCount: proofsToSync.length})
+            
+            if(proofsToSync.length > 0) {
+                await WalletTask.syncStateWithMintSync({proofsToSync, mintUrl, isPending: true})
+            }            
+        }
+
         // calculate fees charged by mint for melt transaction to prepare enough proofs
         const proofsFromMint = proofsStore.getByMint(mintUrl, {isPending: false, unit})
 
@@ -198,8 +238,6 @@ export const transferTask = async function (
         )    
 
         lockedProofsCounter.decreaseProofsCounter(countOfInFlightProofs)
-        // release lock
-        lockedProofsCounter.resetInFlight(transactionId)
         
         if (state === MeltQuoteState.PAID) {
             
@@ -240,6 +278,9 @@ export const transferTask = async function (
     
                 lightningFeePaid = meltQuote.fee_reserve - feeSaved            
             }
+
+            // release lock
+            lockedProofsCounter.resetInFlight(transactionId)
     
             // Save preimage
             if(preimage) {

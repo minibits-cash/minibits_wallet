@@ -421,8 +421,8 @@ export const WalletStoreModel = types
               }      
             )
         
-            log.debug('[WalletStore.send] returnedProofs', returnChange)
-            log.debug('[WalletStore.send] proofsToSend', send)
+            log.debug(`[WalletStore.send] ${returnChange.length} returnedProofs`)
+            log.debug(`[WalletStore.send] ${send.length} proofsToSend`)
         
             // do some basic validations that proof amounts from mints match
             const totalAmountToSendFrom: number = CashuUtils.getProofsAmount(proofsToSendFrom)

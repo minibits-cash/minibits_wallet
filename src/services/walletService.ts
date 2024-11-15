@@ -54,6 +54,7 @@ type WalletTaskService = {
         }        
     ) => Promise<SyncStateTaskResult>
     handleInFlight: ()        => Promise<void>
+    handleInFlightSync: (mint: Mint) => Promise<WalletTaskResult>
     handlePendingTopups: ()   => Promise<void>
     handlePendingTopup: (params: {
         paymentRequest: PaymentRequest
@@ -950,8 +951,13 @@ const handleInFlight = async function (): Promise<void> {
     return
 }
 
+
+const handleInFlightSync = async function (mint: Mint): Promise<WalletTaskResult> {
+    return await _handleInFlightByMintTask(mint)
+}
+
 /*
- * Recover proofs that were issued by mint, but wallet failed to receive them if split did not complete.
+ * Recover proofs that were issued by mint, but wallet failed to receive them if swap did not complete.
  */
 const _handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTaskResult> {
 
@@ -1070,7 +1076,7 @@ const _handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTas
         }
         
         const transactionDataUpdate = {
-            status: TransactionStatus.COMPLETED,
+            status: TransactionStatus.RECOVERED,
             walletTaskResult,
             message: 'This transaction failed to receive expected funds from the mint, but the wallet suceeded to recover them.',
             createdAt: new Date(),
@@ -1078,7 +1084,7 @@ const _handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTas
 
         await transactionsStore.updateStatuses(
             [transactionId],
-            TransactionStatus.COMPLETED, // has been most likely DRAFT
+            TransactionStatus.RECOVERED, // has been most likely DRAFT
             JSON.stringify(transactionDataUpdate),
         )
 
@@ -1788,7 +1794,8 @@ export const WalletTask: WalletTaskService = {
     syncSpendableStateWithMints,
     syncStateWithMint,
     syncStateWithMintSync,    
-    handleInFlight,    
+    handleInFlight,
+    handleInFlightSync,  
     handlePendingTopups,
     handlePendingTopup,
     handleClaim,

@@ -47,6 +47,7 @@ export enum TransactionStatus {
     PREPARED_OFFLINE = 'PREPARED_OFFLINE', // offline receive, safer to have if sepearate from prepared 
     PENDING = 'PENDING',
     REVERTED = 'REVERTED',
+    RECOVERED = 'RECOVERED',
     COMPLETED = 'COMPLETED',
     ERROR = 'ERROR',
     BLOCKED = 'BLOCKED',
