@@ -379,7 +379,7 @@ export const MintModel = types
             // Calculate the fees
             const feeReserve = Math.max(Math.floor((totalInputFees + 999) / 1000), 0)
             
-            log.debug('[getMintFeeReserve]', {feeReserve})
+            log.trace('[getMintFeeReserve]', {feeReserve})
             return feeReserve
         }
     }))

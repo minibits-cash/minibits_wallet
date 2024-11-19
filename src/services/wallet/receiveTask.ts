@@ -37,8 +37,7 @@ export const receiveTask = async function (
   const transactionData: TransactionData[] = []  
   let transaction: Transaction | undefined = undefined
   let mintToReceive: string | undefined = undefined
-  const unit = token.unit as MintUnit || 'sat'
-  let lockedProofsCounter: MintProofsCounter | undefined = undefined
+  const unit = token.unit as MintUnit || 'sat'  
 
   try {
         const tokenMints: string[] = CashuUtils.getMintsFromToken(token)
@@ -103,94 +102,19 @@ export const receiveTask = async function (
             } as TransactionTaskResult
         }
 
-        // Handle missing mint, we add it automatically
-        const alreadyExists = mintsStore.alreadyExists(mintToReceive)
-
-        if (!alreadyExists) {
-            await mintsStore.addMint(mintToReceive)
-        }
-
-        const mintInstance = mintsStore.findByUrl(mintToReceive)
-
-        if(!mintInstance) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Missing mint', {mintToReceive})
-        }
-
-        // Increase the proofs counter before the mint call so that in case the response
-        // is not received our recovery index counts for sigs the mint has already issued
-        const amountPreferences = getDefaultAmountPreference(amountToReceive)        
-        const countOfInFlightProofs = CashuUtils.getAmountPreferencesCount(amountPreferences)        
-        const proofsToReceive = token.token.flatMap(entry => entry.proofs)
-        const mintFeeReserve = mintInstance.getMintFeeReserve(proofsToReceive)        
-        
-        log.trace('[receiveTask]', 'amountPreferences', {amountPreferences, transactionId: transaction.id})
-        log.trace('[receiveTask]', 'countOfInFlightProofs', {countOfInFlightProofs, transactionId: transaction.id})  
-        // log.trace('[receiveTask]', {tokenEntries})
-        
-        // temp increase the counter + acquire lock and set inFlight values        
-        lockedProofsCounter = await WalletUtils.lockAndSetInFlight(
-            mintInstance, 
-            unit, 
-            countOfInFlightProofs, 
-            transaction.id!
-        )
-
-        const receivedResult = await walletStore.receive(
+        const {            
+            receivedAmount, 
+            outputToken, 
+            swapFeeReserve,
+            swapFeePaid,            
+            counter 
+        } = await receiveSync(
             mintToReceive,
-            unit as MintUnit,
             token,
-            mintFeeReserve,
-            {            
-              preference: amountPreferences,
-              counter: lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
-            }
+            token.memo || '',
+            transaction.id
         )
         
-        const receivedProofs = receivedResult.proofs
-        const mintFeePaid = receivedResult.mintFeePaid
-
-        // log.trace('[receiveTask]', {receivedProofs})
-       
-        // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs        
-        lockedProofsCounter.decreaseProofsCounter(countOfInFlightProofs)
-
-        // store swapped proofs as encoded token in tx data        
-        const receivedTokenEntry = {
-            mint: mintToReceive,
-            proofs: receivedProofs,
-        }
-
-        const outputToken = CashuUtils.encodeToken({
-            token: [receivedTokenEntry],
-            unit,
-            memo,
-        })
-        
-        // Update transaction status
-        transactionData.push({
-            status: TransactionStatus.PREPARED,            
-            mintFeeReserve,
-            mintFeePaid,
-            createdAt: new Date(),
-        })
-
-        transaction.setStatus(            
-            TransactionStatus.PREPARED,
-            JSON.stringify(transactionData),
-        )
-       
-        const { addedAmount: receivedAmount } = WalletUtils.addCashuProofs(
-            mintToReceive,
-            receivedProofs,
-            {
-                unit,
-                transactionId: transaction.id!,
-                isPending: false
-            }                    
-        )
-
-        // release lock
-        lockedProofsCounter.resetInFlight(transaction.id!)
  
         // Update tx amount if full amount was not received
         if (receivedAmount !== amountToReceive) {      
@@ -199,10 +123,12 @@ export const receiveTask = async function (
 
         // Finally, update completed transaction
         transactionData.push({
-            status: TransactionStatus.COMPLETED,            
+            status: TransactionStatus.COMPLETED,   
+            swapFeeReserve,
+            swapFeePaid,         
             receivedAmount,
             unit,
-            counter: lockedProofsCounter.counter,          
+            counter,          
             createdAt: new Date(),
         })
 
@@ -216,13 +142,13 @@ export const receiveTask = async function (
         const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
         transaction.setBalanceAfter(balanceAfter)
 
-        if(mintFeePaid > 0) {
-            transaction.setFee(mintFeePaid)
+        if(swapFeePaid > 0) {
+            transaction.setFee(swapFeePaid)
         }
 
         return {
             taskFunction: RECEIVE,
-            mintUrl: mintInstance.mintUrl,
+            mintUrl: mintToReceive,
             transaction,
             message: `You've received ${formatCurrency(receivedAmount, getCurrency(unit).code)} ${getCurrency(unit).code} to your Minibits wallet.`,
             receivedAmount,
@@ -230,9 +156,6 @@ export const receiveTask = async function (
         
     } catch (e: any) {
         if (transaction) {            
-            if(lockedProofsCounter) {                
-                lockedProofsCounter.resetInFlight(transaction.id!)
-            }
 
             transactionData.push({
                 status: TransactionStatus.ERROR,
@@ -250,7 +173,7 @@ export const receiveTask = async function (
 
         return {
             taskFunction: RECEIVE,
-            mintUrl: mintToReceive || '',
+            mintUrl: mintToReceive,
             transaction,
             message: e.message,
             error: WalletUtils.formatError(e),
@@ -355,7 +278,7 @@ export const receiveOfflinePrepareTask = async function (
                 error: WalletUtils.formatError(e),
             })
 
-            await transaction.setStatus(                
+            transaction.setStatus(                
                 TransactionStatus.ERROR,
                 JSON.stringify(transactionData),
             )
@@ -377,8 +300,7 @@ export const receiveOfflinePrepareTask = async function (
 export const receiveOfflineCompleteTask = async function (        
     transactionId: number
 ) {
-    let mintToReceive = ''
-    let lockedProofsCounter: MintProofsCounter | undefined = undefined
+    let mintToReceive = ''    
     const transaction = transactionsStore.findById(transactionId)
 
     try {
@@ -387,7 +309,6 @@ export const receiveOfflineCompleteTask = async function (
         }   
 
         const transactionData = JSON.parse(transaction.data)
-
 
         if (!transaction.inputToken) {
             throw new AppError(Err.VALIDATION_ERROR, 'Could not find ecash token to redeem', {caller: 'receiveOfflineComplete'})
@@ -420,6 +341,95 @@ export const receiveOfflineCompleteTask = async function (
             } as TransactionTaskResult
         }
 
+        const {             
+            receivedAmount, 
+            outputToken, 
+            swapFeeReserve,
+            swapFeePaid,            
+            counter 
+        } = await receiveSync(
+            mintToReceive,
+            token,
+            token.memo || '',
+            transaction.id
+        )
+ 
+        // Update tx amount if full amount was not received
+        if (receivedAmount !== transaction.amount) {      
+            transaction.setReceivedAmount(receivedAmount)
+        }
+
+        // Finally, update completed transaction
+        transactionData.push({
+            status: TransactionStatus.COMPLETED,  
+            receivedAmount,
+            swapFeeReserve,
+            swapFeePaid,
+            unit,
+            counter,         
+            createdAt: new Date(),
+        })        
+
+        transaction.setStatus(            
+            TransactionStatus.COMPLETED,
+            JSON.stringify(transactionData),
+        )
+
+        transaction.setOutputToken(outputToken)
+
+        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
+        transaction.setBalanceAfter(balanceAfter)
+
+        if(swapFeePaid > 0) {
+            transaction.setFee(swapFeePaid)
+        }
+
+        return {
+            taskFunction: RECEIVE_OFFLINE_COMPLETE,
+            mintUrl: mintToReceive,
+            transaction,
+            message: `You've received ${formatCurrency(receivedAmount, getCurrency(unit).code)} ${getCurrency(unit).code} to your Minibits wallet.`,
+            receivedAmount,
+        } as TransactionTaskResult
+
+    } catch (e: any) {
+        // release lock
+        if(transaction) {
+                
+            const transactionData = JSON.parse(transaction.data)
+            transactionData.push({
+                status: TransactionStatus.ERROR,
+                error: WalletUtils.formatError(e),
+            })
+    
+            transaction.setStatus(                
+                TransactionStatus.ERROR,
+                JSON.stringify(transactionData),
+            )
+        }        
+
+        return {
+            taskFunction: RECEIVE_OFFLINE_COMPLETE,
+            mintUrl: mintToReceive,
+            transaction,
+            message: '',
+            error: WalletUtils.formatError(e),
+        } as TransactionTaskResult
+    }
+}
+
+
+export const receiveSync = async function (
+    mintToReceive: string,
+    token: TokenV3,    
+    memo: string,    
+    transactionId: number
+) {
+  
+  const unit = token.unit as MintUnit || 'sat'
+  let lockedProofsCounter: MintProofsCounter | undefined = undefined
+
+  try {        
         // Handle missing mint, we add it automatically
         const alreadyExists = mintsStore.alreadyExists(mintToReceive)
 
@@ -434,31 +444,29 @@ export const receiveOfflineCompleteTask = async function (
         }
 
         // Increase the proofs counter before the mint call so that in case the response
-        // is not received our recovery index counts for sigs the mint has already issued (prevents duplicate b_b bug)
-
-        const tokenEntries: TokenEntryV3[] = token.token
-        const proofsToReceive = tokenEntries[0].proofs as Proof[]
-        const mintFeeReserve = mintInstance.getMintFeeReserve(proofsToReceive)
-        // We will receive amount less fees paid for a swap for fresh ecash
-        const amountPreferences = getDefaultAmountPreference(transaction.amount - mintFeeReserve)        
-        const countOfInFlightProofs = CashuUtils.getAmountPreferencesCount(amountPreferences)
+        // is not received our recovery index counts for sigs the mint has already issued
+        const amountToReceive = CashuUtils.getTokenAmounts(token).totalAmount
+        const amountPreferences = getDefaultAmountPreference(amountToReceive)        
+        const countOfInFlightProofs = CashuUtils.getAmountPreferencesCount(amountPreferences)        
+        const proofsToReceive = token.token.flatMap(entry => entry.proofs)
+        const swapFeeReserve = mintInstance.getMintFeeReserve(proofsToReceive)        
         
-        log.trace('[receiveOfflineCompleteTask]', 'amountPreferences', amountPreferences)
-        log.trace('[receiveOfflineCompleteTask]', 'countOfInFlightProofs', countOfInFlightProofs)  
-        
+        log.trace('[receiveSync]', 'amountPreferences', {amountPreferences, transactionId})
+        log.trace('[receiveSync]', 'countOfInFlightProofs', {countOfInFlightProofs, transactionId})  
+                
         // temp increase the counter + acquire lock and set inFlight values        
         lockedProofsCounter = await WalletUtils.lockAndSetInFlight(
             mintInstance, 
             unit, 
             countOfInFlightProofs, 
-            transaction.id as number
+            transactionId
         )
 
         const receivedResult = await walletStore.receive(
             mintToReceive,
             unit as MintUnit,
             token,
-            mintFeeReserve,
+            swapFeeReserve,
             {            
               preference: amountPreferences,
               counter: lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
@@ -466,110 +474,58 @@ export const receiveOfflineCompleteTask = async function (
         )
         
         const receivedProofs = receivedResult.proofs
-        const mintFeePaid = receivedResult.mintFeePaid
+        const swapFeePaid = receivedResult.swapFeePaid
+
+        // log.trace('[receiveTask]', {receivedProofs})
        
         // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs        
         lockedProofsCounter.decreaseProofsCounter(countOfInFlightProofs)
-
-        // store swapped proofs as encoded token in tx data        
-        const receivedTokenEntry: TokenEntryV3 = {
-            mint: mintToReceive,
-            proofs: receivedProofs,
-        }
-
-        const outputToken = CashuUtils.encodeToken({
-            token: [receivedTokenEntry],
-            unit,            
-        })
-        
-        // Update transaction status
-        transactionData.push({
-            status: TransactionStatus.PREPARED,            
-            mintFeeReserve,
-            mintFeePaid,
-            createdAt: new Date(),
-        })
-
-        transaction.setStatus(            
-            TransactionStatus.PREPARED,
-            JSON.stringify(transactionData),
-        )
        
         const { addedAmount: receivedAmount } = WalletUtils.addCashuProofs(
             mintToReceive,
             receivedProofs,
             {
                 unit,
-                transactionId: transaction.id as number,
+                transactionId: transactionId,
                 isPending: false
             }                    
         )
 
         // release lock
-        lockedProofsCounter.resetInFlight(transaction.id as number)
- 
-        // Update tx amount if full amount was not received
-        if (receivedAmount !== transaction.amount) {      
-            transaction.setReceivedAmount(receivedAmount)
+        lockedProofsCounter.resetInFlight(transactionId)
+
+        // store swapped proofs as encoded token in tx data        
+        const receivedTokenEntry = {
+            mint: mintToReceive,
+            proofs: receivedProofs,
         }
 
-        // Finally, update completed transaction
-        transactionData.push({
-            status: TransactionStatus.COMPLETED,            
+        const outputToken = CashuUtils.encodeToken({
+            token: [receivedTokenEntry],
+            unit,
+            memo,
+        })   
+
+        return {            
             receivedAmount,
-            unit,            
-            createdAt: new Date(),
-        })        
-
-        transaction.setStatus(            
-            TransactionStatus.COMPLETED,
-            JSON.stringify(transactionData),
-        )
-
-        transaction.setOutputToken(outputToken)
-
-        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
-        transaction.setBalanceAfter(balanceAfter)
-
-        if(mintFeePaid > 0) {
-            transaction.setFee(mintFeePaid)
+            receivedProofs,
+            outputToken,            
+            swapFeeReserve,
+            swapFeePaid,            
+            counter: lockedProofsCounter?.counter
         }
-
-        return {
-            taskFunction: RECEIVE_OFFLINE_COMPLETE,
-            mintUrl: mintInstance.mintUrl,
-            transaction,
-            message: `You've received ${formatCurrency(receivedAmount, getCurrency(unit).code)} ${getCurrency(unit).code} to your Minibits wallet.`,
-            receivedAmount,
-        } as TransactionTaskResult
-
+        
     } catch (e: any) {
-        // release lock
-        if(transaction) {
-            if(lockedProofsCounter) {
-                lockedProofsCounter.resetInFlight(transaction.id as number)
+        if (transactionId) {            
+            if(lockedProofsCounter) {                
+                lockedProofsCounter.resetInFlight(transactionId)
             }
-                
-            const transactionData = JSON.parse(transaction.data)
-            transactionData.push({
-                status: TransactionStatus.ERROR,
-                error: WalletUtils.formatError(e),
-            })
-    
-            transaction.setStatus(                
-                TransactionStatus.ERROR,
-                JSON.stringify(transactionData),
-            )
         }
 
-        log.error(e.name, e.message)
-
-        return {
-            taskFunction: RECEIVE_OFFLINE_COMPLETE,
-            mintUrl: mintToReceive,
-            transaction,
-            message: '',
-            error: WalletUtils.formatError(e),
-        } as TransactionTaskResult
+        if (e instanceof AppError) {
+            throw e
+        } else {
+            throw new AppError(Err.WALLET_ERROR, e.message, e.stack.slice(0, 200))
+        }
     }
 }

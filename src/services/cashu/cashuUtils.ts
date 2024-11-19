@@ -366,8 +366,13 @@ const findExactMatch = function (requestedAmount: number, proofs: Proof[]): Proo
   return null;
 }
 
-const findMinExcess = function (requestedAmount: number, proofs: Proof[]): Proof[] {
-  proofs.sort((a, b) => b.amount - a.amount);
+const findMinExcess = function (requestedAmount: number, proofs: Proof[], preference: 'SMALL' | 'BIG' = 'SMALL'): Proof[] {
+  if(preference === 'SMALL') {
+    proofs.sort((a, b) => a.amount - b.amount);
+  } else {
+    proofs.sort((a, b) => b.amount - a.amount);
+  }
+  
   const selectedProofs: Proof[] = [];
   let currentAmount = 0;
 

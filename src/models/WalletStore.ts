@@ -214,8 +214,7 @@ export const WalletStoreModel = types
           keysetId?: string
           withSeed: boolean
         } 
-      ) {
-        log.trace('[WalletStore.getWallet] start', {mintUrl})
+      ) {        
         // syncs mint model in wallet state and returns cashu-ts mint class instance
         const cashuMint = yield self.getMint(mintUrl)
             
@@ -315,8 +314,7 @@ export const WalletStoreModel = types
         log.trace('[WalletStore.getWallet]', 'Returning NEW cashuWallet instance', {mintUrl})
         return newWallet        
       }),
-      getMintKeysets: flow(function* getMintKeysets(mintUrl: string) { 
-        log.trace('[getMintKeysets] start')   
+      getMintKeysets: flow(function* getMintKeysets(mintUrl: string) {
         const cashuMint: CashuMint = yield self.getMint(mintUrl)
   
         try {
@@ -350,7 +348,7 @@ export const WalletStoreModel = types
         mintUrl: string,
         unit: MintUnit,
         decodedToken: TokenV3,
-        mintFeeReserve: number,
+        swapFeeReserve: number,
         options: {      
           preference: AmountPreference[],
           counter: number
@@ -368,7 +366,7 @@ export const WalletStoreModel = types
         
             const proofs = yield cashuWallet.receive(
               decodedToken,
-              mintFeeReserve,
+              swapFeeReserve,
               {
                 keysetId: cashuWallet.keys.id,
                 preference: options.preference,
@@ -378,9 +376,9 @@ export const WalletStoreModel = types
               })
         
               const receivedAmount: number = CashuUtils.getProofsAmount(proofs as Proof[])
-              const mintFeePaid = amountToReceive - receivedAmount
+              const swapFeePaid = amountToReceive - receivedAmount
         
-            return {proofs, mintFeePaid}
+            return {proofs, swapFeePaid}
           } catch (e: any) {
             throw new AppError(
               Err.MINT_ERROR, 
@@ -391,7 +389,7 @@ export const WalletStoreModel = types
       }),
       send: flow(function* send(mintUrl: string,
         amountToSend: number,
-        mintFeeReserve: number,
+        swapFeeReserve: number,
         unit: MintUnit,  
         proofsToSendFrom: Proof[],
         options: {    
@@ -410,7 +408,7 @@ export const WalletStoreModel = types
         
             const {returnChange, send} = yield cashuWallet.send(
               amountToSend,
-              mintFeeReserve,
+              swapFeeReserve,
               proofsToSendFrom,
               {
                 keysetId: cashuWallet.keys.id,
@@ -436,13 +434,13 @@ export const WalletStoreModel = types
               )
             }
         
-            const mintFeePaid = totalAmountToSendFrom - amountToSend - returnedAmount
+            const swapFeePaid = totalAmountToSendFrom - amountToSend - returnedAmount
         
             // we normalize naming of returned parameters
             return {
               returnedProofs: returnChange as Proof[],
               proofsToSend: send as Proof[], 
-              mintFeePaid     
+              swapFeePaid     
             }
           } catch (e: any) {
             let message = 'The mint could not return signatures necessary for this transaction'

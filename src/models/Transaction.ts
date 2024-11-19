@@ -39,6 +39,7 @@ export enum TransactionType {
     RECEIVE_NOSTR = 'RECEIVE_NOSTR', // not used
     TOPUP = 'TOPUP',
     TRANSFER = 'TRANSFER',
+    NWC_TRANSFER = 'NWC_TRANSFER',
 }
 
 export enum TransactionStatus {
@@ -140,12 +141,12 @@ export const TransactionModel = types
         setInputToken(inputToken: string) {
             Database.updateInputToken(self.id!, inputToken)            
             self.inputToken = inputToken
-            log.debug('[setInputToken]', 'Transaction inputToken updated', {id: self.id, inputToken})
+            log.trace('[setInputToken]', 'Transaction inputToken updated', {id: self.id, inputToken})
         },
         setOutputToken(outputToken: string) {
             Database.updateOutputToken(self.id!, outputToken)            
             self.outputToken = outputToken
-            log.trace('[setOutputToken]', 'Transaction outputToken updated', {id: self.id, outputToken})
+            log.trace('[setOutputToken]', 'Transaction outputToken updated', {id: self.id})
         },
         setProof(proof: string) {
             Database.updateProof(self.id!, proof)            

@@ -1,46 +1,54 @@
-import {CashuUtils, TokenEntryV3} from '../cashu/cashuUtils'
+import {CashuUtils, ProofV3, TokenEntryV3} from '../cashu/cashuUtils'
 import AppError, {Err} from '../../utils/AppError'
 import {MeltQuoteResponse, MeltQuoteState} from '@cashu/cashu-ts'
 import {rootStoreInstance} from '../../models'
 import { TransactionTaskResult, WalletTask } from '../walletService'
 import { MintBalance, MintProofsCounter } from '../../models/Mint'
 import { Proof } from '../../models/Proof'
-import { Transaction, TransactionData, TransactionRecord, TransactionStatus, TransactionType } from '../../models/Transaction'
+import { Transaction, TransactionData, TransactionStatus, TransactionType } from '../../models/Transaction'
 import { log } from '../logService'
 import { WalletUtils } from './utils'
 import {isBefore} from 'date-fns'
 import { MintUnit, formatCurrency, getCurrency } from './currency'
 import { NostrEvent } from '../nostrService'
+import { MinibitsClient } from '../minibitsService'
+import { getSnapshot } from 'mobx-state-tree'
+import { MINIBITS_MINT_URL } from '@env'
+import { receiveSync } from './receiveTask'
 
 const {
     transactionsStore,
     mintsStore,
-    proofsStore, 
-    walletStore,   
+    proofsStore,    
 } = rootStoreInstance
 
-// const {walletStore} = nonPersistedStores
+const NWC_TRANSFER = 'nwcTransferTask'
 
-const TRANSFER = 'transferTask'
-
-export const transferTask = async function (
+export const nwcTransferTask = async function (
     mintBalanceToTransferFrom: MintBalance,
     amountToTransfer: number,
-    unit: MintUnit,
-    meltQuote: MeltQuoteResponse,
+    feeReserve: number,
+    unit: MintUnit,    
     memo: string,
     invoiceExpiry: Date,    
     encodedInvoice: string,
-    nwcEvent?: NostrEvent
+    nwcEvent: NostrEvent
 )  : Promise<TransactionTaskResult> {
+
     const mintUrl = mintBalanceToTransferFrom.mintUrl
     const mintInstance = mintsStore.findByUrl(mintUrl)
-    let lockedProofsCounter: MintProofsCounter | undefined = undefined
+    
+    if(mintUrl !== MINIBITS_MINT_URL) {
+        throw new AppError(
+            Err.VALIDATION_ERROR, 
+            'Payment of NWC invoice on the Minibits server is supported only for ecash issued by Minibits mint.',
+            {mintBalanceToTransferFrom}
+        )
+    }
 
     // TODO refresh - balance might be outdated if it waits in queue before other txs
-    log.debug('[transfer]', 'mintBalanceToTransferFrom', {mintBalanceToTransferFrom}) 
-    log.debug('[transfer]', 'amountToTransfer', {amountToTransfer})
-    log.debug('[transfer]', 'meltQuote', {meltQuote})
+    log.debug('[nwcTransfer]', 'mintBalanceToTransferFrom', {mintBalanceToTransferFrom}) 
+    log.debug('[nwcTransfer]', 'amountToTransfer', {amountToTransfer, feeReserve})    
 
     // create draft transaction
     const transactionData: TransactionData[] = [
@@ -48,8 +56,8 @@ export const transferTask = async function (
             status: TransactionStatus.DRAFT,
             mintBalanceToTransferFrom,
             amountToTransfer,
+            feeReserve,
             unit,
-            meltQuote,
             encodedInvoice,
             isNwc: nwcEvent ? true : false,           
             createdAt: new Date(),
@@ -57,14 +65,15 @@ export const transferTask = async function (
     ]
 
     let transaction: Transaction | undefined = undefined
+    let meltQuote: MeltQuoteResponse | undefined = undefined
     let proofsToMeltFrom: Proof[] = []
     let proofsToMeltFromAmount: number = 0
 
     try {
         const newTransaction = {
-            type: TransactionType.TRANSFER,
+            type: TransactionType.NWC_TRANSFER,
             amount: amountToTransfer,
-            fee: meltQuote.fee_reserve,
+            fee: feeReserve,
             unit,
             data: JSON.stringify(transactionData),
             memo,
@@ -76,7 +85,7 @@ export const transferTask = async function (
         transaction = await transactionsStore.addTransaction(newTransaction)
         const transactionId = transaction.id
         
-        if (amountToTransfer + meltQuote.fee_reserve > mintBalanceToTransferFrom.balances[unit]!) {
+        if (amountToTransfer + feeReserve > mintBalanceToTransferFrom.balances[unit]!) {
             throw new AppError(
                 Err.VALIDATION_ERROR, 
                 'Mint balance is insufficient to cover the amount to transfer with the expected Lightning fees.',
@@ -97,25 +106,25 @@ export const transferTask = async function (
                 Err.VALIDATION_ERROR,
                 'Could not find mint', {mintUrl, transactionId}
             )
-        }
-        
+        }        
+
         // calculate fees charged by mint for melt transaction to prepare enough proofs
         const proofsFromMint = proofsStore.getByMint(mintUrl, {isPending: false, unit})
         const totalAmountFromMint = CashuUtils.getProofsAmount(proofsFromMint)
 
-        const proofsToMelt = CashuUtils.getProofsToSend(
-            amountToTransfer + meltQuote.fee_reserve,
+        let proofsToMelt = CashuUtils.getProofsToSend(
+            amountToTransfer + feeReserve,
             proofsFromMint
         )
 
         let meltFeeReserve = mintInstance.getMintFeeReserve(proofsToMelt)
-        const amountWithFees = amountToTransfer + meltQuote.fee_reserve + meltFeeReserve
+        const amountWithFees = amountToTransfer + feeReserve + meltFeeReserve
 
         if (totalAmountFromMint < amountWithFees) {
             throw new AppError(
                 Err.VALIDATION_ERROR,
                 'There is not enough funds to send this amount.',
-                {totalAmountFromMint, amountWithFees, transactionId, caller: 'transferTask'},
+                {totalAmountFromMint, amountWithFees, transactionId, caller: 'nwcTransferTask'},
             )
         }
 
@@ -138,7 +147,7 @@ export const transferTask = async function (
             }                
         )        
 
-        log.trace('[transfer]', 'Prepared proofsToMeltFrom proofs', {
+        log.trace('[nwcTransfer]', 'Prepared proofsToMeltFrom proofs', {
             proofsToMeltFromAmount,             
             transactionId,                       
             unit, 
@@ -148,7 +157,7 @@ export const transferTask = async function (
         transactionData.push({
             status: TransactionStatus.PREPARED,
             proofsToMeltFromAmount,
-            lightningFeeReserve: meltQuote.fee_reserve,
+            lightningFeeReserve: feeReserve,
             meltFeeReserve,
             createdAt: new Date(),
         })
@@ -157,109 +166,104 @@ export const transferTask = async function (
             TransactionStatus.PREPARED,
             JSON.stringify(transactionData),
         )
+
+        const cleanedproofsToMeltFrom = proofsToMeltFrom.map(proof => {                
+            const {mintUrl, unit, tId, ...rest} = getSnapshot(proof)
+            return rest                
+        })
         
         const inputTokenEntry: TokenEntryV3 = {
             mint: mintUrl,
-            proofs: proofsToMeltFrom,
+            proofs: cleanedproofsToMeltFrom,
         }
 
-        const inputToken = CashuUtils.encodeToken({
+        const tokenToPayFrom = {
             token: [inputTokenEntry],
-            unit,            
-        })
+            unit            
+        }
+
+        const inputToken = CashuUtils.encodeToken(tokenToPayFrom)
 
         transaction.setInputToken(inputToken)
 
-        // number of outputs we can get back as a change
-        let countOfInFlightProofs = 1
-        if(proofsToMeltFromAmount - amountToTransfer > 1) {
-            countOfInFlightProofs = Math.ceil(Math.log2(proofsToMeltFromAmount - amountToTransfer))
-        }
-
-        // temp increase the counter + acquire lock and set inFlight values                        
-        lockedProofsCounter = await WalletUtils.lockAndSetInFlight(
-            mintInstance, 
-            unit, 
-            countOfInFlightProofs, 
-            transaction.id
-        )
-
-        const {state, preimage, change: returnedProofs} = await walletStore.payLightningMelt(
-            mintUrl,
-            unit,
-            meltQuote,
-            proofsToMeltFrom,
+        const result = await MinibitsClient.payNwcTransfer(
+            encodedInvoice, 
             {
-                counter: lockedProofsCounter.inFlightFrom as number
+                token: [inputTokenEntry],
+                unit            
             }
-        )    
-
-        lockedProofsCounter.decreaseProofsCounter(countOfInFlightProofs)
+        )
         
-        if (state === MeltQuoteState.PAID) {
+        meltQuote = result.meltQuote
+        const tokenToReturn = result.tokenToReturn // this is server wallet ecash, needs swap        
+        
+        if (meltQuote.state === MeltQuoteState.PAID) {
             
-            log.debug('[transfer] Invoice PAID', {                
+            log.debug('[nwcTransfer] Invoice PAID', {                 
                 transactionId
             })
-
-            // Save preimage asap
-            if(preimage) {
-                transaction.setProof(preimage)
-            }
-
-            // Spend pending proofs that were used to settle the lightning invoice
-            proofsStore.removeProofs(proofsToMeltFrom as Proof[], true, false)
             
+            // Save preimage asap
+            if(meltQuote.payment_preimage) {
+                transaction.setProof(meltQuote.payment_preimage)
+            }
+            
+            // If noting was returned, all reserves were spent on fees
             let totalFeePaid = proofsToMeltFromAmount - amountToTransfer
-            let lightningFeePaid = totalFeePaid - meltFeeReserve
-            let returnedAmount = CashuUtils.getProofsAmount(returnedProofs)
+            let lightningFeePaid = totalFeePaid - meltFeeReserve          
+            
+            let returnedAmount = 0
 
-            if(returnedProofs.length > 0) {            
-                WalletUtils.addCashuProofs(
-                    mintUrl, 
-                    returnedProofs, 
-                    {
-                        unit,
-                        transactionId: transaction.id,
-                        isPending: false
-                    }                
+            if (tokenToReturn) {    
+                // Save in case receive fails
+                const outputToken = CashuUtils.encodeToken(tokenToReturn)    
+                transaction.setOutputToken(outputToken)  
+
+                // Swap received feeSaved proofs as they were issued to the server wallet thus are not linked to wallet seed
+                const {                     
+                    receivedProofs: returnedProofs
+                } = await receiveSync(
+                    mintUrl,
+                    tokenToReturn,    
+                    memo,    
+                    transactionId
                 )
-    
+
+                // Spend pending proofs that were used to settle the lightning invoice
+                proofsStore.removeProofs(proofsToMeltFrom as Proof[], true, false)
+                returnedAmount = CashuUtils.getProofsAmount(returnedProofs)                
+   
                 const returnedTokenEntry: TokenEntryV3 = {
                     mint: mintUrl,
                     proofs: returnedProofs,
                 }
         
-                const outputToken = CashuUtils.encodeToken({
+                const swappedOutputToken = CashuUtils.encodeToken({
                     token: [returnedTokenEntry],
                     unit,            
                 })
     
-                transaction.setOutputToken(outputToken)    
+                transaction.setOutputToken(swappedOutputToken)
                 
                 totalFeePaid = totalFeePaid - returnedAmount
-                lightningFeePaid = totalFeePaid - meltFeeReserve            
+                lightningFeePaid = totalFeePaid - meltFeeReserve
             } else {
                 // Spend pending proofs that were used to settle the lightning invoice
                 proofsStore.removeProofs(proofsToMeltFrom as Proof[], true, false)  
             }
-
-            // release lock
-            lockedProofsCounter.resetInFlight(transactionId)
     
             // Save final fee in db
-            if(totalFeePaid !== transaction.fee) {
+            if(totalFeePaid !== transaction.fee) {                
                 transaction.setFee(totalFeePaid)
             }        
     
             // Update transaction status
             transactionData.push({
-                status: TransactionStatus.COMPLETED,                
+                status: TransactionStatus.COMPLETED,
+                lightningFeeReserve: meltQuote.fee_reserve,
                 lightningFeePaid,
-                mintFeesPaid: totalFeePaid - lightningFeePaid,
-                returnedAmount,       
-                preimage,
-                counter: lockedProofsCounter.counter,
+                mintFeesPaid: totalFeePaid - lightningFeePaid,                
+                preimage: meltQuote.payment_preimage,                
                 createdAt: new Date(),
             })    
             
@@ -272,32 +276,30 @@ export const transferTask = async function (
             transaction.setBalanceAfter(balanceAfter)       
     
             return {
-                taskFunction: TRANSFER,
+                taskFunction: NWC_TRANSFER,
                 mintUrl,
                 transaction,
                 message: `Lightning invoice has been successfully paid and settled with your Minibits ecash. Fee has been ${formatCurrency(transaction.fee, getCurrency(unit).code)} ${getCurrency(unit).code}.`,
-                lightningFeePaid, 
-                mintFees: totalFeePaid - lightningFeePaid,               
-                totalFeePaid,
+                lightningFeePaid,
+                mintFees: totalFeePaid - lightningFeePaid,
+                totalFeePaid,             
                 meltQuote,
-                preimage,
+                preimage: meltQuote.payment_preimage,
                 nwcEvent
             } as TransactionTaskResult
 
-        } else if(state === MeltQuoteState.PENDING) {            
+        } else if(meltQuote.state === MeltQuoteState.PENDING) {            
 
-            log.debug('[transfer] Invoice PENDING', {
-                state, 
-                meltQuote, 
-                preimage, 
+            log.debug('[transfer] Invoice PENDING', {                 
+                meltQuote,                 
                 transactionId
             })
 
             return {
-                taskFunction: TRANSFER,
+                taskFunction: NWC_TRANSFER,
                 mintUrl,
                 transaction,
-                message: `Lightning payment did not complete in time. Your ecash will remain pending until the payment completes or fails.`,                
+                message: `Lightning payment did not complete in time. Your ecash will remain pending until the payment completes or fails.`,                                
                 meltQuote,                
                 nwcEvent
             } as TransactionTaskResult
@@ -305,21 +307,17 @@ export const transferTask = async function (
         } else {
             // throw so that proper state of proofs is synced inside the catch block
             throw new AppError(Err.MINT_ERROR, 'Lightning payment has not been paid.', {
-                state, 
+                state: meltQuote.state, 
                 transactionId
             })
         }
 
     } catch (e: any) {
         if (transaction) { 
-            // release lock  
-            if(lockedProofsCounter) {
-                lockedProofsCounter.resetInFlight(transaction.id)
-            }
             
             let message = e.message
             
-            if (proofsToMeltFrom.length > 0) {
+            if (proofsToMeltFrom.length > 0) {                
                 // check with the mint the real status of the proofs involved in transaction
                 await WalletTask.syncStateWithMintSync(                   
                     {
@@ -333,7 +331,7 @@ export const transferTask = async function (
                 const refreshed = transactionsStore.findById(transaction.id)
 
                 if(refreshed?.status === TransactionStatus.PENDING) {
-                    log.warn('[transfer]', 'proofsToMeltFrom from transfer with error are pending by mint', {
+                    log.warn('[transfer]', 'proofsToPay from transfer with error are pending by mint', {
                         proofsToMeltFromAmount, 
                         unit,
                         transactionId: transaction.id
@@ -341,19 +339,32 @@ export const transferTask = async function (
 
                     message = 'Lightning payment did not complete in time. Your ecash will remain pending until the payment completes or fails.'
 
+                    return {
+                        taskFunction: NWC_TRANSFER,
+                        mintUrl,
+                        transaction,
+                        message,                                
+                        meltQuote,                
+                        nwcEvent
+                    } as TransactionTaskResult
+
                 } else if(refreshed?.status === TransactionStatus.COMPLETED) { 
                     // Likely receiving of change failed due to wallet error. We keep completed as status.
-                    log.error('[transfer]', 'Transfer throwed error but the payment suceeded', {
+                    log.error('[nwcTransfer]', 'NWC Transfer throwed error but the payment suceeded', {
                         error: e.message,
                         proofsToMeltFromAmount, 
                         unit,
                         transactionId: transaction.id
                     })
 
+                    if(meltQuote?.payment_preimage) {
+                        refreshed.setProof(meltQuote?.payment_preimage)
+                    }
+
                     const message = `Lightning invoice has been successfully paid, however some error occured: ${e.message}`                        
 
                     return {
-                        taskFunction: TRANSFER,
+                        taskFunction: NWC_TRANSFER,
                         mintUrl,
                         transaction,
                         message,
@@ -363,7 +374,9 @@ export const transferTask = async function (
                     } as TransactionTaskResult
                     
                 } else {
-                    // syncStateWithMintSync returns to spendable only proofs that were pending by mint before so we need to take care of our transfer here.
+                    // syncStateWithMintSync returns to spendable only proofs that were pending by mint before 
+                    // so we need to take care of our transfer here.
+
                     log.warn('[transfer]', 'proofsToPay from transfer with error to be returned to spendable wallet', {
                         proofsToMeltFromAmount, 
                         unit,
@@ -371,7 +384,7 @@ export const transferTask = async function (
                     })
 
                     // remove it from pending proofs in the wallet
-                    proofsStore.removeProofs(proofsToMeltFrom, true, true)
+                    proofsStore.removeProofs(proofsToMeltFrom as Proof[], true, true)
                     // add proofs back to the spendable wallet with internal references
                     WalletUtils.addCashuProofs(
                         mintUrl, 
@@ -400,7 +413,7 @@ export const transferTask = async function (
         log.error('[transfer]', e.name, e.message, e.params)
 
         return {
-            taskFunction: TRANSFER,
+            taskFunction: NWC_TRANSFER,
             mintUrl,
             transaction,
             message: e.message,

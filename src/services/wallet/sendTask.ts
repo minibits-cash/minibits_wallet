@@ -11,7 +11,7 @@ import AppError, {Err} from '../../utils/AppError'
 import {    
     MintKeyset,
 } from '@cashu/cashu-ts'
-import { getDefaultAmountPreference, isObj } from '@cashu/cashu-ts/src/utils'
+import { getDefaultAmountPreference } from '@cashu/cashu-ts/src/utils'
 import { MAX_SWAP_INPUT_SIZE, TransactionTaskResult, WalletTask } from '../walletService'
 import { Mint, MintBalance, MintProofsCounter } from '../../models/Mint'
 import { Proof } from '../../models/Proof'
@@ -76,8 +76,8 @@ export const sendTask = async function (
         // get ready proofs to send and update proofs and pending proofs storage
         const {
             proofs: proofsToSend, 
-            mintFeePaid, 
-            mintFeeReserve, 
+            swapFeePaid, 
+            swapFeeReserve, 
             isSwapNeeded,
             counter
         } = await sendFromMintSync(
@@ -91,8 +91,8 @@ export const sendTask = async function (
         // Update transaction status
         transactionData.push({
             status: TransactionStatus.PREPARED,
-            mintFeeReserve,
-            mintFeePaid,
+            swapFeeReserve,
+            swapFeePaid,
             isSwapNeeded,
             createdAt: new Date(),
         })
@@ -134,8 +134,8 @@ export const sendTask = async function (
         const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
         transaction.setBalanceAfter(balanceAfter)
         
-        if(mintFeePaid > 0) {
-            transaction.setFee(mintFeePaid)
+        if(swapFeePaid > 0) {
+            transaction.setFee(swapFeePaid)
         }
 
         log.trace('[send] totalBalance after', balanceAfter)
@@ -165,7 +165,7 @@ export const sendTask = async function (
             transaction,
             message: '',
             encodedTokenToSend: outputToken,
-            mintFeePaid
+            swapFeePaid
         } as TransactionTaskResult
 
     } catch (e: any) {
@@ -263,13 +263,17 @@ export const sendFromMintSync = async function (
                 )
             }
 
-            for (const proof of selectedProofs) {                
-                proof.setTransactionId(transactionId) // update txId                
-            }
-
-            // move sent proofs to pending
-            proofsStore.removeProofs(selectedProofs)
-            proofsStore.addProofs(selectedProofs, true) // pending true
+            // move sent proofs to pending and add tx references
+            proofsStore.removeProofs(selectedProofs)            
+            WalletUtils.addCashuProofs(
+                mintUrl, 
+                selectedProofs, 
+                {
+                    unit,
+                    transactionId: transactionId,
+                    isPending: true
+                }                
+            )
 
             // Clean private properties to not to send them out. This returns plain js array, not model objects.
             const cleanedProofsToSend = selectedProofs.map(proof => {                
@@ -280,8 +284,8 @@ export const sendFromMintSync = async function (
             // We return cleaned proofs to be encoded as a sendable token
             return {
                 proofs: cleanedProofsToSend, 
-                mintFeeReserve: 0, 
-                mintFeePaid: 0
+                swapFeeReserve: 0, 
+                swapFeePaid: 0
             }
         }
         
@@ -312,9 +316,9 @@ export const sendFromMintSync = async function (
 
         let proofsToSendFromAmount = CashuUtils.getProofsAmount(proofsToSendFrom)        
         // swap will happen if we could not select proofs equal to amountToSend        
-        let mintFeeReserve: number = 0
+        let swapFeeReserve: number = 0
         let returnedAmount = 0
-        let mintFeePaid: number = 0
+        let swapFeePaid: number = 0
         let proofsToSend: Proof[] = []
         let returnedProofs: Proof[] = []
 
@@ -327,25 +331,29 @@ export const sendFromMintSync = async function (
          */
         if(isSwapNeeded) {
             // Calculate feeReserve from mint fee rate
-            mintFeeReserve = mintInstance.getMintFeeReserve(proofsToSendFrom)
-            // This is expected to get back from mint as a split remainder - we deduct fee that a mint will keep
-            returnedAmount = proofsToSendFromAmount - amountToSend - mintFeeReserve
+            swapFeeReserve = mintInstance.getMintFeeReserve(proofsToSendFrom)
+            const amountWithFees = amountToSend + swapFeeReserve
 
-            log.debug('[sendFromMintSync] Swap is needed.', {mintFeeReserve, returnedAmount, transactionId})
-            
-            // if we did not selected enough proofs to cover the fees we need some more
-            if(returnedAmount < 0) {
-
-                const proofsToPayFees = getProofsToPayFees(
-                    Math.abs(returnedAmount),
-                    proofsFromMint,
-                    proofsToSendFrom
+            if (totalAmountFromMint < amountWithFees) {
+                throw new AppError(
+                    Err.VALIDATION_ERROR,
+                    'There is not enough funds to send this amount.',
+                    {totalAmountFromMint, amountWithFees, transactionId, caller: 'transferTask'},
                 )
-                // add more proofs into inputs and recalculate amounts
-                proofsToSendFrom.push(...proofsToPayFees)
-                proofsToSendFromAmount = CashuUtils.getProofsAmount(proofsToSendFrom)
-                returnedAmount =  proofsToSendFromAmount - amountToSend - mintFeeReserve
             }
+
+            // exact match or min number of proofs that matches the amount
+            proofsToSendFrom = CashuUtils.getProofsToSend(
+                amountWithFees,
+                proofsFromMint
+            )
+
+            proofsToSendFromAmount = CashuUtils.getProofsAmount(proofsToSendFrom)
+
+            // This is expected to get back from mint as a split remainder - we deduct fee that a mint will keep
+            returnedAmount = proofsToSendFromAmount - (amountToSend + swapFeeReserve)
+
+            log.debug('[sendFromMintSync] Swap is needed.', {swapFeeReserve, returnedAmount, transactionId})
 
             // Output denominations we ask for to get back
             const amountPreferences = getDefaultAmountPreference(amountToSend)
@@ -355,8 +363,7 @@ export const sendFromMintSync = async function (
             const countOfProofsToSend = CashuUtils.getAmountPreferencesCount(amountPreferences)
             const countOfReturnedProofs = CashuUtils.getAmountPreferencesCount(returnedAmountPreferences)
             const countOfInFlightProofs = countOfProofsToSend + countOfReturnedProofs
-
-            log.trace('[sendFromMintSync]', 'amountPreferences', {amountPreferences, returnedAmountPreferences})
+            
             log.trace('[sendFromMintSync]', 'countOfInFlightProofs', countOfInFlightProofs)    
 
             // Increase the proofs counter before the mint call so that in case the response
@@ -374,7 +381,7 @@ export const sendFromMintSync = async function (
             const sendResult = await walletStore.send(
                 mintUrl,
                 amountToSend,
-                mintFeeReserve,
+                swapFeeReserve,
                 unit,            
                 proofsToSendFrom,
                 {              
@@ -385,13 +392,14 @@ export const sendFromMintSync = async function (
 
             returnedProofs = sendResult.returnedProofs // TODO types - these are ProofsV3 indeed
             proofsToSend = sendResult.proofsToSend // TODO types - these are ProofsV3 indeed
-            mintFeePaid = sendResult.mintFeePaid
+            swapFeePaid = sendResult.swapFeePaid
 
             // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs        
             lockedProofsCounter.decreaseProofsCounter(countOfInFlightProofs) 
 
             // add proofs returned by the mint after the split
             log.trace('[sendFromMintSync] add returned proofs to spendable')
+
             WalletUtils.addCashuProofs(
                 mintUrl,
                 returnedProofs,
@@ -400,8 +408,7 @@ export const sendFromMintSync = async function (
                     transactionId,
                     isPending: false
                 }
-            )
-                
+            )                
             // release lock
             lockedProofsCounter.resetInFlight(transactionId)
             
@@ -410,7 +417,7 @@ export const sendFromMintSync = async function (
          *  SWAP is NOT needed, we've found denominations that match exact amount
          *  
          */
-            log.debug('[sendFromMintSync] Swap is not necessary, all proofsToSendFrom will be sent.', {transactionId})
+            log.debug('[sendFromMintSync] Swap is not necessary.', {transactionId})
 
             // If we selected whole balance, check if it is not above limit acceptable by wallet and mints.
             if(proofsToSendFrom.length > MAX_SWAP_INPUT_SIZE) {
@@ -452,8 +459,8 @@ export const sendFromMintSync = async function (
         // We return cleaned proofs to be encoded as a sendable token + fees
         return {
             proofs: cleanedProofsToSend as ProofV3[], 
-            mintFeeReserve, 
-            mintFeePaid,
+            swapFeeReserve, 
+            swapFeePaid,
             isSwapNeeded,
             counter: lockedProofsCounter?.counter
         }
@@ -563,28 +570,3 @@ const getInactiveKeysetIds = function(mint: Mint) {
     
     return []   
 }
-
-
-const getProofsToPayFees = function (
-    feeAmount: number,
-    proofsFromMint: Proof[],
-    proofsToSendFrom: Proof[]
-) {
-    
-    const remainingProofs = proofsStore.getProofsSubset(proofsFromMint, proofsToSendFrom)
-    const remainingProofsAmount = CashuUtils.getProofsAmount(remainingProofs)    
-
-    if(feeAmount > remainingProofsAmount) {
-        throw new AppError(
-            Err.VALIDATION_ERROR,
-            'There is not enough funds to cover the expected fee for this payment.',
-            {feeAmount, remainingProofsAmount},
-        )
-    }
-    
-    return CashuUtils.getProofsToSend(
-        feeAmount,
-        remainingProofs
-    )
-}
-

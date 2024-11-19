@@ -174,7 +174,7 @@ export const ProofsStoreModel = types
                     proofsCounter.increaseProofsCounter(keysetProofs.length)                    
                 }        
                 
-                log.info('[addProofs]', `Added new ${addedProofs.length}${isPending ? ' pending' : ''} proofs to the ProofsStore`)                           
+                log.trace('[addProofs]', `Added new ${addedProofs.length}${isPending ? ' pending' : ''} proofs to the ProofsStore`)                           
     
                 if (addedProofs.length > 0) {
                     Database.addOrUpdateProofs(addedProofs, isPending) // isSpent = false
@@ -210,7 +210,7 @@ export const ProofsStoreModel = types
 
                 proofs.replace(proofs.filter(proof => !proofsToRemove.some(removed => removed.secret === proof.secret)))
 
-                log.debug('[removeProofs]', `${count} ${(isPending) ? 'pending' : ''} proofs removed from ProofsStore`)
+                log.trace('[removeProofs]', `${count} ${(isPending) ? 'pending' : ''} proofs removed from ProofsStore`)
 
             } catch (e: any) {
                 throw new AppError(Err.STORAGE_ERROR, e.message.toString())
@@ -411,7 +411,7 @@ export const ProofsStoreModel = types
         },
         getMintBalanceWithMaxBalance: (unit: MintUnit) => {
             const balances = self.getBalances().mintBalances
-            let maxBalance = null;
+            let maxBalance = undefined;
             let maxAmount = -Infinity;
           
             for (const balance of balances) {

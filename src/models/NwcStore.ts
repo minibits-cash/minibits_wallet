@@ -34,6 +34,8 @@ import { roundUp } from '../utils/number'
 import { PaymentRequest } from './PaymentRequest'
 import { PaymentRequests } from './PaymentRequestsStore'
 import { transaction } from 'mobx'
+import { MINIBITS_MINT_URL } from '@env'
+import { MintBalance } from './Mint'
 
 type NwcError = {
     result_type: string,
@@ -74,6 +76,9 @@ const getConnectionRelays = function () {
     // return [...minibitsRelays, ...publicRelays]
     return minibitsRelays
 }
+
+const MIN_LIGHTNING_FEE = 2 // sats
+const LIGHTNING_FEE_PERCENT = 1
 
 const getSupportedMethods = function () {
     return [
@@ -209,7 +214,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         log.debug('[handleTransferTaskResult] Got transfer task result', {
             connection: self.name, 
             meltQuote: result.meltQuote?.quote,
-            txId: result.transaction?.id
+            txId: result.transaction?.id,            
         })
 
         if(result.meltQuote?.quote === self.lastMeltQuoteId) {
@@ -453,12 +458,18 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         } as NwcResponse
     },
     handlePayInvoice: flow(function* handlePayInvoice(nwcRequest: NwcRequest, requestEvent: NostrEvent) {
-        log.trace('[Nwc.handlePayInvoice] start')       
+        log.debug('[Nwc.handlePayInvoice] start')       
 
         try {
             const encoded = nwcRequest.params.invoice
             const walletStore = self.getWalletStore()
-            const proofsStore = self.getProofsStore()        
+            const proofsStore = self.getProofsStore()
+
+            // reset daily limit if day changed while keeping live connection
+            if(!isSameDay(self.currentDay, new Date())) {                
+                self.setRemainingDailyLimit(self.dailyLimit)
+                self.setCurrentDay()
+            }
         
             const invoice = LightningUtils.decodeInvoice(encoded)
 
@@ -470,34 +481,25 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             } = LightningUtils.getInvoiceData(invoice)
 
             const invoiceExpiry = addSeconds(new Date(timestamp as number * 1000), expiry as number)
+            
+            // Calculated on device to avoid mintQuote call for minibits mint
+            const feeReserve = Math.max(MIN_LIGHTNING_FEE, amountToPay * LIGHTNING_FEE_PERCENT / 100) 
+            const totalAmountToPay = amountToPay + feeReserve 
 
-            const mintBalance = proofsStore.getMintBalanceWithMaxBalance('sat')
+            let mintBalance: MintBalance | undefined = undefined
+            let isMinibitsMintSelected: boolean = false
+            const minibitsBalance = proofsStore.getMintBalance(MINIBITS_MINT_URL)
+
+            if(minibitsBalance && minibitsBalance.balances.sat! >= totalAmountToPay) {
+                mintBalance = minibitsBalance
+                isMinibitsMintSelected = true
+            } else {
+                mintBalance = proofsStore.getMintBalanceWithMaxBalance('sat')
+            }
+            
             const availableBalanceSat = mintBalance?.balances.sat || 0
 
-            if(!mintBalance || availableBalanceSat < amountToPay) { // decoded amount is in sat
-                const message = `Insufficient balance to pay this invoice`
-                return {
-                    result_type: nwcRequest.method,
-                    error: { code: 'INSUFFICIENT_BALANCE', message}
-                } as NwcError
-            }
-
-            // melt quote
-            const meltQuote: MeltQuoteResponse = yield walletStore.createLightningMeltQuote(
-                mintBalance.mintUrl,
-                'sat',
-                encoded,
-            )
-            
-            const totalAmountToPay = meltQuote.amount + meltQuote.fee_reserve
-
-            // reset daily limit if day changed while keeping live connection
-            if(!isSameDay(self.currentDay, new Date())) {                
-                self.setRemainingDailyLimit(self.dailyLimit)
-                self.setCurrentDay()
-            }
-
-            if(availableBalanceSat  < totalAmountToPay) {
+            if(!mintBalance || availableBalanceSat < totalAmountToPay) {
                 const message = `Insufficient balance to pay this invoice.`
                 return {
                     result_type: nwcRequest.method,
@@ -512,18 +514,38 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                     error: { code: 'QUOTA_EXCEEDED', message}
                 } as NwcError
             }
-            
-            // Jachyme, hod ho do stroje!
-            WalletTask.transfer(
-                mintBalance,
-                amountToPay,
-                'sat',
-                meltQuote,        
-                description || '',
-                invoiceExpiry as Date,
-                encoded,
-                requestEvent
-            )
+
+            if(isMinibitsMintSelected) {
+                // Process the payment partly on the server side to avoid android background processing failures
+                WalletTask.nwcTransfer(
+                    mintBalance,
+                    amountToPay,
+                    feeReserve,
+                    'sat',                        
+                    description || '',
+                    invoiceExpiry as Date,
+                    encoded,
+                    requestEvent
+                )
+            } else {
+                // Full process on device for other mints so that minibits server does not touch foreign ecash
+                const meltQuote: MeltQuoteResponse = yield walletStore.createLightningMeltQuote(
+                    mintBalance.mintUrl,
+                    'sat',
+                    encoded,
+                )
+
+                WalletTask.transfer(
+                    mintBalance,
+                    amountToPay,                    
+                    'sat',
+                    meltQuote,                  
+                    description || '',
+                    invoiceExpiry as Date,
+                    encoded,
+                    requestEvent
+                )
+            }
 
         } catch (e: any) {            
             log.error(`[NwcConnection.handlePayInvoice] ${e.message}`)
@@ -773,6 +795,7 @@ export const NwcStoreModel = types
                 })
                 
                 EventEmitter.on('ev_transferTask_result', self.handleTransferResult)
+                EventEmitter.on('ev_nwcTransferTask_result', self.handleTransferResult)
                 EventEmitter.on('ev_topupTask_result', self.handleTopupResult)
                 
             } catch (e: any) {
@@ -794,6 +817,7 @@ export const NwcStoreModel = types
             yield targetConnection.handleRequest(event)                
 
             EventEmitter.on('ev_transferTask_result', self.handleTransferResult)
+            EventEmitter.on('ev_nwcTransferTask_result', self.handleTransferResult)
             EventEmitter.on('ev_topupTask_result', self.handleTopupResult)
               
         })

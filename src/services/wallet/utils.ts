@@ -29,7 +29,11 @@ const lockAndSetInFlight = async function (
     const walletInstance = await walletStore.getWallet(mint.mintUrl, unit, {withSeed: true})
     const currentCounter = mint.getProofsCounterByKeysetId!(walletInstance.keys.id)
 
-    log.info('[lockAndSetInFlight] Before lock', {transactionId, counter: currentCounter.counter})
+    log.info('[lockAndSetInFlight] Before lock', {
+        transactionId, 
+        counter: currentCounter.counter,
+        countOfInFlightProofs
+    })
 
     if(!currentCounter) {
         throw new AppError(Err.VALIDATION_ERROR, 'Missing ProofsCounter.')

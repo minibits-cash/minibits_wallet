@@ -185,7 +185,7 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
             return `-${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
             case TransactionType.TOPUP:
             return `+${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
-            case TransactionType.TRANSFER:
+            case TransactionType.TRANSFER || TransactionType.NWC_TRANSFER:
             return `-${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
             default:
             return `${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
@@ -298,6 +298,14 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
                 />
               )}
               {transaction.type === TransactionType.TRANSFER && (
+                <TransferInfoBlock
+                  transaction={transaction}
+                  isDataParsable={isDataParsable}
+                  mint={mint}
+                  colorScheme={colorScheme}
+                />
+              )}
+              {transaction.type === TransactionType.NWC_TRANSFER && (
                 <TransferInfoBlock
                   transaction={transaction}
                   isDataParsable={isDataParsable}
@@ -652,6 +660,7 @@ const ReceiveInfoBlock = function (props: {
     <>
         <Card
             style={$dataCard}
+            label='Transaction data'
             ContentComponent={
                 <>
                     <TranItem
@@ -891,6 +900,7 @@ const ReceiveOfflineInfoBlock = function (props: {
     return (
     <>
         <Card
+            label='Transaction data'
             style={$dataCard}
             ContentComponent={
                 <>
@@ -1124,6 +1134,7 @@ const SendInfoBlock = function (props: {
     return (
         <>
             <Card
+                label='Transaction data'
                 style={$dataCard}
                 ContentComponent={
                     <>
@@ -1338,6 +1349,7 @@ const TopupInfoBlock = function (props: {
   return (
     <>
         <Card
+            label='Transaction data'
             style={$dataCard}
             ContentComponent={
                 <>
@@ -1610,12 +1622,14 @@ const TransferInfoBlock = function (props: {
               label="tranDetailScreen.type"
               value={transaction.type as string}
             />
-            <TranItem
-              label="tranDetailScreen.fee"
-              value={transaction.fee}
-              unit={transaction.unit}
-              isCurrency={true}
-            />
+            {transaction.status === TransactionStatus.COMPLETED && (
+              <TranItem
+                label="tranDetailScreen.fee"
+                value={transaction.fee}
+                unit={transaction.unit}
+                isCurrency={true}
+              />
+            )}            
             {transaction.status === TransactionStatus.PREPARED ? (
               <View
                 style={{flexDirection: 'row', justifyContent: 'space-between'}}

@@ -67,7 +67,7 @@ export const TransactionListItem = observer(function (
           : tx.sentFrom
           ? translate('transactionCommon.receivedFrom', {sender: getProfileName(tx.sentFrom)}).slice(0, 30)
           : translate('transactionCommon.youReceived')).slice(0, 30)
-      case TransactionType.TRANSFER:
+      case TransactionType.TRANSFER || TransactionType.NWC_TRANSFER:
         return (tx.memo && tx.memo !== 'LNbits'
           ? tx.memo.slice(0, 30)
           : tx.sentTo
@@ -234,7 +234,7 @@ export const TransactionListItem = observer(function (
                 )}                
                 </>
             )}
-            {([TransactionType.SEND, TransactionType.TRANSFER].includes(tx.type)) && (
+            {([TransactionType.SEND, TransactionType.TRANSFER, TransactionType.NWC_TRANSFER].includes(tx.type)) && (
                     <CurrencyAmount 
                           amount={-1 * tx.amount}
                           mintUnit={tx.unit}

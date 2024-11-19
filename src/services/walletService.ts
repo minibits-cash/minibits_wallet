@@ -26,11 +26,13 @@ import { receiveTask, receiveOfflinePrepareTask, receiveOfflineCompleteTask} fro
 import { sendTask } from './wallet/sendTask'
 import { topupTask } from './wallet/topupTask'
 import { transferTask } from './wallet/transferTask'
+import { nwcTransferTask } from './wallet/nwcTransferTask'
+import { revertTask } from './wallet/revertTask'
 import { WalletUtils } from './wallet/utils'
 import { NotificationService } from './notificationService'
 import { MintUnit, formatCurrency, getCurrency } from './wallet/currency'
 import { MinibitsClient } from './minibitsService'
-import { revertTask } from './wallet/revertTask'
+
 
 
 export const MAX_SWAP_INPUT_SIZE = 100
@@ -70,6 +72,16 @@ type WalletTaskService = {
         invoiceExpiry: Date,
         encodedInvoice: string,
         nwcEvent?: NostrEvent
+    ) => Promise<void>
+    nwcTransfer: (
+        mintBalanceToTransferFrom: MintBalance,
+        amountToTransfer: number,
+        feeReserve: number,
+        unit: MintUnit,                  
+        memo: string,
+        invoiceExpiry: Date,
+        encodedInvoice: string,
+        nwcEvent: NostrEvent
     ) => Promise<void>
     receive: (
         token: TokenV3,
@@ -123,8 +135,9 @@ export interface WalletTaskResult {
 
 export interface TransactionTaskResult extends WalletTaskResult {
     transaction?: Transaction
+    swapFeePaid?: number
     lightningFeePaid?: number
-    mintFeePaid?: number
+    meltFeePaid?: number
     meltQuote?: MeltQuoteResponse
     nwcEvent?: NostrEvent
 }
@@ -189,6 +202,34 @@ const transfer = async function (
             amountToTransfer,
             unit,
             meltQuote,            
+            memo,
+            invoiceExpiry,
+            encodedInvoice,
+            nwcEvent
+        )
+    )
+    return
+}
+
+
+const nwcTransfer = async function (
+    mintBalanceToTransferFrom: MintBalance,
+    amountToTransfer: number,
+    feeReserve: number,
+    unit: MintUnit,    
+    memo: string,
+    invoiceExpiry: Date,    
+    encodedInvoice: string,
+    nwcEvent: NostrEvent
+): Promise<void> {
+    const now = new Date().getTime()
+    SyncQueue.addPrioritizedTask(
+        `nwcTransferTask-${now}`,
+        async () => await nwcTransferTask(
+            mintBalanceToTransferFrom,
+            amountToTransfer,
+            feeReserve,
+            unit,
             memo,
             invoiceExpiry,
             encodedInvoice,
@@ -1806,7 +1847,8 @@ export const WalletTask: WalletTaskService = {
     receiveOfflineComplete,        
     send,
     sendAll,
-    transfer,    
+    transfer,
+    nwcTransfer,   
     topup,
     revert
 }
