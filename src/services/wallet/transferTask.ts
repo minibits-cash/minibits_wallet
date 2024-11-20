@@ -59,6 +59,7 @@ export const transferTask = async function (
     let transaction: Transaction | undefined = undefined
     let proofsToMeltFrom: Proof[] = []
     let proofsToMeltFromAmount: number = 0
+    let meltFeeReserve: number = 0    
 
     try {
         const newTransaction = {
@@ -103,12 +104,13 @@ export const transferTask = async function (
         const proofsFromMint = proofsStore.getByMint(mintUrl, {isPending: false, unit})
         const totalAmountFromMint = CashuUtils.getProofsAmount(proofsFromMint)
 
-        const proofsToMelt = CashuUtils.getProofsToSend(
+        proofsToMeltFrom = CashuUtils.getProofsToSend(
             amountToTransfer + meltQuote.fee_reserve,
             proofsFromMint
         )
 
-        let meltFeeReserve = mintInstance.getMintFeeReserve(proofsToMelt)
+        proofsToMeltFromAmount = CashuUtils.getProofsAmount(proofsToMeltFrom)
+        meltFeeReserve = mintInstance.getMintFeeReserve(proofsToMeltFrom)
         const amountWithFees = amountToTransfer + meltQuote.fee_reserve + meltFeeReserve
 
         if (totalAmountFromMint < amountWithFees) {
@@ -120,12 +122,14 @@ export const transferTask = async function (
         }
 
         // exact match or min number of proofs that matches the amount
-        proofsToMeltFrom = CashuUtils.getProofsToSend(
-            amountWithFees,
-            proofsFromMint
-        )
+        if(meltFeeReserve > 0) {
+            proofsToMeltFrom = CashuUtils.getProofsToSend(
+                amountWithFees,
+                proofsFromMint
+            )
 
-        proofsToMeltFromAmount = CashuUtils.getProofsAmount(proofsToMeltFrom)
+            proofsToMeltFromAmount = CashuUtils.getProofsAmount(proofsToMeltFrom)
+        }
 
         proofsStore.removeProofs(proofsToMeltFrom)
         WalletUtils.addCashuProofs(
@@ -256,7 +260,7 @@ export const transferTask = async function (
             transactionData.push({
                 status: TransactionStatus.COMPLETED,                
                 lightningFeePaid,
-                mintFeesPaid: totalFeePaid - lightningFeePaid,
+                meltFeePaid: totalFeePaid - lightningFeePaid,
                 returnedAmount,       
                 preimage,
                 counter: lockedProofsCounter.counter,
@@ -277,7 +281,7 @@ export const transferTask = async function (
                 transaction,
                 message: `Lightning invoice has been successfully paid and settled with your Minibits ecash. Fee has been ${formatCurrency(transaction.fee, getCurrency(unit).code)} ${getCurrency(unit).code}.`,
                 lightningFeePaid, 
-                mintFees: totalFeePaid - lightningFeePaid,               
+                meltFeePaid: totalFeePaid - lightningFeePaid,          
                 totalFeePaid,
                 meltQuote,
                 preimage,
@@ -340,7 +344,7 @@ export const transferTask = async function (
                     })
 
                     message = 'Lightning payment did not complete in time. Your ecash will remain pending until the payment completes or fails.'
-
+                    // needs to be returned as error
                 } else if(refreshed?.status === TransactionStatus.COMPLETED) { 
                     // Likely receiving of change failed due to wallet error. We keep completed as status.
                     log.error('[transfer]', 'Transfer throwed error but the payment suceeded', {

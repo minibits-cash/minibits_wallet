@@ -68,12 +68,8 @@ export const sendTask = async function (
 
         // store tx in db and in the model
         transaction = await transactionsStore.addTransaction(newTransaction)
-        
-        if(!transaction.id) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Missing transaction id', {transaction})
-        }
 
-        // get ready proofs to send and update proofs and pending proofs storage
+        // get proofs to send
         const {
             proofs: proofsToSend, 
             swapFeePaid, 
@@ -216,18 +212,13 @@ export const sendFromMintSync = async function (
              
         const proofsFromMint = proofsStore.getByMint(mintUrl, {isPending: false, unit})       
         
-        log.debug('[sendFromMintSync]', 'proofsFromMint count', {
+        log.debug('[sendFromMintSync]', {
+            proofsFromMintCount: proofsFromMint.length,
             mintBalance: mintBalance.balances[unit], 
-            amountToSend, transactionId
+            amountToSend, 
+            transactionId,
+            unit
         })
-
-        if (proofsFromMint.length < 1) {
-            throw new AppError(
-                Err.VALIDATION_ERROR,
-                'Could not find ecash for the selected mint',
-                {transactionId}
-            )
-        }
 
         const totalAmountFromMint = CashuUtils.getProofsAmount(proofsFromMint)
 
@@ -258,7 +249,7 @@ export const sendFromMintSync = async function (
             if(selectedProofs.length > MAX_SWAP_INPUT_SIZE) {
                 throw new AppError(
                     Err.VALIDATION_ERROR, 
-                    `Number of proofs is above max of ${MAX_SWAP_INPUT_SIZE}. Visit Backup to optimize, then try again.`,
+                    `Number of proofs is above max of ${MAX_SWAP_INPUT_SIZE}. Visit Settings > Backup to optimize, then try again.`,
                     {transactionId}
                 )
             }
@@ -314,13 +305,12 @@ export const sendFromMintSync = async function (
             )
         }
 
-        let proofsToSendFromAmount = CashuUtils.getProofsAmount(proofsToSendFrom)        
-        // swap will happen if we could not select proofs equal to amountToSend        
+        let proofsToSendFromAmount = CashuUtils.getProofsAmount(proofsToSendFrom)
         let swapFeeReserve: number = 0
         let returnedAmount = 0
         let swapFeePaid: number = 0
-        let proofsToSend: Proof[] = []
-        let returnedProofs: Proof[] = []
+        let proofsToSend: ProofV3[] | Proof[] = []
+        let returnedProofs: ProofV3[] = []
 
         let isSwapNeeded: boolean = proofsToSendFromAmount - amountToSend > 0 ? true : false        
 
@@ -338,37 +328,42 @@ export const sendFromMintSync = async function (
                 throw new AppError(
                     Err.VALIDATION_ERROR,
                     'There is not enough funds to send this amount.',
-                    {totalAmountFromMint, amountWithFees, transactionId, caller: 'transferTask'},
+                    {totalAmountFromMint, amountWithFees, transactionId, caller: 'sendFromMintSync'},
                 )
             }
+            
+            if(swapFeeReserve > 0) {
+                // re-select proofs for higher amount
+                proofsToSendFrom = CashuUtils.getProofsToSend(
+                    amountWithFees,
+                    proofsFromMint
+                )
 
-            // exact match or min number of proofs that matches the amount
-            proofsToSendFrom = CashuUtils.getProofsToSend(
-                amountWithFees,
-                proofsFromMint
-            )
+                proofsToSendFromAmount = CashuUtils.getProofsAmount(proofsToSendFrom)
+            }
 
-            proofsToSendFromAmount = CashuUtils.getProofsAmount(proofsToSendFrom)
-
-            // This is expected to get back from mint as a split remainder - we deduct fee that a mint will keep
+            // This is expected to get back from mint as a split remainder
             returnedAmount = proofsToSendFromAmount - (amountToSend + swapFeeReserve)
 
-            log.debug('[sendFromMintSync] Swap is needed.', {swapFeeReserve, returnedAmount, transactionId})
+            log.debug('[sendFromMintSync] Swap is needed.', {
+                proofsToSendFromAmount, 
+                amountWithFees, 
+                returnedAmount, 
+                transactionId
+            })
 
             // Output denominations we ask for to get back
             const amountPreferences = getDefaultAmountPreference(amountToSend)
             // Output denominations we are about to get as a split remainder
             const returnedAmountPreferences = getDefaultAmountPreference(returnedAmount)
 
-            const countOfProofsToSend = CashuUtils.getAmountPreferencesCount(amountPreferences)
-            const countOfReturnedProofs = CashuUtils.getAmountPreferencesCount(returnedAmountPreferences)
-            const countOfInFlightProofs = countOfProofsToSend + countOfReturnedProofs
+            const countOfInFlightProofs = CashuUtils.getAmountPreferencesCount(amountPreferences) + 
+                CashuUtils.getAmountPreferencesCount(returnedAmountPreferences)
             
             log.trace('[sendFromMintSync]', 'countOfInFlightProofs', countOfInFlightProofs)    
 
             // Increase the proofs counter before the mint call so that in case the response
-            // is not received our recovery index counts for sigs the mint has already issued (prevents duplicate b_b bug)
-            // acquire lock and set inFlight values
+            // is not received our recovery index counts for sigs the mint has already issued (prevents duplicate b_b bug)            
             // Warning/TBD: if proofs from inactive keysets are in proofsToSendFrom, this still locks only the active keyset
             lockedProofsCounter = await WalletUtils.lockAndSetInFlight(
                 mintInstance, 
@@ -376,8 +371,7 @@ export const sendFromMintSync = async function (
                 countOfInFlightProofs, 
                 transactionId
             )
-
-            // if split to required denominations was necessary, this gets it done with the mint and we get the return
+            
             const sendResult = await walletStore.send(
                 mintUrl,
                 amountToSend,
@@ -390,8 +384,8 @@ export const sendFromMintSync = async function (
                 }
             )
 
-            returnedProofs = sendResult.returnedProofs // TODO types - these are ProofsV3 indeed
-            proofsToSend = sendResult.proofsToSend // TODO types - these are ProofsV3 indeed
+            returnedProofs = sendResult.returnedProofs
+            proofsToSend = sendResult.proofsToSend
             swapFeePaid = sendResult.swapFeePaid
 
             // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs        
@@ -412,11 +406,8 @@ export const sendFromMintSync = async function (
             // release lock
             lockedProofsCounter.resetInFlight(transactionId)
             
-        } else {
-        /* 
-         *  SWAP is NOT needed, we've found denominations that match exact amount
-         *  
-         */
+        } else {        
+            // SWAP is NOT needed, we've found denominations that match exact amount
             log.debug('[sendFromMintSync] Swap is not necessary.', {transactionId})
 
             // If we selected whole balance, check if it is not above limit acceptable by wallet and mints.
@@ -428,8 +419,7 @@ export const sendFromMintSync = async function (
                 )
             }
 
-            proofsToSend = [...proofsToSendFrom]
-            
+            proofsToSend = [...proofsToSendFrom] // copy         
         }      
 
         // remove used proofs and move sent proofs to pending
@@ -446,7 +436,7 @@ export const sendFromMintSync = async function (
         )        
 
         // Clean private properties to not to send them out. This returns plain js array, not model objects.
-        const cleanedProofsToSend = proofsToSend.map(proof => {
+        const cleanedProofsToSend: ProofV3[] = proofsToSend.map(proof => {
             if (isStateTreeNode(proof)) {
                 const {mintUrl, unit, tId, ...rest} = getSnapshot(proof)
                 return rest
@@ -458,7 +448,7 @@ export const sendFromMintSync = async function (
         
         // We return cleaned proofs to be encoded as a sendable token + fees
         return {
-            proofs: cleanedProofsToSend as ProofV3[], 
+            proofs: cleanedProofsToSend,
             swapFeeReserve, 
             swapFeePaid,
             isSwapNeeded,

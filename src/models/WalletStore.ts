@@ -419,31 +419,30 @@ export const WalletStoreModel = types
               }      
             )
         
-            log.debug(`[WalletStore.send] ${returnChange.length} returnedProofs`)
-            log.debug(`[WalletStore.send] ${send.length} proofsToSend`)
+            log.trace(`[WalletStore.send] ${returnChange.length} returnedProofs`)
+            log.trace(`[WalletStore.send] ${send.length} proofsToSend`)
         
             // do some basic validations that proof amounts from mints match
             const totalAmountToSendFrom: number = CashuUtils.getProofsAmount(proofsToSendFrom)
-            const returnedAmount: number = CashuUtils.getProofsAmount(returnChange as Proof[])
-            const sendAmount: number = CashuUtils.getProofsAmount(send as Proof[])
+            const returnedAmount: number = CashuUtils.getProofsAmount(returnChange)
+            const sendAmount: number = CashuUtils.getProofsAmount(send)
         
             if (sendAmount !== amountToSend) {
               throw new AppError(
                 Err.VALIDATION_ERROR,
-                `Amount to be sent provided by mint does not equal requested amount. Original is ${amountToSend}, mint returned ${sendAmount}`,
+                `Amount provided by mint does not equal requested amount. Original is ${amountToSend}, mint returned ${sendAmount}`,
               )
             }
         
-            const swapFeePaid = totalAmountToSendFrom - amountToSend - returnedAmount
-        
-            // we normalize naming of returned parameters
+            const swapFeePaid = totalAmountToSendFrom - amountToSend - returnedAmount        
+            
             return {
-              returnedProofs: returnChange as Proof[],
-              proofsToSend: send as Proof[], 
-              swapFeePaid     
+              returnedProofs: returnChange as ProofV3[],
+              proofsToSend: send as ProofV3[], 
+              swapFeePaid
             }
           } catch (e: any) {
-            let message = 'The mint could not return signatures necessary for this transaction'
+            let message = 'Swap to prepare ecash to send has failed.'
             if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
             throw new AppError(
               Err.MINT_ERROR, 
@@ -758,7 +757,7 @@ export const WalletStoreModel = types
 
     const TorVPNSetupInstructions = `
     Is your Tor VPN running?
-    Mints on Tor require a Tor VPN application like Orbot. You can get it on Google Play or Github.`
+    Mints on Tor require a Tor VPN application like Orbot.`
 
     
     export interface WalletStore extends Instance<typeof WalletStoreModel> {}
