@@ -67,12 +67,18 @@ export const TransactionListItem = observer(function (
           : tx.sentFrom
           ? translate('transactionCommon.receivedFrom', {sender: getProfileName(tx.sentFrom)}).slice(0, 30)
           : translate('transactionCommon.youReceived')).slice(0, 30)
-      case TransactionType.TRANSFER || TransactionType.NWC_TRANSFER:
+      case TransactionType.TRANSFER:
         return (tx.memo && tx.memo !== 'LNbits'
           ? tx.memo.slice(0, 30)
           : tx.sentTo
           ? translate('transactionCommon.paidTo', {receiver: getProfileName(tx.sentTo)}).slice(0, 30)
           : translate('transactionCommon.youPaid')).slice(0, 30)
+        case TransactionType.NWC_TRANSFER:
+          return (tx.memo && tx.memo !== 'LNbits'
+            ? tx.memo.slice(0, 30)
+            : tx.sentTo
+            ? translate('transactionCommon.paidTo', {receiver: getProfileName(tx.sentTo)}).slice(0, 30)
+            : translate('transactionCommon.youPaid')).slice(0, 30)
       default:
         return translate('transactionCommon.unknown')
     }
