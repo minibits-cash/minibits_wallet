@@ -47,7 +47,15 @@ export const TransactionListItem = observer(function (
     // if(tx.memo) return tx.memo
 
     switch (tx.type) {
-      case TransactionType.RECEIVE || TransactionType.RECEIVE_OFFLINE:
+      case TransactionType.RECEIVE:
+        if (tx.sentFrom) {
+          if (!tx.memo || tx.memo.includes('Sent from Minibits')) {
+            return translate('transactionCommon.from', {sender: getProfileName(tx.sentFrom)}).slice(0, 30)
+          }
+        } else {
+          return tx.memo ? tx.memo.slice(0, 30) : translate('transactionCommon.youReceived').slice(0, 30)
+        }
+      case TransactionType.RECEIVE_OFFLINE:
         if (tx.sentFrom) {
           if (!tx.memo || tx.memo.includes('Sent from Minibits')) {
             return translate('transactionCommon.from', {sender: getProfileName(tx.sentFrom)}).slice(0, 30)
