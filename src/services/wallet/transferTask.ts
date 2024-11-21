@@ -206,16 +206,17 @@ export const transferTask = async function (
                 transactionId
             })
 
+            // Spend pending proofs that were used to settle the lightning invoice
+            proofsStore.removeProofs(proofsToMeltFrom as Proof[], true, false)
+
             // Save preimage asap
             if(preimage) {
                 transaction.setProof(preimage)
             }
-
-            // Spend pending proofs that were used to settle the lightning invoice
-            proofsStore.removeProofs(proofsToMeltFrom as Proof[], true, false)
             
             let totalFeePaid = proofsToMeltFromAmount - amountToTransfer
             let lightningFeePaid = totalFeePaid - meltFeeReserve
+            let meltFeePaid = meltFeeReserve
             let returnedAmount = CashuUtils.getProofsAmount(returnedProofs)
 
             if(returnedProofs.length > 0) {            
@@ -242,10 +243,7 @@ export const transferTask = async function (
                 transaction.setOutputToken(outputToken)    
                 
                 totalFeePaid = totalFeePaid - returnedAmount
-                lightningFeePaid = totalFeePaid - meltFeeReserve            
-            } else {
-                // Spend pending proofs that were used to settle the lightning invoice
-                proofsStore.removeProofs(proofsToMeltFrom as Proof[], true, false)  
+                lightningFeePaid = totalFeePaid - meltFeeReserve
             }
 
             // release lock
@@ -260,7 +258,7 @@ export const transferTask = async function (
             transactionData.push({
                 status: TransactionStatus.COMPLETED,                
                 lightningFeePaid,
-                meltFeePaid: totalFeePaid - lightningFeePaid,
+                meltFeePaid,
                 returnedAmount,       
                 preimage,
                 counter: lockedProofsCounter.counter,
@@ -281,7 +279,7 @@ export const transferTask = async function (
                 transaction,
                 message: `Lightning invoice has been successfully paid and settled with your Minibits ecash. Fee has been ${formatCurrency(transaction.fee, getCurrency(unit).code)} ${getCurrency(unit).code}.`,
                 lightningFeePaid, 
-                meltFeePaid: totalFeePaid - lightningFeePaid,          
+                meltFeePaid,          
                 totalFeePaid,
                 meltQuote,
                 preimage,

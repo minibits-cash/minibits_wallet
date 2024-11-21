@@ -462,21 +462,43 @@ export const receiveSync = async function (
             transactionId
         )
 
-        const receivedResult = await walletStore.receive(
-            mintToReceive,
-            unit as MintUnit,
-            token,
-            swapFeeReserve,
-            {            
-              preference: amountPreferences,
-              counter: lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
-            }
-        )
-        
-        const receivedProofs = receivedResult.proofs
-        const swapFeePaid = receivedResult.swapFeePaid
+        let receivedResult = undefined
 
-        // log.trace('[receiveTask]', {receivedProofs})
+        try {
+            receivedResult = await walletStore.receive(
+                mintToReceive,
+                unit as MintUnit,
+                token,
+                swapFeeReserve,
+                {            
+                    preference: amountPreferences,
+                    counter: lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
+                }
+            )
+        } catch (e: any) {
+            // ugly but should do the trick if previous nwcTransfer got interrupted
+            if(e.message.includes('outputs have already been signed before')) {
+                
+                log.error('[receiveSync] Increasing proofsCounter outdated values and repeating receiveSync.')
+
+                lockedProofsCounter.increaseProofsCounter(10)                
+                receivedResult = await walletStore.receive(
+                    mintToReceive,
+                    unit as MintUnit,
+                    token,
+                    swapFeeReserve,
+                    {            
+                    preference: amountPreferences,
+                    counter: lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
+                    }
+                )
+            } else {
+                throw e
+            }
+        }
+        
+        const receivedProofs = receivedResult!.proofs
+        const swapFeePaid = receivedResult!.swapFeePaid       
        
         // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs        
         lockedProofsCounter.decreaseProofsCounter(countOfInFlightProofs)

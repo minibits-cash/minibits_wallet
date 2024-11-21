@@ -19,7 +19,8 @@ import { receiveSync } from './receiveTask'
 const {
     transactionsStore,
     mintsStore,
-    proofsStore,    
+    proofsStore,
+    walletStore
 } = rootStoreInstance
 
 const NWC_TRANSFER = 'nwcTransferTask'
@@ -205,55 +206,42 @@ export const nwcTransferTask = async function (
             
             log.debug('[nwcTransfer] Invoice PAID', {                 
                 transactionId
-            })
+            })  
+            
+            proofsStore.removeProofs(proofsToMeltFrom as Proof[], true, false) 
             
             // Save preimage asap
             if(meltQuote.payment_preimage) {
                 transaction.setProof(meltQuote.payment_preimage)
             }
             
-            // If noting was returned, all reserves were spent on fees
+            // If nothing was returned, all reserves were spent on fees
             let totalFeePaid = proofsToMeltFromAmount - amountToTransfer
-            let lightningFeePaid = totalFeePaid - meltFeeReserve          
-            
-            let returnedAmount = 0
+            let lightningFeePaid = totalFeePaid - meltFeeReserve
+            let meltFeePaid = meltFeeReserve                  
+            let swapFeePaid = 0
+            let returnedAmount
 
             if (tokenToReturn) {    
-                // Save in case receive fails
-                const outputToken = CashuUtils.encodeToken(tokenToReturn)    
-                transaction.setOutputToken(outputToken)  
+                // Save returned token in case receive fails                
+                const outputTokenBeforeSwap = CashuUtils.encodeToken(tokenToReturn)    
+                transaction.setOutputToken(outputTokenBeforeSwap)  
 
-                // Swap received feeSaved proofs as they were issued to the server wallet thus are not linked to wallet seed
-                const {                     
-                    receivedProofs: returnedProofs
-                } = await receiveSync(
+                // Swap returned proofs as they were issued to the server wallet thus are not linked to the wallet seed                
+                const receiveResult = await receiveSync(
                     mintUrl,
                     tokenToReturn,    
                     memo,    
                     transactionId
                 )
 
-                // Spend pending proofs that were used to settle the lightning invoice
-                proofsStore.removeProofs(proofsToMeltFrom as Proof[], true, false)
-                returnedAmount = CashuUtils.getProofsAmount(returnedProofs)                
-   
-                const returnedTokenEntry: TokenEntryV3 = {
-                    mint: mintUrl,
-                    proofs: returnedProofs,
-                }
-        
-                const swappedOutputToken = CashuUtils.encodeToken({
-                    token: [returnedTokenEntry],
-                    unit,            
-                })
-    
-                transaction.setOutputToken(swappedOutputToken)
-                
-                totalFeePaid = totalFeePaid - returnedAmount
-                lightningFeePaid = totalFeePaid - meltFeeReserve
-            } else {
-                // Spend pending proofs that were used to settle the lightning invoice
-                proofsStore.removeProofs(proofsToMeltFrom as Proof[], true, false)  
+                swapFeePaid = receiveResult.swapFeePaid
+                totalFeePaid = totalFeePaid - receiveResult.receivedAmount                
+                lightningFeePaid = totalFeePaid - meltFeeReserve - swapFeePaid
+                returnedAmount = receiveResult.receivedAmount
+
+                // re-save with swapped token                            
+                transaction.setOutputToken(receiveResult.outputToken)                
             }
     
             // Save final fee in db
@@ -266,7 +254,9 @@ export const nwcTransferTask = async function (
                 status: TransactionStatus.COMPLETED,
                 lightningFeeReserve: meltQuote.fee_reserve,
                 lightningFeePaid,
-                meltFeePaid: totalFeePaid - lightningFeePaid,                
+                meltFeePaid,
+                swapFeePaid,
+                returnedAmount,              
                 preimage: meltQuote.payment_preimage,                
                 createdAt: new Date(),
             })    
@@ -285,7 +275,8 @@ export const nwcTransferTask = async function (
                 transaction,
                 message: `Lightning invoice has been successfully paid and settled with your Minibits ecash. Fee has been ${formatCurrency(transaction.fee, getCurrency(unit).code)} ${getCurrency(unit).code}.`,
                 lightningFeePaid,
-                meltFeePaid: totalFeePaid - lightningFeePaid,
+                meltFeePaid,
+                swapFeePaid,
                 totalFeePaid,             
                 meltQuote,
                 preimage: meltQuote.payment_preimage,
