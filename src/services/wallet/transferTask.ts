@@ -352,7 +352,7 @@ export const transferTask = async function (
                         transactionId: transaction.id
                     })
 
-                    const message = `Lightning invoice has been successfully paid, however some error occured: ${e.message}`                        
+                    message = `Lightning invoice has been successfully paid, however some error occured: ${e.message}`                        
 
                     return {
                         taskFunction: TRANSFER,
