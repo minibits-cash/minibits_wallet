@@ -421,7 +421,7 @@ const getProofsSubset = function (
   proofs: Array<Proof | ProofV3>,
   proofsToRemove: Array<Proof | ProofV3>,
 ): Array<Proof | ProofV3> {
-  return proofs.filter(proof => !proofsToRemove.includes(proof))
+  return proofs.filter(proof => !proofsToRemove.some(p => p.secret === proof.secret))
 }
 
 
