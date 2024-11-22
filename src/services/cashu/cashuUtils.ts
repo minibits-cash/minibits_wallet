@@ -281,7 +281,7 @@ const getTokenEntryAmount = function (tokenEntry: TokenEntryV3) {
 }
 
 
-const getProofsAmount = function (proofs: Array<ProofV3>): number {
+const getProofsAmount = function (proofs: Array<Proof | ProofV3>): number {
   let totalAmount = 0
 
   for (const proof of proofs) {
@@ -418,9 +418,9 @@ const getProofsToSend = function (requestedAmount: number, proofs: Proof[]): Pro
  * @returns
  */
 const getProofsSubset = function (
-  proofs: Array<Proof>,
-  proofsToRemove: Array<Proof>,
-): Array<Proof> {
+  proofs: Array<Proof | ProofV3>,
+  proofsToRemove: Array<Proof | ProofV3>,
+): Array<Proof | ProofV3> {
   return proofs.filter(proof => !proofsToRemove.includes(proof))
 }
 

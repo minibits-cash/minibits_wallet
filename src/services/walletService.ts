@@ -632,19 +632,30 @@ const _syncStateWithMintTask = async function (
             mint && mint.units ? mint.units[0] : 'sat', // likely not to be unit-dependent
             proofsToSync
         )
+
+        const unspentByMintProofs = CashuUtils.getProofsSubset(proofsToSync, [...spentByMintProofs, ...pendingByMintProofs])
     
         if(mint) { 
             mint.setStatus(MintStatus.ONLINE)                
         }
        
-        const spentByMintAmount = CashuUtils.getProofsAmount(spentByMintProofs as Proof[])
-        const pendingByMintAmount = CashuUtils.getProofsAmount(pendingByMintProofs as Proof[])        
-        
-        log.trace('[_syncStateWithMintTask]', `${isPending ? 'Pending' : ''} spent and pending by mint amounts`, {
+        const spentByMintAmount = CashuUtils.getProofsAmount(spentByMintProofs)
+        const pendingByMintAmount = CashuUtils.getProofsAmount(pendingByMintProofs)        
+        const unspentByMintAmount = CashuUtils.getProofsAmount(unspentByMintProofs)        
+
+        log.debug('[_syncStateWithMintTask]', `${isPending ? 'Pending' : ''} spent and pending by mint amounts`, {
             spentByMintAmount, 
-            pendingByMintAmount, 
+            pendingByMintAmount,
+            unspentByMintAmount,
             isPending
         })
+
+        if (unspentByMintProofs.length > 0) {
+            // remove it from pending proofs in the wallet
+            proofsStore.removeProofs(unspentByMintProofs as Proof[], true, true)
+            // add proofs back to the spendable wallet                
+            proofsStore.addProofs(unspentByMintProofs as Proof[])
+        } 
 
         // 1. Complete transactions with their proofs becoming spent by mint
         if (spentByMintProofs.length  > 0) {

@@ -206,9 +206,7 @@ export const nwcTransferTask = async function (
             
             log.debug('[nwcTransfer] Invoice PAID', {                 
                 transactionId
-            })  
-            
-            proofsStore.removeProofs(proofsToMeltFrom as Proof[], true, false) 
+            })            
             
             // Save preimage asap
             if(meltQuote.payment_preimage) {
@@ -243,6 +241,10 @@ export const nwcTransferTask = async function (
                 // re-save with swapped token                            
                 transaction.setOutputToken(receiveResult.outputToken)                
             }
+
+            // spend pending proofsToMeltFrom reserved for transaction
+            // only after receive passed, in case of exception they remain pending
+            proofsStore.removeProofs(proofsToMeltFrom as Proof[], true, false)
     
             // Save final fee in db
             if(totalFeePaid !== transaction.fee) {                
