@@ -650,7 +650,9 @@ const _syncStateWithMintTask = async function (
             isPending
         })
 
-        if (unspentByMintProofs.length > 0) {
+        // If some of the pending by wallet proofs neither pending nor spent by mint 
+        // can happen in nwcTransfer if lightning payment succeeds but then receive of returned token fails
+        if (unspentByMintProofs.length > 0 && isPending) {
             // remove it from pending proofs in the wallet
             proofsStore.removeProofs(unspentByMintProofs as Proof[], true, true)
             // add proofs back to the spendable wallet                

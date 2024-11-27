@@ -480,16 +480,23 @@ export const receiveSync = async function (
             if(e.message.includes('outputs have already been signed before')) {
                 
                 log.error('[receiveSync] Increasing proofsCounter outdated values and repeating receiveSync.')
+                lockedProofsCounter.resetInFlight(transactionId)
+                lockedProofsCounter.increaseProofsCounter(10)
+                lockedProofsCounter = await WalletUtils.lockAndSetInFlight(
+                    mintInstance, 
+                    unit, 
+                    countOfInFlightProofs, 
+                    transactionId
+                )
 
-                lockedProofsCounter.increaseProofsCounter(10)                
                 receivedResult = await walletStore.receive(
                     mintToReceive,
                     unit as MintUnit,
                     token,
                     swapFeeReserve,
                     {            
-                    preference: amountPreferences,
-                    counter: lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
+                        preference: amountPreferences,
+                        counter: lockedProofsCounter.inFlightFrom as number
                     }
                 )
             } else {

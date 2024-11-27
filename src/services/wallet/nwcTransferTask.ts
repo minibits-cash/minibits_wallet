@@ -243,7 +243,8 @@ export const nwcTransferTask = async function (
             }
 
             // spend pending proofsToMeltFrom reserved for transaction
-            // only after receive passed, in case of exception they remain pending
+            // only after rhe receive passed, in case of exception they remain pending
+            // and are sorted out by syncStateWithMintSync method
             proofsStore.removeProofs(proofsToMeltFrom as Proof[], true, false)
     
             // Save final fee in db
