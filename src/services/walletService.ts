@@ -1282,17 +1282,45 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
         )
 
         let proofs: ProofV3[] = []
-        
-        proofs = (await walletStore.mintProofs(
-            mintUrl as string,
-            amount,
-            unit,
-            mintQuote,
-            {
-              preference: amountPreferences,
-              counter: lockedProofsCounter.inFlightFrom as number
+
+        try {        
+            proofs = (await walletStore.mintProofs(
+                mintUrl as string,
+                amount,
+                unit,
+                mintQuote,
+                {
+                preference: amountPreferences,
+                counter: lockedProofsCounter.inFlightFrom as number
+                }
+            )) as ProofV3[]
+        } catch (e: any) {
+            if(e.message.includes('outputs have already been signed before')) {
+                
+                log.error('[_handlePendingTopupTask] Increasing proofsCounter outdated values and repeating mintProofs.')
+                lockedProofsCounter.resetInFlight(transactionId)
+                lockedProofsCounter.increaseProofsCounter(10)
+                lockedProofsCounter = await WalletUtils.lockAndSetInFlight(
+                    mintInstance, 
+                    unit, 
+                    countOfInFlightProofs, 
+                    transactionId
+                )
+
+                proofs = (await walletStore.mintProofs(
+                    mintUrl as string,
+                    amount,
+                    unit,
+                    mintQuote,
+                    {
+                    preference: amountPreferences,
+                    counter: lockedProofsCounter.inFlightFrom as number
+                    }
+                )) as ProofV3[]
+            } else {
+                throw e
             }
-        )) as ProofV3[] 
+        }
 
         lockedProofsCounter.decreaseProofsCounter(countOfInFlightProofs)        
         
