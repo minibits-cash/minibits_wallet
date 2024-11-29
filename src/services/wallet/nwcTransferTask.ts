@@ -316,7 +316,7 @@ export const nwcTransferTask = async function (
             let message = e.message
             
             if (proofsToMeltFrom.length > 0) {                
-                // check with the mint the real status of the proofs involved in transaction
+                // checks and syncs with the mint the real status of the proofs involved in transaction
                 await WalletTask.syncStateWithMintSync(                   
                     {
                         proofsToSync: proofsToMeltFrom,
@@ -363,28 +363,6 @@ export const nwcTransferTask = async function (
                         nwcEvent
                     } as TransactionTaskResult
                     
-                } else {
-                    // syncStateWithMintSync returns to spendable only proofs that were pending by mint before 
-                    // so we need to take care of our transfer here.
-
-                    log.warn('[transfer]', 'proofsToPay from transfer with error to be returned to spendable wallet', {
-                        proofsToMeltFromAmount, 
-                        unit,
-                        transactionId: transaction.id
-                    })
-
-                    // remove it from pending proofs in the wallet
-                    proofsStore.removeProofs(proofsToMeltFrom as Proof[], true, true)
-                    // add proofs back to the spendable wallet with internal references
-                    WalletUtils.addCashuProofs(
-                        mintUrl, 
-                        proofsToMeltFrom, 
-                        {
-                            unit,
-                            transactionId: transaction.id,
-                            isPending: false
-                        }
-                    )                    
                 }
             }
 

@@ -650,7 +650,7 @@ const _syncStateWithMintTask = async function (
             isPending
         })
 
-        // If some of the pending by wallet proofs neither pending nor spent by mint 
+        // If some of the pending by wallet proofs are either pending nor spent by mint 
         // can happen in nwcTransfer if lightning payment succeeds but then receive of returned token fails
         if (unspentByMintProofs.length > 0 && isPending) {
             // remove it from pending proofs in the wallet
@@ -699,36 +699,11 @@ const _syncStateWithMintTask = async function (
                 const tx = transactionsStore.findById(Number(tId))                
 
                 if (tx) {
-                    // spent amount does not cover matched tx amount 
-                    // means that some spent proofs were used as inputs into the swap / melt
-                    if(spentByMintTxAmount < tx.amount) {
-
-                        errorTransactionIds.push(Number(tId))
-
-                        // return unspent proofs from pending back to spendable
-                        if(isPending) {
-                            const unspentProofs = proofsToSync.filter(proof => 
-                                spentByMintProofs.find(spent => spent.secret !== proof.secret)
-                            )
-
-                            if(unspentProofs.length > 0) {
-                                log.trace('[_syncStateWithMintTask]', `Moving ${unspentProofs.length} unspent proofs from pending back to spendable.`)
-                                // remove it from pending proofs in the wallet
-                                proofsStore.removeProofs(unspentProofs, true, true)
-                                // add proofs back to the spendable wallet                
-                                proofsStore.addProofs(unspentProofs)
-                            }
-                        }
-
-                        return {
-                            tId: Number(tId),
-                            amount: tx.amount,
-                            spentByMintAmount: spentByMintTxAmount as number,
-                            message: 'Some spent ecash has been used as an input for this transaction.',
-                            updatedStatus: TransactionStatus.ERROR
-                        } as TransactionStateUpdate
-
-                    } else {
+                    // if spent amount does not cover matched tx amount 
+                    // we do nothing because our proofsToSync might not be all pending proofs, only those selected for the tx that failed and we sync
+                    // from exception handler.
+                    // We move all unspent to spendable already above.                    
+                    if(spentByMintTxAmount === tx.amount) {
 
                         completedTransactionIds.push(Number(tId))
 
@@ -822,7 +797,7 @@ const _syncStateWithMintTask = async function (
                             pendingTransactionIds.push(tId)
                         }                   
 
-                        // Accumulate the spent amount for this transaction ID
+                        // Accumulate the pending amount for this transaction ID
                         if (!transactionStateMap[tId]) {
                             transactionStateMap[tId] = 0
                         }
