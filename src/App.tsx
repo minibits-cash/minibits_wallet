@@ -9,33 +9,30 @@ import {
     CODEPUSH_PRODUCTION_DEPLOYMENT_KEY,    
 } from '@env'
 import codePush from 'react-native-code-push'
-import messaging, { isAutoInitEnabled } from '@react-native-firebase/messaging'
 import FlashMessage from "react-native-flash-message"
-import {
-  initialWindowMetrics,
+import {  
   SafeAreaProvider,
 } from 'react-native-safe-area-context'
 import {
     setSizeMattersBaseHeight, 
     setSizeMattersBaseWidth
 } from '@gocodingnow/rn-size-matters'
+import RNExitApp from 'react-native-exit-app'
 import {AppNavigator} from './navigation'
 import {useInitialRootStore, useStores} from './models'
 import {Database, KeyChain} from './services'
+import { initNotifications } from './services/notificationService'
 import {ErrorBoundary} from './screens/ErrorScreen/ErrorBoundary'
 import Config from './config'
 import {log} from './services'
 import {Env} from './utils/envtypes'
 import AppError from './utils/AppError'
 import { Image, View } from 'react-native'
-import { Text } from './components'
-import RNExitApp from 'react-native-exit-app'
 
+/* Init push notifications */
+initNotifications()
 
-// RN 0.73 screen rendering issue
-//import { enableFreeze, enableScreens  } from 'react-native-screens';
-// enableScreens(false)
-
+/* Set default size ratio for styling */
 setSizeMattersBaseWidth(375)
 setSizeMattersBaseHeight(812)
 
@@ -97,20 +94,6 @@ function App(props: AppProps) {
                 }  
             }
 
-        }
-
-        // FCM push notifications - set or refresh device token on app start                
-        await messaging().registerDeviceForRemoteMessages()        
-        const deviceToken = await messaging().getToken()
-
-        log.debug('[useInitialRootStore]', {deviceToken})
-        
-        // Make sure profile has already been created (i.e. this is not first run)
-        if(walletProfileStore.pubkey && deviceToken) {
-            // if device token changed, update the server
-            if(deviceToken !== walletProfileStore.device) {
-                await walletProfileStore.setDevice(deviceToken)
-            }
         }
 
         // Set initial websocket to close as it might have remained open on last app close

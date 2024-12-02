@@ -1,16 +1,16 @@
-import notifee, { AndroidImportance, AuthorizationStatus } from '@notifee/react-native'
-import { colors } from '../theme';
-import { log } from './logService';
+import notifee, { AndroidColor, AndroidImportance, AuthorizationStatus } from '@notifee/react-native'
+import { colors } from '../theme'
+import { log } from './logService'
 import {
     MINIBIT_SERVER_NOSTR_PUBKEY,    
 } from '@env'
-import { FirebaseMessagingTypes } from '@react-native-firebase/messaging'
+import messaging, { FirebaseMessagingTypes } from '@react-native-firebase/messaging'
 import { MintUnit, formatCurrency, getCurrency } from './wallet/currency'
 import { NostrClient, NostrEvent, NostrProfile } from './nostrService'
 import AppError, { Err } from '../utils/AppError'
 import { Platform } from 'react-native'
-import { RootStoreModel, rootStoreInstance, setupRootStore } from '../models';
-import { ProofsStoreModel } from '../models/ProofsStore';
+import { rootStoreInstance, setupRootStore } from '../models'
+import { NwcRequest, nwcPngUrl } from '../models/NwcStore';
 
 export type NotifyReceiveToLnurlData = {
     type: 'NotifyReceiveToLnurlData',
@@ -27,6 +27,60 @@ export type NotifyNwcRequestData = {
   data: {
     requestEvent: NostrEvent,
   }
+}
+
+const DEFAULT_CHANNEL_ID = 'default'
+const DEFAULT_CHANNEL_NAME = 'Minibits notifications'
+
+const NWC_CHANNEL_ID = 'nwcDefault';
+const NWC_CHANNEL_NAME = 'Minibits NWC payment'
+
+export const initNotifications = async () => {
+    let enabled = await areNotificationsEnabled()
+    log.trace(`[initNotifications] Push notifications are ${enabled ? 'enabled' : 'disabled'}.`)
+
+    if(!enabled) return
+    const {walletProfileStore} = rootStoreInstance
+
+    await messaging().registerDeviceForRemoteMessages()
+    const deviceToken = await messaging().getToken()
+    log.trace(`[initNotifications] Device token: ${deviceToken}`)
+    
+    if(walletProfileStore.pubkey && deviceToken) {
+        // if device token changed, update the server
+        if(deviceToken !== walletProfileStore.device) {
+            await walletProfileStore.setDevice(deviceToken)
+        }
+    }
+
+    messaging().onTokenRefresh(token => {
+        if(token !== walletProfileStore.device) {
+            walletProfileStore.setDevice(token)
+        }
+    })
+
+    notifee.isChannelCreated(DEFAULT_CHANNEL_ID).then(isCreated => {
+        if (!isCreated) {
+            notifee.createChannel({
+            id: DEFAULT_CHANNEL_ID,
+            name: DEFAULT_CHANNEL_NAME,
+            vibration: true,
+            importance: AndroidImportance.HIGH,
+            })
+        }
+    })      
+    
+    notifee.isChannelCreated(NWC_CHANNEL_ID).then(isCreated => {
+        if (!isCreated) {
+            notifee.createChannel({
+            id: NWC_CHANNEL_ID,
+            name: NWC_CHANNEL_NAME,
+            sound: 'default',
+            })
+        }
+    })
+
+
 }
 
 // Remote notification receive handler
@@ -92,15 +146,37 @@ const _receiveToLnurlHandler = async function(remoteData: NotifyReceiveToLnurlDa
 const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {   
     const {requestEvent} = remoteData.data
     const {nwcStore} = rootStoreInstance
-
-    // If app is killed, state is not loaded
+    
     if(nwcStore.all.length === 0) {        
         await setupRootStore(rootStoreInstance)        
     }
 
-    log.trace('[_nwcRequestHandler]', {connections: nwcStore.all})
-    
-    await nwcStore.handleNwcRequestFromNotification(requestEvent)   
+    const decryptedContent = await NostrClient.decryptNip04(requestEvent.pubkey, requestEvent.content)
+    const nwcRequest: NwcRequest = JSON.parse(decryptedContent)
+
+    if(nwcRequest.method === 'pay_invoice' || nwcRequest.method === 'make_invoice') {
+
+        log.trace('[_nwcRequestHandler] Starting foreground service')
+
+        const {tags, ...cleanedRequestEvent} = requestEvent
+
+        await notifee.displayNotification({
+            title: NWC_CHANNEL_NAME,
+            body: 'Nostr wallet command is being processed.',
+            android: {
+                channelId: NWC_CHANNEL_ID,
+                asForegroundService: true,
+                largeIcon: nwcPngUrl,
+                importance: AndroidImportance.HIGH,
+                progress: {
+                    indeterminate: true,
+                },
+            },
+            data: cleanedRequestEvent, // Pass the task data to the foreground service
+        })
+    } else {
+        await nwcStore.handleNwcRequestFromNotification(requestEvent, nwcRequest) 
+    }
 }
 
 const _getRemoteData = async function(remoteMessage: FirebaseMessagingTypes.RemoteMessage) {
@@ -130,21 +206,13 @@ const createLocalNotification = async function (title: string, body: string, lar
       await notifee.requestPermission()
     }    
 
-    // Create a channel (required for Android)
-    const channelId = await notifee.createChannel({
-        id: 'default',
-        name: 'Minibits notifications',
-        vibration: true,
-        importance: AndroidImportance.HIGH,
-    })
-
     // Display a notification
     if(largeIcon) {
         const notificationId = await notifee.displayNotification({
             title,
             body,
             android: {
-              channelId,
+              channelId: DEFAULT_CHANNEL_ID,
               color: colors.palette.success200,
               largeIcon,
               pressAction: {
@@ -159,7 +227,7 @@ const createLocalNotification = async function (title: string, body: string, lar
             title,
             body,
             android: {
-              channelId,
+              channelId: DEFAULT_CHANNEL_ID,
               color: colors.palette.success200,
               pressAction: {
                 id: 'default',
@@ -213,11 +281,16 @@ const areNotificationsEnabled = async function (): Promise<boolean> {
   return false
 }
 
+const stopForegroundService = async function (): Promise<void> {
+    await notifee.stopForegroundService()
+}
+
 export const NotificationService = {
-    onForegroundNotification,
-    onBackgroundNotification,    
     createLocalNotification,
+    onBackgroundNotification,
+    onForegroundNotification,
     // updateLocalNotification,
     // cancelNotification,
-    areNotificationsEnabled
+    areNotificationsEnabled,
+    stopForegroundService
 }

@@ -26,7 +26,6 @@ import { receiveTask, receiveOfflinePrepareTask, receiveOfflineCompleteTask} fro
 import { sendTask } from './wallet/sendTask'
 import { topupTask } from './wallet/topupTask'
 import { transferTask } from './wallet/transferTask'
-import { nwcTransferTask } from './wallet/nwcTransferTask'
 import { revertTask } from './wallet/revertTask'
 import { WalletUtils } from './wallet/utils'
 import { NotificationService } from './notificationService'
@@ -72,16 +71,6 @@ type WalletTaskService = {
         invoiceExpiry: Date,
         encodedInvoice: string,
         nwcEvent?: NostrEvent
-    ) => Promise<void>
-    nwcTransfer: (
-        mintBalanceToTransferFrom: MintBalance,
-        amountToTransfer: number,
-        feeReserve: number,
-        unit: MintUnit,                  
-        memo: string,
-        invoiceExpiry: Date,
-        encodedInvoice: string,
-        nwcEvent: NostrEvent
     ) => Promise<void>
     receive: (
         token: TokenV3,
@@ -202,34 +191,6 @@ const transfer = async function (
             amountToTransfer,
             unit,
             meltQuote,            
-            memo,
-            invoiceExpiry,
-            encodedInvoice,
-            nwcEvent
-        )
-    )
-    return
-}
-
-
-const nwcTransfer = async function (
-    mintBalanceToTransferFrom: MintBalance,
-    amountToTransfer: number,
-    feeReserve: number,
-    unit: MintUnit,    
-    memo: string,
-    invoiceExpiry: Date,    
-    encodedInvoice: string,
-    nwcEvent: NostrEvent
-): Promise<void> {
-    const now = new Date().getTime()
-    SyncQueue.addPrioritizedTask(
-        `nwcTransferTask-${now}`,
-        async () => await nwcTransferTask(
-            mintBalanceToTransferFrom,
-            amountToTransfer,
-            feeReserve,
-            unit,
             memo,
             invoiceExpiry,
             encodedInvoice,
@@ -650,8 +611,7 @@ const _syncStateWithMintTask = async function (
             isPending
         })
 
-        // If some of the pending by wallet proofs are either pending nor spent by mint 
-        // can happen in nwcTransfer if lightning payment succeeds but then receive of returned token fails
+        // If some of the pending by wallet proofs are neither pending nor spent by mint        
         if (unspentByMintProofs.length > 0 && isPending) {
             // remove it from pending proofs in the wallet
             proofsStore.removeProofs(unspentByMintProofs as Proof[], true, true)
@@ -1863,8 +1823,7 @@ export const WalletTask: WalletTaskService = {
     receiveOfflineComplete,        
     send,
     sendAll,
-    transfer,
-    nwcTransfer,   
+    transfer,      
     topup,
     revert
 }
