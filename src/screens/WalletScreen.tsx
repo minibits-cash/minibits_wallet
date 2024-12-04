@@ -83,6 +83,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     } = useStores()        
     
     const appState = useRef(AppState.currentState)
+    const lastPendingCheckRef = useRef(0)
+    const lastClaimCheckRef = useRef(0)
     const isInternetReachable = useIsInternetReachable()
     const groupedMints: MintsByUnit[] = mintsStore.groupedByUnit
 
@@ -100,8 +102,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const [defaultMintUrl, setDefaultMintUrl] = useState<string>(MINIBITS_MINT_URL)
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState<boolean>(false)
-    const [lastClaimCheck, setLastClaimCheck] = useState<number>(0)
-    const [lastPendingCheck, setLastPendingCheck] = useState<number>(0)
+    // const [lastClaimCheck, setLastClaimCheck] = useState<number>(0)
+    // const [lastPendingCheck, setLastPendingCheck] = useState<number>(0)
     const [isMintsModalVisible, setIsMintsModalVisible] = useState<boolean>(false)
     const [isUpdateAvailable, setIsUpdateAvailable] = useState<boolean>(false)
     const [isUpdateModalVisible, setIsUpdateModalVisible] = useState<boolean>(false)
@@ -240,43 +242,55 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             updateDescription,
             updateSize
         }, initial: false})
-    }   
+    }
     
     
-    useFocusEffect(        
-        useCallback(() => {
-            if(!isInternetReachable) {
-                return
+    const performChecks = useCallback(() => {
+        if (!isInternetReachable) {
+            return
+        }
+
+        const nowInSec = getUnixTime(new Date());
+        log.trace('[performChecks] Start', { secsFromLastPending: nowInSec - lastPendingCheckRef.current, secsFromLastClaim: nowInSec - lastClaimCheckRef.current })
+
+        if (nowInSec - lastPendingCheckRef.current > PENDING_CHECK_INTERVAL) {
+            lastPendingCheckRef.current = nowInSec
+            WalletTask.syncPendingStateWithMints().catch(e => false)
+            WalletTask.handlePendingTopups().catch(e => false)
+        } else {
+            log.trace('[performChecks] Skipping pending checks...')
+        }
+
+        if (nowInSec - lastClaimCheckRef.current > CLAIM_CHECK_INTERVAL) {
+            lastClaimCheckRef.current = nowInSec
+            WalletTask.handleClaim().catch(e => false)
+
+            if (userSettingsStore.exchangeCurrency) {
+                walletStore.refreshExchangeRate(userSettingsStore.exchangeCurrency)
             }
+        } else {
+            log.trace('[performChecks] Skipping claim and rate checks...')
+        }
+    }, [isInternetReachable, userSettingsStore.exchangeCurrency])
+    
+    
+    useFocusEffect(performChecks)
 
-            const nowInSec = getUnixTime(new Date())
-            log.trace('[useFocusEffect] Start', {secsFromLastPending: nowInSec - lastPendingCheck, secsFromLastClaim: nowInSec - lastClaimCheck})
-            
-            // On startup and on re-focus if some secs passed
-            if(nowInSec - lastPendingCheck > PENDING_CHECK_INTERVAL) {
-                setLastPendingCheck(nowInSec) 
-                WalletTask.syncPendingStateWithMints().catch(e => false)               
-                WalletTask.handlePendingTopups().catch(e => false)
-            } else {
-                log.trace('[useFocusEffect] Skipping pending checks...')
+    useEffect(() => {
+        const handleAppStateChange = (nextAppState: AppStateStatus) => {
+            if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+                performChecks()
+                NostrClient.reconnectToRelays().catch(e => false)
             }
+            appState.current = nextAppState
+        };
 
-            if(nowInSec - lastClaimCheck > CLAIM_CHECK_INTERVAL) {
-                setLastClaimCheck(nowInSec)                       
-                WalletTask.handleClaim().catch(e => false) 
-                
-                if(userSettingsStore.exchangeCurrency) {                    
-                    walletStore.refreshExchangeRate(
-                        userSettingsStore.exchangeCurrency!
-                    )                      
-                }
-            } else {
-                log.trace('[useFocusEffect] Skipping claim and rate checks...')
-            } 
+        const subscription = AppState.addEventListener('change', handleAppStateChange)
 
-  
-        }, [lastPendingCheck, lastClaimCheck, isInternetReachable, userSettingsStore.exchangeCurrency])
-    )
+        return () => {
+            subscription.remove() // Ensure cleanup to avoid multiple listeners
+        }
+    }, [performChecks])
 
   
     useFocusEffect(
@@ -290,54 +304,6 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
         }, [route.params?.scannedMintUrl])
     )
-
-
-    useEffect(() => {        
-        const handleAppStateChange = (nextAppState: AppStateStatus) => {
-            if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
-                if (!isInternetReachable) {
-                    relaysStore.resetStatuses()
-                    return
-                }
-
-                const nowInSec = getUnixTime(new Date())
-
-                log.trace('[handleAppStateChange] Start', {secsFromLastPending: nowInSec - lastPendingCheck, secsFromLastClaim: nowInSec - lastClaimCheck})
-    
-                if (nowInSec - lastPendingCheck > PENDING_CHECK_INTERVAL) {
-                    setLastPendingCheck(nowInSec)  
-                    WalletTask.syncPendingStateWithMints().catch(e => false)
-                    WalletTask.handlePendingTopups().catch(e => false)
-                } else {
-                    log.trace('[handleAppStateChange] Skipping pending checks...')
-                }               
-    
-                if(nowInSec - lastClaimCheck > CLAIM_CHECK_INTERVAL) {
-                    setLastClaimCheck(nowInSec)                       
-                    WalletTask.handleClaim().catch(e => false) 
-                    
-                    if(userSettingsStore.exchangeCurrency) {                    
-                        walletStore.refreshExchangeRate(
-                            userSettingsStore.exchangeCurrency!
-                        )                      
-                    }
-                } else {
-                    log.trace('[handleAppStateChange] Skipping claim and rate checks...')
-                } 
-    
-                // calls receiveEventsFromRelays if re-connects
-                NostrClient.reconnectToRelays().catch(e => false);
-            }
-            appState.current = nextAppState;
-        };
-    
-        const subscription = AppState.addEventListener('change', handleAppStateChange);
-    
-        return () => {
-            subscription.remove();  // Ensure cleanup to avoid multiple listeners
-        };
-    }, [lastPendingCheck, lastClaimCheck, isInternetReachable, userSettingsStore.exchangeCurrency])
-
 
     const toggleMintsModal = () => {
         setIsMintsModalVisible(previousState => !previousState)
