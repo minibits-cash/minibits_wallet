@@ -120,8 +120,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 if (update && update.failedInstall !== true) {  // do not announce update that failed to install before
                     setUpdateDescription(update.description)
                     setUpdateSize(`${round(update.packageSize *  0.000001, 2)}MB`)
-                    // setIsUpdateAvailable(true)
-                    setIsNativeUpdateAvailable(true)
+                    setIsUpdateAvailable(true)                    
                     toggleUpdateModal()
                     log.info('Native Update available', update, 'checkForUpdate')
                 }             
@@ -144,8 +143,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     
     const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {
         log.info('[handleBinaryVersionMismatchCallback] triggered', NATIVE_VERSION_ANDROID, update)
-        // (true)
-        // toggleUpdateModal()
+        setIsNativeUpdateAvailable(true)
+        toggleUpdateModal()
     }
 
     // On app start
