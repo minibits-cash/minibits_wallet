@@ -28,7 +28,7 @@ import AppError from '../utils/AppError'
 import { Proof } from '../models/Proof'
 import { useStores } from '../models'
 import EventEmitter from '../utils/eventEmitter'
-import { CashuUtils, ProofV3, TokenV3 } from '../services/cashu/cashuUtils'
+import { CashuUtils } from '../services/cashu/cashuUtils'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { translate } from '../i18n'
 import { ProofsStoreSnapshot } from '../models/ProofsStore'
@@ -501,7 +501,7 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
                 continue
               }
 
-              const amount = CashuUtils.getProofsAmount(proofsToImport)
+              const amount = sumProofs(proofsToImport)
               const unit = proofsByKeysetId[0].unit
 
               log.trace('[doLocalRecovery] to be recovered', {mint, keysetId, unit, amount})

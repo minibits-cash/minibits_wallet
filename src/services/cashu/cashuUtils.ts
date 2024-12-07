@@ -1,47 +1,16 @@
 import {Mint} from '../../models/Mint'
-import {  
-    AmountPreference,    
-    getEncodedToken,  
-} from '@cashu/cashu-ts'
-import cbor from '@exodus/borc'
 import type {
-  Token as TokenV3, 
-  TokenEntry as 
-  TokenEntryV3, 
-  Proof as ProofV3
+  getEncodedToken,
+  Token, 
+  Proof as CashuProof,
 } from '@cashu/cashu-ts'
 import AppError, {Err} from '../../utils/AppError'
-import {} from '@cashu/cashu-ts'
+import { getDecodedToken } from '@cashu/cashu-ts'
 import {Proof} from '../../models/Proof'
 import { log } from '../logService'
-import { encodeBase64ToJson, encodeBase64toUint8, encodeUint8toBase64 } from '@cashu/cashu-ts/src/base64'
-import { bytesToHex, hexToBytes } from '@noble/curves/abstract/utils';
+import { sumProofs } from '@cashu/cashu-ts/src/utils'
 
-export type {TokenV3, TokenEntryV3, ProofV3}
-
-interface ProofV4 {
-  a: number;
-  s: string;
-  c: Uint8Array;
-  d?: { 
-    e: Uint8Array,
-    s: Uint8Array,
-    r: Uint8Array
-  },
-  w?: string
-}
-
-interface TokenEntryV4 {
-  i: Uint8Array;
-  p: ProofV4[];
-}
-
-interface TokenV4 {
-  m: string;
-  u: string;
-  d?: string;
-  t: TokenEntryV4[]
-}
+export {CashuProof}
 
 const CASHU_URI_PREFIXES = [
   'https://wallet.nutstash.app/#',
@@ -61,25 +30,16 @@ const findEncodedCashuToken = function (content: string) {
   return maybeToken || null
 }
 
-const isValidCashuToken = function (text: string) {
-  for (const prefix of CASHU_URI_PREFIXES) {
-    if (text && text.startsWith(prefix)) {
-      text = text.slice(prefix.length)
-      break // necessary
-    }
-  }
-  return text && CASHU_TOKEN_PREFIXES.some(pref => text.startsWith(pref))
-}
 
 const extractEncodedCashuToken = function (maybeToken: string): string {
 
     log.trace('[extractEncodedCashuToken] Extract token from', {maybeToken})
     
     let encodedToken: string | undefined = undefined
-    let decoded: TokenV3 | undefined = undefined
+    let decoded: Token | undefined = undefined
     
     if (maybeToken && CASHU_TOKEN_PREFIXES.some(pref => maybeToken.startsWith(pref))) {
-        decoded = decodeToken(maybeToken) // throws
+        decoded = getDecodedToken(maybeToken) // throws
         return maybeToken
     }
 
@@ -94,56 +54,11 @@ const extractEncodedCashuToken = function (maybeToken: string): string {
 
     // try to decode
     if(encodedToken) {
-        decoded = decodeToken(encodedToken) // throws
+        decoded = getDecodedToken(encodedToken) // throws
         return encodedToken
     }
     
     throw new AppError(Err.NOTFOUND_ERROR, 'Could not extract ecash token from the provided string', {maybeToken, caller: 'extractEncodedCashuToken'})
-}
-
-
-
-/* const decodeToken = function (encoded: string): V3Token {
-  try {
-    const decoded = getDecodedToken(encoded)
-    return decoded as V3Token
-  } catch (e: any) {
-    throw new AppError(
-      Err.VALIDATION_ERROR,
-      `Provided ecash token is invalid.`,
-      {message: e.message, encoded},
-    )
-  }
-} */
-
-
-
-function mapToV4TokenEntries(tokenEntries: TokenEntryV3[]): TokenEntryV4[] {
-  const v4TokenEntries: TokenEntryV4[] = [];
-
-  tokenEntries.forEach(entry => {
-    const idMap: { [id: string]: ProofV4[] } = {};
-
-    entry.proofs.forEach(proof => {
-      if (!idMap[proof.id]) {
-        idMap[proof.id] = [];
-      }
-      idMap[proof.id].push({
-        a: proof.amount,
-        s: proof.secret,
-        c: hexToBytes(proof.C)
-      });
-    });
-
-    for (const id in idMap) {
-      v4TokenEntries.push({
-        i: hexToBytes(id),
-        p: idMap[id]
-      });
-    }
-  });
-
-  return v4TokenEntries  
 }
 
 function base64urlFromBase64(str: string) {
@@ -157,173 +72,19 @@ function base64urlToBase64(str: string) {
 }
 
 
-const encodeToken = function (token: TokenV3, version: 3 | 4 = 3): string {
-  try {
-    if(version === 3) {
-      return getEncodedToken(token)
-    } else if(version === 4) {
-      const v4tokenEntries = mapToV4TokenEntries(token.token)
-
-      const v4Token: TokenV4 = {
-        m: token.token[0].mint as string,
-        u: token.unit as string,
-        d: token.memo as string,
-        t: v4tokenEntries
-      }
-
-      // log.trace('[encodeToken]', {v4Token})
-
-      const encodedCbor = cbor.encode(v4Token)
-      return 'cashuB' + base64urlFromBase64(encodeUint8toBase64(encodedCbor))
-    } else {
-      throw new Error('Invalid version.')
-    }    
-  } catch (e: any) {
-    throw new AppError(
-      Err.VALIDATION_ERROR,
-      `Error encoding token to version {${version}} format.`,
-      {message: e.message},
-    )
-  }
+const getProofsAmount = function (proofs: Array<Proof | CashuProof>): number {
+  return sumProofs(proofs as CashuProof[])
 }
 
 
-/**
- * Helper function to decode cashu tokens into object
- * @param token an encoded cashu token (cashuAey...)
- * @returns cashu token object
- */
-function decodeToken(token: string) {
-	// remove prefixes
-	const uriPrefixes = [...CASHU_URI_PREFIXES, 'cashu'];
-	uriPrefixes.forEach((prefix) => {
-		if (!token.startsWith(prefix)) {
-			return;
-		}
-		token = token.slice(prefix.length);
-	});
-	return handleTokens(token);
-}
-
-/**
- * @param token
- * @returns
- */
-function handleTokens(token: string): TokenV3 {
-	const version = token.slice(0, 1);
-	const encodedToken = token.slice(1);
-	if (version === 'A') {
-		return encodeBase64ToJson<TokenV3>(encodedToken);
-	} else if (version === 'B') {
-		const uInt8Token = encodeBase64toUint8(base64urlToBase64(encodedToken));
-		const tokenData = cbor.decodeFirst(uInt8Token) as TokenV4
-		const mergedTokenEntry: TokenEntryV3 = { mint: tokenData.m, proofs: [] };
-		tokenData.t.forEach((tokenEntry) =>
-			tokenEntry.p.forEach((p) => {
-				mergedTokenEntry.proofs.push({
-					secret: p.s,
-					C: bytesToHex(p.c),
-					amount: p.a,
-					id: bytesToHex(tokenEntry.i)
-				});
-			})
-		);
-		return { token: [mergedTokenEntry], memo: tokenData.d || '', unit: tokenData.u };
-	} else {
-		throw new Error('Token version is not supported');
-	}
-}
-
-
-
-const getTokenAmounts = function (token: TokenV3) {
-  const mintAmounts: {[k: string]: number} = {}
-  let totalAmount = 0
-
-  try {
-    for (const tokenEntry of token.token) {
-      const amount = getTokenEntryAmount(tokenEntry)
-      totalAmount += amount
-
-      const mint = tokenEntry.mint
-
-      if (mintAmounts[mint]) {
-        mintAmounts[mint] += amount
-      } else {
-        mintAmounts[mint] = amount
-      }
-    }
-
-    const mintAmountsArray = Object.entries(mintAmounts).map(
-      ([mintUrl, amount]) => ({mintUrl, amount}),
-    )
-    return {totalAmount, mintAmounts: mintAmountsArray}
-  } catch (e: any) {
-    throw new AppError(
-      Err.VALIDATION_ERROR,
-      'Could not calculate total amount',
-      e.message,
-    )
-  }
-}
-
-
-const getTokenEntryAmount = function (tokenEntry: TokenEntryV3) {
-  try {
-    return getProofsAmount(tokenEntry.proofs)
-  } catch (e: any) {
-    throw new AppError(
-      Err.VALIDATION_ERROR,
-      'Could not calculate total TokenEntry amount',
-      e.message,
-    )
-  }
-}
-
-
-const getProofsAmount = function (proofs: Array<Proof | ProofV3>): number {
-  let totalAmount = 0
-
-  for (const proof of proofs) {
-    const amount = proof.amount
-    totalAmount += amount
-  }
-
-  return totalAmount
-}
-
-
-const getAmountPreferencesCount = function (amountPreferences: AmountPreference[]): number {
+/* const getAmountPreferencesCount = function (amountPreferences: AmountPreference[]): number {
     return amountPreferences.reduce((total, preference) => total + preference.count, 0);
-}
-
-
-const getMintsFromToken = function (token: TokenV3): string[] {
-  const mints = token.token.map(item => item.mint)
-  return Array.from(new Set(mints)) // make sure the mints are not duplicated
-}
-
-
-const getProofsFromTokenEntries = (tokenEntries: TokenEntryV3[]) => {
-  const proofs: ProofV3[] = []
-
-  for (const entry of tokenEntries) {
-    proofs.push(...entry.proofs)
-  }
-
-  return proofs
-}
-
-// Function to find the intersection of two arrays of Proof objects
-/* const findIntersection = function (proofArray1: Proof[], proofArray2: Proof[]) {
-  // Convert the second array to a Set of secrets for fast lookup
-  const secretSet = new Set(proofArray2.map(proof => proof.secret))
-
-  // Filter the first array, keeping only objects whose secret exists in the second array
-  const intersection = proofArray1.filter(proof => secretSet.has(proof.secret))
-
-  return intersection
 } */
+
+// legacy method
+const getMintsFromToken = function (token: Token): string[] {
+  return [token.mint]  
+}
 
 
 const findExactMatch = function (requestedAmount: number, proofs: Proof[]): Proof[] | null {
@@ -418,9 +179,9 @@ const getProofsToSend = function (requestedAmount: number, proofs: Proof[]): Pro
  * @returns
  */
 const getProofsSubset = function (
-  proofs: Array<Proof | ProofV3>,
-  proofsToRemove: Array<Proof | ProofV3>,
-): Array<Proof | ProofV3> {
+  proofs: Array<Proof | CashuProof>,
+  proofsToRemove: Array<Proof | CashuProof>,
+): Array<Proof | CashuProof> {
   return proofs.filter(proof => !proofsToRemove.some(p => p.secret === proof.secret))
 }
 
@@ -477,18 +238,9 @@ const getMintFromProof = function (
 export const CashuUtils = {
     findEncodedCashuToken,
     extractEncodedCashuToken,
-    isValidCashuToken,
-    decodeToken,
-    encodeToken,
-    getTokenAmounts,
-    getTokenEntryAmount,
-    getProofsAmount,
-    getAmountPreferencesCount,
+    getProofsAmount,    
     getMintsFromToken,
     findMinExcess,
-    // findIntersection,
-    // updateMintProofs,
-    getProofsFromTokenEntries,
     getProofsToSend,
     getProofsSubset,
     validateMintKeys,
