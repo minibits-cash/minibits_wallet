@@ -612,12 +612,12 @@ const _syncStateWithMintTask = async function (
         })
 
         // If some of the pending by wallet proofs are neither pending nor spent by mint        
-        if (unspentByMintProofs.length > 0 && isPending) {
+        /*if (unspentByMintProofs.length > 0 && isPending) {
             // remove it from pending proofs in the wallet
             proofsStore.removeProofs(unspentByMintProofs as Proof[], true, true)
             // add proofs back to the spendable wallet                
             proofsStore.addProofs(unspentByMintProofs as Proof[])
-        } 
+        }*/ 
 
         // 1. Complete transactions with their proofs becoming spent by mint
         if (spentByMintProofs.length  > 0) {
@@ -659,11 +659,36 @@ const _syncStateWithMintTask = async function (
                 const tx = transactionsStore.findById(Number(tId))                
 
                 if (tx) {
-                    // if spent amount does not cover matched tx amount 
-                    // we do nothing because our proofsToSync might not be all pending proofs, only those selected for the tx that failed and we sync
-                    // from exception handler.
-                    // We move all unspent to spendable already above.                    
-                    if(spentByMintTxAmount === tx.amount) {
+                    // spent amount does not cover matched tx amount 
+                    // means that some spent proofs were used as inputs into the swap / melt
+                    if(spentByMintTxAmount < tx.amount) {
+
+                        errorTransactionIds.push(Number(tId))
+
+                        // return unspent proofs from pending back to spendable
+                        if(isPending) {
+                            const unspentProofs = proofsToSync.filter(proof => 
+                                spentByMintProofs.find(spent => spent.secret !== proof.secret)
+                            )
+
+                            if(unspentProofs.length > 0) {
+                                log.trace('[_syncStateWithMintTask]', `Moving ${unspentProofs.length} unspent proofs from pending back to spendable.`)
+                                // remove it from pending proofs in the wallet
+                                proofsStore.removeProofs(unspentProofs, true, true)
+                                // add proofs back to the spendable wallet                
+                                proofsStore.addProofs(unspentProofs)
+                            }
+                        }
+
+                        return {
+                            tId: Number(tId),
+                            amount: tx.amount,
+                            spentByMintAmount: spentByMintTxAmount as number,
+                            message: 'Some spent ecash has been used as an input for this transaction.',
+                            updatedStatus: TransactionStatus.ERROR
+                        } as TransactionStateUpdate
+
+                    } else {
 
                         completedTransactionIds.push(Number(tId))
 
