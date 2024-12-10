@@ -24,24 +24,33 @@ import {log} from '../services/logService'
 import AppError, { Err } from '../utils/AppError'
 import EventEmitter from '../utils/eventEmitter'
 
-import {CashuUtils, TokenV3} from '../services/cashu/cashuUtils'
+import {CashuUtils, CashuProof} from '../services/cashu/cashuUtils'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {MintListItem} from './Mints/MintListItem'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
-import { CurrencyCode, MintUnit, formatCurrency, getCurrency } from "../services/wallet/currency"
+import { CurrencyCode, MintUnit, getCurrency } from "../services/wallet/currency"
 import { MintHeader } from './Mints/MintHeader'
 import { round, toNumber } from '../utils/number'
 import numbro from 'numbro'
 import { TranItem } from './TranDetailScreen'
 import { translate } from '../i18n'
+import { Token, getDecodedToken } from '@cashu/cashu-ts'
+
+export enum ReceiveOption {
+  // CREATE_AND_SEND_PAYMENT_REQUEST = 'CREATE_AND_SEND_PAYMENT_REQUEST',
+  SEND_PAYMENT_REQUEST = 'SEND_PAYMENT_REQUEST',
+  PASTE_OR_SCAN_TOKEN = 'PASTE_OR_SCAN_TOKEN',
+  SHOW_INVOICE = 'SHOW_INVOICE',
+  LNURL_WITHDRAW = 'LNURL_WITHDRAW'
+}
 
 export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
   function ReceiveScreen({route, navigation}) {
     const isInternetReachable = useIsInternetReachable()
     const {mintsStore, walletStore} = useStores()
 
-    const [token, setToken] = useState<TokenV3 | undefined>()
+    const [token, setToken] = useState<Token | undefined>()
     const [encodedToken, setEncodedToken] = useState<string | undefined>()
     const [amountToReceive, setAmountToReceive] = useState<string>('0')
     const [unit, setUnit] = useState<MintUnit>('sat')
@@ -165,11 +174,11 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
       try {
         navigation.setParams({encodedToken: undefined})
         
-        const decoded = CashuUtils.decodeToken(encoded)
-        const tokenAmounts = CashuUtils.getTokenAmounts(decoded)
+        const decoded = getDecodedToken(encoded)
+        const tokenAmount = CashuUtils.getProofsAmount(decoded.proofs)
 
         log.trace('decoded token', {decoded})
-        log.trace('tokenAmounts', {tokenAmounts})
+        log.trace('tokenAmount', {tokenAmount})
 
         if(!decoded.unit) {
           setInfo(translate("decodedMissingCurrencyUnit", { unit: CurrencyCode.SAT }))
@@ -179,7 +188,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         const currency = getCurrency(decoded.unit as MintUnit)
 
         setToken(decoded)
-        setAmountToReceive(numbro(tokenAmounts.totalAmount / currency.precision).format({thousandSeparated: true, mantissa: currency.mantissa}))
+        setAmountToReceive(numbro(tokenAmount / currency.precision).format({thousandSeparated: true, mantissa: currency.mantissa}))
         setUnit(decoded.unit as MintUnit)
         
         if (decoded.memo && decoded.memo.length > 0) {
@@ -197,12 +206,12 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         setIsReceiveTaskSentToQueue(true)
 
         const amountToReceiveInt = round(toNumber(amountToReceive) * getCurrency(unit).precision, 0)
-        const proofsCount = token!.token.flatMap(entry => entry.proofs).length
+        const proofsCount = token!.proofs.length
 
         if(proofsCount > MAX_SWAP_INPUT_SIZE) {
 
           WalletTask.receiveBatch(
-            token as TokenV3,
+            token as Token,
             amountToReceiveInt,
             memo,
             encodedToken as string,
@@ -211,7 +220,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         } else {
 
           WalletTask.receive(
-            token as TokenV3,
+            token as Token,
             amountToReceiveInt,
             memo,
             encodedToken as string,
@@ -234,7 +243,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         )
 
         const mintInstance = mintsStore.findByUrl(mint)
-        const counter = mintInstance!.getProofsCounterByKeysetId!(walletInstance.keys.id)
+        const counter = mintInstance!.getProofsCounterByKeysetId!(walletInstance.keysetId)
         counter!.increaseProofsCounter(20)
 
         // retry receive
@@ -254,7 +263,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         const amountToReceiveInt = round(toNumber(amountToReceive) * getCurrency(unit).precision, 0)
         
         WalletTask.receiveOfflinePrepare(
-            token as TokenV3,
+            token as Token,
             amountToReceiveInt,
             memo,
             encodedToken as string,

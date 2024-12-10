@@ -28,7 +28,7 @@ import AppError from '../utils/AppError'
 import { Proof } from '../models/Proof'
 import { useStores } from '../models'
 import EventEmitter from '../utils/eventEmitter'
-import { CashuUtils, ProofV3, TokenV3 } from '../services/cashu/cashuUtils'
+import { CashuProof, CashuUtils } from '../services/cashu/cashuUtils'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { translate } from '../i18n'
 import { ProofsStoreSnapshot } from '../models/ProofsStore'
@@ -39,6 +39,7 @@ import { Database, TransactionTaskResult, WalletTask, WalletTaskResult } from '.
 import { Transaction, TransactionStatus } from '../models/Transaction'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
+import { Token, getDecodedToken, getEncodedToken } from '@cashu/cashu-ts'
 
 interface ExportBackupScreenProps extends SettingsStackScreenProps<'ExportBackup'> {}
 
@@ -117,9 +118,9 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
             // now we batch receive the pending encoded token 
             // this forces the proofs swap with the mint for standard denomination amounts
             const encodedTokenToReceive: string = result.encodedTokenToSend
-            const tokenToReceive = CashuUtils.decodeToken(encodedTokenToReceive)              
-            const {totalAmount: tokenAmount} = CashuUtils.getTokenAmounts(tokenToReceive)  
-            const proofsCount = tokenToReceive.token[0].proofs.length           
+            const tokenToReceive = getDecodedToken(encodedTokenToReceive)              
+            const tokenAmount = CashuUtils.getProofsAmount(tokenToReceive.proofs)  
+            const proofsCount = tokenToReceive.proofs.length           
 
             setTotalSentProofsCount(prev => prev + proofsCount)
             setIsReceiveBatchSentToQueue(true)
@@ -366,11 +367,11 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
 
               for (const keysetId in groupedByKeyset) {
                 const proofsByKeysetId = groupedByKeyset[keysetId]
-                const proofsToExport: ProofV3[] = []
+                const proofsToExport: CashuProof[] = []
 
                 for (const p of proofsByKeysetId) {
                   // clean private params
-                  const proofToExport: ProofV3 = {
+                  const proofToExport: CashuProof = {
                     id: p.id,
                     amount: p.amount,
                     secret: p.secret,
@@ -380,19 +381,15 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
                   proofsToExport.push(proofToExport)
                 }
 
-                const tokenByKeysetId: TokenV3 = {
-                  token: [
-                      {
-                          mint,
-                          proofs: proofsToExport
-                      }
-                  ],
+                const tokenByKeysetId: Token = {
+                  mint,
+                  proofs: proofsToExport,
                   unit: proofsByKeysetId[0].unit
                 }
                 
                 log.trace('[copyEncodedTokens]', {tokenByKeysetId})
 
-                const encodedByMint = CashuUtils.encodeToken(tokenByKeysetId)
+                const encodedByMint = getEncodedToken(tokenByKeysetId)
                 encodedTokens.push(encodedByMint)                
               }
             }                       
@@ -501,7 +498,7 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
                 continue
               }
 
-              const amount = CashuUtils.getProofsAmount(proofsToImport)
+              const amount = sumProofs(proofsToImport)
               const unit = proofsByKeysetId[0].unit
 
               log.trace('[doLocalRecovery] to be recovered', {mint, keysetId, unit, amount})

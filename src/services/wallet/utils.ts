@@ -3,7 +3,7 @@ import {rootStoreInstance} from '../../models'
 import AppError, { Err } from "../../utils/AppError"
 import { log } from '../logService'
 import { isStateTreeNode } from 'mobx-state-tree'
-import { CashuUtils, ProofV3 } from '../cashu/cashuUtils'
+import { CashuUtils, CashuProof } from '../cashu/cashuUtils'
 import { Mint, MintProofsCounter } from '../../models/Mint'
 import { delay } from '../../utils/utils'
 import { MintUnit } from './currency'
@@ -27,7 +27,7 @@ const lockAndSetInFlight = async function (
     
     // Make sure to select the wallet instance keysetId
     const walletInstance = await walletStore.getWallet(mint.mintUrl, unit, {withSeed: true})
-    const currentCounter = mint.getProofsCounterByKeysetId!(walletInstance.keys.id)
+    const currentCounter = mint.getProofsCounterByKeysetId!(walletInstance.keysetId)
 
     log.info('[lockAndSetInFlight] Before lock', {
         transactionId, 
@@ -84,7 +84,7 @@ const lockAndSetInFlight = async function (
 
 const addCashuProofs = function (    
     mintUrl: string,
-    proofsToAdd: ProofV3[] | Proof[],
+    proofsToAdd: CashuProof[] | Proof[],
     options: {
         unit: MintUnit,
         transactionId: number,

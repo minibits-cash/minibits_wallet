@@ -1,5 +1,5 @@
 import React, { FC, useEffect, useMemo, useState } from 'react'
-import { GetInfoResponse, NUT15Entry, NUT17Entry, SwapMethod } from '@cashu/cashu-ts'
+import { GetInfoResponse, SwapMethod } from '@cashu/cashu-ts'
 import { isObj } from '@cashu/cashu-ts/src/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { observer } from 'mobx-react-lite'
@@ -21,7 +21,6 @@ import {
   Screen,
   Text,
 } from '../components'
-import { AvatarHeader } from '../components/AvatarHeader'
 import { CollapsibleText } from '../components/CollapsibleText'
 import { translate } from '../i18n'
 import { useStores } from '../models'
@@ -387,11 +386,11 @@ function NutsCard(props: {info: GetInfoResponse}) {
 
   // detailed nuts are separated from simple ones if we want to show more info abt them in the future
   for (const [nut, info] of Object.entries(props.info.nuts)) {
-    if (nut === '15' && (info as NUT15Entry[]).length > 0) {
+    if (nut === '15' && info) {
       // see https://github.com/cashubtc/nuts/blob/main/15.md - multipath payments
       // in the future, it might be nice to show for which currencies are multipath payments supported
       // for example by extending NutItem
-      nutsSimple.push(['15', (info as NUT15Entry[])[0]?.mpp ?? false])
+      nutsSimple.push(['15', (info)[0]?.mpp ?? false])
       continue;
     }
     // bug: nutshell 0.15.3 returns NUT17Entry[], instead of { supported: NUT17Entry[] }

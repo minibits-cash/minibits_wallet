@@ -5,7 +5,7 @@ import Clipboard from '@react-native-clipboard/clipboard'
 import {
     MINIBITS_MINT_URL 
 } from '@env'
-import {spacing, typography, useThemeColor} from '../theme'
+import {colors, spacing, typography, useThemeColor} from '../theme'
 import {SettingsStackScreenProps} from '../navigation'
 import {
   Button,
@@ -279,6 +279,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(
     const iconColor = useThemeColor('textDim')
     const inputBg = useThemeColor('background')
     const headerTitle = useThemeColor('headerTitle')
+    const buttonBorder = useThemeColor('card')
 
     return (
       <Screen preset="scroll" contentContainerStyle={$screen}>
@@ -432,7 +433,9 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(
                             tx='common.paste'
                             style={{
                                 borderRadius: 0,                                
-                                marginLeft: 1,                                
+                                marginLeft: -spacing.small,
+                                borderLeftWidth: 1,
+                                borderLeftColor: buttonBorder
                             }}
                             onPress={pasteMintUrl}
                         />
@@ -532,32 +535,13 @@ const $card: ViewStyle = {
   // paddingTop: 0,
 }
 
-const $cardHeading: TextStyle = {
-  fontFamily: typography.primary?.medium,
-  fontSize: 20,
-}
-
-const $cardContent: TextStyle = {
-  fontSize: 14,
-}
-
-const $bottomContainer: ViewStyle = {
-  flex: 1,
-  justifyContent: 'flex-end',
-  marginBottom: spacing.large,
-  alignSelf: 'stretch',
-}
-
 const $bottomModal: ViewStyle = {  
   alignItems: 'center',
 }
 
-
 const $mintInput: TextStyle = {
     flex: 1,    
-    borderTopLeftRadius: spacing.extraSmall,
-    borderBottomLeftRadius: spacing.extraSmall,
-    // fontSize: 16,
+    borderRadius: spacing.extraSmall,    
     padding: spacing.extraSmall,
     alignSelf: 'stretch',
     // textAlignVertical: 'top',

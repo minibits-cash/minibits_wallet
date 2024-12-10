@@ -31,7 +31,7 @@ import { CashuUtils } from '../services/cashu/cashuUtils'
 import { Proof } from '../models/Proof'
 import { Transaction, TransactionData, TransactionRecord, TransactionStatus, TransactionType } from '../models/Transaction'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
-import { deriveSeedFromMnemonic } from '@cashu/cashu-ts'
+import {deriveSeedFromMnemonic} from '@cashu/crypto/modules/client/NUT09'
 import { MINIBITS_MINT_URL, MINIBITS_NIP05_DOMAIN } from '@env'
 import { delay } from '../utils/utils'
 import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
@@ -39,7 +39,7 @@ import { scale } from '@gocodingnow/rn-size-matters'
 import { WalletUtils } from '../services/wallet/utils'
 import { WalletScreen } from './WalletScreen'
 import { MintUnit, formatCurrency, getCurrency } from '../services/wallet/currency'
-import { isObj } from '@cashu/cashu-ts/src/utils'
+import { isObj, sumProofs } from '@cashu/cashu-ts/src/utils'
 import { WalletProfileRecord } from '../models/WalletProfileStore'
 import { translate } from '../i18n'
 
@@ -271,7 +271,7 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
 
                 setStatusMessage(translate("recovery.spentProofsAmount", { amount: spent.length }))
 
-                const spentAmount = CashuUtils.getProofsAmount(spent as Proof[])
+                const spentAmount = sumProofs(spent as Proof[])
                 alreadySpentAmount += spentAmount
 
                 const unspent = proofs.filter((proof: Proof) => !spent.includes(proof))

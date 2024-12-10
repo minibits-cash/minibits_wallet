@@ -36,7 +36,7 @@ import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {addSeconds} from 'date-fns'
 import { PaymentRequestStatus } from '../models/PaymentRequest'
 import { DecodedLightningInvoice, LightningUtils } from '../services/lightning/lightningUtils'
-import { SendOption } from './SendOptionsScreen'
+import { SendOption } from './SendScreen'
 import { round, roundDown, roundUp, toNumber } from '../utils/number'
 import { LnurlClient, LNURLPayParams } from '../services/lnurlService'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
@@ -652,7 +652,7 @@ const increaseProofsCounterAndRetry = async function () {
         {withSeed: true}
     )
     const mintInstance = mintsStore.findByUrl(mintBalanceToTransferFrom?.mintUrl as string)
-    const counter = mintInstance!.getProofsCounterByKeysetId!(walletInstance.keys.id)
+    const counter = mintInstance!.getProofsCounterByKeysetId!(walletInstance.keysetId)
     counter!.increaseProofsCounter(20)
 
     // retry transfer

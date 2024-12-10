@@ -6,17 +6,15 @@ import {
     ViewStyle,
     View,
     TextStyle,
-    TextInput,
 } from 'react-native'
 import {WalletStackScreenProps} from '../navigation'
 import {Camera, CameraType} from 'react-native-camera-kit'
 import { URDecoder } from '@gandlaf21/bc-ur'
 import {spacing, typography, useThemeColor} from '../theme'
-import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 import AppError, { Err } from '../utils/AppError'
-import { BottomModal, Button, ErrorModal, Header, Icon, Screen, Text } from '../components'
+import { Button, ErrorModal, Header, Icon, Screen } from '../components'
 import { LnurlUtils } from '../services/lnurl/lnurlUtils'
 import { infoMessage } from '../utils/utils'
 import Clipboard from '@react-native-clipboard/clipboard'

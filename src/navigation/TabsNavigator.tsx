@@ -9,9 +9,7 @@ import { Icon, Text } from "../components"
 import { translate } from "../i18n"
 import { 
   WalletScreen, 
-  ReceiveOptionsScreen,
   ReceiveScreen,
-  SendOptionsScreen, 
   SendScreen, 
   ScanScreen,
   LightningPayScreen,
@@ -129,14 +127,12 @@ export function TabsNavigator() {
 
 
 export type WalletStackParamList = {  
-    Wallet: {scannedMintUrl? : string}
-    ReceiveOptions: {unit: MintUnit} // to be removed
+    Wallet: {scannedMintUrl? : string}    
     TokenReceive: {
       unit: MintUnit    
       mintUrl?: string,      
     }    
-    Receive: {unit: MintUnit, encodedToken? : string}
-    SendOptions: {unit: MintUnit}
+    Receive: {unit: MintUnit, encodedToken? : string}    
     Send: {
       unit: MintUnit,
       paymentOption?: SendOption,
@@ -189,11 +185,9 @@ const WalletNavigator = function WalletNavigator() {
                 headerShown: false,        
         }}
     >        
-        <WalletStack.Screen name="Wallet" component={WalletScreen} />
-        <WalletStack.Screen name="ReceiveOptions" component={ReceiveOptionsScreen} />
+        <WalletStack.Screen name="Wallet" component={WalletScreen} />        
         <WalletStack.Screen name="TokenReceive" component={TokenReceiveScreen} />
-        <WalletStack.Screen name="Receive" component={ReceiveScreen} />
-        <WalletStack.Screen name="SendOptions" component={SendOptionsScreen} />
+        <WalletStack.Screen name="Receive" component={ReceiveScreen} />        
         <WalletStack.Screen name="Send" component={SendScreen} />
         <WalletStack.Screen name="Scan" component={ScanScreen} />
         <WalletStack.Screen name="LightningPay" component={LightningPayScreen} />        

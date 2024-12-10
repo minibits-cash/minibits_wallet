@@ -4,7 +4,6 @@ import {Switch, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {SettingsStackScreenProps} from '../navigation'
 import {
-  Icon,
   ListItem,
   Screen,
   Text,
@@ -18,10 +17,7 @@ import {
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import AppError from '../utils/AppError'
-import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import { KeyChain, MinibitsClient, } from '../services'
-import { log } from '../services/logService'
-import { OwnKeysScreen } from './OwnKeysScreen'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 import { CommonActions, StackActions } from '@react-navigation/native'
 import { translate } from '../i18n'

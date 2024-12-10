@@ -1,11 +1,10 @@
 import { formatDistance } from 'date-fns'
 import { observer } from "mobx-react-lite"
 import React from "react"
-import { Image, ImageStyle, ScrollView, TextStyle, View, ViewStyle } from "react-native"
-import { Button, Icon, ListItem, Screen, Text } from "../../components"
-import { Contact, ContactType } from "../../models/Contact"
-import { NostrClient } from "../../services"
-import { colors, spacing, typography, useThemeColor } from "../../theme"
+import { Image, ImageStyle, TextStyle, View, ViewStyle } from "react-native"
+import { ListItem } from "../../components"
+import { Contact } from "../../models/Contact"
+import { spacing } from "../../theme"
 import { getImageSource } from '../../utils/utils'
 
 

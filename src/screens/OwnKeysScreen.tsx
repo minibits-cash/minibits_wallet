@@ -2,6 +2,7 @@ import {observer} from 'mobx-react-lite'
 import React, {FC, useRef, useState} from 'react'
 import {Image, LayoutAnimation, Platform, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
 import {getPublicKey} from 'nostr-tools'
+import { hexToBytes } from '@noble/hashes/utils'
 import {colors, spacing, typography, useThemeColor} from '../theme'
 import {ContactsStackScreenProps} from '../navigation'
 import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, Loading} from '../components'
@@ -169,7 +170,7 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
             }
             // validate that nsec matches profile pubkey
             const privateKey = NostrClient.getHexkey(ownNsec)
-            const publicKey = getPublicKey(privateKey)
+            const publicKey = getPublicKey(hexToBytes(privateKey))
 
             if(publicKey !== ownProfile.pubkey) {
                 throw new AppError(Err.VALIDATION_ERROR, translate("nsecPrivatePublicKeyMismatchError"), {publicKey})
@@ -397,7 +398,7 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
             isVisible={isProfileChangeCompleted ? true : false}            
             ContentComponent={
                 <View style={$bottomModal}>                
-                    <ProfileHeader headerBgColor='transparent' />
+                    <ProfileHeader headerBg='transparent' />
                     <Text 
                         style={{color: textResult, textAlign: 'center', marginTop: spacing.small}} 
                         tx="nostr.lastStandDialog.complete"
