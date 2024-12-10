@@ -1,5 +1,5 @@
 diff --git a/node_modules/@scure/bip39/package.json b/node_modules/@scure/bip39/package.json
-index a903f6e..0bc8651 100644
+index c30d78b..95af581 100644
 --- a/node_modules/@scure/bip39/package.json
 +++ b/node_modules/@scure/bip39/package.json
 @@ -45,7 +45,7 @@
@@ -12,7 +12,7 @@ index a903f6e..0bc8651 100644
    "exports": {
      ".": {
 diff --git a/node_modules/@scure/bip39/src/index.ts b/node_modules/@scure/bip39/src/index.ts
-index e6afe12..c4546b4 100644
+index 5cd4255..6fba64b 100644
 --- a/node_modules/@scure/bip39/src/index.ts
 +++ b/node_modules/@scure/bip39/src/index.ts
 @@ -5,6 +5,7 @@ import { sha256 } from '@noble/hashes/sha256';
@@ -30,6 +30,6 @@ index e6afe12..c4546b4 100644
 -  return pbkdf2(sha512, normalize(mnemonic).nfkd, salt(passphrase), { c: 2048, dkLen: 64 });
 +  // const original =  pbkdf2(sha512, normalize(mnemonic).nfkd, salt(passphrase), { c: 2048, dkLen: 64 });
 +  const updated = new Uint8Array(QuickCrypto.pbkdf2Sync(normalize(mnemonic).nfkd, salt(passphrase), 2048, 64, 'sha512'));
-+  console.log('[@scure.bip39.mnemonicToSeedSync] Patched to use QuickCrypto.pbkdf2Sync')
++  // console.log('[@scure.bip39.mnemonicToSeedSync] Patched to use QuickCrypto.pbkdf2Sync')
 +  return updated
  }
