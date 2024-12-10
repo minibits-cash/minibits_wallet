@@ -46,7 +46,7 @@ import {Proof} from '../models/Proof'
 import useColorScheme from '../theme/useThemeColor'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
-import { CashuUtils, TokenV3 } from '../services/cashu/cashuUtils'
+import { CashuUtils } from '../services/cashu/cashuUtils'
 import { Mint, MintStatus } from '../models/Mint'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { CurrencySign } from './Wallet/CurrencySign'
@@ -56,6 +56,7 @@ import { pollerExists } from '../utils/poller'
 import { useFocusEffect } from '@react-navigation/native'
 import { QRCodeBlock } from './Wallet/QRCode'
 import { MintListItem } from './Mints/MintListItem'
+import { Token, getDecodedToken } from '@cashu/cashu-ts'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
@@ -603,7 +604,7 @@ const ReceiveInfoBlock = function (props: {
     setIsResultModalVisible(previousState => !previousState)
 
 
-    const increaseProofsCounter = async function (tokenToRetry: TokenV3) {      
+    const increaseProofsCounter = async function (tokenToRetry: Token) {      
         const {mint} = transaction
         const walletInstance = await walletStore.getWallet(
             mint, 
@@ -612,7 +613,7 @@ const ReceiveInfoBlock = function (props: {
         )
 
         const mintInstance = mintsStore.findByUrl(mint)
-        const counter = mintInstance!.getProofsCounterByKeysetId!(walletInstance.keys.id)
+        const counter = mintInstance!.getProofsCounterByKeysetId!(walletInstance.keysetId)
         counter!.increaseProofsCounter(20)
     }
 
@@ -624,8 +625,8 @@ const ReceiveInfoBlock = function (props: {
         setIsLoading(true)     
 
         try {    
-            const tokenToRetry: TokenV3 = CashuUtils.decodeToken(transaction.inputToken)              
-            const amountToReceive = CashuUtils.getTokenAmounts(tokenToRetry).totalAmount
+            const tokenToRetry = getDecodedToken(transaction.inputToken)              
+            const amountToReceive = CashuUtils.getProofsAmount(tokenToRetry.proofs)
             const memo = tokenToRetry.memo || ''
 
             if(isCounterIncreaseNeeded) {              

@@ -1,20 +1,17 @@
 import {log} from '../logService'
 import {
   Transaction,
-  TransactionData,
-  TransactionRecord,
-  TransactionStatus,
-  TransactionType,
+  TransactionStatus,  
 } from '../../models/Transaction'
 import {rootStoreInstance} from '../../models'
-import {CashuUtils, ProofV3, TokenEntryV3, TokenV3} from '../cashu/cashuUtils'
+import {CashuUtils, CashuProof} from '../cashu/cashuUtils'
 import AppError, {Err} from '../../utils/AppError'
-import { getDefaultAmountPreference } from '@cashu/cashu-ts/src/utils'
-import { TransactionTaskResult } from '../walletService'
+import { DEFAULT_DENOMINATION_TARGET, TransactionTaskResult } from '../walletService'
 import { WalletUtils } from './utils'
-import { MintUnit, formatCurrency, getCurrency } from './currency'
-import { Proof } from '../../models/Proof'
+import { MintUnit } from './currency'
 import { MintProofsCounter } from '../../models/Mint'
+import { Token } from '@cashu/cashu-ts'
+import { getEncodedToken, getKeepAmounts } from '@cashu/cashu-ts/src/utils'
 
 const {
   mintsStore,
@@ -32,36 +29,41 @@ let lockedProofsCounter: MintProofsCounter | undefined = undefined
 const transactionData = JSON.parse(transaction.data)
 
 try {
-      const unit = transaction.unit as MintUnit
-      const pendingProofs = proofsStore.getByTransactionId(transaction.id!, true)
+    const unit = transaction.unit as MintUnit
+    const pendingProofs = proofsStore.getByTransactionId(transaction.id!, true)
 
-      if(pendingProofs.length === 0) {
-        throw new AppError(Err.VALIDATION_ERROR, 'Missing proofs to swap')
-      }
+    if(pendingProofs.length === 0) {
+    throw new AppError(Err.VALIDATION_ERROR, 'Missing proofs to swap')
+    }
 
-      const mintInstance = mintsStore.findByUrl(transaction.mint)
+    const mintInstance = mintsStore.findByUrl(transaction.mint)
 
-      if(!mintInstance) {
-          throw new AppError(Err.VALIDATION_ERROR, 'Missing mint')
-      }
+    if(!mintInstance) {
+        throw new AppError(Err.VALIDATION_ERROR, 'Missing mint')
+    }
 
-      const amountToRevert = CashuUtils.getProofsAmount(pendingProofs)
-      const amountPreferences = getDefaultAmountPreference(amountToRevert)        
-      const countOfInFlightProofs = CashuUtils.getAmountPreferencesCount(amountPreferences)                
-      const mintFeeReserve = mintInstance.getMintFeeReserve(pendingProofs)        
+    const amountToRevert = CashuUtils.getProofsAmount(pendingProofs)
+    const proofsByMint = proofsStore.getByMint(mintInstance.mintUrl, {
+        isPending: false,
+        unit
+    })
+
+    const walletInstance = await walletStore.getWallet(mintInstance.mintUrl, unit, {withSeed: true})
+
+    const amountPreference = getKeepAmounts(
+        proofsByMint,
+        amountToRevert,
+        (await walletInstance.getKeys()).keys,
+        DEFAULT_DENOMINATION_TARGET            
+    )       
       
-      log.trace('[_revertTask]', 'amountPreferences', {amountPreferences, transactionId: transaction.id})
-      log.trace('[_revertTask]', 'countOfInFlightProofs', {countOfInFlightProofs, transactionId: transaction.id})
+      log.trace('[_revertTask]', {amountPreference, transactionId: transaction.id})      
       
       // We will swap pending proofs with the mint for fresh ones that we receive to the wallet.
       // This will invalidate originally sent proofs effectively reverting the transaction.
-      const encodedToken: TokenV3 = {
-        token: [
-            {
-                mint: mintInstance.mintUrl,
-                proofs: pendingProofs
-            }
-        ],
+      const encodedToken: Token = {
+        mint: mintInstance.mintUrl,
+        proofs: pendingProofs,
         unit
       }
       
@@ -69,39 +71,33 @@ try {
       lockedProofsCounter = await WalletUtils.lockAndSetInFlight(
           mintInstance, 
           unit, 
-          countOfInFlightProofs, 
+          amountPreference.length, 
           transaction.id!
       )
 
       const receivedResult = await walletStore.receive(
           transaction.mint,
           unit as MintUnit,
-          encodedToken,
-          mintFeeReserve,
+          encodedToken,          
           {            
-            preference: amountPreferences,
+            outputAmounts: {keepAmounts: [], sendAmounts: amountPreference},
             counter: lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
           }
       )
       
       const receivedProofs = receivedResult.proofs
-      const mintFeePaid = receivedResult.mintFeePaid
-
-      // log.trace('[receiveTask]', {receivedProofs})
-     
+      const mintFeePaid = receivedResult.swapFeePaid
+  
       // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs        
-      lockedProofsCounter.decreaseProofsCounter(countOfInFlightProofs)
+      lockedProofsCounter.decreaseProofsCounter(amountPreference.length)
 
       // store freshed proofs as encoded token in tx data        
-      const receivedTokenEntry = {
-          mint: mintInstance.mintUrl,
-          proofs: receivedProofs,
-      }
-
-      const outputToken = CashuUtils.encodeToken({
-          token: [receivedTokenEntry],
-          unit            
+      const outputToken = getEncodedToken({
+        mint: mintInstance.mintUrl,
+        proofs: receivedProofs,
+        unit            
       })
+      
       // Remove original pending proofs
       proofsStore.removeProofs(pendingProofs, true, false)
      
@@ -121,8 +117,7 @@ try {
 
       // Update transaction status
       transactionData.push({
-          status: TransactionStatus.REVERTED,            
-          mintFeeReserve,
+          status: TransactionStatus.REVERTED,
           mintFeePaid,
           counter: lockedProofsCounter.counter,
           createdAt: new Date(),

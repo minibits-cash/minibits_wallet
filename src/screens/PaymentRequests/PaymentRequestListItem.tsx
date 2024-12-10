@@ -19,7 +19,7 @@ import {
 import {log} from '../../services'
 import {colors, spacing, useThemeColor} from '../../theme'
 import {getImageSource} from '../../utils/utils'
-import {SendOption} from '../SendOptionsScreen'
+import {SendOption} from '../SendScreen'
 import {translate} from '../../i18n'
 import { CurrencyAmount } from '../Wallet/CurrencyAmount'
 

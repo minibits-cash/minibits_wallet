@@ -9,7 +9,10 @@ import {
   MintAllKeysets,
   MintActiveKeys,
   OutputAmounts,
-  Token
+  Token,
+  MeltProofsResponse,
+  ProofState,
+  CheckStateEnum
 } from '@cashu/cashu-ts'
 import { isObj } from '@cashu/cashu-ts/src/utils'
 import { JS_BUNDLE_VERSION } from '@env'
@@ -250,7 +253,7 @@ export const WalletStoreModel = types
           // if not we find active keyset with lowest fees and related keys
           const activeKeyset: MintKeyset = self.getOptimalKeyset(mintInstance, unit) // throws
 
-          log.trace('[WalletStore.getWallet]', {activeKeyset, mintUrl})
+          log.trace('[WalletStore.getWallet] Optimal keyset for this unit', {activeKeyset, unit, mintUrl})
 
           const activeKeys = mintInstance.keys!.find((k: MintKeys) => k.id === activeKeyset.id)
 
@@ -280,10 +283,13 @@ export const WalletStoreModel = types
           seed = yield self.getSeed()
           
           const newSeedWallet = new CashuWallet(cashuMint, {
-            keys: walletKeys,        
+            unit,
+            keys: mintInstance.keys,
+            keysets: mintInstance.keysets,                    
             bip39seed: seed
           })
 
+          newSeedWallet.keysetId = walletKeys.id
           self.seedWallets.push(newSeedWallet)
 
           log.trace('[WalletStore.getWallet]', 'Returning NEW cashuWallet instance with seed', {mintUrl})
@@ -302,10 +308,13 @@ export const WalletStoreModel = types
         }
         
         const newWallet = new CashuWallet(cashuMint, {
-          keys: walletKeys,      
+          unit,
+          keys: mintInstance.keys,
+          keysets: mintInstance.keysets,   
           bip39seed: undefined
         })
         
+        newWallet.keysetId = walletKeys.id
         self.wallets.push(newWallet)
           
         log.trace('[WalletStore.getWallet]', 'Returning NEW cashuWallet instance', {mintUrl})
@@ -358,12 +367,14 @@ export const WalletStoreModel = types
                 withSeed: true,         
               })   
             
-            const amountToReceive: number = CashuUtils.getProofsAmount(decodedToken.proofs) 
+            const amountToReceive: number = CashuUtils.getProofsAmount(decodedToken.proofs)
+
+            // log.trace('[WalletStore.receive]', {decodedToken, keysetId: cashuWallet.keysetId, outputAmounts: options.outputAmounts, counter: options.counter})
         
             const proofs = yield cashuWallet.receive(
               decodedToken,              
               {
-                keysetId: cashuWallet.keys.id,
+                keysetId: cashuWallet.keysetId,
                 outputAmounts: options.outputAmounts,
                 counter: options.counter,
               })
@@ -386,7 +397,7 @@ export const WalletStoreModel = types
         proofsToSendFrom: Proof[],
         options: {    
           outputAmounts: OutputAmounts,
-          counter: number
+          counter: number,          
         }  ) {
           try {
             const cashuWallet = yield self.getWallet(
@@ -398,24 +409,23 @@ export const WalletStoreModel = types
         
             log.debug('[WalletStore.send] counter', options.counter)
         
-            const {returnChange, send} = yield cashuWallet.send(
+            const {keep, send} = yield cashuWallet.swap(
               amountToSend,              
               proofsToSendFrom,
               {
-                keysetId: cashuWallet.keys.id,
-                preference: options.outputAmounts,
+                keysetId: cashuWallet.keysetId,
+                outputAmounts: options.outputAmounts,
                 counter: options.counter,
-                pubkey: undefined,
-                privkey: undefined
+                includeFees: false // fee reserve needs to be already in proofsToSendFrom
               }      
             )
         
-            log.trace(`[WalletStore.send] ${returnChange.length} returnedProofs`)
+            log.trace(`[WalletStore.send] ${keep.length} returnedProofs`)
             log.trace(`[WalletStore.send] ${send.length} proofsToSend`)
         
             // do some basic validations that proof amounts from mints match
             const totalAmountToSendFrom: number = CashuUtils.getProofsAmount(proofsToSendFrom)
-            const returnedAmount: number = CashuUtils.getProofsAmount(returnChange)
+            const returnedAmount: number = CashuUtils.getProofsAmount(keep)
             const sendAmount: number = CashuUtils.getProofsAmount(send)
         
             if (sendAmount !== amountToSend) {
@@ -428,7 +438,7 @@ export const WalletStoreModel = types
             const swapFeePaid = totalAmountToSendFrom - amountToSend - returnedAmount        
             
             return {
-              returnedProofs: returnChange as CashuProof[],
+              returnedProofs: keep as CashuProof[],
               proofsToSend: send as CashuProof[], 
               swapFeePaid
             }
@@ -446,23 +456,20 @@ export const WalletStoreModel = types
             )
           }              
       }),
-      getSpentOrPendingProofsFromMint: flow(function* getSpentOrPendingProofsFromMint(  
+      getProofsStatesFromMint: flow(function* getProofsStatesFromMint(  
         mintUrl: string,
         unit: MintUnit,  
         proofs: Proof[]
       ) {
           try {
-            log.trace('[WalletStore.getSpentOrPendingProofsFromMint] start', {mintUrl, unit})
+            log.trace('[WalletStore.getProofsStatesFromMint] start', {mintUrl, unit})
             
             const cashuWallet = yield self.getWallet(mintUrl, unit, {withSeed: false})    
-            const spentPendingProofs = yield cashuWallet.checkProofsSpent(proofs) // seems to work for all units
+            const proofsByState: {[CheckStateEnum: string]: Proof[]} = yield cashuWallet.checkProofsStates(proofs)
         
-            log.trace('[WalletStore.getSpentOrPendingProofsFromMint]', {mintUrl, spentPendingProofs})
+            log.trace('[WalletStore.getProofsStatesFromMint]', {mintUrl, proofsByState})
         
-            return spentPendingProofs as {
-                spent: CashuProof[]
-                pending: CashuProof[]
-            }
+            return proofsByState
         
           } catch (e: any) {    
             let message = 'Could not get response from the mint.'
@@ -472,7 +479,7 @@ export const WalletStoreModel = types
                 message, 
                 {
                   message: e.message,
-                  caller: 'Wallet.getSpentOrPendingProofsFromMint', 
+                  caller: 'WalletStore.getProofsStatesFromMint', 
                   mintUrl            
                 }
             )
@@ -556,23 +563,22 @@ export const WalletStoreModel = types
         unit: MintUnit,
         mintQuote: string,
         options: {
-          preference: AmountPreference[],
+          outputAmounts: OutputAmounts,
           counter: number
         }
       ) {
         try {
           const cashuWallet: CashuWallet = yield self.getWallet(mintUrl, unit, {withSeed: true}) // with seed
           
-          const {proofs} = yield cashuWallet.mintTokens(
+          const proofs = yield cashuWallet.mintProofs(
               amount,
               mintQuote,
               {
-                keysetId: cashuWallet.keys.id,
-                preference: options.preference,
-                counter: options.counter,
-                pubkey: undefined                          
+                keysetId: cashuWallet.keysetId,
+                outputAmounts: options.outputAmounts,
+                counter: options.counter,                                        
               }            
-          ) as Promise<{proofs: ProofV3[]}>
+          )
             
           
           log.info('[mintProofs]', {proofs})        
@@ -628,7 +634,7 @@ export const WalletStoreModel = types
         mintUrl: string,
         unit: MintUnit,
         lightningMeltQuote: MeltQuoteResponse,  // invoice is stored by mint by quote
-        proofsToPayFrom: ProofV3[],  // proofAmount >= amount + fee_reserve
+        proofsToPayFrom: CashuProof[],  // proofAmount >= amount + fee_reserve
         options: {
           counter: number
         }
@@ -636,12 +642,11 @@ export const WalletStoreModel = types
         try {    
           const cashuWallet: CashuWallet = yield self.getWallet(mintUrl, unit, {withSeed: true}) // with seed
       
-          const meltResponse: MeltTokensResponse =
-            yield cashuWallet.meltTokens(
+          const meltResponse: MeltProofsResponse = yield cashuWallet.meltProofs(
               lightningMeltQuote,
               proofsToPayFrom,
               {
-                keysetId: cashuWallet.keys.id,
+                keysetId: cashuWallet.keysetId,
                 counter: options.counter
               }        
             )
@@ -680,7 +685,7 @@ export const WalletStoreModel = types
           
           const seedWallet = new CashuWallet(cashuMint, {
             unit: 'sat', // just use default unit as we restore by keyset        
-            mnemonicOrSeed: seed
+            bip39seed: seed
           })
   
           const count = Math.abs(indexTo - indexFrom)      

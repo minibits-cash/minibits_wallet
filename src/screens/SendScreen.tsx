@@ -53,7 +53,6 @@ import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { Proof } from '../models/Proof'
 import { Contact, ContactType } from '../models/Contact'
 import { getImageSource, infoMessage } from '../utils/utils'
-import { SendOption } from './SendOptionsScreen'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { MintUnit, formatCurrency, getCurrency } from "../services/wallet/currency"
 import { MintHeader } from './Mints/MintHeader'
@@ -64,6 +63,15 @@ import numbro from 'numbro'
 import { TranItem } from './TranDetailScreen'
 import { MemoInputCard } from '../components/MemoInputCard'
 
+export enum SendOption {
+    SEND_TOKEN = 'SEND_TOKEN',
+    PASTE_OR_SCAN_INVOICE = 'PASTE_OR_SCAN_INVOICE',
+    SHOW_TOKEN = 'SHOW_TOKEN',
+    PAY_PAYMENT_REQUEST = 'PAY_PAYMENT_REQUEST',
+    LNURL_PAY = 'LNURL_PAY',
+    LNURL_ADDRESS = 'LNURL_ADDRESS',
+    DONATION = 'DONATION',
+}
 
 if (Platform.OS === 'android' &&
     UIManager.setLayoutAnimationEnabledExperimental) {
@@ -449,8 +457,8 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             {withSeed: true}
         )
         const mintInstance = mintsStore.findByUrl(mintBalanceToSendFrom?.mintUrl as string)
-        const counter = mintInstance!.getProofsCounterByKeysetId!(walletInstance.keys.id)
-        counter!.increaseProofsCounter(50)
+        const counter = mintInstance!.getProofsCounterByKeysetId!(walletInstance.keysetId)
+        counter!.increaseProofsCounter(20)
 
         // retry send
         onMintBalanceConfirm()
@@ -698,7 +706,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                     <QRCodeBlock                  
                         qrCodeData={encodedTokenToSend as string}                        
                         title='Ecash token to send'
-                        type='EncodedV3Token'
+                        type='EncodedV4Token'
                     />
                     <TokenOptionsBlock                    
                         toggleNostrDMModal={toggleNostrDMModal}

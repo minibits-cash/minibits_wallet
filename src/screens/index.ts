@@ -6,9 +6,7 @@ export * from './ImportBackupScreen'
 
 // WalletNavigator
 export * from './WalletScreen'
-export * from './ReceiveOptionsScreen'
 export * from './ReceiveScreen'
-export * from './SendOptionsScreen'
 export * from './SendScreen'
 export * from './ScanScreen'
 export * from './TranDetailScreen'

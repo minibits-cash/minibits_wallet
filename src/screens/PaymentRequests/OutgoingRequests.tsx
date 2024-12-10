@@ -26,10 +26,6 @@ import AppError from '../../utils/AppError'
 import { PaymentRequest } from '../../models/PaymentRequest'
 import { StackNavigationProp } from '@react-navigation/stack'
 import { PaymentRequestListItem } from './PaymentRequestListItem'
-import QRCode from 'react-native-qrcode-svg'
-import { infoMessage } from '../../utils/utils'
-import Clipboard from '@react-native-clipboard/clipboard'
-import { translate } from '../../i18n'
 import { QRCodeBlock } from '../Wallet/QRCode'
 
 

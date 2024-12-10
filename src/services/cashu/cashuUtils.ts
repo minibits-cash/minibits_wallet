@@ -71,15 +71,9 @@ function base64urlToBase64(str: string) {
 	// .replace(/./g, '=');
 }
 
-
 const getProofsAmount = function (proofs: Array<Proof | CashuProof>): number {
   return sumProofs(proofs as CashuProof[])
 }
-
-
-/* const getAmountPreferencesCount = function (amountPreferences: AmountPreference[]): number {
-    return amountPreferences.reduce((total, preference) => total + preference.count, 0);
-} */
 
 // legacy method
 const getMintsFromToken = function (token: Token): string[] {
@@ -200,10 +194,10 @@ const validateMintKeys = function (keys: object): boolean {
       }
       allKeys.forEach(k => {
         //try parse int?
-        if (isNaN(k)) {
+        if (isNaN(Number(k))) {
           isValid = false
         }
-        if (!isPow2(k)) {
+        if (!isPow2(Number(k))) {
           isValid = false
         }
       })

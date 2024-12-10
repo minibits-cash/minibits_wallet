@@ -107,7 +107,7 @@ export const MnemonicScreen: FC<SettingsStackScreenProps<'Mnemonic'>> = observer
     const headerTitle = useThemeColor('headerTitle')
 
     return (
-      <Screen style={$screen}>
+      <Screen contentContainerStyle={$screen}>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text preset="heading" tx='backupScreen.seedBackup' style={{color: headerTitle}} />
         </View>

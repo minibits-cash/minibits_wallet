@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useCallback, useEffect, useRef, useState} from 'react'
-import {Alert, AppState, TextStyle, View, ViewStyle, useColorScheme} from 'react-native'
+import React, {FC, useEffect, useRef, useState} from 'react'
+import {AppState, TextStyle, View, ViewStyle, useColorScheme} from 'react-native'
 import notifee from '@notifee/react-native'
 import messaging from '@react-native-firebase/messaging'
 import {

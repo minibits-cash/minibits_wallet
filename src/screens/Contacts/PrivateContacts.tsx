@@ -13,8 +13,8 @@ import { log } from '../../services/logService'
 import { ContactListItem } from './ContactListItem'
 import { Contact, ContactType } from '../../models/Contact'
 import { StackNavigationProp } from '@react-navigation/stack'
-import { ReceiveOption } from '../ReceiveOptionsScreen'
-import { SendOption } from '../SendOptionsScreen'
+import { ReceiveOption } from '../ReceiveScreen'
+import { SendOption } from '../SendScreen'
 import { infoMessage, warningMessage } from '../../utils/utils'
 import { IncomingDataType, IncomingParser } from '../../services/incomingParser'
 import { translate } from '../../i18n'
@@ -422,8 +422,7 @@ const $newContainer: TextStyle = {
 const $contactInput: TextStyle = {
     flex: 1,
     // borderRadius: 0,
-    // borderBottomRightRadius: spacing.extraSmall,
-    // borderTopLeftRadius: spacing.extraSmall,
+    borderRadius: spacing.extraSmall,    
     fontSize: verticalScale(16),
     padding: spacing.small,
     alignSelf: 'stretch',
@@ -433,6 +432,7 @@ const $contactInput: TextStyle = {
 
 const $contactDomain: TextStyle = {    
     marginRight: spacing.small,
+    marginLeft: -spacing.small,
     borderTopRightRadius: spacing.extraSmall,
     borderBottomRightRadius: spacing.extraSmall,    
     padding: spacing.extraSmall,

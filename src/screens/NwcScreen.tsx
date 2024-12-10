@@ -1,6 +1,5 @@
 import {observer} from 'mobx-react-lite'
 import { Observer } from 'mobx-react-lite'
-import Clipboard from '@react-native-clipboard/clipboard'
 import React, {FC, useEffect, useRef, useState} from 'react'
 import {FlatList, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
@@ -14,7 +13,6 @@ import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { NwcConnection } from '../models/NwcStore'
 import { QRCodeBlock } from './Wallet/QRCode'
 import { CollapsibleText } from '../components/CollapsibleText'
-import { isSameDay } from 'date-fns/isSameDay'
 
 interface NwcScreenProps extends SettingsStackScreenProps<'Nwc'> {}
 

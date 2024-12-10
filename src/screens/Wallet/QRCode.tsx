@@ -9,8 +9,9 @@ import { moderateScale, verticalScale } from "@gocodingnow/rn-size-matters"
 import { colors, spacing } from "../../theme"
 import { useEffect, useState } from "react"
 import { translate } from "../../i18n"
-import { CashuUtils, TokenV3 } from "../../services/cashu/cashuUtils"
+import { CashuUtils, CashuProof } from "../../services/cashu/cashuUtils"
 import { log } from "../../services"
+import { Token, getDecodedToken, getEncodedToken } from '@cashu/cashu-ts';
 
 export type QRCodeBlockTypes = 'EncodedV3Token' | 'EncodedV4Token' | 'Bolt11Invoice' | 'URL' | 'NWC'
 
@@ -26,9 +27,9 @@ export const QRCodeBlock = function (props: {
 ) {
   
     const {qrCodeData, title, type, size} = props
-    const [qrError, setQrError] = useState<Error | undefined>()   
-    const [encodedV4Token, setEncodedV4Token] = useState<string | undefined>()
-    const [decodedV3Token, setDecodedV3Token] = useState<TokenV3>()
+    const [qrError, setQrError] = useState<Error | undefined>()
+    const [encodedV3Token, setEncodedV3Token] = useState<string | undefined>()
+    const [decodedToken, setDecodedToken] = useState<Token>()
     const [keysetFormat, setKeysetFormat] = useState<'hex' | 'base64' | undefined>()
     const [isLoadingQRCode, setIsLoadingQRCode] = useState<boolean>(false)
     const [isQRCodeError, setIsQRCodeError] = useState<boolean>(false)
@@ -37,20 +38,20 @@ export const QRCodeBlock = function (props: {
     
     useEffect(() => {
       const detectKeysetFormat = () => {
-        if(type === 'EncodedV3Token') {
-          const decoded = CashuUtils.decodeToken(qrCodeData) as TokenV3
-          setDecodedV3Token(decoded)
+        if(type === 'EncodedV4Token') {
+          const decoded = getDecodedToken(qrCodeData)
+          setDecodedToken(decoded)
           
-          if(decoded.token[0].proofs[0].id.startsWith('00')) {
-            setKeysetFormat('hex')
+          if(decoded.proofs[0].id.startsWith('00')) {
+            setKeysetFormat('hex')            
+          } else {
             try {
-              // make v4 default one
-              const encodedV4 = CashuUtils.encodeToken(decoded, 4)
-              setEncodedV4Token(encodedV4)
+              // make v3 legacy format
+              const encodedV3 = getEncodedToken(decoded, {version: 3})
+              setEncodedV3Token(encodedV3)
             } catch (e: any) {
               handleQrError(e)
             }
-          } else {
             setKeysetFormat('base64')
           }          
         }
@@ -122,19 +123,19 @@ export const QRCodeBlock = function (props: {
 
     const switchTokenEncoding = function () {
       try {
-        if(encodedV4Token) {
-          setEncodedV4Token(undefined)
-        } else if(type === 'EncodedV3Token') {
-          log.trace('[v3]', qrCodeData)
+        if(encodedV3Token) {
+          setEncodedV3Token(undefined)
+        } else if(type === 'EncodedV4Token') {
+          log.trace('[v4]', qrCodeData)
           
-          if(!decodedV3Token) {
+          if(!decodedToken) {
             return false
           }
 
-          const encodedV4 = CashuUtils.encodeToken(decodedV3Token, 4)
+          const encodedV3 = getEncodedToken(decodedToken, {version: 3})
             
-          log.trace('[v4]', encodedV4)            
-          setEncodedV4Token(encodedV4)
+          log.trace('[v3]', encodedV3)            
+          setEncodedV3Token(encodedV3)
         }
       } catch (e: any) {
         handleQrError(e)
@@ -163,7 +164,7 @@ export const QRCodeBlock = function (props: {
   
     const onCopy = function () {
       try {
-        Clipboard.setString(encodedV4Token || qrCodeData as string)
+        Clipboard.setString(encodedV3Token || qrCodeData as string)
       } catch (e: any) {
         handleQrError(e)
       }
@@ -205,7 +206,7 @@ export const QRCodeBlock = function (props: {
                 />
               ) : (
                 <QRCode 
-                    size={qrCodeSize} value={encodedV4Token || qrCodeData} 
+                    size={qrCodeSize} value={encodedV3Token || qrCodeData} 
                     onError={switchToAnimatedQRcodeOnError}
                 />
               )}
@@ -240,10 +241,10 @@ export const QRCodeBlock = function (props: {
                     paddingVertical: verticalScale(spacing.tiny)                    
                 }}  
             />
-            {type === 'EncodedV3Token' && keysetFormat === 'hex' && !isAnimating && (
+            {type === 'EncodedV4Token' && keysetFormat === 'hex' && !isAnimating && (
               <Button
                   preset="tertiary" 
-                  text={`${encodedV4Token ? 'Old' : 'New'}`}
+                  text={`${encodedV3Token ? 'New' : 'Old'}`}
                   onPress={switchTokenEncoding}
                   LeftAccessory={() => <Icon icon='faMoneyBill1' size={spacing.small} color={colors.light.text}/>}
                   textStyle={{color: colors.light.text, fontSize: 14}}
@@ -254,7 +255,7 @@ export const QRCodeBlock = function (props: {
                   }}  
               /> 
             )}
-            {type === 'EncodedV3Token' && !isQRCodeError && (
+            {type === 'EncodedV4Token' && !isQRCodeError && (
               <Button
                   preset="tertiary" 
                   text={`${isAnimating ? 'Static' : 'Animate'}`}

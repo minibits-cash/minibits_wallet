@@ -6,19 +6,20 @@ import {
   TransactionType,
 } from '../../models/Transaction'
 import {rootStoreInstance} from '../../models'
-import {CashuUtils, ProofV3, TokenEntryV3} from '../cashu/cashuUtils'
+import {CashuUtils, CashuProof} from '../cashu/cashuUtils'
 import AppError, {Err} from '../../utils/AppError'
 import {    
     MintKeyset,
+    getEncodedToken,
 } from '@cashu/cashu-ts'
-import { getDefaultAmountPreference } from '@cashu/cashu-ts/src/utils'
-import { MAX_SWAP_INPUT_SIZE, TransactionTaskResult, WalletTask } from '../walletService'
+import { DEFAULT_DENOMINATION_TARGET, MAX_SWAP_INPUT_SIZE, TransactionTaskResult, WalletTask } from '../walletService'
 import { Mint, MintBalance, MintProofsCounter } from '../../models/Mint'
 import { Proof } from '../../models/Proof'
 import { poller } from '../../utils/poller'
 import { WalletUtils } from './utils'
 import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
 import { MintUnit } from './currency'
+import { getKeepAmounts } from '@cashu/cashu-ts/src/utils'
 
 const {
     mintsStore,
@@ -26,8 +27,6 @@ const {
     transactionsStore,    
     walletStore
 } = rootStoreInstance
-
-// const {walletStore} = nonPersistedStores
 
 export const sendTask = async function (
     mintBalanceToSendFrom: MintBalance,
@@ -41,7 +40,6 @@ export const sendTask = async function (
 
     log.trace('[send]', 'mintBalanceToSendFrom', mintBalanceToSendFrom)
     log.trace('[send]', 'amountToSend', {amountToSend, unit})    
-    log.trace('[send]', 'memo', memo)
 
     // create draft transaction
     const transactionData: TransactionData[] = [
@@ -98,18 +96,14 @@ export const sendTask = async function (
             JSON.stringify(transactionData),
         )
 
-        // Create sendable encoded tokenV3
-        const tokenEntryToSend = {
-            mint: mintUrl,
-            proofs: proofsToSend,
-        }
-
+        // Create sendable encoded token
         if (!memo || memo === '') {
             memo = 'Sent from Minibits'
         }
 
-        const outputToken = CashuUtils.encodeToken({
-            token: [tokenEntryToSend as TokenEntryV3],
+        const outputToken = getEncodedToken({
+            mint: mintUrl,
+            proofs: proofsToSend,
             unit,
             memo,
         })
@@ -146,7 +140,7 @@ export const sendTask = async function (
                 WalletTask.syncStateWithMint,
                 {
                     interval: 6 * 1000,
-                    maxPolls: 3,
+                    maxPolls: 5,
                     maxErrors: 2
                 },
                 {proofsToSync, mintUrl, isPending: true}
@@ -309,8 +303,8 @@ export const sendFromMintSync = async function (
         let swapFeeReserve: number = 0
         let returnedAmount = 0
         let swapFeePaid: number = 0
-        let proofsToSend: ProofV3[] | Proof[] = []
-        let returnedProofs: ProofV3[] = []
+        let proofsToSend: CashuProof[] | Proof[] = []
+        let returnedProofs: CashuProof[] = []
 
         let isSwapNeeded: boolean = proofsToSendFromAmount - amountToSend > 0 ? true : false        
 
@@ -321,7 +315,8 @@ export const sendFromMintSync = async function (
          */
         if(isSwapNeeded) {
             // Calculate feeReserve from mint fee rate
-            swapFeeReserve = mintInstance.getMintFeeReserve(proofsToSendFrom)
+            const walletInstance = await walletStore.getWallet(mintUrl, unit, {withSeed: true})
+            swapFeeReserve = walletInstance.getFeesForProofs(proofsToSendFrom)
             const amountWithFees = amountToSend + swapFeeReserve
 
             if (totalAmountFromMint < amountWithFees) {
@@ -353,14 +348,23 @@ export const sendFromMintSync = async function (
             })
 
             // Output denominations we ask for to get back
-            const amountPreferences = getDefaultAmountPreference(amountToSend)
-            // Output denominations we are about to get as a split remainder
-            const returnedAmountPreferences = getDefaultAmountPreference(returnedAmount)
+            const sendAmounts = getKeepAmounts(
+                proofsToSendFrom,
+                amountToSend,
+                (await walletInstance.getKeys()).keys,
+                DEFAULT_DENOMINATION_TARGET            
+            )
 
-            const countOfInFlightProofs = CashuUtils.getAmountPreferencesCount(amountPreferences) + 
-                CashuUtils.getAmountPreferencesCount(returnedAmountPreferences)
+            const keepAmounts = getKeepAmounts(
+                proofsToSendFrom,
+                returnedAmount,
+                (await walletInstance.getKeys()).keys,
+                DEFAULT_DENOMINATION_TARGET            
+            )
+
+            const countOfInFlightProofs = sendAmounts.length + keepAmounts.length
             
-            log.trace('[sendFromMintSync]', 'countOfInFlightProofs', countOfInFlightProofs)    
+            log.trace('[sendFromMintSync]', {sendAmounts, keepAmounts, countOfInFlightProofs})    
 
             // Increase the proofs counter before the mint call so that in case the response
             // is not received our recovery index counts for sigs the mint has already issued (prevents duplicate b_b bug)            
@@ -374,13 +378,12 @@ export const sendFromMintSync = async function (
             
             const sendResult = await walletStore.send(
                 mintUrl,
-                amountToSend,
-                swapFeeReserve,
+                amountToSend,                
                 unit,            
                 proofsToSendFrom,
                 {              
-                    preference: amountPreferences,                    
-                    counter: lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
+                    outputAmounts: {sendAmounts, keepAmounts},                    
+                    counter: lockedProofsCounter.inFlightFrom as number, // MUST be counter value before increase                    
                 }
             )
 
@@ -436,7 +439,7 @@ export const sendFromMintSync = async function (
         )        
 
         // Clean private properties to not to send them out. This returns plain js array, not model objects.
-        const cleanedProofsToSend: ProofV3[] = proofsToSend.map(proof => {
+        const cleanedProofsToSend: CashuProof[] = proofsToSend.map(proof => {
             if (isStateTreeNode(proof)) {
                 const {mintUrl, unit, tId, ...rest} = getSnapshot(proof)
                 return rest
@@ -462,13 +465,11 @@ export const sendFromMintSync = async function (
         
         // try to clean spent proofs if that was the swap error cause
         if (e.params && e.params.message && e.params.message.includes('Token already spent')) {
-            await WalletTask.syncStateWithMintSync(                
-                {
-                    proofsToSync: proofsToSendFrom,
+            await WalletTask.syncStateWithMintSync({
+                    proofsToSync: proofsStore.getByMint(mintUrl, {isPending: true}),
                     mintUrl,
                     isPending: false
-                }                
-            )
+            })
         }
 
         if (e instanceof AppError) {

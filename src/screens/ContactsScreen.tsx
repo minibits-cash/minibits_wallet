@@ -10,8 +10,8 @@ import { PrivateContacts } from './Contacts/PrivateContacts'
 import { PublicContacts } from './Contacts/PublicContacts'
 import { log } from '../services/logService'
 import { getImageSource } from '../utils/utils'
-import { ReceiveOption } from './ReceiveOptionsScreen'
-import { SendOption } from './SendOptionsScreen'
+import { ReceiveOption } from './ReceiveScreen'
+import { SendOption } from './SendScreen'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 
 
