@@ -33,7 +33,6 @@ import { NotificationService } from '../services/notificationService'
 import { roundUp } from '../utils/number'
 import { PaymentRequest } from './PaymentRequest'
 import { PaymentRequests } from './PaymentRequestsStore'
-import { transaction } from 'mobx'
 import { MINIBITS_MINT_URL } from '@env'
 import { MintBalance } from './Mint'
 
@@ -205,7 +204,9 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         NostrClient.publish(
             responseEvent,
             self.connectionRelays                    
-        )       
+        )
+        
+        NotificationService.stopForegroundService()
         
     }),
 }))
@@ -251,8 +252,6 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             // notify completed payment
             const enabled = yield NotificationService.areNotificationsEnabled()
             if(enabled) {
-                yield NotificationService.stopForegroundService()
-                
                 yield NotificationService.createLocalNotification(
                     `<b>${self.name}</b> - Nostr Wallet Connect`,
                     `Paid ${result.transaction.amount} SAT${result.transaction.fee > 0 ? ', fee ' + result.transaction.fee + ' SAT' : ''}. Remaining today's limit is ${self.remainingDailyLimit} SAT`,
@@ -264,10 +263,11 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                 result_type: 'pay_invoice',
                 error: { code: 'INTERNAL', message: result.message}
             } as NwcError
-        }
+        }        
 
         if(!result.nwcEvent) {
             log.error('Missing nwcEvent.', {caller: 'handleTransferTaskResult'})
+            NotificationService.stopForegroundService()
             return
         }
 
@@ -539,6 +539,8 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         } catch (e: any) {            
             log.error(`[NwcConnection.handlePayInvoice] ${e.message}`)
 
+            yield NotificationService.stopForegroundService()
+
             return {
                 result_type: nwcRequest.method,
                 error: { code: 'INTERNAL', message: e.message}
@@ -774,6 +776,17 @@ export const NwcStoreModel = types
 
             if(!targetConnection) {
                 log.error('[handleNwcRequestFromNotification] Missing connection matching event pubkey.', {pubkey: event.pubkey})
+                // notify created topup
+                const enabled = yield NotificationService.areNotificationsEnabled()
+                if(enabled) {
+                    yield NotificationService.stopForegroundService()
+
+                    yield NotificationService.createLocalNotification(
+                        `<b>Nostr Wallet Connect</b> error`,
+                        `Your wallet has received a NWC command, but could not find related NWC connection to handle it.`,
+                        nwcPngUrl
+                    )
+                } 
                 return
             }
 
