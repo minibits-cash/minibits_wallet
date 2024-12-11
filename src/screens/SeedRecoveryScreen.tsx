@@ -261,26 +261,24 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
                 const proofsCounter = recoveredMint.getProofsCounterByKeysetId(selectedKeyset.id)                
                 proofsCounter?.increaseProofsCounter(Math.abs(endIndex - startIndex))
                 
-                const {spent, pending} = await walletStore.getSpentOrPendingProofsFromMint(
+                const proofStates = await walletStore.getProofsStatesFromMint(
                     recoveredMint.mintUrl,
                     selectedKeyset.unit as MintUnit,
                     proofs as Proof[],
                 )
 
-                log.debug('[restore]', `Spent and pending proofs`, {spent: spent.length, pending: pending.length})
+                log.debug('[restore]', `Spent and pending proofs`, {spent: proofStates.SPENT.length, pending: proofStates.PENDING.length})
 
-                setStatusMessage(translate("recovery.spentProofsAmount", { amount: spent.length }))
+                setStatusMessage(translate("recovery.spentProofsAmount", { amount: proofStates.SPENT.length }))
 
-                const spentAmount = sumProofs(spent as Proof[])
+                const spentAmount = CashuUtils.getProofsAmount(proofStates.SPENT as Proof[])
                 alreadySpentAmount += spentAmount
-
-                const unspent = proofs.filter((proof: Proof) => !spent.includes(proof))
-                
-                if(unspent && unspent.length > 0) {
+                                
+                if(proofStates.UNSPENT.length > 0) {
                     
                     setStatusMessage(translate("recovery.completing"))
 
-                    const amount = CashuUtils.getProofsAmount(unspent as Proof[])
+                    const amount = CashuUtils.getProofsAmount(proofStates.UNSPENT)
                     recoveredAmount = amount                 
                     
                     // Let's create new draft receive transaction in database
@@ -305,7 +303,7 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
 
                     const { amountToAdd, addedAmount } = WalletUtils.addCashuProofs(
                         recoveredMint.mintUrl,
-                        unspent,
+                        proofStates.UNSPENT,
                         {
                             unit: selectedKeyset.unit as MintUnit,
                             transactionId: transaction.id,
@@ -334,24 +332,23 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
                     transaction.setBalanceAfter(balanceAfter || 0)
                 }
             
-                if(pending && pending.length > 0) {
+                if(proofStates.PENDING.length > 0) {
 
-                    // setStatusMessage(`Found ${pending.length} pending proofs...`)
-                    setStatusMessage(translate("recovery.foundPendingProofsAmount", { amount: pending.length }))
-                    log.debug(`Found pending ecash with ${recoveredMint.hostname}...`)
-
-                    const amount = CashuUtils.getProofsAmount(pending as Proof[])
+                    const pendingAmount = CashuUtils.getProofsAmount(proofStates.PENDING as Proof[])
                     
+                    setStatusMessage(translate("recovery.foundPendingProofsAmount", { pendingAmount }))
+                    log.debug(`Found pending ecash with ${recoveredMint.hostname}...`)
+                                        
                     // Let's create new draft receive transaction in database
                     pendingTransactionData.push({
                         status: TransactionStatus.PREPARED,
-                        amount,
+                        pendingAmount,
                         createdAt: new Date(),
                     })
 
                     const newTransaction = {
                         type: TransactionType.RECEIVE,
-                        amount,
+                        amount: pendingAmount,
                         fee: 0,
                         unit: selectedKeyset?.unit as MintUnit,
                         data: JSON.stringify(pendingTransactionData),
@@ -364,7 +361,7 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
 
                     const { amountToAdd, addedAmount } = WalletUtils.addCashuProofs(
                         recoveredMint.mintUrl,
-                        pending,
+                        proofStates.PENDING,
                         {
                             unit: selectedKeyset?.unit as MintUnit,
                             transactionId: pendingTransaction.id,

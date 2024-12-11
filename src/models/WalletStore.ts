@@ -684,12 +684,15 @@ export const WalletStoreModel = types
           const cashuMint = yield self.getMint(mintUrl)
           
           const seedWallet = new CashuWallet(cashuMint, {
-            unit: 'sat', // just use default unit as we restore by keyset        
+            unit: 'sat', // just use default unit as we restore by keyset  
+            keys: cashuMint.keys,
+            keysets: cashuMint.keysets,
             bip39seed: seed
           })
+
+          seedWallet.keysetId = keysetId
   
-          const count = Math.abs(indexTo - indexFrom)      
-          
+          const count = Math.abs(indexTo - indexFrom)          
           
           const {proofs} = yield seedWallet.restore(            
               indexFrom,
@@ -701,7 +704,7 @@ export const WalletStoreModel = types
           log.info('[restore]', 'Number of recovered proofs', {proofs: proofs.length})
       
           return {
-              proofs: proofs || []            
+              proofs: proofs || [] as Proof[]            
           }
         } catch (e: any) {        
             throw new AppError(Err.MINT_ERROR, isObj(e.message) ? JSON.stringify(e.message) : e.message, {mintUrl})

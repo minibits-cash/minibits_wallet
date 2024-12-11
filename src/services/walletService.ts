@@ -59,8 +59,7 @@ type WalletTaskService = {
             isPending: boolean
         }        
     ) => Promise<SyncStateTaskResult>
-    handleInFlight: ()        => Promise<void>
-    handleInFlightSync: (mint: Mint) => Promise<WalletTaskResult>
+    handleInFlight: ()        => Promise<void>    
     handlePendingTopups: ()   => Promise<void>
     handlePendingTopup: (params: {
         paymentRequest: PaymentRequest
@@ -954,10 +953,6 @@ const handleInFlight = async function (): Promise<void> {
 }
 
 
-const handleInFlightSync = async function (mint: Mint): Promise<WalletTaskResult> {
-    return await _handleInFlightByMintTask(mint)
-}
-
 /*
  * Recover proofs that were issued by mint, but wallet failed to receive them if swap did not complete.
  */
@@ -1822,8 +1817,7 @@ export const WalletTask: WalletTaskService = {
     syncSpendableStateWithMints,
     syncStateWithMint,
     syncStateWithMintSync,    
-    handleInFlight,
-    handleInFlightSync,  
+    handleInFlight,    
     handlePendingTopups,
     handlePendingTopup,
     handleClaim,
