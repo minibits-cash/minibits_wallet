@@ -128,6 +128,7 @@ export const topupTask = async function (
         transactionData.push({
             status: TransactionStatus.PENDING,            
             paymentRequest,
+            createdAt: new Date()
         })
 
        transaction.setStatus(            

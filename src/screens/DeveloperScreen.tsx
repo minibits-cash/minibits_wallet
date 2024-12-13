@@ -148,6 +148,45 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
     }
 
 
+    const movePendingToSpendable = async function () {
+      Alert.alert(
+        translate("common.confirmAlertTitle"),
+        "This action may cause transactions failure. Use only as a recovery path agreed with support.",
+        [
+          {
+            text: translate('common.cancel'),
+            style: 'cancel',
+            onPress: () => { /* Action canceled */ },
+          },
+          {
+            text: translate('common.confirm'),
+            onPress: async () => {
+              try {
+                setIsLoading(true)
+                transactionsStore.deleteByStatus(TransactionStatus.PENDING)
+        
+                const pending = proofsStore.allPendingProofs
+                const pendingCount = proofsStore.pendingProofsCount.valueOf()                
+
+                if(pendingCount > 0) {
+                  // force move pending proofs to spendable wallet
+                  proofsStore.removeProofs(pending, true, true)
+                  proofsStore.addProofs(pending)
+                }                     
+
+                setIsLoading(false)
+                setInfo(`${pendingCount} pending proofs were moved to spendable balance.`)
+                
+              } catch (e: any) {
+                handleError(e)
+              }
+            },
+          },
+        ],
+      )      
+    }   
+
+
     const toggleLogLevelSelector = () =>
         setIsLogLevelSelectorVisible(previousState => !previousState)
 
@@ -288,6 +327,16 @@ Sentry id: ${userSettingsStore.userSettings.walletId}
             style={[$card]}
             HeadingComponent={
               <>
+                <ListItem
+                  text="Force move pending"
+                  subText="Move pending ecash back to spendable balance."
+                  leftIcon='faArrowUp'
+                  leftIconColor={colors.palette.accent200}
+                  leftIconInverse={true}
+                  RightComponent={<View style={$rightContainer} />}
+                  style={$item}                  
+                  onPress={movePendingToSpendable}
+                />
                 <ListItem
                   text="Force delete pending"
                   subText="Removes ecash from pending state and deletes all pending transactions."

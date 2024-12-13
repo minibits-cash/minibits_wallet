@@ -306,13 +306,16 @@ export const transferTask = async function (
         }
 
     } catch (e: any) {
+        let message = e.message
+        let returnMessage = ''
+
         if (transaction) { 
             // release lock  
             if(lockedProofsCounter) {
                 lockedProofsCounter.resetInFlight(transaction.id)
             }
             
-            let message = e.message
+
             
             if (proofsToMeltFrom.length > 0) {
                
@@ -368,6 +371,8 @@ export const transferTask = async function (
                     // if melt quote is not paid return proofs from pending to spendable balance
                     proofsStore.removeProofs(proofsToMeltFrom, true, true)
                     proofsStore.addProofs(proofsToMeltFrom)
+                    returnMessage = "Ecash reserved for this payment was returned to spendable balance."
+                    log.error('[transfer]', {returnMessage, proofsToMeltFromAmount})
                 }
             }
 
@@ -389,7 +394,7 @@ export const transferTask = async function (
             taskFunction: TRANSFER,
             mintUrl,
             transaction,
-            message: e.message,
+            message,
             error: WalletUtils.formatError(e),
             meltQuote,
             nwcEvent

@@ -527,7 +527,7 @@ export const WalletStoreModel = types
         quote: string,  
       ) {
         try {
-          const cashuMint = yield self.getMint(mintUrl)
+          const cashuMint: CashuMint = yield self.getMint(mintUrl)
           const {
             request: encodedInvoice, 
             quote: mintQuote, 

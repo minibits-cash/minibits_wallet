@@ -1161,178 +1161,216 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
             throw new AppError(Err.VALIDATION_ERROR, 'Returned quote is different then the one requested', {mintUrl, quote, mintQuote})
         }
 
-        if (state !== MintQuoteState.PAID) {
-            log.trace('[_handlePendingTopupTask] Quote not paid', {mintUrl, mintQuote})
-
-            if (isBefore(pr.expiresAt as Date, new Date())) {
-                log.debug('[_handlePendingTopupTask]', `Invoice expired, removing: ${pr.paymentHash}`)
-
-                // expire related tx - but only if it has not been completed before this check
-                if(transaction.status !== TransactionStatus.COMPLETED) {
-                    const transactionDataUpdate = {
-                        status: TransactionStatus.EXPIRED,
-                        message: 'Invoice expired',                        
-                        createdAt: new Date(),
-                    }                        
-
-                    await transactionsStore.updateStatuses(
-                        [transactionId],
-                        TransactionStatus.EXPIRED,
-                        JSON.stringify(transactionDataUpdate),
-                    ) 
+        switch (state) {
+            /* 
+             * UNPAID or ISSUED 
+             */         
+            case MintQuoteState.UNPAID:
+            case MintQuoteState.ISSUED:
+                if (isBefore(pr.expiresAt as Date, new Date())) {
+                    log.debug('[_handlePendingTopupTask]', `Invoice expired, removing: ${pr.paymentHash}`)
+    
+                    // expire related tx - but only if it has not been completed before this check
+                    if(transaction.status !== TransactionStatus.COMPLETED) {
+                        const transactionDataUpdate = {
+                            status: TransactionStatus.EXPIRED,
+                            message: 'Invoice expired',                        
+                            createdAt: new Date(),
+                        }                        
+    
+                        await transactionsStore.updateStatuses(
+                            [transactionId],
+                            TransactionStatus.EXPIRED,
+                            JSON.stringify(transactionDataUpdate),
+                        ) 
+                    }
+    
+                    stopPolling(`handlePendingTopupPoller-${paymentHash}`)         
+                    paymentRequestsStore.removePaymentRequest(pr)
                 }
-
-                stopPolling(`handlePendingTopupPoller-${paymentHash}`)         
-                paymentRequestsStore.removePaymentRequest(pr)
-            }
-
-            return {
-                taskFunction: '_handlePendingTopupTask',
-                transaction,
-                mintUrl,
-                unit,
-                amount,
-                paymentHash,                     
-                message: `Quote ${mintQuote} has not yet been paid`,
-            } as WalletTaskResult
-        }
-
-
-        const proofsByMint = proofsStore.getByMint(mintUrl!, {
-            isPending: false,
-            unit
-        })
-
-        const walletInstance = await walletStore.getWallet(mintUrl!, unit, {withSeed: true})
-
-        const keepAmounts = getKeepAmounts(
-            proofsByMint,
-            amount,
-            (await walletInstance.getKeys()).keys,
-            DEFAULT_DENOMINATION_TARGET            
-        )
-                
-        log.trace('[_handlePendingTopupTask]', {paymentHash, keepAmounts})
+                // continue
+            case MintQuoteState.UNPAID:
+                log.trace('[_handlePendingTopupTask] Quote not paid', {mintUrl, mintQuote})                
+    
+                return {
+                    taskFunction: '_handlePendingTopupTask',
+                    transaction,
+                    mintUrl,
+                    unit,
+                    amount,
+                    paymentHash,                     
+                    message: `Quote ${mintQuote} has not yet been paid.`,
+                } as WalletTaskResult
+            
+            /* 
+             * PAID 
+             */
+            case MintQuoteState.PAID:
+                const proofsByMint = proofsStore.getByMint(mintUrl!, {
+                    isPending: false,
+                    unit
+                })
         
-        // temp increase the counter + acquire lock and set inFlight values        
-        lockedProofsCounter = await WalletUtils.lockAndSetInFlight(
-            mintInstance, 
-            unit, 
-            keepAmounts.length, 
-            transactionId,
-        )
-
-        let proofs: CashuProof[] = []
-
-        try {        
-            proofs = (await walletStore.mintProofs(
-                mintUrl as string,
-                amount,
-                unit,
-                mintQuote,
-                {
-                    outputAmounts: {keepAmounts, sendAmounts: []},
-                    counter: lockedProofsCounter.inFlightFrom as number
-                }
-            ))
-        } catch (e: any) {
-            if(e.message.includes('outputs have already been signed before')) {
+                const walletInstance = await walletStore.getWallet(mintUrl!, unit, {withSeed: true})
+        
+                const keepAmounts = getKeepAmounts(
+                    proofsByMint,
+                    amount,
+                    (await walletInstance.getKeys()).keys,
+                    DEFAULT_DENOMINATION_TARGET            
+                )
+                        
+                log.trace('[_handlePendingTopupTask]', {paymentHash, keepAmounts})
                 
-                log.error('[_handlePendingTopupTask] Increasing proofsCounter outdated values and repeating mintProofs.')
-                lockedProofsCounter.resetInFlight(transactionId)
-                lockedProofsCounter.increaseProofsCounter(10)
+                // temp increase the counter + acquire lock and set inFlight values        
                 lockedProofsCounter = await WalletUtils.lockAndSetInFlight(
                     mintInstance, 
                     unit, 
                     keepAmounts.length, 
-                    transactionId
+                    transactionId,
                 )
-
-                proofs = (await walletStore.mintProofs(
-                    mintUrl as string,
-                    amount,
-                    unit,
-                    mintQuote,
-                    {
-                        outputAmounts: {keepAmounts, sendAmounts: []},
-                        counter: lockedProofsCounter.inFlightFrom as number
+        
+                let proofs: CashuProof[] = []
+        
+                try {        
+                    proofs = (await walletStore.mintProofs(
+                        mintUrl as string,
+                        amount,
+                        unit,
+                        mintQuote,
+                        {
+                            outputAmounts: {keepAmounts, sendAmounts: []},
+                            counter: lockedProofsCounter.inFlightFrom as number
+                        }
+                    ))
+                } catch (e: any) {
+                    if(e.message.includes('outputs have already been signed before')) {
+                        
+                        log.error('[_handlePendingTopupTask] Increasing proofsCounter outdated values and repeating mintProofs.')
+                        lockedProofsCounter.resetInFlight(transactionId)
+                        lockedProofsCounter.increaseProofsCounter(10)
+                        lockedProofsCounter = await WalletUtils.lockAndSetInFlight(
+                            mintInstance, 
+                            unit, 
+                            keepAmounts.length, 
+                            transactionId
+                        )
+        
+                        proofs = (await walletStore.mintProofs(
+                            mintUrl as string,
+                            amount,
+                            unit,
+                            mintQuote,
+                            {
+                                outputAmounts: {keepAmounts, sendAmounts: []},
+                                counter: lockedProofsCounter.inFlightFrom as number
+                            }
+                        ))
+                    } else {
+                        throw e
                     }
-                ))
-            } else {
-                throw e
-            }
-        }
-
-        lockedProofsCounter.decreaseProofsCounter(keepAmounts.length)        
+                }
         
-        if (!proofs || proofs.length === 0) {        
-            throw new AppError(Err.VALIDATION_ERROR, 'Mint did not return any proofs.')
-        }        
-
-        // we got proofs, accept to the wallet asap
-        const {addedAmount: receivedAmount} = WalletUtils.addCashuProofs(
-            mintUrl as string,
-            proofs,
-            {
-                unit,
-                transactionId,
-                isPending: false               
-            }
-        )    
+                lockedProofsCounter.decreaseProofsCounter(keepAmounts.length)        
+                
+                if (!proofs || proofs.length === 0) {        
+                    throw new AppError(Err.VALIDATION_ERROR, 'Mint did not return any proofs.')
+                }        
         
-        // release lock and cleanup
-        lockedProofsCounter.resetInFlight(transactionId)
-        stopPolling(`handlePendingTopupTaskPoller-${paymentHash}`)               
-
-        const currencyCode = getCurrency(pr.mintUnit!).code  
-
-        if (receivedAmount !== amount) {
-            throw new AppError(
-                Err.VALIDATION_ERROR,
-                `Received amount ${formatCurrency(amount, currencyCode)} ${currencyCode} is not equal to the requested amount ${formatCurrency(amount, currencyCode)} ${currencyCode}.`,
-            )
-        }
-
-        // update related tx
-        const transactionDataUpdate = {
-            status: TransactionStatus.COMPLETED,
-            createdAt: new Date(),
-        }
-
-        // await for final status
-        await transactionsStore.updateStatuses(
-            [transactionId],
-            TransactionStatus.COMPLETED,
-            JSON.stringify(transactionDataUpdate),
-        )
-
-        // payment has been sent from payment request receiver
-        if(pr.contactTo) {
-            transaction.setSentFrom(
-                pr.contactTo.nip05handle ?? pr.contactTo.name!
-            )
-
-            transaction.setProfile(
-                JSON.stringify(getSnapshot(pr.contactTo)) 
-            )
-        }
+                // we got proofs, accept to the wallet asap
+                const {addedAmount: receivedAmount} = WalletUtils.addCashuProofs(
+                    mintUrl as string,
+                    proofs,
+                    {
+                        unit,
+                        transactionId,
+                        isPending: false               
+                    }
+                )    
+                
+                // release lock and cleanup
+                lockedProofsCounter.resetInFlight(transactionId)
+                stopPolling(`handlePendingTopupTaskPoller-${paymentHash}`)               
         
-        // Update tx with current total balance of topup unit/currency
-        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
-        transaction.setBalanceAfter(balanceAfter)     
-    
-        _sendTopupNotification(pr)
-        paymentRequestsStore.removePaymentRequest(pr)        
+                const currencyCode = getCurrency(pr.mintUnit!).code  
         
-        return {
-            taskFunction: '_handlePendingTopupTask',
-            mintUrl,
-            unit,
-            amount,
-            paymentHash,
-            transaction,
-            message: `Your invoice has been paid and your wallet balance credited with ${formatCurrency(amount, currencyCode)} ${currencyCode}.`,
-        } as TransactionTaskResult
+                if (receivedAmount !== amount) {
+                    throw new AppError(
+                        Err.VALIDATION_ERROR,
+                        `Received amount ${formatCurrency(amount, currencyCode)} ${currencyCode} is not equal to the requested amount ${formatCurrency(amount, currencyCode)} ${currencyCode}.`,
+                    )
+                }
+        
+                // update related tx
+                const transactionDataUpdate = {
+                    status: TransactionStatus.COMPLETED,
+                    createdAt: new Date(),
+                }
+        
+                // await for final status
+                await transactionsStore.updateStatuses(
+                    [transactionId],
+                    TransactionStatus.COMPLETED,
+                    JSON.stringify(transactionDataUpdate),
+                )
+        
+                // payment has been sent from payment request receiver
+                if(pr.contactTo) {
+                    transaction.setSentFrom(
+                        pr.contactTo.nip05handle ?? pr.contactTo.name!
+                    )
+        
+                    transaction.setProfile(
+                        JSON.stringify(getSnapshot(pr.contactTo)) 
+                    )
+                }
+                
+                // Update tx with current total balance of topup unit/currency
+                const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
+                transaction.setBalanceAfter(balanceAfter)     
+            
+                _sendTopupNotification(pr)
+                paymentRequestsStore.removePaymentRequest(pr)        
+                
+                return {
+                    taskFunction: '_handlePendingTopupTask',
+                    mintUrl,
+                    unit,
+                    amount,
+                    paymentHash,
+                    transaction,
+                    message: `Your invoice has been paid and your wallet balance credited with ${formatCurrency(amount, currencyCode)} ${currencyCode}.`,
+                } as TransactionTaskResult
+            /* 
+             * ISSUED 
+             */
+            case MintQuoteState.ISSUED:
+                log.trace('[_handlePendingTopupTask] Quote already issued', {mintUrl, mintQuote})            
+
+                return {
+                    taskFunction: '_handlePendingTopupTask',
+                    transaction,
+                    mintUrl,
+                    unit,
+                    amount,
+                    paymentHash,                     
+                    message: `Ecash for quote ${mintQuote} has already been issued.`,
+                } as WalletTaskResult
+            /* 
+             * UNKNOWN 
+             */
+            default:
+                log.error(`[_handlePendingTopupTask] Unknown MintQuoteState`, {state})
+                return {
+                    taskFunction: '_handlePendingTopupTask',
+                    transaction,
+                    mintUrl,
+                    unit,
+                    amount,
+                    paymentHash,                     
+                    message: `Unknown MintQuoteState ${state}`,
+                } as WalletTaskResult          
+        }
 
     } catch (e: any) {
         // release lock  
