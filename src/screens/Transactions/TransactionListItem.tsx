@@ -50,43 +50,43 @@ export const TransactionListItem = observer(function (
       case TransactionType.RECEIVE:
         if (tx.sentFrom) {
           if (!tx.memo || tx.memo.includes('Sent from Minibits')) {
-            return translate('transactionCommon.from', {sender: getProfileName(tx.sentFrom)}).slice(0, 30)
+            return translate('transactionCommon.from', {sender: getProfileName(tx.sentFrom)})
           }
         } else {
-          return tx.memo ? tx.memo.slice(0, 30) : translate('transactionCommon.youReceived').slice(0, 30)
+          return tx.memo ? tx.memo : translate('transactionCommon.youReceived')
         }
       case TransactionType.RECEIVE_OFFLINE:
         if (tx.sentFrom) {
           if (!tx.memo || tx.memo.includes('Sent from Minibits')) {
-            return translate('transactionCommon.from', {sender: getProfileName(tx.sentFrom)}).slice(0, 30)
+            return translate('transactionCommon.from', {sender: getProfileName(tx.sentFrom)})
           }
         } else {
-          return tx.memo ? tx.memo.slice(0, 30) : translate('transactionCommon.youReceived').slice(0, 30)
+          return tx.memo ? tx.memo : translate('transactionCommon.youReceived')
         }
       case TransactionType.SEND:
         return (tx.memo
-          ? tx.memo.slice(0, 30)
+          ? tx.memo
           : tx.sentTo
-          ? translate('transactionCommon.sentTo', {receiver: getProfileName(tx.sentTo)}).slice(0, 30)
-          : translate('transactionCommon.youSent')).slice(0, 30)
+          ? translate('transactionCommon.sentTo', {receiver: getProfileName(tx.sentTo)})
+          : translate('transactionCommon.youSent'))
       case TransactionType.TOPUP:
         return (tx.memo
-          ? tx.memo.slice(0, 30)
+          ? tx.memo
           : tx.sentFrom
-          ? translate('transactionCommon.receivedFrom', {sender: getProfileName(tx.sentFrom)}).slice(0, 30)
-          : translate('transactionCommon.youReceived')).slice(0, 30)
+          ? translate('transactionCommon.receivedFrom', {sender: getProfileName(tx.sentFrom)})
+          : translate('transactionCommon.youReceived'))
       case TransactionType.TRANSFER:
         return (tx.memo && tx.memo !== 'LNbits'
-          ? tx.memo.slice(0, 30)
+          ? tx.memo
           : tx.sentTo
-          ? translate('transactionCommon.paidTo', {receiver: getProfileName(tx.sentTo)}).slice(0, 30)
-          : translate('transactionCommon.youPaid')).slice(0, 30)
+          ? translate('transactionCommon.paidTo', {receiver: getProfileName(tx.sentTo)})
+          : translate('transactionCommon.youPaid'))
         case TransactionType.NWC_TRANSFER:
           return (tx.memo && tx.memo !== 'LNbits'
-            ? tx.memo.slice(0, 30)
+            ? tx.memo
             : tx.sentTo
-            ? translate('transactionCommon.paidTo', {receiver: getProfileName(tx.sentTo)}).slice(0, 30)
-            : translate('transactionCommon.youPaid')).slice(0, 30)
+            ? translate('transactionCommon.paidTo', {receiver: getProfileName(tx.sentTo)})
+            : translate('transactionCommon.youPaid'))
       default:
         return translate('transactionCommon.unknown')
     }
@@ -97,7 +97,7 @@ export const TransactionListItem = observer(function (
       addSuffix: true,
     })
     let timeAgo = ''
-    if (isTimeAgoVisible) timeAgo = `${distance.slice(0, 18)} · `
+    if (isTimeAgoVisible) timeAgo = `${distance} · `
 
     switch (tx.status) {
       case TransactionStatus.COMPLETED:
@@ -105,7 +105,7 @@ export const TransactionListItem = observer(function (
           timeAgo +
           translate('transactionCommon.status.completedFee', {
             fee: (tx.fee && tx.fee > 0) ? ' · Fee ' + tx.fee : '',
-          }).slice(0, 30)
+          })
         )
       case TransactionStatus.DRAFT:
         return timeAgo + translate('transactionCommon.status.draft')
@@ -196,7 +196,9 @@ export const TransactionListItem = observer(function (
         key={tx.id}                      
         text={getText(tx)}        
         textStyle={$mintText}
-        subText={getSubText(tx)}        
+        subText={getSubText(tx)}
+        subTextEllipsizeMode='tail'
+        textEllipsizeMode='tail'
         LeftComponent={getLeftIcon(tx)}  
         RightComponent={
           <View style={$txContainer}>

@@ -194,7 +194,7 @@ export const ListItem = function (props: ListItemProps) {
           iconColor={leftIconColor}
           iconTransform={leftIconTransform}
           iconInverse={leftIconInverse}
-          Component={LeftComponent}          
+          Component={LeftComponent}         
         />
         <View style={$subTextContainer}>
           <>
