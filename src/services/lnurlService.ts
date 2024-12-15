@@ -101,7 +101,7 @@ const getLnurlAddressParams = async (lnurlAddress: string) => {
         headers,            
     })
 
-    log.trace(`Got LNURL address params from ${domain}`,  lnurlParams, 'getLnurlAddressParams')
+    log.trace(`[getLnurlAddressParams] Got LNURL address params from ${domain}`,  lnurlParams)
 
     if(lnurlParams.status && lnurlParams.status === 'ERROR') {
         throw new AppError(Err.CONNECTION_ERROR, lnurlParams.reason, {domain, caller: 'getLnurlAddressParams'})

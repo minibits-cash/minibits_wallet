@@ -1,8 +1,8 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useState, useCallback, useEffect} from 'react'
-import {Alert, TextStyle, View, ViewStyle} from 'react-native'
+import {TextStyle, View, ViewStyle} from 'react-native'
 import {spacing, useThemeColor, colors} from '../theme'
-import {AppStackScreenProps, SettingsStackScreenProps, WalletStackScreenProps} from '../navigation'
+import {AppStackScreenProps} from '../navigation'
 import {
   Button,
   Icon,
@@ -21,7 +21,7 @@ import { SyncStateTaskResult, WalletTask } from '../services/walletService'
 import EventEmitter from '../utils/eventEmitter'
 import { translate } from '../i18n'
 
-export enum RecoveryOption {
+/* export enum RecoveryOption {
     SEND_TOKEN = 'SEND_TOKEN',
     PASTE_OR_SCAN_INVOICE = 'PASTE_OR_SCAN_INVOICE',
     SHOW_TOKEN = 'SHOW_TOKEN',
@@ -29,7 +29,7 @@ export enum RecoveryOption {
     LNURL_PAY = 'LNURL_PAY',
     LNURL_ADDRESS = 'LNURL_ADDRESS',
     DONATION = 'DONATION',
-}
+} */
 
 export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> = observer(
   function RecoveryOptionsScreen({route, navigation}) {

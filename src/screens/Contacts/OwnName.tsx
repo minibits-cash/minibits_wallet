@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react'
-import {Text as RNText, TextStyle, View, ViewStyle, InteractionManager, TextInput, ScrollView } from 'react-native'
+import {Text as RNText, TextStyle, View, ViewStyle, TextInput } from 'react-native'
 import {colors, spacing, typography, useThemeColor} from '../../theme'
 import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
 import {useStores} from '../../models'
@@ -17,16 +17,17 @@ import { CurrencyAmount } from '../Wallet/CurrencyAmount'
 import { CurrencyCode } from '../../services/wallet/currency'
 import { QRCodeBlock } from '../Wallet/QRCode'
 import { MintBalance } from '../../models/Mint'
-import { MintListItem } from '../Mints/MintListItem'
 import Clipboard from '@react-native-clipboard/clipboard'
-import { round, roundUp } from '../../utils/number'
+import { roundUp } from '../../utils/number'
+import { LnurlClient } from '../../services/lnurlService'
 
 const DEFAULT_DONATION_AMOUNT = 500
+const DONATION_LNURL_ADDRESS = 'minibits@minibits.cash'
 
 export const OwnName = observer(function (props: {navigation: any, pubkey: string}) { 
     // const navigation = useNavigation() 
     const ownNameInputRef = useRef<TextInput>(null)
-    const {proofsStore, walletProfileStore, userSettingsStore, mintsStore} = useStores()
+    const {proofsStore, walletProfileStore} = useStores()
     const {pubkey, navigation} = props 
     
     const [ownName, setOwnName] = useState<string>('')
@@ -34,8 +35,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
     const [selectedBalance, setSelectedBalance] = useState<MintBalance | undefined>(undefined)
     const [donationAmount, setDonationAmount] = useState(DEFAULT_DONATION_AMOUNT)
     const [donationInvoice, setDonationInvoice] = useState<{payment_hash: string, payment_request: string} | undefined>(undefined)
-    const [isLoading, setIsLoading] = useState(false)    
-    const [isQRcodeVisible, setIsQRCodeVisible] = useState(false)
+    const [isLoading, setIsLoading] = useState(false)
     const [isChecked, setIsChecked] = useState(false)
     // const [isNameInputEnabled, setIsNameInputEnabled] = useState(true)
     const [isInvoicePaid, setIsInvoicePaid] = useState<boolean>(false)
@@ -80,7 +80,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
             checkDonationPaid,
             {
                 interval: 2 * 1000, // every 2s to make it responsive.
-                maxPolls: 120,
+                maxPolls: 60,
                 maxErrors: 10
             })            
             .then(() => log.trace('[checkDonationPaid]', 'Polling completed'))
@@ -126,8 +126,7 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
         setInfo('')
         setIsLoading(false)                
         setDonationInvoice(undefined)
-        setDonationAmount(DEFAULT_DONATION_AMOUNT)        
-        setIsQRCodeVisible(false)
+        setDonationAmount(DEFAULT_DONATION_AMOUNT)
         setIsInvoicePaid(false)         
     }
 
@@ -179,20 +178,35 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
     const onCreateDonation = async function () {
         try {
             setIsLoading(true)
-            const memo = `Donation for ${ownName+MINIBITS_NIP05_DOMAIN}`
-            const invoice = await MinibitsClient.createDonation(
-                donationAmount, 
-                memo, 
-                pubkey
-            )
 
-            if(invoice) {
-                setDonationInvoice(invoice)
-                const feeReserve = roundUp(donationAmount / 100, 0)
+            const comment = `Donation for ${ownName+MINIBITS_NIP05_DOMAIN}`
+            const feeReserve = roundUp(donationAmount / 100, 0)
 
-                if(!selectedBalance || donationAmount >= selectedBalance.balances['sat']! + feeReserve) {
-                    setIsQRCodeVisible(true)
-                }
+            if(selectedBalance && selectedBalance.balances['sat']! + feeReserve >= donationAmount) {
+
+                const addressParamsResult = await LnurlClient.getLnurlAddressParams(DONATION_LNURL_ADDRESS) // throws
+
+                return navigation.navigate('WalletNavigator', { 
+                    screen: 'Transfer',
+                    params: { 
+                        lnurlParams: addressParamsResult.lnurlParams,                
+                        paymentOption: SendOption.LNURL_PAY,
+                        fixedAmount: donationAmount,
+                        unit: 'sat',
+                        comment,
+                        mintUrl: selectedBalance.mintUrl,
+                        isDonation: true,
+                        donationForName: ownName
+                    },
+                })
+            } else {
+                const invoice = await MinibitsClient.createDonation(
+                    donationAmount, 
+                    comment, 
+                    pubkey
+                )
+
+                setDonationInvoice(invoice)                
             }
 
             setIsLoading(false)
@@ -210,22 +224,6 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
           setError(e)
         }
       }
-
-
-    const onPayDonation = async function () {
-        try {            
-            return navigation.navigate('WalletNavigator', { 
-                screen: 'Transfer',
-                params: { 
-                    encodedInvoice: donationInvoice?.payment_request,
-                    unit:  userSettingsStore.preferredUnit || 'sat',
-                    paymentOption: SendOption.DONATION
-                },
-            })
-        } catch (e: any) {
-            handleError(e)
-        }  
-    }
 
     // poll handler
     const checkDonationPaid = async function (): Promise<void> {   
@@ -331,70 +329,13 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                                         text={translate("contactsScreen.ownName.payToGetOwnName", { name: ownName+MINIBITS_NIP05_DOMAIN })}
                                         style={[$supportText, {color: hint}]} 
                                     />
-                                    {isQRcodeVisible && (                                        
-                                        <QRCodeBlock 
-                                            qrCodeData={donationInvoice.payment_request}
-                                            title='Lightning invoice to pay'
-                                            type='Bolt11Invoice'
-                                            size={270}
-                                        />
-                                    )}
-                                    {(!!selectedBalance && selectedBalance.balances['sat']! > donationAmount) ? (
-                                        <>                                        
-                                        <ListItem 
-                                            text='Invoice'
-                                            subText={donationInvoice.payment_request.slice(0, 20) + '...'}
-                                            RightComponent={
-                                                <CurrencyAmount
-                                                    amount={donationAmount}
-                                                    currencyCode={CurrencyCode.SAT}
-                                                    size='medium'                                                    
-                                                /> 
-                                            }
-                                            topSeparator={true}
-                                            bottomSeparator={true}
-                                            leftIcon='faBolt'
-                                            onPress={onCopyInvoice}
-                                        />
-                                        <Text style={[$supportText, {color: hint}]}  text={`Pay from`} />                                        
-                                        <MintListItem                             
-                                            mint={mintsStore.findByUrl(selectedBalance.mintUrl)!}
-                                            mintBalance={selectedBalance}
-                                            selectedUnit='sat'
-                                            isSelectable={true}
-                                            isSelected={true}
-                                            separator='both'                                            
-                                        />
-                                        <View style={$buttonContainer}>                            
-                                            <Button
-                                                preset="default"
-                                                style={{marginRight: spacing.small}}
-                                                tx='contactsScreen.ownName.ctaPay'
-                                                onPress={onPayDonation}                            
-                                            />                                                
-                                            <Button
-                                                preset="secondary"                            
-                                                tx='common.cancel'
-                                                onPress={resetState}                            
-                                            />   
-                                        </View>
-                                        </>
-                                    ) : (
-                                        <View>
-                                            <Text                                
-                                                size='xs'
-                                                style={{textAlign: 'center', margin: spacing.medium}}
-                                                tx="contactsScreen.ownName.insufficient"
-                                            />
-                                            <View style={$buttonContainer}>                                            
-                                                <Button
-                                                    preset="secondary"                            
-                                                    tx='common.cancel'
-                                                    onPress={resetState}                            
-                                                />
-                                            </View>                               
-                                        </View>
-                                    )}
+                                                                     
+                                    <QRCodeBlock 
+                                        qrCodeData={donationInvoice.payment_request}
+                                        title='Lightning invoice to pay'
+                                        type='Bolt11Invoice'
+                                        size={270}
+                                    />                                
                                 </>
                             ) : (
                                 <>
@@ -553,6 +494,7 @@ const $ownNameInput: TextStyle = {
 
 const $ownNameDomain: TextStyle = {    
     marginRight: spacing.small,
+    marginLeft: -spacing.small,
     borderTopRightRadius: spacing.extraSmall,
     borderBottomRightRadius: spacing.extraSmall,    
     padding: spacing.extraSmall,

@@ -65,7 +65,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     const amountInputRef = useRef<TextInput>(null)
     const lnurlCommentInputRef = useRef<TextInput>(null)
 
-    const {proofsStore, mintsStore, paymentRequestsStore, walletStore} = useStores()
+    const {proofsStore, mintsStore, paymentRequestsStore, walletStore, walletProfileStore} = useStores()
     // const {walletStore} = nonPersistedStores
 
     const isInternetReachable = useIsInternetReachable()
@@ -83,6 +83,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     const [lnurlDescription, setLnurlDescription] = useState('')
     const [lnurlPayCommentAllowed, setLnurlPayCommentAllowed] = useState(0)
     const [lnurlPayComment, setLnurlPayComment] = useState('')
+    const [donationForName, setDonationForName] = useState<string | undefined>()
     const [availableMintBalances, setAvailableMintBalances] = useState<MintBalance[]>([])
     const [mintBalanceToTransferFrom, setMintBalanceToTransferFrom] = useState<MintBalance | undefined>()
     const [transactionStatus, setTransactionStatus] = useState<TransactionStatus | undefined>()
@@ -90,6 +91,7 @@ export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState(false)
+    const [isAmountEditable, setIsAmountEditable] = useState(true)
     const [isNotEnoughFunds, setIsNotEnoughFunds] = useState(false)    
     const [isInvoiceDonation, setIsInvoiceDonation] = useState(false)    
     const [isTransferTaskSentToQueue, setIsTransferTaskSentToQueue] = useState(false)
@@ -181,12 +183,26 @@ useFocusEffect(
 
         const handleLnurlPay = async () => {
             try {
-                const {lnurlParams, unit} = route.params
+                // amountSats allows to default amount to be paid to a lightning address  
+                const {lnurlParams, unit, fixedAmount, comment, isDonation, donationForName} = route.params
 
                 log.trace('[handleLnurlPay] start', {unit})
 
                 if (!lnurlParams) {                    
                     throw new AppError(Err.VALIDATION_ERROR, translate('missingLNURLParamsError'))
+                }
+                                
+                if(fixedAmount && fixedAmount > 0) {
+                  setIsAmountEditable(false)
+                }
+
+                if(comment) {
+                  setLnurlPayComment(comment)
+                }
+
+                if(isDonation) {
+                  setIsInvoiceDonation(true)
+                  setDonationForName(donationForName)
                 }
 
                 const metadata = lnurlParams.decodedMetadata
@@ -208,6 +224,7 @@ useFocusEffect(
                             break
                         }
                     }
+
                     if ('commentAllowed' in lnurlParams && lnurlParams.commentAllowed > 0) {
                       setLnurlPayCommentAllowed(lnurlParams.commentAllowed)
                     }
@@ -222,16 +239,16 @@ useFocusEffect(
                     }
                 }                
 
-                const amountSats = roundUp(lnurlParams.minSendable / 1000, 0)
+                const defaultAmount = fixedAmount || roundUp(lnurlParams.minSendable / 1000, 0)
                 
                 // Set minSendable into amountToTransfer in unit currency
                 if (unit !== 'sat') {
                   const rate = await walletStore.getExchangeRate(getCurrency(unit).code)
-                  const amountUnit = convertToFromSats(amountSats, CurrencyCode.SAT, rate)
+                  const defaultAmountUnit = convertToFromSats(defaultAmount, CurrencyCode.SAT, rate)
 
-                  log.trace('[handleLnurlPay] minSendable conversion from SAT', {amountSats, rate, amountUnit})
+                  log.trace('[handleLnurlPay] minSendable conversion from SAT', {defaultAmount, rate, defaultAmountUnit})
 
-                  setAmountToTransfer(`${numbro(amountUnit / getCurrency(unit).precision)
+                  setAmountToTransfer(`${numbro(defaultAmountUnit / getCurrency(unit).precision)
                     .format({
                       thousandSeparated: true, 
                       mantissa: getCurrency(unit).mantissa
@@ -239,7 +256,7 @@ useFocusEffect(
                   )
 
                 } else {
-                  setAmountToTransfer(`${numbro(amountSats)
+                  setAmountToTransfer(`${numbro(defaultAmount)
                     .format({
                       thousandSeparated: true, 
                       mantissa: 0
@@ -253,26 +270,6 @@ useFocusEffect(
             }                
         }
 
-        const handleDonation = () => {
-            try {
-                const {encodedInvoice} = route.params
-
-                if (!encodedInvoice) {                    
-                    throw new AppError(Err.VALIDATION_ERROR, 'Missing donation invoice.')
-                }
-
-                if(unit !== 'sat') {
-                    throw new AppError(Err.VALIDATION_ERROR, `Donations can currently be paid only with ${CurrencyCode.SAT} balances.`)
-                }
-
-                log.trace('[handleDonation]', {encodedInvoice})
-                
-                setIsInvoiceDonation(true)
-                onEncodedInvoice(encodedInvoice)
-            } catch (e: any) {
-                handleError(e)
-            }                
-        }
 
         if(paymentOption && paymentOption === SendOption.PASTE_OR_SCAN_INVOICE) {   
             handleInvoice()
@@ -284,10 +281,6 @@ useFocusEffect(
 
         if(paymentOption && paymentOption === SendOption.LNURL_PAY) {   
             handleLnurlPay()
-        }
-
-        if(paymentOption && paymentOption === SendOption.DONATION) {   
-            handleDonation()
         }
 
         
@@ -400,11 +393,20 @@ useEffect(() => {
             }        
     
         } else {
-            if(!isInvoiceDonation) {  // Donation has own polling to avoid paying with test ecash and triggers own ResultModal on paid invoice
-                setResultModalInfo({
-                    status,
-                    message,
-                })
+            if(isInvoiceDonation && donationForName) {
+                         
+              await walletProfileStore.updateName(donationForName)                
+
+              setResultModalInfo({
+                status,
+                message: `Donation for ${donationForName} has been successfully paid and your wallet address has been updated. Thank you!`,
+              })
+
+            } else {
+              setResultModalInfo({
+                status,
+                message,
+              })
             }
             
             // update related paymentRequest status if exists
@@ -421,9 +423,7 @@ useEffect(() => {
             setFinalFee(finalFee)
         }
         
-        if(!isInvoiceDonation || error) {
-            toggleResultModal()
-        }
+        toggleResultModal()
     }
 
     // Subscribe to the task result event
@@ -450,8 +450,10 @@ const resetState = function () {
     setMintBalanceToTransferFrom(undefined)    
     setTransactionStatus(undefined)
     setInfo('')
+    setDonationForName(undefined)
     setError(undefined)
-    setIsLoading(false)    
+    setIsLoading(false)
+    setIsAmountEditable(true)    
     setIsInvoiceDonation(false)
     setIsTransferTaskSentToQueue(false)
     setIsResultModalVisible(false)
@@ -559,7 +561,10 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
         navigation.setParams({encodedInvoice: undefined})
         navigation.setParams({paymentRequest: undefined})
         navigation.setParams({lnurlParams: undefined})
-        navigation.setParams({paymentOption: undefined})             
+        navigation.setParams({paymentOption: undefined})
+        navigation.setParams({fixedAmount: undefined})
+        navigation.setParams({isDonation: undefined})
+        navigation.setParams({donationForName: undefined})
 
         const invoice = LightningUtils.decodeInvoice(encoded)
         const {amount, expiry, description, timestamp} = LightningUtils.getInvoiceData(invoice)
@@ -572,6 +577,7 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
 
         if(!isInternetReachable) setInfo(translate('common.offlinePretty'));
         
+        setIsAmountEditable(false)
         setEncodedInvoice(encoded)
         setInvoice(invoice)        
         setInvoiceExpiry(expiresAt)
@@ -715,7 +721,7 @@ const amountInputColor = useThemeColor('amountInput')
               maxLength={9}
               keyboardType="numeric"
               selectTextOnFocus={true}
-              editable={encodedInvoice ? false : true}
+              editable={isAmountEditable ? true : false}
             />
 
             {encodedInvoice && (meltQuote?.fee_reserve || finalFee) ? (

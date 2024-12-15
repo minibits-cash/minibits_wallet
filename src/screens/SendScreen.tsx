@@ -70,7 +70,7 @@ export enum SendOption {
     PAY_PAYMENT_REQUEST = 'PAY_PAYMENT_REQUEST',
     LNURL_PAY = 'LNURL_PAY',
     LNURL_ADDRESS = 'LNURL_ADDRESS',
-    DONATION = 'DONATION',
+    // DONATION = 'DONATION',
 }
 
 if (Platform.OS === 'android' &&

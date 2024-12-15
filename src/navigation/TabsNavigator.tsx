@@ -152,9 +152,13 @@ export type WalletStackParamList = {
       unit: MintUnit,
       encodedInvoice?: string,
       paymentRequest?: PaymentRequest, 
-      lnurlParams?: LNURLPayParams & {address?: string}, 
+      lnurlParams?: LNURLPayParams & {address?: string},
+      fixedAmount?: number, 
+      comment?: string      
       paymentOption?: SendOption,
-      mintUrl?: string,      
+      mintUrl?: string,
+      isDonation?: boolean,
+      donationForName?: string     
     }
     Topup: {      
       unit: MintUnit,

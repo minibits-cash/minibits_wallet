@@ -202,7 +202,7 @@ const navigateWithIncomingData = async function (
 
                 return navigation.navigate('Transfer', {
                     lnurlParams: addressParamsResult.lnurlParams,                
-                    paymentOption: SendOption.LNURL_PAY,
+                    paymentOption: SendOption.LNURL_PAY,                                     
                     unit,
                     mintUrl
                 })
