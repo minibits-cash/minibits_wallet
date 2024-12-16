@@ -1015,7 +1015,7 @@ const _handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTas
 
         const spentCount = proofsByState.SPENT.length        
         const pendingCount = proofsByState.PENDING.length        
-        const unspentCount = proofsByState.UNSEPNT.length        
+        const unspentCount = proofsByState.UNSPENT.length        
 
         log.debug('[_handleInFlightByMintTask]', `Restored proofs`, {
             spentCount, 
@@ -1039,7 +1039,7 @@ const _handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTas
          
         const { addedAmount, addedProofs } = WalletUtils.addCashuProofs(
             mint.mintUrl,
-            proofsByState.UNSEPNT,
+            proofsByState.UNSPENT,
             {
                 unit: proofsCounter.unit,
                 transactionId,

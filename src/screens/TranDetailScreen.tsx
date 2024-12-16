@@ -1278,7 +1278,7 @@ const TopupInfoBlock = function (props: {
   const {transaction, navigation, mint} = props
   const {mintsStore} = useStores()
   
-  // retrieve pr from transaction as it might have been expired and removed from storage
+  // retrieve pr from NOT COMPLETED transaction as it might have been expired and removed from storage
   const paymentRequest = getPaymentRequestToRetry(transaction)
   const isInternetReachable = useIsInternetReachable()  
   

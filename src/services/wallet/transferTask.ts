@@ -195,7 +195,7 @@ export const transferTask = async function (
             {
                 counter: lockedProofsCounter.inFlightFrom as number
             }
-        )    
+        )   
 
         lockedProofsCounter.decreaseProofsCounter(countOfInFlightProofs)
         
@@ -322,16 +322,6 @@ export const transferTask = async function (
                 const walletInstance = await walletStore.getWallet(mintUrl, unit, {withSeed: true})
                 const refreshedMeltQuote = await walletInstance.checkMeltQuote(meltQuote.quote)
                 
-                /* await WalletTask.syncStateWithMintSync(                   
-                    {
-                        proofsToSync: proofsToMeltFrom,
-                        mintUrl,
-                        isPending: true
-                    }
-                )              
-                
-                const refreshedTransaction = transactionsStore.findById(transaction.id)*/ 
-
                 if(refreshedMeltQuote.state = MeltQuoteState.PENDING) {
                     log.warn('[transfer]', 'proofsToMeltFrom from transfer with error are pending by mint', {
                         proofsToMeltFromAmount, 
@@ -368,11 +358,23 @@ export const transferTask = async function (
                         nwcEvent
                     } as TransactionTaskResult
                 } else {
-                    // if melt quote is not paid return proofs from pending to spendable balance
+                    // if melt quote is UNPAID return proofs from pending to spendable balance
                     proofsStore.removeProofs(proofsToMeltFrom, true, true)
                     proofsStore.addProofs(proofsToMeltFrom)
                     returnMessage = "Ecash reserved for this payment was returned to spendable balance."
                     log.error('[transfer]', {returnMessage, proofsToMeltFromAmount})
+
+                    if(e.message.includes('Token already spent')) {
+                        // clean whole spendable balance from spent so that user can retry
+                        const proofsToClean = proofsStore.getByMint(mintUrl, {isPending: false, unit})
+                        await WalletTask.syncStateWithMintSync(                   
+                            {
+                                proofsToSync: proofsToClean,
+                                mintUrl,
+                                isPending: true
+                            }
+                        )    
+                    }
                 }
             }
 
