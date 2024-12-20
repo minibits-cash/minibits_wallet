@@ -312,7 +312,7 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
                 ListFooterComponent={
                     <>
                     {sections.length > 0 && (
-                        <View style={{alignItems: 'center', marginTop: spacing.small}}>
+                        <View style={{alignItems: 'center', marginVertical: spacing.small}}>
                             {!showPendingOnly && isAll || showPendingOnly && pendingIsAll ? (
                                 <Text tx="tranHistory.listIsComplete" size="xs" />
                             ) : (
