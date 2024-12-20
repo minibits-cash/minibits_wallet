@@ -1080,7 +1080,7 @@ const _handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTas
     } catch (e: any) {
         // silent
         log.error('[_handleInFlightByMintTask]', e.name, {message: e.message, mintUrl})
-        // make sure we release the lock
+        // make sure we release the lock // maybe we should keep inflight in case of error to retry next time?
         proofsCounter.resetInFlight(transactionId)
 
         return {

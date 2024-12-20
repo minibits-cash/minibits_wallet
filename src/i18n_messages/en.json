@@ -251,6 +251,7 @@
 		"isPending": "Payment is pending",
 		"maximumPay": "Maximum amount to pay is %{amount} %{currency}.",
 		"minimumWithdraw": "Minimal withdraw amount is %{amount} %{currency}.",
+		"minimumPay": "Minimal payment amount is %{amount} %{currency}.",
 		"pay": "Pay",
 		"payFrom": "Pay from",
 		"payFromWallet": "Pay from wallet",

@@ -465,10 +465,13 @@ export const sendFromMintSync = async function (
         
         // try to clean spent proofs if that was the swap error cause
         if (e.params && e.params.message && e.params.message.includes('Token already spent')) {
+
+            log.error('[sendFromMintSync] Going to clean spent proofs from pending', {transactionId})
+
             await WalletTask.syncStateWithMintSync({
                     proofsToSync: proofsStore.getByMint(mintUrl, {isPending: true}),
                     mintUrl,
-                    isPending: false
+                    isPending: true
             })
         }
 

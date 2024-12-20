@@ -507,7 +507,7 @@ const onRequestLnurlInvoice = async function () {
     }   
 
     if (lnurlPayParams.minSendable && amountSats < lnurlPayParams.minSendable / 1000) {
-      setInfo(translate('payCommon.minimumWithdraw', { 
+      setInfo(translate('payCommon.minimumPay', { 
         amount: roundUp(lnurlPayParams.minSendable / 1000, 0), 
         currency: CurrencyCode.SAT 
       }))        

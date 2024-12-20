@@ -306,36 +306,48 @@ export const transferTask = async function (
         }
 
     } catch (e: any) {
-        let message = e.message
-        let returnMessage = ''
+        let message = e.message        
+        let taskResult: TransactionTaskResult =  {
+            taskFunction: TRANSFER,
+            mintUrl,
+            transaction,
+            message,
+            nwcEvent
+        } as TransactionTaskResult
 
         if (transaction) { 
             // release lock  
             if(lockedProofsCounter) {
                 lockedProofsCounter.resetInFlight(transaction.id)
             }
-            
 
-            
             if (proofsToMeltFrom.length > 0) {
                
                 const walletInstance = await walletStore.getWallet(mintUrl, unit, {withSeed: true})
                 const refreshedMeltQuote = await walletInstance.checkMeltQuote(meltQuote.quote)
+                taskResult.meltQuote = refreshedMeltQuote                
                 
-                if(refreshedMeltQuote.state = MeltQuoteState.PENDING) {
-                    log.warn('[transfer]', 'proofsToMeltFrom from transfer with error are pending by mint', {
-                        proofsToMeltFromAmount, 
-                        unit,
-                        transactionId: transaction.id
-                    })
+                if(refreshedMeltQuote.state === MeltQuoteState.PAID) {
 
-                    message = 'Lightning payment did not complete in time. Your ecash will remain pending until the payment completes or fails.'
-                    // needs to be returned as error so we do not return
+                    message = `Lightning invoice has been successfully paid, however some error occured: ${e.message}`
 
-                } else if(refreshedMeltQuote.state === MeltQuoteState.PAID) {
-                    log.error('[transfer]', 'Transfer throwed error but the payment suceeded', {
+                    log.error('[transfer]', message, {
                         error: e.message,
                         refreshedMeltQuote, 
+                        unit,
+                        transactionId: transaction.id
+                    })                    
+                    
+                    taskResult.preimage =  refreshedMeltQuote.payment_preimage
+                    taskResult.message = message
+                        
+                } else if(refreshedMeltQuote.state = MeltQuoteState.PENDING) {
+
+                    message = 'Lightning payment did not complete in time. Your ecash will remain pending until the payment completes or fails.'
+                    taskResult.message = message
+
+                    log.error('[transfer]', message, {
+                        error: `${e.message}: ${e.params.message}`,                       
                         unit,
                         transactionId: transaction.id
                     })
@@ -344,38 +356,36 @@ export const transferTask = async function (
                         proofsToSync: proofsStore.getByMint(mintUrl, {isPending: true}),
                         mintUrl,
                         isPending: true
-                    })
+                    })                   
 
-                    message = `Lightning invoice has been successfully paid, however some error occured: ${e.message}`
-                    
-                    return {
-                        taskFunction: TRANSFER,
-                        mintUrl,
-                        transaction,
-                        message,
-                        meltQuote: refreshedMeltQuote,
-                        preimage: refreshedMeltQuote.payment_preimage,
-                        nwcEvent
-                    } as TransactionTaskResult
                 } else {
-                    // if melt quote is UNPAID return proofs from pending to spendable balance
-                    proofsStore.removeProofs(proofsToMeltFrom, true, true)
-                    proofsStore.addProofs(proofsToMeltFrom)
-                    returnMessage = "Ecash reserved for this payment was returned to spendable balance."
-                    log.error('[transfer]', {returnMessage, proofsToMeltFromAmount})
+                    if (e.params && e.params.message && e.params.message.includes('Token already spent')) {
 
-                    if(e.message.includes('Token already spent')) {
-                        // clean whole spendable balance from spent so that user can retry
-                        const proofsToClean = proofsStore.getByMint(mintUrl, {isPending: false, unit})
-                        await WalletTask.syncStateWithMintSync(                   
-                            {
-                                proofsToSync: proofsToClean,
-                                mintUrl,
-                                isPending: true
-                            }
-                        )    
+                        message = 'Token already spent, going to sync wallet pending proofs'
+                        taskResult.message = message
+
+                        log.error('[transfer]', message, {
+                            transactionId: transaction.id
+                        })                        
+                    } else {
+                        // if melt quote is UNPAID return proofs from pending to spendable balance
+                        proofsStore.removeProofs(proofsToMeltFrom, true, true)
+                        proofsStore.addProofs(proofsToMeltFrom)
+
+                        message = "Ecash reserved for this payment was returned to spendable balance."
+
+                        log.error('[transfer]', message, {
+                            proofsToMeltFromAmount, 
+                            transactionId: transaction.id
+                        })
                     }
                 }
+
+                await WalletTask.syncStateWithMintSync({
+                    proofsToSync: proofsStore.getByMint(mintUrl, {isPending: true}),
+                    mintUrl,
+                    isPending: true
+                })
             }
 
             transactionData.push({
@@ -390,16 +400,6 @@ export const transferTask = async function (
             )
         }
 
-        log.error('[transfer]', e.name, e.message, e.params)
-
-        return {
-            taskFunction: TRANSFER,
-            mintUrl,
-            transaction,
-            message,
-            error: WalletUtils.formatError(e),
-            meltQuote,
-            nwcEvent
-        } as TransactionTaskResult
+        return taskResult
   }
 }
