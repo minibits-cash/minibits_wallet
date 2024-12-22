@@ -134,6 +134,7 @@ export const transferTask = async function (
             proofsToMeltFromAmount = CashuUtils.getProofsAmount(proofsToMeltFrom)
         }
 
+        // move proofs to PENDING state
         proofsStore.removeProofs(proofsToMeltFrom)
         WalletUtils.addCashuProofs(
             mintUrl, 
@@ -341,7 +342,7 @@ export const transferTask = async function (
                     taskResult.preimage =  refreshedMeltQuote.payment_preimage
                     taskResult.message = message
                         
-                } else if(refreshedMeltQuote.state = MeltQuoteState.PENDING) {
+                } else if(refreshedMeltQuote.state === MeltQuoteState.PENDING) {
 
                     message = 'Lightning payment did not complete in time. Your ecash will remain pending until the payment completes or fails.'
                     taskResult.message = message
@@ -353,7 +354,7 @@ export const transferTask = async function (
                     })
 
                     await WalletTask.syncStateWithMintSync({
-                        proofsToSync: proofsStore.getByMint(mintUrl, {isPending: true}),
+                        proofsToSync: proofsStore.getByMint(mintUrl, {isPending: true, unit}),
                         mintUrl,
                         isPending: true
                     })                   
@@ -382,7 +383,7 @@ export const transferTask = async function (
                 }
 
                 await WalletTask.syncStateWithMintSync({
-                    proofsToSync: proofsStore.getByMint(mintUrl, {isPending: true}),
+                    proofsToSync: proofsStore.getByMint(mintUrl, {isPending: true, unit}),
                     mintUrl,
                     isPending: true
                 })

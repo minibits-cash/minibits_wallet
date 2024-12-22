@@ -469,7 +469,7 @@ export const sendFromMintSync = async function (
             log.error('[sendFromMintSync] Going to clean spent proofs from pending', {transactionId})
 
             await WalletTask.syncStateWithMintSync({
-                    proofsToSync: proofsStore.getByMint(mintUrl, {isPending: true}),
+                    proofsToSync: proofsStore.getByMint(mintUrl, {isPending: true, unit}),
                     mintUrl,
                     isPending: true
             })
