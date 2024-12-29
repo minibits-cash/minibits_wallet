@@ -326,16 +326,21 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
           // align walletId in userSettings with recovered profile
           userSettingsStore.setWalletId(walletProfileStore.walletId)
           userSettingsStore.setIsOnboarded(true)
-          
-          setStatusMessage(translate('recovery.completed'))
-          await delay(1000)
-          setStatusMessage('')
-          setIsLoading(false)
 
           if(isAddressOnlyRecovery) {
             // go back to Settings
+            setStatusMessage('Please do not forget to backup current wallet seed!')
+            await delay(2000)
+            setStatusMessage(translate('recovery.completed'))
+            await delay(1000)
+            setStatusMessage('')
+            setIsLoading(false)
             navigation.goBack()       
           } else {
+            setStatusMessage(translate('recovery.completed'))
+            await delay(1000)
+            setStatusMessage('')
+            setIsLoading(false)
             navigation.navigate('Tabs', {screen: 'WalletNavigator', params: {screen: 'Wallet', params: {}}})
           }          
       } catch (e: any) {
