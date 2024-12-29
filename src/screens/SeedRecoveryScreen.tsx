@@ -490,13 +490,11 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
                 setStatusMessage(translate("recovery.foundAddrParam", { addr: profileToRecover.nip05 }))
 
                 if(profileToRecover.nip05.includes(MINIBITS_NIP05_DOMAIN)) {                                    
-                    const {publicKey: newPublicKey} = await NostrClient.getOrCreateKeyPair()
-                    // Updates pubkey and imports wallet profile
-                    await walletProfileStore.recover(seedHash as string, newPublicKey)
+                    const {publicKey: currentPubkey} = await NostrClient.getOrCreateKeyPair()
+                    // Updates profile with seedHash with currentPubkey
+                    await walletProfileStore.recover(seedHash as string, currentPubkey, false)
                     // Align walletId in userSettings with recovered profile
-                    userSettingsStore.setWalletId(walletProfileStore.walletId)                    
-                    
-                    
+                    userSettingsStore.setWalletId(walletProfileStore.walletId)
                 } else {
                   setInfo(translate("recovery.ownKeysImportAgain", { addr: profileToRecover.nip05 }))
                   await delay(4000)

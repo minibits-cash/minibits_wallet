@@ -353,12 +353,6 @@ export const transferTask = async function (
                         transactionId: transaction.id
                     })
 
-                    await WalletTask.syncStateWithMintSync({
-                        proofsToSync: proofsStore.getByMint(mintUrl, {isPending: true, unit}),
-                        mintUrl,
-                        isPending: true
-                    })                   
-
                 } else {
                     if (e.params && e.params.message && e.params.message.includes('Token already spent')) {
 

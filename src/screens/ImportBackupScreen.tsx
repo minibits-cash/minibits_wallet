@@ -127,7 +127,7 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
             const start = performance.now()
             const binarySeed = deriveSeedFromMnemonic(mnemonic) // expensive
             const end = performance.now()
-            console.log(`[onConfirm] deriveSeedFromMnemonic took ${end - start} ms.`)
+            log.debug(`[onConfirm] deriveSeedFromMnemonic took ${end - start} ms.`)
     
             setSeed(binarySeed)
             setIsValidMnemonic(true)            
@@ -305,16 +305,26 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
           .update(seed)
           .digest('hex')
 
-          // get nostr key from current on device profile (if we recover to existing wallet in Settings) or create new one (if we recover to new install)
-          const {publicKey: newPublicKey} = await NostrClient.getOrCreateKeyPair()
-          
-          // delete orphaned server profile then update server profile with seedHash with pubkey + update on device wallet name and address
-          await walletProfileStore.recover(seedHash as string, newPublicKey)
+          // get nostr key from current on device profile (if we recover to existing wallet from Settings) 
+          // or create a new one (if we import the wallet from backup after new install or factory reset)
+          const {publicKey: currentPubkey} = await NostrClient.getOrCreateKeyPair()
+
+          if(isAddressOnlyRecovery) {
+            // in case of wallet address only recovery we have existing profile linked to currentPubkey
+            // on server. Then we migrate wallet address linked to seed to that profile.
+            // we keep current wallet seed.
+            await walletProfileStore.recover(seedHash as string, currentPubkey, true)
+          } else {
+            // In case of recovery from backup we have new nostr keys and we link the new pubkey to the profile
+            // with provided seedHash
+            await walletProfileStore.recover(seedHash as string, currentPubkey, false)
+            // we set the wallet seed to the provided one
+            await KeyChain.saveMnemonic(mnemonic)
+            await KeyChain.saveSeed(seed as Uint8Array)
+          }
 
           // align walletId in userSettings with recovered profile
-          userSettingsStore.setWalletId(walletProfileStore.walletId)            
-          await KeyChain.saveMnemonic(mnemonic)
-          await KeyChain.saveSeed(seed as Uint8Array)
+          userSettingsStore.setWalletId(walletProfileStore.walletId)
           userSettingsStore.setIsOnboarded(true)
           
           setStatusMessage(translate('recovery.completed'))

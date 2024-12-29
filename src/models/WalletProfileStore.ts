@@ -238,17 +238,19 @@ export const WalletProfileStoreModel = types
             log.info('[updateNip05]', 'Wallet nip05 updated in the WalletProfileStore', {self})
             return self         
         }),
-        recover: flow(function* recover(seedHash: string, newPubkey: string) {
+        recover: flow(function* recover(seedHash: string, currentPubkey: string, isAddressOnly: boolean) {
 
             let profileRecord: WalletProfileRecord = yield MinibitsClient.recoverProfile(
                 seedHash, 
                 { 
-                    newPubkey
+                    currentPubkey
                 }
             )           
             
-            self.pubkey = newPubkey
-            self.seedHash = seedHash
+            self.pubkey = currentPubkey
+            if(!isAddressOnly) {
+                self.seedHash = seedHash
+            }            
             self.walletId = profileRecord.walletId
             self.nip05 = profileRecord.nip05
             self.lud16 = profileRecord.lud16

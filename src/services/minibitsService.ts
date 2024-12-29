@@ -7,9 +7,6 @@ import {
 } from '@env'
 import { WalletProfile, WalletProfileRecord } from "../models/WalletProfileStore"
 import { CurrencyCode } from "./wallet/currency"
-import { ProofV3, TokenV3 } from "./cashu/cashuUtils"
-import { NostrEvent } from "./nostrService"
-import { MeltQuoteResponse, MeltQuoteState } from "@cashu/cashu-ts"
 
 
 type MinibitsRequestArgs = {
@@ -124,13 +121,13 @@ const updateDeviceToken = async function (pubkey: string, update: {deviceToken: 
 }
 
 
-const recoverProfile = async function (seedHash: string, update: {newPubkey: string}) {    
+const recoverProfile = async function (seedHash: string, update: {currentPubkey: string}) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'PUT'    
-    const { newPubkey } = update
+    const { currentPubkey } = update
     
     const body = {            
-        newPubkey,        
+        currentPubkey,        
     }        
 
     const walletProfile: WalletProfile = await fetchApi(url + `/recover/seedHash/${seedHash}`, {
@@ -138,10 +135,11 @@ const recoverProfile = async function (seedHash: string, update: {newPubkey: str
         body,
     })
 
-    log.info('[recoverProfile]', `Recovered wallet profile with seedHash`, seedHash)
+    log.info('[recoverProfile]', `Recovered wallet address`, {seedHash, currentPubkey})
 
     return walletProfile
 }
+
 
 // Serves for migration from pre-seed wallet version
 const migrateSeedHash = async function (pubkey: string, update: {seedHash: string}) {    
@@ -258,29 +256,6 @@ const checkDonationPaid = async function (paymentHash: string, pubkey: string) {
 }
 
 
-const payNwcTransfer = async function (encodedInvoice: string, tokenToPayFrom: TokenV3) {    
-    const url = MINIBITS_SERVER_API_HOST + '/payment/payInvoice' 
-    const method = 'POST'    
-    
-    const body = {
-        encodedInvoice,
-        tokenToPayFrom,           
-    }        
-
-    const response: {        
-        meltQuote: MeltQuoteResponse,
-        tokenToReturn?: TokenV3
-    } = await fetchApi(url, {
-        method,
-        body
-    })
-
-    log.debug(`[minibitsClient.payNwcTransfer] Got response`, {response})
-
-    return response
-}
-
-
 const createClaim = async function (walletId: string, seedHash: string, pubkey: string, batchFrom?: number) {    
     const url = MINIBITS_SERVER_API_HOST + '/claim' 
     const method = 'POST'    
@@ -387,8 +362,7 @@ export const MinibitsClient = {
     getWalletProfileBySeedHash,
     createDonation,
     checkDonationPaid,
-    createClaim,
-    payNwcTransfer,
+    createClaim,    
     getExchangeRate,
     getPublicHeaders,
     fetchApi,
