@@ -1,7 +1,7 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useRef, useState} from 'react'
 import {Image, LayoutAnimation, Platform, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
-import {getPublicKey} from 'nostr-tools'
+import {getPublicKey} from 'nostr-tools/pure'
 import { hexToBytes } from '@noble/hashes/utils'
 import {colors, spacing, typography, useThemeColor} from '../theme'
 import {ContactsStackScreenProps} from '../navigation'

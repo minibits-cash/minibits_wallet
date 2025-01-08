@@ -5,6 +5,7 @@ import {validateMnemonic} from '@scure/bip39'
 import { btoa, atob } from 'react-native-quick-base64'
 import QuickCrypto from 'react-native-quick-crypto'
 import { wordlist } from '@scure/bip39/wordlists/english'
+import { mnemonicToSeedSync } from '@scure/bip39'
 import {colors, spacing, typography, useThemeColor} from '../theme'
 import {AppStackScreenProps, goBack} from '../navigation' // @demo remove-current-line
 import {
@@ -27,7 +28,6 @@ import { rootStoreInstance, useStores } from '../models'
 import {MnemonicInput} from './Recovery/MnemonicInput'
 import { TransactionStatus } from '../models/Transaction'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
-import {deriveSeedFromMnemonic} from '@cashu/crypto/modules/client/NUT09'
 import { MINIBITS_MINT_URL, MINIBITS_NIP05_DOMAIN } from '@env'
 import { delay } from '../utils/utils'
 import { applySnapshot} from 'mobx-state-tree'
@@ -125,9 +125,9 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
             }          
 
             const start = performance.now()
-            const binarySeed = deriveSeedFromMnemonic(mnemonic) // expensive
+            const binarySeed = mnemonicToSeedSync(mnemonic) // expensive
             const end = performance.now()
-            log.debug(`[onConfirm] deriveSeedFromMnemonic took ${end - start} ms.`)
+            log.debug(`[onConfirm] mnemonicToSeedSync took ${end - start} ms.`)
     
             setSeed(binarySeed)
             setIsValidMnemonic(true)            
@@ -312,7 +312,7 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
           if(isAddressOnlyRecovery) {
             // in case of wallet address only recovery we have existing profile linked to currentPubkey
             // on server. Then we migrate wallet address linked to seed to that profile.
-            // we keep current wallet seed.
+            // we keep current wallet seed, not rotating to the provided one.
             await walletProfileStore.recover(seedHash as string, currentPubkey, true)
           } else {
             // In case of recovery from backup we have new nostr keys and we link the new pubkey to the profile
@@ -341,6 +341,7 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
             await delay(1000)
             setStatusMessage('')
             setIsLoading(false)
+            // go directly to the wallet (profile hase been rehydrated from the one with the seed)
             navigation.navigate('Tabs', {screen: 'WalletNavigator', params: {screen: 'Wallet', params: {}}})
           }          
       } catch (e: any) {

@@ -1,6 +1,6 @@
 {
   "name": "minibits_wallet",
-  "version": "0.1.10-beta.16",
+  "version": "0.1.10-beta.17",
   "private": true,
   "scripts": {
     "android:clean": "cd android && ./gradlew clean",
@@ -18,7 +18,7 @@
     "adb:inspect": "adb shell input keyevent 82",
     "postinstall": "patch-package --exclude 'nothing'"
   },
-  "dependencies": {
+  "dependencies": {    
     "@cashu/cashu-ts": "minibits-cash/cashu-ts#2b51a7ba7a8461a0040359eecda37b98b603692c",
     "@fortawesome/fontawesome-svg-core": "^6.6.0",
     "@fortawesome/free-brands-svg-icons": "^6.6.0",
@@ -47,7 +47,7 @@
     "mobx": "^6.13.2",
     "mobx-react-lite": "^4.0.7",
     "mobx-state-tree": "^6.0.1",
-    "nostr-tools": "2.9.4",
+    "nostr-tools": "minibits-cash/nostr-tools#2991f59d0150a0cb2c71e2f9a4cb6c8aca3b19d7",
     "numbro": "^2.5.0",
     "patch-package": "^8.0.0",
     "postinstall-postinstall": "^2.1.0",
@@ -80,8 +80,9 @@
     "text-encoding-polyfill": "^0.6.7",
     "util": "^0.12.5"
   },
-  "devDependencies": {
+  "devDependencies": {    
     "@babel/core": "^7.20.0",
+    "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
     "@babel/preset-env": "^7.20.0",
     "@babel/runtime": "^7.20.0",
     "@react-native/babel-preset": "0.75.3",

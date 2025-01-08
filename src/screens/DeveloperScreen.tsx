@@ -346,6 +346,7 @@ Sentry id: ${userSettingsStore.userSettings.walletId}
                   RightComponent={<View style={$rightContainer} />}
                   style={$item}                  
                   onPress={deletePending}
+                  topSeparator
                 />
                 <ListItem
                   tx="developerScreen.reset"

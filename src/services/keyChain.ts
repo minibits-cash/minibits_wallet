@@ -1,9 +1,10 @@
 import * as _Keychain from 'react-native-keychain'
 import AppError, {Err} from '../utils/AppError'
 import QuickCrypto from 'react-native-quick-crypto'
-import { generateNewMnemonic } from '@cashu/cashu-ts'
+import { generateMnemonic as generateNewMnemonic, mnemonicToSeedSync } from "@scure/bip39"
+import { wordlist } from "@scure/bip39/wordlists/english"
 import { bytesToHex } from '@noble/hashes/utils'
-import { generateSecretKey, getPublicKey } from 'nostr-tools'
+import { generateSecretKey, getPublicKey } from 'nostr-tools/pure'
 import {btoa, fromByteArray} from 'react-native-quick-base64'
 import {log} from './logService'
 
@@ -37,11 +38,11 @@ const generateMnemonic = function () {
     try {
         log.trace('[generateMnemonic]', 'start')
 
-        const mnemonic = generateNewMnemonic()
+        const mnemonic = generateNewMnemonic(wordlist)
 
-        log.trace('[generateMnemonic]', 'New mnemonic created:', mnemonic)
+        log.trace('[generateMnemonic]', 'New mnemonic created:', {mnemonic})
 
-        return mnemonic as string
+        return mnemonic
     } catch (e: any) {
       throw new AppError(Err.KEYCHAIN_ERROR, e.message, e)
     }

@@ -24,7 +24,7 @@ import {
   ImageStyle,
   Image,
 } from 'react-native'
-import { kinds as NostrKinds } from 'nostr-tools'
+import { kinds } from 'nostr-tools'
 import {spacing, typography, useThemeColor, colors} from '../theme'
 import {WalletStackScreenProps} from '../navigation'
 import {
@@ -512,15 +512,16 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             const message = `nostr:${walletProfileStore.npub} sent you ${amountToSend} ${getCurrency(unit).code} from Minibits wallet!`
             const content = message + ' \n' + encodedTokenToSend
 
-            const encryptedContent = await NostrClient.encryptNip04(                
+            const sentEvent = await NostrClient.encryptAndSendDirectMessageNip17(                
                 receiverPubkey as string, 
-                content as string
+                content as string,
+                relaysToShareTo
             )
             
             // log.trace('Relays', relaysToShareTo)          
 
-            const dmEvent: NostrUnsignedEvent = {
-                kind: NostrKinds.EncryptedDirectMessage,
+            /* const dmEvent: NostrUnsignedEvent = {
+                kind: kinds.EncryptedDirectMessage,
                 pubkey: senderPubkey,
                 tags: [['p', receiverPubkey as string], ['from', walletProfileStore.nip05]],
                 content: encryptedContent,
@@ -530,7 +531,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
             const sentEvent: NostrEvent | undefined = await NostrClient.publish(
                 dmEvent,
                 relaysToShareTo,                     
-            )
+            )*/
             
             setIsNostrDMSending(false)
 

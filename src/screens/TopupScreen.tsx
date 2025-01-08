@@ -14,7 +14,7 @@ import {
   Image,
   ImageStyle,
 } from 'react-native'
-import { kinds as NostrKinds } from 'nostr-tools'
+import { kinds } from 'nostr-tools'
 import {spacing, useThemeColor, colors, typography} from '../theme'
 import {WalletStackScreenProps} from '../navigation'
 import {
@@ -507,15 +507,16 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
           content = content + `Memo: ${memo}`
         }
 
-        const encryptedContent = await NostrClient.encryptNip04(
-          receiverPubkey as string,
+        const sentEvent = await NostrClient.encryptAndSendDirectMessageNip17(                
+          receiverPubkey as string, 
           content as string,
+          relaysToShareTo
         )
 
         // log.trace('Relays', relaysToShareTo)
 
-        const dmEvent: NostrUnsignedEvent = {
-          kind: NostrKinds.EncryptedDirectMessage,
+        /* const dmEvent: NostrUnsignedEvent = {
+          kind: kinds.EncryptedDirectMessage,
           pubkey: senderPubkey,
           tags: [
             ['p', receiverPubkey as string],
@@ -528,7 +529,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         const sentEvent: NostrEvent | undefined = await NostrClient.publish(
           dmEvent,
           relaysToShareTo,
-        )
+        ) */
 
         setIsNostrDMSending(false)
 

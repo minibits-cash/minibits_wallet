@@ -1,5 +1,5 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useState, useEffect, useCallback, useRef} from 'react'
+import React, {FC, useState, useEffect, useCallback, useRef, ReactElement} from 'react'
 import {useFocusEffect} from '@react-navigation/native'
 import {
   TextStyle,
@@ -34,11 +34,12 @@ import {
   ScanIcon,
   MintIcon
 } from '../components'
+import EventEmitter from '../utils/eventEmitter'
 import {useStores} from '../models'
 import {WalletStackScreenProps} from '../navigation'
 import {Mint, UnitBalance} from '../models/Mint'
 import {MintsByUnit} from '../models/MintsStore'
-import {log, NostrClient} from '../services'
+import {log, NostrClient, WalletTaskResult} from '../services'
 import {Env} from '../utils/envtypes'
 import {Transaction} from '../models/Transaction'
 import {TransactionListItem} from './Transactions/TransactionListItem'
@@ -61,6 +62,7 @@ import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import { LeftProfileHeader } from './ContactsScreen'
 import { NavigationState, Route, TabBar, TabView } from 'react-native-tab-view'
 import { getUnixTime } from 'date-fns/getUnixTime'
+import { delay } from '../utils/utils'
 
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
 const PENDING_CHECK_INTERVAL = 30
@@ -70,8 +72,7 @@ interface WalletScreenProps extends WalletStackScreenProps<'Wallet'> {}
 
 export const WalletScreen: FC<WalletScreenProps> = observer(
   function WalletScreen({route, navigation}) {    
-    const {
-        relaysStore,
+    const {        
         mintsStore, 
         proofsStore, 
         transactionsStore, 
@@ -102,13 +103,13 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const [defaultMintUrl, setDefaultMintUrl] = useState<string>(MINIBITS_MINT_URL)
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState<boolean>(false)
-    // const [lastClaimCheck, setLastClaimCheck] = useState<number>(0)
-    // const [lastPendingCheck, setLastPendingCheck] = useState<number>(0)
     const [isMintsModalVisible, setIsMintsModalVisible] = useState<boolean>(false)
     const [isUpdateAvailable, setIsUpdateAvailable] = useState<boolean>(false)
     const [isUpdateModalVisible, setIsUpdateModalVisible] = useState<boolean>(false)
     const [isSendModalVisible, setIsSendModalVisible] = useState<boolean>(false)
     const [isReceiveModalVisible, setIsReceiveModalVisible] = useState<boolean>(false)
+    const [headerTitle, setHeaderTitle] = useState<string>('')
+    const [headerStyle, setHeaderStyle] = useState<'success' | 'warning' | 'error'>('success')
     const [updateDescription, setUpdateDescription] = useState<string>('')
     const [updateSize, setUpdateSize] = useState<string>('')
     const [isNativeUpdateAvailable, setIsNativeUpdateAvailable] = useState<boolean>(false)
@@ -188,11 +189,50 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             const isRemoteDataPushEnabled = walletProfileStore.device ? true : false
             if(!isRemoteDataPushEnabled) {nwcStore.receiveNwcEvents()} 
         }
+
+        const handleReceivedEventTaskResult  = async (result: WalletTaskResult) => {
+            log.trace('[handleReceivedEventTaskResult]')
+            if(result.error) {
+                setHeaderTitle(result.message.slice(0, 20))
+                setHeaderStyle('error')
+                await delay(3000)
+                setHeaderTitle('')
+            } else {
+                setHeaderTitle('Relays connected')
+                setHeaderStyle('success')
+                await delay(3000)
+                setHeaderTitle('')
+            }        
+        }
+
+        const handleClaimTaskResult  = async (result: WalletTaskResult) => {
+            log.trace('[handleClaimTaskResult]')
+            if(result.error) {
+                setHeaderTitle(result.message.slice(0, 20))
+                setHeaderStyle('error')
+                await delay(3000)
+                setHeaderTitle('')
+            } else {
+                setHeaderTitle('Claim completed')
+                setHeaderStyle('success')
+                await delay(3000)
+                setHeaderTitle('')
+            }
+        }
         
         Linking.addEventListener('url', handleDeeplink)
+        EventEmitter.on('ev__handleReceivedEventTask_result', handleReceivedEventTaskResult)
+        EventEmitter.on('ev__handleClaimTask_result', handleClaimTaskResult)
+        
+
         getInitialData()
 
-        return () => {}
+        // Unsubscribe from the task result event on component unmount
+        return () => {
+            EventEmitter.off('ev__handleReceivedEventTask_result', handleReceivedEventTaskResult)
+            EventEmitter.off('ev__handleClaimTask_result', handleClaimTaskResult)        
+        }
+        
     }, [])
 
 
@@ -263,7 +303,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
         if (nowInSec - lastClaimCheckRef.current > CLAIM_CHECK_INTERVAL) {
             lastClaimCheckRef.current = nowInSec
-            WalletTask.handleClaim().catch(e => false)
+            WalletTask.handleClaim().catch(e => handleError(e))
 
             if (userSettingsStore.exchangeCurrency) {
                 walletStore.refreshExchangeRate(userSettingsStore.exchangeCurrency)
@@ -506,17 +546,6 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const tabWidth = moderateScale(75)
 
     const getActiveTabColor = (state: NavigationState<Route>) => {
-        /* if(state && state.routes.length > 0) {
-            switch (state.routes[tabIndex].key) {
-                case 'usd':
-                    return useThemeColor('usd')              
-                case 'eur':
-                    return useThemeColor('eur')                 
-                default:
-                    return useThemeColor('btc') 
-            }
-        }*/
-
         return useThemeColor('headerTitle')
     }
 
@@ -541,6 +570,39 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             </View>
         )
     }
+
+
+    const HeaderTitle = function (props: any) {
+        if (!isInternetReachable) {
+            return (
+                <Text
+                    tx="common.offline"
+                    style={$warning}
+                    size="xxs"
+                />
+            )
+        }
+    
+        if (headerTitle.length > 0) {
+            const styleMap: Record<string, any> = {
+                error: $error,
+                success: $success,
+                warning: $warning,
+            }
+    
+            const style = styleMap[headerStyle] || undefined
+    
+            return (
+                <Text
+                    text={headerTitle}
+                    style={[style, $headerTitle]}
+                    size="xxs"
+                />
+            )
+        }
+    
+        return undefined
+    }
     
     const headerBg = useThemeColor('header')    
     const balances = proofsStore.getBalances()
@@ -548,7 +610,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const mainButtonIcon = useThemeColor('mainButtonIcon')
     const mainButtonColor = useThemeColor('card')
     const label = useThemeColor('textDim')
-    const headerTitle = useThemeColor('headerTitle')
+    const headerTitleColor = useThemeColor('headerTitle')
 
     const isNwcVisible = nwcStore.all.some(c => c.remainingDailyLimit !== c.dailyLimit)
     const nwcCardsData = nwcStore.all.filter(c => c.remainingDailyLimit !== c.dailyLimit)
@@ -560,14 +622,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                     gotoProfile={gotoProfile}
                     isAvatarVisible={false}
                 />}                
-                TitleActionComponent={!isInternetReachable ? (
-                        <Text   
-                            tx={'common.offline'}
-                            style={$offline}
-                            size='xxs'                          
-                        />
-                    ) : ( undefined  )
-                }               
+                TitleActionComponent={headerTitle.length > 0 ? <HeaderTitle /> : undefined}               
                 RightActionComponent={
                 <>
                     {paymentRequestsStore.countNotExpired > 0 && (
@@ -575,8 +630,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                             style={{flexDirection: 'row', alignItems:'center', marginRight: spacing.medium}}
                             onPress={() => gotoPaymentRequests()}
                         >
-                            <Icon icon='faPaperPlane' color={headerTitle}/>
-                            <Text text={`${paymentRequestsStore.countNotExpired}`} style={{color: headerTitle}} />
+                            <Icon icon='faPaperPlane' color={headerTitleColor}/>
+                            <Text text={`${paymentRequestsStore.countNotExpired}`} style={{color: headerTitleColor}} />
                         </Pressable>
                     )}
                 </>
@@ -806,25 +861,6 @@ const UnitBalanceBlock = observer(function (props: {
         </>
     )
 })
-
-
-const ZeroBalanceBlock = function () {
-    const headerBg = useThemeColor('header')
-    const balanceColor = 'white'
-    const currencyColor = colors.palette.primary200
-    
-
-    return (
-        <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-            <Text                
-                preset='heading'              
-                style={[$unitBalance, {color: balanceColor}]}            
-                text={'0'}
-            />
-        </View>
-    )
-}
-
 
 
 const MintsByUnitSummary = observer(function (props: {
@@ -1138,12 +1174,23 @@ const $bottomModal: ViewStyle = {
 }
 
 
-const $offline: TextStyle = {
+const $headerTitle: TextStyle = {
     paddingHorizontal: spacing.small,
     borderRadius: spacing.tiny,
     alignSelf: 'center',
     marginVertical: spacing.small,
-    lineHeight: spacing.medium,    
-    backgroundColor: colors.palette.orange400,
+    lineHeight: spacing.medium,
     color: 'white'
+}
+
+const $warning: TextStyle = {
+    backgroundColor: colors.palette.orange400,
+}
+
+const $error: TextStyle = {
+    backgroundColor: colors.palette.angry300,
+}
+
+const $success: TextStyle = {
+    backgroundColor: colors.palette.success200,
 }

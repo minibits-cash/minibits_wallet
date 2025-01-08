@@ -1,6 +1,6 @@
 import {isBefore} from 'date-fns'
 import {getSnapshot} from 'mobx-state-tree'
-import { kinds as NostrKinds } from 'nostr-tools'
+import { kinds } from 'nostr-tools'
 import {log} from './logService'
 import {Proof} from '../models/Proof'
 import {
@@ -12,7 +12,7 @@ import {CashuProof, CashuUtils} from './cashu/cashuUtils'
 import {LightningUtils} from './lightning/lightningUtils'
 import AppError, {Err} from '../utils/AppError'
 import {MintBalance, MintProofsCounter, MintStatus} from '../models/Mint'
-import {CheckStateEnum, MeltQuoteResponse, MintQuoteState, Token, getDecodedToken, getEncodedToken} from '@cashu/cashu-ts'
+import {MeltQuoteResponse, MintQuoteState, Token, getDecodedToken, getEncodedToken} from '@cashu/cashu-ts'
 import {Mint} from '../models/Mint'
 import {pollerExists, stopPolling} from '../utils/poller'
 import { NostrClient, NostrEvent, NostrProfile } from './nostrService'
@@ -31,7 +31,7 @@ import { NotificationService } from './notificationService'
 import { MintUnit, formatCurrency, getCurrency } from './wallet/currency'
 import { MinibitsClient } from './minibitsService'
 import { getKeepAmounts } from '@cashu/cashu-ts/src/utils'
-import { keys } from 'mobx'
+import { KeyChain } from './keyChain'
 
 
 /**
@@ -1396,41 +1396,41 @@ const handleClaim = async function (): Promise<void> {
     
     log.info('[handleClaim] start')
     const {walletId, seedHash, pubkey} = walletProfileStore
-    const {isBatchClaimOn} = userSettingsStore
-    let recoveredWalletId: string | null = null
+    const {isBatchClaimOn} = userSettingsStore    
+    let recoveredSeedHash: string | undefined = undefined    
 
-    if(!seedHash || !pubkey) {
-        throw new AppError(
-            Err.VALIDATION_ERROR, 
-            'Skipping claim of ecash received to your lightning address, missing profile data. Reinstall wallet to fix it.', 
-            {walletId, seedHash, pubkey}
-        )
+    // If we somehow lost walletProfile state, try to recover is from the server using the seedHash stored in KeyChain
+    if(!seedHash) {
+        recoveredSeedHash = await KeyChain.loadSeedHash()
+
+        if(!recoveredSeedHash) {
+            throw new AppError(Err.VALIDATION_ERROR, 'Wallet data were damaged, please reinstall wallet.')
+        }
     }
 
-    if(!walletId) {
-        // fix immediately in case only walletId missing in walletProfile
-        const profile = await MinibitsClient.getWalletProfileBySeedHash(seedHash)
+    if(!walletId || !pubkey) {
+        // recover profile from the server       
+        const profile = await MinibitsClient.getWalletProfileBySeedHash(seedHash || recoveredSeedHash!)
 
         if(profile) {
-            recoveredWalletId = profile.walletId
-            walletProfileStore.setWalletId(recoveredWalletId)
+            walletProfileStore.hydrate(profile)
         }
     }
 
     // Based on user setting, ask for batched token if more then 5 payments are waiting to be claimed
     const claimedTokens = await MinibitsClient.createClaim(
-        walletId || recoveredWalletId as string,
-        seedHash, 
-        pubkey,
+        walletProfileStore.walletId,
+        walletProfileStore.seedHash as string, 
+        walletProfileStore.pubkey,
         isBatchClaimOn ? 5 : undefined
     )
 
     if(claimedTokens.length === 0) {
         log.debug('[handleClaim] No claimed invoices returned from the server...')
         return
-    } else {
-        log.debug(`[handleClaim] Claimed ${claimedTokens.length} tokens from the server...`)
     }
+    
+    log.debug(`[handleClaim] Claimed ${claimedTokens.length} tokens from the server...`)    
 
     for(const claimedToken of claimedTokens) {
         const now = new Date().getTime()
@@ -1534,7 +1534,7 @@ const _sendTopupNotification = async function (pr: PaymentRequest) {
  * Checks with NOSTR relays whether there is ecash to be received or an invoice to be paid.
  */
 const receiveEventsFromRelays = async function (): Promise<void> {
-    log.trace('[receiveEventsFromRelays] start')
+    log.trace('[receiveEventsFromRelays] starting listening for events')
 
     if(!walletProfileStore.pubkey) {
         const message = `No wallet profile created.`            
@@ -1544,12 +1544,15 @@ const receiveEventsFromRelays = async function (): Promise<void> {
     
     try {            
         const { lastPendingReceivedCheck } = contactsStore
+        const TWO_DAYS = 2 * 24 * 60 * 60
 
         const filter = {            
-            kinds: [NostrKinds.EncryptedDirectMessage],
+            kinds: [kinds.GiftWrap],
             "#p": [walletProfileStore.pubkey],
-            since: lastPendingReceivedCheck || 0
-        }
+            since: lastPendingReceivedCheck ?  lastPendingReceivedCheck - TWO_DAYS : 0 
+        } // 2 days variance to the past from real event created_at for dm sent as gift wraps
+
+        log.trace('[receiveEventsFromRelays]', {filter})
 
         contactsStore.setLastPendingReceivedCheck()         
         const pool = NostrClient.getRelayPool()
@@ -1585,8 +1588,9 @@ const receiveEventsFromRelays = async function (): Promise<void> {
                 
                 eventsBatch.push(event)
                 contactsStore.addReceivedEventId(event.id)
+                
                 // move window to receive events to the last event created_at to avoid recive it again
-                contactsStore.setLastPendingReceivedCheck(event.created_at)
+                // contactsStore.setLastPendingReceivedCheck(event.created_at)
 
                 const now = new Date().getTime()
                 SyncQueue.addTask(       
@@ -1617,192 +1621,204 @@ const receiveEventsFromRelays = async function (): Promise<void> {
     }
 }
 
-const _handleReceivedEventTask = async function (event: NostrEvent): Promise<WalletTaskResult> {
-    // decrypt message content
-    const decrypted = await NostrClient.decryptNip04(event.pubkey, event.content)
+const _handleReceivedEventTask = async function (wrappedEvent: NostrEvent): Promise<WalletTaskResult> {    
+    try {
+        const decryptedDirectMessageEvent = await NostrClient.decryptDirectMessageNip17(wrappedEvent)
+        // set REAL direct message created_at as the lastPendingReceivedCheck
+        contactsStore.setLastPendingReceivedCheck(decryptedDirectMessageEvent.created_at)    
 
-    log.trace('[_handleReceivedEventTask]', 'Received event', {id: event.id, created_at: event.created_at})
-    
-    // get sender profile and save it as a contact
-    // this is not valid for events sent from LNURL bridge, that are sent and signed by a minibits server key
-    // and *** do not contain sentFrom *** // LEGACY, replaced by claim api
-    let sentFromPubkey = event.pubkey
-    let sentFrom = NostrClient.getFirstTagValue(event.tags, 'from')
-    let sentFromNpub = NostrClient.getNpubkey(sentFromPubkey)
-    let contactFrom: Contact | undefined = undefined
-    let zapSenderProfile: NostrProfile | undefined = undefined 
-    let sentFromPicture: string | undefined = undefined          
-
-    // add ecash sender to the contacts
-    if(sentFrom) {
-        const sentFromName = NostrClient.getNameFromNip05(sentFrom as string)                                  
+        log.trace('[_handleReceivedEventTask]', 'Received event', {decryptedDirectMessageEvent})
         
-        if(sentFrom.includes(MINIBITS_NIP05_DOMAIN)) {
-            sentFromPicture = MINIBITS_SERVER_API_HOST + '/profile/avatar/' + sentFromPubkey
-        }
+        // get sender profile and save it as a contact
+        // this is not valid for events sent from LNURL bridge, that are sent and signed by a minibits server key
+        // and *** do not contain sentFrom *** // LEGACY, replaced by claim api
+        let sentFromPubkey = decryptedDirectMessageEvent.pubkey
+        let sentFrom = NostrClient.getFirstTagValue(decryptedDirectMessageEvent.tags, 'from')
+        let sentFromNpub = NostrClient.getNpubkey(sentFromPubkey)
+        let contactFrom: Contact | undefined = undefined
+        let zapSenderProfile: NostrProfile | undefined = undefined 
+        let sentFromPicture: string | undefined = undefined          
 
-        // we skip retrieval of external nostr profiles to minimize failures
-        // external contacts will thus miss image and lud16 address...
-                            
-        contactFrom = {                        
-            pubkey: sentFromPubkey,
-            npub: sentFromNpub,
-            nip05: sentFrom,
-            lud16: sentFrom.includes(MINIBITS_NIP05_DOMAIN) ? sentFrom : undefined,
-            name: sentFromName || undefined,
-            picture: sentFromPicture || undefined,
-            isExternalDomain: sentFrom.includes(MINIBITS_NIP05_DOMAIN) ? false : true                        
-        } as Contact
-        
-        contactsStore.addContact(contactFrom)        
-    } else {
-        // Event was sent from Minibits server
-        const maybeZapSenderString = _extractZapSenderData(decrypted)
-
-        if(maybeZapSenderString) {
-            try {
-                zapSenderProfile = JSON.parse(maybeZapSenderString)            
-
-                if(zapSenderProfile) {
-                    sentFromPubkey = zapSenderProfile.pubkey // zap sender pubkey                
-                    sentFrom = zapSenderProfile.nip05 ?? zapSenderProfile.name                
-                    sentFromPicture = zapSenderProfile.picture
-                    const sentFromLud16 = zapSenderProfile.lud16
-                            
-                    // if we have such contact, set or update its lightning address by the one from profile
-                    const contactInstance = contactsStore.findByPubkey(sentFromPubkey)
-                    if(contactInstance && sentFromLud16) {                                        
-                        contactInstance.setLud16(sentFromLud16)
-                    }
-                }            
-            } catch (e: any) {
-                log.warn('[_handleReceivedEventTask]', 'Could not get sender from zapRequest', {message: e.message, maybeZapSenderString})
-            }
-        }
-    }
-
-    // parse incoming message
-    const incoming = IncomingParser.findAndExtract(decrypted)
-
-    log.trace('[_handleReceivedEventTask]', 'Incoming data', {incoming})
-
-    //
-    // Receive token start
-    //
-    if(incoming.type === IncomingDataType.CASHU) {
-
-        const decoded = getDecodedToken(incoming.encoded)
-        const amountToReceive = CashuUtils.getProofsAmount(decoded.proofs)        
-        const memo = decoded.memo || 'Received over Nostr'
-
-        const {transaction, receivedAmount} = await receiveTask(
-            decoded,
-            amountToReceive,
-            memo,
-            incoming.encoded as string,
-        )
-
-        // store contact or zapseder in tx details
-        if(transaction && sentFrom) {
-            if (contactFrom) {
-                transaction.setProfile(JSON.stringify(contactFrom))
-                transaction.setSentFrom(sentFrom)
-            }
-    
-            if (zapSenderProfile) {
-                transaction.setProfile(JSON.stringify(zapSenderProfile))
-                transaction.setSentFrom(sentFrom)
+        // add ecash or pr sender to the contacts
+        if(sentFrom) {
+            const sentFromName = NostrClient.getNameFromNip05(sentFrom as string)                                  
+            
+            if(sentFrom.includes(MINIBITS_NIP05_DOMAIN)) {
+                sentFromPicture = MINIBITS_SERVER_API_HOST + '/profile/avatar/' + sentFromPubkey
             }
 
-            const isZap = zapSenderProfile ? true : false
+            // we skip retrieval of external nostr profiles to minimize failures
+            // external contacts will thus miss image and lud16 address...
+                                
+            contactFrom = {                        
+                pubkey: sentFromPubkey,
+                npub: sentFromNpub,
+                nip05: sentFrom,
+                lud16: sentFrom.includes(MINIBITS_NIP05_DOMAIN) ? sentFrom : undefined,
+                name: sentFromName || undefined,
+                picture: sentFromPicture || undefined,
+                isExternalDomain: sentFrom.includes(MINIBITS_NIP05_DOMAIN) ? false : true                        
+            } as Contact
+            
+            contactsStore.addContact(contactFrom)        
+        } else {
+            // Event was sent from Minibits server
+            const maybeZapSenderString = _extractZapSenderData(decryptedDirectMessageEvent.content)
 
-            // We do it defensively only after cash is received
-            // and asynchronously so we speed up queue
-            _sendReceiveNotification(
-                receivedAmount,
-                transaction.unit,
-                isZap,
-                sentFrom,
-                sentFromPicture                
-            ) // TODO move to task result handler
+            if(maybeZapSenderString) {
+                try {
+                    zapSenderProfile = JSON.parse(maybeZapSenderString)            
+
+                    if(zapSenderProfile) {
+                        sentFromPubkey = zapSenderProfile.pubkey // zap sender pubkey                
+                        sentFrom = zapSenderProfile.nip05 ?? zapSenderProfile.name                
+                        sentFromPicture = zapSenderProfile.picture
+                        const sentFromLud16 = zapSenderProfile.lud16
+                                
+                        // we do not add zappers to contacts but if we have such contact, set or update its lightning address by the one from profile
+                        const contactInstance = contactsStore.findByPubkey(sentFromPubkey)
+                        if(contactInstance && sentFromLud16) {                                        
+                            contactInstance.setLud16(sentFromLud16)
+                        }
+                    }            
+                } catch (e: any) {
+                    log.warn('[_handleReceivedEventTask]', 'Could not get sender from zapRequest', {message: e.message, maybeZapSenderString})
+                }
+            }
         }
 
-        return {
-            mintUrl: decoded.mint,
-            taskFunction: '_handleReceivedEventTask',
-            message: 'Incoming ecash token has been received.',
-            proofsCount: decoded.proofs.length,
-            proofsAmount: receivedAmount,
-            notificationInputs: {
-                event,
-                decrypted,
-                transaction,
-                receivedAmount
-            } // not used`
-        } as WalletTaskResult                  
-    }
+        // parse incoming message
+        const incoming = IncomingParser.findAndExtract(decryptedDirectMessageEvent.content)
 
-    //
-    // Receive bolt11 invoice start
-    //
-    if (incoming.type === IncomingDataType.INVOICE) {
-        // receiver is current wallet profile
-        const {
-            pubkey,
-            npub,
-            name,
-            picture,
-        } = walletProfileStore
+        log.trace('[_handleReceivedEventTask]', 'Incoming data', {incoming})
 
-        const contactTo: Contact = {
-            pubkey,
-            npub,
-            name,
-            picture
-        }                    
-        
-        const decoded = LightningUtils.decodeInvoice(incoming.encoded)
-        const {
-            amount, 
-            description, 
-            expiry, 
-            payment_hash: paymentHash, 
-            timestamp
-        } = LightningUtils.getInvoiceData(decoded)
-        
-        const maybeMemo = NostrClient.findMemo(decrypted)
-        
-        const paymentRequest = paymentRequestsStore.addPaymentRequest({
-            type: PaymentRequestType.INCOMING,
-            status: PaymentRequestStatus.ACTIVE,                            
-            encodedInvoice: incoming.encoded,
-            invoicedUnit: 'sat', // bolt11
-            invoicedAmount: amount || 0,            
-            description: maybeMemo ? maybeMemo : description,                            
-            paymentHash,
-            contactFrom: contactFrom || {pubkey: sentFromPubkey, npub: sentFromNpub},
-            contactTo,                        
-            expiry,
-            createdAt: timestamp ? new Date(timestamp * 1000) : new Date()
-        })        
+        //
+        // Receive token start
+        //
+        if(incoming.type === IncomingDataType.CASHU) {
 
-        _sendPaymentRequestNotification(paymentRequest)
+            const decoded = getDecodedToken(incoming.encoded)
+            const amountToReceive = CashuUtils.getProofsAmount(decoded.proofs)        
+            const memo = decoded.memo || 'Received over Nostr'
+
+            const {transaction, receivedAmount} = await receiveTask(
+                decoded,
+                amountToReceive,
+                memo,
+                incoming.encoded as string,
+            )
+
+            // store contact or zapseder in tx details
+            if(transaction && sentFrom) {
+                if (contactFrom) {
+                    transaction.setProfile(JSON.stringify(contactFrom))
+                    transaction.setSentFrom(sentFrom)
+                }
         
+                if (zapSenderProfile) {
+                    transaction.setProfile(JSON.stringify(zapSenderProfile))
+                    transaction.setSentFrom(sentFrom)
+                }
+
+                const isZap = zapSenderProfile ? true : false
+
+                // We do it defensively only after cash is received
+                // and asynchronously so we speed up queue
+                _sendReceiveNotification(
+                    receivedAmount,
+                    transaction.unit,
+                    isZap,
+                    sentFrom,
+                    sentFromPicture                
+                ) // TODO move to task result handler
+            }
+
+            return {
+                mintUrl: decoded.mint,
+                taskFunction: '_handleReceivedEventTask',
+                message: 'Incoming ecash token has been received.',
+                proofsCount: decoded.proofs.length,
+                proofsAmount: receivedAmount,
+                notificationInputs: {
+                    event: decryptedDirectMessageEvent,
+                    decrypted: decryptedDirectMessageEvent.content,
+                    transaction,
+                    receivedAmount
+                } // not used`
+            } as WalletTaskResult                  
+        }
+
+        //
+        // Receive bolt11 invoice start
+        //
+        else if (incoming.type === IncomingDataType.INVOICE) {
+            // receiver is current wallet profile
+            const {
+                pubkey,
+                npub,
+                name,
+                picture,
+            } = walletProfileStore
+
+            const contactTo: Contact = {
+                pubkey,
+                npub,
+                name,
+                picture
+            }                    
+            
+            const decoded = LightningUtils.decodeInvoice(incoming.encoded)
+            const {
+                amount, 
+                description, 
+                expiry, 
+                payment_hash: paymentHash, 
+                timestamp
+            } = LightningUtils.getInvoiceData(decoded)
+            
+            const maybeMemo = NostrClient.findMemo(decryptedDirectMessageEvent.content)
+            
+            const paymentRequest = paymentRequestsStore.addPaymentRequest({
+                type: PaymentRequestType.INCOMING,
+                status: PaymentRequestStatus.ACTIVE,                            
+                encodedInvoice: incoming.encoded,
+                invoicedUnit: 'sat', // bolt11
+                invoicedAmount: amount || 0,            
+                description: maybeMemo ? maybeMemo : description,                            
+                paymentHash,
+                contactFrom: contactFrom || {pubkey: sentFromPubkey, npub: sentFromNpub},
+                contactTo,                        
+                expiry,
+                createdAt: timestamp ? new Date(timestamp * 1000) : new Date()
+            })        
+
+            _sendPaymentRequestNotification(paymentRequest)
+            
+            return {
+                mintUrl: '',
+                taskFunction: '_handleReceivedEventTask',
+                message: 'Incoming payment request been received.',
+                proofsCount: 0,
+                proofsAmount: amount,
+                paymentRequest            
+            } as WalletTaskResult
+        }
+            
+        else if (incoming.type === IncomingDataType.LNURL) {
+            throw new AppError(Err.NOTFOUND_ERROR, 'LNURL support is not yet implemented.', {caller: '_handleReceivedEventTask'})
+        } else {
+            throw new AppError(Err.NOTFOUND_ERROR, 'Received unknown message', incoming)
+        }
+    } catch (e: any) {
+        log.error('[_handleReceivedEventTask]', e.name, e.message)
+
         return {
             mintUrl: '',
-            taskFunction: '_processReceiveEvent',
-            message: 'Incoming payment request been received.',
-            proofsCount: 0,
-            proofsAmount: amount,
-            paymentRequest            
-        } 
+            taskFunction: '_handleReceivedEventTask',
+            message: e.message,
+            error: WalletUtils.formatError(e)                  
+        } as WalletTaskResult
     }
-        
-    if (incoming.type === IncomingDataType.LNURL) {
-        throw new AppError(Err.NOTFOUND_ERROR, 'LNURL support is not yet implemented.', {caller: '_handleReceivedEventTask'})
-    }                      
-        
-    throw new AppError(Err.NOTFOUND_ERROR, 'Received unknown message', incoming)
 }
 
 

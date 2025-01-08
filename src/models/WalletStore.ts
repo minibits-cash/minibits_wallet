@@ -10,10 +10,10 @@ import {
   MintActiveKeys,
   OutputAmounts,
   Token,
-  MeltProofsResponse,
-  ProofState,
+  MeltProofsResponse,  
   CheckStateEnum
 } from '@cashu/cashu-ts'
+import { mnemonicToSeedSync } from '@scure/bip39'
 import { isObj } from '@cashu/cashu-ts/src/utils'
 import { JS_BUNDLE_VERSION } from '@env'
 import {KeyChain, MinibitsClient} from '../services'
@@ -25,7 +25,7 @@ import { Proof } from './Proof'
 
 import { Mint } from './Mint'
 import { getRootStore } from './helpers/getRootStore'
-import {deriveSeedFromMnemonic} from '@cashu/crypto/modules/client/NUT09'
+
 
 /* 
    Not persisted, in-memory only model of the cashu-ts wallet instances and seed.
@@ -156,7 +156,7 @@ export const WalletStoreModel = types
     
         if (!mnemonic) {
             mnemonic = KeyChain.generateMnemonic() as string            
-            const seed = deriveSeedFromMnemonic(mnemonic) // expensive            
+            const seed = mnemonicToSeedSync(mnemonic) // expensive            
                    
             yield KeyChain.saveMnemonic(mnemonic)
             yield KeyChain.saveSeed(seed)

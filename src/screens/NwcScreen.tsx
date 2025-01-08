@@ -165,6 +165,7 @@ export const NwcScreen: FC<NwcScreenProps> = observer(
     const labelText = useThemeColor('textDim')
     const $subText = {color: useThemeColor('textDim'), fontSize: verticalScale(14)}
     const headerTitle = useThemeColor('headerTitle')
+    const buttonBorder = useThemeColor('card')
     
     return (
       <Screen contentContainerStyle={$screen}>
@@ -347,15 +348,17 @@ export const NwcScreen: FC<NwcScreenProps> = observer(
                         maxLength={8}
                         placeholder='Enter daily limit in satoshi'
                         selectTextOnFocus={true}
-                        style={[$connInput, {backgroundColor: inputBg, borderBottomRightRadius: 0, borderTopRightRadius: 0}]}
+                        style={[$connInput, {backgroundColor: inputBg}]}
                     />
                     <Button
                         preset='secondary'
                         text="SAT"
                         style={{
                             borderTopLeftRadius: 0,
-                            borderBottomLeftRadius: 0,  
-                            marginHorizontal: 1,                                
+                            borderBottomLeftRadius: 0,
+                            marginLeft: -spacing.small,
+                            borderLeftWidth: 1,
+                            borderLeftColor: buttonBorder,                            
                         }}                        
                     />
                 </View>
@@ -412,7 +415,7 @@ const $saveButton: ViewStyle = {
 const $connInput: TextStyle = {
     flex: 1,    
     borderRadius: spacing.extraSmall,    
-    fontSize: 16,
+    fontSize: verticalScale(16),
     padding: spacing.small,
     alignSelf: 'stretch',
     textAlignVertical: 'top',

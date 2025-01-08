@@ -1,12 +1,9 @@
-import type { Event as NostrEvent, UnsignedEvent as NostrUnsignedEvent } from 'nostr-tools/core' 
-import { validateEvent, finalizeEvent } from 'nostr-tools'
+import type { EventTemplate as NostrEventTemplate, Event as NostrEvent, UnsignedEvent as NostrUnsignedEvent } from 'nostr-tools/core' 
 import type { Filter as NostrFilter } from 'nostr-tools/filter'
-import { nip19 } from 'nostr-tools'
-import { nip04 } from 'nostr-tools'
-import { utils as NostrUtils } from 'nostr-tools'
-import { SimplePool } from 'nostr-tools'
+import { nip04, nip19, nip59, finalizeEvent, validateEvent, utils } from 'nostr-tools'
+import {SimplePool} from 'nostr-tools'
 import { hexToBytes } from '@noble/hashes/utils'
-import { kinds as NostrKinds } from 'nostr-tools'
+import { kinds } from 'nostr-tools'
 import {
     MINIBITS_RELAY_URL,    
 } from '@env'
@@ -16,6 +13,7 @@ import AppError, { Err } from '../utils/AppError'
 import { MinibitsClient } from './minibitsService'
 import { rootStoreInstance } from '../models'
 import { WalletTask } from './walletService'
+
 
 export {     
     NostrEvent, 
@@ -171,17 +169,71 @@ const decryptNip04 = async function(
 }
 
 
+const encryptAndSendDirectMessageNip17 = async function (
+    recipientPublicKey: string,
+    message: string,
+    relays: string[]    
+) {
+
+    const  keys: KeyPair = await getOrCreateKeyPair()
+    const directMessageEvent: NostrEventTemplate = {
+        created_at: Math.ceil(Date.now() / 1000),
+        kind: kinds.PrivateDirectMessage,
+        tags: [['p', recipientPublicKey], ['from', walletProfileStore.nip05]],
+        content: message,
+    }
+
+    // log.trace('[sendDirectMessageNip17]', {directMessageEvent})
+
+    // already signed final event
+    const wrappedEvent = nip59.wrapEvent(
+        directMessageEvent, 
+        hexToBytes(keys.privateKey), 
+        recipientPublicKey
+    )
+
+    // log.trace('[sendDirectMessageNip17]', {wrappedEvent})
+
+    const pool = getRelayPool()
+    await Promise.any(pool.publish(relays, wrappedEvent))    
+
+    const published = await pool.get(relays, {
+        ids: [wrappedEvent.id]
+    }) as NostrEvent
+    
+    if(published) {
+        log.trace('[NostrClient.publish] Event successfully published')        
+        return published
+    }
+    
+    return undefined 
+}
+
+
+const decryptDirectMessageNip17 = async function (
+    wrappedEvent: NostrEvent
+) {    
+    const  keys: KeyPair = await getOrCreateKeyPair()
+    
+    // log.trace('[decryptDirectMessageNip59]', {keys}) 
+
+    const decryptedEvent = nip59.unwrapEvent(
+        wrappedEvent,
+        hexToBytes(keys.privateKey)
+    )
+
+    log.trace('[decryptDirectMessageNip59]', {decryptedEvent})
+
+    return decryptedEvent
+}
+
+
 const publish = async function (
     event: NostrUnsignedEvent,
     relays: string[],    
 ): Promise<NostrEvent | undefined> {
 
     const  keys: KeyPair = await getOrCreateKeyPair()    
-    
-    /* const signed = {...event} as NostrEvent
-    signed.created_at = Math.floor(Date.now() / 1000) 
-    signed.id = getEventHash(signed)    
-    signed.sig = getSignature(signed, keys.privateKey) */
     
     const privateKeyBytes = hexToBytes(keys.privateKey)
     const finalEvent = finalizeEvent(event, privateKeyBytes)
@@ -325,7 +377,7 @@ const getProfileFromRelays = async function (pubkey: string, relays: string[]): 
     // get profile from the relays for pubkey linked to nip05
     const filter: NostrFilter = {
         authors: [pubkey],
-        kinds: [NostrKinds.Metadata],            
+        kinds: [kinds.Metadata],            
     }
 
     const events = await NostrClient.getEvents(relays, filter)
@@ -435,7 +487,7 @@ const deleteKeyPair = async function (): Promise<void> {
 
 const getNormalizedRelayUrl = function (url: string): string {
     try {
-        return NostrUtils.normalizeURL(url)
+        return utils.normalizeURL(url)
     } catch (e: any) {
         throw new AppError(Err.VALIDATION_ERROR, `Invalid relay URL: ${e.message}`)
     }
@@ -443,13 +495,11 @@ const getNormalizedRelayUrl = function (url: string): string {
 
 
 // returns array of values after the first element (tag name)
-const getTagsByName = function(tagsArray: string[][], tagName: string) {
-    let tagValues = tagsArray.find(t => t && t.length && t.length >= 2 && t[0] === tagName)
-    if(tagValues && tagValues.length > 1) {
-        tagValues.shift() // remove tag name
-        return tagValues
+const getTagsByName = function(tagsArray: string[][], tagName: string): string[] | undefined {
+    const tag = tagsArray.find(t => t && t.length >= 2 && t[0] === tagName);
+    if (tag) {
+        return tag.slice(1) // Return a copy of the array without modifying the original
     }
-
     return undefined
 }
 
@@ -497,6 +547,8 @@ export const NostrClient = { // TODO split helper functions to separate module
     neventEncode,
     encryptNip04,
     decryptNip04,
+    encryptAndSendDirectMessageNip17,
+    decryptDirectMessageNip17,
     getDomainFromNip05,
     getNameFromNip05,
     publish,   

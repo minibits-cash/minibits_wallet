@@ -2,7 +2,6 @@ import { decode } from "@gandlaf21/bolt11-decode"
 import AppError, { Err } from '../../utils/AppError'
 import { addSeconds } from 'date-fns'
 import { log } from '../logService'
-import numbro from "numbro"
 import { roundUp, toNumber } from "../../utils/number"
 
 // TODO refactor all this into own module

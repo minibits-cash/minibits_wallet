@@ -1,5 +1,5 @@
 import {Instance, SnapshotOut, types, flow} from 'mobx-state-tree'
-import { kinds as NostrKinds } from 'nostr-tools'
+import { kinds } from 'nostr-tools'
 import {KeyChain, MinibitsClient, NostrClient, NostrUnsignedEvent, WalletTask} from '../services'
 import {log} from '../services/logService'
 import { Err } from '../utils/AppError'
@@ -15,6 +15,7 @@ export type WalletProfile = {
     picture: string
     lud16?: string | null    
     device?: string | null
+    seedHash?: string | null
     isOwnProfile: boolean
     // isBatchClaimOn: boolean
 }
@@ -51,7 +52,7 @@ export const WalletProfileStoreModel = types
 
                 // announce to minibits relay + default public relays with replaceable event           
                 const profileEvent: NostrUnsignedEvent = {
-                    kind: NostrKinds.Metadata,
+                    kind: kinds.Metadata,
                     pubkey,
                     tags: [],                        
                     content: JSON.stringify({
@@ -94,7 +95,7 @@ export const WalletProfileStoreModel = types
 
                 // announce to new minibits relay
                 const profileEvent: NostrUnsignedEvent = {
-                    kind: NostrKinds.Metadata,
+                    kind: kinds.Metadata,
                     pubkey,
                     tags: [],                        
                     content: JSON.stringify({
@@ -133,7 +134,10 @@ export const WalletProfileStoreModel = types
             self.name = name // default name is set on server side, equals walletId
             self.nip05 = nip05 // default is name@minibits.cash set on server side
             self.lud16 = lud16 // equals for all @minibits.cash addresses
-            self.picture = avatar // default picture is set on server side            
+            self.picture = avatar // default picture is set on server side  
+            
+            const userSettingsStore = getRootStore(self).userSettingsStore
+            userSettingsStore.setWalletId(walletId)
             
             const publishedEvent = yield self.publishToRelays()
         })
@@ -184,12 +188,9 @@ export const WalletProfileStoreModel = types
                 }
             )           
                            
-            self.name = profileRecord.name
-            self.nip05 = profileRecord.nip05
-            self.lud16 = profileRecord.lud16
-            const publishedEvent = yield self.publishToRelays()
+            self.hydrate(profileRecord)
             
-            log.debug('[updateName]', 'Wallet name updated in the WalletProfileStore', {self, publishedEvent})
+            log.debug('[updateName]', 'Wallet name updated in the WalletProfileStore', {self})
             return self         
         }),
         updatePicture: flow(function* updatePicture(picture: string) {
@@ -224,16 +225,8 @@ export const WalletProfileStoreModel = types
             )
 
             log.trace('[updateNip05]', 'profileRecord', {profileRecord})
-            
-            self.pubkey = newPubkey
-            self.walletId = profileRecord.walletId
-            self.nip05 = profileRecord.nip05
-            self.lud16 = profileRecord.lud16
-            self.name = profileRecord.name
-            self.picture = profileRecord.avatar
-            self.isOwnProfile = isOwnProfile
-            
-            // do not publish to relay as this is external 
+
+            self.hydrate(profileRecord)
             
             log.info('[updateNip05]', 'Wallet nip05 updated in the WalletProfileStore', {self})
             return self         
@@ -247,18 +240,14 @@ export const WalletProfileStoreModel = types
                 }
             )           
             
-            self.pubkey = currentPubkey
+            // in seed based or backup import recovery we rotate the wallet seed to provided one
             if(!isAddressOnly) {
                 self.seedHash = seedHash
-            }            
-            self.walletId = profileRecord.walletId
-            self.nip05 = profileRecord.nip05
-            self.lud16 = profileRecord.lud16
-            self.name = profileRecord.name
-            self.picture = profileRecord.avatar                        
-            
-            const publishedEvent = yield self.publishToRelays()
-            log.info('[recover]', 'Wallet profile recovered in WalletProfileStore', {self, publishedEvent})
+            }
+
+            self.hydrate(profileRecord)
+
+            log.info('[recover]', 'Wallet profile recovered in WalletProfileStore', {self})
             return self         
         }),
         setDevice: flow(function* setDevice(device: string) {  
@@ -277,14 +266,7 @@ export const WalletProfileStoreModel = types
         },
         setSeedHash(seedHash: string) {   // used in migration to v8 model         
             self.seedHash = seedHash             
-        },
-        /* setIsBatchClaimOn: (isBatchClaimOn: boolean) => {            
-            self.isBatchClaimOn = isBatchClaimOn            
-            return isBatchClaimOn
-        },
-        setPicture(picture: string) {            
-            self.picture = picture             
-        }*/
+        }
     }))
     .views(self => ({        
         get npub() {

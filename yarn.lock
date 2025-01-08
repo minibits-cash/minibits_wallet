@@ -224,6 +224,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@babel/helper-plugin-utils@npm:^7.18.9":
+  version: 7.25.9
+  resolution: "@babel/helper-plugin-utils@npm:7.25.9"
+  checksum: e19ec8acf0b696756e6d84531f532c5fe508dce57aa68c75572a77798bd04587a844a9a6c8ea7d62d673e21fdc174d091c9097fb29aea1c1b49f9c6eaa80f022
+  languageName: node
+  linkType: hard
+
 "@babel/helper-remap-async-to-generator@npm:^7.18.9, @babel/helper-remap-async-to-generator@npm:^7.24.7, @babel/helper-remap-async-to-generator@npm:^7.25.0":
   version: 7.25.0
   resolution: "@babel/helper-remap-async-to-generator@npm:7.25.0"
@@ -429,6 +436,18 @@ __metadata:
   peerDependencies:
     "@babel/core": ^7.0.0-0
   checksum: 527cd85a73f80b8612ed8817982e08d616c4a159579116e7ae2a95ac0fbc601785ac2fe94185b56e10983be3defef383d33ba77313fed681bc6127538e95460c
+  languageName: node
+  linkType: hard
+
+"@babel/plugin-proposal-export-namespace-from@npm:^7.18.9":
+  version: 7.18.9
+  resolution: "@babel/plugin-proposal-export-namespace-from@npm:7.18.9"
+  dependencies:
+    "@babel/helper-plugin-utils": ^7.18.9
+    "@babel/plugin-syntax-export-namespace-from": ^7.8.3
+  peerDependencies:
+    "@babel/core": ^7.0.0-0
+  checksum: 84ff22bacc5d30918a849bfb7e0e90ae4c5b8d8b65f2ac881803d1cf9068dffbe53bd657b0e4bc4c20b4db301b1c85f1e74183cf29a0dd31e964bd4e97c363ef
   languageName: node
   linkType: hard
 
@@ -9439,6 +9458,7 @@ __metadata:
   resolution: "minibits_wallet@workspace:."
   dependencies:
     "@babel/core": ^7.20.0
+    "@babel/plugin-proposal-export-namespace-from": ^7.18.9
     "@babel/preset-env": ^7.20.0
     "@babel/runtime": ^7.20.0
     "@cashu/cashu-ts": "minibits-cash/cashu-ts#2b51a7ba7a8461a0040359eecda37b98b603692c"
@@ -9483,7 +9503,7 @@ __metadata:
     mobx: ^6.13.2
     mobx-react-lite: ^4.0.7
     mobx-state-tree: ^6.0.1
-    nostr-tools: 2.9.4
+    nostr-tools: "minibits-cash/nostr-tools#2991f59d0150a0cb2c71e2f9a4cb6c8aca3b19d7"
     numbro: ^2.5.0
     patch-package: ^8.0.0
     postinstall-postinstall: ^2.1.0
@@ -9870,9 +9890,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"nostr-tools@npm:2.9.4":
-  version: 2.9.4
-  resolution: "nostr-tools@npm:2.9.4"
+"nostr-tools@minibits-cash/nostr-tools#2991f59d0150a0cb2c71e2f9a4cb6c8aca3b19d7":
+  version: 2.10.4
+  resolution: "nostr-tools@https://github.com/minibits-cash/nostr-tools.git#commit=2991f59d0150a0cb2c71e2f9a4cb6c8aca3b19d7"
   dependencies:
     "@noble/ciphers": ^0.5.1
     "@noble/curves": 1.2.0
@@ -9880,7 +9900,7 @@ __metadata:
     "@scure/base": 1.1.1
     "@scure/bip32": 1.3.1
     "@scure/bip39": 1.2.1
-    nostr-wasm: v0.1.0
+    nostr-wasm: 0.1.0
   peerDependencies:
     typescript: ">=5.0.0"
   dependenciesMeta:
@@ -9889,11 +9909,11 @@ __metadata:
   peerDependenciesMeta:
     typescript:
       optional: true
-  checksum: 5c4138baaf78b67136f0387b4f1e1abcea82372e5ee80bf3ce69d6d716520a5e16f1665ad9992777fad12068ce333216aa8117b0ae5aaacb062cfd260feb4734
+  checksum: c5b9871649eef2479e23026f41a3d771bbd879bd54bd60f226eb547bb85e03e411023a756dbbb24966cf0d00bfb3541fc7ca502e1b71a2844fffa55024214462
   languageName: node
   linkType: hard
 
-"nostr-wasm@npm:v0.1.0":
+"nostr-wasm@npm:0.1.0":
   version: 0.1.0
   resolution: "nostr-wasm@npm:0.1.0"
   checksum: c0b404912d47c98efa69b4838a5bb7b2094c869b1aa2a96359c978c911878e9b37228296ef6432254815c9d15cdeebaa16b6d45106db4f3673bb5a6a00cc669c

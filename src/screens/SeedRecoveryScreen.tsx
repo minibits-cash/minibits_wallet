@@ -31,16 +31,14 @@ import { CashuUtils } from '../services/cashu/cashuUtils'
 import { Proof } from '../models/Proof'
 import { Transaction, TransactionData, TransactionRecord, TransactionStatus, TransactionType } from '../models/Transaction'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
-import {deriveSeedFromMnemonic} from '@cashu/crypto/modules/client/NUT09'
+import { mnemonicToSeedSync } from '@scure/bip39'
 import { MINIBITS_MINT_URL, MINIBITS_NIP05_DOMAIN } from '@env'
 import { delay } from '../utils/utils'
-import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
+import { getSnapshot } from 'mobx-state-tree'
 import { scale } from '@gocodingnow/rn-size-matters'
 import { WalletUtils } from '../services/wallet/utils'
-import { WalletScreen } from './WalletScreen'
 import { MintUnit, formatCurrency, getCurrency } from '../services/wallet/currency'
-import { isObj, sumProofs } from '@cashu/cashu-ts/src/utils'
-import { WalletProfileRecord } from '../models/WalletProfileStore'
+import { isObj } from '@cashu/cashu-ts/src/utils'
 import { translate } from '../i18n'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -154,9 +152,9 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)            
 
             const start = performance.now()
-            const binarySeed = deriveSeedFromMnemonic(mnemonic)
+            const binarySeed = mnemonicToSeedSync(mnemonic)
             const end = performance.now()
-            console.log(`[onConfirm] deriveSeedFromMnemonic took ${end - start} ms.`)
+            log.debug(`[onConfirm] mnemonicToSeedSync took ${end - start} ms.`)
     
             setSeed(binarySeed)
             setIsValidMnemonic(true)            
