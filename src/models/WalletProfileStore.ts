@@ -1,5 +1,5 @@
 import {Instance, SnapshotOut, types, flow} from 'mobx-state-tree'
-import { kinds } from 'nostr-tools'
+import { Metadata } from 'nostr-tools/kinds'
 import {KeyChain, MinibitsClient, NostrClient, NostrUnsignedEvent, WalletTask} from '../services'
 import {log} from '../services/logService'
 import { Err } from '../utils/AppError'
@@ -52,7 +52,7 @@ export const WalletProfileStoreModel = types
 
                 // announce to minibits relay + default public relays with replaceable event           
                 const profileEvent: NostrUnsignedEvent = {
-                    kind: kinds.Metadata,
+                    kind: Metadata,
                     pubkey,
                     tags: [],                        
                     content: JSON.stringify({
@@ -95,7 +95,7 @@ export const WalletProfileStoreModel = types
 
                 // announce to new minibits relay
                 const profileEvent: NostrUnsignedEvent = {
-                    kind: kinds.Metadata,
+                    kind: Metadata,
                     pubkey,
                     tags: [],                        
                     content: JSON.stringify({

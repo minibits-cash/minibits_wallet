@@ -1,7 +1,7 @@
 import * as _Keychain from 'react-native-keychain'
 import AppError, {Err} from '../utils/AppError'
 import QuickCrypto from 'react-native-quick-crypto'
-import { generateMnemonic as generateNewMnemonic, mnemonicToSeedSync } from "@scure/bip39"
+import { generateMnemonic as generateNewMnemonic } from "@scure/bip39"
 import { wordlist } from "@scure/bip39/wordlists/english"
 import { bytesToHex } from '@noble/hashes/utils'
 import { generateSecretKey, getPublicKey } from 'nostr-tools/pure'

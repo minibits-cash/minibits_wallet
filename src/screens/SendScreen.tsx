@@ -12,19 +12,16 @@ import {useFocusEffect} from '@react-navigation/native'
 import {
   UIManager,
   Platform,
-  Alert,
   TextInput,
   TextStyle,
   View,
   ViewStyle,
   LayoutAnimation,
   ScrollView,
-  Share,
   FlatList,
   ImageStyle,
   Image,
 } from 'react-native'
-import { kinds } from 'nostr-tools'
 import {spacing, typography, useThemeColor, colors} from '../theme'
 import {WalletStackScreenProps} from '../navigation'
 import {
@@ -35,17 +32,15 @@ import {
   Loading,
   InfoModal,
   ErrorModal,
-  ListItem,
   BottomModal,
   Text,
 } from '../components'
 import {TransactionStatus, Transaction} from '../models/Transaction'
 import {useStores} from '../models'
-import {NostrClient, NostrEvent, NostrUnsignedEvent, SyncStateTaskResult, TransactionTaskResult, WalletTask, WalletTaskResult} from '../services'
+import {NostrClient, SyncStateTaskResult, TransactionTaskResult, WalletTask} from '../services'
 import {log} from '../services/logService'
 import AppError, {Err} from '../utils/AppError'
 import {translate} from '../i18n'
-
 import {MintBalance} from '../models/Mint'
 import EventEmitter from '../utils/eventEmitter'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
@@ -54,7 +49,7 @@ import { Proof } from '../models/Proof'
 import { Contact, ContactType } from '../models/Contact'
 import { getImageSource, infoMessage } from '../utils/utils'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
-import { MintUnit, formatCurrency, getCurrency } from "../services/wallet/currency"
+import { MintUnit, MintUnits, formatCurrency, getCurrency } from "../services/wallet/currency"
 import { MintHeader } from './Mints/MintHeader'
 import { MintBalanceSelector } from './Mints/MintBalanceSelector'
 import { round, toNumber } from '../utils/number'
@@ -62,6 +57,9 @@ import { QRCodeBlock } from './Wallet/QRCode'
 import numbro from 'numbro'
 import { TranItem } from './TranDetailScreen'
 import { MemoInputCard } from '../components/MemoInputCard'
+import { PaymentRequest as CashuPaymentRequest, PaymentRequestTransport, PaymentRequestTransportType, decodePaymentRequest, getDecodedToken } from '@cashu/cashu-ts'
+import { ProfilePointer } from 'nostr-tools/nip19'
+import { MINIBITS_NIP05_DOMAIN } from '@env'
 
 export enum SendOption {
     SEND_TOKEN = 'SEND_TOKEN',
@@ -89,15 +87,19 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         transactionsStore, 
         mintsStore, 
         relaysStore,
-        walletStore
+        walletStore,
+        contactsStore
     } = useStores()
+
     const amountInputRef = useRef<TextInput>(null)
     const memoInputRef = useRef<TextInput>(null)
+    const unitRef = useRef<MintUnit>('sat')
     
     const [paymentOption, setPaymentOption] = useState<SendOption>(SendOption.SHOW_TOKEN)
     const [encodedTokenToSend, setEncodedTokenToSend] = useState<string | undefined>()
+    const [decodedCashuPaymentRequest, setDecodedCashuPaymentRequest] = useState<CashuPaymentRequest | undefined>()
     const [amountToSend, setAmountToSend] = useState<string>('0')
-    const [unit, setUnit] = useState<MintUnit>('sat')
+    //const [unit, setUnit] = useState<MintUnit>('sat')
     const [contactToSendFrom, setContactToSendFrom] = useState<Contact| undefined>()    
     const [contactToSendTo, setContactToSendTo] = useState<Contact| undefined>()        
     const [relaysToShareTo, setRelaysToShareTo] = useState<string[]>([])
@@ -117,7 +119,9 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     const [isLoading, setIsLoading] = useState(false)
 
     const [isMintSelectorVisible, setIsMintSelectorVisible] = useState(false)
-    const [isOfflineSend, setIsOfflineSend] = useState(false)     
+    const [isOfflineSend, setIsOfflineSend] = useState(false)
+    const [isCashuPrWithAmount, setIsCashuPrWithAmount] = useState(false)
+    const [isCashuPrWithDesc, setIsCashuPrWithDesc] = useState(false)   
     const [isNostrDMModalVisible, setIsNostrDMModalVisible] = useState(false)
     const [isProofSelectorModalVisible, setIsProofSelectorModalVisible] = useState(false) // offline mode
     const [isSendTaskSentToQueue, setIsSendTaskSentToQueue] = useState(false)
@@ -147,7 +151,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                     throw new AppError(Err.VALIDATION_ERROR, 'Missing mint unit in route params')
                 }
 
-                setUnit(unit)
+                unitRef.current = unit
 
                 if(mintUrl) {
                     const mintBalance = proofsStore.getMintBalance(mintUrl)    
@@ -169,6 +173,22 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
             const {paymentOption, contact} = route.params
 
+            const getContactFrom = () => {
+                const {
+                    pubkey,
+                    npub,
+                    name,
+                    picture,
+                } = walletProfileStore
+
+                return {
+                    pubkey,
+                    npub,
+                    name,
+                    picture
+                } as Contact
+            }
+
             const prepareSendToContact = () => {
                 try {
                     let relays: string[] = []                
@@ -184,27 +204,13 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                         throw new AppError(Err.VALIDATION_ERROR, 'Missing NOSTR relays')
                     }
                     
-                    const {
-                        pubkey,
-                        npub,
-                        name,
-                        picture,
-                    } = walletProfileStore
-
-                    const contactFrom: Contact = {
-                        pubkey,
-                        npub,
-                        name,
-                        picture
-                    }
-
                     setPaymentOption(SendOption.SEND_TOKEN)
-                    setContactToSendFrom(contactFrom)                
+                    setContactToSendFrom(getContactFrom())                
                     setContactToSendTo(contact)                
                     setRelaysToShareTo(relays)
 
                     if(encodedTokenToSend) {
-                        toggleNostrDMModal() // open if we already have an invoice
+                        toggleNostrDMModal() // open if we already have a token
                     }
 
                     //reset
@@ -216,10 +222,164 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 } catch(e: any) {
                     handleError(e)
                 }
-            }            
+            }
+            
+            
+            const handlePaymentRequest = async () => {
+                try {
+                    setPaymentOption(SendOption.PAY_PAYMENT_REQUEST)
+                    setContactToSendFrom(getContactFrom())                   
+
+                    const {encodedCashuPaymentRequest} = route.params
+
+                    if (!encodedCashuPaymentRequest) {                    
+                        throw new AppError(Err.VALIDATION_ERROR, 'Missing encodedCashuPaymentRequest.')
+                    }
+            
+                    const pr: CashuPaymentRequest = decodePaymentRequest(encodedCashuPaymentRequest)                    
+                    setDecodedCashuPaymentRequest(pr)
+                    const transports: PaymentRequestTransport[] = pr.transport
+                    
+                    for (const transport of transports) {
+
+                        if (transport.type == PaymentRequestTransportType.NOSTR) {
+
+                            const decoded = NostrClient.decodeNprofile(transport.target)
+                            const pubkey = (decoded.data as ProfilePointer).pubkey                            
+                            const npub = NostrClient.getNpubkey(pubkey)
+                            let relays = (decoded.data as ProfilePointer).relays?.slice(0, 5)
+
+                            if(!relays || relays.length === 0) {
+                                relays = NostrClient.getAllRelays()
+                            }
+
+                            let contactTo = {                        
+                                pubkey,
+                                npub,                                                       
+                            } as Contact
+
+                            const existing = contactsStore.findByPubkey(pubkey)
+                            
+                            if(!existing) {
+                                try {
+                                    const profile = await NostrClient.getProfileFromRelays(pubkey, relays)                                    
+                                
+                                    if(profile) {
+                                        contactTo.nip05 = profile.nip05
+                                        contactTo.picture = profile.picture
+                                        contactTo.lud16 = profile.lud16
+                                        contactTo.name = profile.name
+                                        contactTo.isExternalDomain = profile.nip05.includes(MINIBITS_NIP05_DOMAIN) ? false : true
+
+                                        contactsStore.addContact(contactTo)
+                                    }
+
+                                } catch (e:any) {
+                                    log.warn('[handlePaymentRequest] Could not get the payee profile from relays.')
+                                }
+                            } else {
+                                contactTo = existing
+                            }                            
+                            
+                            setContactToSendTo(contactTo)
+                            setRelaysToShareTo(relays)
+                        }
+
+                        if (transport.type == PaymentRequestTransportType.POST) {
+                            // TODO
+                        }                        
+                    }
+
+                    log.trace('[handlePaymentRequest]', {pr})
+
+                    if(pr.unit && !MintUnits.includes(pr.unit as MintUnit)) {
+                        throw new AppError(Err.NOTFOUND_ERROR, `Wallet does not support ${pr.unit} unit.`)
+                    }
+                    
+                    if (pr.unit) {
+                        unitRef.current = pr.unit as MintUnit
+                    }
+
+                    if (pr.description && pr.description.length > 0) {
+                        setMemo(pr.description)
+                        setIsCashuPrWithDesc(true)
+                    }
+
+                    if (pr.amount) {
+                        setAmountToSend(`${numbro(pr.amount / getCurrency(unitRef.current).precision)
+                        .format({
+                          thousandSeparated: true, 
+                          mantissa: getCurrency(unitRef.current).mantissa
+                        })}`)
+
+                        setIsCashuPrWithAmount(true)
+                    }
+
+                    const availableBalances: MintBalance[] = []
+
+                    if (pr.mints && pr.mints.length > 0) {                        
+
+                        for (const mint of pr.mints) {
+                            if (mintsStore.mintExists(mint)) {
+                                const mintBalance = proofsStore.getMintBalance(mint)   
+                                availableBalances.push(mintBalance!)
+                            }
+                        }
+
+                        if (availableBalances.length === 0) {
+                            throw new AppError(Err.NOTFOUND_ERROR, 'Wallet has not any of requested mint.', {mints: pr.mints})
+                        }
+                        
+                        const withEnoughBalance = availableBalances.filter(balance => {
+                            const unitBalance = balance.balances[unitRef.current]
+
+                            if(!pr.amount) {
+                                return balance
+                            }
+                            
+                            if(pr.amount && pr.amount > 0 && unitBalance && unitBalance >= pr.amount) {
+                                return balance
+                            }
+
+                            return null                             
+                        })
+                        
+                        setAvailableMintBalances(withEnoughBalance)
+                        setMintBalanceToSendFrom(withEnoughBalance[0])  
+
+                    } else {
+                        let withEnoughBalance: MintBalance[] = []
+
+                        if(pr.amount && pr.amount > 0) {
+                            withEnoughBalance = proofsStore.getMintBalancesWithEnoughBalance(pr.amount, unitRef.current)
+                            setAvailableMintBalances(withEnoughBalance)
+                        } else {
+                            withEnoughBalance = proofsStore.getMintBalancesWithUnit(unitRef.current)
+                            setAvailableMintBalances(withEnoughBalance)
+                        }
+
+                        setMintBalanceToSendFrom(withEnoughBalance[0])
+                    }
+                    
+                    setIsMintSelectorVisible(true)
+
+                    //reset
+                    navigation.setParams({
+                        paymentOption: undefined,
+                        encodedCashuPaymentRequest: undefined
+                    })
+                    
+                } catch(e: any) {
+                    handleError(e)
+                }
+            }  
 
             if(paymentOption && contact && paymentOption === SendOption.SEND_TOKEN) {
                 prepareSendToContact()
+            }
+
+            if(paymentOption && paymentOption === SendOption.PAY_PAYMENT_REQUEST) {   
+                handlePaymentRequest()
             }
             
         }, [route.params?.paymentOption])
@@ -232,7 +392,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         log.trace('[Offline send]')
 
         // if offline we set all non-zero mint balances as available to allow ecash selection
-        const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(1, unit)
+        const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(1, unitRef.current)
 
         if (availableBalances.length === 0) {
             setInfo('There are not enough funds to send')
@@ -278,7 +438,11 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
     
             if (paymentOption === SendOption.SEND_TOKEN) {
                 toggleNostrDMModal()
-            }   
+            }
+            
+            if (paymentOption === SendOption.PAY_PAYMENT_REQUEST) {
+                toggleNostrDMModal()
+            }
         }
 
         // Subscribe to the 'sendCompleted' event
@@ -305,14 +469,14 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                     transactionId,
                 )
 
-                const amountSentInt = round(toNumber(amountToSend) * getCurrency(unit).precision, 0)                
+                const amountSentInt = round(toNumber(amountToSend) * getCurrency(unitRef.current).precision, 0)                
 
                 setIsNostrDMModalVisible(false)
                 setIsProofSelectorModalVisible(false)
                 setResultModalInfo({
                     status: TransactionStatus.COMPLETED,
                     title:  '🚀 That was fast!',                   
-                    message: `${formatCurrency(amountSentInt, getCurrency(unit).code)} ${getCurrency(unit).code} were received by the payee.`,
+                    message: `${formatCurrency(amountSentInt, getCurrency(unitRef.current).code)} ${getCurrency(unitRef.current).code} were received by the payee.`,
                 })                
                 setTransactionStatus(TransactionStatus.COMPLETED)
                 setIsResultModalVisible(true)
@@ -359,8 +523,8 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
     const onAmountEndEditing = function () {
         try {        
-            const precision = getCurrency(unit).precision
-            const mantissa = getCurrency(unit).mantissa
+            const precision = getCurrency(unitRef.current).precision
+            const mantissa = getCurrency(unitRef.current).mantissa
             const amount = round(toNumber(amountToSend) * precision, 0)
             //const amount = parseInt(amountToSend)
 
@@ -371,7 +535,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 return
             }
             
-            const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(amount, unit)
+            const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(amount, unitRef.current)
 
             if (availableBalances.length === 0) {
                 infoMessage(translate('payCommon.insufficientFunds'))
@@ -380,7 +544,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
             
-            setAmountToSend(`${numbro(amountToSend).format({thousandSeparated: true, mantissa: getCurrency(unit).mantissa})}`)
+            setAmountToSend(`${numbro(amountToSend).format({thousandSeparated: true, mantissa: getCurrency(unitRef.current).mantissa})}`)
             setAvailableMintBalances(availableBalances)
 
             // Default mint if not set from route params is with the one with highest balance
@@ -437,12 +601,12 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         setIsLoading(true)       
         setIsSendTaskSentToQueue(true)       
 
-        const amountToSendInt = round(toNumber(amountToSend) * getCurrency(unit).precision, 0)
+        const amountToSendInt = round(toNumber(amountToSend) * getCurrency(unitRef.current).precision, 0)
 
         WalletTask.send(
             mintBalanceToSendFrom as MintBalance,
             amountToSendInt,
-            unit,
+            unitRef.current,
             memo,
             selectedProofs
         )
@@ -453,7 +617,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         try {
         const walletInstance = await walletStore.getWallet(
             mintBalanceToSendFrom?.mintUrl as string, 
-            unit, 
+            unitRef.current, 
             {withSeed: true}
         )
         const mintInstance = mintsStore.findByUrl(mintBalanceToSendFrom?.mintUrl as string)
@@ -503,35 +667,43 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
 
     const sendAsNostrDM = async function () {
-        try {            
-            setIsNostrDMSending(true)
-            const senderPubkey = walletProfileStore.pubkey            
-            const receiverPubkey = contactToSendTo?.pubkey
-
-            // log.trace('', {senderPrivkey, senderPubkey, receiverPubkey}, 'sendAsNostrDM')
-            const message = `nostr:${walletProfileStore.npub} sent you ${amountToSend} ${getCurrency(unit).code} from Minibits wallet!`
-            const content = message + ' \n' + encodedTokenToSend
-
-            const sentEvent = await NostrClient.encryptAndSendDirectMessageNip17(                
-                receiverPubkey as string, 
-                content as string,
-                relaysToShareTo
-            )
-            
-            // log.trace('Relays', relaysToShareTo)          
-
-            /* const dmEvent: NostrUnsignedEvent = {
-                kind: kinds.EncryptedDirectMessage,
-                pubkey: senderPubkey,
-                tags: [['p', receiverPubkey as string], ['from', walletProfileStore.nip05]],
-                content: encryptedContent,
-                created_at: Math.floor(Date.now() / 1000)
+        try {
+            if(!contactToSendFrom || !contactToSendTo) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing sender or receiver information.')
             }
 
-            const sentEvent: NostrEvent | undefined = await NostrClient.publish(
-                dmEvent,
-                relaysToShareTo,                     
-            )*/
+            if(!encodedTokenToSend) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing token to send.')
+            }
+
+            setIsNostrDMSending(true)
+            let messageContent: string | undefined = undefined
+
+            if(paymentOption === SendOption.SEND_TOKEN) {
+                const message = `nostr:${contactToSendFrom.npub} sent you ${amountToSend} ${getCurrency(unitRef.current).code} from Minibits wallet!`
+                messageContent = message + ' \n' + encodedTokenToSend
+            }
+
+            if(paymentOption === SendOption.PAY_PAYMENT_REQUEST) {   
+                if(!decodedCashuPaymentRequest) {
+                    throw new AppError(Err.VALIDATION_ERROR, 'Missing payment request to pay.')
+                }
+
+                const decodedTokenToSend = getDecodedToken(encodedTokenToSend)
+                
+                messageContent = JSON.stringify({
+                    id: decodedCashuPaymentRequest.id,
+                    mint: decodedTokenToSend.mint,
+                    unit: decodedTokenToSend.unit,
+                    proofs: decodedTokenToSend.proofs,
+                })
+            }
+
+            const sentEvent = await NostrClient.encryptAndSendDirectMessageNip17(                
+                contactToSendTo.pubkey, 
+                messageContent!,
+                relaysToShareTo
+            )
             
             setIsNostrDMSending(false)
 
@@ -562,7 +734,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
                 if(contactToSendTo) {
                     transaction.setProfile(
-                        JSON.stringify(getSnapshot(contactToSendTo))
+                        JSON.stringify(contactToSendTo)
                     )
 
                     transaction.setSentTo(
@@ -571,7 +743,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 }
 
             } else {
-                setInfo('Relay could not confirm that the message has been published')
+                setInfo('Nostr relays could not confirm that the message has been sent')
             }
         } catch (e: any) {
             handleError(e)
@@ -652,7 +824,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
       <Screen preset="fixed" contentContainerStyle={$screen}>
         <MintHeader 
             mint={mintBalanceToSendFrom ? mintsStore.findByUrl(mintBalanceToSendFrom?.mintUrl) : undefined}
-            unit={unit}
+            unit={unitRef.current}
             navigation={navigation}
         />
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>        
@@ -667,7 +839,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                     keyboardType="numeric"
                     selectTextOnFocus={true}
                     editable={
-                        (transactionStatus === TransactionStatus.PENDING || isOfflineSend)
+                        (transactionStatus === TransactionStatus.PENDING || isOfflineSend || isCashuPrWithAmount)
                             ? false 
                             : true
                     }
@@ -685,7 +857,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 memo={memo}
                 ref={memoInputRef}
                 setMemo={setMemo}
-                disabled={transactionStatus === TransactionStatus.PENDING}
+                disabled={transactionStatus === TransactionStatus.PENDING || isCashuPrWithDesc}
                 onMemoDone={onMemoDone}
                 onMemoEndEditing={onMemoEndEditing}
               />
@@ -694,7 +866,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 <MintBalanceSelector
                     mintBalances={availableMintBalances}
                     selectedMintBalance={mintBalanceToSendFrom as MintBalance}
-                    unit={unit}
+                    unit={unitRef.current}
                     title='Send from mint'
                     confirmTitle={isOfflineSend ? 'Send offline' : 'Create token'}
                     onMintBalanceSelect={onMintBalanceSelect}
@@ -735,7 +907,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                         <TranItem
                         label="transactionCommon.feePaid"
                         value={transaction.fee || 0}
-                        unit={unit}
+                        unit={unitRef.current}
                         isCurrency={true}
                         />
                         <TranItem
@@ -763,7 +935,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
           ContentComponent={
             <SelectProofsBlock
                 mintBalanceToSendFrom={mintBalanceToSendFrom as MintBalance}
-                unit={unit}
+                unit={unitRef.current}
                 selectedProofs={selectedProofs}               
                 toggleProofSelectorModal={toggleProofSelectorModal}
                 toggleSelectedProof={toggleSelectedProof} 
@@ -793,7 +965,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 contactToSendTo={contactToSendTo as Contact}
                 relaysToShareTo={relaysToShareTo}
                 amountToSend={amountToSend}
-                unit={unit}
+                unit={unitRef.current}
                 sendAsNostrDM={sendAsNostrDM}
                 isNostrDMSending={isNostrDMSending}                
             />
@@ -1146,7 +1318,7 @@ const NostDMInfoBlock = observer(function (props: {
                         color={tokenTextColor}                
                     />
                 )}
-                <Text size='xxs' style={{color: tokenTextColor}} text={props.contactToSendTo.name}/>
+                <Text size='xxs' style={{color: tokenTextColor}} text={props.contactToSendTo.name || props.contactToSendTo.npub.slice(0, 10)}/>
             </View>
         </View>
     )

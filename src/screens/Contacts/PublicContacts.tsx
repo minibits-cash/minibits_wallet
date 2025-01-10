@@ -2,7 +2,7 @@ import {observer} from 'mobx-react-lite'
 import React, {useEffect, useRef, useState} from 'react'
 import {FlatList, Image, InteractionManager, LayoutAnimation, Platform, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
-import { kinds as NostrKinds } from 'nostr-tools'
+import { Metadata, Contacts } from 'nostr-tools/kinds'
 import Clipboard from '@react-native-clipboard/clipboard'
 import {colors, spacing, useThemeColor} from '../../theme'
 import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
@@ -18,7 +18,6 @@ import { ReceiveOption } from '../ReceiveScreen'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { IncomingDataType, IncomingParser } from '../../services/incomingParser'
 import { translate } from '../../i18n'
-import { RouteProp } from '@react-navigation/native'
 
 
 // const defaultPublicNpub = 'npub14n7frsyufzqsxlvkx8vje22cjah3pcwnnyqncxkuj2243jvt9kmqsdgs52'
@@ -125,7 +124,7 @@ export const PublicContacts = observer(function (props: {
         
          const filter: NostrFilter = {
             authors: [contactsStore.publicPubkey],
-            kinds: [NostrKinds.Metadata, NostrKinds.Contacts],            
+            kinds: [Metadata, Contacts],            
         }
           
         log.trace('[subscribeToOwnProfileAndPubkeys] getEvents')
@@ -137,7 +136,7 @@ export const PublicContacts = observer(function (props: {
                 continue
             }
 
-            if(event.kind === NostrKinds.Metadata) {
+            if(event.kind === Metadata) {
                 try {
                     const profile: NostrProfile = JSON.parse(event.content)
                     profile.pubkey = contactsStore.publicPubkey as string // pubkey might not be in ev.content
@@ -149,7 +148,7 @@ export const PublicContacts = observer(function (props: {
                 }
             }
             
-            if(event.kind === NostrKinds.Contacts) {
+            if(event.kind === Contacts) {
                 const pubkeys = event.tags
                     .filter((item) => item[0] === "p")
                     .map((item) => item[1])
@@ -169,7 +168,7 @@ export const PublicContacts = observer(function (props: {
 
             const filter: NostrFilter = {
                 authors: followingPubkeys,
-                kinds: [NostrKinds.Metadata],
+                kinds: [Metadata],
                 limit: maxContactsToLoad,            
             }
 

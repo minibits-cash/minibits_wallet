@@ -1,6 +1,6 @@
 import {isBefore} from 'date-fns'
 import {getSnapshot} from 'mobx-state-tree'
-import { kinds } from 'nostr-tools'
+import { GiftWrap, EncryptedDirectMessage } from 'nostr-tools/kinds'
 import {log} from './logService'
 import {Proof} from '../models/Proof'
 import {
@@ -32,6 +32,7 @@ import { MintUnit, formatCurrency, getCurrency } from './wallet/currency'
 import { MinibitsClient } from './minibitsService'
 import { getKeepAmounts } from '@cashu/cashu-ts/src/utils'
 import { KeyChain } from './keyChain'
+import { UnsignedEvent } from 'nostr-tools'
 
 
 /**
@@ -1547,7 +1548,7 @@ const receiveEventsFromRelays = async function (): Promise<void> {
         const TWO_DAYS = 2 * 24 * 60 * 60
 
         const filter = {            
-            kinds: [kinds.GiftWrap],
+            kinds: [GiftWrap, EncryptedDirectMessage],
             "#p": [walletProfileStore.pubkey],
             since: lastPendingReceivedCheck ?  lastPendingReceivedCheck - TWO_DAYS : 0 
         } // 2 days variance to the past from real event created_at for dm sent as gift wraps
@@ -1621,19 +1622,35 @@ const receiveEventsFromRelays = async function (): Promise<void> {
     }
 }
 
-const _handleReceivedEventTask = async function (wrappedEvent: NostrEvent): Promise<WalletTaskResult> {    
+const _handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Promise<WalletTaskResult> {    
     try {
-        const decryptedDirectMessageEvent = await NostrClient.decryptDirectMessageNip17(wrappedEvent)
-        // set REAL direct message created_at as the lastPendingReceivedCheck
-        contactsStore.setLastPendingReceivedCheck(decryptedDirectMessageEvent.created_at)    
+        let directMessageEvent: NostrEvent | UnsignedEvent | undefined = undefined
+        let decryptedMessage: string | undefined = undefined
+         
+        if (encryptedEvent.kind === EncryptedDirectMessage) {
+            directMessageEvent = encryptedEvent
+            decryptedMessage = await NostrClient.decryptNip04(encryptedEvent.pubkey, encryptedEvent.content)
+        }
 
-        log.trace('[_handleReceivedEventTask]', 'Received event', {decryptedDirectMessageEvent})
+        if (encryptedEvent.kind === GiftWrap) {
+            directMessageEvent = await NostrClient.decryptDirectMessageNip17(encryptedEvent)
+            decryptedMessage = directMessageEvent.content
+        }
+
+        if(!directMessageEvent || !decryptedMessage) {
+            throw new AppError(Err.VALIDATION_ERROR, 'Unrecognized direct message kind', {kind: encryptedEvent.kind})
+        }
+        
+        // set REAL direct message created_at as the lastPendingReceivedCheck
+        contactsStore.setLastPendingReceivedCheck(directMessageEvent.created_at)    
+
+        log.trace('[_handleReceivedEventTask]', 'Received event', {directMessageEvent})
         
         // get sender profile and save it as a contact
         // this is not valid for events sent from LNURL bridge, that are sent and signed by a minibits server key
         // and *** do not contain sentFrom *** // LEGACY, replaced by claim api
-        let sentFromPubkey = decryptedDirectMessageEvent.pubkey
-        let sentFrom = NostrClient.getFirstTagValue(decryptedDirectMessageEvent.tags, 'from')
+        let sentFromPubkey = directMessageEvent.pubkey
+        let sentFrom = NostrClient.getFirstTagValue(directMessageEvent.tags, 'from')
         let sentFromNpub = NostrClient.getNpubkey(sentFromPubkey)
         let contactFrom: Contact | undefined = undefined
         let zapSenderProfile: NostrProfile | undefined = undefined 
@@ -1663,7 +1680,7 @@ const _handleReceivedEventTask = async function (wrappedEvent: NostrEvent): Prom
             contactsStore.addContact(contactFrom)        
         } else {
             // Event was sent from Minibits server
-            const maybeZapSenderString = _extractZapSenderData(decryptedDirectMessageEvent.content)
+            const maybeZapSenderString = _extractZapSenderData(decryptedMessage)
 
             if(maybeZapSenderString) {
                 try {
@@ -1688,7 +1705,7 @@ const _handleReceivedEventTask = async function (wrappedEvent: NostrEvent): Prom
         }
 
         // parse incoming message
-        const incoming = IncomingParser.findAndExtract(decryptedDirectMessageEvent.content)
+        const incoming = IncomingParser.findAndExtract(decryptedMessage)
 
         log.trace('[_handleReceivedEventTask]', 'Incoming data', {incoming})
 
@@ -1740,8 +1757,8 @@ const _handleReceivedEventTask = async function (wrappedEvent: NostrEvent): Prom
                 proofsCount: decoded.proofs.length,
                 proofsAmount: receivedAmount,
                 notificationInputs: {
-                    event: decryptedDirectMessageEvent,
-                    decrypted: decryptedDirectMessageEvent.content,
+                    event: directMessageEvent,
+                    decrypted: decryptedMessage,
                     transaction,
                     receivedAmount
                 } // not used`
@@ -1776,7 +1793,7 @@ const _handleReceivedEventTask = async function (wrappedEvent: NostrEvent): Prom
                 timestamp
             } = LightningUtils.getInvoiceData(decoded)
             
-            const maybeMemo = NostrClient.findMemo(decryptedDirectMessageEvent.content)
+            const maybeMemo = NostrClient.findMemo(decryptedMessage)
             
             const paymentRequest = paymentRequestsStore.addPaymentRequest({
                 type: PaymentRequestType.INCOMING,
@@ -1803,7 +1820,9 @@ const _handleReceivedEventTask = async function (wrappedEvent: NostrEvent): Prom
                 paymentRequest            
             } as WalletTaskResult
         }
-            
+        else if(incoming.type === IncomingDataType.CASHU_PAYMENT_REQUEST) {
+            throw new AppError(Err.NOTFOUND_ERROR, 'CASHU_PAYMENT_REQUEST support is not yet implemented.', {caller: '_handleReceivedEventTask'})
+        }            
         else if (incoming.type === IncomingDataType.LNURL) {
             throw new AppError(Err.NOTFOUND_ERROR, 'LNURL support is not yet implemented.', {caller: '_handleReceivedEventTask'})
         } else {

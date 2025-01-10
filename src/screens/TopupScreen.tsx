@@ -3,18 +3,15 @@ import React, {FC, useEffect, useState, useRef, useCallback} from 'react'
 import {
   UIManager,
   Platform,
-  Alert,
   TextInput,
   TextStyle,
   View,
   ViewStyle,
   LayoutAnimation,
   ScrollView,
-  Share,
   Image,
   ImageStyle,
 } from 'react-native'
-import { kinds } from 'nostr-tools'
 import {spacing, useThemeColor, colors, typography} from '../theme'
 import {WalletStackScreenProps} from '../navigation'
 import {
@@ -33,9 +30,7 @@ import {TransactionStatus, Transaction} from '../models/Transaction'
 import {useStores} from '../models'
 import {
   NostrClient,
-  NostrEvent,
   NostrProfile,
-  NostrUnsignedEvent,
   TransactionTaskResult,
   WalletTask,
 } from '../services'
@@ -512,24 +507,6 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
           content as string,
           relaysToShareTo
         )
-
-        // log.trace('Relays', relaysToShareTo)
-
-        /* const dmEvent: NostrUnsignedEvent = {
-          kind: kinds.EncryptedDirectMessage,
-          pubkey: senderPubkey,
-          tags: [
-            ['p', receiverPubkey as string],
-            ['from', walletProfileStore.nip05],
-          ],
-          content: encryptedContent,
-          created_at: Math.floor(Date.now() / 1000),
-        }
-
-        const sentEvent: NostrEvent | undefined = await NostrClient.publish(
-          dmEvent,
-          relaysToShareTo,
-        ) */
 
         setIsNostrDMSending(false)
 

@@ -10,6 +10,7 @@ import { MintUnit } from './wallet/currency'
 
 export enum IncomingDataType {
     CASHU = 'CASHU',
+    CASHU_PAYMENT_REQUEST = 'CASHU_PAYMENT_REQUEST',
     INVOICE = 'INVOICE',
     LNURL = 'LNURL',
     LNURL_ADDRESS = 'LNURL_ADDRESS',
@@ -29,6 +30,12 @@ const findAndExtract = function (
         switch (expectedType) {
             case IncomingDataType.CASHU:
                 encoded = CashuUtils.extractEncodedCashuToken(incomingData)                
+                return {
+                    type: expectedType,
+                    encoded
+                }
+            case IncomingDataType.CASHU_PAYMENT_REQUEST:
+                encoded = CashuUtils.extractEncodedCashuPaymentRequest(incomingData)                
                 return {
                     type: expectedType,
                     encoded
@@ -66,11 +73,24 @@ const findAndExtract = function (
     const maybeToken = CashuUtils.findEncodedCashuToken(incomingData)
 
     if(maybeToken) {
-        const encodedToken = CashuUtils.extractEncodedCashuToken(maybeToken) // throws
+        const encoded = CashuUtils.extractEncodedCashuToken(maybeToken) // throws
 
         return {
             type: IncomingDataType.CASHU,
-            encoded: encodedToken
+            encoded
+        }
+    }
+
+    const maybeCashuPaymentRequest = CashuUtils.findEncodedCashuPaymentRequest(incomingData)
+
+    if(maybeCashuPaymentRequest) {
+        log.trace('Got maybeCashuPaymentRequest', maybeCashuPaymentRequest, 'findAndExtract')
+
+        const encoded = CashuUtils.extractEncodedCashuPaymentRequest(maybeCashuPaymentRequest) // throws
+
+        return {
+            type: IncomingDataType.CASHU_PAYMENT_REQUEST,
+            encoded
         }
     }
 
@@ -79,11 +99,24 @@ const findAndExtract = function (
     if(maybeInvoice) {
         log.trace('Got maybeInvoice', maybeInvoice, 'findAndExtract')
 
-        const encodedInvoice = LightningUtils.extractEncodedLightningInvoice(maybeInvoice) // throws
+        const encoded = LightningUtils.extractEncodedLightningInvoice(maybeInvoice) // throws
 
         return {
             type: IncomingDataType.INVOICE,
-            encoded: encodedInvoice
+            encoded
+        }
+    }
+    
+    const maybeLnurlAddress = LnurlUtils.findEncodedLnurlAddress(incomingData)
+
+    if(maybeLnurlAddress) {
+        log.trace('[findAndExtract] Got maybeLnurlAddress', maybeLnurlAddress)
+
+        const encoded = LnurlUtils.extractLnurlAddress(maybeLnurlAddress) // throws
+
+        return {
+            type: IncomingDataType.LNURL_ADDRESS,
+            encoded
         }
     }
 
@@ -92,24 +125,11 @@ const findAndExtract = function (
     if(maybeLnurl) {
         log.trace('[findAndExtract] Got maybeLnurl', maybeLnurl)
 
-        const encodedLnurl = LnurlUtils.extractEncodedLnurl(maybeLnurl) // throws
+        const encoded = LnurlUtils.extractEncodedLnurl(maybeLnurl) // throws
 
         return {
             type: IncomingDataType.LNURL,
-            encoded: encodedLnurl
-        }
-    }
-
-    const maybeLnurlAddress = LnurlUtils.findEncodedLnurlAddress(incomingData)
-
-    if(maybeLnurlAddress) {
-        log.trace('[findAndExtract] Got maybeLnurlAddress', maybeLnurlAddress)
-
-        const lnurlAddress = LnurlUtils.extractLnurlAddress(maybeLnurlAddress) // throws
-
-        return {
-            type: IncomingDataType.LNURL_ADDRESS,
-            encoded: lnurlAddress
+            encoded
         }
     }
 
@@ -124,18 +144,11 @@ const findAndExtract = function (
         }
     }
 
-    if(incomingData.startsWith('ur:bytes')) {
-        log.trace('[findAndExtract] Got animated QR', incomingData)
-
-        throw new AppError(Err.VALIDATION_ERROR, 'Minibits does not yet support animated QR codes.', {
-            caller: 'findAndExtract'                     
-        })
-    }
-
     throw new AppError(Err.VALIDATION_ERROR, 'Unknown incoming data type.', {
+        incomingData,
+        expectedType,
         caller: 'findAndExtract'                     
     })
-
 }
 
 
@@ -157,6 +170,14 @@ const navigateWithIncomingData = async function (
                 mintUrl
             })
 
+        case IncomingDataType.CASHU_PAYMENT_REQUEST:
+            return navigation.navigate('Send', {
+                encodedCashuPaymentRequest: incoming.encoded,
+                paymentOption: SendOption.PAY_PAYMENT_REQUEST,
+                unit,
+                mintUrl
+            })
+                
         case IncomingDataType.INVOICE:
             return navigation.navigate('Transfer', {
                 encodedInvoice: incoming.encoded,

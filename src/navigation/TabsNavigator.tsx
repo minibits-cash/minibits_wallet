@@ -136,6 +136,7 @@ export type WalletStackParamList = {
     Send: {
       unit: MintUnit,
       paymentOption?: SendOption,
+      encodedCashuPaymentRequest?: string,
       contact?: Contact,
       mintUrl?: string,      
     }

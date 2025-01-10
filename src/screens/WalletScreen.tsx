@@ -193,30 +193,14 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         const handleReceivedEventTaskResult  = async (result: WalletTaskResult) => {
             log.trace('[handleReceivedEventTaskResult]')
             if(result.error) {
-                setHeaderTitle(result.message.slice(0, 20))
-                setHeaderStyle('error')
-                await delay(3000)
-                setHeaderTitle('')
-            } else {
-                setHeaderTitle('Relays connected')
-                setHeaderStyle('success')
-                await delay(3000)
-                setHeaderTitle('')
+                setInfo(result.message)
             }        
         }
 
         const handleClaimTaskResult  = async (result: WalletTaskResult) => {
             log.trace('[handleClaimTaskResult]')
             if(result.error) {
-                setHeaderTitle(result.message.slice(0, 20))
-                setHeaderStyle('error')
-                await delay(3000)
-                setHeaderTitle('')
-            } else {
-                setHeaderTitle('Claim completed')
-                setHeaderStyle('success')
-                await delay(3000)
-                setHeaderTitle('')
+                setInfo(result.message)
             }
         }
         
@@ -286,6 +270,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     
     
     const performChecks = useCallback(() => {
+
         if (!isInternetReachable) {
             return
         }
@@ -295,22 +280,24 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
         if (nowInSec - lastPendingCheckRef.current > PENDING_CHECK_INTERVAL) {
             lastPendingCheckRef.current = nowInSec
-            WalletTask.syncPendingStateWithMints().catch(e => false)
-            WalletTask.handlePendingTopups().catch(e => false)
+            WalletTask.syncPendingStateWithMints().catch(e => setInfo(e.message))
+            WalletTask.handlePendingTopups().catch(e => setInfo(e.message))
         } else {
             log.trace('[performChecks] Skipping pending checks...')
         }
 
         if (nowInSec - lastClaimCheckRef.current > CLAIM_CHECK_INTERVAL) {
             lastClaimCheckRef.current = nowInSec
-            WalletTask.handleClaim().catch(e => handleError(e))
+            
+            WalletTask.handleClaim().catch(e => setInfo(e.message))
 
             if (userSettingsStore.exchangeCurrency) {
                 walletStore.refreshExchangeRate(userSettingsStore.exchangeCurrency)
             }
         } else {
             log.trace('[performChecks] Skipping claim and rate checks...')
-        }
+        }       
+
     }, [isInternetReachable, userSettingsStore.exchangeCurrency])
     
     

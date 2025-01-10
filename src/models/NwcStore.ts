@@ -7,7 +7,7 @@ import {
     isStateTreeNode,
     detach,  
 } from 'mobx-state-tree'
-import { kinds } from 'nostr-tools'
+import { NWCWalletResponse, NWCWalletInfo, NWCWalletRequest } from 'nostr-tools/kinds'
 import {withSetPropAction} from './helpers/withSetPropAction'
 import {log} from '../services/logService'
 import EventEmitter from '../utils/eventEmitter'
@@ -162,7 +162,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
 
         const responseEvent: NostrUnsignedEvent = {
             pubkey: self.walletPubkey,            
-            kind: kinds.NWCWalletResponse,
+            kind: NWCWalletResponse,
             tags: [["p", requestEvent.pubkey], ["e", requestEvent.id]],
             content: encryptedContent,
             created_at: Math.floor(Date.now() / 1000)
@@ -673,7 +673,7 @@ export const NwcStoreModel = types
             self.nwcConnections.push(newConnection)
 
             const filter = {            
-                kinds: [kinds.NWCWalletInfo],
+                kinds: [NWCWalletInfo],
                 authors: [newConnection.walletPubkey],                
             }
 
@@ -683,7 +683,7 @@ export const NwcStoreModel = types
             if(!existingInfoEvent) {
                 // publish info replacable event // seems to be a relict replaced by get_info request?
                 const infoEvent: NostrUnsignedEvent = {
-                    kind: kinds.NWCWalletInfo,
+                    kind: NWCWalletInfo,
                     pubkey: newConnection.walletPubkey,
                     tags: [],                        
                     content: self.supportedMethods.join(' '),
@@ -730,7 +730,7 @@ export const NwcStoreModel = types
                 let eventsBatch: NostrEvent[] = []               
         
                 const filter = [{            
-                    kinds: [kinds.NWCWalletRequest],
+                    kinds: [NWCWalletRequest],
                     authors: connectionsPubkeys,
                     "#p": [self.walletPubkey],
                     since
@@ -740,7 +740,7 @@ export const NwcStoreModel = types
                 
                 const sub = pool.subscribeMany(self.connectionRelays , filter, {
                     onevent(event) {
-                        if (event.kind != kinds.NWCWalletRequest) {
+                        if (event.kind != NWCWalletRequest) {
                             return
                         }                    
             

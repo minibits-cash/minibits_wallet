@@ -1,9 +1,17 @@
-import type { EventTemplate as NostrEventTemplate, Event as NostrEvent, UnsignedEvent as NostrUnsignedEvent } from 'nostr-tools/core' 
+import type { 
+    EventTemplate as NostrEventTemplate, 
+    Event as NostrEvent, 
+    UnsignedEvent as NostrUnsignedEvent 
+} from 'nostr-tools/core' 
 import type { Filter as NostrFilter } from 'nostr-tools/filter'
-import { nip04, nip19, nip59, finalizeEvent, validateEvent, utils } from 'nostr-tools'
-import {SimplePool} from 'nostr-tools'
+import { finalizeEvent, validateEvent } from 'nostr-tools/pure'
+import { normalizeURL } from 'nostr-tools/utils'
+import { encrypt, decrypt } from 'nostr-tools/nip04'
+import { wrapEvent, unwrapEvent } from 'nostr-tools/nip59'
+import { neventEncode as nostrNeventEncode, npubEncode, decode as nip19Decode } from 'nostr-tools/nip19'
+import {SimplePool} from 'nostr-tools/pool'
 import { hexToBytes } from '@noble/hashes/utils'
-import { kinds } from 'nostr-tools'
+import { PrivateDirectMessage, Metadata } from 'nostr-tools/kinds'
 import {
     MINIBITS_RELAY_URL,    
 } from '@env'
@@ -67,6 +75,9 @@ const getMinibitsRelays = function () {
     return _minibitsRelays    
 }
 
+const getAllRelays = function () {
+    return [..._minibitsRelays, ..._defaultPublicRelays]
+}
 
 const reconnectToRelays = async function () {
     const pool = getRelayPool()
@@ -111,13 +122,13 @@ const getOrCreateKeyPair = async function (): Promise<KeyPair> {
 
 
 const getNpubkey = function (publicKey: string): string {
-    return nip19.npubEncode(publicKey)      
+    return npubEncode(publicKey)      
 }
 
 
 const getHexkey = function (key: string): string {
     try {
-        const decoded = nip19.decode(key)
+        const decoded = nip19Decode(key)
 
         if(decoded) {
             return decoded.data as string
@@ -132,7 +143,19 @@ const getHexkey = function (key: string): string {
 
 const neventEncode = function (eventIdHex: string) : string {
     try {
-        return nip19.neventEncode({id: eventIdHex})        
+        return nostrNeventEncode({id: eventIdHex})        
+    } catch (e: any) {
+        throw new AppError(Err.VALIDATION_ERROR, e.message)
+    }  
+}
+
+
+const decodeNprofile = function (nprofile: string) {
+    try {
+        const decoded = nip19Decode(nprofile)
+        log.trace('[decodeNprofile]', {decoded})
+
+        return decoded
     } catch (e: any) {
         throw new AppError(Err.VALIDATION_ERROR, e.message)
     }  
@@ -145,7 +168,7 @@ const encryptNip04 = async function (
 ): Promise<string> {
     try {
         const  keys: KeyPair = await getOrCreateKeyPair()
-        const encryptedContent = await nip04.encrypt(keys.privateKey, receiverPubkey, content)        
+        const encryptedContent = await encrypt(keys.privateKey, receiverPubkey, content)        
 
         return encryptedContent
 
@@ -161,7 +184,7 @@ const decryptNip04 = async function(
 ): Promise<string> {
 
     const  keys: KeyPair = await getOrCreateKeyPair()
-    const decryptedContent = await nip04.decrypt(keys.privateKey, senderPubKey, encryptedContent)
+    const decryptedContent = await decrypt(keys.privateKey, senderPubKey, encryptedContent)
 
     log.trace('[decryptNip04]', {decryptedContent})
 
@@ -178,7 +201,7 @@ const encryptAndSendDirectMessageNip17 = async function (
     const  keys: KeyPair = await getOrCreateKeyPair()
     const directMessageEvent: NostrEventTemplate = {
         created_at: Math.ceil(Date.now() / 1000),
-        kind: kinds.PrivateDirectMessage,
+        kind: PrivateDirectMessage,
         tags: [['p', recipientPublicKey], ['from', walletProfileStore.nip05]],
         content: message,
     }
@@ -186,7 +209,7 @@ const encryptAndSendDirectMessageNip17 = async function (
     // log.trace('[sendDirectMessageNip17]', {directMessageEvent})
 
     // already signed final event
-    const wrappedEvent = nip59.wrapEvent(
+    const wrappedEvent = wrapEvent(
         directMessageEvent, 
         hexToBytes(keys.privateKey), 
         recipientPublicKey
@@ -202,10 +225,11 @@ const encryptAndSendDirectMessageNip17 = async function (
     }) as NostrEvent
     
     if(published) {
-        log.trace('[NostrClient.publish] Event successfully published')        
+        log.trace('[encryptAndSendDirectMessageNip17] NIP17 direct message has been sent.')        
         return published
     }
-    
+
+    log.warn('[encryptAndSendDirectMessageNip17] Could not confirm that NIP17 direct message has been sent.')     
     return undefined 
 }
 
@@ -217,7 +241,7 @@ const decryptDirectMessageNip17 = async function (
     
     // log.trace('[decryptDirectMessageNip59]', {keys}) 
 
-    const decryptedEvent = nip59.unwrapEvent(
+    const decryptedEvent = unwrapEvent(
         wrappedEvent,
         hexToBytes(keys.privateKey)
     )
@@ -377,7 +401,7 @@ const getProfileFromRelays = async function (pubkey: string, relays: string[]): 
     // get profile from the relays for pubkey linked to nip05
     const filter: NostrFilter = {
         authors: [pubkey],
-        kinds: [kinds.Metadata],            
+        kinds: [Metadata],            
     }
 
     const events = await NostrClient.getEvents(relays, filter)
@@ -487,7 +511,7 @@ const deleteKeyPair = async function (): Promise<void> {
 
 const getNormalizedRelayUrl = function (url: string): string {
     try {
-        return utils.normalizeURL(url)
+        return normalizeURL(url)
     } catch (e: any) {
         throw new AppError(Err.VALIDATION_ERROR, `Invalid relay URL: ${e.message}`)
     }
@@ -540,11 +564,13 @@ export const NostrClient = { // TODO split helper functions to separate module
     getRelayPool,    
     getDefaultRelays,
     getMinibitsRelays,
+    getAllRelays,
     reconnectToRelays,
     getOrCreateKeyPair,
     getNpubkey,
     getHexkey,
     neventEncode,
+    decodeNprofile,
     encryptNip04,
     decryptNip04,
     encryptAndSendDirectMessageNip17,

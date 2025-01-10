@@ -418,14 +418,15 @@ export const receiveSync = async function (
 
         // Increase the proofs counter before the mint call so that in case the response
         // is not received our recovery index counts for sigs the mint has already issued
-        const amountToReceive = CashuUtils.getProofsAmount(token.proofs)
+        const walletInstance = await walletStore.getWallet(mintToReceive, unit, {withSeed: true})
+
+        const feeReserve = walletInstance.getFeesForProofs(token.proofs)
+        const amountToReceive = CashuUtils.getProofsAmount(token.proofs) - feeReserve
 
         const proofsByMint = proofsStore.getByMint(mintToReceive, {
             isPending: false,
             unit
-        })
-
-        const walletInstance = await walletStore.getWallet(mintToReceive, unit, {withSeed: true})
+        })        
 
         const amountPreference = getKeepAmounts(
             proofsByMint,

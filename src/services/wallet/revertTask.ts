@@ -42,13 +42,15 @@ try {
         throw new AppError(Err.VALIDATION_ERROR, 'Missing mint')
     }
 
-    const amountToRevert = CashuUtils.getProofsAmount(pendingProofs)
+    const walletInstance = await walletStore.getWallet(mintInstance.mintUrl, unit, {withSeed: true})
+
+    const feeReserve = walletInstance.getFeesForProofs(pendingProofs)
+    const amountToRevert = CashuUtils.getProofsAmount(pendingProofs) - feeReserve
+    
     const proofsByMint = proofsStore.getByMint(mintInstance.mintUrl, {
         isPending: false,
         unit
-    })
-
-    const walletInstance = await walletStore.getWallet(mintInstance.mintUrl, unit, {withSeed: true})
+    })    
 
     const amountPreference = getKeepAmounts(
         proofsByMint,

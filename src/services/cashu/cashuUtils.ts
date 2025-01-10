@@ -3,12 +3,13 @@ import type {
   getEncodedToken,
   Token, 
   Proof as CashuProof,
+  PaymentRequest as CashuPaymentRequest,
 } from '@cashu/cashu-ts'
 import AppError, {Err} from '../../utils/AppError'
 import { getDecodedToken } from '@cashu/cashu-ts'
 import {Proof} from '../../models/Proof'
 import { log } from '../logService'
-import { sumProofs } from '@cashu/cashu-ts/src/utils'
+import { decodePaymentRequest, sumProofs } from '@cashu/cashu-ts/src/utils'
 
 export {CashuProof}
 
@@ -24,10 +25,21 @@ const CASHU_TOKEN_PREFIXES = [
   'cashuB'
 ]
 
+const CASHU_REQUEST_PREFIXES = [
+  'creqA',  
+]
+
 const findEncodedCashuToken = function (content: string) {
   const words = content.split(/\s+|\n+/) // Split text into words
   const maybeToken = words.find(word => CASHU_TOKEN_PREFIXES.some(pref => word.includes(pref)))
   return maybeToken || null
+}
+
+
+const findEncodedCashuPaymentRequest = function (content: string) {
+  const words = content.split(/\s+|\n+/) // Split text into words
+  const maybeRequest = words.find(word => CASHU_REQUEST_PREFIXES.some(pref => word.includes(pref)))
+  return maybeRequest || null
 }
 
 
@@ -60,6 +72,39 @@ const extractEncodedCashuToken = function (maybeToken: string): string {
     
     throw new AppError(Err.NOTFOUND_ERROR, 'Could not extract ecash token from the provided string', {maybeToken, caller: 'extractEncodedCashuToken'})
 }
+
+
+const extractEncodedCashuPaymentRequest = function (maybeRequest: string): string {
+
+  log.trace('[extractEncodedCashuPaymentRequest] Extract payment request from', {maybeRequest})
+  
+  let encodedRequest: string | undefined = undefined
+  let decoded: CashuPaymentRequest | undefined = undefined
+  
+  if (maybeRequest && CASHU_REQUEST_PREFIXES.some(pref => maybeRequest.startsWith(pref))) {
+      decoded = decodePaymentRequest(maybeRequest) // throws
+      return maybeRequest
+  }
+
+  for (const prefix of CASHU_URI_PREFIXES) {
+    if (maybeRequest && maybeRequest.startsWith(prefix)) {            
+            encodedRequest = maybeRequest.slice(prefix.length)
+            break // necessary
+        }
+  }
+
+  log.trace('[extractEncodedCashuToken] Token without prefix', {encodedRequest})
+
+  // try to decode
+  if(encodedRequest) {
+      decoded = decodePaymentRequest(encodedRequest) // throws
+      return encodedRequest
+  }
+  
+  throw new AppError(Err.NOTFOUND_ERROR, 'Could not extract ecash token from the provided string', {maybeRequest, caller: 'extractEncodedCashuPaymentRequest'})
+}
+
+
 
 function base64urlFromBase64(str: string) {
 	return str.replace(/\+/g, '-').replace(/\//g, '_').split('=')[0];
@@ -231,7 +276,9 @@ const getMintFromProof = function (
 
 export const CashuUtils = {
     findEncodedCashuToken,
+    findEncodedCashuPaymentRequest,
     extractEncodedCashuToken,
+    extractEncodedCashuPaymentRequest,
     getProofsAmount,    
     getMintsFromToken,
     findMinExcess,
