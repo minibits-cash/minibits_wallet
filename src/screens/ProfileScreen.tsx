@@ -9,7 +9,7 @@ import AppError, { Err } from '../utils/AppError'
 import { ProfileHeader } from '../components/ProfileHeader'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { log } from '../services/logService'
-import { MinibitsClient, NostrClient, NostrProfile } from '../services'
+import { KeyChain, MinibitsClient, NostrClient, NostrProfile } from '../services'
 import { translate } from '../i18n'
 import { CollapsibleText } from '../components/CollapsibleText'
 
@@ -18,8 +18,8 @@ interface ProfileScreenProps extends ContactsStackScreenProps<'Profile'> {}
 export const ProfileScreen: FC<ProfileScreenProps> = observer(
   function ProfileScreen({navigation}) {    
     
-    const {walletProfileStore, userSettingsStore, relaysStore} = useStores() 
-    const {npub, nip05} = walletProfileStore    
+    const {walletProfileStore, userSettingsStore, relaysStore, walletStore} = useStores() 
+    const {npub, nip05, pubkey} = walletProfileStore    
 
     const [isBatchClaimOn, setIsBatchClaimOn] = useState<boolean>(
         userSettingsStore.isBatchClaimOn,
@@ -47,9 +47,14 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
     const createProfileIfNotExists = async () => {
         log.trace(walletProfileStore)
 
-        if(!walletProfileStore.pubkey || !walletProfileStore.picture) { // pic needed
+        if(!walletProfileStore.pubkey || !walletProfileStore.seedHash) {            
+
+            await walletStore.getOrCreateMnemonic()
+            const {publicKey} = await NostrClient.getOrCreateKeyPair()            
+
             const walletId = userSettingsStore.walletId
-            await walletProfileStore.create(walletId as string)                    
+            const seedHash = await KeyChain.loadSeedHash()           
+            await walletProfileStore.create(publicKey, walletId as string, seedHash as string)                      
         }
     }
 
@@ -89,14 +94,18 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
     }
 
 
-    const gotoOwnKeys = function() {
-        toggleUpdateModal()
-        navigation.navigate('OwnKeys')
-    }
-
     const onCopyNpub = function () {        
         try {
           Clipboard.setString(npub)
+        } catch (e: any) {
+          setInfo(translate('common.copyFailParam', { param: e.message }))
+        }
+    }
+
+
+    const onCopyPubkey = function () {        
+        try {
+          Clipboard.setString(pubkey)
         } catch (e: any) {
           setInfo(translate('common.copyFailParam', { param: e.message }))
         }
@@ -183,7 +192,7 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                 <Card
                     ContentComponent={
                         <>
-                        {!walletProfileStore.pubkey || !walletProfileStore.picture ? (
+                        {!walletProfileStore.pubkey || !walletProfileStore.seedHash ? (
                             <>
                             <ListItem 
                                 tx="profileOnboarding.title"
@@ -317,10 +326,17 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
                             bottomSeparator={true}
                         />    
                         <ListItem
-                            tx="nostr.copyPubKey"
+                            text="Copy Nostr public key (NPUB)"
                             subText={npub}
                             leftIcon='faCopy'
                             onPress={onCopyNpub}
+                            bottomSeparator={true}
+                        />
+                        <ListItem
+                            text="Copy Nostr public key (HEX)"
+                            subText={pubkey}
+                            leftIcon='faCopy'
+                            onPress={onCopyPubkey}
                         />
                     </>
                 }

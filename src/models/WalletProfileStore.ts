@@ -143,12 +143,9 @@ export const WalletProfileStoreModel = types
         })
     }))   
     .actions(self => ({  
-        create: flow(function* create(walletId: string) {
-
-            const {publicKey} = yield NostrClient.getOrCreateKeyPair()
-            const seedHash: string = yield KeyChain.loadSeedHash() // used to recover wallet address            
+        create: flow(function* create(publicKey: string, walletId: string, seedHash: string) {
+       
             let profileRecord: WalletProfileRecord
-
             self.seedHash = seedHash
 
             log.trace('[create]', {seedHash, publicKey})
@@ -240,7 +237,7 @@ export const WalletProfileStoreModel = types
                 }
             )           
             
-            // in seed based or backup import recovery we rotate the wallet seed to provided one
+            // rotate the wallet seed to the provided one only on fresh install recovery from seed or import backup
             if(!isAddressOnly) {
                 self.seedHash = seedHash
             }

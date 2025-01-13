@@ -21,15 +21,6 @@ import { SyncStateTaskResult, WalletTask } from '../services/walletService'
 import EventEmitter from '../utils/eventEmitter'
 import { translate } from '../i18n'
 
-/* export enum RecoveryOption {
-    SEND_TOKEN = 'SEND_TOKEN',
-    PASTE_OR_SCAN_INVOICE = 'PASTE_OR_SCAN_INVOICE',
-    SHOW_TOKEN = 'SHOW_TOKEN',
-    PAY_PAYMENT_REQUEST = 'PAY_PAYMENT_REQUEST',
-    LNURL_PAY = 'LNURL_PAY',
-    LNURL_ADDRESS = 'LNURL_ADDRESS',
-    DONATION = 'DONATION',
-} */
 
 export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> = observer(
   function RecoveryOptionsScreen({route, navigation}) {
@@ -123,12 +114,12 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
 
 
     const gotoImportBackup = function () {
-      navigation.navigate('ImportBackup', {isAddressOnlyRecovery: false})
+      navigation.navigate('ImportBackup')
     }
 
 
     const gotoAddressRecovery = function () {
-      navigation.navigate('ImportBackup', {isAddressOnlyRecovery: true})
+      navigation.navigate('RecoverWalletAddress')
   }
 
 
@@ -155,8 +146,7 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
     }
 
     const headerBg = useThemeColor('header')
-    const subtitleColor = useThemeColor('textDim')
-
+    
     return (
       <Screen preset="scroll" contentContainerStyle={$screen}>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>

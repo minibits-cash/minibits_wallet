@@ -18,40 +18,13 @@ import { verticalScale } from '@gocodingnow/rn-size-matters'
 interface ContactsScreenProps extends ContactsStackScreenProps<'Contacts'> {}
 
 export const ContactsScreen: FC<ContactsScreenProps> = observer(function ContactsScreen({route, navigation}) {    
-    const {userSettingsStore, walletProfileStore} = useStores()
+    const {walletProfileStore} = useStores()
     
     let paymentOption: ReceiveOption | SendOption | undefined
         
     if(route.params && route.params.paymentOption) {
         paymentOption = route.params.paymentOption
     }
-
-    
-    useEffect(() => {
-        const load = async () => {            
-            try {                
-                log.trace(walletProfileStore)
-
-                if(!walletProfileStore.pubkey || !walletProfileStore.picture) { 
-                    // pic check needed to be sure profile does not exists on the server                    
-                    // create random name, NIP05 identifier, random picture and sharable profile
-                    // announce new profile to the added default public and minibits relays
-
-                    // this is now done in wallet onboarding so this serves only as a recovery in case
-                    // of wallet state loss
-                    const walletId = userSettingsStore.walletId
-                    await walletProfileStore.create(walletId as string)                    
-                }
-
-            } catch(e: any) {
-                log.error(e.name, e.message)
-                return false // silent
-            }
-        }
-        load()
-        return () => {}        
-    }, [])
-
 
     const renderScene = ({route}: {route: Route}) => {
         switch (route.key) {

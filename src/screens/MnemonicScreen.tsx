@@ -55,7 +55,7 @@ export const MnemonicScreen: FC<SettingsStackScreenProps<'Mnemonic'>> = observer
 
                 if(!mnemonic) {
                     // wallets upgraded from 0.1.4 with no generated seed                    
-                    mnemonic = await walletStore.getOrCreateMnemonic() // expensive, derives seed
+                    mnemonic = await walletStore.getOrCreateMnemonic()
                     walletStore.resetWallets() // force all cached wallet instances to be recreated with seed
                     setIsNewMnemonic(true)
                 }

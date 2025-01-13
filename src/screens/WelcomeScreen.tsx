@@ -32,6 +32,8 @@ import {TxKeyPath, translate} from '../i18n'
 import AppError from '../utils/AppError'
 import { MINIBITS_MINT_URL } from '@env'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
+import { KeyChain, NostrClient } from '../services'
+import { delay } from '../utils/utils'
 
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView)
@@ -108,15 +110,20 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
           
           // do not overwrite if one was set during recovery
           setIsLoading(true)
-          setStatusMessage('Setting wallet seed...')
 
-          await walletStore.getOrCreateMnemonic()
 
           // move new profile creation to the app start so that device token can register
-          if(!walletProfileStore.pubkey || !walletProfileStore.picture) {
+          if(!walletProfileStore.pubkey || !walletProfileStore.seedHash) {
+            setStatusMessage('Creating wallet seed and keys...')
+
+            await walletStore.getOrCreateMnemonic()
+            const {publicKey} = await NostrClient.getOrCreateKeyPair()
+
             setStatusMessage('Creating wallet profile...')
+
             const walletId = userSettingsStore.walletId
-            await walletProfileStore.create(walletId as string)                    
+            const seedHash = await KeyChain.loadSeedHash()           
+            await walletProfileStore.create(publicKey, walletId as string, seedHash as string)                      
           }
 
           if(!mintsStore.mintExists(MINIBITS_MINT_URL)) {
@@ -126,11 +133,11 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
           relaysStore.addDefaultRelays()         
           
           userSettingsStore.setIsOnboarded(true)
-          setStatusMessage('')
-          setIsLoading(false)
 
           navigation.navigate('Tabs', {screen: 'WalletNavigator', params: {screen: 'Wallet', params: {}}})
-
+          await delay(1000)
+          setStatusMessage('')
+          setIsLoading(false)   
       } catch (e: any) {
           handleError(e)
       }      

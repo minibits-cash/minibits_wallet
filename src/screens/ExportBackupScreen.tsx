@@ -40,6 +40,8 @@ import { Transaction, TransactionStatus } from '../models/Transaction'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { Token, getDecodedToken, getEncodedToken } from '@cashu/cashu-ts'
+import { encodeCBOR } from '@cashu/cashu-ts/src/cbor'
+import { encodeUint8toBase64Url } from '@cashu/cashu-ts/src/base64'
 
 interface ExportBackupScreenProps extends SettingsStackScreenProps<'ExportBackup'> {}
 
@@ -284,8 +286,14 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
               }              
             }
 
-            if(isMintsInBackup) {                
-              exportedMintsStore = getSnapshot(mintsStore)
+            if(isMintsInBackup) {  
+              exportedMintsStore = JSON.parse(JSON.stringify(getSnapshot(mintsStore)))
+
+              exportedMintsStore.mints.forEach((mint: any) => {
+                mint.keys = [];                
+              })
+
+              //log.trace({exportedMintsStore})
             }
 
             if(isContactsInBackup) {
@@ -299,8 +307,19 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
             }
 
             log.trace({exportedSnapshot})
+            
+            const prefix = 'minibits'
+            const version = 'A'
 
-            const base64Encoded = btoa(JSON.stringify(exportedSnapshot))            
+            // CBOR - WIP, not working
+            // const encodedData = encodeCBOR(exportedSnapshot)
+            // const base64Data = encodeUint8toBase64Url(encodedData)
+
+            // Simple BASE64
+            const base64Data = btoa(JSON.stringify(exportedSnapshot))
+            
+            const base64Encoded = prefix + version + base64Data
+
             Clipboard.setString(base64Encoded)
             setIsLoading(false)  
 
@@ -409,159 +428,6 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
         Clipboard.setString(JSON.stringify(orphanedProofs))
       }      
     }
-
-
-    /* const onRecovery = async function () {
-      if (!showUnspentOnly) {
-        setInfo(translate("unspentOnlyRecoverable"))
-        return
-      }
-
-      const balances = proofsStore.getBalances()
-      let message: string = ''
-
-      const nonZeroBalances = balances.mintBalances.filter(b => Object.values(b.balances).some(b => b && b > 0))        
-      
-      log.trace('[onRecovery]', {nonZeroBalances})
-
-      if (nonZeroBalances && nonZeroBalances.length > 0) {
-          message = translate("backupWillOverwriteBalanceWarning")
-          message += "\n\n"
-      }
-
-      message += translate("confirmBackupRecovery")
-
-      Alert.alert(
-        translate("attention"),
-        message,
-        [
-          {
-            text: translate('common.cancel'),
-            style: 'cancel',
-            onPress: () => {
-              // Action canceled
-            },
-          },
-          {
-            text: translate("startRecovery"),
-            onPress: () => {
-              try {
-                doLocalRecovery()
-              } catch (e: any) {
-                handleError(e)
-              }
-            },
-          },
-        ],
-      )
-    }
-
-
-    const doLocalRecovery = async function () {
-      try {
-        if(!showUnspentOnly) {
-          setInfo(translate('unspentOnlyRecoverable'))
-          return
-        }
-
-        if(mintsStore.allMints.length === 0) {
-          setInfo(translate('missingMintsForProofsUserMessage'))
-        }
-        
-        setIsLoading(true)
-
-        const groupedByMint = groupProofsByMint(proofs)
-        await transactionsStore.expireAllAfterRecovery()
-
-          for (const mint in groupedByMint) { 
-            
-            const proofsByMint = groupedByMint[mint]
-
-            if(proofsByMint.length === 0) {
-              continue
-            }
-
-            proofsStore.removeOnLocalRecovery(proofsByMint, false)
-
-            const groupedByKeyset = groupProofsByKeysets(proofsByMint)
-
-            for (const keysetId in groupedByKeyset) {
-              const proofsByKeysetId = groupedByKeyset[keysetId]
-              const proofsToImport: ProofV3[] = []
-
-              for (const proof of proofsByKeysetId) {
-                const { tId, unit, isPending, isSpent, updatedAt, ...proofToImport } = proof
-                proofsToImport.push(proofToImport)
-              }
-
-              if(proofsToImport.length === 0) {
-                continue
-              }
-
-              const amount = sumProofs(proofsToImport)
-              const unit = proofsByKeysetId[0].unit
-
-              log.trace('[doLocalRecovery] to be recovered', {mint, keysetId, unit, amount})
-
-              let transactionData: TransactionData[] = []              
-
-              transactionData.push({
-                status: TransactionStatus.PREPARED,
-                amount,
-                createdAt: new Date(),
-              })
-
-              const newTransaction = {
-                type: TransactionType.RECEIVE,
-                amount,
-                fee: 0,
-                unit: unit as MintUnit,
-                data: JSON.stringify(transactionData),
-                memo: 'Recovery from backup',
-                mint: mint,
-                status: TransactionStatus.PREPARED,
-              }
-
-              const transaction = await transactionsStore.addTransaction(newTransaction)              
-
-              const { amountToAdd, addedAmount } = WalletUtils.addCashuProofs(
-                  mint,
-                  proofsToImport,
-                  {
-                      unit: unit as MintUnit,
-                      transactionId: transaction.id,
-                      isPending: false
-                  }            
-              )                 
-
-              if (amountToAdd !== addedAmount) {
-                  transaction.setReceivedAmount(addedAmount)                       
-              }
-
-              const balanceAfter = proofsStore.getUnitBalance(unit as MintUnit)?.unitBalance || 0
-              transaction.setBalanceAfter(balanceAfter)
-
-              // Finally, update completed transaction
-              transactionData.push({
-                  status: TransactionStatus.COMPLETED,
-                  addedAmount,                       
-                  createdAt: new Date(),
-              })
-
-              transaction.setStatus(                  
-                  TransactionStatus.COMPLETED,
-                  JSON.stringify(transactionData),
-              )               
-            }
-          }
-
-          setIsLoading(false)
-
-      } catch (e: any) {
-          handleError(e)
-      }
-  } */
-
 
     const handleError = function (e: AppError): void {
       setIsLoading(false)

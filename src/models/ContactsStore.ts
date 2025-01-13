@@ -126,8 +126,13 @@ import { MINIBITS_NIP05_DOMAIN } from '@env'
                 self.lastPendingReceivedCheck = ts2
                 log.trace('[setLastPendingReceivedCheck]', {ts2})                
             },
-            addReceivedEventId(id: string) {            
+            addReceivedEventId(id: string) {
+                if(self.receivedEventIds.includes(id)) {
+                    return
+                }
+
                 const num = self.receivedEventIds.unshift(id)
+                
                 if(num > 50) {
                     self.receivedEventIds.pop()
                 }

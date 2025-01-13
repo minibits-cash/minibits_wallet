@@ -40,6 +40,7 @@ import { WalletUtils } from '../services/wallet/utils'
 import { MintUnit, formatCurrency, getCurrency } from '../services/wallet/currency'
 import { isObj } from '@cashu/cashu-ts/src/utils'
 import { translate } from '../i18n'
+import { WalletProfileRecord } from '../models/WalletProfileStore'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
@@ -67,12 +68,15 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
     
     const mnemonicInputRef = useRef<TextInput>(null)
     const indexInputRef = useRef<TextInput>(null)
+    const seedRef = useRef<Uint8Array | null>(null)
+    const seedHashRef = useRef<string | null>(null)
 
     const [info, setInfo] = useState('')    
     const [mnemonic, setMnemonic] = useState<string>('')        
     const [mnemonicExists, setMnemonicExists] = useState(false)
-    const [isValidMnemonic, setIsValidMnemonic] = useState(false)
-    const [seed, setSeed] = useState<Uint8Array>()    
+    const [isValidMnemonic, setIsValidMnemonic] = useState(false)  
+    const [profileToRecover, setProfileToRecover] = useState<WalletProfileRecord | undefined>(undefined)
+    const [isNewProfileNeeded, setIsNewProfileNeeded] = useState(false) 
     const [selectedMintUrl, setSelectedMintUrl] = useState<string | undefined>()
     const [selectedKeyset, setSelectedKeyset] = useState<MintKeyset | undefined>()
     const [selectedMintKeysets, setSelectedMintKeysets] = useState<MintKeyset[]>([])
@@ -122,7 +126,7 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
     }
 
 
-    const onPaste = async function () {
+    const onPasteMnemonic = async function () {
         try {
             const maybeMnemonic = await Clipboard.getString()
 
@@ -139,27 +143,46 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
     }
 
 
-    const onConfirm = async function () {
+    const onConfirmMnemonic = async function () {
         try {
             if(!mnemonic) {
-              throw new AppError(Err.VALIDATION_ERROR, translate('backupScreen.missingMnemonicError'))
-            }           
-
-            if (!validateMnemonic(mnemonic, wordlist)) {
-              throw new AppError(Err.VALIDATION_ERROR, translate("recoveryInvalidMnemonicError"))
+                throw new AppError(Err.VALIDATION_ERROR, translate('backupScreen.missingMnemonicError'))
             }
-            
+
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)            
 
-            const start = performance.now()
-            const binarySeed = mnemonicToSeedSync(mnemonic)
-            const end = performance.now()
-            log.debug(`[onConfirm] mnemonicToSeedSync took ${end - start} ms.`)
-    
-            setSeed(binarySeed)
-            setIsValidMnemonic(true)            
+            if (!validateMnemonic(mnemonic, wordlist)) {
+                throw new AppError(Err.VALIDATION_ERROR, translate("recoveryInvalidMnemonicError"))
+            }
+
+            setIsValidMnemonic(true)
+            
+            const binarySeed = mnemonicToSeedSync(mnemonic)            
+
+            const seedHash = QuickCrypto.createHash('sha256')
+            .update(binarySeed)
+            .digest('hex')
+
+            seedRef.current = binarySeed
+            seedHashRef.current = seedHash
+            
+            const profile = await MinibitsClient.getWalletProfileBySeedHash(seedHash as string) // throws if not found
+          
+            log.info('[onCheckWalletAddress] profileToRecover', {profile})                
+  
+            if(profile.nip05.includes(MINIBITS_NIP05_DOMAIN)) {                                    
+                setProfileToRecover(profile)
+            } else {
+                setInfo(translate("recovery.ownKeysImportAgain", { addr: profile.nip05 }))
+                setIsNewProfileNeeded(true)              
+            }            
         } catch (e: any) {
-          handleError(e)
+          // Profile with provided seed hash does not exists
+          if(e.name === Err.NOTFOUND_ERROR) {
+            setIsNewProfileNeeded(true)
+          } else {
+            handleError(e)
+          }
         }
     }
 
@@ -228,6 +251,10 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
         let recoveredMint = mintsStore.findByUrl(selectedMintUrl as string)
 
         try {
+            if(!seedHashRef.current || !seedRef.current) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Could not get seed')
+            }
+
             if(!recoveredMint) {                
               setInfo(translate("recovery.noMintSelected"))
               return
@@ -243,7 +270,7 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
             
             const { proofs } = await walletStore.restore(
                 recoveredMint.mintUrl, 
-                seed as Uint8Array,
+                seedRef.current,
                 {
                     indexFrom: startIndex, 
                     indexTo: endIndex,                    
@@ -462,59 +489,53 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
         }
 
         toggleResultModal() // open
-    }
-    
+    }   
 
 
-    const onComplete = async () => {
+    const onCompleteAddress = async () => {
         try {
-            if(!seed || !mnemonic) {
-                throw new AppError(Err.VALIDATION_ERROR, translate('backupScreen.missingMnemonicOrSeedError'))
+            if(!seedHashRef.current || !seedRef.current) {
+              throw new AppError(Err.VALIDATION_ERROR, translate('backupScreen.missingMnemonicOrSeedError'))
             }
 
-            setStatusMessage(translate('recovery.recoveringAddress'))
+            // create a new key pair after new install or factory reset
+            const {publicKey} = await NostrClient.getOrCreateKeyPair()
+            
+            log.trace('[onCompleteAddress] New Nostr pubkey', {publicKey})
+
             setIsLoading(true)
 
-            const seedHash = QuickCrypto.createHash('sha256')
-            .update(seed)
-            .digest('hex')
-
-            log.trace('[onComplete]', 'getWalletProfileBySeedHash')
-            const profileToRecover = await MinibitsClient.getWalletProfileBySeedHash(seedHash as string)            
-
-            // Skip external profiles beacause we do not control keys
-            if(profileToRecover) {
-                log.info('[onComplete] recovery', {profileToRecover})
-                setStatusMessage(translate("recovery.foundAddrParam", { addr: profileToRecover.nip05 }))
-
-                if(profileToRecover.nip05.includes(MINIBITS_NIP05_DOMAIN)) {                                    
-                    const {publicKey: currentPubkey} = await NostrClient.getOrCreateKeyPair()
-                    // Updates profile with seedHash with currentPubkey
-                    await walletProfileStore.recover(seedHash as string, currentPubkey, false)
-                    // Align walletId in userSettings with recovered profile
-                    userSettingsStore.setWalletId(walletProfileStore.walletId)
-                } else {
-                  setInfo(translate("recovery.ownKeysImportAgain", { addr: profileToRecover.nip05 }))
-                  await delay(4000)
-                }
+            if(isNewProfileNeeded) {
+                setStatusMessage('Creating new wallet profile...')
+                const walletId = userSettingsStore.walletId!
+                await walletProfileStore.create(publicKey, walletId, seedHashRef.current)
+            } else {
+                // In case of recovery from dseed we have new nostr keys and we link the new pubkey to the profile
+                // with provided seedHash
+                setStatusMessage(translate("recovery.recoveringAddress"))
+                await walletProfileStore.recover(seedHashRef.current, publicKey, false)
             }
 
-            userSettingsStore.setIsOnboarded(true)
+            // we set the wallet seed to the provided one
             await KeyChain.saveMnemonic(mnemonic)
-            await KeyChain.saveSeed(seed as Uint8Array)
+            await KeyChain.saveSeed(seedRef.current)  
+
+            userSettingsStore.setIsOnboarded(true)
 
             if(!mintsStore.mintExists(MINIBITS_MINT_URL)) {
                 await mintsStore.addMint(MINIBITS_MINT_URL)            
             }
-            
+
             setStatusMessage(translate('recovery.completed'))
-            await delay(2000)
+                        
+            // go directly to the wallet (profile hase been rehydrated from the one with the seed)
+            navigation.navigate('Tabs', {screen: 'WalletNavigator', params: {screen: 'Wallet', params: {}}})
+            await delay(1000)
             setStatusMessage('')
-            setIsLoading(false)
-            navigation.navigate('Tabs', {screen: 'WalletNavigator', params: {screen: 'Wallet', params: {}}})        
-        } catch (e: any) {
-            handleError(e)
-        }
+            setIsLoading(false)       
+      } catch (e: any) {
+          handleError(e)
+      }
     }
 
 
@@ -641,7 +662,7 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
                                           />
                                           {(startIndex > 0 || totalRecoveredAmount > 0) && (
                                               <Button
-                                                  onPress={onComplete}
+                                                  onPress={onCompleteAddress}
                                                   tx="common.complete"                                                        
                                                   preset='secondary'                                        
                                               />
@@ -726,12 +747,12 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
                               <View style={$buttonContainer}>
                                   {mnemonic ? (
                                       <Button
-                                          onPress={onConfirm}
+                                          onPress={onConfirmMnemonic}
                                           tx='common.confirm'                        
                                       />
                                   ) : (
                                       <Button
-                                          onPress={onPaste}
+                                          onPress={onPasteMnemonic}
                                           tx='common.paste'                        
                                       />
                                   )

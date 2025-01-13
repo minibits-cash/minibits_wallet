@@ -3,6 +3,7 @@ export * from './WelcomeScreen'
 export * from './RecoveryOptionsScreen'
 export * from './SeedRecoveryScreen'
 export * from './ImportBackupScreen'
+export * from './RecoverWalletAddressScreen'
 
 // WalletNavigator
 export * from './WalletScreen'

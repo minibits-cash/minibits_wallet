@@ -20,6 +20,7 @@ import {
   SeedRecoveryScreen,
   MintsScreen,
   RecoveryOptionsScreen,
+  RecoverWalletAddressScreen,
   ImportBackupScreen
 } from "../screens"
 import { useStores } from "../models"
@@ -44,7 +45,8 @@ export type AppStackParamList = {
   Welcome: undefined
   RecoveryOptions: {fromScreen?: string}
   SeedRecovery: undefined
-  ImportBackup: {isAddressOnlyRecovery: boolean}
+  ImportBackup: undefined
+  RecoverWalletAddress: undefined
   Mints: {}
   Tabs: NavigatorScreenParams<TabsParamList>  
 }
@@ -81,6 +83,7 @@ const AppStack = observer(function AppStack() {
         <Stack.Screen name="RecoveryOptions" component={RecoveryOptionsScreen} />
         <Stack.Screen name="SeedRecovery" component={SeedRecoveryScreen} />
         <Stack.Screen name="ImportBackup" component={ImportBackupScreen} />
+        <Stack.Screen name="RecoverWalletAddress" component={RecoverWalletAddressScreen} />
         <Stack.Screen name="Mints" component={MintsScreen} />
         {!userSettingsStore.isUserOnboarded && (
           <Stack.Screen name="Tabs" component={TabsNavigator} />
