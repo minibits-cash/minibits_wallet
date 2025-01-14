@@ -57,6 +57,7 @@ import { useFocusEffect } from '@react-navigation/native'
 import { QRCodeBlock } from './Wallet/QRCode'
 import { MintListItem } from './Mints/MintListItem'
 import { Token, getDecodedToken } from '@cashu/cashu-ts'
+import { faTruckMedical } from '@fortawesome/free-solid-svg-icons'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
@@ -92,8 +93,8 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
     useFocusEffect(useCallback(() => {
       try {
         const {id} = route.params        
-        const tx = transactionsStore.findById(id)
-        log.trace('Transaction loaded', {id: tx?.id, unit: tx?.unit, note: tx?.noteToSelf})
+        const tx = transactionsStore.findById(id, true) // load full tokens
+        log.trace('Transaction loaded', {id: tx?.id, unit: tx?.unit, note: tx?.noteToSelf, inputToken: tx?.inputToken, outputToken: tx?.inputToken})
 
       if (!tx) {
           throw new AppError(
@@ -167,6 +168,18 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
       }
     }
 
+    const onBack = function () {
+      if(transaction && transaction.inputToken &&  transaction.inputToken.length > 40) {
+        transaction.pruneInputToken(transaction.inputToken)
+      }
+
+      if(transaction && transaction.outputToken && transaction.outputToken.length > 40) {
+        transaction.pruneOutputToken(transaction.outputToken)
+      }
+      
+      navigation.goBack()
+    }
+
     const handleError = function (e: AppError): void {      
       setError(e)      
     }
@@ -202,7 +215,7 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
           <>
             <Header 
                   leftIcon='faArrowLeft'
-                  onLeftPress={() => navigation.goBack()}
+                  onLeftPress={onBack}
                                       
             />
             <View style={[$headerContainer, {

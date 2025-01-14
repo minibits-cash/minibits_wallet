@@ -5,10 +5,8 @@ import {
     destroy,
     isStateTreeNode,
     detach,
-    flow,
-    getRoot,
-    getSnapshot,
-    getParent,
+    flow,    
+    getSnapshot,    
   } from 'mobx-state-tree'
   import {withSetPropAction} from './helpers/withSetPropAction'
   import {MintModel, Mint, MintProofsCounter, MintProofsCounterModel} from './Mint'

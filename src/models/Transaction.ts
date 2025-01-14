@@ -140,19 +140,27 @@ export const TransactionModel = types
         }, 
         setInputToken(inputToken: string) {
             Database.updateInputToken(self.id!, inputToken)            
-            self.inputToken = inputToken
+            self.inputToken = inputToken.slice(0, 40)
             log.trace('[setInputToken]', 'Transaction inputToken updated', {id: self.id, inputToken})
         },
         setOutputToken(outputToken: string) {
             Database.updateOutputToken(self.id!, outputToken)            
-            self.outputToken = outputToken
+            self.outputToken = outputToken.slice(0, 40)
             log.trace('[setOutputToken]', 'Transaction outputToken updated', {id: self.id})
         },
         setProof(proof: string) {
             Database.updateProof(self.id!, proof)            
             self.proof = proof
             log.trace('[setProof]', 'Transaction proof updated', {id: self.id, proof})
-        },             
+        },
+        pruneInputToken(inputToken: string) {            
+            self.inputToken = inputToken.slice(0, 40)
+            log.trace('[pruneInputToken]', 'Transaction inputToken pruned in store', {id: self.id})
+        }, 
+        pruneOutputToken(outputToken: string) {            
+            self.outputToken = outputToken.slice(0, 40)
+            log.trace('[pruneOutputToken]', 'Transaction outputToken pruned in store', {id: self.id})
+        },           
   }))   
     
 

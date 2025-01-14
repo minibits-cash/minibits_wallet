@@ -1,85 +1,15 @@
 import {Proof} from '../../models/Proof'
 import {rootStoreInstance} from '../../models'
-import AppError, { Err } from "../../utils/AppError"
+import AppError from "../../utils/AppError"
 import { log } from '../logService'
 import { isStateTreeNode } from 'mobx-state-tree'
 import { CashuUtils, CashuProof } from '../cashu/cashuUtils'
-import { Mint, MintProofsCounter } from '../../models/Mint'
-import { delay } from '../../utils/utils'
 import { MintUnit } from './currency'
 import { isObj } from '@cashu/cashu-ts/src/utils'
 
 const {
     proofsStore,
-    walletStore
 } = rootStoreInstance
-
-// const { walletStore } = nonPersistedStores
-
-
-const lockAndSetInFlight = async function (
-    mint: Mint, 
-    unit: MintUnit,    
-    countOfInFlightProofs: number,
-    transactionId: number,
-    retryCount: number = 0,    
-): Promise<MintProofsCounter> {
-    
-    // Make sure to select the wallet instance keysetId
-    const walletInstance = await walletStore.getWallet(mint.mintUrl, unit, {withSeed: true})
-    const currentCounter = mint.getProofsCounterByKeysetId!(walletInstance.keysetId)
-
-    log.info('[lockAndSetInFlight] Before lock', {
-        transactionId, 
-        counter: currentCounter.counter,
-        countOfInFlightProofs
-    })
-
-    if(!currentCounter) {
-        throw new AppError(Err.VALIDATION_ERROR, 'Missing ProofsCounter.')
-    }
-
-    
-    // deprecated, should not be necessary anymore with serial task queue processing
-    if(currentCounter && currentCounter.inFlightTid && currentCounter.inFlightTid !== transactionId) {
-        
-        log.warn('[lockAndSetInFlight] Waiting for a lock to release', {
-            lockedBy: currentCounter.inFlightTid, 
-            waiting: transactionId
-        })
-
-        await delay(1000)
-
-        if (retryCount < 10) {
-            // retry to acquire lock, increment the count of retries up to 10 seconds
-            return lockAndSetInFlight(
-                mint,
-                unit,
-                countOfInFlightProofs,
-                transactionId,
-                retryCount + 1
-            )
-        } else {            
-            log.error('[lockAndSetInFlight] Hard reset the lock after max retries to release were reached', {
-                lockedBy: currentCounter.inFlightTid, 
-                waiting: transactionId
-            })         
-            currentCounter.resetInFlight(currentCounter.inFlightTid as number)
-        }
-    } // deprecated end
-
-    // This sets inFlightFrom -> inFlightTo recovery interval in case the mint response won't come
-    // It sets as well the counter to inFlightTo until response comes
-    currentCounter.setInFlight!(        
-        currentCounter?.counter as number, // from
-        currentCounter?.counter as number + countOfInFlightProofs, // to + temp counter value
-        transactionId        
-    )
-
-    // log.trace('[lockAndSetInFlight] proofsCounter locked', {currentCounter})
-
-    return currentCounter
-}
 
 
 const addCashuProofs = function (    
@@ -131,8 +61,7 @@ const formatError = function (e: AppError) {
     } as AppError 
 }
 
-export const WalletUtils = {
-    lockAndSetInFlight,
+export const WalletUtils = {    
     addCashuProofs,    
     formatError
 }

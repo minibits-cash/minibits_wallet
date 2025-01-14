@@ -4,12 +4,10 @@ import {
   TransactionStatus,  
 } from '../../models/Transaction'
 import {rootStoreInstance} from '../../models'
-import {CashuUtils, CashuProof} from '../cashu/cashuUtils'
 import AppError, {Err} from '../../utils/AppError'
-import { DEFAULT_DENOMINATION_TARGET, TransactionTaskResult } from '../walletService'
+import { TransactionTaskResult } from '../walletService'
 import { WalletUtils } from './utils'
 import { MintUnit } from './currency'
-import { MintProofsCounter } from '../../models/Mint'
 import { Token } from '@cashu/cashu-ts'
 import { getEncodedToken, getKeepAmounts } from '@cashu/cashu-ts/src/utils'
 
@@ -25,11 +23,12 @@ export const revertTask = async function (
   transaction: Transaction  
 ): Promise<TransactionTaskResult> {    
 
-let lockedProofsCounter: MintProofsCounter | undefined = undefined
+
 const transactionData = JSON.parse(transaction.data)
+const unit = transaction.unit as MintUnit
 
 try {
-    const unit = transaction.unit as MintUnit
+    
     const pendingProofs = proofsStore.getByTransactionId(transaction.id!, true)
 
     if(pendingProofs.length === 0) {
@@ -40,58 +39,25 @@ try {
 
     if(!mintInstance) {
         throw new AppError(Err.VALIDATION_ERROR, 'Missing mint')
-    }
-
-    const walletInstance = await walletStore.getWallet(mintInstance.mintUrl, unit, {withSeed: true})
-
-    const feeReserve = walletInstance.getFeesForProofs(pendingProofs)
-    const amountToRevert = CashuUtils.getProofsAmount(pendingProofs) - feeReserve
-    
-    const proofsByMint = proofsStore.getByMint(mintInstance.mintUrl, {
-        isPending: false,
-        unit
-    })    
-
-    const amountPreference = getKeepAmounts(
-        proofsByMint,
-        amountToRevert,
-        (await walletInstance.getKeys()).keys,
-        DEFAULT_DENOMINATION_TARGET            
-    )       
+    } 
       
-      log.trace('[_revertTask]', {amountPreference, transactionId: transaction.id})      
-      
-      // We will swap pending proofs with the mint for fresh ones that we receive to the wallet.
-      // This will invalidate originally sent proofs effectively reverting the transaction.
-      const encodedToken: Token = {
+    // We will swap pending proofs with the mint for fresh ones that we receive to the wallet.
+    // This will invalidate originally sent proofs effectively reverting the transaction.
+    const encodedToken: Token = {
         mint: mintInstance.mintUrl,
         proofs: pendingProofs,
         unit
-      }
-      
-      // temp increase the counter + acquire lock and set inFlight values        
-      lockedProofsCounter = await WalletUtils.lockAndSetInFlight(
-          mintInstance, 
-          unit, 
-          amountPreference.length, 
-          transaction.id!
-      )
+    }
 
-      const receivedResult = await walletStore.receive(
-          transaction.mint,
-          unit as MintUnit,
-          encodedToken,          
-          {            
-            outputAmounts: {keepAmounts: [], sendAmounts: amountPreference},
-            counter: lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
-          }
-      )
+    const receivedResult = await walletStore.receive(
+        transaction.mint,
+        unit as MintUnit,
+        encodedToken,          
+        transaction.id
+    )
       
       const receivedProofs = receivedResult.proofs
       const mintFeePaid = receivedResult.swapFeePaid
-  
-      // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs        
-      lockedProofsCounter.decreaseProofsCounter(amountPreference.length)
 
       // store freshed proofs as encoded token in tx data        
       const outputToken = getEncodedToken({
@@ -114,14 +80,10 @@ try {
           }                    
       )
 
-      // release lock
-      lockedProofsCounter.resetInFlight(transaction.id!)
-
       // Update transaction status
       transactionData.push({
           status: TransactionStatus.REVERTED,
-          mintFeePaid,
-          counter: lockedProofsCounter.counter,
+          mintFeePaid,          
           createdAt: new Date(),
       })
 
@@ -148,10 +110,6 @@ try {
       
   } catch (e: any) {
       if (transaction) {            
-          if(lockedProofsCounter) {                
-              lockedProofsCounter.resetInFlight(transaction.id!)
-          }
-
           transactionData.push({
               status: TransactionStatus.ERROR,
               error: WalletUtils.formatError(e),

@@ -2,7 +2,7 @@ import { Task, TaskId, TaskQueue, TaskStatus } from "simple-js-task-queue"
 import {log} from './logService'
 import EventEmitter from '../utils/eventEmitter'
 import { TransactionTaskResult, WalletTaskResult } from "./walletService"
-
+import { NotificationService } from "./notificationService"
 
 let _queue: any = undefined
 // const start = new Date().getTime()
@@ -15,6 +15,7 @@ const getSyncQueue = function () {
             stopOnError: false,
             // verbose: true,
             taskPrioritizationMode: "head",
+            memorizeTasks: true
           })
         return _queue
     }
@@ -55,7 +56,19 @@ const _handleTaskResult = (taskId: TaskId, result: WalletTaskResult | Transactio
       `The result of task ${taskId}`, result
     )
 
+    const queue: TaskQueue = getSyncQueue()
+
     EventEmitter.emit(`ev_${result.taskFunction}_result`, result)
+
+    if(queue.getAllTasksDetails(['idle', 'running']).length === 0) {
+        setTimeout(() => {
+            if(queue.getAllTasksDetails(['idle', 'running']).length === 0) {
+                log.trace('[handleTaskResult] stopForegroundService')
+                NotificationService.stopForegroundService()
+            }
+        }, 2000)
+    }
+    
 }
   
 // Helper function to handle the task status changes
@@ -65,8 +78,8 @@ const _handleTaskStatusChange = (status: TaskStatus, task: Task) => {
     )
 }
 
-export const SyncQueue = {
-    getSyncQueue,
+
+export const SyncQueue = {    
     addTask,
-    addPrioritizedTask
+    addPrioritizedTask,
 }

@@ -1,6 +1,7 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useState, useCallback, useEffect} from 'react'
+import React, {FC, useState, useEffect} from 'react'
 import {TextStyle, View, ViewStyle} from 'react-native'
+import notifee, { AndroidImportance } from '@notifee/react-native'
 import {spacing, useThemeColor, colors} from '../theme'
 import {AppStackScreenProps} from '../navigation'
 import {
@@ -12,6 +13,7 @@ import {
   Text,
   ErrorModal,
   InfoModal,
+  Loading,
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
@@ -20,6 +22,8 @@ import { useStores } from '../models'
 import { SyncStateTaskResult, WalletTask } from '../services/walletService'
 import EventEmitter from '../utils/eventEmitter'
 import { translate } from '../i18n'
+import { TASK_QUEUE_CHANNEL_ID, TASK_QUEUE_CHANNEL_NAME } from '../services/notificationService'
+import { minibitsPngIcon } from '../components/MinibitsIcon'
 
 
 export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> = observer(
@@ -66,7 +70,7 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
           }
           
           if(totalSpentAmount === 0 && result.transactionStateUpdates.length === 0) {
-            setInfo('Spent ecash has not been found in the wallet.')
+            setInfo(`No spent ecash from ${new URL(result.mintUrl).hostname}.`)
           }
       }
       
@@ -126,7 +130,22 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
     const checkSpent = async function () {
       setIsLoading(true)
       setIsSyncStateSentToQueue(true)
-      WalletTask.syncSpendableStateWithMints()      
+
+      // long task background processing
+      notifee.displayNotification({
+        title: TASK_QUEUE_CHANNEL_NAME,
+        body: 'Processing pending transactions...',
+        android: {
+            channelId: TASK_QUEUE_CHANNEL_ID,
+            asForegroundService: true,
+            largeIcon: minibitsPngIcon,
+            importance: AndroidImportance.HIGH,
+            progress: {
+                indeterminate: true,
+            },
+        },
+        data: {tasksToRun: 'syncSpendableStateWithMints'},
+      })         
     }
 
 
@@ -247,17 +266,19 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
                   }
               />
               </>
-            )}            
+            )} 
+          {isLoading && <Loading />}        
+          {error && <ErrorModal error={error} />}
+          {info && <InfoModal message={info} />}                    
         </View>
-        {error && <ErrorModal error={error} />}
-        {info && <InfoModal message={info} />}
+
       </Screen>
     )
   },
 )
 
 const $screen: ViewStyle = {
-  // flex: 1,
+  flex: 1,
 }
 
 const $headerContainer: TextStyle = {

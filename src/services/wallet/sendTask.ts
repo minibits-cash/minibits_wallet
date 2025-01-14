@@ -72,8 +72,7 @@ export const sendTask = async function (
             proofs: proofsToSend, 
             swapFeePaid, 
             swapFeeReserve, 
-            isSwapNeeded,
-            counter
+            isSwapNeeded,            
         } = await sendFromMintSync(
             mintBalanceToSendFrom,
             amountToSend,
@@ -111,8 +110,7 @@ export const sendTask = async function (
         transaction.setOutputToken(outputToken)
         
         transactionData.push({
-            status: TransactionStatus.PENDING,
-            counter,           
+            status: TransactionStatus.PENDING,                      
             createdAt: new Date(),
         })
 
@@ -146,8 +144,7 @@ export const sendTask = async function (
                 {proofsToSync, mintUrl, isPending: true}
             )
             .then(() => log.trace('[syncStateWithMintPoller]', 'polling completed', {mintUrl}))  
-        }      
-      
+        }
 
         return {
             taskFunction: 'sendTask',
@@ -192,8 +189,7 @@ export const sendFromMintSync = async function (
     transactionId: number,
 ) {
     const mintUrl = mintBalance.mintUrl
-    const mintInstance = mintsStore.findByUrl(mintUrl)
-    let lockedProofsCounter: MintProofsCounter | undefined = undefined
+    const mintInstance = mintsStore.findByUrl(mintUrl)    
     let proofsToSendFrom: Proof[] = []   
     
     try {
@@ -346,54 +342,19 @@ export const sendFromMintSync = async function (
                 returnedAmount, 
                 transactionId
             })
-
-            // Output denominations we ask for to get back
-            const sendAmounts = getKeepAmounts(
-                proofsToSendFrom,
-                amountToSend,
-                (await walletInstance.getKeys()).keys,
-                DEFAULT_DENOMINATION_TARGET            
-            )
-
-            const keepAmounts = getKeepAmounts(
-                proofsToSendFrom,
-                returnedAmount,
-                (await walletInstance.getKeys()).keys,
-                DEFAULT_DENOMINATION_TARGET            
-            )
-
-            const countOfInFlightProofs = sendAmounts.length + keepAmounts.length
-            
-            log.trace('[sendFromMintSync]', {sendAmounts, keepAmounts, countOfInFlightProofs})    
-
-            // Increase the proofs counter before the mint call so that in case the response
-            // is not received our recovery index counts for sigs the mint has already issued (prevents duplicate b_b bug)            
-            // Warning/TBD: if proofs from inactive keysets are in proofsToSendFrom, this still locks only the active keyset
-            lockedProofsCounter = await WalletUtils.lockAndSetInFlight(
-                mintInstance, 
-                unit, 
-                countOfInFlightProofs, 
-                transactionId
-            )
             
             const sendResult = await walletStore.send(
                 mintUrl,
                 amountToSend,                
                 unit,            
                 proofsToSendFrom,
-                {              
-                    outputAmounts: {sendAmounts, keepAmounts},                    
-                    counter: lockedProofsCounter.inFlightFrom as number, // MUST be counter value before increase                    
-                }
+                transactionId
             )
 
             returnedProofs = sendResult.returnedProofs
             proofsToSend = sendResult.proofsToSend
             swapFeePaid = sendResult.swapFeePaid
-
-            // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs        
-            lockedProofsCounter.decreaseProofsCounter(countOfInFlightProofs) 
-
+            
             // add proofs returned by the mint after the split
             log.trace('[sendFromMintSync] add returned proofs to spendable')
 
@@ -405,9 +366,7 @@ export const sendFromMintSync = async function (
                     transactionId,
                     isPending: false
                 }
-            )                
-            // release lock
-            lockedProofsCounter.resetInFlight(transactionId)
+            )           
             
         } else {        
             // SWAP is NOT needed, we've found denominations that match exact amount
@@ -454,15 +413,9 @@ export const sendFromMintSync = async function (
             proofs: cleanedProofsToSend,
             swapFeeReserve, 
             swapFeePaid,
-            isSwapNeeded,
-            counter: lockedProofsCounter?.counter
+            isSwapNeeded            
         }
   } catch (e: any) {
-        // release lock
-        if(lockedProofsCounter) {
-            lockedProofsCounter.resetInFlight(transactionId)
-        }
-        
         // try to clean spent proofs if that was the swap error cause
         if (e.params && e.params.message && e.params.message.includes('Token already spent')) {
 

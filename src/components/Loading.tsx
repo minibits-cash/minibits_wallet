@@ -18,6 +18,8 @@ export function Loading(props: ViewProps & { statusMessage?: string, textStyle?:
 
 const $loading = (shiftedUp = false) => ({
   flex: 1,
+  width: '100%',
+  height: '100%',
   alignItems: 'center',
   justifyContent: 'center',
   backgroundColor: colors.dark.background,

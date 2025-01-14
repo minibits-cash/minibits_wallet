@@ -95,8 +95,7 @@ export const receiveTask = async function (
         const {            
             receivedAmount, 
             outputToken,            
-            swapFeePaid,            
-            counter 
+            swapFeePaid,             
         } = await receiveSync(
             mintToReceive,
             token,
@@ -115,8 +114,7 @@ export const receiveTask = async function (
             status: TransactionStatus.COMPLETED,
             swapFeePaid,         
             receivedAmount,
-            unit,
-            counter,          
+            unit,                      
             createdAt: new Date(),
         })
 
@@ -319,8 +317,7 @@ export const receiveOfflineCompleteTask = async function (
         const {             
             receivedAmount, 
             outputToken,
-            swapFeePaid,            
-            counter 
+            swapFeePaid,             
         } = await receiveSync(
             mintToReceive,
             token,
@@ -338,8 +335,7 @@ export const receiveOfflineCompleteTask = async function (
             status: TransactionStatus.COMPLETED,  
             receivedAmount,
             swapFeePaid,
-            unit,
-            counter,         
+            unit,                     
             createdAt: new Date(),
         })        
 
@@ -399,8 +395,7 @@ export const receiveSync = async function (
     transactionId: number
 ) {
   
-  const unit = token.unit as MintUnit || 'sat'
-  let lockedProofsCounter: MintProofsCounter | undefined = undefined
+  const unit = token.unit as MintUnit || 'sat' 
 
   try {        
         // Handle missing mint, we add it automatically
@@ -414,71 +409,27 @@ export const receiveSync = async function (
 
         if(!mintInstance) {
             throw new AppError(Err.VALIDATION_ERROR, 'Missing mint', {mintToReceive})
-        }
-
-        // Increase the proofs counter before the mint call so that in case the response
-        // is not received our recovery index counts for sigs the mint has already issued
-        const walletInstance = await walletStore.getWallet(mintToReceive, unit, {withSeed: true})
-
-        const feeReserve = walletInstance.getFeesForProofs(token.proofs)
-        const amountToReceive = CashuUtils.getProofsAmount(token.proofs) - feeReserve
-
-        const proofsByMint = proofsStore.getByMint(mintToReceive, {
-            isPending: false,
-            unit
-        })        
-
-        const amountPreference = getKeepAmounts(
-            proofsByMint,
-            amountToReceive,
-            (await walletInstance.getKeys()).keys,
-            DEFAULT_DENOMINATION_TARGET            
-        )    
+        }        
         
-        log.trace('[receiveSync]', {amountPreference, transactionId})          
-                
-        // temp increase the counter + acquire lock and set inFlight values        
-        lockedProofsCounter = await WalletUtils.lockAndSetInFlight(
-            mintInstance, 
-            unit, 
-            amountPreference.length, 
-            transactionId
-        )
-
         let receivedResult = undefined
 
         try {
             receivedResult = await walletStore.receive(
                 mintToReceive,
                 unit as MintUnit,
-                token,                
-                {            
-                    outputAmounts: {keepAmounts: [], sendAmounts: amountPreference},
-                    counter: lockedProofsCounter.inFlightFrom as number // MUST be counter value before increase
-                }
+                token,
+                transactionId   
             )
         } catch (e: any) {
             // ugly but should do the trick if previous nwcTransfer got interrupted
-            if(e.message.includes('outputs have already been signed before')) {
-                
+            if(e.message.includes('outputs have already been signed before')) {                
                 log.error('[receiveSync] Increasing proofsCounter outdated values and repeating receiveSync.')
-                lockedProofsCounter.resetInFlight(transactionId)
-                lockedProofsCounter.increaseProofsCounter(10)
-                lockedProofsCounter = await WalletUtils.lockAndSetInFlight(
-                    mintInstance, 
-                    unit, 
-                    amountPreference.length, 
-                    transactionId
-                )
-
                 receivedResult = await walletStore.receive(
                     mintToReceive,
                     unit as MintUnit,
-                    token,                    
-                    {            
-                        outputAmounts: {keepAmounts: [], sendAmounts: amountPreference},
-                        counter: lockedProofsCounter.inFlightFrom as number
-                    }
+                    token,
+                    transactionId,
+                    {increaseCounterBy: 10}
                 )
             } else {
                 throw e
@@ -488,9 +439,6 @@ export const receiveSync = async function (
         const receivedProofs = receivedResult!.proofs
         const swapFeePaid = receivedResult!.swapFeePaid       
        
-        // If we've got valid response, decrease proofsCounter and let it be increased back in next step when adding proofs        
-        lockedProofsCounter.decreaseProofsCounter(amountPreference.length)
-       
         const { addedAmount: receivedAmount } = WalletUtils.addCashuProofs(
             mintToReceive,
             receivedProofs,
@@ -499,10 +447,7 @@ export const receiveSync = async function (
                 transactionId: transactionId,
                 isPending: false
             }                    
-        )
-
-        // release lock
-        lockedProofsCounter.resetInFlight(transactionId)
+        )        
 
         // store swapped proofs as encoded token in tx data        
         const outputToken = getEncodedToken({
@@ -516,17 +461,10 @@ export const receiveSync = async function (
             receivedAmount,
             receivedProofs,
             outputToken,
-            swapFeePaid,            
-            counter: lockedProofsCounter?.counter
+            swapFeePaid            
         }
         
     } catch (e: any) {
-        if (transactionId) {            
-            if(lockedProofsCounter) {                
-                lockedProofsCounter.resetInFlight(transactionId)
-            }
-        }
-
         if (e instanceof AppError) {
             throw e
         } else {

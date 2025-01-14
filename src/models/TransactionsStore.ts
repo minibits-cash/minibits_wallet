@@ -80,17 +80,29 @@ export const TransactionsStoreModel = types
         }
     }))    
     .actions(self => ({
-        findById(id: number) {            
+        findById(id: number, loadTokens?: boolean) {            
             let transaction = self.transactionsMap.get(id)
 
             // Search the db and add if tx is not in the state
-            if(!transaction) {
+            // Search always to retrieve full tokens in tx detail screen
+            if(!transaction || loadTokens === true) {
                 const dbTransaction = Database.getTransactionById(id)
 
                 if(dbTransaction) {
                     const createdAt = new Date(dbTransaction.createdAt)                    
                     const inStoreTransaction = {...dbTransaction, createdAt}
-                    const {id} = dbTransaction    
+                    const {id} = dbTransaction
+                    
+                    if(!loadTokens) {
+                        // Shorten for performance reasons
+                        if(inStoreTransaction.inputToken && inStoreTransaction.inputToken.length > 0) {
+                            inStoreTransaction.inputToken = inStoreTransaction.inputToken?.slice(0, 40)
+                        }
+
+                        if(inStoreTransaction.outputToken && inStoreTransaction.outputToken.length > 0) {
+                            inStoreTransaction.outputToken = inStoreTransaction.outputToken?.slice(0, 40)
+                        }
+                    }
                     
                     self.transactionsMap.set(id, inStoreTransaction)
                     transaction = self.transactionsMap.get(id)                    
@@ -98,22 +110,7 @@ export const TransactionsStoreModel = types
             }
 
             return transaction
-        },
-        /*pruneTransactionsMap() {
-            // Clean up transactionMap: remove transactions not in history or recentByUnit
-            self.transactionsMap.forEach((_, transactionId) => {
-                const isInHistory = self.history.some(t => t.id === transactionId)
-                const isInRecentByUnit = self.recentByUnit.some(t => t.id === transactionId)
-
-                // If the transaction is not in history or recentByUnit, remove it from transactionMap
-                if (!isInHistory && !isInRecentByUnit) {
-                    self.transactionsMap.delete(transactionId as string)
-                    log.trace(`[pruneTransactionsMap] Transaction ${transactionId} pruned from the map`)
-                } else {
-                    log.trace(`[pruneTransactionsMap] Transaction ${transactionId} kept in the map`)
-                }
-            })
-        },*/
+        },        
         pruneRecentByUnit(unit: MintUnit) {
             const unitCount = self.countRecentByUnit(unit)
             
@@ -178,7 +175,7 @@ export const TransactionsStoreModel = types
 
             // Add the new transaction to the transactions store
             const createdAt = new Date(dbTransaction.createdAt)            
-            const inStoreTransaction = {...dbTransaction, createdAt}
+            const inStoreTransaction = {...dbTransaction, createdAt}            
             const {id} = dbTransaction
 
             if (!self.transactionsMap.has(id)) {                        
@@ -206,6 +203,16 @@ export const TransactionsStoreModel = types
                 for (const dbTransaction of result._array) {
                     const createdAt = new Date(dbTransaction.createdAt)                    
                     const inStoreTransaction = {...dbTransaction, createdAt}
+
+                    // Shorten for performance reasons
+                    if(inStoreTransaction.inputToken && inStoreTransaction.inputToken.length > 0) {
+                        inStoreTransaction.inputToken = inStoreTransaction.inputToken?.slice(0, 40)
+                    }
+
+                    if(inStoreTransaction.outputToken && inStoreTransaction.outputToken.length > 0) {
+                        inStoreTransaction.outputToken = inStoreTransaction.outputToken?.slice(0, 40)
+                    }
+
                     const {id} = dbTransaction
 
                     if (!self.transactionsMap.has(id)) {                        
@@ -224,12 +231,21 @@ export const TransactionsStoreModel = types
         },
         addRecentByUnit() {
             // Rehydrates recent from database.
-            const dbTransactions = Database.getRecentTransactionsByUnit(maxTransactionsByUnit)           
-
+            const dbTransactions = Database.getRecentTransactionsByUnit(maxTransactionsByUnit)
+            
             if (dbTransactions && dbTransactions.length > 0) {
                 for (const dbTransaction of dbTransactions) {
                     const createdAt = new Date(dbTransaction.createdAt)                    
                     const inStoreTransaction = {...dbTransaction, createdAt} as Transaction
+
+                    // Shorten for performance reasons
+                    if(inStoreTransaction.inputToken && inStoreTransaction.inputToken.length > 0) {
+                        inStoreTransaction.inputToken = inStoreTransaction.inputToken?.slice(0, 40)
+                    }
+                    if(inStoreTransaction.outputToken && inStoreTransaction.outputToken.length > 0) {
+                        inStoreTransaction.outputToken = inStoreTransaction.outputToken?.slice(0, 40)
+                    }
+
                     const {id} = dbTransaction
     
                     if (!self.transactionsMap.has(id)) {                        

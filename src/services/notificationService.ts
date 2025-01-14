@@ -11,6 +11,7 @@ import AppError, { Err } from '../utils/AppError'
 import { Platform } from 'react-native'
 import { rootStoreInstance, setupRootStore } from '../models'
 import { NwcRequest, nwcPngUrl } from '../models/NwcStore';
+import { minibitsPngIcon } from '../components/MinibitsIcon'
 
 export type NotifyReceiveToLnurlData = {
     type: 'NotifyReceiveToLnurlData',
@@ -34,6 +35,9 @@ const DEFAULT_CHANNEL_NAME = 'Minibits notifications'
 
 const NWC_CHANNEL_ID = 'nwcDefault';
 const NWC_CHANNEL_NAME = 'Minibits NWC payment'
+
+export const TASK_QUEUE_CHANNEL_ID = 'internalDefault'
+export const TASK_QUEUE_CHANNEL_NAME = 'Minibits internal tasks'
 
 export const initNotifications = async () => {
     let enabled = await areNotificationsEnabled()
@@ -75,6 +79,16 @@ export const initNotifications = async () => {
             notifee.createChannel({
             id: NWC_CHANNEL_ID,
             name: NWC_CHANNEL_NAME,
+            sound: 'default',
+            })
+        }
+    })
+
+    notifee.isChannelCreated(TASK_QUEUE_CHANNEL_ID).then(isCreated => {
+        if (!isCreated) {
+            notifee.createChannel({
+            id: TASK_QUEUE_CHANNEL_ID,
+            name: TASK_QUEUE_CHANNEL_NAME,
             sound: 'default',
             })
         }
@@ -131,6 +145,7 @@ const onBackgroundNotification = async function(remoteMessage: FirebaseMessaging
         log.error(e.name, e.message)
     }  
 }
+
 
 const _receiveToLnurlHandler = async function(remoteData: NotifyReceiveToLnurlData) {   
     const {amount, unit, comment, zapSenderProfile} = remoteData.data
@@ -288,9 +303,7 @@ const stopForegroundService = async function (): Promise<void> {
 export const NotificationService = {
     createLocalNotification,
     onBackgroundNotification,
-    onForegroundNotification,
-    // updateLocalNotification,
-    // cancelNotification,
+    onForegroundNotification,    
     areNotificationsEnabled,
     stopForegroundService
 }

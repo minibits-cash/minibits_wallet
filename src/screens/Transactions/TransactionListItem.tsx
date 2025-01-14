@@ -43,8 +43,7 @@ export const TransactionListItem = observer(function (
   }  
 
   const getText = function (tx: Transaction) {
-    if (tx.noteToSelf) return tx.noteToSelf
-    // if(tx.memo) return tx.memo
+    if (tx.noteToSelf) return tx.noteToSelf    
 
     switch (tx.type) {
       case TransactionType.RECEIVE:
@@ -80,13 +79,7 @@ export const TransactionListItem = observer(function (
           ? tx.memo
           : tx.sentTo
           ? translate('transactionCommon.paidTo', {receiver: getProfileName(tx.sentTo)})
-          : translate('transactionCommon.youPaid'))
-        case TransactionType.NWC_TRANSFER:
-          return (tx.memo && tx.memo !== 'LNbits'
-            ? tx.memo
-            : tx.sentTo
-            ? translate('transactionCommon.paidTo', {receiver: getProfileName(tx.sentTo)})
-            : translate('transactionCommon.youPaid'))
+          : translate('transactionCommon.youPaid'))        
       default:
         return translate('transactionCommon.unknown')
     }
@@ -250,7 +243,7 @@ export const TransactionListItem = observer(function (
                 )}                
                 </>
             )}
-            {([TransactionType.SEND, TransactionType.TRANSFER, TransactionType.NWC_TRANSFER].includes(tx.type)) && (
+            {([TransactionType.SEND, TransactionType.TRANSFER].includes(tx.type)) && (
                     <CurrencyAmount 
                           amount={-1 * tx.amount}
                           mintUnit={tx.unit}

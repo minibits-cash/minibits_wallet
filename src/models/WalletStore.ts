@@ -8,10 +8,10 @@ import {
   type MintKeyset,
   MintAllKeysets,
   MintActiveKeys,
-  OutputAmounts,
   Token,
   MeltProofsResponse,  
-  CheckStateEnum
+  CheckStateEnum,
+  OutputAmounts,
 } from '@cashu/cashu-ts'
 import { mnemonicToSeedSync } from '@scure/bip39'
 import { isObj } from '@cashu/cashu-ts/src/utils'
@@ -23,7 +23,7 @@ import { Currencies, CurrencyCode, MintUnit } from '../services/wallet/currency'
 import { CashuProof, CashuUtils } from '../services/cashu/cashuUtils'
 import { Proof } from './Proof'
 
-import { Mint } from './Mint'
+import { InFlightRequest, Mint } from './Mint'
 import { getRootStore } from './helpers/getRootStore'
 
 
@@ -36,6 +36,60 @@ import { getRootStore } from './helpers/getRootStore'
 export type ExchangeRate = {
   currency: CurrencyCode, // 1 EUR, USD, ...
   rate: number // in satoshis
+}
+
+export type ReceiveParams = {
+  token: string | Token,
+  options?: {
+    keysetId?: string;
+    outputAmounts?: OutputAmounts;
+    proofsWeHave?: Array<CashuProof>;
+    counter?: number;
+    pubkey?: string;
+    privkey?: string;
+    requireDleq?: boolean;
+  }
+}
+
+
+export type SendParams = {
+    amount: number,
+		proofs: Array<Proof>,
+		options?: {
+			outputAmounts?: OutputAmounts;
+			proofsWeHave?: Array<CashuProof>;
+			counter?: number;
+			pubkey?: string;
+			privkey?: string;
+			keysetId?: string;
+			offline?: boolean;
+			includeFees?: boolean;
+			includeDleq?: boolean;
+		}
+}
+
+
+export type MintParams = {
+  amount: number,
+  quote: string,
+  options?: {
+    keysetId?: string;
+    outputAmounts?: OutputAmounts;
+    proofsWeHave?: Array<CashuProof>;
+    counter?: number;
+    pubkey?: string;
+  }
+}
+
+
+export type MeltParams = {
+  meltQuote: MeltQuoteResponse,
+  proofsToSend: Array<CashuProof>,
+  options?: {
+    keysetId?: string;
+    counter?: number;
+    privkey?: string;
+  }
 }
 
 export const WalletStoreModel = types
@@ -180,10 +234,10 @@ export const WalletStoreModel = types
         const newMint = new CashuMint(mintUrl)
 
         // get fresh keysets
-        const {keysets} = yield newMint.getKeySets()
+        const {keysets} = yield newMint.getKeySets()        
 
         // get persisted mint model from wallet state        
-        const mintInstance = self.getMintModelInstance(mintUrl)
+        const mintInstance = self.getMintModelInstance(mintUrl)        
 
         // skip checks if this is new mint being added
         if(mintInstance) {
@@ -193,12 +247,12 @@ export const WalletStoreModel = types
       
           if(newKeysets.length > 0) {
             // if we heve new keysets, get and sync new keys
-            const {keysets} = yield newMint.getKeys()
-            mintInstance.refreshKeys!(keysets)
+            const {keysets: keys} = yield newMint.getKeys()
+            mintInstance.refreshKeys!(keys)
           }
       
           // sync wallet state with fresh keysets, active statuses and keys
-          mintInstance.refreshKeysets!(keysets) 
+          mintInstance.refreshKeysets!(keysets)          
         }
       
         // store cashu-ts mint instance in memory
@@ -289,6 +343,9 @@ export const WalletStoreModel = types
             bip39seed: seed
           })
 
+          // Load uptodate mint info to wallet.mintInfo (NUTS support etc)
+          yield newSeedWallet.getMintInfo()
+
           newSeedWallet.keysetId = walletKeys.id
           self.seedWallets.push(newSeedWallet)
 
@@ -350,386 +407,504 @@ export const WalletStoreModel = types
       }
     }))
     .actions(self => ({
-      receive: flow(function* receive(
-        mintUrl: string,
-        unit: MintUnit,
-        decodedToken: Token,        
-        options: {      
-          outputAmounts: OutputAmounts,
-          counter: number
-        }) {
-          
-          try {
-            const cashuWallet = yield self.getWallet(
-              mintUrl, 
-              unit, 
-              {
-                withSeed: true,         
-              })   
-            
-            const amountToReceive: number = CashuUtils.getProofsAmount(decodedToken.proofs)
+        receive: flow(function* receive(
+            mintUrl: string,
+            unit: MintUnit,
+            decodedToken: Token,
+            transactionId: number,
+            options?: {
+              increaseCounterBy?: number,
+              inFlightRequest?: InFlightRequest<ReceiveParams>       
+            }            
+        ) {    
+            const mintInstance = self.getMintModelInstance(mintUrl)
+            if(!mintInstance) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing mint instance', {mintUrl})
+            }
 
-            // log.trace('[WalletStore.receive]', {decodedToken, keysetId: cashuWallet.keysetId, outputAmounts: options.outputAmounts, counter: options.counter})
-        
-            const proofs = yield cashuWallet.receive(
-              decodedToken,              
-              {
-                keysetId: cashuWallet.keysetId,
-                outputAmounts: options.outputAmounts,
-                counter: options.counter,
-              })
-        
-              const receivedAmount: number = CashuUtils.getProofsAmount(proofs as Proof[])
-              const swapFeePaid = amountToReceive - receivedAmount
-        
-            return {proofs, swapFeePaid}
-          } catch (e: any) {
-            throw new AppError(
-              Err.MINT_ERROR, 
-              e.message, 
-              {caller: 'WalletStore.receive'}
-            )
-          }        
-      }),
-      send: flow(function* send(mintUrl: string,
-        amountToSend: number,        
-        unit: MintUnit,  
-        proofsToSendFrom: Proof[],
-        options: {    
-          outputAmounts: OutputAmounts,
-          counter: number,          
-        }  ) {
-          try {
             const cashuWallet = yield self.getWallet(
-              mintUrl, 
-              unit, 
-              {
-                withSeed: true,         
-              }) 
-        
-            log.debug('[WalletStore.send] counter', options.counter)
-        
-            const {keep, send} = yield cashuWallet.swap(
-              amountToSend,              
-              proofsToSendFrom,
-              {
-                keysetId: cashuWallet.keysetId,
-                outputAmounts: options.outputAmounts,
-                counter: options.counter,
-                includeFees: false // fee reserve needs to be already in proofsToSendFrom
-              }      
+                mintUrl, 
+                unit, 
+                {
+                    withSeed: true,         
+                }
             )
-        
-            log.trace(`[WalletStore.send] ${keep.length} returnedProofs`)
-            log.trace(`[WalletStore.send] ${send.length} proofsToSend`)
-        
-            // do some basic validations that proof amounts from mints match
-            const totalAmountToSendFrom: number = CashuUtils.getProofsAmount(proofsToSendFrom)
-            const returnedAmount: number = CashuUtils.getProofsAmount(keep)
-            const sendAmount: number = CashuUtils.getProofsAmount(send)
-        
-            if (sendAmount !== amountToSend) {
-              throw new AppError(
-                Err.VALIDATION_ERROR,
-                `Amount provided by mint does not equal requested amount. Original is ${amountToSend}, mint returned ${sendAmount}`,
-              )
-            }
-        
-            const swapFeePaid = totalAmountToSendFrom - amountToSend - returnedAmount        
+
+            const currentCounter = mintInstance.getProofsCounterByKeysetId!(cashuWallet.keysetId)
             
+            // outputs error healing
+            if(options && options.increaseCounterBy) {
+                currentCounter.increaseProofsCounter(options.increaseCounterBy)
+            }
+
+            log.debug('[WalletStore.receive] counter', currentCounter.counter)            
+
+            const receiveParams: ReceiveParams = options?.inFlightRequest?.request || {
+                token: decodedToken,
+                options: {
+                    keysetId: cashuWallet.keysetId,                    
+                    counter: currentCounter.counter,                    
+                }
+            }                
+            
+            if(cashuWallet.mintInfo.nuts['19'] && !options?.inFlightRequest) {
+                currentCounter.addInFlightRequest(transactionId, receiveParams)
+            }            
+
+            try {
+                const proofs = yield cashuWallet.receive(
+                  receiveParams.token,
+                  receiveParams.options
+                )                
+                
+                currentCounter.removeInFlightRequest(transactionId)               
+                
+                const receivedAmount: number = CashuUtils.getProofsAmount(proofs as Proof[])
+                const amountToReceive: number = CashuUtils.getProofsAmount(decodedToken.proofs)
+                const swapFeePaid = amountToReceive - receivedAmount
+            
+                return {proofs, swapFeePaid}
+
+            } catch (e: any) {
+                if(!e.message.includes('timeout')) {
+                  currentCounter.removeInFlightRequest(transactionId)
+                }                
+                throw new AppError(
+                    Err.MINT_ERROR, 
+                    e.message, 
+                    {caller: 'WalletStore.receive'}
+                )
+            }        
+        }),
+        send: flow(function* send(
+            mintUrl: string,
+            amountToSend: number,        
+            unit: MintUnit,  
+            proofsToSendFrom: Proof[],
+            transactionId: number,
+            options?: {              
+              inFlightRequest?: InFlightRequest<SendParams>       
+            }
+        ) {
+
+            const mintInstance = self.getMintModelInstance(mintUrl)
+            
+            if(!mintInstance) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing mint instance', {mintUrl})
+            }
+
+            const cashuWallet = yield self.getWallet(
+                mintUrl, 
+                unit, 
+                {
+                    withSeed: true,         
+                }
+            )
+
+            const currentCounter = mintInstance.getProofsCounterByKeysetId!(cashuWallet.keysetId)
+        
+            log.debug('[WalletStore.send] counter', currentCounter.counter)
+            
+            const sendParams: SendParams = options?.inFlightRequest?.request || {
+                amount: amountToSend,              
+                proofs: proofsToSendFrom,
+                options: {
+                    keysetId: cashuWallet.keysetId,                   
+                    counter: currentCounter.counter,
+                    includeFees: false // fee reserve needs to be already in proofsToSendFrom
+                }
+            }                
+            
+            if(cashuWallet.mintInfo.nuts['19']) {
+                currentCounter.addInFlightRequest(transactionId, sendParams)
+            }
+
+            try {
+            
+                const {keep, send} = yield cashuWallet.swap(
+                  sendParams.amount,
+                  sendParams.proofs,
+                  sendParams.options
+                )
+
+                currentCounter.removeInFlightRequest(transactionId)
+            
+                log.trace(`[WalletStore.send] ${keep.length} returnedProofs`)
+                log.trace(`[WalletStore.send] ${send.length} proofsToSend`)            
+                
+                const totalAmountToSendFrom: number = CashuUtils.getProofsAmount(proofsToSendFrom)
+                const returnedAmount: number = CashuUtils.getProofsAmount(keep)            
+                const swapFeePaid = totalAmountToSendFrom - amountToSend - returnedAmount        
+                
+                return {
+                    returnedProofs: keep as CashuProof[],
+                    proofsToSend: send as CashuProof[], 
+                    swapFeePaid
+                }
+
+            } catch (e: any) {
+                if(!e.message.includes('timeout')) {
+                  currentCounter.removeInFlightRequest(transactionId)
+                } 
+
+                let message = 'Swap to prepare ecash to send has failed.'
+                if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
+                throw new AppError(
+                    Err.MINT_ERROR, 
+                    message,
+                    {
+                        message: e.message,            
+                        mintUrl,
+                        caller: 'WalletStore.send',                 
+                    }
+                )
+            }              
+        }),
+        getProofsStatesFromMint: flow(function* getProofsStatesFromMint(  
+            mintUrl: string,
+            unit: MintUnit,  
+            proofs: Proof[]
+        ) {
+            try {
+                log.trace('[WalletStore.getProofsStatesFromMint] start', {mintUrl, unit})
+                
+                const cashuWallet: CashuWallet = yield self.getWallet(mintUrl, unit, {withSeed: false})    
+                const proofsByState: {[key in CheckStateEnum]: Proof[]} = yield cashuWallet.checkProofsStates(proofs)
+            
+                log.trace('[WalletStore.getProofsStatesFromMint]', {mintUrl, proofsByState})
+            
+                return proofsByState
+            
+            } catch (e: any) {    
+                let message = 'Could not get response from the mint.'
+                if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
+                throw new AppError(
+                    Err.MINT_ERROR, 
+                    message, 
+                    {
+                    message: e.message,
+                    caller: 'WalletStore.getProofsStatesFromMint', 
+                    mintUrl            
+                    }
+                )
+            }
+        }),
+        createLightningMintQuote: flow(function* createLightningMintQuote(  
+            mintUrl: string,
+            unit: MintUnit,
+            amount: number,
+            description?: string,
+        ) {
+            try {
+            const cashuMint = yield self.getMint(mintUrl)
+            const {
+                request: encodedInvoice, 
+                quote: mintQuote,      
+            } = yield cashuMint.createMintQuote({
+                unit, 
+                amount,
+                description
+            })
+        
+            log.info('[createLightningMintQuote]', {encodedInvoice, mintQuote})
+        
             return {
-              returnedProofs: keep as CashuProof[],
-              proofsToSend: send as CashuProof[], 
-              swapFeePaid
+                encodedInvoice,
+                mintQuote,
             }
-          } catch (e: any) {
-            let message = 'Swap to prepare ecash to send has failed.'
-            if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
-            throw new AppError(
-              Err.MINT_ERROR, 
-              message,
-              {
-                message: e.message,            
-                mintUrl,
-                caller: 'WalletStore.send',                 
-              }
-            )
-          }              
-      }),
-      getProofsStatesFromMint: flow(function* getProofsStatesFromMint(  
-        mintUrl: string,
-        unit: MintUnit,  
-        proofs: Proof[]
-      ) {
-          try {
-            log.trace('[WalletStore.getProofsStatesFromMint] start', {mintUrl, unit})
-            
-            const cashuWallet: CashuWallet = yield self.getWallet(mintUrl, unit, {withSeed: false})    
-            const proofsByState: {[key in CheckStateEnum]: Proof[]} = yield cashuWallet.checkProofsStates(proofs)
-        
-            log.trace('[WalletStore.getProofsStatesFromMint]', {mintUrl, proofsByState})
-        
-            return proofsByState
-        
-          } catch (e: any) {    
-            let message = 'Could not get response from the mint.'
+            } catch (e: any) {
+            let message = 'The mint could not return an invoice.'
             if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
             throw new AppError(
                 Err.MINT_ERROR, 
                 message, 
                 {
-                  message: e.message,
-                  caller: 'WalletStore.getProofsStatesFromMint', 
-                  mintUrl            
+                    message: e.message,
+                    caller: 'createLightningMintQuote', 
+                    mintUrl,            
                 }
             )
-          }
-      }),
-      createLightningMintQuote: flow(function* createLightningMintQuote(  
-        mintUrl: string,
-        unit: MintUnit,
-        amount: number,
-        description?: string,
-      ) {
-        try {
-          const cashuMint = yield self.getMint(mintUrl)
-          const {
-            request: encodedInvoice, 
-            quote: mintQuote,      
-          } = yield cashuMint.createMintQuote({
-            unit, 
-            amount,
-            description
-          })
-      
-          log.info('[createLightningMintQuote]', {encodedInvoice, mintQuote})
-      
-          return {
-            encodedInvoice,
-            mintQuote,
-          }
-        } catch (e: any) {
-          let message = 'The mint could not return an invoice.'
-          if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
-          throw new AppError(
-            Err.MINT_ERROR, 
-            message, 
-            {
-                message: e.message,
-                caller: 'createLightningMintQuote', 
-                mintUrl,            
             }
-          )
-        }
-      }),
-      checkLightningMintQuote: flow(function* checkLightningMintQuote(  
-        mintUrl: string,
-        quote: string,  
-      ) {
-        try {
-          const cashuMint: CashuMint = yield self.getMint(mintUrl)
-          const {
-            request: encodedInvoice, 
-            quote: mintQuote, 
-            state,      
-          } = yield cashuMint.checkMintQuote(      
-            quote
-          )
-      
-          log.info('[checkLightningMintQuote]', {encodedInvoice, mintQuote, state})
-      
-          return {
-            encodedInvoice,
-            mintQuote,
-            state
-          }
-        } catch (e: any) {
-          let message = 'The mint could not return the state of a mint quote.'
-          if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
-          throw new AppError(
-              Err.MINT_ERROR, 
-              message, 
-              {
-                  message: e.message,
-                  caller: 'checkLightningMintQuote', 
-                  mintUrl,            
-              }
-          )
-        }
-      }),
-      mintProofs: flow(function* mintProofs(  
-        mintUrl: string,
-        amount: number,
-        unit: MintUnit,
-        mintQuote: string,
-        options: {
-          outputAmounts: OutputAmounts,
-          counter: number
-        }
-      ) {
-        try {
-          const cashuWallet: CashuWallet = yield self.getWallet(mintUrl, unit, {withSeed: true}) // with seed
-          
-          const proofs = yield cashuWallet.mintProofs(
-              amount,
-              mintQuote,
-              {
-                keysetId: cashuWallet.keysetId,
-                outputAmounts: options.outputAmounts,
-                counter: options.counter,                                        
-              }            
-          )
-            
-          
-          log.info('[mintProofs]', {proofs})        
-  
-          return proofs
-  
-      } catch (e: any) {
-          log.info('[mintProofs]', {error: {name: e.name, message: e.message}})
-          let message = 'Error on request to mint new ecash.'
-          if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
-          throw new AppError(
-              Err.MINT_ERROR, 
-              message, 
-              {
-                  message: e.message,
-                  caller: 'mintProofs', 
-                  mintUrl,            
-              }
-          )
-      }
-      }),
-      createLightningMeltQuote: flow(function* createLightningMeltQuote(  
-        mintUrl: string,
-        unit: MintUnit,
-        encodedInvoice: string,
-      ) {
-        try {
-          const cashuMint = yield self.getMint(mintUrl)
-          const lightningQuote: MeltQuoteResponse = yield cashuMint.createMeltQuote({ 
-            unit, 
-            request: encodedInvoice 
-          })
-      
-          log.info('[createLightningMeltQuote]', {mintUrl, unit, encodedInvoice}, {lightningQuote})
-      
-          return lightningQuote
-      
-        } catch (e: any) {
-          let message = 'The mint could not return the lightning quote.'
-          if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
-          throw new AppError(
-              Err.MINT_ERROR, 
-              message,
-              {
-                message: e.message,
-                caller: 'createLightningMeltQuote', 
-                request: {mintUrl, unit, encodedInvoice},            
-              }
-          )
-        }
-      }),
-      payLightningMelt: flow(function* payLightningMelt(  
-        mintUrl: string,
-        unit: MintUnit,
-        lightningMeltQuote: MeltQuoteResponse,  // invoice is stored by mint by quote
-        proofsToPayFrom: CashuProof[],  // proofAmount >= amount + fee_reserve
-        options: {
-          counter: number
-        }
-      ) {
-        try {    
-          const cashuWallet: CashuWallet = yield self.getWallet(mintUrl, unit, {withSeed: true}) // with seed
-      
-          const meltResponse: MeltProofsResponse = yield cashuWallet.meltProofs(
-              lightningMeltQuote,
-              proofsToPayFrom,
-              {
-                keysetId: cashuWallet.keysetId,
-                counter: options.counter
-              }        
+        }),
+        checkLightningMintQuote: flow(function* checkLightningMintQuote(  
+            mintUrl: string,
+            quote: string,  
+        ) {
+            try {
+            const cashuMint: CashuMint = yield self.getMint(mintUrl)
+            const {
+                request: encodedInvoice, 
+                quote: mintQuote, 
+                state,      
+            } = yield cashuMint.checkMintQuote(      
+                quote
             )
-          
-          log.trace('[payLightningMelt]', {meltResponse})
-          // we normalize naming of returned parameters
-          return meltResponse
+        
+            log.info('[checkLightningMintQuote]', {encodedInvoice, mintQuote, state})
+        
+            return {
+                encodedInvoice,
+                mintQuote,
+                state
+            }
+            } catch (e: any) {
+            let message = 'The mint could not return the state of a mint quote.'
+            if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
+            throw new AppError(
+                Err.MINT_ERROR, 
+                message, 
+                {
+                    message: e.message,
+                    caller: 'checkLightningMintQuote', 
+                    mintUrl,            
+                }
+            )
+            }
+        }),
+        mintProofs: flow(function* mintProofs(  
+            mintUrl: string,
+            amount: number,
+            unit: MintUnit,
+            mintQuote: string,
+            transactionId: number ,
+            options?: {
+              increaseCounterBy?: number,
+              inFlightRequest?: InFlightRequest<MintParams>
+            }
+            
+        ) {
+            const mintInstance = self.getMintModelInstance(mintUrl)
+            
+            if(!mintInstance) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing mint instance', {mintUrl})
+            }
 
-        } catch (e: any) {
-          let message = 'Lightning payment failed.'
-          if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
-          throw new AppError(
-              Err.MINT_ERROR, 
-              message,
-              {
-                  message: e.message,
-                  caller: 'payLightningMelt', 
-                  mintUrl            
-              }
-          )
-        }
-      }),
-      restore: flow(function* restore(  
-        mintUrl: string,    
-        seed: Uint8Array,
-        options: {
-          indexFrom: number,
-          indexTo: number,    
-          keysetId: string
-        }
-      ) {
-        try {
-          const {indexFrom, indexTo, keysetId} = options
-          // need special wallet instance to pass seed and keysetId directly
-          const cashuMint = yield self.getMint(mintUrl)
-          
-          const seedWallet = new CashuWallet(cashuMint, {
-            unit: 'sat', // just use default unit as we restore by keyset  
-            keys: cashuMint.keys,
-            keysets: cashuMint.keysets,
-            bip39seed: seed
-          })
+            const cashuWallet = yield self.getWallet(
+                mintUrl, 
+                unit, 
+                {
+                    withSeed: true,         
+                }
+            )
 
-          seedWallet.keysetId = keysetId
-  
-          const count = Math.abs(indexTo - indexFrom)          
-          
-          const {proofs} = yield seedWallet.restore(            
-              indexFrom,
-              count,
-              {keysetId}
-          )
-          
-      
-          log.info('[restore]', 'Number of recovered proofs', {proofs: proofs.length})
-      
-          return {
-              proofs: proofs || [] as Proof[]            
-          }
-        } catch (e: any) {        
-            throw new AppError(Err.MINT_ERROR, isObj(e.message) ? JSON.stringify(e.message) : e.message, {mintUrl})
-        }
-      }),
-      getMintInfo: flow(function* getMintInfo(mintUrl: string) {
-        try {
-          const cashuMint = yield self.getMint(mintUrl)
-          const info = yield cashuMint.getInfo()
-          log.trace('[getMintInfo]', {info})
-          return info
-        } catch (e: any) {
-          let message = 'The mint could not return mint information.';
-          if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
-          throw new AppError(
-              Err.MINT_ERROR, 
-              message, 
-              {
-                message: e.message,
-                caller: 'getMintInfo', 
-                mintUrl
-              }
-          )
-        }
-      })
+            const currentCounter = mintInstance.getProofsCounterByKeysetId!(cashuWallet.keysetId)
+
+            // outputs error healing
+            if(options && options.increaseCounterBy) {
+                currentCounter.increaseProofsCounter(options.increaseCounterBy)
+            }
+        
+            log.debug('[WalletStore.mintProofs] counter', currentCounter.counter)
+            
+            const mintParams: MintParams = options?.inFlightRequest?.request || {
+                amount,              
+                quote: mintQuote,
+                options: {                    
+                    keysetId: cashuWallet.keysetId,                    
+                    counter: currentCounter.counter                       
+                }
+            }                
+            
+            if(cashuWallet.mintInfo.nuts['19']) {
+                currentCounter.addInFlightRequest(transactionId, mintParams)
+            }
+            
+            try {            
+            
+                const proofs = yield cashuWallet.mintProofs(
+                    mintParams.amount,
+                    mintParams.quote,
+                    mintParams.options
+                )
+
+                currentCounter.removeInFlightRequest(transactionId)            
+                
+                log.info('[mintProofs]', {proofs})        
+        
+                return proofs
+        
+            } catch (e: any) {
+              if(!e.message.includes('timeout')) {
+                currentCounter.removeInFlightRequest(transactionId)
+              } 
+                
+                let message = 'Error on request to mint new ecash.'
+                if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
+                throw new AppError(
+                    Err.MINT_ERROR, 
+                    message, 
+                    {
+                        message: e.message,
+                        caller: 'mintProofs', 
+                        mintUrl,            
+                    }
+                )
+            }
+        }),
+        createLightningMeltQuote: flow(function* createLightningMeltQuote(  
+            mintUrl: string,
+            unit: MintUnit,
+            encodedInvoice: string,
+        ) {
+            try {
+            const cashuMint = yield self.getMint(mintUrl)
+            const lightningQuote: MeltQuoteResponse = yield cashuMint.createMeltQuote({ 
+                unit, 
+                request: encodedInvoice 
+            })
+        
+            log.info('[createLightningMeltQuote]', {mintUrl, unit, encodedInvoice}, {lightningQuote})
+        
+            return lightningQuote
+        
+            } catch (e: any) {
+            let message = 'The mint could not return the lightning quote.'
+            if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
+            throw new AppError(
+                Err.MINT_ERROR, 
+                message,
+                {
+                    message: e.message,
+                    caller: 'createLightningMeltQuote', 
+                    request: {mintUrl, unit, encodedInvoice},            
+                }
+            )
+            }
+        }),
+        payLightningMelt: flow(function* payLightningMelt(  
+            mintUrl: string,
+            unit: MintUnit,
+            meltQuote: MeltQuoteResponse,  // invoice is stored by mint by quote
+            proofsToMeltFrom: CashuProof[],  // proofAmount >= amount + fee_reserve
+            transactionId: number,
+            options?: {
+              inFlightRequest?: InFlightRequest<MeltParams>
+            }
+        ) {
+            const mintInstance = self.getMintModelInstance(mintUrl)
+            
+            if(!mintInstance) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing mint instance', {mintUrl})
+            }
+
+            const cashuWallet = yield self.getWallet(
+                mintUrl, 
+                unit, 
+                {
+                    withSeed: true,         
+                }
+            )
+
+            const currentCounter = mintInstance.getProofsCounterByKeysetId!(cashuWallet.keysetId)
+        
+            log.debug('[WalletStore.mintProofs] counter', currentCounter.counter)
+            
+            const meltParams: MeltParams = options?.inFlightRequest?.request || {
+                meltQuote,              
+                proofsToSend: proofsToMeltFrom,
+                options: {                    
+                    keysetId: cashuWallet.keysetId,                    
+                    counter: currentCounter.counter                       
+                }
+            }                
+            
+            if(cashuWallet.mintInfo.nuts['19']) {
+                currentCounter.addInFlightRequest(transactionId, meltParams)
+            }            
+            
+            try {                
+            
+                const meltResponse: MeltProofsResponse = yield cashuWallet.meltProofs(
+                    meltParams.meltQuote,
+                    meltParams.proofsToSend,
+                    meltParams.options
+                )
+
+                currentCounter.removeInFlightRequest(transactionId)    
+                
+                log.trace('[payLightningMelt]', {meltResponse})
+                // we normalize naming of returned parameters
+                return meltResponse
+
+            } catch (e: any) {
+              if(!e.message.includes('timeout')) {
+                currentCounter.removeInFlightRequest(transactionId)
+              } 
+
+                let message = 'Lightning payment failed.'
+                if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
+                throw new AppError(
+                    Err.MINT_ERROR, 
+                    message,
+                    {
+                        message: e.message,
+                        caller: 'payLightningMelt', 
+                        mintUrl            
+                    }
+                )
+            }
+        }),
+        restore: flow(function* restore(  
+            mintUrl: string,    
+            seed: Uint8Array,
+            options: {
+            indexFrom: number,
+            indexTo: number,    
+            keysetId: string
+            }
+        ) {
+            try {
+            const {indexFrom, indexTo, keysetId} = options
+            // need special wallet instance to pass seed and keysetId directly
+            const cashuMint = yield self.getMint(mintUrl)
+            
+            const seedWallet = new CashuWallet(cashuMint, {
+                unit: 'sat', // just use default unit as we restore by keyset  
+                keys: cashuMint.keys,
+                keysets: cashuMint.keysets,
+                bip39seed: seed
+            })
+
+            seedWallet.keysetId = keysetId
+    
+            const count = Math.abs(indexTo - indexFrom)          
+            
+            const {proofs} = yield seedWallet.restore(            
+                indexFrom,
+                count,
+                {keysetId}
+            )
+            
+        
+            log.info('[restore]', 'Number of recovered proofs', {proofs: proofs.length})
+        
+            return {
+                proofs: proofs || [] as Proof[]            
+            }
+            } catch (e: any) {        
+                throw new AppError(Err.MINT_ERROR, isObj(e.message) ? JSON.stringify(e.message) : e.message, {mintUrl})
+            }
+        }),
+        getMintInfo: flow(function* getMintInfo(mintUrl: string) {
+            try {
+                const cashuMint = yield self.getMint(mintUrl)
+                const info = yield cashuMint.getInfo()
+                log.trace('[getMintInfo]', {info})
+                return info
+            } catch (e: any) {
+            let message = 'The mint could not return mint information.';
+            if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
+            throw new AppError(
+                Err.MINT_ERROR, 
+                message, 
+                {
+                    message: e.message,
+                    caller: 'getMintInfo', 
+                    mintUrl
+                }
+            )
+            }
+        })
     }))
     .views(self => ({        
         get mnemonic() {

@@ -18,6 +18,9 @@ import {
 import codePush, { RemotePackage } from 'react-native-code-push'
 import {moderateScale, verticalScale} from '@gocodingnow/rn-size-matters'
 import { SvgXml } from 'react-native-svg'
+import notifee, { AndroidImportance } from '@notifee/react-native'
+import { NavigationState, Route, TabBar, TabView } from 'react-native-tab-view'
+import { NotificationService, TASK_QUEUE_CHANNEL_ID, TASK_QUEUE_CHANNEL_NAME } from '../services/notificationService'
 import {useThemeColor, spacing, colors, typography} from '../theme'
 import {
   Button,
@@ -60,13 +63,11 @@ import { CurrencySign } from './Wallet/CurrencySign'
 import { CurrencyCode, MintUnit, MintUnitCurrencyPairs, convertToFromSats, getCurrency } from "../services/wallet/currency"
 import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import { LeftProfileHeader } from './ContactsScreen'
-import { NavigationState, Route, TabBar, TabView } from 'react-native-tab-view'
 import { getUnixTime } from 'date-fns/getUnixTime'
-import { delay } from '../utils/utils'
+import { minibitsPngIcon } from '../components/MinibitsIcon'
 
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
-const PENDING_CHECK_INTERVAL = 30
-const CLAIM_CHECK_INTERVAL = 60
+const MINT_CHECK_INTERVAL = 60
 
 interface WalletScreenProps extends WalletStackScreenProps<'Wallet'> {}
 
@@ -84,8 +85,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     } = useStores()        
     
     const appState = useRef(AppState.currentState)
-    const lastPendingCheckRef = useRef(0)
-    const lastClaimCheckRef = useRef(0)
+    const lastMintCheckRef = useRef(0)
     const isInternetReachable = useIsInternetReachable()
     const groupedMints: MintsByUnit[] = mintsStore.groupedByUnit
 
@@ -138,7 +138,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                 return
             }
             checkForUpdate()
-        }, 100)
+        }, 500)
         
     }, [])
 
@@ -170,9 +170,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             if(groupedMints.length === 0) {
                 await addMint()
             }
-            
-            // Only once on startup - auto-recover inflight proofs            
-            WalletTask.handleInFlight().catch(e => false)
+
             // Only once on startup - Create websocket subscriptions to receive tokens or payment requests by NOSTR DMs                    
             WalletTask.receiveEventsFromRelays().catch(e => false)            
 
@@ -276,27 +274,31 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         }
 
         const nowInSec = getUnixTime(new Date());
-        log.trace('[performChecks] Start', { secsFromLastPending: nowInSec - lastPendingCheckRef.current, secsFromLastClaim: nowInSec - lastClaimCheckRef.current })
+        log.trace('[performChecks] Start', { secsFromLastMintCheck: nowInSec - lastMintCheckRef.current})
 
-        if (nowInSec - lastPendingCheckRef.current > PENDING_CHECK_INTERVAL) {
-            lastPendingCheckRef.current = nowInSec
-            WalletTask.syncPendingStateWithMints().catch(e => setInfo(e.message))
-            WalletTask.handlePendingTopups().catch(e => setInfo(e.message))
+        if (nowInSec - lastMintCheckRef.current > MINT_CHECK_INTERVAL) {
+            lastMintCheckRef.current = nowInSec
+
+            // background processing using notifee foreground service
+            notifee.displayNotification({
+                title: TASK_QUEUE_CHANNEL_NAME,
+                body: 'Processing pending transactions...',
+                android: {
+                    channelId: TASK_QUEUE_CHANNEL_ID,
+                    asForegroundService: true,
+                    largeIcon: minibitsPngIcon,
+                    importance: AndroidImportance.HIGH,
+                    progress: {
+                        indeterminate: true,
+                    },
+                },
+                data: {tasksToRun: 'handleClaim|syncPendingStateWithMints|handlePendingTopups|handleInFlight|refreshExchangeRate'}
+            })
+
         } else {
-            log.trace('[performChecks] Skipping pending checks...')
+            log.trace('[performChecks] Skipping mint server checks...')
         }
-
-        if (nowInSec - lastClaimCheckRef.current > CLAIM_CHECK_INTERVAL) {
-            lastClaimCheckRef.current = nowInSec
-            
-            WalletTask.handleClaim().catch(e => setInfo(e.message))
-
-            if (userSettingsStore.exchangeCurrency) {
-                walletStore.refreshExchangeRate(userSettingsStore.exchangeCurrency)
-            }
-        } else {
-            log.trace('[performChecks] Skipping claim and rate checks...')
-        }       
+     
 
     }, [isInternetReachable, userSettingsStore.exchangeCurrency])
     
@@ -457,7 +459,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     const renderUnitTabs = function ({ route }: { route: { key: string } }) {
         const unitMints = groupedMints.find((mintUnit) => mintUnit.unit === route.key)
         
-        // log.trace('[renderUnitTabs]', {recentByUnit: transactionsStore.getRecentByUnit(unitMints!.unit), unit: unitMints!.unit})
+        //log.trace('[renderUnitTabs]', {recentByUnit: transactionsStore.getRecentByUnit(unitMints!.unit), unit: unitMints!.unit})
         
         if (unitMints) {            
             return (

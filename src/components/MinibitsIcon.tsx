@@ -1,0 +1,1 @@
+export const minibitsPngIcon = "https://play-lh.googleusercontent.com/raLGxOOzbxOsEx25gr-rISzJOdbgVPG11JHuI2yV57TxqPD_fYBof9TRh-vUE-XyhgmN=w240-h480-rw"

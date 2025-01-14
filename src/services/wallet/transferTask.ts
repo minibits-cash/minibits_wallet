@@ -33,9 +33,9 @@ export const transferTask = async function (
     encodedInvoice: string,
     nwcEvent?: NostrEvent
 )  : Promise<TransactionTaskResult> {
+    
     const mintUrl = mintBalanceToTransferFrom.mintUrl
-    const mintInstance = mintsStore.findByUrl(mintUrl)
-    let lockedProofsCounter: MintProofsCounter | undefined = undefined
+    const mintInstance = mintsStore.findByUrl(mintUrl)    
 
     // TODO refresh - balance might be outdated if it waits in queue before other txs
     log.debug('[transfer]', 'mintBalanceToTransferFrom', {mintBalanceToTransferFrom}) 
@@ -172,33 +172,15 @@ export const transferTask = async function (
             unit         
         })
 
-        transaction.setInputToken(inputToken)
-
-        // number of outputs we can get back as a change
-        let countOfInFlightProofs = proofsToMeltFrom.length
-        if(proofsToMeltFromAmount - amountToTransfer > 1) {
-            countOfInFlightProofs += Math.ceil(Math.log2(proofsToMeltFromAmount - amountToTransfer))
-        }
-
-        // temp increase the counter + acquire lock and set inFlight values                        
-        lockedProofsCounter = await WalletUtils.lockAndSetInFlight(
-            mintInstance, 
-            unit, 
-            countOfInFlightProofs, 
-            transaction.id
-        )
+        transaction.setInputToken(inputToken)        
 
         meltResponse = await walletStore.payLightningMelt(
             mintUrl,
             unit,
             meltQuote,
             proofsToMeltFrom,
-            {
-                counter: lockedProofsCounter.inFlightFrom as number
-            }
-        )   
-
-        lockedProofsCounter.decreaseProofsCounter(countOfInFlightProofs)
+            transactionId,
+        )
         
         if (meltResponse.quote.state === MeltQuoteState.PAID) {
             
@@ -240,10 +222,7 @@ export const transferTask = async function (
                 
                 totalFeePaid = totalFeePaid - returnedAmount
                 lightningFeePaid = totalFeePaid - meltFeeReserve
-            }
-
-            // release lock
-            lockedProofsCounter.resetInFlight(transactionId)
+            }           
     
             // Save final fee in db
             if(totalFeePaid !== transaction.fee) {
@@ -256,8 +235,7 @@ export const transferTask = async function (
                 lightningFeePaid,
                 meltFeePaid,
                 returnedAmount,       
-                preimage: meltResponse.quote.payment_preimage,
-                counter: lockedProofsCounter.counter,
+                preimage: meltResponse.quote.payment_preimage,                
                 createdAt: new Date(),
             })    
             
@@ -317,11 +295,7 @@ export const transferTask = async function (
         } as TransactionTaskResult
 
         if (transaction) { 
-            // release lock  
-            if(lockedProofsCounter) {
-                lockedProofsCounter.resetInFlight(transaction.id)
-            }
-
+            
             if (proofsToMeltFrom.length > 0) {
                
                 const walletInstance = await walletStore.getWallet(mintUrl, unit, {withSeed: true})

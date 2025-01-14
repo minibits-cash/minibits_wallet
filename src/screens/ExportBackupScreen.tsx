@@ -7,7 +7,8 @@ import {
   Switch,
   Alert,
 } from 'react-native'
-import {btoa, fromByteArray} from 'react-native-quick-base64'
+import {btoa} from 'react-native-quick-base64'
+import notifee, { AndroidImportance } from '@notifee/react-native'
 import {useThemeColor, spacing, typography, colors} from '../theme'
 import {
   Button,
@@ -35,13 +36,14 @@ import { ProofsStoreSnapshot } from '../models/ProofsStore'
 import { getSnapshot } from 'mobx-state-tree'
 import { ContactsStoreSnapshot } from '../models/ContactsStore'
 import { MintsStoreSnapshot } from '../models/MintsStore'
-import { Database, TransactionTaskResult, WalletTask, WalletTaskResult } from '../services'
+import { Database, TASK_QUEUE_CHANNEL_ID, TASK_QUEUE_CHANNEL_NAME, TransactionTaskResult, WalletTask, WalletTaskResult } from '../services'
 import { Transaction, TransactionStatus } from '../models/Transaction'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { Token, getDecodedToken, getEncodedToken } from '@cashu/cashu-ts'
 import { encodeCBOR } from '@cashu/cashu-ts/src/cbor'
 import { encodeUint8toBase64Url } from '@cashu/cashu-ts/src/base64'
+import { minibitsPngIcon } from '../components/MinibitsIcon'
 
 interface ExportBackupScreenProps extends SettingsStackScreenProps<'ExportBackup'> {}
 
@@ -239,13 +241,26 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
               // Supports batching in case proofs count is above limit.
               setIsLoading(true)
               setIsSendAllSentToQueue(true)
-              WalletTask.sendAll()
-            },
-          },
-        ],
+
+              // long task background processing
+              await notifee.displayNotification({
+                title: TASK_QUEUE_CHANNEL_NAME,
+                body: 'Processing pending transactions...',
+                android: {
+                    channelId: TASK_QUEUE_CHANNEL_ID,
+                    asForegroundService: true,
+                    largeIcon: minibitsPngIcon,
+                    importance: AndroidImportance.HIGH,
+                    progress: {
+                        indeterminate: true,
+                    }
+                },
+                data: {tasksToRun: 'sendAll'}
+              })
+            }
+          }
+        ]
       )
-
-
     }
     
     const copyBackup = function () {

@@ -404,6 +404,10 @@ function NutsCard(props: {info: GetInfoResponse}) {
       nutsSimple.push(['17', info.supported.some(m => m.unit === 'sat')])
       continue;
     }
+    if (nut === '19' && 'cached_endpoints' in info && Array.isArray(info.cached_endpoints) && info.cached_endpoints.length > 0) {
+      nutsSimple.push(['19', info.cached_endpoints.some(e => e.method === 'POST')])
+      continue;
+    }
     if ('disabled' in info && info.disabled === false) { // detailed
       supportedNutsDetailed.push([nut, info])
     } else if ('supported' in info && typeof info.supported !== 'undefined') { // simple

@@ -3,9 +3,8 @@ import {withSetPropAction} from './helpers/withSetPropAction'
 import {    
     type GetInfoResponse, 
     type MintKeys as CashuMintKeys, 
-    type MintKeyset as CashuMintKeyset,
-    type MintKeyset,
-    CashuMint
+    type MintKeyset as CashuMintKeyset,    
+    CashuMint,    
 } from '@cashu/cashu-ts'
 import {colors, getRandomIconColor} from '../theme'
 import { log } from '../services'
@@ -35,6 +34,11 @@ export type Balances = {
     unitBalances: UnitBalance[]
 }
 
+export type InFlightRequest<TRequest = any> = {
+    transactionId: number;
+    request: TRequest;
+}
+
 export enum MintStatus {
     ONLINE = 'ONLINE',
     OFFLINE = 'OFFLINE'
@@ -44,25 +48,24 @@ export const MintProofsCounterModel = types.model('MintProofsCounter', {
     keyset: types.string,
     unit: types.optional(types.frozen<MintUnit>(), 'sat'),
     counter: types.optional(types.number, 0),
-    inFlightFrom: types.maybe(types.number),
-    inFlightTo: types.maybe(types.number),
-    inFlightTid: types.maybe(types.number)
+    inFlightRequests: types.array(types.frozen<InFlightRequest>()),    
 }).actions(self => ({
-    setInFlight(inFlightFrom: number, inFlightTo: number, inFlightTid: number) {
-        self.inFlightFrom = inFlightFrom
-        self.inFlightTo = inFlightTo
-        self.counter = inFlightTo // temp increase of main counter value
-        self.inFlightTid = inFlightTid
-
-        log.trace('[setInFlight]', 'Lock and inflight indexes were set', {inFlightTid})
+    addInFlightRequest(transactionId: number, request: any) {
+        if(!self.inFlightRequests.find(r => r.transactionId === transactionId)) {
+            self.inFlightRequests.push({transactionId, request})
+            log.trace('[addInFlightRequest]', {transactionId, request})
+        }
     },
-    resetInFlight(inFlightTid: number) {
-        self.inFlightFrom = undefined
-        self.inFlightTo = undefined
-        self.inFlightTid = undefined
+    removeInFlightRequest(transactionId: number) {        
+        const index = self.inFlightRequests.findIndex(r => r.transactionId === transactionId)
         
-        log.trace('[resetInFlight]', 'Lock and inflight indexes were reset', {inFlightTid})
-    },
+        if(index !== -1) {
+            self.inFlightRequests.splice(index, 1)
+            self.inFlightRequests = cast(self.inFlightRequests)
+
+            log.trace('[removeInFlightRequest]', {transactionId})
+        }
+    },  
     increaseProofsCounter(numberOfProofs: number) {
         if(isNaN(self.counter)) self.counter = 0
         self.counter += numberOfProofs
@@ -88,7 +91,7 @@ export const MintModel = types
         shortname: types.maybe(types.string),
         units: types.array(types.frozen<MintUnit>()),
         keysets: types.array(types.frozen<CashuMintKeyset>()),   
-        keys: types.array(types.frozen<CashuMintKeys>()),
+        keys: types.array(types.frozen<CashuMintKeys>()),        
         proofsCounters: types.array(MintProofsCounterModel),
         color: types.optional(types.string, colors.palette.iconBlue200),
         status: types.optional(types.frozen<MintStatus>(), MintStatus.ONLINE),
@@ -101,63 +104,56 @@ export const MintModel = types
 
             if(!alreadyExists) {
                 self.keysets.push(keyset)
-            }
-
-            self.keysets = cast(self.keysets)
+                self.keysets = cast(self.keysets)
+            }            
         },
         removeKeyset(keyset: CashuMintKeyset) {
             const index = self.keysets.findIndex(k => k.id === keyset.id)
 
-            if(index) {
-                self.keysets.splice(index, 0)
-            }
-
-            self.keysets = cast(self.keysets)
+            if(index !== -1) {
+                self.keysets.splice(index, 1)
+                self.keysets = cast(self.keysets)
+            }            
         },
         setIsActive(freshKeyset: CashuMintKeyset) {
             const keyset = self.keysets.find(k => k.id === freshKeyset.id)
 
             if(keyset) {
                 keyset.active = freshKeyset.active
-            }
-
-            self.keysets = cast(self.keysets)
+                self.keysets = cast(self.keysets)
+            }            
         },
         addKeys(keys: CashuMintKeys) {
             const alreadyExists = self.keys.some(k => k.id === keys.id)
 
             if(!alreadyExists) {
                 self.keys.push(keys)
-            }
-
-            self.keys = cast(self.keys)
+                self.keys = cast(self.keys)
+            }            
         },
         removeKeys(keys: CashuMintKeys) {
             const index = self.keys.findIndex(k => k.id === keys.id)
 
-            if(index) {
-                self.keys.splice(index, 0)
-            }
-
-            self.keys = cast(self.keys)
+            if(index !== -1) {
+                self.keys.splice(index, 1)
+                self.keys = cast(self.keys)
+            }            
         },
         addUnit(unit: MintUnit) {
             const alreadyExists = self.units.some(u => u === unit)
 
             if(!alreadyExists) {
                 self.units.push(unit)
-            }
-
-            self.units = cast(self.units)
-        },
+                self.units = cast(self.units)
+            }            
+        },        
         removeUnit(unit: MintUnit) {
             const index = self.units.findIndex(u => u === unit)
 
-            if(index) {
-                self.units.splice(index, 0)
-            }
-
-            self.units = cast(self.units)
+            if(index !== -1) {
+                self.units.splice(index, 1)
+                self.units = cast(self.units)
+            }            
         },
         addProofsCounter(counter: MintProofsCounter) {
             const alreadyExists = self.proofsCounters.some(p => p.keyset === counter.keyset)
@@ -172,7 +168,7 @@ export const MintModel = types
         removeProofsCounter(counter: MintProofsCounter) {
             const index = self.proofsCounters.findIndex(p => p.keyset === counter.keyset)
 
-            if(index) {
+            if(index !== -1) {
                 self.proofsCounters.splice(index, 0)
                 self.proofsCounters = cast(self.proofsCounters)
             }
@@ -261,14 +257,6 @@ export const MintModel = types
 
             self.addKeys(key)            
             log.trace('[initKeys]', {newKeys: key.id})                   
-        },
-        findInFlightProofsCounter() {            
-            const counter = self.proofsCounters.find(c => c.inFlightFrom && c.inFlightTo && c.inFlightTid)                       
-            return counter as MintProofsCounter | undefined
-        },
-        findInFlightProofsCounterByTId(tId: number) {            
-            const counter = self.proofsCounters.find(c => c.inFlightTid === tId)                       
-            return counter as MintProofsCounter | undefined
         },
         validateURL(url: string) {
             try {
@@ -381,9 +369,39 @@ export const MintModel = types
             
             log.trace('[getMintFeeReserve]', {feeReserve})
             return feeReserve
-        }
+        },
+        removeAllInFlightRequests() {
+            log.trace('[removeAllInFlightRequests] Removing all inFlight requests', {mintUrl: self.mintUrl})
+            for(const counter of self.proofsCounters) {
+                counter.inFlightRequests.length = 0
+            }            
+        },
     }))
     .views(self => ({
+        findInFlightRequestByTId: (transactionId: number) => {            
+            const inFlightCounters = self.proofsCounters.filter(c => c.inFlightRequests && c.inFlightRequests.length > 0)                    
+            let inFlightRequest: InFlightRequest | undefined = undefined
+
+            for (const counter of inFlightCounters) {
+                const request = counter.inFlightRequests.find(r => r.transactionId === transactionId)
+                if(request) {
+                    inFlightRequest = request
+                    break
+                }
+            }
+
+            return inFlightRequest
+        },
+        get proofsCountersWithInFlightRequests(): MintProofsCounter[] {            
+            const counters = self.proofsCounters.filter(c => c.inFlightRequests && c.inFlightRequests.length > 0)                       
+            return counters as MintProofsCounter[]
+        },
+        get allInFLightRequests(): InFlightRequest[] {            
+            const requests = self.proofsCounters
+                .flatMap((counter) => counter.inFlightRequests) // Combine all `inFlightRequests` arrays  
+                
+            return requests
+        },
         get balances(): MintBalance | undefined {
             const mintBalance: MintBalance | undefined = getRootStore(self).proofsStore.getMintBalance(self.mintUrl)
             return mintBalance

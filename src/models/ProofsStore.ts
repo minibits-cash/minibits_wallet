@@ -14,7 +14,7 @@ import AppError, {Err} from '../utils/AppError'
 import {Mint, MintBalance, UnitBalance} from './Mint'
 import {Database} from '../services'
 import { MintUnit } from '../services/wallet/currency'
-import { ProofV3 } from '../services/cashu/cashuUtils'
+
 
 export const ProofsStoreModel = types
     .model('Proofs', {
@@ -79,7 +79,7 @@ export const ProofsStoreModel = types
                 .sort((a, b) => b.amount - a.amount)
 
         },        
-        getProofInstance(proof: ProofV3, isPending: boolean = false) {
+        getProofInstance(proof: Proof, isPending: boolean = false) {
             return self.getBySecret(proof.secret, isPending)
         },
         alreadyExists(proof: Proof, isPending: boolean = false) {
