@@ -22,7 +22,7 @@ import { useStores } from '../models'
 import { SyncStateTaskResult, WalletTask } from '../services/walletService'
 import EventEmitter from '../utils/eventEmitter'
 import { translate } from '../i18n'
-import { TASK_QUEUE_CHANNEL_ID, TASK_QUEUE_CHANNEL_NAME } from '../services/notificationService'
+import { NotificationService, TASK_QUEUE_CHANNEL_ID, TASK_QUEUE_CHANNEL_NAME } from '../services/notificationService'
 import { minibitsPngIcon } from '../components/MinibitsIcon'
 
 
@@ -78,8 +78,9 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
         EventEmitter.on('ev__syncStateWithMintTask_result', removeSpentByMintTaskResult)
       }
       
-      return () => {
+      return () => {        
         EventEmitter.off('ev__syncStateWithMintTask_result', removeSpentByMintTaskResult)            
+        NotificationService.stopForegroundService()
       }
   }, [isSyncStateSentToQueue])
 
@@ -144,8 +145,9 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
                 indeterminate: true,
             },
         },
-        data: {tasksToRun: 'syncSpendableStateWithMints'},
-      })         
+        data: {task: 'syncSpendableStateWithMints'},
+      })
+      // WalletTask.syncSpendableStateWithMints()        
     }
 
 

@@ -45,8 +45,7 @@ export const DEFAULT_DENOMINATION_TARGET = 2
 export const MAX_SWAP_INPUT_SIZE = 100
 export const MAX_SYNC_INPUT_SIZE = 200 // 1000 hard mint limit
 
-type WalletTaskService = {
-    onWalletStartTask: ()   => Promise<void>
+type WalletTaskService = {    
     syncPendingStateWithMints: ()   => Promise<void>
     syncSpendableStateWithMints: () => Promise<void>
     syncStateWithMint: (
@@ -179,26 +178,6 @@ const {
     relaysStore,    
     walletStore,
 } = rootStoreInstance
-
-
-const onWalletStartTask = async function() {
-
-    await notifee.displayNotification({
-        title: TASK_QUEUE_CHANNEL_NAME,
-        body: 'Minibits is processing a transaction.',
-        android: {
-            channelId: TASK_QUEUE_CHANNEL_ID,
-            asForegroundService: true,
-            largeIcon: minibitsPngIcon,
-            importance: AndroidImportance.HIGH,
-            progress: {
-                indeterminate: true,
-            },
-        },
-        data: {},
-    })
-}
-
 
 
 const transfer = async function (
@@ -526,6 +505,8 @@ const syncSpendableStateWithMints = async function (): Promise<void> {
           await syncStateWithMint({ proofsToSync, mintUrl: mint.mintUrl, isPending });
         }
     }
+
+    log.trace('[syncSpendableStateWithMints] returning')
 
     return    
 }
@@ -2087,8 +2068,7 @@ const _extractZapSenderData = function (str: string) {
 }
 
 
-export const WalletTask: WalletTaskService = {
-    onWalletStartTask,
+export const WalletTask: WalletTaskService = {    
     syncPendingStateWithMints,
     syncSpendableStateWithMints,
     syncStateWithMint,

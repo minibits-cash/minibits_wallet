@@ -15,7 +15,7 @@ const getSyncQueue = function () {
             stopOnError: false,
             // verbose: true,
             taskPrioritizationMode: "head",
-            memorizeTasks: true
+            // memorizeTasks: true
           })
         return _queue
     }
@@ -51,24 +51,21 @@ const addPrioritizedTask = function (taskId: TaskId, task: Promise<any> | any) {
 }
 
 // retrieve result of wallet transaction by listening to ev_taskFuncion event
-const _handleTaskResult = (taskId: TaskId, result: WalletTaskResult | TransactionTaskResult) => {
+const _handleTaskResult = async (taskId: TaskId, result: WalletTaskResult | TransactionTaskResult) => {
     log.info(
-      `The result of task ${taskId}`, result
+      `[_handleTaskResult] The result of task ${taskId}`, result
     )
 
     const queue: TaskQueue = getSyncQueue()
 
     EventEmitter.emit(`ev_${result.taskFunction}_result`, result)
 
-    if(queue.getAllTasksDetails(['idle', 'running']).length === 0) {
-        setTimeout(() => {
-            if(queue.getAllTasksDetails(['idle', 'running']).length === 0) {
-                log.trace('[handleTaskResult] stopForegroundService')
-                NotificationService.stopForegroundService()
-            }
-        }, 2000)
-    }
-    
+     /* if(queue.getAllTasksDetails(['idle', 'running']).length === 0) {        
+       if(await NotificationService.isNotificationDispayed()) {
+            log.trace('[_handleTaskResult] stopForegroundService')
+            NotificationService.stopForegroundService()
+        }        
+    }  */  
 }
   
 // Helper function to handle the task status changes

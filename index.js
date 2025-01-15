@@ -22,57 +22,43 @@ notifee.registerForegroundService(async (notification) => {
   return new Promise(async (resolve) => {
     log.trace('[registerForegroundService] Foreground service running for task:', notification)
 
-    try {
+    try {      
 
-      const {nwcStore, userSettingsStore, walletStore} = rootStoreInstance
+      if(notification.data.task === 'handleNwcRequestFromNotification') {
+        const {nwcStore} = rootStoreInstance
 
-      if(notification.android.channelId === NWC_CHANNEL_ID) {        
         if(nwcStore.all.length === 0) {        
             await setupRootStore(rootStoreInstance)        
         }      
         
-        nwcStore.handleNwcRequestFromNotification(notification.data).catch((e) => {
+        nwcStore.handleNwcRequestFromNotification(notification.data.data).catch((e) => {
           log.error('[registerForegroundService]', e.message)
         })
       }
-
-      if(notification.android.channelId === TASK_QUEUE_CHANNEL_ID) {
-
-        const tasksArray = notification.data.tasksToRun.split('|')
-        
-        if(tasksArray.includes('handleClaim')) {
-          WalletTask.handleClaim()
-        }
-        
-        if(tasksArray.includes('syncPendingStateWithMints')) {
-          WalletTask.syncPendingStateWithMints()
-        }
-
-        if(tasksArray.includes('handlePendingTopups')) {
-          WalletTask.handlePendingTopups()
-        }
-        
-        if(tasksArray.includes('handleInFlight')) {
-          WalletTask.handleInFlight()
-        }
-
-        if(tasksArray.includes('syncSpendableStateWithMints')) {
-          WalletTask.syncSpendableStateWithMints()   
-        }
-
-        if(tasksArray.includes('sendAll')) {
-          WalletTask.sendAll()   
-        }
-
-        if(tasksArray.includes('refreshExchangeRate') && userSettingsStore.exchangeCurrency) {        
-            walletStore.refreshExchangeRate(userSettingsStore.exchangeCurrency)
-        }
+      
+      if(notification.data.task === 'syncSpendableStateWithMints') {
+        WalletTask.syncSpendableStateWithMints()
       }
+
+      if(notification.data.task === 'sendAll') {
+        WalletTask.sendAll() 
+      }
+
+      /*if(notification.android.channelId === TASK_QUEUE_CHANNEL_ID) {
+
+          const tasksArray = notification.data.tasksToRun.split('|')
+        
+      }*/
 
     } catch(e) {
       log.error('[registerForegroundService]', e.message)
     }
   })
+})
+
+
+notifee.onBackgroundEvent(async ({ type, detail }) => {
+  return true
 })
 
 // Setup notification listeners and handlers

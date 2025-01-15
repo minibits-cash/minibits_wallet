@@ -1,4 +1,4 @@
-import notifee, { AndroidColor, AndroidImportance, AuthorizationStatus } from '@notifee/react-native'
+import notifee, { AndroidImportance, AuthorizationStatus } from '@notifee/react-native'
 import { colors } from '../theme'
 import { log } from './logService'
 import {
@@ -11,7 +11,6 @@ import AppError, { Err } from '../utils/AppError'
 import { Platform } from 'react-native'
 import { rootStoreInstance, setupRootStore } from '../models'
 import { NwcRequest, nwcPngUrl } from '../models/NwcStore';
-import { minibitsPngIcon } from '../components/MinibitsIcon'
 
 export type NotifyReceiveToLnurlData = {
     type: 'NotifyReceiveToLnurlData',
@@ -187,7 +186,7 @@ const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {
                     indeterminate: true,
                 },
             },
-            data: cleanedRequestEvent, // Pass the task data to the foreground service
+            data: {task: 'handleNwcRequestFromNotification',  data: cleanedRequestEvent}, // Pass the task data to the foreground service
         })
     } else {
         await nwcStore.handleNwcRequestFromNotification(requestEvent, nwcRequest) 
@@ -296,7 +295,17 @@ const areNotificationsEnabled = async function (): Promise<boolean> {
   return false
 }
 
+const isNotificationDispayed = async function (): Promise<boolean> {
+    const notifications = await notifee.getDisplayedNotifications()
+    if(notifications.length > 0) {
+        return true
+    }
+
+    return false
+}
+
 const stopForegroundService = async function (): Promise<void> {
+    log.trace('[stopForegroundService] start')
     await notifee.stopForegroundService()
 }
 
@@ -305,5 +314,6 @@ export const NotificationService = {
     onBackgroundNotification,
     onForegroundNotification,    
     areNotificationsEnabled,
+    isNotificationDispayed,
     stopForegroundService
 }

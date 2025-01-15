@@ -279,22 +279,14 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         if (nowInSec - lastMintCheckRef.current > MINT_CHECK_INTERVAL) {
             lastMintCheckRef.current = nowInSec
 
-            // background processing using notifee foreground service
-            notifee.displayNotification({
-                title: TASK_QUEUE_CHANNEL_NAME,
-                body: 'Processing pending transactions...',
-                android: {
-                    channelId: TASK_QUEUE_CHANNEL_ID,
-                    asForegroundService: true,
-                    largeIcon: minibitsPngIcon,
-                    importance: AndroidImportance.HIGH,
-                    progress: {
-                        indeterminate: true,
-                    },
-                },
-                data: {tasksToRun: 'handleClaim|syncPendingStateWithMints|handlePendingTopups|handleInFlight|refreshExchangeRate'}
-            })
+            WalletTask.handleInFlight()
+            WalletTask.handleClaim()
+            WalletTask.syncPendingStateWithMints()
+            WalletTask.handlePendingTopups()
 
+            if(userSettingsStore.exchangeCurrency) {
+                walletStore.refreshExchangeRate(userSettingsStore.exchangeCurrency)
+            }
         } else {
             log.trace('[performChecks] Skipping mint server checks...')
         }

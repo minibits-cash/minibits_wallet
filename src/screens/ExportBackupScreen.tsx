@@ -36,7 +36,7 @@ import { ProofsStoreSnapshot } from '../models/ProofsStore'
 import { getSnapshot } from 'mobx-state-tree'
 import { ContactsStoreSnapshot } from '../models/ContactsStore'
 import { MintsStoreSnapshot } from '../models/MintsStore'
-import { Database, TASK_QUEUE_CHANNEL_ID, TASK_QUEUE_CHANNEL_NAME, TransactionTaskResult, WalletTask, WalletTaskResult } from '../services'
+import { Database, NotificationService, TASK_QUEUE_CHANNEL_ID, TASK_QUEUE_CHANNEL_NAME, TransactionTaskResult, WalletTask, WalletTaskResult } from '../services'
 import { Transaction, TransactionStatus } from '../models/Transaction'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
@@ -168,7 +168,8 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
     }
 
     return () => {
-      EventEmitter.off('ev_receiveTask_result', handleReceiveTaskResult)            
+      EventEmitter.off('ev_receiveTask_result', handleReceiveTaskResult)
+      NotificationService.stopForegroundService()         
     }
 
   }, [isReceiveBatchSentToQueue])
@@ -255,8 +256,9 @@ export const ExportBackupScreen: FC<ExportBackupScreenProps> =
                         indeterminate: true,
                     }
                 },
-                data: {tasksToRun: 'sendAll'}
+                data: {task: 'sendAll'}
               })
+              // WalletTask.sendAll() 
             }
           }
         ]
