@@ -166,10 +166,15 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
                 return
             }
 
-            setIsChecked(true)
+            
             // setIsNameInputEnabled(false)
             // setIsPaymentModalVisible(true)
         } catch (e: any) {
+            if(e.name === Err.NOTFOUND_ERROR) {
+                setIsChecked(true)
+                return
+            }
+
             handleError(e)
         }  
     }
