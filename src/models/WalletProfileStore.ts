@@ -70,7 +70,7 @@ export const WalletProfileStoreModel = types
                 // new wallet profile has not yet the relays
                 if(relaysStore.allUrls.length === 0) {
                     // saves default relays and creates subscription for incoming nostr messages
-                    WalletTask.receiveEventsFromRelays()
+                    WalletTask.receiveEventsFromRelaysQueue()
                 }
                 
                 const relaysToPublish: string[]  = relaysStore.allUrls

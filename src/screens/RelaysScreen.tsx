@@ -75,11 +75,11 @@ export const RelaysScreen: FC<SettingsScreenProps> = observer(
         log.trace('[onConnect]')    
         
         // Full force re-subscription, not just reconnect
-        WalletTask.receiveEventsFromRelays().catch(e => false)
+        WalletTask.receiveEventsFromRelaysQueue().catch(e => false)
 
         // Subscribe to NWC events if we have some connections
         if(!isRemoteDataPushEnabled) {          
-          nwcStore.receiveNwcEvents()  
+          nwcStore.receiveNwcEventsQueue()  
         }
         setSelectedRelay(undefined)        
     }
