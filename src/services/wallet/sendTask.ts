@@ -28,6 +28,8 @@ const {
     walletStore
 } = rootStoreInstance
 
+export const SEND_TASK = 'sendTask'
+
 export const sendTask = async function (
     mintBalanceToSendFrom: MintBalance,
     amountToSend: number,
@@ -38,8 +40,8 @@ export const sendTask = async function (
 
     const mintUrl = mintBalanceToSendFrom.mintUrl
 
-    log.trace('[send]', 'mintBalanceToSendFrom', mintBalanceToSendFrom)
-    log.trace('[send]', 'amountToSend', {amountToSend, unit})    
+    log.trace('[sendTask]', 'mintBalanceToSendFrom', mintBalanceToSendFrom)
+    log.trace('[sendTask]', 'amountToSend', {amountToSend, unit})    
 
     // create draft transaction
     const transactionData: TransactionData[] = [
@@ -135,7 +137,7 @@ export const sendTask = async function (
 
             poller(
                 `syncStateWithMintPoller-${mintUrl}`,
-                WalletTask.syncStateWithMint,
+                WalletTask.syncStateWithMintQueue,
                 {
                     interval: 6 * 1000,
                     maxPolls: 5,
@@ -147,7 +149,7 @@ export const sendTask = async function (
         }
 
         return {
-            taskFunction: 'sendTask',
+            taskFunction: SEND_TASK,
             mintUrl,
             transaction,
             message: '',
@@ -170,7 +172,7 @@ export const sendTask = async function (
         }        
 
         return {
-            taskFunction: 'sendTask',
+            taskFunction: SEND_TASK,
             mintUrl,
             transaction,
             message: e.message,
@@ -421,7 +423,7 @@ export const sendFromMintSync = async function (
 
             log.error('[sendFromMintSync] Going to clean spent proofs from pending', {transactionId})
 
-            await WalletTask.syncStateWithMintSync({
+            await WalletTask.syncStateWithMintTask({
                     proofsToSync: proofsStore.getByMint(mintUrl, {isPending: true, unit}),
                     mintUrl,
                     isPending: true

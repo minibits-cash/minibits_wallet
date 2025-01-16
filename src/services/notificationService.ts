@@ -11,6 +11,7 @@ import AppError, { Err } from '../utils/AppError'
 import { Platform } from 'react-native'
 import { rootStoreInstance, setupRootStore } from '../models'
 import { NwcRequest, nwcPngUrl } from '../models/NwcStore';
+import { HANDLE_NWC_REQUEST_TASK } from './walletService'
 
 export type NotifyReceiveToLnurlData = {
     type: 'NotifyReceiveToLnurlData',
@@ -36,7 +37,10 @@ const NWC_CHANNEL_ID = 'nwcDefault';
 const NWC_CHANNEL_NAME = 'Minibits NWC payment'
 
 export const TASK_QUEUE_CHANNEL_ID = 'internalDefault'
-export const TASK_QUEUE_CHANNEL_NAME = 'Minibits internal tasks'
+export const TASK_QUEUE_CHANNEL_NAME = 'Minibits tasks'
+
+export const TEST_CHANNEL_ID = 'testDefault'
+export const TEST_CHANNEL_NAME = 'Minibits test tasks'
 
 export const initNotifications = async () => {
     let enabled = await areNotificationsEnabled()
@@ -87,6 +91,16 @@ export const initNotifications = async () => {
         if (!isCreated) {
             notifee.createChannel({
             id: TASK_QUEUE_CHANNEL_ID,
+            name: TASK_QUEUE_CHANNEL_NAME,
+            sound: 'default',
+            })
+        }
+    })
+
+    notifee.isChannelCreated(TEST_CHANNEL_ID).then(isCreated => {
+        if (!isCreated) {
+            notifee.createChannel({
+            id: TEST_CHANNEL_ID,
             name: TASK_QUEUE_CHANNEL_NAME,
             sound: 'default',
             })
@@ -176,7 +190,7 @@ const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {
 
         await notifee.displayNotification({
             title: NWC_CHANNEL_NAME,
-            body: 'Nostr wallet command is being processed.',
+            body: 'Processing remote NWC command...',
             android: {
                 channelId: NWC_CHANNEL_ID,
                 asForegroundService: true,
@@ -186,10 +200,10 @@ const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {
                     indeterminate: true,
                 },
             },
-            data: {task: 'handleNwcRequestFromNotification',  data: cleanedRequestEvent}, // Pass the task data to the foreground service
+            data: {task: HANDLE_NWC_REQUEST_TASK,  data: cleanedRequestEvent}, // Pass the task data to the foreground service
         })
     } else {
-        await nwcStore.handleNwcRequestFromNotification(requestEvent, nwcRequest) 
+        await nwcStore.handleNwcRequestTask(requestEvent, nwcRequest) 
     }
 }
 

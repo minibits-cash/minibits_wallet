@@ -37,7 +37,7 @@ import {
 } from '../components'
 import {TransactionStatus, Transaction} from '../models/Transaction'
 import {useStores} from '../models'
-import {NostrClient, SyncStateTaskResult, TransactionTaskResult, WalletTask} from '../services'
+import {NostrClient, SYNC_STATE_WITH_MINT_TASK, SyncStateTaskResult, TransactionTaskResult, WalletTask} from '../services'
 import {log} from '../services/logService'
 import AppError, {Err} from '../utils/AppError'
 import {translate} from '../i18n'
@@ -60,6 +60,7 @@ import { MemoInputCard } from '../components/MemoInputCard'
 import { PaymentRequest as CashuPaymentRequest, PaymentRequestTransport, PaymentRequestTransportType, decodePaymentRequest, getDecodedToken } from '@cashu/cashu-ts'
 import { ProfilePointer } from 'nostr-tools/nip19'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
+import { SEND_TASK } from '../services/wallet/sendTask'
 
 export enum SendOption {
     SEND_TOKEN = 'SEND_TOKEN',
@@ -447,12 +448,12 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
         // Subscribe to the 'sendCompleted' event
         if(isSendTaskSentToQueue) {
-            EventEmitter.on('ev_sendTask_result', handleSendTaskResult)
+            EventEmitter.on(`ev_${SEND_TASK}_result`, handleSendTaskResult)
         }        
 
         // Unsubscribe from the 'sendCompleted' event on component unmount
         return () => {
-            EventEmitter.off('ev_sendTask_result', handleSendTaskResult)
+            EventEmitter.off(`ev_${SEND_TASK}_result`, handleSendTaskResult)
         }
     }, [isSendTaskSentToQueue])
 
@@ -508,12 +509,12 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
         // Subscribe to the '_syncStateWithMintTask' event
         if(transactionId) {
-            EventEmitter.on('ev__syncStateWithMintTask_result', handleSendCompleted)
+            EventEmitter.on(`ev_${SYNC_STATE_WITH_MINT_TASK}_result`, handleSendCompleted)
         }
 
         // Unsubscribe from the '_syncStateWithMintTask' event on component unmount
         return () => {
-            EventEmitter.off('ev__syncStateWithMintTask_result', handleSendCompleted)
+            EventEmitter.off(`ev_${SYNC_STATE_WITH_MINT_TASK}_result`, handleSendCompleted)
         }
     }, [transactionId])
        
@@ -603,7 +604,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
         const amountToSendInt = round(toNumber(amountToSend) * getCurrency(unitRef.current).precision, 0)
 
-        WalletTask.send(
+        WalletTask.sendQueue(
             mintBalanceToSendFrom as MintBalance,
             amountToSendInt,
             unitRef.current,

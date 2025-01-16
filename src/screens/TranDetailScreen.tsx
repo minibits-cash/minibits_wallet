@@ -41,7 +41,7 @@ import {
 import AppError, {Err} from '../utils/AppError'
 import {log} from '../services/logService'
 import {isArray} from 'lodash'
-import {NostrClient, NostrEvent, NostrProfile, TransactionTaskResult, WalletTask} from '../services'
+import {HANDLE_PENDING_TOPUP_TASK, NostrClient, NostrEvent, NostrProfile, TransactionTaskResult, WalletTask} from '../services'
 import {Proof} from '../models/Proof'
 import useColorScheme from '../theme/useThemeColor'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
@@ -58,6 +58,8 @@ import { QRCodeBlock } from './Wallet/QRCode'
 import { MintListItem } from './Mints/MintListItem'
 import { Token, getDecodedToken } from '@cashu/cashu-ts'
 import { faTruckMedical } from '@fortawesome/free-solid-svg-icons'
+import { RECEIVE_OFFLINE_COMPLETE_TASK, RECEIVE_TASK } from '../services/wallet/receiveTask'
+import { REVERT_TASK } from '../services/wallet/revertTask'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
@@ -603,12 +605,12 @@ const ReceiveInfoBlock = function (props: {
 
         // Subscribe to the 'receiveTask' event
         if(isReceiveTaskSentToQueue === true) {
-          EventEmitter.on('ev_receiveTask_result', handleReceiveTaskResult)
+          EventEmitter.on(`ev_${RECEIVE_TASK}_result`, handleReceiveTaskResult)
         }        
 
         // Unsubscribe from the 'receiveTask' event on component unmount
         return () => {
-          EventEmitter.off('ev_receiveTask_result', handleReceiveTaskResult)
+          EventEmitter.off(`ev_${RECEIVE_TASK}_result`, handleReceiveTaskResult)
         }
     }, [isReceiveTaskSentToQueue])
 
@@ -647,7 +649,7 @@ const ReceiveInfoBlock = function (props: {
             }
             
             setIsReceiveTaskSentToQueue(true)
-            WalletTask.receive(
+            WalletTask.receiveQueue(
                 tokenToRetry,
                 amountToReceive,
                 memo,
@@ -886,12 +888,12 @@ const ReceiveOfflineInfoBlock = function (props: {
 
         // Subscribe to the 'sendCompleted' event
         if(isReceiveOfflineCompleteTaskSentToQueue) {
-          EventEmitter.on('ev_receiveOfflineCompleteTask_result', handleReceiveOfflineCompleteTaskResult)
+          EventEmitter.on(`ev_${RECEIVE_OFFLINE_COMPLETE_TASK}_result`, handleReceiveOfflineCompleteTaskResult)
         }        
 
         // Unsubscribe from the 'sendCompleted' event on component unmount
         return () => {
-            EventEmitter.off('ev_receiveOfflineCompleteTask_result', handleReceiveOfflineCompleteTaskResult)
+            EventEmitter.off(`ev_${RECEIVE_OFFLINE_COMPLETE_TASK}_result`, handleReceiveOfflineCompleteTaskResult)
         }
     }, [isReceiveOfflineCompleteTaskSentToQueue])
 
@@ -902,7 +904,7 @@ const ReceiveOfflineInfoBlock = function (props: {
     const receiveOfflineComplete = async function () {
         setIsLoading(true)
         setIsReceiveOfflineCompleteTaskSentToQueue(true)   
-        WalletTask.receiveOfflineComplete(transaction.id!)             
+        WalletTask.receiveOfflineCompleteQueue(transaction.id!)             
     }
 
     const onGoBack = () => {
@@ -1095,12 +1097,12 @@ const SendInfoBlock = function (props: {
 
       // Subscribe to the 'sendCompleted' event
       if(isRevertTaskSentToQueue) {
-        EventEmitter.on('ev_revertTask_result', handleRevertTaskResult)
+        EventEmitter.on(`ev_${REVERT_TASK}_result`, handleRevertTaskResult)
       }        
 
       // Unsubscribe from the 'sendCompleted' event on component unmount
       return () => {
-        EventEmitter.off('ev_revertTask_result', handleRevertTaskResult)
+        EventEmitter.off(`ev_${REVERT_TASK}_result`, handleRevertTaskResult)
       }
   }, [isRevertTaskSentToQueue])
   
@@ -1135,7 +1137,7 @@ const SendInfoBlock = function (props: {
           })         
         }
 
-        WalletTask.revert(transaction)
+        WalletTask.revertQueue(transaction)
         setIsLoading(true)
         setIsRevertTaskSentToQueue(true)
 
@@ -1308,7 +1310,7 @@ const TopupInfoBlock = function (props: {
           setIsLoading(false)
 
           // do not react to an active poller :)
-          if(pollerExists(`handlePendingTopupTaskPoller-${result.paymentHash}`)) {
+          if(pollerExists(`handlePendingTopupPoller-${result.paymentHash}`)) {
               return false            
           }
 
@@ -1328,11 +1330,11 @@ const TopupInfoBlock = function (props: {
       }
 
       // Subscribe to the 'sendCompleted' event
-      EventEmitter.on('ev__handlePendingTopupTask_result', handlePendingTopupTaskResult)
+      EventEmitter.on(`ev_${HANDLE_PENDING_TOPUP_TASK}_result`, handlePendingTopupTaskResult)
 
       // Unsubscribe from the 'sendCompleted' event on component unmount
       return () => {
-          EventEmitter.off('ev__handlePendingTopupTask_result', handlePendingTopupTaskResult)
+          EventEmitter.off(`ev_${HANDLE_PENDING_TOPUP_TASK}_result`, handlePendingTopupTaskResult)
       }
   }, [isPendingTopupTaskSentToQueue]))
 
@@ -1348,7 +1350,7 @@ const TopupInfoBlock = function (props: {
       setIsLoading(true)
 
       setIsPendingTopupTaskSentToQueue(true)
-      WalletTask.handlePendingTopup(
+      WalletTask.handlePendingTopupQueue(
           {paymentRequest}
       )
 
@@ -1895,7 +1897,7 @@ const getPaymentRequestToRetry = (
         const paymentRequest: PaymentRequest = pendingRecord.paymentRequest
 
         if(!paymentRequest) {return undefined}
-        if(pollerExists(`handlePendingTopupTaskPoller-${paymentRequest.paymentHash}`)) {return undefined}
+        if(pollerExists(`handlePendingTopupPoller-${paymentRequest.paymentHash}`)) {return undefined}
 
         // return paymentRequest to retry if wallet somehow failed to retreive proofs for paid invoice        
         return paymentRequest

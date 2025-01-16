@@ -50,6 +50,7 @@ import { TranItem } from './TranDetailScreen'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { translate } from '../i18n'
 import { MemoInputCard } from '../components/MemoInputCard'
+import { TRANSFER_TASK } from '../services/wallet/transferTask'
 
 
 if (
@@ -428,12 +429,12 @@ useEffect(() => {
 
     // Subscribe to the task result event
     if(isTransferTaskSentToQueue) {
-      EventEmitter.on('ev_transferTask_result', handleTransferTaskResult)        
+      EventEmitter.on(`ev_${TRANSFER_TASK}_result`, handleTransferTaskResult)        
     }    
 
     // Unsubscribe from the task result event on component unmount
     return () => {
-        EventEmitter.off('ev_transferTask_result', handleTransferTaskResult)        
+        EventEmitter.off(`ev_${TRANSFER_TASK}_result`, handleTransferTaskResult)        
     }
 }, [isTransferTaskSentToQueue])
 
@@ -636,7 +637,7 @@ const transfer = async function () {
 
     const amountToTransferInt = round(toNumber(amountToTransfer) * getCurrency(unit).precision, 0)
 
-    WalletTask.transfer(
+    WalletTask.transferQueue(
         mintBalanceToTransferFrom,
         amountToTransferInt,
         unit,

@@ -24,7 +24,7 @@ import { IncomingDataType, IncomingParser } from './incomingParser'
 import { Contact } from '../models/Contact'
 import { SyncQueue } from './syncQueueService'
 import { receiveTask, receiveOfflinePrepareTask, receiveOfflineCompleteTask} from './wallet/receiveTask'
-import { sendTask } from './wallet/sendTask'
+import { sendFromMintSync, sendTask } from './wallet/sendTask'
 import { topupTask } from './wallet/topupTask'
 import { transferTask } from './wallet/transferTask'
 import { revertTask } from './wallet/revertTask'
@@ -34,8 +34,6 @@ import { MintUnit, formatCurrency, getCurrency } from './wallet/currency'
 import { MinibitsClient } from './minibitsService'
 import { KeyChain } from './keyChain'
 import { UnsignedEvent } from 'nostr-tools'
-import { minibitsPngIcon } from '../components/MinibitsIcon'
-
 
 /**
  * The default number of proofs per denomination to keep in a wallet.
@@ -45,31 +43,47 @@ export const DEFAULT_DENOMINATION_TARGET = 2
 export const MAX_SWAP_INPUT_SIZE = 100
 export const MAX_SYNC_INPUT_SIZE = 200 // 1000 hard mint limit
 
-type WalletTaskService = {    
-    syncPendingStateWithMints: ()   => Promise<void>
-    syncSpendableStateWithMints: () => Promise<void>
-    syncStateWithMint: (
+export const TEST_TASK = 'testTask'
+export const SWAP_ALL_TASK = 'swapAllTask'
+export const SYNC_STATE_WITH_ALL_MINTS_TASK = 'syncStateWithAllMintsTask'
+export const SYNC_STATE_WITH_MINT_TASK = 'syncStateWithMintTask'
+export const HANDLE_NWC_REQUEST_TASK = 'handleNwcRequestTask'
+export const HANDLE_CLAIM_TASK = 'handleClaimTask'
+export const HANDLE_PENDING_TOPUP_TASK = 'handlePendingTopupTask'
+export const HANDLE_INFLIGHT_BY_MINT_TASK = 'handleInFlightByMintTask'
+export const HANDLE_RECEIVED_EVENT_TASK = 'handleReceivedEventTask'
+
+type WalletTaskService = {
+    syncStateWithAllMintsQueue: (
+        options: {
+            isPending: boolean
+        }
+    ) => Promise<void>
+    syncStateWithMintQueue: (
         options: {
             proofsToSync: Proof[],
             mintUrl: string, 
             isPending: boolean
         }
     ) => Promise<void>
-    syncStateWithMintSync: (        
+    syncStateWithMintTask: (        
         options: {
             proofsToSync: Proof[],
             mintUrl: string, 
             isPending: boolean
         }        
     ) => Promise<SyncStateTaskResult | void>
-    handleInFlight: ()        => Promise<void>    
-    handlePendingTopups: ()   => Promise<void>
-    handlePendingTopup: (params: {
+    handleInFlightQueue: ()        => Promise<void>    
+    handlePendingTopupsQueue: ()   => Promise<void>
+    handlePendingTopupQueue: (params: {
         paymentRequest: PaymentRequest
     })   => Promise<void>
-    handleClaim: ()   => Promise<void>
-    receiveEventsFromRelays: () => Promise<void>
-    transfer: (
+    handleClaimQueue: ()   => Promise<void>
+    handleNwcRequestQueue: (params: {
+        requestEvent: NostrEvent
+    })   => Promise<void>
+    receiveEventsFromRelaysQueue: () => Promise<void>
+    transferQueue: (
         mintBalanceToTransferFrom: MintBalance,
         amountToTransfer: number,
         unit: MintUnit,
@@ -79,36 +93,30 @@ type WalletTaskService = {
         encodedInvoice: string,
         nwcEvent?: NostrEvent
     ) => Promise<void>
-    receive: (
+    receiveQueue: (
         token: Token,
         amountToReceive: number,
         memo: string,
         encodedToken: string,
     ) => Promise<void>
-    receiveBatch: (
+    receiveOfflinePrepareQueue: (
         token: Token,
         amountToReceive: number,
         memo: string,
         encodedToken: string,
     ) => Promise<void>
-    receiveOfflinePrepare: (
-        token: Token,
-        amountToReceive: number,
-        memo: string,
-        encodedToken: string,
-    ) => Promise<void>
-    receiveOfflineComplete: (        
+    receiveOfflineCompleteQueue: (        
         transactionId: number
     ) => Promise<void>
-    send: (
+    sendQueue: (
         mintBalanceToSendFrom: MintBalance,
         amountToSend: number,
         unit: MintUnit,
         memo: string,
         selectedProofs: Proof[]
     ) => Promise<void>
-    sendAll: () => Promise<void>
-    topup: (
+    swapAllQueue: () => Promise<void>
+    topupQueue: (
         mintBalanceToTopup: MintBalance,
         amountToTopup: number,
         unit: MintUnit,
@@ -116,20 +124,22 @@ type WalletTaskService = {
         contactToSendTo?: Contact,
         nwcEvent?: NostrEvent
     ) => Promise<void>
-    revert: (
+    revertQueue: (
         transaction: Transaction
     ) => Promise<void>
+    testQueue: () => Promise<void>
 }
 
 export interface WalletTaskResult {
     taskFunction: string
-    mintUrl: string
     message: string
+    mintUrl?: string    
     error?: AppError
     [key: string]: any
 }
 
 export interface TransactionTaskResult extends WalletTaskResult {
+    mintUrl: string,
     transaction?: Transaction
     swapFeePaid?: number
     lightningFeePaid?: number
@@ -177,10 +187,11 @@ const {
     contactsStore,
     relaysStore,    
     walletStore,
+    nwcStore,
 } = rootStoreInstance
 
 
-const transfer = async function (
+const transferQueue = async function (
     mintBalanceToTransferFrom: MintBalance,
     amountToTransfer: number,
     unit: MintUnit,
@@ -208,39 +219,60 @@ const transfer = async function (
 }
 
 
-const receive = async function (
+const receiveQueue = async function (
     token: Token,
     amountToReceive: number,
     memo: string,
     encodedToken: string,
 ): Promise<void> {
     const now = new Date().getTime()
-    SyncQueue.addPrioritizedTask(
-        `receiveTask-${now}`,           
-        async () => await receiveTask(
-            token,
-            amountToReceive,
-            memo,
-            encodedToken,
+    const proofsCount = token.proofs.length
+
+    if(proofsCount > MAX_SWAP_INPUT_SIZE) {
+
+        SyncQueue.addPrioritizedTask(
+            `receiveBatchTask-${now}`,           
+            async () => await receiveBatchTask(
+                token,
+                amountToReceive,
+                memo,
+                encodedToken,
+            )
         )
-    )
+
+    } else {
+
+        SyncQueue.addPrioritizedTask(
+            `receiveTask-${now}`,           
+            async () => await receiveTask(
+                token,
+                amountToReceive,
+                memo,
+                encodedToken,
+            )
+        )
+    }
+
     return
 }
 
 /* 
  * Receive big tokens in batches to keep mint load reasonable. 
- * Used when optimizing wallet proof amounts but might become the default. 
+ * 
  */
-const receiveBatch = async function  (
+const receiveBatchTask = async function  (
     token: Token,
     amountToReceive: number,
     memo: string,
     encodedToken: string,
-) {    
+) : Promise<WalletTaskResult> {
+
     const maxBatchSize = MAX_SWAP_INPUT_SIZE
     const mintUrl = token.mint
     const proofsToReceive = token.proofs
     const unit = token.unit
+
+    let receivedProofsCount = 0
         
     if (proofsToReceive.length > maxBatchSize) {
 
@@ -259,31 +291,45 @@ const receiveBatch = async function  (
             }
 
             const batchEncodedToken = getEncodedToken(batchToken)
-
-            // Queued WalletTask
-            receive(
+            
+            const result = await receiveTask(
                 batchToken,
                 batchAmount,
                 `${memo} #${index}`,
                 batchEncodedToken,
-            )                
+            )
+            
+            if(result.receivedProofsCount) {
+                receivedProofsCount += result.receivedProofsCount
+            }            
         }
 
     } else {
         // If the length is less than or equal to 100, do normal receive
-        receive(
+        const result = await receiveTask(
             token,
             amountToReceive,
             memo,
             encodedToken,
         )
+
+        if(result.receivedProofsCount) {
+            receivedProofsCount += result.receivedProofsCount
+        } 
+    }
+
+    return {
+        taskFunction: 'receiveBatchTask',
+        mintUrl,
+        message: 'receiveBatchTask completed. ',
+        receivedProofsCount
     }
 }
     
 
 
 
-const receiveOfflinePrepare = async function (
+const receiveOfflinePrepareQueue = async function (
     token: Token,
     amountToReceive: number,    
     memo: string,
@@ -303,7 +349,7 @@ const receiveOfflinePrepare = async function (
 }
 
 
-const receiveOfflineComplete = async function (
+const receiveOfflineCompleteQueue = async function (
     transactionId: number
 ): Promise<void> {
     const now = new Date().getTime()
@@ -317,7 +363,7 @@ const receiveOfflineComplete = async function (
 }
 
 
-const send = async function (
+const sendQueue = async function (
     mintBalanceToSendFrom: MintBalance,
     amountToSend: number,
     unit: MintUnit,
@@ -340,60 +386,125 @@ const send = async function (
 
 
 /*
- * sendAll moves all proofs to pending to prepare to swap them for standard amount preference 
+ * swapAllTask sends all proofs to pending and swaps them with the mint for standard amount preference 
  * This decreases the total number of proofs held by the wallet. Used to optimize exported backup size.
+ * Heavy, needs to run using the foreground service. May freeze the wallet.
  */
-const sendAll = async function (): Promise<void> {
-    log.trace('[sendAll] start')
+
+const swapAllQueue = async function (): Promise<void> {
+    const now = new Date().getTime()
+    return SyncQueue.addPrioritizedTask(
+        `swapAllTask-${now}`,            
+        async () => await swapAllTask()
+    )    
+}
+
+const swapAllTask = async function (): Promise<WalletTaskResult> {
+    log.trace('[swapAllTask] start')
+    
     if (mintsStore.mintCount === 0) {
-        return
+        return {    
+            taskFunction: SWAP_ALL_TASK,            
+            message: 'No mints to swap with.'            
+        }
     }
+
+    let initialProofsCount = 0
+    let finalProofsCount = 0
+    const errors: string[] = []
 
     // Move all proofs by mint units to pending as in offline mode (do not ask for swap)
     for (const mint of mintsStore.allMints) {
         // Do not create a pending transaction above mint's spent sync (check) limit as it becomes stuck pending
         // As well keep tokens reasonably sized so that a device can keep related transaction in the state / load it from DB
-        const maxBatchSize = MAX_SWAP_INPUT_SIZE
+        const maxBatchSize = MAX_SWAP_INPUT_SIZE        
 
         for (const unit of mint.units) {
             const proofsToOptimize = proofsStore.getByMint(mint.mintUrl, { isPending: false, unit })
-            const totalProofsCount = proofsToOptimize.length            
+            initialProofsCount += proofsToOptimize.length            
             const mintBalance = mint.balances
-            
-            if (totalProofsCount > maxBatchSize) {
+
+            if (initialProofsCount > maxBatchSize) {
                 let index = 0
-                for (let i = 0; i < totalProofsCount; i += maxBatchSize) {
+                for (let i = 0; i < initialProofsCount; i += maxBatchSize) {
                     index++
                     const batch = proofsToOptimize.slice(i, i + maxBatchSize)
                     const batchAmount = CashuUtils.getProofsAmount(batch)
 
-                    send(
+                    const sendResult = await sendTask(
                         mintBalance!,
                         batchAmount,
                         unit,
                         `Optimize ecash #${index}`,
                         batch // forces offline mode
                     )
+
+                    const encodedTokenToReceive: string = sendResult.encodedTokenToSend
+                    const tokenToReceive = getDecodedToken(encodedTokenToReceive)              
+                    const tokenAmount = CashuUtils.getProofsAmount(tokenToReceive.proofs)
+
+                    const receiveResult = await receiveBatchTask(
+                        tokenToReceive,
+                        tokenAmount,
+                        tokenToReceive.memo as string,
+                        encodedTokenToReceive
+                    )
+
+                    if(receiveResult.receivedProofsCount && receiveResult.receivedProofsCount > 0) {
+                        finalProofsCount += receiveResult.receivedProofsCount
+                    }
+
+                    if(receiveResult.error) {
+                        errors.push(receiveResult.error.message)
+                    }
                 }
             } else {
                 // If the length is less than or equal to limit, run with all proofs.
                 const proofsAmount = CashuUtils.getProofsAmount(proofsToOptimize)         
-                send(
+                const sendResult = await sendTask(
                     mintBalance!,
                     proofsAmount,
                     unit,
                     `Optimize ecash`,
                     proofsToOptimize // forces offline mode
                 )
+
+                const encodedTokenToReceive: string = sendResult.encodedTokenToSend
+                const tokenToReceive = getDecodedToken(encodedTokenToReceive)              
+                const tokenAmount = CashuUtils.getProofsAmount(tokenToReceive.proofs)
+
+                const receiveResult = await receiveBatchTask(
+                    tokenToReceive,
+                    tokenAmount,
+                    tokenToReceive.memo as string,
+                    encodedTokenToReceive
+                )
+
+                if(receiveResult.receivedProofsCount && receiveResult.receivedProofsCount > 0) {
+                    finalProofsCount += receiveResult.receivedProofsCount
+                }
+
+                if(receiveResult.error) {
+                    errors.push(receiveResult.error.message)
+                }
             }
+           
         }
+    }
+
+    return {    
+        taskFunction: SWAP_ALL_TASK,           
+        message: `Proofs optimization completed with ${errors.length} errors. Proofs number went from ${initialProofsCount} to ${finalProofsCount}`,
+        initialProofsCount,
+        finalProofsCount,
+        errors,            
     }
 }
 
     
 
 
-const topup = async function (
+const topupQueue = async function (
     mintBalanceToTopup: MintBalance,
     amountToTopup: number,
     unit: MintUnit,
@@ -418,7 +529,7 @@ const topup = async function (
 
 
 
-const revert = async function (
+const revertQueue = async function (
     transaction: Transaction
 ): Promise<void> {
     const now = new Date().getTime()
@@ -430,59 +541,42 @@ const revert = async function (
 }
 
 
-/*
- * Checks with all mints whether their proofs kept in pending state by the wallet have been spent.
- */
-const syncPendingStateWithMints = async function (): Promise<void> {
-    log.trace('[syncPendingStateWithMint] start')    
-    if (mintsStore.mintCount === 0) {
-        return
-    }
 
-    const isPending = true
-    const maxBatchSize = MAX_SYNC_INPUT_SIZE
-
-    // group proofs by mint so that we do max one call per mint
-    for (const mint of mintsStore.allMints) {
-
-        if(pollerExists(`syncPendingStateWithMintPoller-${mint.mintUrl}`)) {
-            log.trace('[syncPendingStateWithMint] Skipping, poller exists', {mintUrl: mint.mintUrl})
-            continue
-        }
-        
-        const proofsToSync = proofsStore.getByMint(mint.mintUrl, {isPending})
-        const totalProofsCount = proofsToSync.length
-
-        if(totalProofsCount === 0) {
-            log.trace('[syncPendingStateWithMint] No proofs to sync, skipping...', {mintUrl: mint.mintUrl})
-            continue
-        }
-
-        if (totalProofsCount > maxBatchSize) {
-            for (let i = 0; i < totalProofsCount; i += maxBatchSize) {
-              const batch = proofsToSync.slice(i, i + maxBatchSize)
-              await syncStateWithMint({ proofsToSync: batch, mintUrl: mint.mintUrl, isPending })
-            }
-        } else {
-            // If the length is less than or equal to 100, run syncStateWithMint with all proofs.
-            await syncStateWithMint({ proofsToSync, mintUrl: mint.mintUrl, isPending });
-        }        
-    }
+const syncStateWithAllMintsQueue = async function (options: {
+    isPending: boolean
+}): Promise<void> {
+    const { isPending } = options
+    const now = new Date().getTime()
+    return SyncQueue.addPrioritizedTask(
+        `syncSpendableStateTask-${now}`,            
+        async () => await syncStateWithAllMintsTask({ isPending })
+    )    
 }
 
 
-/*
- * Recover stuck wallet if tx error caused spent proof to remain in spendable state by the wallet.
- * TODO batching
- */
-const syncSpendableStateWithMints = async function (): Promise<void> {
-    log.trace('[syncSpendableStateWithMint] start')
+
+const syncStateWithAllMintsTask = async function (options: {
+    isPending: boolean
+}): Promise<SyncStateTaskResult> {
+    log.trace('[syncStateWithAllMintsTask] start')
     if (mintsStore.mintCount === 0) {
-        return
+        return {
+            taskFunction: SYNC_STATE_WITH_ALL_MINTS_TASK,
+            transactionStateUpdates: [],
+            completedTransactionIds: [],
+            errorTransactionIds: [],
+            revertedTransactionIds: [],
+            message: 'No mints'
+        }
     }
 
-    const isPending = false
+    const { isPending } = options
     const maxBatchSize = MAX_SYNC_INPUT_SIZE
+    const transactionStateUpdates: TransactionStateUpdate[] = []
+    const completedTransactionIds: number[] = []
+    const errorTransactionIds: number[] = []
+    const revertedTransactionIds: number[] = []
+    const errors: string[] = []
 
     // group proofs by mint so that we do max one call per mint
     // does not depend on unit, process in batches by 100
@@ -491,30 +585,71 @@ const syncSpendableStateWithMints = async function (): Promise<void> {
         const totalProofsCount = proofsToSync.length
 
         if(totalProofsCount === 0) {
-            log.trace('[syncSpendableStateWithMint] No proofs to sync, skipping...', {mint})
+            log.trace('[syncStateWithAllMintsTask] No proofs to sync, skipping...', { mint: mint.mintUrl })
             continue
         }
         
         if (totalProofsCount > maxBatchSize) {
-          for (let i = 0; i < totalProofsCount; i += maxBatchSize) {
-            const batch = proofsToSync.slice(i, i + maxBatchSize)
-            await syncStateWithMint({ proofsToSync: batch, mintUrl: mint.mintUrl, isPending })
-          }
+          
+            for (let i = 0; i < totalProofsCount; i += maxBatchSize) {
+                const batch = proofsToSync.slice(i, i + maxBatchSize)
+                const result = await syncStateWithMintTask({ proofsToSync: batch, mintUrl: mint.mintUrl, isPending })
+
+                transactionStateUpdates.push(...result.transactionStateUpdates)
+                completedTransactionIds.push(...result.completedTransactionIds)
+                errorTransactionIds.push(...result.errorTransactionIds)
+                revertedTransactionIds.push(...result.revertedTransactionIds)
+
+                if(result.error) {
+                    errors.push(result.error.message)
+                }
+            }
+
         } else {
-          // If the length is less than or equal to 100, run syncStateWithMint with all proofs.
-          await syncStateWithMint({ proofsToSync, mintUrl: mint.mintUrl, isPending });
+            // If the length is less than or equal to 100, run syncStateWithMint with all proofs.
+            const result = await syncStateWithMintTask({ proofsToSync, mintUrl: mint.mintUrl, isPending })
+
+            transactionStateUpdates.push(...result.transactionStateUpdates)
+            completedTransactionIds.push(...result.completedTransactionIds)
+            errorTransactionIds.push(...result.errorTransactionIds)
+            revertedTransactionIds.push(...result.revertedTransactionIds)
+
+            if(result.error) {
+                errors.push(result.error.message)
+            }
         }
     }
 
-    log.trace('[syncSpendableStateWithMints] returning')
+    let totalSpent = 0    
+    let message = ''
 
-    return    
+    for (const update of transactionStateUpdates) {                    
+        if(update.spentByMintAmount) {
+            totalSpent += update.spentByMintAmount        
+        }                
+    }
+
+    if(isPending) {
+        message = 'Pending proofs were synced with the mints.'
+    } else {
+        message =  `Sync completed with ${errors.length} errors. Spent ecash with ${totalSpent} amount was cleaned.`
+    }
+
+    return {
+        taskFunction: SYNC_STATE_WITH_ALL_MINTS_TASK,
+        transactionStateUpdates,
+        completedTransactionIds,
+        errorTransactionIds,
+        revertedTransactionIds,
+        errors,
+        message
+    } 
 }
 
 /*
- * Pass _syncStateWithMintTask function into synchronous queue for safe processing without race conditions on proof counters. * 
+ * Pass syncStateWithMintTask function into synchronous queue for safe processing without race conditions on proof counters. * 
  */
-const syncStateWithMint = async function (    
+const syncStateWithMintQueue = async function (    
     options: {
         proofsToSync: Proof[],
         mintUrl: string,
@@ -522,37 +657,16 @@ const syncStateWithMint = async function (
     }  
 ): Promise<void> {
     const {mintUrl, isPending, proofsToSync} = options
-    log.trace('[syncStateWithMint] start', {mintUrl, isPending, proofsToSyncCount: proofsToSync.length})
+    log.trace('[syncStateWithMintQueue] start', {mintUrl, isPending, proofsToSyncCount: proofsToSync.length})
     const now = new Date().getTime()
 
     return SyncQueue.addTask(
-        `_syncStateWithMintTask-${now}`,            
-        async () => await _syncStateWithMintTask({proofsToSync, mintUrl, isPending})
+        `syncStateWithMintTask-${now}`,            
+        async () => await syncStateWithMintTask({proofsToSync, mintUrl, isPending})
     )    
 }
 
-
-// Use only within another queued task!
-const syncStateWithMintSync = async function (    
-    options: {
-        proofsToSync: Proof[],
-        mintUrl: string,
-        isPending: boolean
-    },
-    
-): Promise<SyncStateTaskResult | void> {
-    const {mintUrl, isPending, proofsToSync} = options
-    
-    log.trace('[syncStateWithMintSync] start', {mintUrl, isPending, proofsToSyncCount: proofsToSync.length})
-
-    if(proofsToSync.length > 0) {
-        return await _syncStateWithMintTask({proofsToSync, mintUrl, isPending})        
-    } else {
-        log.warn('[syncStateWithMintSync] No proofs to sync, skipping...', {mintUrl, isPending})
-    }    
-}
-
-    
+  
 
 /*
 *  Checks with the mint whether proofs have been spent / pending by mint.
@@ -570,7 +684,7 @@ const syncStateWithMintSync = async function (
  *  @returns WalletTaskResult
  */
 
-const _syncStateWithMintTask = async function (            
+const syncStateWithMintTask = async function (            
     options: {  
         proofsToSync: Proof[],
         mintUrl: string,           
@@ -578,7 +692,7 @@ const _syncStateWithMintTask = async function (
     }    
 ): Promise<SyncStateTaskResult> {
 
-    log.trace('[_syncStateWithMintTask] start', {mintUrl: options.mintUrl})
+    log.trace('[syncStateWithMintTask] start', {mintUrl: options.mintUrl})
 
     const transactionStateUpdates: TransactionStateUpdate[] = []
     const completedTransactionIds: number[] = []
@@ -593,10 +707,10 @@ const _syncStateWithMintTask = async function (
 
         if (proofsToSync.length === 0) {
             const message = `No ${isPending ? 'pending' : ''} proofs found for mint, skipping mint call...`            
-            log.trace('[_syncStateWithMintTask]', message, mintUrl)
+            log.trace('[syncStateWithMintTask]', message, mintUrl)
 
             return {
-                taskFunction: '_syncStateWithMintTask',
+                taskFunction: SYNC_STATE_WITH_MINT_TASK,
                 mintUrl,
                 message,
                 transactionStateUpdates: [],
@@ -620,7 +734,7 @@ const _syncStateWithMintTask = async function (
         const pendingByMintAmount = CashuUtils.getProofsAmount(proofsByState.PENDING)
         const unspentByMintAmount = CashuUtils.getProofsAmount(proofsByState.UNSPENT)  
 
-        log.debug('[_syncStateWithMintTask]', `${isPending ? 'Pending' : ''} spent and pending by mint amounts`, {
+        log.debug('[syncStateWithMintTask]', `${isPending ? 'Pending' : ''} spent and pending by mint amounts`, {
             spentByMintAmount, 
             pendingByMintAmount,
             unspentByMintAmount,
@@ -680,7 +794,7 @@ const _syncStateWithMintTask = async function (
                             )
 
                             if(unspentProofs.length > 0) {
-                                log.trace('[_syncStateWithMintTask]', `Moving ${unspentProofs.length} unspent proofs from pending back to spendable.`)
+                                log.trace('[syncStateWithMintTask]', `Moving ${unspentProofs.length} unspent proofs from pending back to spendable.`)
                                 // remove it from pending proofs in the wallet
                                 proofsStore.removeProofs(unspentProofs, true, true)
                                 // add proofs back to the spendable wallet                
@@ -716,12 +830,12 @@ const _syncStateWithMintTask = async function (
                 } as TransactionStateUpdate
             })
 
-            log.trace('[_syncStateWithMintTask]', {spentStateUpdates})
+            log.trace('[syncStateWithMintTask]', {spentStateUpdates})
 
             transactionStateUpdates.push(...spentStateUpdates)
 
             // Update related transactions statuses
-            log.debug('[_syncStateWithMintTask]', 'Transaction id(s) to complete', completedTransactionIds.toString())
+            log.debug('[syncStateWithMintTask]', 'Transaction id(s) to complete', completedTransactionIds.toString())
 
             // Complete related transactions
             if (completedTransactionIds.length > 0) {
@@ -753,7 +867,7 @@ const _syncStateWithMintTask = async function (
                     JSON.stringify(transactionDataUpdate),
                 )
 
-                log.error('[_syncStateWithMintTask]', `Transaction status update error`, {spentStateUpdates})
+                log.error('[syncStateWithMintTask]', `Transaction status update error`, {spentStateUpdates})
                 stopPolling(`syncStateWithMintPoller-${mintUrl}`)
             }
         }
@@ -805,7 +919,7 @@ const _syncStateWithMintTask = async function (
                     updatedStatus: TransactionStatus.PENDING
                 } as TransactionStateUpdate))
 
-                log.trace('[_syncStateWithMintTask]', {pendingStateUpdates})
+                log.trace('[syncStateWithMintTask]', {pendingStateUpdates})
 
                 transactionStateUpdates.push(...pendingStateUpdates)
 
@@ -818,7 +932,7 @@ const _syncStateWithMintTask = async function (
                 }
 
                 // Update related transactions statuses
-                log.debug('[_syncStateWithMintTask]', 'Transaction id(s) to be pending', pendingTransactionIds.toString())
+                log.debug('[syncStateWithMintTask]', 'Transaction id(s) to be pending', pendingTransactionIds.toString())
 
                 // Keep or make related transactions pending (mostly timed-out transfers from PREPARED status)
                 if (pendingTransactionIds.length > 0) {
@@ -842,7 +956,7 @@ const _syncStateWithMintTask = async function (
         //    are not pending anymore nor were spent - thus lightning payment failed
 
         const remainingSecrets: string[] = getSnapshot(proofsStore.pendingByMintSecrets)
-        log.trace('[_syncStateWithMintTask]', 'Remaining pendingByMintSecrets', remainingSecrets)
+        log.trace('[syncStateWithMintTask]', 'Remaining pendingByMintSecrets', remainingSecrets)
         
         if(remainingSecrets.length > 0) {
             let secretsTobeMovedToSpendable: string[] = []           
@@ -856,7 +970,7 @@ const _syncStateWithMintTask = async function (
             }
 
             if(secretsTobeMovedToSpendable.length > 0) {                
-                log.debug('[_syncStateWithMintTask]', 'Moving proofs from pendingByMint to spendable', {secretsTobeMovedToSpendable})
+                log.debug('[syncStateWithMintTask]', 'Moving proofs from pendingByMint to spendable', {secretsTobeMovedToSpendable})
 
                 // Map to track reverted amounts by transaction ID
                 const transactionStateMap: { [key: number]: number } = {}
@@ -891,7 +1005,7 @@ const _syncStateWithMintTask = async function (
                     updatedStatus: TransactionStatus.REVERTED
                 } as TransactionStateUpdate))
 
-                log.trace('[_syncStateWithMintTask]', {revertedStateUpdates})
+                log.trace('[syncStateWithMintTask]', {revertedStateUpdates})
 
                 transactionStateUpdates.push(...revertedStateUpdates)
 
@@ -923,7 +1037,7 @@ const _syncStateWithMintTask = async function (
         }
         
         return {
-            taskFunction: '_syncStateWithMintTask',
+            taskFunction: SYNC_STATE_WITH_MINT_TASK,
             mintUrl,
             message: `Completed sync for ${isPending ? 'pending' : ''} proofs with the mint`,
             transactionStateUpdates,
@@ -934,14 +1048,14 @@ const _syncStateWithMintTask = async function (
         } as SyncStateTaskResult
     } catch(e: any) {
         // silent
-        log.error('[_syncStateWithMintTask]', e.name, {message: e.message, mintUrl})        
+        log.error('[syncStateWithMintTask]', e.name, {message: e.message, mintUrl})        
     
         if(mint && e.name === Err.MINT_ERROR && e.message.includes('network')) { 
             mint.setStatus(MintStatus.OFFLINE)                
         }        
 
         return {
-            taskFunction: '_syncStateWithMintTask',
+            taskFunction: SYNC_STATE_WITH_MINT_TASK,
             mintUrl,
             message: `Sync for ${isPending ? 'pending' : ''} proofs with the mint ended with error: ${e.message}`,
             error: e,
@@ -955,7 +1069,7 @@ const _syncStateWithMintTask = async function (
 }
 
 
-const handleInFlight = async function (): Promise<void> {
+const handleInFlightQueue = async function (): Promise<void> {
     log.trace('[handleInFlight] start')
     if (mintsStore.mintCount === 0) {
         return
@@ -971,8 +1085,8 @@ const handleInFlight = async function (): Promise<void> {
         const now = new Date().getTime()
 
         SyncQueue.addTask( 
-            `_handleInFlightByMintTask-${now}`,               
-            async () => await _handleInFlightByMintTask(mint)               
+            `${HANDLE_INFLIGHT_BY_MINT_TASK}-${now}`,               
+            async () => await handleInFlightByMintTask(mint)               
         )               
     }
 
@@ -983,12 +1097,12 @@ const handleInFlight = async function (): Promise<void> {
 /*
  * Recover proofs that were issued by mint, but wallet failed to receive them if swap did not complete.
  */
-const _handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTaskResult> {
+const handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTaskResult> {
 
     const mintUrl = mint.mintUrl
     const inFlightCounters =  mint.proofsCountersWithInFlightRequests
 
-    log.trace('[_handleInFlightByMintTask]', {mintUrl: mint.mintUrl, inFlightCounters})
+    log.trace('[handleInFlightByMintTask]', {mintUrl: mint.mintUrl, inFlightCounters})
 
     const allInFlightRequestLength = mint.allInFLightRequests?.length
     const errors: string[] = []
@@ -1036,7 +1150,7 @@ const _handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTas
                                 throw new AppError(Err.WALLET_ERROR, 
                                     'Received proofs could not be stored into the wallet, most likely are already there.',
                                     {
-                                        caller: '_handleInFlightByMintTask',
+                                        caller: HANDLE_INFLIGHT_BY_MINT_TASK,
                                         numberOfProofs: proofs.length
                                     }
                                 )
@@ -1076,7 +1190,7 @@ const _handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTas
                             break                 
     
                         } catch (e: any) {
-                            log.error('[_handleInFlightByMintTask] Receive', e.name, e.message)
+                            log.error('[handleInFlightByMintTask] Receive', e.name, e.message)
                             errors.push(e.message)
                             break                    
                         }
@@ -1126,7 +1240,7 @@ const _handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTas
                                 throw new AppError(Err.WALLET_ERROR, 
                                     'Sent proofs could not be moved to pending, most likely are already there.',
                                     {
-                                        caller: '_handleInFlightByMintTask',
+                                        caller: HANDLE_INFLIGHT_BY_MINT_TASK,
                                         numberOfProofs: proofsToSend.length
                                     }
                                 )
@@ -1159,7 +1273,7 @@ const _handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTas
                             break                  
     
                         } catch (e: any) {
-                            log.error('[_handleInFlightByMintTask] Send', e.name, e.message)
+                            log.error('[handleInFlightByMintTask] Send', e.name, e.message)
                             errors.push(e.message)
                             break 
                         }
@@ -1193,13 +1307,13 @@ const _handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTas
                                 throw new AppError(Err.WALLET_ERROR, 
                                     'Minted proofs could not be stored into the wallet, most likely are already there.',
                                     {
-                                        caller: '_handleInFlightByMintTask',
+                                        caller: HANDLE_INFLIGHT_BY_MINT_TASK,
                                         numberOfProofs: proofs.length
                                     }
                                 )
                             }
     
-                            stopPolling(`handlePendingTopupTaskPoller-${pr?.paymentHash}`)                        
+                            stopPolling(`handlePendingTopupPoller-${pr?.paymentHash}`)                        
     
                             await transactionsStore.updateStatuses(
                                 [transaction.id],
@@ -1216,7 +1330,7 @@ const _handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTas
                             break   
     
                         } catch(e: any) {
-                            log.error('[_handleInFlightByMintTask] Topup', e.name, e.message)
+                            log.error('[handleInFlightByMintTask] Topup', e.name, e.message)
                             errors.push(e.message)
                             break 
                         }
@@ -1264,7 +1378,7 @@ const _handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTas
                                     throw new AppError(Err.WALLET_ERROR, 
                                         'Proofs returned as a change could not be stored into the wallet, most likely are already there.',
                                         {
-                                            caller: '_handleInFlightByMintTask',
+                                            caller: 'handleInFlightByMintTask',
                                             numberOfProofs: change.length
                                         }
                                     )
@@ -1302,18 +1416,18 @@ const _handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTas
                             break      
     
                         } catch(e: any) {
-                            log.error('[_handleInFlightByMintTask] Topup', e.name, e.message)
+                            log.error('[handleInFlightByMintTask] Topup', e.name, e.message)
                             errors.push(e.message)
                             break
                         }
                     default:
-                        log.error('[_handleInFlightByMintTask] Unknown transaction type', {type: transaction.type})
+                        log.error('[handleInFlightByMintTask] Unknown transaction type', {type: transaction.type})
                 }
             }
         }
 
         return {
-            taskFunction: '_handleInFlightByMintTask',
+            taskFunction: HANDLE_INFLIGHT_BY_MINT_TASK,
             mintUrl,
             errors,
             message: `${allInFlightRequestLength} inFlight requests were resent and processed with ${errors.length} errors.`,        
@@ -1323,7 +1437,7 @@ const _handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTas
 
     
     return {
-        taskFunction: '_handleInFlightByMintTask',
+        taskFunction: HANDLE_INFLIGHT_BY_MINT_TASK,
         mintUrl,
         message: 'No proofCounters with inFlight requests, skipping...',
     } as WalletTaskResult
@@ -1331,35 +1445,35 @@ const _handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTas
 
 
 
-const handlePendingTopups = async function (): Promise<void> {    
+const handlePendingTopupsQueue = async function (): Promise<void> {    
     const paymentRequests: PaymentRequest[] = paymentRequestsStore.allOutgoing
 
-    log.trace('[handlePendingTopups] start', {paymentRequests})
+    log.trace('[handlePendingTopupsQueue] start', {paymentRequests})
 
     if (paymentRequests.length === 0) {
-        log.trace('[handlePendingTopups]', 'No outgoing payment requests in store - skipping task send to the queue...')
+        log.trace('[handlePendingTopupsQueue]', 'No outgoing payment requests in store - skipping task send to the queue...')
         return
     }
 
     for (const pr of paymentRequests) {
         // skip pr if active poller exists
-        if(pollerExists(`handlePendingTopupTaskPoller-${pr.paymentHash}`)) {
-            log.trace('[handlePendingTopups] Skipping check of paymentRequest, poller exists', {paymentHash: pr.paymentHash})
+        if(pollerExists(`handlePendingTopupPoller-${pr.paymentHash}`)) {
+            log.trace('[handlePendingTopupsQueue] Skipping check of paymentRequest, poller exists', {paymentHash: pr.paymentHash})
             continue
         }
 
         const now = new Date().getTime()
         
         SyncQueue.addTask(
-            `_handlePendingTopupTask-${now}`,               
-            async () => await _handlePendingTopupTask({paymentRequest: pr})               
+            `handlePendingTopupTask-${now}`,               
+            async () => await handlePendingTopupTask({paymentRequest: pr})               
         )
     }
 }
 
 
 
-const handlePendingTopup = async function (params: {paymentRequest: PaymentRequest}): Promise<void> {
+const handlePendingTopupQueue = async function (params: {paymentRequest: PaymentRequest}): Promise<void> {
     const {paymentRequest} = params
     log.trace('[handlePendingTopup] start', {paymentHash: paymentRequest.paymentHash})
     
@@ -1367,13 +1481,13 @@ const handlePendingTopup = async function (params: {paymentRequest: PaymentReque
     
     SyncQueue.addTask(    
         `_handlePendingTopupTask-${now}`,               
-        async () => await _handlePendingTopupTask({paymentRequest})               
+        async () => await handlePendingTopupTask({paymentRequest})               
     )
 }
 
 
 
-const _handlePendingTopupTask = async function (params: {paymentRequest: PaymentRequest}): Promise<WalletTaskResult> {
+const handlePendingTopupTask = async function (params: {paymentRequest: PaymentRequest}): Promise<WalletTaskResult> {
     const {paymentRequest: pr} = params
     const transactionId = {...pr}.transactionId || 0// copy
     const mintUrl = {...pr}.mint // copy
@@ -1403,7 +1517,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
             case MintQuoteState.UNPAID:
             case MintQuoteState.ISSUED:
                 if (isBefore(pr.expiresAt as Date, new Date())) {
-                    log.debug('[_handlePendingTopupTask]', `Invoice expired, removing: ${pr.paymentHash}`)
+                    log.debug('[handlePendingTopupTask]', `Invoice expired, removing: ${pr.paymentHash}`)
     
                     // expire related tx - but only if it has not been completed before this check
                     if(transaction.status !== TransactionStatus.COMPLETED) {
@@ -1425,10 +1539,10 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
                 }
                 // continue
             case MintQuoteState.UNPAID:
-                log.trace('[_handlePendingTopupTask] Quote not paid', {mintUrl, mintQuote})                
+                log.trace('[handlePendingTopupTask] Quote not paid', {mintUrl, mintQuote})                
     
                 return {
-                    taskFunction: '_handlePendingTopupTask',
+                    taskFunction: HANDLE_PENDING_TOPUP_TASK,
                     transaction,
                     mintUrl,
                     unit,
@@ -1455,7 +1569,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
                 } catch (e: any) {
                     if(e.message.includes('outputs have already been signed before')) {
                         
-                        log.error('[_handlePendingTopupTask] Increasing proofsCounter outdated values and repeating mintProofs.')                        
+                        log.error('[handlePendingTopupTask] Increasing proofsCounter outdated values and repeating mintProofs.')                        
         
                         proofs = (await walletStore.mintProofs(
                             mintUrl as string,
@@ -1485,7 +1599,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
                     }
                 )                
                 
-                stopPolling(`handlePendingTopupTaskPoller-${paymentHash}`)
+                stopPolling(`handlePendingTopupPoller-${paymentHash}`)
                 const currencyCode = getCurrency(pr.mintUnit!).code  
         
                 // update related tx
@@ -1520,7 +1634,7 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
                 paymentRequestsStore.removePaymentRequest(pr)        
                 
                 return {
-                    taskFunction: '_handlePendingTopupTask',
+                    taskFunction: HANDLE_PENDING_TOPUP_TASK,
                     mintUrl,
                     unit,
                     amount,
@@ -1532,10 +1646,10 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
              * ISSUED 
              */
             case MintQuoteState.ISSUED:
-                log.trace('[_handlePendingTopupTask] Quote already issued', {mintUrl, mintQuote})            
+                log.trace('[handlePendingTopupTask] Quote already issued', {mintUrl, mintQuote})            
 
                 return {
-                    taskFunction: '_handlePendingTopupTask',
+                    taskFunction: HANDLE_PENDING_TOPUP_TASK,
                     transaction,
                     mintUrl,
                     unit,
@@ -1547,9 +1661,9 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
              * UNKNOWN 
              */
             default:
-                log.error(`[_handlePendingTopupTask] Unknown MintQuoteState`, {state})
+                log.error(`[handlePendingTopupTask] Unknown MintQuoteState`, {state})
                 return {
-                    taskFunction: '_handlePendingTopupTask',
+                    taskFunction: HANDLE_PENDING_TOPUP_TASK,
                     transaction,
                     mintUrl,
                     unit,
@@ -1562,23 +1676,23 @@ const _handlePendingTopupTask = async function (params: {paymentRequest: Payment
     } catch (e: any) {
 
         return {
-            taskFunction: '_handlePendingTopupTask',
+            taskFunction: HANDLE_PENDING_TOPUP_TASK,
             mintUrl,
             unit,
             amount,
             paymentHash,
             transaction,
             error: {name: e.name, message: e.message, params: e.params || undefined},
-            message: `_handlePendingTopupTask ended with error: ${e.message}`,                        
+            message: `handlePendingTopupTask ended with error: ${e.message}`,                        
         } as TransactionTaskResult
     }
 
 }
 
 
-const handleClaim = async function (): Promise<void> {
+const handleClaimQueue = async function (): Promise<void> {
     
-    log.info('[handleClaim] start')
+    log.info('[handleClaimQueue] start')
     const {walletId, seedHash, pubkey} = walletProfileStore
     const {isBatchClaimOn} = userSettingsStore    
     let recoveredSeedHash: string | undefined = undefined    
@@ -1610,25 +1724,25 @@ const handleClaim = async function (): Promise<void> {
     )
 
     if(claimedTokens.length === 0) {
-        log.debug('[handleClaim] No claimed invoices returned from the server...')
+        log.debug('[handleClaimQueue] No claimed invoices returned from the server...')
         return
     }
     
-    log.debug(`[handleClaim] Claimed ${claimedTokens.length} tokens from the server...`)    
+    log.debug(`[handleClaimQueue] Claimed ${claimedTokens.length} tokens from the server...`)    
 
     for(const claimedToken of claimedTokens) {
         const now = new Date().getTime()
 
         SyncQueue.addTask( 
-            `_handleClaimTask-${now}`,               
-            async () => await _handleClaimTask({claimedToken})               
+            `handleClaimTask-${now}`,               
+            async () => await handleClaimTask({claimedToken})               
         )               
     }        
     return
 }
 
 
-const _handleClaimTask = async function (params: {
+const handleClaimTask = async function (params: {
     claimedToken: {
         token: string, 
         zapSenderProfile?: string,
@@ -1639,16 +1753,16 @@ const _handleClaimTask = async function (params: {
     try {
         const {claimedToken} = params
         
-        log.debug('[_handleClaimTask] claimed token', {claimedToken})
+        log.debug('[handleClaimTask] claimed token', {claimedToken})
 
         if(!claimedToken.token) {
-            throw new AppError(Err.VALIDATION_ERROR, '[_handleClaimTask] Missing encodedToken to receive.')
+            throw new AppError(Err.VALIDATION_ERROR, '[handleClaimTask] Missing encodedToken to receive.')
         }
 
         const encryptedToken = claimedToken.token
         const encodedToken = await NostrClient.decryptNip04(MINIBIT_SERVER_NOSTR_PUBKEY, encryptedToken)
 
-        log.debug('[_handleClaimTask] decrypted token', {encodedToken})
+        log.debug('[handleClaimTask] decrypted token', {encodedToken})
 
         decoded = getDecodedToken(encodedToken)
         const amountToReceive = CashuUtils.getProofsAmount(decoded.proofs)
@@ -1683,7 +1797,7 @@ const _handleClaimTask = async function (params: {
 
         return { 
             mintUrl: decoded.mint,
-            taskFunction: '_handleClaimTask',
+            taskFunction: HANDLE_CLAIM_TASK,
             message: result.error ? result.error.message : 'Ecash sent to your lightning address has been received.',
             error: result.error || undefined,
             proofsCount: decoded.proofs.length,
@@ -1695,11 +1809,25 @@ const _handleClaimTask = async function (params: {
 
         return {
             mintUrl: decoded ? decoded.mint : '',            
-            taskFunction: '_handleClaimTask',            
+            taskFunction: HANDLE_CLAIM_TASK,            
             message: e.message,
             error: WalletUtils.formatError(e),
         } as WalletTaskResult
     } 
+}
+
+
+
+const handleNwcRequestQueue = async function (params: {requestEvent: NostrEvent}): Promise<void> {
+    const {requestEvent} = params
+    log.trace('[handleNwcRequestQueue] start', {requestEvent})
+    
+    const now = new Date().getTime()
+    
+    SyncQueue.addTask(    
+        `handleNwcRequestTask-${now}`,               
+        async () => await nwcStore.handleNwcRequestTask(requestEvent)                
+    )
 }
 
 
@@ -1717,7 +1845,7 @@ const _sendTopupNotification = async function (pr: PaymentRequest) {
 /*
  * Checks with NOSTR relays whether there is ecash to be received or an invoice to be paid.
  */
-const receiveEventsFromRelays = async function (): Promise<void> {
+const receiveEventsFromRelaysQueue = async function (): Promise<void> {
     log.trace('[receiveEventsFromRelays] starting listening for events')
 
     if(!walletProfileStore.pubkey) {
@@ -1778,8 +1906,8 @@ const receiveEventsFromRelays = async function (): Promise<void> {
 
                 const now = new Date().getTime()
                 SyncQueue.addTask(       
-                    `_handleReceivedEventTask-${now}`,          
-                    async () => await _handleReceivedEventTask(event)                
+                    `handleReceivedEventTask-${now}`,          
+                    async () => await handleReceivedEventTask(event)                
                 )
             },
             oneose() {
@@ -1805,7 +1933,7 @@ const receiveEventsFromRelays = async function (): Promise<void> {
     }
 }
 
-const _handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Promise<WalletTaskResult> {    
+const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Promise<WalletTaskResult> {    
     try {
         let directMessageEvent: NostrEvent | UnsignedEvent | undefined = undefined
         let decryptedMessage: string | undefined = undefined
@@ -1827,7 +1955,7 @@ const _handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pr
         // set REAL direct message created_at as the lastPendingReceivedCheck
         contactsStore.setLastPendingReceivedCheck(directMessageEvent.created_at)    
 
-        log.trace('[_handleReceivedEventTask]', 'Received event', {directMessageEvent})
+        log.trace('[handleReceivedEventTask]', 'Received event', {directMessageEvent})
         
         // get sender profile and save it as a contact
         // this is not valid for events sent from LNURL bridge, that are sent and signed by a minibits server key
@@ -1882,7 +2010,7 @@ const _handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pr
                         }
                     }            
                 } catch (e: any) {
-                    log.warn('[_handleReceivedEventTask]', 'Could not get sender from zapRequest', {message: e.message, maybeZapSenderString})
+                    log.warn('[handleReceivedEventTask]', 'Could not get sender from zapRequest', {message: e.message, maybeZapSenderString})
                 }
             }
         }
@@ -1890,7 +2018,7 @@ const _handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pr
         // parse incoming message
         const incoming = IncomingParser.findAndExtract(decryptedMessage)
 
-        log.trace('[_handleReceivedEventTask]', 'Incoming data', {incoming})
+        log.trace('[handleReceivedEventTask]', 'Incoming data', {incoming})
 
         //
         // Receive token start
@@ -1935,7 +2063,7 @@ const _handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pr
 
             return {
                 mintUrl: decoded.mint,
-                taskFunction: '_handleReceivedEventTask',
+                taskFunction: HANDLE_RECEIVED_EVENT_TASK,
                 message: 'Incoming ecash token has been received.',
                 proofsCount: decoded.proofs.length,
                 proofsAmount: receivedAmount,
@@ -1996,7 +2124,7 @@ const _handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pr
             
             return {
                 mintUrl: '',
-                taskFunction: '_handleReceivedEventTask',
+                taskFunction: HANDLE_RECEIVED_EVENT_TASK,
                 message: 'Incoming payment request been received.',
                 proofsCount: 0,
                 proofsAmount: amount,
@@ -2004,19 +2132,18 @@ const _handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pr
             } as WalletTaskResult
         }
         else if(incoming.type === IncomingDataType.CASHU_PAYMENT_REQUEST) {
-            throw new AppError(Err.NOTFOUND_ERROR, 'CASHU_PAYMENT_REQUEST support is not yet implemented.', {caller: '_handleReceivedEventTask'})
+            throw new AppError(Err.NOTFOUND_ERROR, 'CASHU_PAYMENT_REQUEST support is not yet implemented.', {caller: HANDLE_RECEIVED_EVENT_TASK})
         }            
         else if (incoming.type === IncomingDataType.LNURL) {
-            throw new AppError(Err.NOTFOUND_ERROR, 'LNURL support is not yet implemented.', {caller: '_handleReceivedEventTask'})
+            throw new AppError(Err.NOTFOUND_ERROR, 'LNURL support is not yet implemented.', {caller: HANDLE_RECEIVED_EVENT_TASK})
         } else {
             throw new AppError(Err.NOTFOUND_ERROR, 'Received unknown message', incoming)
         }
     } catch (e: any) {
-        log.error('[_handleReceivedEventTask]', e.name, e.message)
+        log.error('[handleReceivedEventTask]', e.name, e.message)
 
-        return {
-            mintUrl: '',
-            taskFunction: '_handleReceivedEventTask',
+        return {            
+            taskFunction: HANDLE_RECEIVED_EVENT_TASK,
             message: e.message,
             error: WalletUtils.formatError(e)                  
         } as WalletTaskResult
@@ -2068,23 +2195,36 @@ const _extractZapSenderData = function (str: string) {
 }
 
 
+const testQueue = async () => {
+    const now = new Date().getTime()
+    
+    SyncQueue.addTask(    
+        `testTask-${now}`,               
+        async () => {
+            await new Promise((res) => setTimeout(res, 10 * 1000)) 
+            return `testTask-${now} result`           
+        }
+    )
+};
+
+
 export const WalletTask: WalletTaskService = {    
-    syncPendingStateWithMints,
-    syncSpendableStateWithMints,
-    syncStateWithMint,
-    syncStateWithMintSync,    
-    handleInFlight,    
-    handlePendingTopups,
-    handlePendingTopup,
-    handleClaim,
-    receiveEventsFromRelays,
-    receive,
-    receiveBatch,
-    receiveOfflinePrepare,
-    receiveOfflineComplete,        
-    send,
-    sendAll,
-    transfer,      
-    topup,
-    revert
+    syncStateWithAllMintsQueue,
+    syncStateWithMintQueue,
+    syncStateWithMintTask,
+    handleInFlightQueue,    
+    handlePendingTopupsQueue,
+    handlePendingTopupQueue,
+    handleClaimQueue,
+    handleNwcRequestQueue,
+    receiveEventsFromRelaysQueue,
+    receiveQueue,      
+    receiveOfflinePrepareQueue,
+    receiveOfflineCompleteQueue,        
+    sendQueue,
+    swapAllQueue,
+    transferQueue,      
+    topupQueue,
+    revertQueue,
+    testQueue
 }

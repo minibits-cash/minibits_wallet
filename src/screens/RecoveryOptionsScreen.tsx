@@ -19,7 +19,7 @@ import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
 import AppError from '../utils/AppError'
 import { useStores } from '../models'
-import { SyncStateTaskResult, WalletTask } from '../services/walletService'
+import { SYNC_STATE_WITH_ALL_MINTS_TASK, SyncStateTaskResult } from '../services/walletService'
 import EventEmitter from '../utils/eventEmitter'
 import { translate } from '../i18n'
 import { NotificationService, TASK_QUEUE_CHANNEL_ID, TASK_QUEUE_CHANNEL_NAME } from '../services/notificationService'
@@ -38,8 +38,6 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
     const [error, setError] = useState<AppError | undefined>()
     const [info, setInfo] = useState('')
     const [isSyncStateSentToQueue, setIsSyncStateSentToQueue] = useState<boolean>(false)    
-    const [totalSpentAmount, setTotalSpentAmount] = useState<number>(0)
-    const [syncErrors, setSyncErrors] = useState<AppError[]>([])   
 
 
     useEffect(() => {
@@ -49,69 +47,19 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
           if (!isSyncStateSentToQueue) { return false }
           
           setIsLoading(false)            
-
-          // runs per each mint
-          if (result.error && result.error) {
-            setSyncErrors(prev => [...prev, result.error!])
-          }
-
-          if (result && result.transactionStateUpdates.length > 0) {
-
-            log.trace('[removeSpentByMintTaskResult]', {transactionStateUpdates: result.transactionStateUpdates})
-
-            let totalSpentPerMint = 0
-
-            for (const update of result.transactionStateUpdates) {                    
-              if(update.spentByMintAmount) {
-                totalSpentPerMint += update.spentByMintAmount
-              }                
-            }
-            setTotalSpentAmount(prev => prev + totalSpentPerMint)
-          }
-          
-          if(totalSpentAmount === 0 && result.transactionStateUpdates.length === 0) {
-            setInfo(`No spent ecash from ${new URL(result.mintUrl).hostname}.`)
-          }
+          setInfo(result.message)
       }
       
       if(isSyncStateSentToQueue) {
-        EventEmitter.on('ev__syncStateWithMintTask_result', removeSpentByMintTaskResult)
+        EventEmitter.on(`ev_${SYNC_STATE_WITH_ALL_MINTS_TASK}_result`, removeSpentByMintTaskResult)
       }
       
       return () => {        
-        EventEmitter.off('ev__syncStateWithMintTask_result', removeSpentByMintTaskResult)            
-        NotificationService.stopForegroundService()
+        EventEmitter.off(`ev_${SYNC_STATE_WITH_ALL_MINTS_TASK}_result`, removeSpentByMintTaskResult)
       }
   }, [isSyncStateSentToQueue])
 
 
-
-  useEffect(() => {
-    const showSpentEcashResult = () => {
-      log.trace('[showSpentEcashResult] got update', {totalSpentAmount})
-
-      if (totalSpentAmount === 0) { return false }
-
-      setInfo(`Removed spent ecash with amount ${totalSpentAmount}.`)                
-    }
-    
-    showSpentEcashResult()
-
-  }, [totalSpentAmount])
-
-
-  useEffect(() => {
-    const showSyncErrors = () => {
-      log.trace('[showSyncErrors] got update', {syncErrors})
-
-      if (syncErrors.length === 0) { return false }
-
-      setError(syncErrors[syncErrors.length - 1])                
-    }
-    
-    showSyncErrors()
-
-  }, [syncErrors])
 
     const gotoSeedRecovery = function () {
       navigation.navigate('SeedRecovery')
@@ -131,11 +79,10 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
     const checkSpent = async function () {
       setIsLoading(true)
       setIsSyncStateSentToQueue(true)
-
-      // long task background processing
-      notifee.displayNotification({
+      
+      await notifee.displayNotification({
         title: TASK_QUEUE_CHANNEL_NAME,
-        body: 'Processing pending transactions...',
+        body: 'Cleaning spent ecash from spendable balance...',
         android: {
             channelId: TASK_QUEUE_CHANNEL_ID,
             asForegroundService: true,
@@ -145,9 +92,8 @@ export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> =
                 indeterminate: true,
             },
         },
-        data: {task: 'syncSpendableStateWithMints'},
-      })
-      // WalletTask.syncSpendableStateWithMints()        
+        data: {task: SYNC_STATE_WITH_ALL_MINTS_TASK},
+      })      
     }
 
 

@@ -18,6 +18,7 @@ import {
     NostrClient, 
     NostrEvent, 
     NostrUnsignedEvent, 
+    SyncQueue, 
     TransactionTaskResult, 
     WalletTask 
 } from '../services'
@@ -35,6 +36,8 @@ import { PaymentRequest } from './PaymentRequest'
 import { PaymentRequests } from './PaymentRequestsStore'
 import { MINIBITS_MINT_URL } from '@env'
 import { MintBalance } from './Mint'
+import { transferTask } from '../services/wallet/transferTask'
+import { topupTask } from '../services/wallet/topupTask'
 
 type NwcError = {
     result_type: string,
@@ -169,6 +172,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         }
         
         // notify errors
+        
         if((nwcResponse as NwcError).error) {
             let body = ''
             if(nwcResponse.result_type === 'pay_invoice') {
@@ -189,147 +193,27 @@ export const NwcConnectionModel = types.model('NwcConnection', {
 
             if(nwcResponse.result_type === 'lookup_invoice') {
                 body = 'Lookup invoice error: '
-            }
+            }            
+            
+            yield NotificationService.createLocalNotification(
+                `<b>${self.name}</b> - Nostr Wallet Connect`,
+                body + (nwcResponse as NwcError).error.message,
+                nwcPngUrl
+            )
+            
+        }    
 
-            const enabled = yield NotificationService.areNotificationsEnabled()
-            if(enabled) {
-                yield NotificationService.createLocalNotification(
-                    `<b>${self.name}</b> - Nostr Wallet Connect`,
-                    body + (nwcResponse as NwcError).error.message,
-                    nwcPngUrl
-                )
-            }
-        }        
-
-        NostrClient.publish(
+        yield NostrClient.publish(
             responseEvent,
             self.connectionRelays                    
         )
         
-        NotificationService.stopForegroundService()
-        
+        yield NotificationService.stopForegroundService()        
     }),
-}))
-.actions(self => ({    
-    handleTransferTaskResult: flow(function* handleTransferTaskResult(result: TransactionTaskResult) {
-        log.debug('[handleTransferTaskResult] Got transfer task result', {
-            connection: self.name, 
-            meltQuote: result.meltQuote?.quote,
-            txId: result.transaction?.id,            
-        })
-
-        if(result.meltQuote?.quote === self.lastMeltQuoteId) {
-            log.error('Meltquote has been already handled, skipping...', {
-                meltQuoteId: self.lastMeltQuoteId, 
-                caller: 'handleTransferTaskResult'
-            })
-            return
-        }
-
-        self.setLastMeltQuoteId(result.meltQuote?.quote)
-
-        let nwcResponse: NwcResponse | NwcError
-
-        if(result.transaction?.status === TransactionStatus.COMPLETED) {
-            const updatedLimit = self.remainingDailyLimit - 
-            (result.transaction.amount + result.transaction.fee)
-
-            nwcResponse = {
-                result_type: 'pay_invoice',
-                result: {
-                  preimage: result.preimage,
-                }
-            } as NwcResponse
-
-            log.trace('[handleTransferTaskResult] Updating remainingLimit', {
-                connection: self.name,
-                beforeUpdate: self.remainingDailyLimit,
-                afterUpdate: updatedLimit
-            })
-
-            self.setRemainingDailyLimit(updatedLimit)            
-
-            // notify completed payment
-            const enabled = yield NotificationService.areNotificationsEnabled()
-            if(enabled) {
-                yield NotificationService.createLocalNotification(
-                    `<b>${self.name}</b> - Nostr Wallet Connect`,
-                    `Paid ${result.transaction.amount} SAT${result.transaction.fee > 0 ? ', fee ' + result.transaction.fee + ' SAT' : ''}. Remaining today's limit is ${self.remainingDailyLimit} SAT`,
-                    nwcPngUrl
-                )
-            }
-        } else {
-            nwcResponse = {
-                result_type: 'pay_invoice',
-                error: { code: 'INTERNAL', message: result.message}
-            } as NwcError
-        }        
-
-        if(!result.nwcEvent) {
-            log.error('Missing nwcEvent.', {caller: 'handleTransferTaskResult'})
-            NotificationService.stopForegroundService()
-            return
-        }
-
-        yield self.sendResponse(nwcResponse, result.nwcEvent)
-    }),
-    handleTopupTaskResult: flow(function* handleTopupTaskResult(result: TransactionTaskResult) {
-        log.debug('Got topup task result', {
-            connection: self.name,
-            encodedInvoice: result.encodedInvoice,             
-            caller: 'handleTopupTaskResult'
-        })
-        
-        if(!result.nwcEvent) {
-            log.error('Missing nwcEvent.', {caller: 'handleTopupTaskResult'})
-            return
-        }
-
-        let nwcResponse: NwcResponse | NwcError
-
-        if(result.paymentRequest) {
-            const pr: PaymentRequest = result.paymentRequest
-
-            nwcResponse = {
-                result_type: 'make_invoice',
-                result: {
-                    type: 'incoming',
-                    invoice: pr.encodedInvoice,
-                    description: pr.description,                                    
-                    payment_hash: pr.paymentHash,
-                    amount: pr.invoicedAmount * 1000,
-                    fees_paid: 0,
-                    created_at: Math.floor(pr.createdAt!.getTime() / 1000),
-                    expires_at: Math.floor(pr.expiresAt!.getTime() / 1000),                    
-                    preimage: null,
-                    settled_at: null
-                } as NwcTransaction
-            } as NwcResponse            
-
-            // notify created topup
-            const enabled = yield NotificationService.areNotificationsEnabled()
-            if(enabled) {
-                yield NotificationService.stopForegroundService()
-
-                yield NotificationService.createLocalNotification(
-                    `<b>${self.name}</b> - Nostr Wallet Connect`,
-                    `Invoice for ${result.paymentRequest.invoicedAmount} SATS has been created.`,
-                    nwcPngUrl
-                )
-            }            
-        } else {
-            nwcResponse = {
-                result_type: 'make_invoice',
-                error: { code: 'INTERNAL', message: result.message}
-            } as NwcError
-        }
-
-        yield self.sendResponse(nwcResponse, result.nwcEvent)
-    })
 }))
 .actions(self => ({
     handleGetInfo (nwcRequest: NwcRequest): NwcResponse {        
-        const nwcResponse = {
+        const nwcResponse: NwcResponse = {
             result_type: nwcRequest.method,
             result: {
                 alias: 'Minibits',
@@ -369,7 +253,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             } as NwcTransaction
         })
         
-        const nwcResponse = {
+        const nwcResponse: NwcResponse = {
             result_type: nwcRequest.method,
             result: {
                 transactions
@@ -389,7 +273,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             resultBalanceMsat = 0
         }
 
-        const nwcResponse = {
+        const nwcResponse: NwcResponse = {
             result_type: nwcRequest.method,
             result: {
                 balance: resultBalanceMsat
@@ -417,14 +301,56 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             } as NwcError
         }
 
-        yield WalletTask.topup(
+        const result = yield topupTask(
             mintBalance,
             roundUp(amontMsat / 1000, 0),
             'sat',
             description,
             undefined,
             requestEvent                    
-        )        
+        )
+        
+        log.debug('Got topup task result', {
+            connection: self.name,
+            encodedInvoice: result.encodedInvoice,             
+            caller: 'handleTopupTaskResult'
+        })
+
+        let nwcResponse: NwcResponse | NwcError
+
+        if(result.paymentRequest) {
+            const pr: PaymentRequest = result.paymentRequest
+
+            nwcResponse = {
+                result_type: 'make_invoice',
+                result: {
+                    type: 'incoming',
+                    invoice: pr.encodedInvoice,
+                    description: pr.description,                                    
+                    payment_hash: pr.paymentHash,
+                    amount: pr.invoicedAmount * 1000,
+                    fees_paid: 0,
+                    created_at: Math.floor(pr.createdAt!.getTime() / 1000),
+                    expires_at: Math.floor(pr.expiresAt!.getTime() / 1000),                    
+                    preimage: null,
+                    settled_at: null
+                } as NwcTransaction
+            } as NwcResponse
+
+            yield NotificationService.createLocalNotification(
+                `<b>${self.name}</b> - Nostr Wallet Connect`,
+                `Invoice for ${result.paymentRequest.invoicedAmount} SATS has been created.`,
+                nwcPngUrl
+            )
+
+        } else {
+            nwcResponse = {
+                result_type: 'make_invoice',
+                error: { code: 'INTERNAL', message: result.message}
+            } as NwcError
+        }
+
+        return nwcResponse
     }),
     handleLookupInvoice(nwcRequest: NwcRequest) {
         const paymentRequestsStore = self.getPaymentRequestsStore()
@@ -490,13 +416,11 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             const feeReserve = Math.max(MIN_LIGHTNING_FEE, amountToPay * LIGHTNING_FEE_PERCENT / 100) 
             const totalAmountToPay = amountToPay + feeReserve 
 
-            let mintBalance: MintBalance | undefined = undefined
-            let isMinibitsMintSelected: boolean = false
+            let mintBalance: MintBalance | undefined = undefined            
             const minibitsBalance = proofsStore.getMintBalance(MINIBITS_MINT_URL)
 
             if(minibitsBalance && minibitsBalance.balances.sat! >= totalAmountToPay) {
-                mintBalance = minibitsBalance
-                isMinibitsMintSelected = true
+                mintBalance = minibitsBalance                
             } else {
                 mintBalance = proofsStore.getMintBalanceWithMaxBalance('sat')
             }
@@ -525,7 +449,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                 encoded,
             )
 
-            WalletTask.transfer(
+            const result = yield transferTask(
                 mintBalance,
                 amountToPay,                    
                 'sat',
@@ -536,11 +460,51 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                 requestEvent
             )
 
+            if(result.meltQuote?.quote === self.lastMeltQuoteId) {
+                throw new AppError(Err.ALREADY_EXISTS_ERROR, 'Already processed', {quote: result.meltQuote?.quote})
+            }
+
+            self.setLastMeltQuoteId(result.meltQuote?.quote)
+
+            let nwcResponse: NwcResponse | NwcError
+    
+            if(result.transaction?.status === TransactionStatus.COMPLETED) {
+                const updatedLimit = self.remainingDailyLimit - 
+                (result.transaction.amount + result.transaction.fee)
+    
+                nwcResponse = {
+                    result_type: 'pay_invoice',
+                    result: {
+                      preimage: result.preimage,
+                    }
+                } as NwcResponse
+    
+                log.trace('[handleTransferTaskResult] Updating remainingLimit', {
+                    connection: self.name,
+                    beforeUpdate: self.remainingDailyLimit,
+                    afterUpdate: updatedLimit
+                })
+    
+                self.setRemainingDailyLimit(updatedLimit)            
+    
+                yield NotificationService.createLocalNotification(
+                    `<b>${self.name}</b> - Nostr Wallet Connect`,
+                    `Paid ${result.transaction.amount} SAT${result.transaction.fee > 0 ? ', fee ' + result.transaction.fee + ' SAT' : ''}. Remaining today's limit is ${self.remainingDailyLimit} SAT`,
+                    nwcPngUrl
+                )
+                
+            } else {
+                nwcResponse = {
+                    result_type: 'pay_invoice',
+                    error: { code: 'INTERNAL', message: result.message}
+                } as NwcError
+            }
+    
+            return nwcResponse
+
         } catch (e: any) {            
             log.error(`[NwcConnection.handlePayInvoice] ${e.message}`)
-
-            yield NotificationService.stopForegroundService()
-
+            
             return {
                 result_type: nwcRequest.method,
                 error: { code: 'INTERNAL', message: e.message}
@@ -549,7 +513,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
     })
 }))
 .actions(self => ({
-    handleRequest: flow(function* handleRequest(requestEvent: NostrEvent, decryptedNwcRequest?: NwcRequest) {        
+    handleNwcRequestTask: flow(function* handleNwcRequestTask(requestEvent: NostrEvent, decryptedNwcRequest?: NwcRequest) {        
         let nwcRequest: NwcRequest
         if(!decryptedNwcRequest) {
             const decryptedContent = yield NostrClient.decryptNip04(requestEvent.pubkey, requestEvent.content)
@@ -575,25 +539,12 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                 break 
             case 'make_invoice':                
                 nwcResponse = yield self.handleMakeInvoice(nwcRequest, requestEvent) as Promise<NwcError | undefined> 
-                
-                // no early error, topup initiated, register topup result event handler and exit
-                if(!nwcResponse) {
-                    EventEmitter.on('ev_topupTask_result', self.handleTopupTaskResult)                    
-                    return
-                }
                 break
             case 'lookup_invoice':                
                 nwcResponse = self.handleLookupInvoice(nwcRequest)    
                 break        
-            case 'pay_invoice': 
-                // only early errors are immediately returned
+            case 'pay_invoice':                 
                 nwcResponse = yield self.handlePayInvoice(nwcRequest, requestEvent) as Promise<NwcError | undefined>
-                
-                // no early error, transfer initiated, register transfer result event handler and exit
-                if(!nwcResponse) {
-                    EventEmitter.on('ev_transferTask_result', self.handleTransferTaskResult)                    
-                    return
-                }
                 break
             default:
                 const message = `NWC method ${nwcRequest.method} is unknown or not yet supported.`
@@ -711,7 +662,7 @@ export const NwcStoreModel = types
                 log.debug('[remove]', 'Connection removed from NwcStore')
             }
         },
-        receiveNwcEvents () {
+        receiveNwcEventsQueue () {
             log.trace('[receiveNwcEvents] start listening for NWC events', {                
                 walletPubkey: self.walletPubkey
             })
@@ -754,8 +705,13 @@ export const NwcStoreModel = types
                         if(!targetConnection) {
                             throw new AppError(Err.VALIDATION_ERROR, 'Missing connection matching event pubkey', {pubkey: event.pubkey})
                         }
-                        // dispatch to correct connection
-                        targetConnection.handleRequest(event)
+                        
+                        // dispatch to correct connection, process over sync queue
+                        const now = new Date().getTime()
+                        SyncQueue.addTask(       
+                            `handleNwcRequestTask-${now}`,          
+                            async () => await targetConnection.handleNwcRequestTask(event)               
+                        )                        
                     },
                     oneose() {
                         log.trace('[receiveNwcEvents]', `Eose: Got ${eventsBatch.length} NWC events`)
@@ -768,7 +724,7 @@ export const NwcStoreModel = types
                 return
             }
         },        
-        handleNwcRequestFromNotification: flow(function* handleNwcRequestFromNotification(event: NostrEvent, decryptedNwcRequest: NwcRequest) {        
+        handleNwcRequestTask: flow(function* handleNwcRequestTask(event: NostrEvent, decryptedNwcRequest?: NwcRequest) {        
             // find connection the nwc request is sent to
             const targetConnection = self.nwcConnections.find(c => 
                 c.connectionPubkey === event.pubkey
@@ -776,21 +732,31 @@ export const NwcStoreModel = types
 
             if(!targetConnection) {
                 log.error('[handleNwcRequestFromNotification] Missing connection matching event pubkey.', {pubkey: event.pubkey})
-                // notify created topup
-                const enabled = yield NotificationService.areNotificationsEnabled()
-                if(enabled) {
-                    yield NotificationService.stopForegroundService()
-
-                    yield NotificationService.createLocalNotification(
-                        `<b>Nostr Wallet Connect</b> error`,
-                        `Your wallet has received a NWC command, but could not find related NWC connection to handle it.`,
-                        nwcPngUrl
-                    )
-                } 
+                
+                yield NotificationService.stopForegroundService()
+                yield NotificationService.createLocalNotification(
+                    `<b>Nostr Wallet Connect</b> error`,
+                    `Your wallet has received a NWC command, but could not find related NWC connection to handle it.`,
+                    nwcPngUrl
+                )
+                 
                 return
             }
 
-            yield targetConnection.handleRequest(event, decryptedNwcRequest)
+            if(!event) {
+                log.error('[handleNwcRequestFromNotification] Missing connection matching event pubkey.')
+                
+                yield NotificationService.stopForegroundService()
+                yield NotificationService.createLocalNotification(
+                    `<b>Nostr Wallet Connect</b> error`,
+                    `Your wallet has received a NWC command, but could not retrieve the required data.`,
+                    nwcPngUrl
+                )
+                 
+                return
+            }
+
+            yield targetConnection.handleNwcRequestTask(event, decryptedNwcRequest)
         })
     }))
     .views(self => ({

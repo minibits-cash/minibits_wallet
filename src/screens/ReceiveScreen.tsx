@@ -36,6 +36,7 @@ import numbro from 'numbro'
 import { TranItem } from './TranDetailScreen'
 import { translate } from '../i18n'
 import { Token, getDecodedToken } from '@cashu/cashu-ts'
+import { RECEIVE_OFFLINE_PREPARE_TASK, RECEIVE_TASK } from '../services/wallet/receiveTask'
 
 export enum ReceiveOption {
   // CREATE_AND_SEND_PAYMENT_REQUEST = 'CREATE_AND_SEND_PAYMENT_REQUEST',
@@ -125,14 +126,14 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
 
         
         if(isReceiveTaskSentToQueue) {
-          EventEmitter.on('ev_receiveTask_result', handleReceiveTaskResult)
-          EventEmitter.on('ev_receiveOfflinePrepareTask_result', handleReceiveTaskResult)
+          EventEmitter.on(`ev_${RECEIVE_TASK}_result`, handleReceiveTaskResult)
+          EventEmitter.on(`ev_${RECEIVE_OFFLINE_PREPARE_TASK}_result`, handleReceiveTaskResult)
         }        
 
         // Unsubscribe from the 'sendCompleted' event on component unmount
         return () => {
-            EventEmitter.off('ev_receiveTask_result', handleReceiveTaskResult)
-            EventEmitter.off('ev_receiveOfflinePrepareTask_result', handleReceiveTaskResult)
+          EventEmitter.off(`ev_${RECEIVE_TASK}_result`, handleReceiveTaskResult)
+          EventEmitter.off(`ev_${RECEIVE_OFFLINE_PREPARE_TASK}_result`, handleReceiveTaskResult)
         }
     }, [isReceiveTaskSentToQueue])
 
@@ -208,24 +209,12 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
         const amountToReceiveInt = round(toNumber(amountToReceive) * getCurrency(unit).precision, 0)
         const proofsCount = token!.proofs.length
 
-        if(proofsCount > MAX_SWAP_INPUT_SIZE) {
-
-          WalletTask.receiveBatch(
-            token as Token,
-            amountToReceiveInt,
-            memo,
-            encodedToken as string,
-          )
-
-        } else {
-
-          WalletTask.receive(
-            token as Token,
-            amountToReceiveInt,
-            memo,
-            encodedToken as string,
-          ) 
-        }
+        WalletTask.receiveQueue(
+          token as Token,
+          amountToReceiveInt,
+          memo,
+          encodedToken as string,
+        )
     }
 
 
@@ -262,7 +251,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
 
         const amountToReceiveInt = round(toNumber(amountToReceive) * getCurrency(unit).precision, 0)
         
-        WalletTask.receiveOfflinePrepare(
+        WalletTask.receiveOfflinePrepareQueue(
             token as Token,
             amountToReceiveInt,
             memo,

@@ -42,7 +42,7 @@ import {useStores} from '../models'
 import {WalletStackScreenProps} from '../navigation'
 import {Mint, UnitBalance} from '../models/Mint'
 import {MintsByUnit} from '../models/MintsStore'
-import {log, NostrClient, WalletTaskResult} from '../services'
+import {HANDLE_CLAIM_TASK, HANDLE_RECEIVED_EVENT_TASK, log, NostrClient, WalletTaskResult} from '../services'
 import {Env} from '../utils/envtypes'
 import {Transaction} from '../models/Transaction'
 import {TransactionListItem} from './Transactions/TransactionListItem'
@@ -64,7 +64,6 @@ import { CurrencyCode, MintUnit, MintUnitCurrencyPairs, convertToFromSats, getCu
 import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import { LeftProfileHeader } from './ContactsScreen'
 import { getUnixTime } from 'date-fns/getUnixTime'
-import { minibitsPngIcon } from '../components/MinibitsIcon'
 
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
 const MINT_CHECK_INTERVAL = 60
@@ -172,7 +171,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             }
 
             // Only once on startup - Create websocket subscriptions to receive tokens or payment requests by NOSTR DMs                    
-            WalletTask.receiveEventsFromRelays().catch(e => false)            
+            WalletTask.receiveEventsFromRelaysQueue()           
 
             // Set wallet tab to preferred unit
             const preferredUnit: MintUnit = userSettingsStore.preferredUnit
@@ -185,7 +184,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             // go through websockets only if remote notifications not working as push data messages are
             // delivered even if notifications are disabled on device            
             const isRemoteDataPushEnabled = walletProfileStore.device ? true : false
-            if(!isRemoteDataPushEnabled) {nwcStore.receiveNwcEvents()} 
+            if(!isRemoteDataPushEnabled) {nwcStore.receiveNwcEventsQueue()} 
         }
 
         const handleReceivedEventTaskResult  = async (result: WalletTaskResult) => {
@@ -203,16 +202,16 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         }
         
         Linking.addEventListener('url', handleDeeplink)
-        EventEmitter.on('ev__handleReceivedEventTask_result', handleReceivedEventTaskResult)
-        EventEmitter.on('ev__handleClaimTask_result', handleClaimTaskResult)
+        EventEmitter.on(`ev_${HANDLE_RECEIVED_EVENT_TASK}_result`, handleReceivedEventTaskResult)
+        EventEmitter.on(`ev_${HANDLE_CLAIM_TASK}_result`, handleClaimTaskResult)
         
 
         getInitialData()
 
         // Unsubscribe from the task result event on component unmount
         return () => {
-            EventEmitter.off('ev__handleReceivedEventTask_result', handleReceivedEventTaskResult)
-            EventEmitter.off('ev__handleClaimTask_result', handleClaimTaskResult)        
+            EventEmitter.off(`ev_${HANDLE_RECEIVED_EVENT_TASK}_result`, handleReceivedEventTaskResult)
+            EventEmitter.off(`ev_${HANDLE_CLAIM_TASK}_result`, handleClaimTaskResult)        
         }
         
     }, [])
@@ -279,10 +278,10 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         if (nowInSec - lastMintCheckRef.current > MINT_CHECK_INTERVAL) {
             lastMintCheckRef.current = nowInSec
 
-            WalletTask.handleInFlight()
-            WalletTask.handleClaim()
-            WalletTask.syncPendingStateWithMints()
-            WalletTask.handlePendingTopups()
+            WalletTask.handleInFlightQueue()
+            WalletTask.handleClaimQueue()
+            WalletTask.syncStateWithAllMintsQueue({isPending: true})
+            WalletTask.handlePendingTopupsQueue()
 
             if(userSettingsStore.exchangeCurrency) {
                 walletStore.refreshExchangeRate(userSettingsStore.exchangeCurrency)

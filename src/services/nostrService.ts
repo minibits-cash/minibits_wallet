@@ -97,10 +97,10 @@ const reconnectToRelays = async function () {
     // recreate subscriptions if all relays down
     if(isRefreshSubNeeded) {
         log.trace('[reconnectToRelays] Refreshing Nostr subscriptions')
-        WalletTask.receiveEventsFromRelays().catch(e => false)
+        WalletTask.receiveEventsFromRelaysQueue().catch(e => false)
 
         if(!walletProfileStore.device) {
-            nwcStore.receiveNwcEvents()
+            nwcStore.receiveNwcEventsQueue()
         }
     }     
 }

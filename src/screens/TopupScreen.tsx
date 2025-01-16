@@ -29,6 +29,7 @@ import {
 import {TransactionStatus, Transaction} from '../models/Transaction'
 import {useStores} from '../models'
 import {
+  HANDLE_PENDING_TOPUP_TASK,
   NostrClient,
   NostrProfile,
   TransactionTaskResult,
@@ -64,6 +65,7 @@ import numbro from 'numbro'
 import {MintListItem} from './Mints/MintListItem'
 import {TranItem} from './TranDetailScreen'
 import {translate} from '../i18n'
+import { TOPUP_TASK } from '../services/wallet/topupTask'
 
 if (
   Platform.OS === 'android' &&
@@ -303,11 +305,11 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
       }
 
       // Subscribe to the 'sendCompleted' event
-      EventEmitter.on('ev_topupTask_result', handleTopupTaskResult)
+      EventEmitter.on(`ev_${TOPUP_TASK}_result`, handleTopupTaskResult)
 
       // Unsubscribe from the 'sendCompleted' event on component unmount
       return () => {
-        EventEmitter.off('ev_topupTask_result', handleTopupTaskResult)
+        EventEmitter.off(`ev_${TOPUP_TASK}_result`, handleTopupTaskResult)
       }
     }, [isTopupTaskSentToQueue])
 
@@ -346,13 +348,13 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
       }
 
       EventEmitter.on(
-        'ev__handlePendingTopupTask_result',
+        `ev_${HANDLE_PENDING_TOPUP_TASK}_result`,
         handlePendingTopupTaskResult,
       )
 
       return () => {
         EventEmitter.off(
-          'ev__handlePendingTopupTask_result',
+          `ev_${HANDLE_PENDING_TOPUP_TASK}_result`,
           handlePendingTopupTaskResult,
         )
       }
@@ -470,7 +472,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
         0,
       )
 
-      WalletTask.topup(
+      WalletTask.topupQueue(
         mintBalanceToTopup as MintBalance,
         amountToTopupInt,
         unit,

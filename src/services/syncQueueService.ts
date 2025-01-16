@@ -1,11 +1,11 @@
-import { Task, TaskId, TaskQueue, TaskStatus } from "simple-js-task-queue"
+import { Task, TaskId, TaskQueue, TaskStatus } from "taskon"
 import {log} from './logService'
 import EventEmitter from '../utils/eventEmitter'
 import { TransactionTaskResult, WalletTaskResult } from "./walletService"
 import { NotificationService } from "./notificationService"
 
 let _queue: any = undefined
-// const start = new Date().getTime()
+
 
 const getSyncQueue = function () {
     if(!_queue) {
@@ -15,12 +15,12 @@ const getSyncQueue = function () {
             stopOnError: false,
             // verbose: true,
             taskPrioritizationMode: "head",
-            // memorizeTasks: true
+            memorizeTasks: true
           })
-        return _queue
+        return _queue as TaskQueue
     }
 
-    return _queue
+    return _queue as TaskQueue
 }
 
 const addTask = function (taskId: TaskId, task: Promise<any> | any) {
@@ -54,18 +54,19 @@ const addPrioritizedTask = function (taskId: TaskId, task: Promise<any> | any) {
 const _handleTaskResult = async (taskId: TaskId, result: WalletTaskResult | TransactionTaskResult) => {
     log.info(
       `[_handleTaskResult] The result of task ${taskId}`, result
-    )
-
-    const queue: TaskQueue = getSyncQueue()
+    )    
 
     EventEmitter.emit(`ev_${result.taskFunction}_result`, result)
 
-     /* if(queue.getAllTasksDetails(['idle', 'running']).length === 0) {        
-       if(await NotificationService.isNotificationDispayed()) {
+    const queue: TaskQueue = getSyncQueue()
+    
+    if(queue.getAllTasksDetails(['idle', 'running']).length === 0) {        
+        
+        if(await NotificationService.isNotificationDispayed()) {
             log.trace('[_handleTaskResult] stopForegroundService')
             NotificationService.stopForegroundService()
         }        
-    }  */  
+    }
 }
   
 // Helper function to handle the task status changes
@@ -76,7 +77,8 @@ const _handleTaskStatusChange = (status: TaskStatus, task: Task) => {
 }
 
 
-export const SyncQueue = {    
+export const SyncQueue = {
+    getSyncQueue,    
     addTask,
     addPrioritizedTask,
 }

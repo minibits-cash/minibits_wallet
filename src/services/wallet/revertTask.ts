@@ -17,7 +17,7 @@ const {
   walletStore
 } = rootStoreInstance
 
-const REVERT = 'revertTask'
+export const REVERT_TASK = 'revertTask'
 
 export const revertTask = async function (    
   transaction: Transaction  
@@ -101,7 +101,7 @@ try {
       }
 
       return {
-          taskFunction: REVERT,
+          taskFunction: REVERT_TASK,
           mintUrl: mintInstance.mintUrl,
           transaction,
           message: `Transaction has been reverted and funds were returned to spendable balance.`,
@@ -125,7 +125,7 @@ try {
       log.error(e.name, e.message)
 
       return {
-          taskFunction: REVERT,
+          taskFunction: REVERT_TASK,
           mintUrl: transaction.mint,
           transaction,
           message: e.message,

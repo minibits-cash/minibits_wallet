@@ -24,9 +24,9 @@ const {
 } = rootStoreInstance
 
 // function names to pass to task results
-const RECEIVE = 'receiveTask'
-const RECEIVE_OFFLINE_PREPARE = 'receiveOfflinePrepareTask'
-const RECEIVE_OFFLINE_COMPLETE = 'receiveOfflineCompleteTask'
+export const RECEIVE_TASK = 'receiveTask'
+export const RECEIVE_OFFLINE_PREPARE_TASK = 'receiveOfflinePrepareTask'
+export const RECEIVE_OFFLINE_COMPLETE_TASK = 'receiveOfflineCompleteTask'
 
 export const receiveTask = async function (
     token: Token,
@@ -86,14 +86,15 @@ export const receiveTask = async function (
             )
 
             return {
-                taskFunction: RECEIVE,
+                taskFunction: RECEIVE_TASK,
                 transaction,
                 message: `The mint ${mintToReceive} is blocked. You can unblock it in Settings.`,
             } as TransactionTaskResult
         }
 
         const {            
-            receivedAmount, 
+            receivedAmount,
+            receivedProofs, 
             outputToken,            
             swapFeePaid,             
         } = await receiveSync(
@@ -133,11 +134,12 @@ export const receiveTask = async function (
         }
 
         return {
-            taskFunction: RECEIVE,
+            taskFunction: RECEIVE_TASK,
             mintUrl: mintToReceive,
             transaction,
             message: `You've received ${formatCurrency(receivedAmount, getCurrency(unit).code)} ${getCurrency(unit).code} to your Minibits wallet.`,
             receivedAmount,
+            receivedProofsCount: receivedProofs.length
         } as TransactionTaskResult
         
     } catch (e: any) {
@@ -158,7 +160,7 @@ export const receiveTask = async function (
         log.error(e.name, e.message)
 
         return {
-            taskFunction: RECEIVE,
+            taskFunction: RECEIVE_TASK,
             mintUrl: mintToReceive,
             transaction,
             message: e.message,
@@ -221,7 +223,7 @@ export const receiveOfflinePrepareTask = async function (
             )
 
             return {
-                taskFunction: RECEIVE_OFFLINE_PREPARE,
+                taskFunction: RECEIVE_OFFLINE_PREPARE_TASK,
                 mintUrl: mintToReceive,
                 transaction: blockedTransaction,
                 message: `The mint ${mintToReceive} is blocked. You can unblock it in Settings.`,
@@ -240,7 +242,7 @@ export const receiveOfflinePrepareTask = async function (
         )        
 
         return {
-            taskFunction: RECEIVE_OFFLINE_PREPARE,
+            taskFunction: RECEIVE_OFFLINE_PREPARE_TASK,
             mintUrl: mintToReceive,
             transaction,
             message: `You received ${formatCurrency(amountToReceive, getCurrency(unit).code)} ${getCurrency(unit).code} while offline. You need to redeem them to your wallet when you will be online again.`,            
@@ -262,7 +264,7 @@ export const receiveOfflinePrepareTask = async function (
         log.error(e.name, e.message)
 
         return {
-            taskFunction: RECEIVE_OFFLINE_PREPARE,
+            taskFunction: RECEIVE_OFFLINE_PREPARE_TASK,
             mintUrl: mintToReceive,
             transaction,
             message: '',
@@ -307,7 +309,7 @@ export const receiveOfflineCompleteTask = async function (
             )
 
             return {
-                taskFunction: RECEIVE_OFFLINE_COMPLETE,
+                taskFunction: RECEIVE_OFFLINE_COMPLETE_TASK,
                 mintUrl: mintToReceive,
                 transaction,
                 message: `The mint ${mintToReceive} is blocked. You can unblock it in Settings.`,
@@ -354,7 +356,7 @@ export const receiveOfflineCompleteTask = async function (
         }
 
         return {
-            taskFunction: RECEIVE_OFFLINE_COMPLETE,
+            taskFunction: RECEIVE_OFFLINE_COMPLETE_TASK,
             mintUrl: mintToReceive,
             transaction,
             message: `You've received ${formatCurrency(receivedAmount, getCurrency(unit).code)} ${getCurrency(unit).code} to your Minibits wallet.`,
@@ -378,7 +380,7 @@ export const receiveOfflineCompleteTask = async function (
         }        
 
         return {
-            taskFunction: RECEIVE_OFFLINE_COMPLETE,
+            taskFunction: RECEIVE_OFFLINE_COMPLETE_TASK,
             mintUrl: mintToReceive,
             transaction,
             message: '',

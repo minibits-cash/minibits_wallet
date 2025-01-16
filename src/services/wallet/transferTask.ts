@@ -21,7 +21,7 @@ const {
 
 // const {walletStore} = nonPersistedStores
 
-const TRANSFER = 'transferTask'
+export const TRANSFER_TASK = 'transferTask'
 
 export const transferTask = async function (
     mintBalanceToTransferFrom: MintBalance,
@@ -248,7 +248,7 @@ export const transferTask = async function (
             transaction.setBalanceAfter(balanceAfter)       
     
             return {
-                taskFunction: TRANSFER,
+                taskFunction: TRANSFER_TASK,
                 mintUrl,
                 transaction,
                 message: `Lightning invoice has been successfully paid and settled with your Minibits ecash. Fee has been ${formatCurrency(transaction.fee, getCurrency(unit).code)} ${getCurrency(unit).code}.`,
@@ -268,7 +268,7 @@ export const transferTask = async function (
             })
 
             return {
-                taskFunction: TRANSFER,
+                taskFunction: TRANSFER_TASK,
                 mintUrl,
                 transaction,
                 message: `Lightning payment did not complete in time. Your ecash will remain pending until the payment completes or fails.`,                
@@ -287,7 +287,7 @@ export const transferTask = async function (
     } catch (e: any) {
         let message = e.message        
         let taskResult: TransactionTaskResult =  {
-            taskFunction: TRANSFER,
+            taskFunction: TRANSFER_TASK,
             mintUrl,
             transaction,
             message,
@@ -350,7 +350,7 @@ export const transferTask = async function (
                     }
                 }
 
-                await WalletTask.syncStateWithMintSync({
+                await WalletTask.syncStateWithMintTask({
                     proofsToSync: proofsStore.getByMint(mintUrl, {isPending: true, unit}),
                     mintUrl,
                     isPending: true

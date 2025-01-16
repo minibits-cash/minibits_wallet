@@ -1,4 +1,3 @@
-import {observer} from 'mobx-react-lite'
 import React, {FC, useState, useEffect} from 'react'
 import {
   TextStyle,
@@ -36,13 +35,11 @@ import { ProofsStoreSnapshot } from '../models/ProofsStore'
 import { getSnapshot } from 'mobx-state-tree'
 import { ContactsStoreSnapshot } from '../models/ContactsStore'
 import { MintsStoreSnapshot } from '../models/MintsStore'
-import { Database, NotificationService, TASK_QUEUE_CHANNEL_ID, TASK_QUEUE_CHANNEL_NAME, TransactionTaskResult, WalletTask, WalletTaskResult } from '../services'
-import { Transaction, TransactionStatus } from '../models/Transaction'
+import { SWAP_ALL_TASK, TASK_QUEUE_CHANNEL_ID, TASK_QUEUE_CHANNEL_NAME, WalletTask, WalletTaskResult } from '../services'
+import { TransactionStatus } from '../models/Transaction'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { Token, getDecodedToken, getEncodedToken } from '@cashu/cashu-ts'
-import { encodeCBOR } from '@cashu/cashu-ts/src/cbor'
-import { encodeUint8toBase64Url } from '@cashu/cashu-ts/src/base64'
 import { minibitsPngIcon } from '../components/MinibitsIcon'
 
 interface ExportBackupScreenProps extends SettingsStackScreenProps<'ExportBackup'> {}
@@ -50,581 +47,528 @@ interface ExportBackupScreenProps extends SettingsStackScreenProps<'ExportBackup
 const OPTIMIZE_FROM_PROOFS_COUNT = 5
 
 export const ExportBackupScreen: FC<ExportBackupScreenProps> =
-    function ExportBackup(_props) {
+  function ExportBackup(_props) {
 
-    const { navigation } = _props
-    const { 
-        mintsStore, 
-        contactsStore, 
-        proofsStore 
-    } = useStores()
+  const { navigation } = _props
+  const { 
+      mintsStore, 
+      contactsStore, 
+      proofsStore 
+  } = useStores()
 
-    useHeader({
-        leftIcon: 'faArrowLeft',
-        onLeftPress: () => navigation.goBack(),
-    })
+  useHeader({
+      leftIcon: 'faArrowLeft',
+      onLeftPress: () => navigation.goBack(),
+  })
 
-    const [info, setInfo] = useState('')
-    const [error, setError] = useState<AppError | undefined>()
-    const [orphanedProofs, setOrphanedProofs] = useState<Proof[]>([])
-    const [isLoading, setIsLoading] = useState(false)
-    const [isSendAllSentToQueue, setIsSendAllSentToQueue] = useState<boolean>(false)
-    const [isReceiveBatchSentToQueue, setIsReceiveBatchSentToQueue] = useState<boolean>(false)
-    const [totalProofsCount, setTotalProofsCount] = useState<number>(0)
-    const [totalSentProofsCount, setTotalSentProofsCount] = useState<number>(0)
-    const [totalReceiveErrorCount, setTotalReceiveErrorCount] = useState<number>(0)
-    const [totalReceiveCompleteCount, setTotalReceiveCompleteCount] = useState<number>(0)
-    const [isEcashInBackup, setIsEcashInBackup] = useState(true)
-    const [isMintsInBackup, setIsMintsInBackup] = useState(true)
-    const [isContactsInBackup, setIsContactsInBackup] = useState(true)
-    const [isResultModalVisible, setIsResultModalVisible] = useState(false)
-    const [resultModalInfo, setResultModalInfo] = useState<
-      {status: TransactionStatus; title?: string, message: string} | undefined
-    >()
-    
-    
-    useEffect(() => {
-        const loadProofs = async () => {            
-            setIsLoading(true)
-            try {
-              // full refresh of proofs from DB in case the state is broken
-              await proofsStore.loadProofsFromDatabase()
-              
-              const orphaned = proofsStore.allProofs.filter(proof => !proof.mintUrl)
+  const [info, setInfo] = useState('')
+  const [error, setError] = useState<AppError | undefined>()
+  const [orphanedProofs, setOrphanedProofs] = useState<Proof[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [isSwapAllSentToQueue, setIsSwapAllSentToQueue] = useState<boolean>(false)
+  const [totalProofsCount, setTotalProofsCount] = useState<number>(0)
+  const [isEcashInBackup, setIsEcashInBackup] = useState(true)
+  const [isMintsInBackup, setIsMintsInBackup] = useState(true)
+  const [isContactsInBackup, setIsContactsInBackup] = useState(true)
+  const [isResultModalVisible, setIsResultModalVisible] = useState(false)
+  const [resultModalInfo, setResultModalInfo] = useState<
+    {status: TransactionStatus; title?: string, message: string} | undefined
+  >()
+  
+  
+  useEffect(() => {
+      const loadProofs = async () => {            
+          setIsLoading(true)
+          try {
+            // full refresh of proofs from DB in case the state is broken
+            await proofsStore.loadProofsFromDatabase()
+            
+            const orphaned = proofsStore.allProofs.filter(proof => !proof.mintUrl)
 
-              if (orphaned.length > 0) {                
-                setOrphanedProofs(orphaned)
-                setInfo(`Found ${orphaned.length} orphaned proofs not belonging to any active mint. Those won't be included to the backup, but you can copy them separately.`)
-              }
+            if (orphaned.length > 0) {                
+              setOrphanedProofs(orphaned)
+              setInfo(`Found ${orphaned.length} orphaned proofs not belonging to any active mint. Those won't be included to the backup, but you can copy them separately.`)
+            }
 
-              // log.trace('[loadProofs]', {refreshedProofs: proofsStore.proofs})
-              setTotalProofsCount(proofsStore.proofsCount)
-              setIsLoading(false)
-            } catch (e: any) {
-              handleError(e)
-            }            
-        }
-
-        loadProofs()
-        return () => {}
-    }, [])
-
-
-    useEffect(() => {
-      const handleSendAllResult = async (result: TransactionTaskResult) => {
-          log.trace('[handleSendAllResults] event handler triggered')
-
-          if (!isSendAllSentToQueue) { return false }
-
-          // runs per each mint and unit
-          if (result.transaction && result.transaction.status === TransactionStatus.PENDING) {
-
-            // now we batch receive the pending encoded token 
-            // this forces the proofs swap with the mint for standard denomination amounts
-            const encodedTokenToReceive: string = result.encodedTokenToSend
-            const tokenToReceive = getDecodedToken(encodedTokenToReceive)              
-            const tokenAmount = CashuUtils.getProofsAmount(tokenToReceive.proofs)  
-            const proofsCount = tokenToReceive.proofs.length           
-
-            setTotalSentProofsCount(prev => prev + proofsCount)
-            setIsReceiveBatchSentToQueue(true)
-
-            WalletTask.receiveBatch(
-              tokenToReceive,
-              tokenAmount,
-              tokenToReceive.memo as string,
-              encodedTokenToReceive
-            )
-          }       
+            // log.trace('[loadProofs]', {refreshedProofs: proofsStore.proofs})
+            setTotalProofsCount(proofsStore.proofsCount)
+            setIsLoading(false)
+          } catch (e: any) {
+            handleError(e)
+          }            
       }
-      
-      if(isSendAllSentToQueue) {
-        EventEmitter.on('ev_sendTask_result', handleSendAllResult)
-      }  
-      
-      return () => {
-        EventEmitter.off('ev_sendTask_result', handleSendAllResult)            
-      }
-  }, [isSendAllSentToQueue])
+
+      loadProofs()
+      return () => {}
+  }, [])   
 
 
 
   useEffect(() => {
     // runs for every receive in a batch
-    const handleReceiveTaskResult = async (result: TransactionTaskResult) => {
-      log.trace('handleReceiveTaskResult event handler triggered')     
-      
-      const {error} = result       
-
-      if (error) {
-          setTotalReceiveErrorCount(prev => prev + 1)          
-      } else {
-          setTotalReceiveCompleteCount(prev => prev + 1)          
+    const handleSwapAllTaskResult = async (result: WalletTaskResult) => {
+      if(!isSwapAllSentToQueue) {
+        return
       }
+
+      setIsLoading(false)
+      setResultModalInfo({
+        status: result.errors.length > 0 ? TransactionStatus.ERROR : TransactionStatus.COMPLETED,
+        message: result.message
+      })
+
+      if(result.finalProofsCount && result.finalProofsCount > 0) {
+        setTotalProofsCount(result.finalProofsCount)
+      }
+      
+      setIsResultModalVisible(true)
     }
     
-    if(isReceiveBatchSentToQueue) {
-      EventEmitter.on('ev_receiveTask_result', handleReceiveTaskResult)      
+    if(isSwapAllSentToQueue) {
+      EventEmitter.on(`ev_${SWAP_ALL_TASK}_result`, handleSwapAllTaskResult)      
     }
 
     return () => {
-      EventEmitter.off('ev_receiveTask_result', handleReceiveTaskResult)
-      NotificationService.stopForegroundService()         
+      EventEmitter.off(`ev_${SWAP_ALL_TASK}_result`, handleSwapAllTaskResult)               
     }
 
-  }, [isReceiveBatchSentToQueue])
+  }, [isSwapAllSentToQueue])
 
 
-  useEffect(() => {
-    // runs for every receive in a batch
-    const showProofOptimizationResult = async () => {
-      log.trace('handleReceiveTaskResult event handler triggered')
-      
-      setIsLoading(false)
-        
-      const currentProofsCount = proofsStore.proofsCount      
-
-      let message = `Original proofs count: ${totalSentProofsCount}, Optimized proofs count: ${currentProofsCount}`
-
-      if (totalReceiveErrorCount > 0) {
-        message += `, Errors: ${totalReceiveErrorCount}`
-      } 
-      
-      setResultModalInfo({
-        status: totalReceiveErrorCount > 0 ? TransactionStatus.ERROR : TransactionStatus.COMPLETED,
-        message,
-      })
-
-      setIsResultModalVisible(true)            
-    }
-    
-    if(totalReceiveCompleteCount > 0 || totalReceiveErrorCount > 0) {
-      showProofOptimizationResult()
-    }    
-
-  }, [totalReceiveErrorCount, totalReceiveCompleteCount])
-
-
-    const toggleResultModal = () => {
-        setIsResultModalVisible(previousState => !previousState)
-        WalletTask.syncPendingStateWithMints()
-    }
-      
-    
-
-    const toggleBackupEcashSwitch = () =>
-        setIsEcashInBackup(previousState => !previousState)
-
-    
-    const toggleBackupMintsSwitch = () =>
-        setIsMintsInBackup(previousState => !previousState)
-
-    
-    const toggleBackupContanctsSwitch = () =>
-        setIsContactsInBackup(previousState => !previousState)
-
-
-    const optimizeProofAmountsStart = function () {
-      Alert.alert(
-        'Optimize ecash proofs',
-        'Do you want to swap your wallet ecash for proofs with optimal denominations? The size of your backup will decrease.',
-        [
-          {
-            text: translate('common.cancel'),
-            style: 'cancel',
-            onPress: () => { /* Action canceled */ },
-          },
-          {
-            text: translate('common.confirm'),
-            onPress: async () => {
-              // Moves all wallet proofs to pending in transactions 
-              // split by mints and by units and in offline mode.
-              // Supports batching in case proofs count is above limit.
-              setIsLoading(true)
-              setIsSendAllSentToQueue(true)
-
-              // long task background processing
-              await notifee.displayNotification({
-                title: TASK_QUEUE_CHANNEL_NAME,
-                body: 'Processing pending transactions...',
-                android: {
-                    channelId: TASK_QUEUE_CHANNEL_ID,
-                    asForegroundService: true,
-                    largeIcon: minibitsPngIcon,
-                    importance: AndroidImportance.HIGH,
-                    progress: {
-                        indeterminate: true,
-                    }
-                },
-                data: {task: 'sendAll'}
-              })
-              // WalletTask.sendAll() 
-            }
-          }
-        ]
-      )
-    }
-    
-    const copyBackup = function () {
-        try {     
-            setIsLoading(true)  
-
-            let exportedProofsStore: ProofsStoreSnapshot = {
-                proofs: [], 
-                pendingProofs: [], 
-                pendingByMintSecrets: []
-            }
-
-            let exportedMintsStore: MintsStoreSnapshot = {
-                mints: [], 
-                blockedMintUrls: [], 
-                counterBackups: []
-            }
-
-            let exportedContactsStore: ContactsStoreSnapshot = {
-                contacts: [], 
-                publicPubkey: undefined, 
-                selectedContact: undefined, 
-                receivedEventIds: [], 
-                lastPendingReceivedCheck: undefined
-            }            
-
-            if(isEcashInBackup) {
-              // proofsStore is emptied in snapshot postprocess!
-              const proofsSnapshot = getSnapshot(proofsStore.proofs)
-
-              // Do not include orphaned proofs as they can not be imported without mintUrl
-              const cleaned = proofsSnapshot.filter(p => p.mintUrl && p.mintUrl.length > 0)
-
-              exportedProofsStore = {
-                proofs: cleaned,
-                pendingProofs: getSnapshot(proofsStore.pendingProofs) || [],
-                pendingByMintSecrets: getSnapshot(proofsStore.pendingByMintSecrets)
-              }              
-            }
-
-            if(isMintsInBackup) {  
-              exportedMintsStore = JSON.parse(JSON.stringify(getSnapshot(mintsStore)))
-
-              exportedMintsStore.mints.forEach((mint: any) => {
-                mint.keys = [];                
-              })
-
-              //log.trace({exportedMintsStore})
-            }
-
-            if(isContactsInBackup) {
-              exportedContactsStore = getSnapshot(contactsStore)
-            }
-
-            const exportedSnapshot = {
-              proofsStore: exportedProofsStore, 
-              mintsStore: exportedMintsStore, 
-              contactsStore: exportedContactsStore,
-            }
-
-            log.trace({exportedSnapshot})
-            
-            const prefix = 'minibits'
-            const version = 'A'
-
-            // CBOR - WIP, not working
-            // const encodedData = encodeCBOR(exportedSnapshot)
-            // const base64Data = encodeUint8toBase64Url(encodedData)
-
-            // Simple BASE64
-            const base64Data = btoa(JSON.stringify(exportedSnapshot))
-            
-            const base64Encoded = prefix + version + base64Data
-
-            Clipboard.setString(base64Encoded)
-            setIsLoading(false)  
-
-        } catch (e: any) {
-            setInfo(`Could not encode and copy wallet backup: ${e.message}`)
-            setIsLoading(false)  
-        }
-    }
-
-
-    const groupProofsByMint = function (proofs: Proof[]) {
-      return proofs.reduce((acc: Record<string, Proof[]>, proof) => {
-        
-        const proofMint = CashuUtils.getMintFromProof(proof, mintsStore.allMints)
-        // Check if there's already an array for this keyset, if not, create one
-        if(!proofMint) {
-          return acc
-        }
   
-        if (!acc[proofMint.mintUrl]) {
-          acc[proofMint.mintUrl] = []
-        }                 
-        
-        // Push the object into the array corresponding to its keyset
-        acc[proofMint.mintUrl].push(proof)
-        return acc
-      }, {})
-    }
+  const toggleResultModal = () => {
+      setIsResultModalVisible(previousState => !previousState)
+      WalletTask.syncStateWithAllMintsQueue({isPending: true})
+  }     
   
-    const groupProofsByKeysets = function (proofsByMint: Proof[]) {
-      return proofsByMint.reduce((acc: Record<string, Proof[]>, proof) => {
-        // Check if there's already an array for this keyset, if not, create one
-        if (!acc[proof.id as string]) {
-          acc[proof.id] = []
-        }                 
-        
-        // Push the object into the array corresponding to its keyset
-        acc[proof.id].push(proof)
-        return acc;
-      }, {})
-    }
+
+  const toggleBackupEcashSwitch = () =>
+      setIsEcashInBackup(previousState => !previousState)
+
+  
+  const toggleBackupMintsSwitch = () =>
+      setIsMintsInBackup(previousState => !previousState)
+
+  
+  const toggleBackupContanctsSwitch = () =>
+      setIsContactsInBackup(previousState => !previousState)
 
 
-    const copyEncodedTokens = function () {
-        try {
+  const optimizeProofAmountsStart = function () {
+    Alert.alert(
+      'Optimize ecash proofs',
+      'Do you want to swap your wallet ecash for proofs with optimal denominations? The size of your backup will decrease.',
+      [
+        {
+          text: translate('common.cancel'),
+          style: 'cancel',
+          onPress: () => { /* Action canceled */ },
+        },
+        {
+          text: translate('common.confirm'),
+          onPress: async () => {
+            // Moves all wallet proofs to pending in transactions 
+            // split by mints and by units and in offline mode.
+            // Supports batching in case proofs count is above limit.
+            
             setIsLoading(true)
-            const encodedTokens: string[] = []
+            setIsSwapAllSentToQueue(true)
+            
+            await notifee.displayNotification({
+              title: TASK_QUEUE_CHANNEL_NAME,
+              body: 'Optimizing ecash proofs denominations...',
+              android: {
+                  channelId: TASK_QUEUE_CHANNEL_ID,
+                  asForegroundService: true,
+                  largeIcon: minibitsPngIcon,
+                  importance: AndroidImportance.HIGH,
+                  progress: {
+                      indeterminate: true,
+                  }
+              },
+              data: {task: SWAP_ALL_TASK}
+            })
+            
+            /* await notifee.displayNotification({
+              title: TEST_CHANNEL_NAME,
+              body: 'Test task is running...',
+              android: {
+                  channelId: TEST_CHANNEL_ID,
+                  asForegroundService: true,
+                  largeIcon: minibitsPngIcon,
+                  importance: AndroidImportance.HIGH,
+                  progress: {
+                      indeterminate: true,
+                  }
+              },
+              data: {task: TEST_TASK_FN}
+            }) */
+          }
+        }
+      ]
+    )
+  }
+  
+  const copyBackup = function () {
+      try {     
+          setIsLoading(true)  
 
-            if (mintsStore.allMints.length === 0) {
-              setInfo(translate("missingMintsForProofsUserMessage"))
+          let exportedProofsStore: ProofsStoreSnapshot = {
+              proofs: [], 
+              pendingProofs: [], 
+              pendingByMintSecrets: []
+          }
+
+          let exportedMintsStore: MintsStoreSnapshot = {
+              mints: [], 
+              blockedMintUrls: [], 
+              counterBackups: []
+          }
+
+          let exportedContactsStore: ContactsStoreSnapshot = {
+              contacts: [], 
+              publicPubkey: undefined, 
+              selectedContact: undefined, 
+              receivedEventIds: [], 
+              lastPendingReceivedCheck: undefined
+          }            
+
+          if(isEcashInBackup) {
+            // proofsStore is emptied in snapshot postprocess!
+            const proofsSnapshot = getSnapshot(proofsStore.proofs)
+
+            // Do not include orphaned proofs as they can not be imported without mintUrl
+            const cleaned = proofsSnapshot.filter(p => p.mintUrl && p.mintUrl.length > 0)
+
+            exportedProofsStore = {
+              proofs: cleaned,
+              pendingProofs: getSnapshot(proofsStore.pendingProofs) || [],
+              pendingByMintSecrets: getSnapshot(proofsStore.pendingByMintSecrets)
+            }              
+          }
+
+          if(isMintsInBackup) {  
+            exportedMintsStore = JSON.parse(JSON.stringify(getSnapshot(mintsStore)))
+
+            exportedMintsStore.mints.forEach((mint: any) => {
+              mint.keys = [];                
+            })
+
+            //log.trace({exportedMintsStore})
+          }
+
+          if(isContactsInBackup) {
+            exportedContactsStore = getSnapshot(contactsStore)
+          }
+
+          const exportedSnapshot = {
+            proofsStore: exportedProofsStore, 
+            mintsStore: exportedMintsStore, 
+            contactsStore: exportedContactsStore,
+          }
+
+          log.trace({exportedSnapshot})
+          
+          const prefix = 'minibits'
+          const version = 'A'
+
+          // CBOR - WIP, not working
+          // const encodedData = encodeCBOR(exportedSnapshot)
+          // const base64Data = encodeUint8toBase64Url(encodedData)
+
+          // Simple BASE64
+          const base64Data = btoa(JSON.stringify(exportedSnapshot))
+          
+          const base64Encoded = prefix + version + base64Data
+
+          Clipboard.setString(base64Encoded)
+          setIsLoading(false)  
+
+      } catch (e: any) {
+          setInfo(`Could not encode and copy wallet backup: ${e.message}`)
+          setIsLoading(false)  
+      }
+  }
+
+
+  const groupProofsByMint = function (proofs: Proof[]) {
+    return proofs.reduce((acc: Record<string, Proof[]>, proof) => {
+      
+      const proofMint = CashuUtils.getMintFromProof(proof, mintsStore.allMints)
+      // Check if there's already an array for this keyset, if not, create one
+      if(!proofMint) {
+        return acc
+      }
+
+      if (!acc[proofMint.mintUrl]) {
+        acc[proofMint.mintUrl] = []
+      }                 
+      
+      // Push the object into the array corresponding to its keyset
+      acc[proofMint.mintUrl].push(proof)
+      return acc
+    }, {})
+  }
+
+  const groupProofsByKeysets = function (proofsByMint: Proof[]) {
+    return proofsByMint.reduce((acc: Record<string, Proof[]>, proof) => {
+      // Check if there's already an array for this keyset, if not, create one
+      if (!acc[proof.id as string]) {
+        acc[proof.id] = []
+      }                 
+      
+      // Push the object into the array corresponding to its keyset
+      acc[proof.id].push(proof)
+      return acc;
+    }, {})
+  }
+
+
+  const copyEncodedTokens = function () {
+      try {
+          setIsLoading(true)
+          const encodedTokens: string[] = []
+
+          if (mintsStore.allMints.length === 0) {
+            setInfo(translate("missingMintsForProofsUserMessage"))
+          }
+
+          const groupedByMint = groupProofsByMint(proofsStore.proofs)
+
+          for (const mint in groupedByMint) { 
+            
+            const proofsByMint = groupedByMint[mint]
+
+            if(proofsByMint.length === 0) {
+              continue
             }
 
-            const groupedByMint = groupProofsByMint(proofsStore.proofs)
+            const groupedByKeyset = groupProofsByKeysets(proofsByMint)
 
-            for (const mint in groupedByMint) { 
+            for (const keysetId in groupedByKeyset) {
+              const proofsByKeysetId = groupedByKeyset[keysetId]
+              const proofsToExport: CashuProof[] = []
+
+              for (const p of proofsByKeysetId) {
+                // clean private params
+                const proofToExport: CashuProof = {
+                  id: p.id,
+                  amount: p.amount,
+                  secret: p.secret,
+                  C: p.C
+                }
+
+                proofsToExport.push(proofToExport)
+              }
+
+              const tokenByKeysetId: Token = {
+                mint,
+                proofs: proofsToExport,
+                unit: proofsByKeysetId[0].unit
+              }
               
-              const proofsByMint = groupedByMint[mint]
+              log.trace('[copyEncodedTokens]', {tokenByKeysetId})
 
-              if(proofsByMint.length === 0) {
-                continue
-              }
+              const encodedByMint = getEncodedToken(tokenByKeysetId)
+              encodedTokens.push(encodedByMint)                
+            }
+          }                       
+          
+          Clipboard.setString(JSON.stringify(encodedTokens))
+          setIsLoading(false)
 
-              const groupedByKeyset = groupProofsByKeysets(proofsByMint)
-
-              for (const keysetId in groupedByKeyset) {
-                const proofsByKeysetId = groupedByKeyset[keysetId]
-                const proofsToExport: CashuProof[] = []
-
-                for (const p of proofsByKeysetId) {
-                  // clean private params
-                  const proofToExport: CashuProof = {
-                    id: p.id,
-                    amount: p.amount,
-                    secret: p.secret,
-                    C: p.C
-                  }
-
-                  proofsToExport.push(proofToExport)
-                }
-
-                const tokenByKeysetId: Token = {
-                  mint,
-                  proofs: proofsToExport,
-                  unit: proofsByKeysetId[0].unit
-                }
-                
-                log.trace('[copyEncodedTokens]', {tokenByKeysetId})
-
-                const encodedByMint = getEncodedToken(tokenByKeysetId)
-                encodedTokens.push(encodedByMint)                
-              }
-            }                       
-            
-            Clipboard.setString(JSON.stringify(encodedTokens))
-            setIsLoading(false)
-
-        } catch (e: any) {
-            handleError(e)            
-        }
-    }
+      } catch (e: any) {
+          handleError(e)            
+      }
+  }
 
 
-    const copyOrphanedProofs = function() {
-      log.trace({orphanedProofs})
-      if(orphanedProofs.length > 0) {
-        Clipboard.setString(JSON.stringify(orphanedProofs))
-      }      
-    }
+  const copyOrphanedProofs = function() {
+    log.trace({orphanedProofs})
+    if(orphanedProofs.length > 0) {
+      Clipboard.setString(JSON.stringify(orphanedProofs))
+    }      
+  }
 
-    const handleError = function (e: AppError): void {
-      setIsLoading(false)
-      setError(e)
-    }
+  const handleError = function (e: AppError): void {
+    setIsLoading(false)
+    setError(e)
+  }
 
-    
-    const headerBg = useThemeColor('header')    
-    const hint = useThemeColor('textDim')    
-    const headerTitle = useThemeColor('headerTitle')
+  
+  const headerBg = useThemeColor('header')    
+  const hint = useThemeColor('textDim')    
+  const headerTitle = useThemeColor('headerTitle')
 
 
-    return (
-      <Screen contentContainerStyle={$screen} preset="scroll">
-        <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text
-            preset="heading"
-            text="Wallet backup"
-            style={{color: headerTitle}}
-          />
-        </View>
-        <View style={$contentContainer}>
-            <Card
-              ContentComponent={
-                <>
-                {totalProofsCount > 0 && (
-                    <ListItem
-                      text="Ecash proofs"
-                      subText={`Number of proofs: ${proofsStore.proofsCount}`}
-                      RightComponent={
+  return (
+    <Screen contentContainerStyle={$screen} preset="scroll">
+      <View style={[$headerContainer, {backgroundColor: headerBg}]}>
+        <Text
+          preset="heading"
+          text="Wallet backup"
+          style={{color: headerTitle}}
+        />
+      </View>
+      <View style={$contentContainer}>
+          <Card
+            ContentComponent={
+              <>
+              {totalProofsCount > 0 && (
+                  <ListItem
+                    text="Ecash proofs"
+                    subText={`Number of proofs: ${proofsStore.proofsCount}`}
+                    RightComponent={
+                      <View style={$rightContainer}>
+                        {proofsStore.proofsCount > OPTIMIZE_FROM_PROOFS_COUNT && (
+                          <Button
+                            preset='secondary'
+                            onPress={optimizeProofAmountsStart}
+                            textStyle={{lineHeight: verticalScale(16), fontSize: verticalScale(14)}}
+                            style={{minHeight: verticalScale(40), paddingVertical: verticalScale(spacing.tiny)}}
+                            text={'Optimize'}
+                          />
+                        )}
+                        <Switch
+                            onValueChange={toggleBackupEcashSwitch}
+                            value={isEcashInBackup}
+                        />
+                      </View>
+                    }
+                  />
+              )}
+              {mintsStore.mintCount > 0 && (
+                  <ListItem
+                    text="Mints"
+                    subText={`Number of mints: ${mintsStore.mintCount}`}
+                    RightComponent={
+                      <View style={$rightContainer}>
+                        <Switch
+                            onValueChange={toggleBackupMintsSwitch}
+                            value={isMintsInBackup}
+                        />
+                      </View>
+                    }                       
+                    topSeparator={totalProofsCount > 0 ? true : false}                      
+                  />
+              )}  
+              {contactsStore.count > 0 && (
+                  <ListItem
+                    text="Contacts"
+                    subText={`Number of contacts: ${contactsStore.count}`}
+                    RightComponent={
                         <View style={$rightContainer}>
-                          {proofsStore.proofsCount > OPTIMIZE_FROM_PROOFS_COUNT && (
-                            <Button
-                              preset='secondary'
-                              onPress={optimizeProofAmountsStart}
-                              textStyle={{lineHeight: verticalScale(16), fontSize: verticalScale(14)}}
-                              style={{minHeight: verticalScale(40), paddingVertical: verticalScale(spacing.tiny)}}
-                              text={'Optimize'}
-                            />
-                          )}
-                          <Switch
-                              onValueChange={toggleBackupEcashSwitch}
-                              value={isEcashInBackup}
-                          />
+                        <Switch
+                            onValueChange={toggleBackupContanctsSwitch}
+                            value={isContactsInBackup}
+                        />
                         </View>
-                      }
-                    />
-                )}
-                {mintsStore.mintCount > 0 && (
-                    <ListItem
-                      text="Mints"
-                      subText={`Number of mints: ${mintsStore.mintCount}`}
-                      RightComponent={
-                        <View style={$rightContainer}>
-                          <Switch
-                              onValueChange={toggleBackupMintsSwitch}
-                              value={isMintsInBackup}
-                          />
-                        </View>
-                      }                       
-                      topSeparator={totalProofsCount > 0 ? true : false}                      
-                    />
-                )}  
-                {contactsStore.count > 0 && (
-                    <ListItem
-                      text="Contacts"
-                      subText={`Number of contacts: ${contactsStore.count}`}
-                      RightComponent={
-                          <View style={$rightContainer}>
-                          <Switch
-                              onValueChange={toggleBackupContanctsSwitch}
-                              value={isContactsInBackup}
-                          />
-                          </View>
-                      }                      
-                      topSeparator={mintsStore.mintCount > 0 ? true : false}                       
-                    />
-                )}
-                </>
-              }
-              style={[$card]}
-            />          
-          <View style={$bottomContainer}>
-            <View style={{
-                flexDirection: 'row',
-                alignItems: 'center', 
-                marginBottom: spacing.small,     
-                paddingRight: spacing.medium,
-                marginLeft: -spacing.medium
-                
-              }}
-            >
-              <Icon icon='faInfoCircle' containerStyle={{marginRight: spacing.extraSmall}}/>
-              <Text 
-                style={{color: hint}} 
-                size='xs'
-                preset='formHelper' 
-                text='You will still need your seed phrase when using this backup to recover your wallet.'
-              />
-            </View>
-            <View style={$buttonContainer}>              
-                <Button                  
-                    onPress={copyBackup}
-                    text="Copy backup"
-                    style={{                  
-                        marginRight: spacing.small                           
-                    }}                  
-                />
-            </View>            
-          </View>        
-          {isLoading && <Loading />}
-          {error && <ErrorModal error={error} />}
-          {info && <InfoModal message={info} />}
-        </View>
+                    }                      
+                    topSeparator={mintsStore.mintCount > 0 ? true : false}                       
+                  />
+              )}
+              </>
+            }
+            style={[$card]}
+          />          
         <View style={$bottomContainer}>
-          {proofsStore.proofsCount > 0 && (
-              <View style={$buttonContainer}>
+          <View style={{
+              flexDirection: 'row',
+              alignItems: 'center', 
+              marginBottom: spacing.small,     
+              paddingRight: spacing.medium,
+              marginLeft: -spacing.medium
+              
+            }}
+          >
+            <Icon icon='faInfoCircle' containerStyle={{marginRight: spacing.extraSmall}}/>
+            <Text 
+              style={{color: hint}} 
+              size='xs'
+              preset='formHelper' 
+              text='You will still need your seed phrase when using this backup to recover your wallet.'
+            />
+          </View>
+          <View style={$buttonContainer}>              
+              <Button                  
+                  onPress={copyBackup}
+                  text="Copy backup"
+                  style={{                  
+                      marginRight: spacing.small                           
+                  }}                  
+              />
+          </View>            
+        </View>        
+        {isLoading && <Loading />}
+        {error && <ErrorModal error={error} />}
+        {info && <InfoModal message={info} />}
+      </View>
+      <View style={$bottomContainer}>
+        {proofsStore.proofsCount > 0 && (
+            <View style={$buttonContainer}>
+                <Button
+                    preset="tertiary"
+                    onPress={copyEncodedTokens}
+                    tx="copyAsEncodedTokens"                  
+                    textStyle={{fontSize: 14}}
+                />
+                {orphanedProofs.length > 0 && (
                   <Button
                       preset="tertiary"
-                      onPress={copyEncodedTokens}
-                      tx="copyAsEncodedTokens"                  
-                      textStyle={{fontSize: 14}}
+                      onPress={copyOrphanedProofs}
+                      text="Copy orphaned proofs"                  
+                      textStyle={{fontSize: 14, marginLeft: spacing.small}}
                   />
-                  {orphanedProofs.length > 0 && (
-                    <Button
-                        preset="tertiary"
-                        onPress={copyOrphanedProofs}
-                        text="Copy orphaned proofs"                  
-                        textStyle={{fontSize: 14, marginLeft: spacing.small}}
-                    />
-                  )}
-              </View>
-          )}            
-        </View>
-        <BottomModal
-          isVisible={isResultModalVisible ? true : false}          
-          ContentComponent={
-            <>
-              {resultModalInfo?.status === TransactionStatus.COMPLETED && (
-                <>
-                  <ResultModalInfo
-                    icon={'faCheckCircle'}
-                    iconColor={colors.palette.success200}
-                    title={resultModalInfo.title || translate('common.success')}
-                    message={resultModalInfo?.message}
+                )}
+            </View>
+        )}            
+      </View>
+      <BottomModal
+        isVisible={isResultModalVisible ? true : false}          
+        ContentComponent={
+          <>
+            {resultModalInfo?.status === TransactionStatus.COMPLETED && (
+              <>
+                <ResultModalInfo
+                  icon={'faCheckCircle'}
+                  iconColor={colors.palette.success200}
+                  title={resultModalInfo.title || translate('common.success')}
+                  message={resultModalInfo?.message}
+                />
+                <View style={$buttonContainer}>
+                  <Button
+                    preset="secondary"
+                    tx='common.close'
+                    onPress={toggleResultModal}
                   />
-                  <View style={$buttonContainer}>
-                    <Button
+                </View>
+              </>
+            )}              
+            {(resultModalInfo?.status === TransactionStatus.ERROR ||
+              resultModalInfo?.status === TransactionStatus.BLOCKED) && (
+              <>
+                <ResultModalInfo
+                  icon="faTriangleExclamation"
+                  iconColor={colors.palette.focus300}
+                  title={resultModalInfo?.title as string || translate('transactionCommon.receiveFailed')}
+                  message={resultModalInfo?.message as string}
+                />
+                <View style={$buttonContainer}>
+                  <Button
                       preset="secondary"
-                      tx='common.close'
+                      tx={'common.close'}
                       onPress={toggleResultModal}
-                    />
-                  </View>
-                </>
-              )}              
-              {(resultModalInfo?.status === TransactionStatus.ERROR ||
-                resultModalInfo?.status === TransactionStatus.BLOCKED) && (
-                <>
-                  <ResultModalInfo
-                    icon="faTriangleExclamation"
-                    iconColor={colors.palette.focus300}
-                    title={resultModalInfo?.title as string || translate('transactionCommon.receiveFailed')}
-                    message={resultModalInfo?.message as string}
-                  />
-                  <View style={$buttonContainer}>
-                    <Button
-                        preset="secondary"
-                        tx={'common.close'}
-                        onPress={toggleResultModal}
-                    />                      
-                  </View>
-                </>
-              )}
-            </>
-          }
-          onBackButtonPress={toggleResultModal}
-          onBackdropPress={toggleResultModal}
-        />
-      </Screen>
-    )
+                  />                      
+                </View>
+              </>
+            )}
+          </>
+        }
+        onBackButtonPress={toggleResultModal}
+        onBackdropPress={toggleResultModal}
+      />
+    </Screen>
+  )
 }
 
 const $screen: ViewStyle = {

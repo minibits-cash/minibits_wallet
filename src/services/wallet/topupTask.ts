@@ -21,7 +21,7 @@ const {
 
 // const {walletStore} = nonPersistedStores
 
-const TOPUP = 'topupTask'
+export const TOPUP_TASK = 'topupTask'
 
 export const topupTask = async function (
     mintBalanceToTopup: MintBalance,
@@ -138,19 +138,19 @@ export const topupTask = async function (
 
         if(!nwcEvent) {
             poller(
-                `handlePendingTopupTaskPoller-${paymentRequest.paymentHash}`, 
-                WalletTask.handlePendingTopup,
+                `handlePendingTopupPoller-${paymentRequest.paymentHash}`, 
+                WalletTask.handlePendingTopupQueue,
                 {
                     interval: 6 * 1000,
                     maxPolls: 10,
                     maxErrors: 2
                 },        
                 {paymentRequest})   
-            .then(() => log.trace('Polling completed', [], `handlePendingTopupTaskPoller`))
+            .then(() => log.trace('Polling completed', [], `handlePendingTopupPoller`))
         }
 
         return {
-            taskFunction: TOPUP,
+            taskFunction: TOPUP_TASK,
             mintUrl,
             transaction,
             message: '',
@@ -177,7 +177,7 @@ export const topupTask = async function (
         log.error(e.name, e.message)
 
         return {
-            taskFunction: TOPUP,
+            taskFunction: TOPUP_TASK,
             transaction,
             message: e.message,
             error: WalletUtils.formatError(e),
