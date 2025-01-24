@@ -20,6 +20,7 @@ const CASHU_URI_PREFIXES = [
   'cashu://',
   'cashu:'
 ]
+
 const CASHU_TOKEN_PREFIXES = [
   'cashuA',
   'cashuB'

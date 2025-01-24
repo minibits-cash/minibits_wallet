@@ -1711,7 +1711,14 @@ const handleClaimQueue = async function (): Promise<void> {
         const profile = await MinibitsClient.getWalletProfileBySeedHash(seedHash || recoveredSeedHash!)
 
         if(profile) {
-            walletProfileStore.hydrate(profile)
+            // make sure we did not lose and thus rotated nostr keys as well
+            const keyPair = await NostrClient.getOrCreateKeyPair()
+            
+            if(keyPair.publicKey === profile.pubkey) {
+                walletProfileStore.hydrate(profile)
+            } else {
+                throw new AppError(Err.KEYCHAIN_ERROR, 'Wallet public key does not match server profile, please reinstall wallet.', {walletPubkey: keyPair.publicKey, profilePubkey: profile.pubkey})
+            }
         }
     }
 

@@ -58,7 +58,7 @@ interface AppProps {
 }
 
 function App(props: AppProps) {    
-    const {userSettingsStore, relaysStore, walletProfileStore} = useStores()    
+    const {userSettingsStore, relaysStore} = useStores()    
 
     const {rehydrated} = useInitialRootStore(async() => {
         log.trace('[useInitialRootStore]', 'Root store rehydrated')

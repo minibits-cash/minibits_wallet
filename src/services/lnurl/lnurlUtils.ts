@@ -4,6 +4,14 @@ import AppError, {Err} from '../../utils/AppError'
 import { log } from '../logService'
 import { LightningUtils, isLightningInvoice } from '../lightning/lightningUtils'
 
+const LNURL_URI_PREFIXES = [
+    'lightning://',
+    'lightning:',
+    'lnurlw://',
+    'lnurlw:',
+    'lnurlp://',
+    'lnurlp:',
+  ]
 
 const findEncodedLnurl = function (content: string) {
     const words = content.split(/\s+|\n+/)
@@ -17,14 +25,7 @@ const findEncodedLnurlAddress = function (content: string) {
     return maybeAddress || null
 }
 
-const lnurlUriPrefixes = [
-  'lightning://',
-  'lightning:',
-  'lnurlw://',
-  'lnurlw:',
-  'lnurlp://',
-  'lnurlp:',
-]
+
 
 function isLnurlAddress(address: string) {
   // Regular expression for a basic email validation    
@@ -42,8 +43,8 @@ const extractEncodedLnurl = function (maybeLnurl: string) {
         return maybeLnurl
     }
 
-    if (maybeLnurl && maybeLnurl.startsWith('http')) { // e.g. lnbits withdraw extension links
-        const parsed = new URL(maybeLnurl)
+    if (maybeLnurl && maybeLnurl.toLowerCase().startsWith('http')) { // e.g. lnbits withdraw extension links
+        const parsed = new URL(maybeLnurl.toLowerCase())
         encodedLnurl = parsed.searchParams.get('lightning')
 
         if(encodedLnurl) {
@@ -53,9 +54,9 @@ const extractEncodedLnurl = function (maybeLnurl: string) {
         }
     }
 
-	for (const prefix of lnurlUriPrefixes) {
-		if (maybeLnurl && maybeLnurl.startsWith(prefix)) {            
-            encodedLnurl = maybeLnurl.slice(prefix.length)
+	for (const prefix of LNURL_URI_PREFIXES) {
+		if (maybeLnurl && maybeLnurl.toLowerCase().startsWith(prefix)) {            
+            encodedLnurl = maybeLnurl.toLowerCase().slice(prefix.length)
             break // necessary
         }
 	}    
@@ -73,7 +74,7 @@ const extractEncodedLnurl = function (maybeLnurl: string) {
 
 function extractLnurlAddress(maybeAddress: string) {
     let address: string | null = null
-    for (const prefix of lnurlUriPrefixes) {
+    for (const prefix of LNURL_URI_PREFIXES) {
         if (maybeAddress && maybeAddress.startsWith(prefix)) {
             address = maybeAddress.slice(prefix.length)
           break; // necessary

@@ -10,17 +10,16 @@ import {
 import { NWCWalletResponse, NWCWalletInfo, NWCWalletRequest } from 'nostr-tools/kinds'
 import {withSetPropAction} from './helpers/withSetPropAction'
 import {log} from '../services/logService'
-import EventEmitter from '../utils/eventEmitter'
 import { getRootStore } from './helpers/getRootStore'
 import { 
+    HANDLE_NWC_REQUEST_TASK,
     KeyChain, 
     KeyPair, 
     NostrClient, 
     NostrEvent, 
     NostrUnsignedEvent, 
     SyncQueue, 
-    TransactionTaskResult, 
-    WalletTask 
+    WalletTaskResult
 } from '../services'
 import AppError, { Err } from '../utils/AppError'
 import { LightningUtils } from '../services/lightning/lightningUtils'
@@ -206,9 +205,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         yield NostrClient.publish(
             responseEvent,
             self.connectionRelays                    
-        )
-        
-        yield NotificationService.stopForegroundService()        
+        )    
     }),
 }))
 .actions(self => ({
@@ -559,6 +556,8 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         // needs to be set before sendResponse but after switch / pay_invoice        
         yield self.sendResponse(nwcResponse, requestEvent)
 
+        return nwcResponse
+
     }),
 }))
 
@@ -731,32 +730,49 @@ export const NwcStoreModel = types
             )
 
             if(!targetConnection) {
-                log.error('[handleNwcRequestFromNotification] Missing connection matching event pubkey.', {pubkey: event.pubkey})
+                const message = `Your wallet has received a NWC command, but could not find related NWC connection to handle it.`
+                log.error('[handleNwcRequestFromNotification]', message, {pubkey: event.pubkey})
                 
                 yield NotificationService.stopForegroundService()
                 yield NotificationService.createLocalNotification(
                     `<b>Nostr Wallet Connect</b> error`,
-                    `Your wallet has received a NWC command, but could not find related NWC connection to handle it.`,
+                    message,
                     nwcPngUrl
                 )
                  
-                return
+                return {                
+                    taskFunction: HANDLE_NWC_REQUEST_TASK,            
+                    message,
+                    error: new AppError(Err.WALLET_ERROR, message)
+                } as WalletTaskResult
             }
 
-            if(!event) {
-                log.error('[handleNwcRequestFromNotification] Missing connection matching event pubkey.')
+            if(!event) {                
+                const message = `Your wallet has received a NWC command, but could not retrieve the required data.`
+                log.error('[handleNwcRequestFromNotification]', message)
                 
                 yield NotificationService.stopForegroundService()
                 yield NotificationService.createLocalNotification(
                     `<b>Nostr Wallet Connect</b> error`,
-                    `Your wallet has received a NWC command, but could not retrieve the required data.`,
+                    message,
                     nwcPngUrl
                 )
                  
-                return
+                return {                
+                    taskFunction: HANDLE_NWC_REQUEST_TASK,            
+                    message,
+                    error: new AppError(Err.WALLET_ERROR, message)
+                } as WalletTaskResult
             }
 
-            yield targetConnection.handleNwcRequestTask(event, decryptedNwcRequest)
+            const nwcResponse: NwcResponse | NwcError = 
+                yield targetConnection.handleNwcRequestTask(event, decryptedNwcRequest)
+
+            return {                
+                taskFunction: HANDLE_NWC_REQUEST_TASK,            
+                message: (nwcResponse as NwcResponse).result || undefined ,
+                error: (nwcResponse as NwcError).error ? new AppError(Err.WALLET_ERROR, (nwcResponse as NwcError).error.message) : undefined
+            } as WalletTaskResult
         })
     }))
     .views(self => ({

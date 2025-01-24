@@ -114,7 +114,9 @@ const getOrCreateKeyPair = async function (): Promise<KeyPair> {
         keyPair = KeyChain.generateNostrKeyPair() as KeyPair
         await KeyChain.saveNostrKeyPair(keyPair)
 
-        log.trace('[getOrCreateKeyPair]', 'Created and saved new NOSTR keypair')
+        log.info('[getOrCreateKeyPair]', 'Created and saved new NOSTR keypair', {pubkey: keyPair.publicKey})
+    } else {
+        log.trace('[getOrCreateKeyPair]', 'Returning existing NOSTR keypair', {pubkey: keyPair.publicKey})
     }
      
     return keyPair

@@ -42,7 +42,7 @@ import {useStores} from '../models'
 import {WalletStackScreenProps} from '../navigation'
 import {Mint, UnitBalance} from '../models/Mint'
 import {MintsByUnit} from '../models/MintsStore'
-import {HANDLE_CLAIM_TASK, HANDLE_RECEIVED_EVENT_TASK, log, NostrClient, WalletTaskResult} from '../services'
+import {HANDLE_CLAIM_TASK, HANDLE_RECEIVED_EVENT_TASK, KeyChain, log, NostrClient, WalletTaskResult} from '../services'
 import {Env} from '../utils/envtypes'
 import {Transaction} from '../models/Transaction'
 import {TransactionListItem} from './Transactions/TransactionListItem'
@@ -169,6 +169,9 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             if(groupedMints.length === 0) {
                 await addMint()
             }
+
+            // const nostrKeyPair = await KeyChain.loadNostrKeyPair()
+            // log.trace('[getInitialData] KEYS CHECK', {keychainPubkey: nostrKeyPair?.publicKey, profilePubkey: walletProfileStore.pubkey})
 
             // Only once on startup - Create websocket subscriptions to receive tokens or payment requests by NOSTR DMs                    
             WalletTask.receiveEventsFromRelaysQueue()           

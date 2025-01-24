@@ -5,6 +5,10 @@ import { log } from '../logService'
 import { roundUp, toNumber } from "../../utils/number"
 
 // TODO refactor all this into own module
+const LIGHTNING_URI_PREFIXES = [
+    'lightning://',
+    'lightning:',       
+]
 
 export type DecodedLightningInvoice = {
   paymentRequest: string
@@ -40,17 +44,11 @@ const extractEncodedLightningInvoice = function (maybeInvoice: string) {
     let invoice: DecodedLightningInvoice 
     let encodedInvoice: string = ''
 
-    if (maybeInvoice && maybeInvoice.startsWith('lightning:')) {       
+    if (maybeInvoice && maybeInvoice.toLowerCase().startsWith('lightning:')) {       
 
-        // URI token formats
-        const uriPrefixes = [
-            'lightning://',
-            'lightning:',            
-        ]
-
-        for (const prefix of uriPrefixes) {
-            if (maybeInvoice && maybeInvoice.startsWith(prefix)) {            
-                encodedInvoice = maybeInvoice.slice(prefix.length)
+        for (const prefix of LIGHTNING_URI_PREFIXES) {
+            if (maybeInvoice && maybeInvoice.toLowerCase().startsWith(prefix)) {            
+                encodedInvoice = maybeInvoice.toLowerCase().slice(prefix.length)
                 break // necessary
             }
         }
@@ -59,8 +57,8 @@ const extractEncodedLightningInvoice = function (maybeInvoice: string) {
         return encodedInvoice        
     }
 
-    if (maybeInvoice && maybeInvoice.startsWith('bitcoin:')) {        
-        const url = new URL(maybeInvoice)
+    if (maybeInvoice && maybeInvoice.toLowerCase().startsWith('bitcoin:' || 'http')) {        
+        const url = new URL(maybeInvoice.toLowerCase())
         // Use URLSearchParams to get the value of the "lightning" parameter
         encodedInvoice = url.searchParams.get("lightning") as string
         invoice = decodeInvoice(encodedInvoice) // throws

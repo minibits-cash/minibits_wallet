@@ -42,8 +42,7 @@ export const WalletProfileStoreModel = types
         lud16: types.maybe(types.maybeNull(types.string)),
         device: types.maybe(types.maybeNull(types.string)),
         seedHash: types.maybe(types.maybeNull(types.string)),
-        isOwnProfile: types.optional(types.boolean, false),
-        // isBatchClaimOn: types.maybe(types.boolean), // legacy, not used
+        isOwnProfile: types.optional(types.boolean, false),        
     })
     .actions(self => ({  
         publishToRelays: flow(function* publishToRelays() {
@@ -148,11 +147,15 @@ export const WalletProfileStoreModel = types
             let profileRecord: WalletProfileRecord
             self.seedHash = seedHash
 
-            log.trace('[create]', {seedHash, publicKey})
+            log.trace('[create]', {seedHash, publicKey, walletId})
 
             try {
                 // creates new profile. If all params equal existing one, it is returned
-                profileRecord = yield MinibitsClient.createWalletProfile(publicKey, walletId, seedHash)        
+                profileRecord = yield MinibitsClient.createWalletProfile(publicKey, walletId, seedHash)                
+                self.hydrate(profileRecord)
+            
+                log.info('[create]', 'Wallet profile saved in WalletProfileStore', {self})
+                return self 
             } catch (e: any) {
                 // Unlikely we might hit the same walletId so we retry with another one
                 if(e.name === Err.ALREADY_EXISTS_ERROR) {
@@ -167,14 +170,8 @@ export const WalletProfileStoreModel = types
                     self.hydrate(profileRecord)
                     return
                 }
-
                 throw e
-            }
-
-            self.hydrate(profileRecord)
-            
-            log.info('[create]', 'Wallet profile saved in WalletProfileStore', {self})
-            return self           
+            }          
         }),     
         updateName: flow(function* updateName(name: string) {
 
