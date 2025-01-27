@@ -513,7 +513,12 @@ export const NwcConnectionModel = types.model('NwcConnection', {
     handleNwcRequestTask: flow(function* handleNwcRequestTask(requestEvent: NostrEvent, decryptedNwcRequest?: NwcRequest) {        
         let nwcRequest: NwcRequest
         if(!decryptedNwcRequest) {
-            const decryptedContent = yield NostrClient.decryptNip04(requestEvent.pubkey, requestEvent.content)
+            
+            const decryptedContent = yield NostrClient.decryptNip04(
+                requestEvent.pubkey, 
+                requestEvent.content
+            )
+
             nwcRequest = JSON.parse(decryptedContent)
         } else {
             nwcRequest = decryptedNwcRequest
@@ -535,13 +540,13 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                 nwcResponse = self.handleGetBalance(nwcRequest)    
                 break 
             case 'make_invoice':                
-                nwcResponse = yield self.handleMakeInvoice(nwcRequest, requestEvent) as Promise<NwcError | undefined> 
+                nwcResponse = yield self.handleMakeInvoice(nwcRequest, requestEvent)
                 break
             case 'lookup_invoice':                
                 nwcResponse = self.handleLookupInvoice(nwcRequest)    
                 break        
             case 'pay_invoice':                 
-                nwcResponse = yield self.handlePayInvoice(nwcRequest, requestEvent) as Promise<NwcError | undefined>
+                nwcResponse = yield self.handlePayInvoice(nwcRequest, requestEvent)
                 break
             default:
                 const message = `NWC method ${nwcRequest.method} is unknown or not yet supported.`
@@ -553,7 +558,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                 log.error(message, {nwcRequest})
         }
 
-        // needs to be set before sendResponse but after switch / pay_invoice        
+         
         yield self.sendResponse(nwcResponse, requestEvent)
 
         return nwcResponse
@@ -767,6 +772,9 @@ export const NwcStoreModel = types
 
             const nwcResponse: NwcResponse | NwcError = 
                 yield targetConnection.handleNwcRequestTask(event, decryptedNwcRequest)
+
+            // prevent rare cases where this might not be called in SyncQueue._handleTaskResult
+            yield NotificationService.stopForegroundService()
 
             return {                
                 taskFunction: HANDLE_NWC_REQUEST_TASK,            

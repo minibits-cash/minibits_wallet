@@ -123,6 +123,14 @@ export const MintModel = types
                 self.keysets = cast(self.keysets)
             }            
         },
+        setInputFeePpk(keysetId: string, inputFeePpk: number) {
+            const keyset = self.keysets.find(k => k.id === keysetId)
+
+            if(keyset) {
+                keyset.input_fee_ppk = inputFeePpk
+                self.keysets = cast(self.keysets)
+            }            
+        },
         addKeys(keys: CashuMintKeys) {
             const alreadyExists = self.keys.some(k => k.id === keys.id)
 
@@ -223,6 +231,11 @@ export const MintModel = types
                     if (existing.unit !== keyset.unit) {                    
                         throw new AppError(Err.VALIDATION_ERROR, `Keyset unit mismatch, got ${keyset.unit}, expected ${existing.unit}`)                 
                     }
+
+                    if(keyset.input_fee_ppk && existing.input_fee_ppk !== keyset.input_fee_ppk) {
+                        self.setInputFeePpk(existing.id, keyset.input_fee_ppk)
+                    }
+
                     return existing
                 }
 

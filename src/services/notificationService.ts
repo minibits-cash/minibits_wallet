@@ -309,12 +309,23 @@ const areNotificationsEnabled = async function (): Promise<boolean> {
   return false
 }
 
-const isNotificationDispayed = async function (): Promise<boolean> {
+const isNotificationDisplayed = async function (options: { foregroundServiceOnly?: boolean }): Promise<boolean> {
+    const { foregroundServiceOnly } = options
     const notifications = await notifee.getDisplayedNotifications()
-    if(notifications.length > 0) {
-        return true
+
+    for (const notification of notifications) {
+        if (foregroundServiceOnly) {
+            // Assuming `foreground` is a property that indicates if the notification is in the foreground
+            if (notification.notification.android?.asForegroundService === true) {
+                return true
+            }
+        } else {
+            // If foregroundOnly is false, return true as soon as we find any notification
+            return true
+        }
     }
 
+    // If no matching notification is found, return false
     return false
 }
 
@@ -328,6 +339,6 @@ export const NotificationService = {
     onBackgroundNotification,
     onForegroundNotification,    
     areNotificationsEnabled,
-    isNotificationDispayed,
+    isNotificationDisplayed,
     stopForegroundService
 }

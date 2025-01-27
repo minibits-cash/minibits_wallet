@@ -62,9 +62,9 @@ const _handleTaskResult = async (taskId: TaskId, result: WalletTaskResult | Tran
     
     if(queue.getAllTasksDetails(['idle', 'running']).length === 0) {        
         
-        if(await NotificationService.isNotificationDispayed()) {
+        if(await NotificationService.isNotificationDisplayed({foregroundServiceOnly: true})) {
             log.trace('[_handleTaskResult] stopForegroundService')
-            NotificationService.stopForegroundService()
+            await NotificationService.stopForegroundService()
         }        
     }
 }

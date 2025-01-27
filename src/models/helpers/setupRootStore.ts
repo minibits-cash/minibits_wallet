@@ -42,8 +42,6 @@ export async function setupRootStore(rootStore: RootStore) {
     // let latestSnapshot: any
 
     try {
-        // Give an option to encrypt storage as it might slow down app start on some Android devices
-        // User settings are mastered in sqlite so we can get the encryption setting before loading root store
         log.trace('[setupRootStore]', `Create Database instance and get UserSettings`)
 
         const userSettings = Database.getUserSettings()        

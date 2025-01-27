@@ -141,27 +141,6 @@ const recoverProfile = async function (seedHash: string, update: {currentPubkey:
 }
 
 
-// Serves for migration from pre-seed wallet version
-const migrateSeedHash = async function (pubkey: string, update: {seedHash: string}) {    
-    const url = MINIBITS_SERVER_API_HOST + '/profile'
-    const method = 'PUT'    
-    const { seedHash } = update
-    
-    const body = {            
-        seedHash,        
-    }        
-
-    const walletProfile: WalletProfile = await fetchApi(url + `/migrate/pubkey/${pubkey}`, {
-        method,        
-        body,
-    })
-
-    log.info('[migrateSeedHash]', `Migrated seedHash`, seedHash)
-
-    return walletProfile
-}
-
-
 const getWalletProfile = async function (pubkey: string) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile' 
     const method = 'GET'    
@@ -354,8 +333,7 @@ export const MinibitsClient = {
     updateWalletProfile,
     updateWalletProfileNip05,
     updateDeviceToken,
-    recoverProfile,
-    migrateSeedHash,
+    recoverProfile,    
     getRandomPictures,
     getWalletProfileByWalletId,
     getWalletProfileByNip05,
