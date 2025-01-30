@@ -30,34 +30,6 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
     const [info, setInfo] = useState('')    
     const [error, setError] = useState<AppError | undefined>()
 
-    // Re-attempt to create profile if it failed before
-    useEffect(() => {
-        const load = async () => {            
-            try {                
-                await createProfileIfNotExists()
-            } catch(e: any) {   
-                log.error(e.name, e.message || '')             
-                return false // silent
-            }
-        }
-        load()
-        return () => {}        
-    }, [])
-
-    const createProfileIfNotExists = async () => {
-        log.trace(walletProfileStore)
-
-        if(!walletProfileStore.pubkey || !walletProfileStore.seedHash) {            
-
-            await walletStore.getOrCreateMnemonic()
-            const {publicKey} = await NostrClient.getOrCreateKeyPair()            
-
-            const walletId = userSettingsStore.walletId
-            const seedHash = await KeyChain.loadSeedHash()           
-            await walletProfileStore.create(publicKey, walletId as string, seedHash as string)                      
-        }
-    }
-
     const onShareContact = async () => {
         try {
             const result = await Share.share({
@@ -190,67 +162,48 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
             <ProfileHeader />        
             <View style={$contentContainer}>
                 <Card
-                    ContentComponent={
+                    ContentComponent={                        
                         <>
-                        {!walletProfileStore.pubkey || !walletProfileStore.seedHash ? (
-                            <>
-                            <ListItem 
-                                tx="profileOnboarding.title"
-                                subTx="profileOnboarding.desc"
-                            />
-                            <View style={$buttonContainer}> 
+                            {walletProfileStore.isOwnProfile ? (
+                                <ListItem
+                                    tx="profileOnboarding.ownAddrTitle"
+                                    subTx="profileOnboarding.ownAddrDesc"
+                                    leftIcon='faCircleUser'
+                                    bottomSeparator={true}
+                                    style={{paddingRight: spacing.small}}
+                                />
+                            ) : (
+                                <ListItem
+                                    tx="profileOnboarding.minibitsTitle"
+                                    //subTx="profileOnboarding.minibitsDesc"
+                                    leftIcon='faCircleUser'
+                                    BottomComponent={
+                                        <CollapsibleText
+                                            collapsed={true}                                
+                                            text={translate('profileOnboarding.minibitsDesc')}
+                                            textProps={{style: $subText}}
+                                        />}
+                                    bottomSeparator={true}
+                                    style={{paddingRight: spacing.small}}
+                                />   
+                            )}
+                            <View style={$buttonContainer}>                            
                                 <Button
                                     preset='secondary'                                
-                                    tx="common.create"
-                                    LeftAccessory={() => <Icon icon='faCircleUser'/>}
-                                    onPress={createProfileIfNotExists}
-                                />                                                            
+                                    tx='common.share'
+                                    LeftAccessory={() => <Icon icon='faShareNodes'/>}
+                                    onPress={toggleShareModal}
+                                />
+                                <Button
+                                    preset='secondary'                                
+                                    tx="common.change"
+                                    style={{marginLeft: spacing.small}}
+                                    LeftAccessory={() => <Icon icon='faRotate'/>}
+                                    onPress={toggleUpdateModal}
+                                />  
                             </View>
-                            </>
-                        ) : (
-                            <>
-                                {walletProfileStore.isOwnProfile ? (
-                                    <ListItem
-                                        tx="profileOnboarding.ownAddrTitle"
-                                        subTx="profileOnboarding.ownAddrDesc"
-                                        leftIcon='faCircleUser'
-                                        bottomSeparator={true}
-                                        style={{paddingRight: spacing.small}}
-                                    />
-                                ) : (
-                                    <ListItem
-                                        tx="profileOnboarding.minibitsTitle"
-                                        //subTx="profileOnboarding.minibitsDesc"
-                                        leftIcon='faCircleUser'
-                                        BottomComponent={
-                                            <CollapsibleText
-                                                collapsed={true}                                
-                                                text={translate('profileOnboarding.minibitsDesc')}
-                                                textProps={{style: $subText}}
-                                            />}
-                                        bottomSeparator={true}
-                                        style={{paddingRight: spacing.small}}
-                                    />   
-                                )}
-                                <View style={$buttonContainer}>                            
-                                    <Button
-                                        preset='secondary'                                
-                                        tx='common.share'
-                                        LeftAccessory={() => <Icon icon='faShareNodes'/>}
-                                        onPress={toggleShareModal}
-                                    />
-                                    <Button
-                                        preset='secondary'                                
-                                        tx="common.change"
-                                        style={{marginLeft: spacing.small}}
-                                        LeftAccessory={() => <Icon icon='faRotate'/>}
-                                        onPress={toggleUpdateModal}
-                                    />  
-                                </View>
-                            </>
-                        )}                          
                         </>
-                    }
+                    }  
                 />
                 <Card
                     style={[$card, {marginTop: spacing.small}]}

@@ -13,10 +13,10 @@ import {log} from '../services/logService'
 import { getRootStore } from './helpers/getRootStore'
 import { 
     HANDLE_NWC_REQUEST_TASK,
-    KeyChain, 
-    KeyPair, 
+    KeyChain,      
     NostrClient, 
     NostrEvent, 
+    NostrKeyPair, 
     NostrUnsignedEvent, 
     SyncQueue, 
     WalletTaskResult
@@ -24,7 +24,7 @@ import {
 import AppError, { Err } from '../utils/AppError'
 import { LightningUtils } from '../services/lightning/lightningUtils'
 import { addSeconds } from 'date-fns/addSeconds'
-import { TransactionStatus, TransactionType } from './Transaction'
+import { Transaction, TransactionStatus, TransactionType } from './Transaction'
 import { MeltQuoteResponse } from '@cashu/cashu-ts'
 import { WalletStore } from './WalletStore'
 import { Proofs } from './ProofsStore'
@@ -37,6 +37,7 @@ import { MINIBITS_MINT_URL } from '@env'
 import { MintBalance } from './Mint'
 import { transferTask } from '../services/wallet/transferTask'
 import { topupTask } from '../services/wallet/topupTask'
+import { WalletProfileStore } from './WalletProfileStore'
 
 type NwcError = {
     result_type: string,
@@ -102,33 +103,16 @@ export const NwcConnectionModel = types.model('NwcConnection', {
     lastMeltQuoteId: types.maybe(types.string),    
 })
 .actions(withSetPropAction)
-.views(self => ({
-    get walletPubkey(): string {
-        const rootStore = getRootStore(self)
-        const {walletProfileStore} = rootStore
-        return walletProfileStore.pubkey
-    }, 
-    get connectionRelays(): string[] {
-        return getConnectionRelays()
-    },
-    get supportedMethods() {
-        return getSupportedMethods()
-    }
-}))
-.views(self => ({
-    get connectionString(): string {
-        return `nostr+walletconnect://${self.walletPubkey}?relay=${self.connectionRelays.join('&relay=')}&secret=${self.connectionSecret}`
-    },
-}))
 .actions(self => ({
-    getWalletKeyPair: flow(function* getWalletKeyPair() {  
-        const keyPair: KeyPair = yield NostrClient.getOrCreateKeyPair()
-        return keyPair
-    }),
     getWalletStore (): WalletStore {  
         const rootStore = getRootStore(self)
         const {walletStore} = rootStore
         return walletStore
+    },
+    getWalletProfileStore (): WalletProfileStore {  
+        const rootStore = getRootStore(self)
+        const {walletProfileStore} = rootStore
+        return walletProfileStore
     },
     getProofsStore (): Proofs {  
         const rootStore = getRootStore(self)
@@ -150,7 +134,25 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         self.lastMeltQuoteId = quoteId
     },
 }))
-.actions(self => ({    
+.views(self => ({
+    get walletPubkey(): string {
+        const walletProfileStore = self.getWalletProfileStore()
+        return walletProfileStore.pubkey
+    },
+    get connectionRelays(): string[] {
+        return getConnectionRelays()
+    },
+    get supportedMethods() {
+        return getSupportedMethods()
+    }
+}))
+.views(self => ({
+    get connectionString(): string {
+        return `nostr+walletconnect://${self.walletPubkey}?relay=${self.connectionRelays.join('&relay=')}&secret=${self.connectionSecret}`
+    },
+}))
+
+.actions(self => ({  
     sendResponse: flow(function* sendResponse(nwcResponse: NwcResponse | NwcError, requestEvent: NostrEvent) {
         log.trace('[Nwc.sendResponse] start', {nwcResponse, connection: self.name})
 
@@ -229,7 +231,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         const rootStore = getRootStore(self)
         const {transactionsStore} = rootStore
         const lightningTransactions = transactionsStore.history.filter(
-            t => (t.type === TransactionType.TOPUP || 
+            (t: Transaction) => (t.type === TransactionType.TOPUP || 
             t.type === TransactionType.TRANSFER) && 
             t.status === TransactionStatus.COMPLETED
         )
@@ -738,7 +740,7 @@ export const NwcStoreModel = types
                 const message = `Your wallet has received a NWC command, but could not find related NWC connection to handle it.`
                 log.error('[handleNwcRequestFromNotification]', message, {pubkey: event.pubkey})
                 
-                yield NotificationService.stopForegroundService()
+                //yield NotificationService.stopForegroundService()
                 yield NotificationService.createLocalNotification(
                     `<b>Nostr Wallet Connect</b> error`,
                     message,
@@ -756,7 +758,7 @@ export const NwcStoreModel = types
                 const message = `Your wallet has received a NWC command, but could not retrieve the required data.`
                 log.error('[handleNwcRequestFromNotification]', message)
                 
-                yield NotificationService.stopForegroundService()
+                //yield NotificationService.stopForegroundService()
                 yield NotificationService.createLocalNotification(
                     `<b>Nostr Wallet Connect</b> error`,
                     message,
@@ -774,7 +776,7 @@ export const NwcStoreModel = types
                 yield targetConnection.handleNwcRequestTask(event, decryptedNwcRequest)
 
             // prevent rare cases where this might not be called in SyncQueue._handleTaskResult
-            yield NotificationService.stopForegroundService()
+            //yield NotificationService.stopForegroundService()
 
             return {                
                 taskFunction: HANDLE_NWC_REQUEST_TASK,            

@@ -32,7 +32,7 @@ export const RecoverWalletAddressScreen: FC<AppStackScreenProps<'RecoverWalletAd
     },
   })
 
-  const { walletProfileStore, userSettingsStore } = useStores()
+  const { walletProfileStore, userSettingsStore, walletStore } = useStores()
 
   const mnemonicInputRef = useRef<TextInput>(null)
   const seedRef = useRef<Uint8Array | null>(null)
@@ -111,11 +111,15 @@ export const RecoverWalletAddressScreen: FC<AppStackScreenProps<'RecoverWalletAd
       setIsLoading(true)
       setStatusMessage(translate("recovery.recoveringAddress"))      
 
-      const { publicKey } = await NostrClient.getOrCreateKeyPair()
+      const keys = await walletStore.getCachedWalletKeys()
 
-      console.log('[onCompleteAddress] Nostr pubkey', { publicKey })
+      console.log('[onCompleteAddress] Wallet keys', { keys })
 
-      await walletProfileStore.recover(seedHashRef.current, publicKey, true)
+      await walletProfileStore.recover(
+        keys.NOSTR.publicKey,
+        keys.walletId,
+        seedHashRef.current
+      )
 
       userSettingsStore.setIsOnboarded(true)
 

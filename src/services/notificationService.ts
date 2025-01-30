@@ -11,7 +11,10 @@ import AppError, { Err } from '../utils/AppError'
 import { Platform } from 'react-native'
 import { rootStoreInstance, setupRootStore } from '../models'
 import { NwcRequest, nwcPngUrl } from '../models/NwcStore';
-import { HANDLE_NWC_REQUEST_TASK } from './walletService'
+import { HANDLE_NWC_REQUEST_TASK, WalletTask, WalletTaskResult } from './walletService'
+import { SyncQueue } from './syncQueueService'
+import { delay } from '../utils/delay'
+import TaskQueue from 'taskon'
 
 export type NotifyReceiveToLnurlData = {
     type: 'NotifyReceiveToLnurlData',
@@ -42,22 +45,23 @@ export const TASK_QUEUE_CHANNEL_NAME = 'Minibits tasks'
 export const TEST_CHANNEL_ID = 'testDefault'
 export const TEST_CHANNEL_NAME = 'Minibits test tasks'
 
-export const initNotifications = async () => {
+const initNotifications = async () => {
+    messaging().onMessage(onForegroundNotification)
+    messaging().setBackgroundMessageHandler(onBackgroundNotification)
+
     let enabled = await areNotificationsEnabled()
     log.trace(`[initNotifications] Push notifications are ${enabled ? 'enabled' : 'disabled'}.`)
 
-    if(!enabled) return
-    const {walletProfileStore} = rootStoreInstance
+    if(!enabled) return    
 
     await messaging().registerDeviceForRemoteMessages()
     const deviceToken = await messaging().getToken()
     log.trace(`[initNotifications] Device token: ${deviceToken}`)
     
-    if(walletProfileStore.pubkey && deviceToken) {
-        // if device token changed, update the server
-        if(deviceToken !== walletProfileStore.device) {
-            await walletProfileStore.setDevice(deviceToken)
-        }
+    const {walletProfileStore} = rootStoreInstance
+    if(deviceToken && deviceToken !== walletProfileStore.device) {
+        // if device token changed, update the server        
+        await walletProfileStore.setDevice(deviceToken)        
     }
 
     messaging().onTokenRefresh(token => {
@@ -149,7 +153,13 @@ const onBackgroundNotification = async function(remoteMessage: FirebaseMessaging
 
         // Process NWC request notified by FCM message
         if(remoteData.type === 'NotifyNwcRequestData') {
-            return _nwcRequestHandler(remoteData)
+            if(isNwcRequestHandlerRunning) {
+                await delay(1000)
+                return _nwcRequestHandler(remoteData)
+                  
+            } else {
+                return _nwcRequestHandler(remoteData)      
+            }                     
         }
 
         throw new AppError(Err.VALIDATION_ERROR, 'Unknown remoteData.type', {remoteData})       
@@ -157,6 +167,31 @@ const onBackgroundNotification = async function(remoteMessage: FirebaseMessaging
     } catch (e: any) {
         log.error(e.name, e.message)
     }  
+}
+
+const isNotificationDisplayed = async function (options: { foregroundServiceOnly?: boolean }): Promise<boolean> {
+    const { foregroundServiceOnly } = options
+    const notifications = await notifee.getDisplayedNotifications()
+    let isDisplayed: boolean = false
+
+    log.trace('[isNotificationDisplayed] Displayed notifications', {notifications, foregroundServiceOnly})
+
+    for (const notification of notifications) {
+        if (foregroundServiceOnly) {
+            // Assuming `foreground` is a property that indicates if the notification is in the foreground
+            if (notification.notification.android?.asForegroundService === true) {
+                log.trace('[isNotificationDisplayed] foregroundServiceOnly true')
+                isDisplayed = true
+            }
+        } else {
+            // If foregroundOnly is false, return true as soon as we find any notification            
+            isDisplayed = true
+        }
+    }
+
+    // If no matching notification is found, return false
+    log.trace('[isNotificationDisplayed]', isDisplayed)
+    return isDisplayed
 }
 
 
@@ -171,7 +206,12 @@ const _receiveToLnurlHandler = async function(remoteData: NotifyReceiveToLnurlDa
     )
 }
 
-const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {   
+let isNwcRequestHandlerRunning = false
+
+const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {
+    log.trace('[_nwcRequestHandler] start')
+    isNwcRequestHandlerRunning = true
+
     const {requestEvent} = remoteData.data
     const {nwcStore} = rootStoreInstance
     
@@ -179,14 +219,13 @@ const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {
         await setupRootStore(rootStoreInstance)        
     }
 
-    const decryptedContent = await NostrClient.decryptNip04(requestEvent.pubkey, requestEvent.content)
-    const nwcRequest: NwcRequest = JSON.parse(decryptedContent)
+    // start new foreground service only if none is running
+    // const isForegroundServiceRunning = await isNotificationDisplayed({foregroundServiceOnly: true})
+    const queue: TaskQueue = SyncQueue.getSyncQueue()
+    const isNwcRequestTaskRunning = queue.getAllTasksDetails(['idle', 'running'])
+        .some(task => String(task.taskId).includes('handleNwcRequestTask'))   
 
-    if(nwcRequest.method === 'pay_invoice' || nwcRequest.method === 'make_invoice') {
-
-        log.trace('[_nwcRequestHandler] Starting foreground service')
-
-        const {tags, ...cleanedRequestEvent} = requestEvent
+    if(!isNwcRequestTaskRunning) {
 
         await notifee.displayNotification({
             title: NWC_CHANNEL_NAME,
@@ -200,11 +239,16 @@ const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {
                     indeterminate: true,
                 },
             },
-            data: {task: HANDLE_NWC_REQUEST_TASK,  data: cleanedRequestEvent}, // Pass the task data to the foreground service
+            data: {task: HANDLE_NWC_REQUEST_TASK,  data: requestEvent}, // Pass the task data to the foreground service
         })
+
     } else {
-        await nwcStore.handleNwcRequestTask(requestEvent, nwcRequest) 
+        // if fg already running, add new nwc command to the queue
+        WalletTask.handleNwcRequestQueue({requestEvent})        
     }
+
+    isNwcRequestHandlerRunning = false
+    log.trace('[_nwcRequestHandler] done')
 }
 
 const _getRemoteData = async function(remoteMessage: FirebaseMessagingTypes.RemoteMessage) {
@@ -268,37 +312,6 @@ const createLocalNotification = async function (title: string, body: string, lar
 }
 
 
-/*const updateLocalNotification = async function (id: string, update: { title: string, body: string}) {
-
-    // Create a channel (required for Android)
-    const channelId = await notifee.createChannel({
-      id: 'default',
-      name: 'Minibits notifications',      
-    })
-
-    const {title, body} = update
-
-    // Display a notification
-    await notifee.displayNotification({
-      id,
-      title,
-      body,
-      android: {
-        channelId,
-        color: colors.palette.success200,
-        pressAction: {
-          id: 'default',
-        },
-      },
-    });
-}
-
-
-const cancelNotification = async function (id: string) {
-    await notifee.cancelNotification(id)
-}*/
-
-
 const areNotificationsEnabled = async function (): Promise<boolean> {
   const settings = await notifee.getNotificationSettings()
 
@@ -309,32 +322,14 @@ const areNotificationsEnabled = async function (): Promise<boolean> {
   return false
 }
 
-const isNotificationDisplayed = async function (options: { foregroundServiceOnly?: boolean }): Promise<boolean> {
-    const { foregroundServiceOnly } = options
-    const notifications = await notifee.getDisplayedNotifications()
 
-    for (const notification of notifications) {
-        if (foregroundServiceOnly) {
-            // Assuming `foreground` is a property that indicates if the notification is in the foreground
-            if (notification.notification.android?.asForegroundService === true) {
-                return true
-            }
-        } else {
-            // If foregroundOnly is false, return true as soon as we find any notification
-            return true
-        }
-    }
-
-    // If no matching notification is found, return false
-    return false
-}
-
-const stopForegroundService = async function (): Promise<void> {
-    log.trace('[stopForegroundService] start')
+const stopForegroundService = async function (): Promise<void> {    
     await notifee.stopForegroundService()
+    log.trace('[stopForegroundService] completed')
 }
 
 export const NotificationService = {
+    initNotifications,
     createLocalNotification,
     onBackgroundNotification,
     onForegroundNotification,    

@@ -20,17 +20,13 @@ import {
 import RNExitApp from 'react-native-exit-app'
 import {AppNavigator} from './navigation'
 import {useInitialRootStore, useStores} from './models'
-import {Database, KeyChain} from './services'
-import { initNotifications } from './services/notificationService'
+import {KeyChain} from './services'
 import {ErrorBoundary} from './screens/ErrorScreen/ErrorBoundary'
 import Config from './config'
 import {log} from './services'
 import {Env} from './utils/envtypes'
 import AppError from './utils/AppError'
 import { Image, View } from 'react-native'
-
-/* Init push notifications */
-initNotifications()
 
 /* Set default size ratio for styling */
 setSizeMattersBaseWidth(375)
@@ -64,14 +60,6 @@ function App(props: AppProps) {
         log.trace('[useInitialRootStore]', 'Root store rehydrated')
         // This runs after the root store has been initialized and rehydrated from storage.
 
-        // Creates and opens a sqlite database that stores transactions history and user settings.
-        // It triggers db migrations if database version has changed. 
-        const db = Database.getInstance()       
-        Database.getDatabaseVersion(db)
-        
-        // Syncs userSettings store with the database (needed?)
-        userSettingsStore.loadUserSettings()
-
         // Force auth if set in userSettings
         log.trace('[useInitialRootStore]', {isAuthOn: userSettingsStore.isAuthOn})
         if(userSettingsStore.isAuthOn) {
@@ -93,7 +81,6 @@ function App(props: AppProps) {
                     }
                 }  
             }
-
         }
 
         // Set initial websocket to close as it might have remained open on last app close

@@ -42,14 +42,7 @@ export async function setupRootStore(rootStore: RootStore) {
     // let latestSnapshot: any
 
     try {
-        log.trace('[setupRootStore]', `Create Database instance and get UserSettings`)
-
-        const userSettings = Database.getUserSettings()        
-        
-        // random identificator of an app installation for bugs and crash reporting
-        if(userSettings.walletId) {
-            Sentry.setUser({ id: userSettings.walletId })
-        }    
+        log.trace('[setupRootStore]', `start`)   
 
         // load the last known state from storage
         const start = performance.now()
@@ -65,7 +58,12 @@ export async function setupRootStore(rootStore: RootStore) {
         const stateHydrated = performance.now()
         log.trace(`[setupRootStore] Hydrating rooStoreModel took ${stateHydrated - mmkvLoaded} ms.`)
         
-        const {proofsStore} = rootStore
+        const {proofsStore, walletProfileStore} = rootStore
+
+        if(walletProfileStore.walletId) {
+            Sentry.setUser({ id: walletProfileStore.walletId })
+        }
+
         await proofsStore.loadProofsFromDatabase()
         
         const proofsLoaded = performance.now()
@@ -117,30 +115,15 @@ export async function setupRootStore(rootStore: RootStore) {
 async function _runMigrations(rootStore: RootStore) {
     const { 
         userSettingsStore,
-        walletProfileStore,
-        relaysStore,
-        contactsStore,
         mintsStore,
         proofsStore,
-        transactionsStore
+        transactionsStore,
+        walletProfileStore
     } = rootStore
     
     let currentVersion = rootStore.version
 
     try {       
-        
-        if(currentVersion < 14) {
-            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v14`)
-            try {                
-
-                await walletProfileStore.migrateToNewRelay()
-
-                log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
-                rootStore.setVersion(rootStoreModelVersion)
-            } catch (e: any) {
-                log.warn('[setupRootStore] Migration error', {message: e.name})
-            }
-        }
         
         if(currentVersion < 16) {
             log.trace(`Starting rootStore migrations from version v${currentVersion} -> v16`)
@@ -204,6 +187,14 @@ async function _runMigrations(rootStore: RootStore) {
             log.trace(`Starting rootStore migrations from version v${currentVersion} -> v29`)
 
             transactionsStore.addRecentByUnit()
+
+            rootStore.setVersion(rootStoreModelVersion)
+            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+        }
+        if(currentVersion < 30) {
+            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v30`)
+
+            await KeyChain.migrateWalletKeys(walletProfileStore.walletId)
 
             rootStore.setVersion(rootStoreModelVersion)
             log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)

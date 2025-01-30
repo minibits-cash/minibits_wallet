@@ -51,116 +51,13 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
         }
     })
 
-    const {userSettingsStore, walletProfileStore} = useStores()
+    const {userSettingsStore, walletProfileStore, walletStore} = useStores()
     const [info, setInfo] = useState('')
     const [isLoading, setIsLoading] = useState(false)
-    const [isTorDaemonOn, setIsTorDaemonOn] = useState<boolean>(
-        userSettingsStore.isTorDaemonOn,
-    )
     const [isLoggerOn, setIsLoggerOn] = useState<boolean>(
         userSettingsStore.isLoggerOn,
     )
-    const [torStatus, setTorStatus] = useState<TorStatus>(TorStatus.NOTINIT)   
-    const [error, setError] = useState<AppError | undefined>()    
-    const [isTorModalVisible, setIsTorModalVisible] = useState<boolean>(false)    
-    const [torResultMessage, setTorResultMessage] = useState<string>()
-
-
-    useEffect(() => {
-        const getTorStatus = async () => {
-            if(!userSettingsStore.isTorDaemonOn) {
-                return
-            }
-
-            //const status = await TorDaemon.getStatus()            
-
-            //log.trace('torStatus', status, 'getTorStatus')
-            //setTorStatus(status.toUpperCase())
-        }
-        
-        getTorStatus()
-        
-        return () => {}
-    }, [])
-
-
-    /* const toggleTorDaemonSwitch = async () => {
-        try {
-            setIsLoading(true)
-
-            const result = userSettingsStore.setIsTorDaemonOn(
-                !isTorDaemonOn,
-            )
-            
-            const statusBefore = await TorDaemon.getStatus() 
-            setTorStatus(statusBefore.toUpperCase())
-
-            if(result) {
-                await TorDaemon.start()                
-            } else {
-                await TorDaemon.stop()
-            }
-
-            
-            const statusAfter = await TorDaemon.getStatus() 
-            setTorStatus(statusAfter.toUpperCase())
-            setIsTorDaemonOn(result)
-            
-            setIsLoading(false)
-
-            if (result === true) {
-                setTorResultMessage(
-                    'Tor daemon has been activated. You can now connect with mints using .onion addresses.',
-                )
-                toggleTorModal()
-                return
-            }
-
-            setTorResultMessage('Tor daemon has been disabled.')
-            toggleTorModal()
-        } catch (e: any) {
-            handleError(e)
-            await TorDaemon.stop()
-        }
-    }
-
-    const startTor = async () => {
-        try {
-            if(!userSettingsStore.isTorDaemonOn) {
-                return
-            }
-
-            setIsLoading(true)
-            await TorDaemon.start()
-            
-            const statusAfter = await TorDaemon.getStatus()
-            setTorStatus(statusAfter.toUpperCase())
-            setIsLoading(false)
-            
-        } catch (e: any) {
-            handleError(e)
-            await TorDaemon.stop()
-        }
-    }
-
-
-    const stopTor = async () => {
-        try {
-            setIsLoading(true)
-            await TorDaemon.stop()
-            
-            const statusAfter = await TorDaemon.getStatus()
-            setTorStatus(statusAfter.toUpperCase())
-            setIsLoading(false)
-            
-        } catch (e: any) {
-            handleError(e)            
-        }
-    }
-
-    const toggleTorModal = () =>
-        setIsTorModalVisible(previousState => !previousState) */
-    
+    const [error, setError] = useState<AppError | undefined>()       
 
     const toggleLoggerSwitch = async () => {
         try {
@@ -184,18 +81,24 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
 
         try {
             // overwrite with new keys
-            const keyPair = KeyChain.generateNostrKeyPair()
-            await KeyChain.saveNostrKeyPair(keyPair)
+            const newKeyPair = KeyChain.generateNostrKeyPair()
+
+            // update Nostr keys
+            const keys = await walletStore.getCachedWalletKeys()
+            keys.NOSTR = newKeyPair
+
+            await KeyChain.saveWalletKeys(keys)
+            walletStore.cleanCachedWalletKeys()
 
             // set name to default walletId
-            const name = userSettingsStore.walletId as string
+            const name = walletProfileStore.walletId as string
 
             // get random image
             const pictures = await MinibitsClient.getRandomPictures() // TODO PERF
 
             // update wallet profile
             await walletProfileStore.updateNip05(
-                keyPair.publicKey,                
+                newKeyPair.publicKey,                
                 name,
                 name + MINIBITS_NIP05_DOMAIN, // nip05
                 name + MINIBITS_NIP05_DOMAIN, // lud16

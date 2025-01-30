@@ -1,10 +1,7 @@
 import {Instance, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
-import {LightningUtils} from '../services/lightning/lightningUtils'
 import {withSetPropAction} from './helpers/withSetPropAction'
-import {Contact, ContactModel} from './Contact'
-import {log} from '../services/logService'
-import addSeconds from 'date-fns/addSeconds'
-import { MintUnit, MintUnits } from '../services/wallet/currency'
+import {Contact} from './Contact'
+import { MintUnit } from '../services/wallet/currency'
 
 /**
  * This represents incoming lightning invoice to pay (by transfer tx)

@@ -242,9 +242,8 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
 
   const onSelectTheme = async function(theme: ThemeCode) {    
     if(currentTheme !== theme) {
-      try {
-        // state update causes crash because of hooks
-        Database.updateUserSettings({...userSettingsStore, theme})
+      try {        
+        userSettingsStore.setTheme(theme)
         setCurrentTheme(theme)
         setInfo('Restart the wallet to apply new theme.')
       } catch (e: any) {

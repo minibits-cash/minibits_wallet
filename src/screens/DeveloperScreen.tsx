@@ -8,14 +8,9 @@ import {
     NATIVE_VERSION_ANDROID,
     JS_BUNDLE_VERSION,
     COMMIT,
-    MINIBITS_MINT_URL,
-    MINIBITS_RELAY_URL,
-    MINIBITS_NIP05_DOMAIN,
-    MINIBITS_SERVER_API_HOST 
 } from '@env'
 import packageJson from '../../package.json'
-import {
-  Icon,
+import {  
   ListItem,
   Screen,
   Text,
@@ -48,7 +43,7 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
       onLeftPress: () => navigation.goBack(),
     })
 
-    const {transactionsStore, userSettingsStore, proofsStore} = useStores()
+    const {transactionsStore, userSettingsStore, proofsStore, walletProfileStore} = useStores()
 
     const [isLoading, setIsLoading] = useState(false)
     const [rnVersion, setRnVersion] = useState<string>('')
@@ -218,14 +213,10 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
                 try {
                   // Delete database
                   Database.cleanAll()                
-                  // Delete Nostr keys
-                  await KeyChain.removeNostrKeypair()
-                  // Delete Encryption key
-                  await KeyChain.removeMmkvEncryptionKey()
-                  // Delete mnemonic
-                  await KeyChain.removeMnemonic()
-                  // Delete seed
-                  await KeyChain.removeSeed()
+                  // Delete wallet keys
+                  await KeyChain.removeWalletKeys()
+                  // Delete auth token
+                  await KeyChain.removeAuthToken()
                   // Clean mobx storage
                   MMKVStorage.clearAll()
                   // recreate db schema
@@ -275,7 +266,7 @@ DB version: ${dbVersion}
 State size: ${walletStateSize.toLocaleString()} bytes
 React Native: ${rnVersion}
 Commit: ${COMMIT}
-Sentry id: ${userSettingsStore.userSettings.walletId}
+Sentry id: ${walletProfileStore.walletId}
                   `}
                   leftIcon='faInfoCircle'
                   leftIconColor={colors.palette.iconGreen300}

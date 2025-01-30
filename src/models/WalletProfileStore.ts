@@ -14,10 +14,8 @@ export type WalletProfile = {
     nip05: string
     picture: string
     lud16?: string | null    
-    device?: string | null
-    seedHash?: string | null
-    isOwnProfile: boolean
-    // isBatchClaimOn: boolean
+    device?: string | null    
+    isOwnProfile: boolean    
 }
 
 export type WalletProfileRecord = {  
@@ -40,8 +38,7 @@ export const WalletProfileStoreModel = types
         nip05: types.optional(types.string, ''),        
         picture: types.optional(types.string, ''),
         lud16: types.maybe(types.maybeNull(types.string)),
-        device: types.maybe(types.maybeNull(types.string)),
-        seedHash: types.maybe(types.maybeNull(types.string)),
+        device: types.maybe(types.maybeNull(types.string)),        
         isOwnProfile: types.optional(types.boolean, false),        
     })
     .actions(self => ({  
@@ -87,42 +84,7 @@ export const WalletProfileStoreModel = types
                 log.error(e.name, e.message)         
                 return false // silent
             }                    
-        }),
-        migrateToNewRelay: flow(function* migrateToNewRelay() {
-            try {
-                const {pubkey, name, picture, nip05, lud16} = self
-
-                // announce to new minibits relay
-                const profileEvent: NostrUnsignedEvent = {
-                    kind: Metadata,
-                    pubkey,
-                    tags: [],                        
-                    content: JSON.stringify({
-                        name,                            
-                        picture,
-                        nip05,
-                        lud16,                       
-                    }),
-                    created_at: Math.floor(Date.now() / 1000)                              
-                }
-
-                const rootStore = getRootStore(self)
-                const relaysToPublish: string[]  = NostrClient.getMinibitsRelays()
-
-                log.debug('[publishToRelays]', 'Migrate profile to new relay', {profileEvent, relaysToPublish})
-
-                const publishedEvent: Event | undefined = yield NostrClient.publish(
-                    profileEvent,
-                    relaysToPublish                    
-                )
-                
-                return publishedEvent
-                
-            } catch (e: any) {       
-                log.error(e.name, e.message)         
-                return false // silent
-            }                    
-        }),
+        })        
     }))
     .actions(self => ({        
         hydrate: flow(function* hydrate(profileRecord: WalletProfileRecord) {
@@ -132,20 +94,16 @@ export const WalletProfileStoreModel = types
             self.walletId = walletId
             self.name = name // default name is set on server side, equals walletId
             self.nip05 = nip05 // default is name@minibits.cash set on server side
-            self.lud16 = lud16 // equals for all @minibits.cash addresses
+            self.lud16 = lud16 // equals to nip05 for all @minibits.cash addresses, set on server side
             self.picture = avatar // default picture is set on server side  
             
-            const userSettingsStore = getRootStore(self).userSettingsStore
-            userSettingsStore.setWalletId(walletId)
-            
-            const publishedEvent = yield self.publishToRelays()
+            yield self.publishToRelays()
         })
     }))   
     .actions(self => ({  
         create: flow(function* create(publicKey: string, walletId: string, seedHash: string) {
        
-            let profileRecord: WalletProfileRecord
-            self.seedHash = seedHash
+            let profileRecord: WalletProfileRecord            
 
             log.trace('[create]', {seedHash, publicKey, walletId})
 
@@ -161,8 +119,6 @@ export const WalletProfileStoreModel = types
                 if(e.name === Err.ALREADY_EXISTS_ERROR) {
                     // recreate walletId + default name
                     const name = getRandomUsername()
-                    const userSettingsStore = getRootStore(self).userSettingsStore
-                    userSettingsStore.setWalletId(name)
                     // attempt to create new unique profile again                    
                     profileRecord = yield MinibitsClient.createWalletProfile(publicKey, name, seedHash) 
                     
@@ -225,20 +181,12 @@ export const WalletProfileStoreModel = types
             log.info('[updateNip05]', 'Wallet nip05 updated in the WalletProfileStore', {self})
             return self         
         }),
-        recover: flow(function* recover(seedHash: string, currentPubkey: string, isAddressOnly: boolean) {
+        recover: flow(function* recover(publicKey: string, walletId: string, seedHash: string) {
 
             let profileRecord: WalletProfileRecord = yield MinibitsClient.recoverProfile(
-                seedHash, 
-                { 
-                    currentPubkey
-                }
-            )           
+                publicKey, walletId, seedHash
+            )            
             
-            // rotate the wallet seed to the provided one only on fresh install recovery from seed or import backup
-            if(!isAddressOnly) {
-                self.seedHash = seedHash
-            }
-
             self.hydrate(profileRecord)
 
             log.info('[recover]', 'Wallet profile recovered in WalletProfileStore', {self})
@@ -251,16 +199,7 @@ export const WalletProfileStoreModel = types
             } catch (e: any) {
                 log.error('[setDevice]', e.message)
             }
-        }),
-        setNip05(nip05: string) {   // used in migration to v3 model         
-            self.nip05 = nip05             
-        },
-        setWalletId(walletId: string) {   // used in migration to v4 model         
-            self.walletId = walletId             
-        },
-        setSeedHash(seedHash: string) {   // used in migration to v8 model         
-            self.seedHash = seedHash             
-        }
+        })
     }))
     .views(self => ({        
         get npub() {

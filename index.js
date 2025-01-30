@@ -40,7 +40,7 @@ notifee.registerForegroundService(async (notification) => {
             await setupRootStore(rootStoreInstance)        
         }
         
-        WalletTask.handleNwcRequestQueue({requestEvent: notification.data.data})
+        WalletTask.handleNwcRequestQueue({requestEvent: notification.data.data})        
       }
       
       if(notification.data.task === SYNC_STATE_WITH_ALL_MINTS_TASK) {
@@ -74,8 +74,7 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
   return true
 })
 
-// Setup notification listeners and handlers
-messaging().onMessage(NotificationService.onForegroundNotification)
-messaging().setBackgroundMessageHandler(NotificationService.onBackgroundNotification)
+// Init push notifications
+NotificationService.initNotifications()
 
 AppRegistry.registerComponent(appName, () => BootstrapApp)

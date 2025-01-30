@@ -35,14 +35,12 @@ export const MnemonicScreen: FC<SettingsStackScreenProps<'Mnemonic'>> = observer
         },
     })
 
-    const {walletStore} = useStores()
-    // const {walletStore} = nonPersistedStores
+    const {walletStore} = useStores()    
 
     const [info, setInfo] = useState('')
     const [mnemonic, setMnemonic] = useState<string>()
     const [mnemonicArray, setMnemonicArray] = useState<string[]>([])
-    const [isLoading, setIsLoading] = useState(false)
-    const [isNewMnemonic, setIsNewMnemonic] = useState(false)
+    const [isLoading, setIsLoading] = useState(false)    
     const [error, setError] = useState<AppError | undefined>()
 
     useEffect(() => {
@@ -51,14 +49,7 @@ export const MnemonicScreen: FC<SettingsStackScreenProps<'Mnemonic'>> = observer
                 setIsLoading(true)
                 let mnemonic: string | undefined = undefined
 
-                mnemonic = await walletStore.getMnemonic()
-
-                if(!mnemonic) {
-                    // wallets upgraded from 0.1.4 with no generated seed                    
-                    mnemonic = await walletStore.getOrCreateMnemonic()
-                    walletStore.resetWallets() // force all cached wallet instances to be recreated with seed
-                    setIsNewMnemonic(true)
-                }
+                mnemonic = await walletStore.getCachedMnenomic()
 
                 if (!validateMnemonic(mnemonic, wordlist)) {
                   throw new AppError(
@@ -82,11 +73,6 @@ export const MnemonicScreen: FC<SettingsStackScreenProps<'Mnemonic'>> = observer
         try {
             if(mnemonic) {
                 Clipboard.setString(mnemonic)
-
-                if(isNewMnemonic) {
-                  setInfo(translate("copyMnemonicBackupWorkaround"))
-                }
-
                 return
             }
             throw new AppError(

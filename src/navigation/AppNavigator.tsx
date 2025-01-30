@@ -76,7 +76,7 @@ const AppStack = observer(function AppStack() {
         contentStyle: {backgroundColor: bgColor}   
       }}
     >
-        {userSettingsStore.isUserOnboarded && (
+        {userSettingsStore.isOnboarded && (
           <Stack.Screen name="Tabs" component={TabsNavigator} />
         )}
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
@@ -85,7 +85,7 @@ const AppStack = observer(function AppStack() {
         <Stack.Screen name="ImportBackup" component={ImportBackupScreen} />
         <Stack.Screen name="RecoverWalletAddress" component={RecoverWalletAddressScreen} />
         <Stack.Screen name="Mints" component={MintsScreen} />
-        {!userSettingsStore.isUserOnboarded && (
+        {!userSettingsStore.isOnboarded && (
           <Stack.Screen name="Tabs" component={TabsNavigator} />
         )}
              

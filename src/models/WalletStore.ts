@@ -13,10 +13,9 @@ import {
   CheckStateEnum,
   OutputAmounts,
 } from '@cashu/cashu-ts'
-import { mnemonicToSeedSync } from '@scure/bip39'
 import { isObj } from '@cashu/cashu-ts/src/utils'
 import { JS_BUNDLE_VERSION } from '@env'
-import {KeyChain, MinibitsClient} from '../services'
+import {KeyChain, MinibitsClient, WalletKeys} from '../services'
 import {log} from '../services/logService'
 import AppError, { Err } from '../utils/AppError'
 import { Currencies, CurrencyCode, MintUnit } from '../services/wallet/currency'
@@ -28,9 +27,9 @@ import { getRootStore } from './helpers/getRootStore'
 
 
 /* 
-   Not persisted, in-memory only model of the cashu-ts wallet instances and seed.
+   Not persisted, in-memory only model of the cashu-ts wallet instances and wallet keys persisted in the device secure store.
    It is instantiated on first use so that wallet retrieves fresh mint keysets, then cached, 
-   so that new cashu-ts instances are re-used over app lifecycle. Seed is as well retrieved as needed and cached because retrieval from keychain might be slow.
+   so that new cashu-ts instances are re-used over app lifecycle.
 */
 
 export type ExchangeRate = {
@@ -97,11 +96,8 @@ export const WalletStoreModel = types
         mints: types.array(types.frozen<CashuMint>()),
         wallets: types.array(types.frozen<CashuWallet>()),
         seedWallets: types.array(types.frozen<CashuWallet>()),
-        mnemonicPhrase: types.maybe(types.string),
-        seedBase64: types.maybe(types.string),
+        walletKeys: types.maybe(types.frozen<WalletKeys>()),
         exchangeRate: types.maybe(types.frozen<ExchangeRate>()),
-        // lastClaimCheck: types.maybe(types.number),
-        // lastRateCheck: types.maybe(types.number),
     })
     .views(self => ({
       getMintModelInstance(mintUrl: string) : Mint | undefined {
@@ -170,55 +166,40 @@ export const WalletStoreModel = types
       }
     })) 
     .actions(self => ({
-      getMnemonic: flow(function* getMnemonic() {    
-        if (self.mnemonicPhrase) {        
-          log.trace('[getMnemonic]', 'returning cached mnemonic')
-          return self.mnemonicPhrase     
+      getCachedWalletKeys: flow(function* getWalletKeys() {    
+        if (self.walletKeys) {        
+          log.trace('[getCachedWalletKeys]', 'Returning cached walletKeys')
+          return self.walletKeys     
         }    
         
-        const mnemonic: string | undefined = yield KeyChain.loadMnemonic()
+        const keys: WalletKeys | undefined = yield KeyChain.getWalletKeys()
     
-        if (!mnemonic) {
-            return undefined        
+        if (!keys) {
+            throw new AppError(
+              Err.VALIDATION_ERROR, 
+              'Device secure storage could not return wallet keys, please reinstall and use your seed phrase to recover wallet.'
+            )
         }
     
-        self.mnemonicPhrase = mnemonic
-        return mnemonic
+        self.walletKeys = keys
+        return keys
       }),
-      getSeed: flow(function* getSeed() {    
-        if (self.seedBase64) {        
-          log.trace('[getSeed]', 'returning cached seed')
-          return new Uint8Array(Buffer.from(self.seedBase64, 'base64'))
-        }    
-        
-        const seed: Uint8Array = yield KeyChain.loadSeed()
-    
-        if (!seed) {
-            return undefined        
-        }
-    
-        self.seedBase64 = Buffer.from(seed).toString('base64')
-        return seed
-      })
+      cleanCachedWalletKeys() {    
+        self.walletKeys = undefined
+      },      
     }))
-
-    .actions(self => ({  
-      getOrCreateMnemonic: flow(function* getOrCreateMnemonic() {    
-        let mnemonic: string | undefined = undefined
-    
-        mnemonic = yield self.getMnemonic() // returns cached or saved mnemonic   
-    
-        if (!mnemonic) {
-            mnemonic = KeyChain.generateMnemonic() as string            
-            const seed = mnemonicToSeedSync(mnemonic) // expensive            
-                   
-            yield KeyChain.saveMnemonic(mnemonic)
-            yield KeyChain.saveSeed(seed)
-    
-            log.trace('[getOrCreateMnemonic]', 'Created and saved new mnemonic and seed')
-        }
-         
-        return mnemonic
+    .actions(self => ({
+      getCachedSeed: flow(function* getCachedSeed() {    
+        const keys: WalletKeys = yield self.getCachedWalletKeys()
+        return new Uint8Array(Buffer.from(keys.SEED.seed, 'base64'))
+      }),
+      getCachedMnenomic: flow(function* getCachedMnenomic() {    
+        const keys: WalletKeys = yield self.getCachedWalletKeys()
+        return keys.SEED.mnemonic
+      }),
+      getCachedSeedHash: flow(function* getCachedSeedHash() {    
+        const keys: WalletKeys = yield self.getCachedWalletKeys()
+        return keys.SEED.seedHash
       }),
       getMint: flow(function* getMint(mintUrl: string) {    
         const mint = self.mints.find(m => m.mintUrl === mintUrl)
@@ -332,9 +313,8 @@ export const WalletStoreModel = types
             log.trace('[WalletStore.getWallet]', 'Returning CACHED cashuWallet instance with seed', {mintUrl})
             return seedWallet
           }
-
-          let seed: Uint8Array | undefined = undefined
-          seed = yield self.getSeed()
+          
+          const seed = yield self.getCachedSeed()
           
           const newSeedWallet = new CashuWallet(cashuMint, {
             unit,
@@ -906,20 +886,12 @@ export const WalletStoreModel = types
             }
         })
     }))
-    .views(self => ({        
-        get mnemonic() {
-            return self.mnemonicPhrase
-        },
-        get seed() {
-          return self.seedBase64
-        }
-    })).postProcessSnapshot((snapshot) => {   // NOT persisted to storage except last exchangeRate!  
+    .postProcessSnapshot((snapshot) => {   // NOT persisted to mmkv storage except last exchangeRate!  
       return {
           mints: [],
-          seedWallets: [],
           wallets: [],
-          mnemonicPhrase: undefined,
-          seedBase64: undefined,
+          seedWallets: [],          
+          walletKeys: undefined,
           exchangeRate: snapshot.exchangeRate
       }          
     })

@@ -12,14 +12,13 @@ import {
     MintKeyset,
     getEncodedToken,
 } from '@cashu/cashu-ts'
-import { DEFAULT_DENOMINATION_TARGET, MAX_SWAP_INPUT_SIZE, TransactionTaskResult, WalletTask } from '../walletService'
-import { Mint, MintBalance, MintProofsCounter } from '../../models/Mint'
+import { MAX_SWAP_INPUT_SIZE, TransactionTaskResult, WalletTask } from '../walletService'
+import { Mint, MintBalance } from '../../models/Mint'
 import { Proof } from '../../models/Proof'
 import { poller } from '../../utils/poller'
 import { WalletUtils } from './utils'
 import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
 import { MintUnit } from './currency'
-import { getKeepAmounts } from '@cashu/cashu-ts/src/utils'
 
 const {
     mintsStore,

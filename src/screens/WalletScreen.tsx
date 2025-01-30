@@ -282,7 +282,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
             lastMintCheckRef.current = nowInSec
 
             WalletTask.handleInFlightQueue()
-            WalletTask.handleClaimQueue()
+            WalletTask.handleClaimQueue().catch(e => setInfo(e.message))
             WalletTask.syncStateWithAllMintsQueue({isPending: true})
             WalletTask.handlePendingTopupsQueue()
 

@@ -1,117 +1,24 @@
 import {MMKV} from 'react-native-mmkv'
 import {log} from './logService'
 import AppError, {Err} from '../utils/AppError'
-import {KeyChain} from './keyChain'
-import { ROOT_STORAGE_KEY } from '../models'
 
 const STORAGE_KEY = 'storage-v1'
-const ENCRYPTED_STORAGE_KEY = 'encrypted-storage-v1' // legacy, not used now
-
 let _storage: MMKV | undefined
-let _encryptionKey: string | undefined  // legacy, not used now
-
- // legacy, not used now
-const initEncryption = async function (): Promise<void> {
-  if (!_encryptionKey) {
-    try {
-        _encryptionKey = await getOrCreateEncryptionKey()
-        getInstance() // Instantiate the MMKV instance with the encryption key
-    } catch(e: any) {
-        throw e
-    }    
-  }
-}
 
 const getInstance = function () {
     if (!_storage) {
 
-        if (_encryptionKey) {
-            _storage = new MMKV({
-                id: ENCRYPTED_STORAGE_KEY,
-                encryptionKey: _encryptionKey,
-            })
+      _storage = new MMKV({
+          id: STORAGE_KEY,
+      })
 
-            log.trace('[getInstance]', 'MMKV encrypted storage initialized')
-        } else {
-
-            _storage = new MMKV({
-                id: STORAGE_KEY,
-            })
-
-            log.trace('[getInstance]', 'MMKV storage initialized')
-        }
+      log.trace('[getInstance]', 'MMKV storage initialized')
+      return _storage
     }
 
-  return _storage
+    return _storage
 }
 
- // legacy, not used now
-const getOrCreateEncryptionKey = async function (): Promise<string> {
-
-    let key: string | null = null
-
-    try {
-        key = (await KeyChain.loadMmkvEncryptionKey()) as string
-
-        if (!key) {
-            key = KeyChain.generateMmkvEncryptionKey() as string
-            await KeyChain.saveMmkvEncryptionKey(key)
-
-            log.info('[getOrCreateEncryptionKey]', 'Created and saved new encryption key')
-        }
-
-        return key
-    } catch (e: any) {
-        throw e
-    }
-}
-
- // legacy, not used now
-const decryptStorage = function (): boolean {    
-
-    if (_encryptionKey) {
-        // make a copy of wallet state from encrypted storage
-        const walletState = String(loadString(ROOT_STORAGE_KEY))
-
-        log.trace('[decryptStorage]', {walletState})
-
-        // reset encrypted storage instance
-        _storage = undefined
-        _encryptionKey = undefined
-
-        // create normal storage instance and save wallet state to it
-        saveString(ROOT_STORAGE_KEY, walletState as string)
-
-        log.info('[recryptStorage]', 'Storage has been decrypted')
-        return true
-    }
-
-    return false
-}
-
- // legacy, not used now
-const encryptStorage = async function (): Promise<boolean> {    
-
-    if (!_encryptionKey) {
-        // make a copy of wallet state from normal storage
-        const walletState = String(loadString(ROOT_STORAGE_KEY))
-
-        log.trace('[encryptStorage]', {walletState})
-
-        // reset normal storage instance
-        _storage = undefined
-        // retrieve encryption key
-        _encryptionKey = await getOrCreateEncryptionKey()
-
-        // create encrypted storage instance and save wallet state to it
-        saveString(ROOT_STORAGE_KEY, walletState as string)
-
-        log.info('[encryptStorage]', 'Storage has been encrypted')
-        return true
-    }
-
-    return false
-}
 
 /**
  * Loads a string from storage.
@@ -247,11 +154,7 @@ const clearAll = function (): void {
   }
 }
 
-export const MMKVStorage = {
-  initEncryption,
-  getOrCreateEncryptionKey,
-  encryptStorage,
-  decryptStorage,
+export const MMKVStorage = {  
   loadString,
   saveString,
   saveNumber,

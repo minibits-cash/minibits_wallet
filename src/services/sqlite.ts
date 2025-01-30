@@ -9,19 +9,13 @@ import {
   TransactionRecord,
   TransactionStatus,
 } from '../models/Transaction'
-import {getRandomUsername} from '../utils/usernames'
-import {UserSettings} from '../models/UserSettingsStore'
 import AppError, {Err} from '../utils/AppError'
 import {log} from './logService'
-import {LogLevel} from './log/logTypes'
 import {BackupProof} from '../models/Proof'
-import { CashuUtils } from './cashu/cashuUtils'
-import { CurrencyCode, MintUnit } from './wallet/currency'
-import { ThemeCode } from '../theme'
 
 let _db: QuickSQLiteConnection
 
-const _dbVersion = 18 // Update this if db changes require migrations
+const _dbVersion = 19 // Update this if db changes require migrations
 
 const getInstance = function () {
   if (!_db) {
@@ -74,24 +68,6 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
         createdAt TEXT
     )`,
     ],    
-    [
-        `CREATE TABLE IF NOT EXISTS usersettings (
-        id INTEGER PRIMARY KEY NOT NULL,      
-        walletId TEXT,
-        preferredUnit TEXT,
-        exchangeCurrency TEXT,
-        theme TEXT,    
-        isOnboarded BOOLEAN,
-        isStorageEncrypted BOOLEAN,
-        isAuthOn BOOLEAN,
-        isLocalBackupOn BOOLEAN,
-        isBatchClaimOn BOOLEAN,
-        isTorDaemonOn BOOLEAN,
-        isLoggerOn BOOLEAN,
-        logLevel TEXT,
-        createdAt TEXT      
-    )`,
-    ],
     [
         `CREATE TABLE IF NOT EXISTS proofs (            
         id TEXT NOT NULL,
@@ -149,169 +125,12 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
     let migrationQueries: SQLBatchTuple[] = []
 
     // Database migrations sequence based on local version numbers
-    
-
-    if (currentVersion < 3) {
-      
-        const walletId = _generateWalletId()
-
-        migrationQueries.push([
-            `ALTER TABLE usersettings
-            ADD COLUMN walletId TEXT`,       
-        ],[
-            `UPDATE usersettings
-            SET walletId = ?
-            WHERE id = ?`, [walletId, 1]
-        ]) 
-
-        log.info(`Prepared database migrations from ${currentVersion} -> 3`)
-    }
-
-
-    if (currentVersion < 4) {
-        migrationQueries.push([
-            `ALTER TABLE transactions
-            ADD COLUMN sentTo TEXT`,       
-        ]) 
-
-        log.info(`Prepared database migrations from ${currentVersion} -> 4`)
-    }
-
-
-    if (currentVersion < 5) {
-        migrationQueries.push([
-            `ALTER TABLE transactions
-            ADD COLUMN mint TEXT`,       
-        ]) 
-
-        log.info(`Prepared database migrations from ${currentVersion} -> 5`)
-    }
-
-
-    if (currentVersion < 6) {
-        migrationQueries.push([
-            `ALTER TABLE usersettings
-            ADD COLUMN isTorDaemonOn BOOLEAN`,       
-        ]) 
-
-        log.info(`Prepared database migrations from ${currentVersion} -> 6`)
-    }
-
-    if (currentVersion < 7) {
-        migrationQueries.push([
-            `ALTER TABLE usersettings
-            ADD COLUMN isLoggerOn BOOLEAN`,       
-        ],[
-            `ALTER TABLE usersettings
-            ADD COLUMN logLevel TEXT`,       
-        ]) 
-
-        log.info(`Prepared database migrations from ${currentVersion} -> 6`)
-    }
-
-    if (currentVersion < 8) {
-        migrationQueries.push([
-            `ALTER TABLE usersettings
-            ADD COLUMN isStorageMigrated BOOLEAN`,       
-        ])
-
-        log.info(`Prepared database migrations from ${currentVersion} -> 8`)
-    }
-
-    if (currentVersion < 9) {
+    if (currentVersion < 19) {
       migrationQueries.push([
-          `ALTER TABLE transactions
-          ADD COLUMN unit TEXT`,       
-      ], [
-        `ALTER TABLE proofs
-        ADD COLUMN unit TEXT`,
-      ],[
-        `ALTER TABLE usersettings
-        ADD COLUMN preferredUnit TEXT`,
+        `DROP TABLE usersettings`,   
       ])
 
-      log.info(`Prepared database migrations from ${currentVersion} -> 9`)
-    }
-
-    if (currentVersion < 10) {
-      migrationQueries.push([
-          `UPDATE transactions
-          SET unit = ?`, ['sat']     
-      ], [
-          `UPDATE proofs
-          SET unit = ?`, ['sat']     
-      ])
-
-      log.info(`Prepared database migrations from ${currentVersion} -> 10`)
-    }
-
-    if (currentVersion < 11) {
-      migrationQueries.push([
-        `ALTER TABLE usersettings
-        DROP COLUMN isStorageMigrated`,   
-      ])
-
-      log.info(`Prepared database migrations from ${currentVersion} -> 11`)
-    }
-
-    if (currentVersion < 13) {
-      migrationQueries.push([
-        `ALTER TABLE transactions
-        ADD COLUMN inputToken TEXT`,       
-    ], [
-        `ALTER TABLE transactions
-        ADD COLUMN outputToken TEXT`,   
-    ], [
-      `ALTER TABLE transactions
-      ADD COLUMN profile TEXT`,   
-    ], [
-        `ALTER TABLE transactions
-        ADD COLUMN proof TEXT`,   
-    ], [
-      `ALTER TABLE transactions
-      ADD COLUMN zapRequest TEXT`,   
-    ])
-
-      log.info(`Prepared database migrations from ${currentVersion} -> 13`)
-    }
-
-    if (currentVersion < 14) {
-      migrationQueries.push([
-        `ALTER TABLE usersettings
-        ADD COLUMN exchangeCurrency`,   
-      ], [
-        `ALTER TABLE usersettings
-        ADD COLUMN isBatchClaimOn`,   
-      ])
-
-      log.info(`Prepared database migrations from ${currentVersion} -> 14`)
-    }
-
-    if (currentVersion < 15) {
-      migrationQueries.push([
-        `ALTER TABLE usersettings
-        ADD COLUMN theme`,   
-      ])
-
-      log.info(`Prepared database migrations from ${currentVersion} -> 15`)
-    }
-
-    if (currentVersion < 16) {
-      migrationQueries.push([
-        `ALTER TABLE proofs
-        ADD COLUMN mintUrl`,   
-      ])
-
-      log.info(`Prepared database migrations from ${currentVersion} -> 16`)
-    }
-
-    if (currentVersion < 18) {
-      migrationQueries.push([
-        `ALTER TABLE usersettings
-        ADD COLUMN isAuthOn`,   
-      ])
-
-      log.info(`Prepared database migrations from ${currentVersion} -> 18`)
+      log.info(`Prepared database migrations from ${currentVersion} -> 19`)
     }
 
     // Update db version as a part of migration sqls
@@ -336,32 +155,13 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
   }
 }
 
-
-const _generateWalletId = (): string => {
-    try {
-        /* const length = 8 // Length of the id in bytes
-        const random = QuickCrypto.randomBytes(length)
-        const uint8Array = new Uint8Array(random)
-        const stringKey = fromByteArray(uint8Array)
-        const base64Key = btoa(stringKey)*/
-
-        const walletId = getRandomUsername()    
-        log.debug('[_generateWalletId]', 'New walletId created:', walletId)
-    
-        return walletId
-    } catch (e: any) {
-        throw new AppError(Err.DATABASE_ERROR, e.message)
-    }
-}
-
 /*
  * Exported functions
  */
 
 const cleanAll = function () {
   const dropQueries = [
-    ['DROP TABLE transactions'],
-    ['DROP TABLE usersettings'],
+    ['DROP TABLE transactions'],    
     ['DROP TABLE proofs'],
     ['DROP TABLE dbversion'],
   ] as SQLBatchTuple[]
@@ -414,105 +214,6 @@ const getDatabaseVersion = function (db: QuickSQLiteConnection): {version: numbe
     )
   }
 }
-
-/*
- * User settings
- */
-
-const getUserSettings = function (): UserSettings {
-    try {
-        const query = `
-        SELECT * FROM usersettings LIMIT 1
-        `
-        const db = getInstance()
-        const {rows} = db.execute(query)
-
-        if (!rows?.item(0)) {
-            const walletId = _generateWalletId()
-            const defaultSettings = updateUserSettings({
-                walletId,
-                preferredUnit: 'sat',
-                exchangeCurrency: CurrencyCode.USD,
-                theme: ThemeCode.DEFAULT,
-                isOnboarded: 0,
-                isStorageEncrypted: 0,
-                isAuthOn: 0,
-                isLocalBackupOn: 1,
-                isBatchClaimOn: 1,
-                isTorDaemonOn: 0,
-                isLoggerOn: 1,                
-                logLevel: LogLevel.ERROR
-            })
-            log.debug('[getUserSettings]', 'Stored default user settings in the database')
-            return defaultSettings
-        }
-
-        return rows.item(0)
-    } catch (e: any) {
-        throw new AppError(
-        Err.DATABASE_ERROR,
-        'Could not get user settings',
-        e.message,
-        )
-    }
-}
-
-const updateUserSettings = function (settings: UserSettings): UserSettings {
-    try {
-        const now = new Date()
-        const {
-          walletId,
-          preferredUnit,
-          exchangeCurrency,
-          theme,
-          isOnboarded, 
-          isStorageEncrypted,
-          isAuthOn,
-          isLocalBackupOn, 
-          isBatchClaimOn,
-          isTorDaemonOn, 
-          isLoggerOn,
-          logLevel
-        } = settings
-
-        const query = `
-        INSERT OR REPLACE INTO usersettings (id, walletId, preferredUnit, exchangeCurrency, theme, isOnboarded, isStorageEncrypted, isAuthOn, isLocalBackupOn, isBatchClaimOn, isTorDaemonOn, isLoggerOn, logLevel, createdAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)      
-        `
-        const params = [
-            1,
-            walletId,
-            preferredUnit,
-            exchangeCurrency,
-            theme,                     
-            isOnboarded,
-            isStorageEncrypted,
-            isAuthOn,
-            isLocalBackupOn,
-            isBatchClaimOn,
-            isTorDaemonOn,
-            isLoggerOn,
-            logLevel,
-            now.toISOString(),
-        ]
-
-        const db = getInstance()
-        db.execute(query, params)
-
-        log.debug('[updateUserSettings]', 'User settings created or updated in the database', params)
-
-        const updated = getUserSettings()
-        return updated
-    } catch (e: any) {
-        throw new AppError(
-            Err.DATABASE_ERROR,
-            'Could not create or update user settings',
-            e.message,
-        )
-    }
-}
-
-
 /*
  * Transactions
  */
@@ -1429,8 +1130,6 @@ export const Database = {
   getInstance,
   getDatabaseVersion,
   cleanAll,
-  getUserSettings,
-  updateUserSettings,
   getTransactionsCount,
   getTransactionById,
   getRecentTransactionsByUnit,

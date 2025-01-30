@@ -11,7 +11,7 @@ import {useStores} from '../models'
 import AppError, { Err } from '../utils/AppError'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { log } from '../services/logService'
-import { KeyChain, KeyPair, NostrClient, NostrProfile } from '../services'
+import { KeyChain, NostrKeyPair, NostrClient, NostrProfile } from '../services'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 import { ProfileHeader } from '../components/ProfileHeader'
 import { translate } from '../i18n'
@@ -26,7 +26,7 @@ interface OwnKeysScreenProps extends ContactsStackScreenProps<'OwnKeys'> {}
 
 export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysScreen({navigation}) {    
 
-    const {walletProfileStore, contactsStore, relaysStore} = useStores() 
+    const {walletProfileStore, walletStore, relaysStore} = useStores() 
 
     useHeader({        
         leftIcon: 'faArrowLeft',
@@ -36,13 +36,12 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
     })
 
     const ownNip05InputRef = useRef<TextInput>(null)
-    const ownNsecInputRef = useRef<TextInput>(null) 
-    const {npub, name, picture, nip05} = walletProfileStore   
+    const ownNsecInputRef = useRef<TextInput>(null)        
 
     const [ownNip05, setOwnNip05] = useState<string>('')
     const [ownNsec, setOwnNsec] = useState<string>('')
     const [ownProfile, setOwnProfile] = useState<NostrProfile | undefined>(undefined)
-    const [ownKeyPair, setOwnKeyPair] = useState<KeyPair | undefined>(undefined)
+    const [ownKeyPair, setOwnKeyPair] = useState<NostrKeyPair | undefined>(undefined)
     const [ownProfileRelays, setOwnProfileRelays] = useState<string[]>([])
     const [info, setInfo] = useState('')    
     const [error, setError] = useState<AppError | undefined>()
@@ -201,13 +200,15 @@ export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysSc
                 true // isOwnProfile                
             )
 
-            // update keys
-            await KeyChain.saveNostrKeyPair(ownKeyPair)
+            // update Nostr keys
+            const keys = await walletStore.getCachedWalletKeys()
+            keys.NOSTR = ownKeyPair
+
+            await KeyChain.saveWalletKeys(keys)
+            walletStore.cleanCachedWalletKeys()
 
             setIsLoading(false)
-            setIsProfileChangeCompleted(true)
-            // restart
-            // setTimeout(() => {RNExitApp.exitApp()}, 1000)            
+            setIsProfileChangeCompleted(true)           
             
         } catch(e: any) {
             handleError(e)

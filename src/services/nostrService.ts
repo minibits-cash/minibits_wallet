@@ -15,7 +15,7 @@ import { PrivateDirectMessage, Metadata } from 'nostr-tools/kinds'
 import {
     MINIBITS_RELAY_URL,    
 } from '@env'
-import {KeyChain, KeyPair} from './keyChain'
+import {NostrKeyPair} from './keyChain'
 import {log} from './logService'
 import AppError, { Err } from '../utils/AppError'
 import { MinibitsClient } from './minibitsService'
@@ -55,7 +55,7 @@ const _minibitsRelays: string[] = [MINIBITS_RELAY_URL]
 
 let _pool: any = undefined
 
-const {walletProfileStore, nwcStore} = rootStoreInstance
+const {walletProfileStore, nwcStore, walletStore} = rootStoreInstance
 
 const getRelayPool = function () {
     if(!_pool) {
@@ -77,6 +77,11 @@ const getMinibitsRelays = function () {
 
 const getAllRelays = function () {
     return [..._minibitsRelays, ..._defaultPublicRelays]
+}
+
+const getNostrKeys = async function () {
+    const keys = await walletStore.getCachedWalletKeys()
+    return keys.NOSTR
 }
 
 const reconnectToRelays = async function () {
@@ -103,23 +108,6 @@ const reconnectToRelays = async function () {
             nwcStore.receiveNwcEventsQueue()
         }
     }     
-}
-
-
-const getOrCreateKeyPair = async function (): Promise<KeyPair> {
-    let keyPair: KeyPair | null = null
-    keyPair = await KeyChain.loadNostrKeyPair() as KeyPair
-
-    if (!keyPair) {
-        keyPair = KeyChain.generateNostrKeyPair() as KeyPair
-        await KeyChain.saveNostrKeyPair(keyPair)
-
-        log.info('[getOrCreateKeyPair]', 'Created and saved new NOSTR keypair', {pubkey: keyPair.publicKey})
-    } else {
-        log.trace('[getOrCreateKeyPair]', 'Returning existing NOSTR keypair', {pubkey: keyPair.publicKey})
-    }
-     
-    return keyPair
 }
 
 
@@ -169,7 +157,7 @@ const encryptNip04 = async function (
     content: string
 ): Promise<string> {
     try {
-        const  keys: KeyPair = await getOrCreateKeyPair()
+        const keys: NostrKeyPair = await getNostrKeys()
         const encryptedContent = await encrypt(keys.privateKey, receiverPubkey, content)        
 
         return encryptedContent
@@ -185,7 +173,7 @@ const decryptNip04 = async function(
     encryptedContent: string
 ): Promise<string> {
 
-    const  keys: KeyPair = await getOrCreateKeyPair()
+    const  keys: NostrKeyPair = await getNostrKeys()
     const decryptedContent = await decrypt(keys.privateKey, senderPubKey, encryptedContent)
 
     log.trace('[decryptNip04]', {decryptedContent})
@@ -200,7 +188,7 @@ const encryptAndSendDirectMessageNip17 = async function (
     relays: string[]    
 ) {
 
-    const  keys: KeyPair = await getOrCreateKeyPair()
+    const  keys: NostrKeyPair = await getNostrKeys()
     const directMessageEvent: NostrEventTemplate = {
         created_at: Math.ceil(Date.now() / 1000),
         kind: PrivateDirectMessage,
@@ -239,7 +227,7 @@ const encryptAndSendDirectMessageNip17 = async function (
 const decryptDirectMessageNip17 = async function (
     wrappedEvent: NostrEvent
 ) {    
-    const  keys: KeyPair = await getOrCreateKeyPair()
+    const  keys: NostrKeyPair = await getNostrKeys()
     
     // log.trace('[decryptDirectMessageNip59]', {keys}) 
 
@@ -259,7 +247,7 @@ const publish = async function (
     relays: string[],    
 ): Promise<NostrEvent | undefined> {
 
-    const  keys: KeyPair = await getOrCreateKeyPair()    
+    const  keys: NostrKeyPair = await getNostrKeys()
     
     const privateKeyBytes = hexToBytes(keys.privateKey)
     const finalEvent = finalizeEvent(event, privateKeyBytes)
@@ -494,23 +482,6 @@ const getNameFromNip05 = function(nip05: string) {
 }
 
 
-const delay = function (ms: number) {
-    return new Promise(resolve => {
-        setTimeout(() => { resolve('') }, ms);
-    })
-}
-
-
-const getNormalizedX = function (key: Uint8Array): Uint8Array {
-    return key.slice(1, 33)
-}
-
-
-const deleteKeyPair = async function (): Promise<void> {
-    await KeyChain.removeNostrKeypair()
-}
-
-
 const getNormalizedRelayUrl = function (url: string): string {
     try {
         return normalizeURL(url)
@@ -563,12 +534,11 @@ const findZapRequest = function (message: string): string | undefined {
 
 
 export const NostrClient = { // TODO split helper functions to separate module
-    getRelayPool,    
+    getRelayPool,        
     getDefaultRelays,
     getMinibitsRelays,
     getAllRelays,
     reconnectToRelays,
-    getOrCreateKeyPair,
     getNpubkey,
     getHexkey,
     neventEncode,
@@ -588,7 +558,6 @@ export const NostrClient = { // TODO split helper functions to separate module
     getProfileFromRelays,
     getNormalizedRelayUrl,
     getNormalizedNostrProfile,
-    deleteKeyPair,
     getTagsByName,
     getFirstTagValue,
     findMemo,

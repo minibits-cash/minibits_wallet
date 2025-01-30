@@ -121,21 +121,22 @@ const updateDeviceToken = async function (pubkey: string, update: {deviceToken: 
 }
 
 
-const recoverProfile = async function (seedHash: string, update: {currentPubkey: string}) {    
+const recoverProfile = async function (pubkey: string, walletId: string, seedHash: string) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'PUT'    
-    const { currentPubkey } = update
     
     const body = {            
-        currentPubkey,        
+        pubkey,
+        walletId,
+        seedHash        
     }        
 
-    const walletProfile: WalletProfile = await fetchApi(url + `/recover/seedHash/${seedHash}`, {
+    const walletProfile: WalletProfile = await fetchApi(url + `/recover`, {
         method,        
         body,
     })
 
-    log.info('[recoverProfile]', `Recovered wallet address`, {seedHash, currentPubkey})
+    log.info('[recoverProfile]', `Recovered wallet address`, {seedHash, pubkey, walletId})
 
     return walletProfile
 }
@@ -244,7 +245,9 @@ const createClaim = async function (walletId: string, seedHash: string, pubkey: 
         seedHash,
         pubkey,
         batchFrom
-    }        
+    }
+    
+    // log.trace('[createClaim]', body)
 
     const claimedTokens: Array<{
         token: string, 

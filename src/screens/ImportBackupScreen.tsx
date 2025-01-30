@@ -86,8 +86,8 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
     useEffect(() => {
         const getMnemonic = async () => {  
             try {                
-                const existing = await walletStore.getMnemonic()
-                if(existing) {
+                const existing = await KeyChain.getWalletKeys()
+                if(existing && existing.SEED.mnemonic) {
                     setMnemonicExists(true)
                 }                
             } catch (e: any) {
@@ -257,28 +257,43 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
             if(!seedHashRef.current || !seedRef.current) {
               throw new AppError(Err.VALIDATION_ERROR, translate('backupScreen.missingMnemonicOrSeedError'))
             }
-
-            // create a new key pair after new install or factory reset
-            const {publicKey} = await NostrClient.getOrCreateKeyPair()
-            
-            log.trace('[onCompleteAddress] New Nostr pubkey', {publicKey})
-
+            // create a new walletId and Nostr key pair after a new install or factory reset
+            // and keep provided seed
             setIsLoading(true)
+            setStatusMessage(translate("recovery.recoveringAddress"))
 
-            if(isNewProfileNeeded) {
-                setStatusMessage('Creating new wallet profile...')
-                const walletId = userSettingsStore.walletId!
-                await walletProfileStore.create(publicKey, walletId, seedHashRef.current)
-            } else {
-                // In case of recovery from backup we have new nostr keys and we link the new pubkey to the profile
-                // with provided seedHash
-                setStatusMessage(translate("recovery.recoveringAddress"))
-                await walletProfileStore.recover(seedHashRef.current, publicKey, false)
+            const keys = KeyChain.generateWalletKeys()
+            // Set seed to the provided one
+            const seed = {
+              seed: Buffer.from(seedRef.current).toString('base64'),
+              seedHash: seedHashRef.current,
+              mnemonic
             }
 
-            // we set the wallet seed to the provided one
-            await KeyChain.saveMnemonic(mnemonic)
-            await KeyChain.saveSeed(seedRef.current)  
+            keys.SEED = seed            
+
+            if(isNewProfileNeeded) {
+                
+                await walletProfileStore.create(
+                  keys.NOSTR.publicKey, 
+                  keys.walletId, 
+                  seedHashRef.current
+                )                
+                
+            } else {
+                // In case of recovery from backup we link new pubkey and new walletId to the profile
+                // with user provided seedHash                
+                await walletProfileStore.recover(
+                  keys.NOSTR.publicKey,
+                  keys.walletId, 
+                  seedHashRef.current,
+                )
+            }
+
+            // save keys after successful profile creation / recovery
+            await KeyChain.saveWalletKeys(keys)
+            
+            walletStore.cleanCachedWalletKeys()
 
             userSettingsStore.setIsOnboarded(true)
 

@@ -1693,40 +1693,14 @@ const handlePendingTopupTask = async function (params: {paymentRequest: PaymentR
 const handleClaimQueue = async function (): Promise<void> {
     
     log.info('[handleClaimQueue] start')
-    const {walletId, seedHash, pubkey} = walletProfileStore
-    const {isBatchClaimOn} = userSettingsStore    
-    let recoveredSeedHash: string | undefined = undefined    
-
-    // If we somehow lost walletProfile state, try to recover is from the server using the seedHash stored in KeyChain
-    if(!seedHash) {
-        recoveredSeedHash = await KeyChain.loadSeedHash()
-
-        if(!recoveredSeedHash) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Wallet data were damaged, please reinstall wallet.')
-        }
-    }
-
-    if(!walletId || !pubkey) {
-        // recover profile from the server       
-        const profile = await MinibitsClient.getWalletProfileBySeedHash(seedHash || recoveredSeedHash!)
-
-        if(profile) {
-            // make sure we did not lose and thus rotated nostr keys as well
-            const keyPair = await NostrClient.getOrCreateKeyPair()
-            
-            if(keyPair.publicKey === profile.pubkey) {
-                walletProfileStore.hydrate(profile)
-            } else {
-                throw new AppError(Err.KEYCHAIN_ERROR, 'Wallet public key does not match server profile, please reinstall wallet.', {walletPubkey: keyPair.publicKey, profilePubkey: profile.pubkey})
-            }
-        }
-    }
+    const {isBatchClaimOn} = userSettingsStore
+    const keys = await walletStore.getCachedWalletKeys() // throws  
 
     // Based on user setting, ask for batched token if more then 5 payments are waiting to be claimed
     const claimedTokens = await MinibitsClient.createClaim(
-        walletProfileStore.walletId,
-        walletProfileStore.seedHash as string, 
-        walletProfileStore.pubkey,
+        keys.walletId,
+        keys.SEED.seedHash, 
+        keys.NOSTR.publicKey,
         isBatchClaimOn ? 5 : undefined
     )
 
@@ -1827,7 +1801,7 @@ const handleClaimTask = async function (params: {
 
 const handleNwcRequestQueue = async function (params: {requestEvent: NostrEvent}): Promise<void> {
     const {requestEvent} = params
-    log.trace('[handleNwcRequestQueue] start', {requestEvent})
+    log.trace('[handleNwcRequestQueue] start')
     
     const now = new Date().getTime()
     

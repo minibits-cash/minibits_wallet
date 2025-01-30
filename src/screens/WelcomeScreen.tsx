@@ -32,8 +32,9 @@ import {TxKeyPath, translate} from '../i18n'
 import AppError from '../utils/AppError'
 import { MINIBITS_MINT_URL } from '@env'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
-import { KeyChain, NostrClient } from '../services'
+import { KeyChain, NostrClient, WalletKeys } from '../services'
 import { delay } from '../utils/utils'
+import { getRandomUsername } from '../utils/usernames'
 
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView)
@@ -89,8 +90,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
     const {
       userSettingsStore, 
       relaysStore, 
-      walletProfileStore, 
-      walletStore, 
+      walletProfileStore,       
       mintsStore
     } = useStores()
 
@@ -106,32 +106,34 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
           if(!isInternetReachable) { 
             setInfo('Please make sure you are online to set up the new wallet.')
             return
-          }
+          }         
           
-          // do not overwrite if one was set during recovery
           setIsLoading(true)
 
+          let walletKeys: WalletKeys | undefined = await KeyChain.getWalletKeys()
 
-          // move new profile creation to the app start so that device token can register
-          if(!walletProfileStore.pubkey || !walletProfileStore.seedHash) {
-            setStatusMessage('Creating wallet seed and keys...')
+          if(!walletKeys) {
+            setStatusMessage('Creating wallet keys...')
 
-            await walletStore.getOrCreateMnemonic()
-            const {publicKey} = await NostrClient.getOrCreateKeyPair()
+            const keys = KeyChain.generateWalletKeys()            
 
-            setStatusMessage('Creating wallet profile...')
-
-            const walletId = userSettingsStore.walletId
-            const seedHash = await KeyChain.loadSeedHash()           
-            await walletProfileStore.create(publicKey, walletId as string, seedHash as string)                      
+            setStatusMessage('Creating wallet profile...')                        
+            
+            await walletProfileStore.create(
+              keys.NOSTR.publicKey, 
+              keys.walletId, 
+              keys.SEED.seedHash
+            )
+            
+            // save keys after successful profile creation
+            await KeyChain.saveWalletKeys(keys)
           }
 
           if(!mintsStore.mintExists(MINIBITS_MINT_URL)) {
             await mintsStore.addMint(MINIBITS_MINT_URL)            
           }
           
-          relaysStore.addDefaultRelays()         
-          
+          relaysStore.addDefaultRelays()
           userSettingsStore.setIsOnboarded(true)
 
           navigation.navigate('Tabs', {screen: 'WalletNavigator', params: {screen: 'Wallet', params: {}}})

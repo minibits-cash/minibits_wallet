@@ -58,21 +58,19 @@ const _handleTaskResult = async (taskId: TaskId, result: WalletTaskResult | Tran
 
     EventEmitter.emit(`ev_${result.taskFunction}_result`, result)
 
-    const queue: TaskQueue = getSyncQueue()
+    const queue: TaskQueue = getSyncQueue()    
     
+    log.trace('[_handleTaskResult]', {inQueue: queue.getAllTasksDetails(['idle', 'running']).length})
+
     if(queue.getAllTasksDetails(['idle', 'running']).length === 0) {        
-        
-        if(await NotificationService.isNotificationDisplayed({foregroundServiceOnly: true})) {
-            log.trace('[_handleTaskResult] stopForegroundService')
-            await NotificationService.stopForegroundService()
-        }        
+        await NotificationService.stopForegroundService()
     }
 }
   
 // Helper function to handle the task status changes
 const _handleTaskStatusChange = (status: TaskStatus, task: Task) => {
     log.trace(
-        `The status of task ${task.taskId} changed to ${status}`,
+        `[_handleTaskStatusChange] The status of task ${task.taskId} changed to ${status}`,
     )
 }
 
