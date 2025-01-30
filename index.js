@@ -32,7 +32,7 @@ notifee.registerForegroundService(async (notification) => {
     try {      
 
       if(notification.data.task === HANDLE_NWC_REQUEST_TASK) {
-        log.debug(`[registerForegroundService] Submitting task ${HANDLE_NWC_REQUEST_TASK} to the queue.`)
+        log.info(`[registerForegroundService] Submitting task ${HANDLE_NWC_REQUEST_TASK} to the queue.`)
         
         const {nwcStore} = rootStoreInstance
         // if an app is in killed state, state is not loaded

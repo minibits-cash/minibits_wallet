@@ -22,6 +22,7 @@ import { useStores } from '../models'
 import { translate } from '../i18n'
 import { MintUnit } from '../services/wallet/currency'
 import { Mint } from '../models/Mint'
+import { CashuUtils } from '../services/cashu/cashuUtils'
 
 const hasAndroidCameraPermission = async () => {
     const cameraPermission = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA)
@@ -199,6 +200,26 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                             return
                         } catch (e2: any) {
                             handleError(e2)
+                            break
+                        }
+                    }
+
+                    const maybeCashuPaymentRequest = CashuUtils.findEncodedCashuPaymentRequest(incoming)
+                    
+                    if(maybeCashuPaymentRequest) {
+                        try {
+                            log.trace('Found Cashu Payment request instead of an invoice', maybeCashuPaymentRequest, 'onIncomingData')
+                            const encodedPr = CashuUtils.extractEncodedCashuPaymentRequest(maybeCashuPaymentRequest)
+            
+                            if(encodedPr) {                            
+                                await IncomingParser.navigateWithIncomingData({
+                                    type: IncomingDataType.CASHU_PAYMENT_REQUEST,
+                                    encoded: encodedPr
+                                }, navigation, unit, mint && mint.mintUrl)
+                            }
+                            return
+                        } catch (e3: any) {
+                            handleError(e3)
                             break
                         }
                     }

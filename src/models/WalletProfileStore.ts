@@ -194,6 +194,11 @@ export const WalletProfileStoreModel = types
         }),
         setDevice: flow(function* setDevice(device: string) {  
             try {
+                if(!self.pubkey) {
+                    // skip call for new installs without a profile
+                    return
+                }
+
                 yield MinibitsClient.updateDeviceToken(self.pubkey, {deviceToken: device}) 
                 self.device = device          
             } catch (e: any) {

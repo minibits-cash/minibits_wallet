@@ -14,7 +14,7 @@ import { NwcRequest, nwcPngUrl } from '../models/NwcStore';
 import { HANDLE_NWC_REQUEST_TASK, WalletTask, WalletTaskResult } from './walletService'
 import { SyncQueue } from './syncQueueService'
 import { delay } from '../utils/delay'
-import TaskQueue from 'taskon'
+import TaskQueue, { Task, TaskId, TaskStatus } from 'taskon'
 
 export type NotifyReceiveToLnurlData = {
     type: 'NotifyReceiveToLnurlData',
@@ -50,6 +50,28 @@ const getNwcQueue = function () {
 }
 
 
+const addNwcQueueTask = function (taskId: TaskId, task: Promise<any> | any) {
+    const queue = getNwcQueue()
+
+    log.info(`Adding new nwcQueue task ${taskId} to the queue`)
+
+    queue
+    .addTask(
+        task,
+        taskId, _handleNwcQueueTaskStatusChange)
+    .then((result: any) => {
+        log.info(`nwcQueue task ${taskId} completed.`)
+    })
+    
+}
+
+const _handleNwcQueueTaskStatusChange = (status: TaskStatus) => {
+    log.trace(
+        `[_handleNwcQueueTaskStatusChange] The status of task changed to ${status}`,
+    )
+}
+
+
 const DEFAULT_CHANNEL_ID = 'default'
 const DEFAULT_CHANNEL_NAME = 'Minibits notifications'
 
@@ -64,7 +86,7 @@ export const TEST_CHANNEL_NAME = 'Minibits test tasks'
 
 const initNotifications = async () => {
     let enabled = await areNotificationsEnabled()
-    log.trace(`[initNotifications] Push notifications are ${enabled ? 'enabled' : 'disabled'}.`)
+    log.debug(`[initNotifications] Push notifications are ${enabled ? 'enabled' : 'disabled'}.`)
 
     if(!enabled) return    
 
@@ -143,14 +165,12 @@ const onForegroundNotification = async function(remoteMessage: FirebaseMessaging
         // Process NWC request notified by FCM message by dedicated queue to avoid race condition
         // when starting foreground service
         if(remoteData.type === 'NotifyNwcRequestData') {
-            const nwcQueue = getNwcQueue()
-            nwcQueue
-            .addTask(async () => {
-                await _nwcRequestHandler(remoteData)
-            })
-            .then((result) => {
-                log.trace('nwcQueue task completed.')
-            })
+            const now = new Date().getTime()
+
+            addNwcQueueTask(
+                `_nwcRequestHandler-${now}`,
+                async () => await _nwcRequestHandler(remoteData)
+            )
 
             return
         }
@@ -177,14 +197,12 @@ const onBackgroundNotification = async function(remoteMessage: FirebaseMessaging
         // Process NWC request notified by FCM message by dedicated queue to avoid race condition
         // when starting foreground service
         if(remoteData.type === 'NotifyNwcRequestData') {
-            const nwcQueue = getNwcQueue()
-            nwcQueue
-            .addTask(async () => {
-                await _nwcRequestHandler(remoteData)
-            })
-            .then((result) => {
-                log.trace('nwcQueue task completed.')
-            })
+            const now = new Date().getTime()
+            
+            addNwcQueueTask(
+                `_nwcRequestHandler-${now}`,
+                async () => await _nwcRequestHandler(remoteData)
+            )           
             
             return
         }

@@ -22,11 +22,10 @@ import {
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import AppError, { Err } from '../utils/AppError'
-import { Database, KeyChain, log, MinibitsClient, NostrClient } from '../services'
+import { Database, KeyChain, log, MinibitsClient } from '../services'
 import Clipboard from '@react-native-clipboard/clipboard'
-import { useStores } from '../models'
+import { rootStoreInstance, useStores } from '../models'
 import {MnemonicInput} from './Recovery/MnemonicInput'
-import { TransactionStatus } from '../models/Transaction'
 import { MINIBITS_MINT_URL, MINIBITS_NIP05_DOMAIN } from '@env'
 import { delay } from '../utils/utils'
 import { applySnapshot} from 'mobx-state-tree'
@@ -36,6 +35,8 @@ import { translate } from '../i18n'
 import { ProofsStoreSnapshot } from '../models/ProofsStore'
 import { MintsStoreSnapshot } from '../models/MintsStore'
 import { ContactsStoreSnapshot } from '../models/ContactsStore'
+import { CashuMint, MintActiveKeys } from '@cashu/cashu-ts'
+import { MintUnit } from '../services/wallet/currency'
 
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -224,12 +225,30 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
       
         // import wallet snapshot into the state        
         // const rootStore = rootStoreInstance
+
+        // hydrate mint keys back to the backup as they are stripped from backup
+        for (const mint of walletSnapshot.mintsStore.mints) {
+          const cashuMint = new CashuMint(mint.mintUrl)
+          const keysResult: MintActiveKeys = await cashuMint.getKeys()
+          const {keysets: keys} = keysResult
+
+          for(const key of keys) {
+            if(!key.unit) {
+                key.unit = 'sat'
+            }
+
+            log.trace('[importWallet] Hydrating keys for', {keysetId: key.id})
+            mint.keys.push(key)                    
+          }
+        }
   
         applySnapshot(proofsStore, walletSnapshot.proofsStore)
         applySnapshot(mintsStore, walletSnapshot.mintsStore)
         applySnapshot(contactsStore, walletSnapshot.contactsStore)        
 
-        // log.trace('After import', {rootStore})
+        // log.trace('After import', {rootStore})        
+        const rootStore = rootStoreInstance
+        log.trace('After import and mint keys hydration', {mintsStore})
 
         // import proofs into the db
         if(proofsStore.proofsCount > 0) {
@@ -270,7 +289,11 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
               mnemonic
             }
 
-            keys.SEED = seed            
+            keys.SEED = seed      
+            
+            // save keys as we need them next for publishing the recovered profile to relays
+            await KeyChain.saveWalletKeys(keys)            
+            walletStore.cleanCachedWalletKeys()
 
             if(isNewProfileNeeded) {
                 
@@ -290,10 +313,7 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
                 )
             }
 
-            // save keys after successful profile creation / recovery
-            await KeyChain.saveWalletKeys(keys)
-            
-            walletStore.cleanCachedWalletKeys()
+
 
             userSettingsStore.setIsOnboarded(true)
 

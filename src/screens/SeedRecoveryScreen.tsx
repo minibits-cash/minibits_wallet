@@ -510,7 +510,11 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
               mnemonic
             }
 
-            keys.SEED = seed            
+            keys.SEED = seed
+
+            // save keys as we need them next for publishing the recovered profile to relays
+            await KeyChain.saveWalletKeys(keys)            
+            walletStore.cleanCachedWalletKeys()
 
             if(isNewProfileNeeded) {
                 
@@ -529,11 +533,6 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
                   seedHashRef.current,
                 )
             }
-
-            // save keys after successful profile creation / recovery
-            await KeyChain.saveWalletKeys(keys)
-
-            walletStore.cleanCachedWalletKeys()
 
             userSettingsStore.setIsOnboarded(true)
 

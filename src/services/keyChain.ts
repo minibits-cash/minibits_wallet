@@ -166,7 +166,7 @@ const saveWalletKeys = async function (
         return keys
       }
 
-      log.warn('[getWalletKeys]', 'Did not find existing wallet keys in the KeyChain')
+      log.debug('[getWalletKeys]', 'Did not find existing wallet keys in the KeyChain')
       return undefined
     } catch (e: any) {
       throw new AppError(Err.KEYCHAIN_ERROR, e.message, e)
