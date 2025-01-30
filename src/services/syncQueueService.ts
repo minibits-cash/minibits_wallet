@@ -6,7 +6,6 @@ import { NotificationService } from "./notificationService"
 
 let _queue: any = undefined
 
-
 const getSyncQueue = function () {
     if(!_queue) {
         _queue = new TaskQueue({

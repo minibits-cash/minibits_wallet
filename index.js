@@ -27,7 +27,7 @@ function BootstrapApp() {
 // long running tasks
 notifee.registerForegroundService(async (notification) => {
   return new Promise(async (resolve) => {
-    log.trace('[registerForegroundService] Foreground service running for task:', notification)
+    log.trace('[registerForegroundService] Foreground service starting for task:', notification.data.task)
 
     try {      
 
@@ -74,7 +74,8 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
   return true
 })
 
-// Init push notifications
+messaging().onMessage(NotificationService.onForegroundNotification)
+messaging().setBackgroundMessageHandler(NotificationService.onBackgroundNotification)
 NotificationService.initNotifications()
 
 AppRegistry.registerComponent(appName, () => BootstrapApp)

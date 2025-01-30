@@ -33,6 +33,23 @@ export type NotifyNwcRequestData = {
   }
 }
 
+let _nwcQueue: any = undefined
+
+const getNwcQueue = function () {
+    if(!_nwcQueue) {
+        _nwcQueue = new TaskQueue({
+            concurrency: 1, // strictly synchronous processing
+            returnError: true,
+            stopOnError: false,            
+            taskPrioritizationMode: "head",            
+          })
+        return _nwcQueue as TaskQueue
+    }
+
+    return _nwcQueue as TaskQueue
+}
+
+
 const DEFAULT_CHANNEL_ID = 'default'
 const DEFAULT_CHANNEL_NAME = 'Minibits notifications'
 
@@ -46,9 +63,6 @@ export const TEST_CHANNEL_ID = 'testDefault'
 export const TEST_CHANNEL_NAME = 'Minibits test tasks'
 
 const initNotifications = async () => {
-    messaging().onMessage(onForegroundNotification)
-    messaging().setBackgroundMessageHandler(onBackgroundNotification)
-
     let enabled = await areNotificationsEnabled()
     log.trace(`[initNotifications] Push notifications are ${enabled ? 'enabled' : 'disabled'}.`)
 
@@ -126,10 +140,19 @@ const onForegroundNotification = async function(remoteMessage: FirebaseMessaging
             return _receiveToLnurlHandler(remoteData)    
         }
 
-        // Process NWC request notified by FCM message
-        if(remoteData.type === 'NotifyNwcRequestData') {            
-            // log.trace('[onForegroundNotification] App is in foreground, skipping NWC requestHandler')
-            return _nwcRequestHandler(remoteData)  
+        // Process NWC request notified by FCM message by dedicated queue to avoid race condition
+        // when starting foreground service
+        if(remoteData.type === 'NotifyNwcRequestData') {
+            const nwcQueue = getNwcQueue()
+            nwcQueue
+            .addTask(async () => {
+                await _nwcRequestHandler(remoteData)
+            })
+            .then((result) => {
+                log.trace('nwcQueue task completed.')
+            })
+
+            return
         }
 
         throw new AppError(Err.VALIDATION_ERROR, 'Unknown remoteData.type', {remoteData})       
@@ -151,15 +174,19 @@ const onBackgroundNotification = async function(remoteMessage: FirebaseMessaging
             return _receiveToLnurlHandler(remoteData)          
         }
 
-        // Process NWC request notified by FCM message
+        // Process NWC request notified by FCM message by dedicated queue to avoid race condition
+        // when starting foreground service
         if(remoteData.type === 'NotifyNwcRequestData') {
-            if(isNwcRequestHandlerRunning) {
-                await delay(1000)
-                return _nwcRequestHandler(remoteData)
-                  
-            } else {
-                return _nwcRequestHandler(remoteData)      
-            }                     
+            const nwcQueue = getNwcQueue()
+            nwcQueue
+            .addTask(async () => {
+                await _nwcRequestHandler(remoteData)
+            })
+            .then((result) => {
+                log.trace('nwcQueue task completed.')
+            })
+            
+            return
         }
 
         throw new AppError(Err.VALIDATION_ERROR, 'Unknown remoteData.type', {remoteData})       
@@ -167,31 +194,6 @@ const onBackgroundNotification = async function(remoteMessage: FirebaseMessaging
     } catch (e: any) {
         log.error(e.name, e.message)
     }  
-}
-
-const isNotificationDisplayed = async function (options: { foregroundServiceOnly?: boolean }): Promise<boolean> {
-    const { foregroundServiceOnly } = options
-    const notifications = await notifee.getDisplayedNotifications()
-    let isDisplayed: boolean = false
-
-    log.trace('[isNotificationDisplayed] Displayed notifications', {notifications, foregroundServiceOnly})
-
-    for (const notification of notifications) {
-        if (foregroundServiceOnly) {
-            // Assuming `foreground` is a property that indicates if the notification is in the foreground
-            if (notification.notification.android?.asForegroundService === true) {
-                log.trace('[isNotificationDisplayed] foregroundServiceOnly true')
-                isDisplayed = true
-            }
-        } else {
-            // If foregroundOnly is false, return true as soon as we find any notification            
-            isDisplayed = true
-        }
-    }
-
-    // If no matching notification is found, return false
-    log.trace('[isNotificationDisplayed]', isDisplayed)
-    return isDisplayed
 }
 
 
@@ -206,11 +208,9 @@ const _receiveToLnurlHandler = async function(remoteData: NotifyReceiveToLnurlDa
     )
 }
 
-let isNwcRequestHandlerRunning = false
 
-const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {
-    log.trace('[_nwcRequestHandler] start')
-    isNwcRequestHandlerRunning = true
+const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {    
+    log.trace('[_nwcRequestHandler] start')    
 
     const {requestEvent} = remoteData.data
     const {nwcStore} = rootStoreInstance
@@ -219,8 +219,7 @@ const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {
         await setupRootStore(rootStoreInstance)        
     }
 
-    // start new foreground service only if none is running
-    // const isForegroundServiceRunning = await isNotificationDisplayed({foregroundServiceOnly: true})
+    // start new foreground service only if none is running    
     const queue: TaskQueue = SyncQueue.getSyncQueue()
     const isNwcRequestTaskRunning = queue.getAllTasksDetails(['idle', 'running'])
         .some(task => String(task.taskId).includes('handleNwcRequestTask'))   
@@ -243,11 +242,13 @@ const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {
         })
 
     } else {
-        // if fg already running, add new nwc command to the queue
+        // if fg service is already running, add new nwc command to the queue
         WalletTask.handleNwcRequestQueue({requestEvent})        
     }
 
-    isNwcRequestHandlerRunning = false
+    // make some room for foreground service to start and pass nwcRequest to the queue
+    // to avoid new one being attempted
+    await delay(500)
     log.trace('[_nwcRequestHandler] done')
 }
 
@@ -309,6 +310,32 @@ const createLocalNotification = async function (title: string, body: string, lar
         
         return notificationId
     }    
+}
+
+// unreliable and delayed for foreground service
+const isNotificationDisplayed = async function (options: { foregroundServiceOnly?: boolean }): Promise<boolean> {
+    const { foregroundServiceOnly } = options
+    const notifications = await notifee.getDisplayedNotifications()
+    let isDisplayed: boolean = false
+
+    log.trace('[isNotificationDisplayed] Displayed notifications', {notifications, foregroundServiceOnly})
+
+    for (const notification of notifications) {
+        if (foregroundServiceOnly) {
+            // Assuming `foreground` is a property that indicates if the notification is in the foreground
+            if (notification.notification.android?.asForegroundService === true) {
+                log.trace('[isNotificationDisplayed] foregroundServiceOnly true')
+                isDisplayed = true
+            }
+        } else {
+            // If foregroundOnly is false, return true as soon as we find any notification            
+            isDisplayed = true
+        }
+    }
+
+    // If no matching notification is found, return false
+    log.trace('[isNotificationDisplayed]', isDisplayed)
+    return isDisplayed
 }
 
 
