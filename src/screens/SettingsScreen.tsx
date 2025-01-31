@@ -115,12 +115,9 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
         
                 log.debug('[useInitialRootStore]', {deviceToken})
                 
-                // Make sure profile has already been created (i.e. this is not first run)
-                if(walletProfileStore.pubkey && deviceToken) {
-                    // if device token changed, update the server
-                    if(deviceToken !== walletProfileStore.device) {
-                        await walletProfileStore.setDevice(deviceToken)
-                    }
+                if(deviceToken && deviceToken !== walletProfileStore.device) {
+                  // if device token changed, update the server        
+                  await walletProfileStore.setDevice(deviceToken)        
                 }
               } catch (e: any) {
                   log.info(e.name, e.message)
@@ -243,9 +240,9 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
   const onSelectTheme = async function(theme: ThemeCode) {    
     if(currentTheme !== theme) {
       try {        
-        userSettingsStore.setTheme(theme)
+        userSettingsStore.setNextTheme(theme)
         setCurrentTheme(theme)
-        setInfo('Restart the wallet to apply new theme.')
+        setInfo('Restart the wallet to apply the new theme.')
       } catch (e: any) {
         log.warn('[onSelectTheme]', e.message)
       }

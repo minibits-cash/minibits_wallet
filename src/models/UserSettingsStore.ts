@@ -8,6 +8,7 @@ export type UserSettings = {
   preferredUnit: MintUnit
   exchangeCurrency: CurrencyCode 
   theme: ThemeCode
+  nextTheme: ThemeCode
   isOnboarded: boolean
   isAuthOn: boolean
   isLocalBackupOn: boolean
@@ -22,6 +23,7 @@ export const UserSettingsStoreModel = types
         preferredUnit: types.optional(types.frozen<MintUnit>(), 'sat'),
         exchangeCurrency: types.optional(types.frozen<CurrencyCode | null>(), CurrencyCode.USD),
         theme: types.optional(types.frozen<ThemeCode>(), ThemeCode.DEFAULT),
+        nextTheme: types.optional(types.frozen<ThemeCode>(), ThemeCode.DEFAULT),
         isOnboarded: types.optional(types.boolean, false),        
         isAuthOn: types.optional(types.boolean, false), 
         isLocalBackupOn: types.optional(types.boolean, true),        
@@ -40,6 +42,10 @@ export const UserSettingsStoreModel = types
         },
         setTheme: (theme: ThemeCode) => {            
             self.theme = theme            
+            return theme
+        },
+        setNextTheme: (theme: ThemeCode) => {            
+            self.nextTheme = theme            
             return theme
         },
         setIsOnboarded: (isOnboarded: boolean) => {            

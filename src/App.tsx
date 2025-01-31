@@ -83,6 +83,10 @@ function App(props: AppProps) {
             }
         }
 
+        if(userSettingsStore.theme !== userSettingsStore.nextTheme) {
+            userSettingsStore.setTheme(userSettingsStore.nextTheme)
+        }
+
         // Set initial websocket to close as it might have remained open on last app close
         relaysStore.resetStatuses()
         log.trace('[useInitialRootStore]', 'App is ready to render')
