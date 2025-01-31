@@ -18,6 +18,7 @@ import {
   BottomModal,
   Button,
   $sizeStyles,
+  Header,
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import AppError, { Err } from '../utils/AppError'
@@ -41,6 +42,7 @@ import { MintUnit, formatCurrency, getCurrency } from '../services/wallet/curren
 import { isObj } from '@cashu/cashu-ts/src/utils'
 import { translate } from '../i18n'
 import { WalletProfileRecord } from '../models/WalletProfileStore'
+import { MnemonicInput } from './Recovery/MnemonicInput'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
@@ -50,13 +52,6 @@ const RESTORE_INDEX_INTERVAL = 50
 
 export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = observer(function SeedRecoveryScreen(_props) {
     const {navigation, route} = _props    
-    useHeader({
-        leftIcon: 'faArrowLeft',
-        onLeftPress: () => {            
-            navigation.goBack()
-        },
-    })
-
     const {
         mintsStore, 
         proofsStore, 
@@ -88,6 +83,7 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
     const [isErrorsModalVisible, setIsErrorsModalVisible] = useState(false)
     const [isIndexModalVisible, setIsIndexModalVisible] = useState(false)
     const [isKeysetModalVisible, setIsKeysetModalVisible] = useState(false)
+    const [isRecoveryStarted, setIsRecoveryStarted] = useState(false)
     const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus, message: string} | undefined>()
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)
     const [lastRecoveredAmount, setLastRecoveredAmount] = useState<number>(0)
@@ -97,15 +93,12 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
 
     useEffect(() => {
         const getMnemonic = async () => {  
-            try {
-                setIsLoading(true)          
-                const existing = await walletStore.getCachedMnenomic()
-
-                if(existing) {
+            try {                
+                const existing = await KeyChain.getWalletKeys()
+                if(existing && existing.SEED.mnemonic) {
                     setMnemonicExists(true)
-                }
-                setIsLoading(false) 
-            } catch (e: any) {
+                }                
+            } catch (e: any) {                
                 handleError(e)
             } 
         }
@@ -233,6 +226,8 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
           setInfo(translate("recovery.selectMintFrom"))
           return
         }
+
+        setIsRecoveryStarted(true)
         setStatusMessage(translate("recovery.starting"))
         setIsLoading(true)        
         setTimeout(() => doRecovery(), 100)        
@@ -567,6 +562,10 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
     if(mnemonicExists) {
         return (
             <Screen contentContainerStyle={$screen} preset="auto">
+                <Header                
+                    leftIcon='faArrowLeft'
+                    onLeftPress={() => navigation.goBack()}                            
+                /> 
                 <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
                     <Text preset="heading" text="Wallet recovery" style={{color: headerTitle, zIndex: 10}} />
                 </View>
@@ -599,31 +598,36 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
     } else {
         return (
             <Screen contentContainerStyle={$screen} preset="auto">
+              {isRecoveryStarted ? (
+                <Header/> 
+              ) : (
+                <Header                
+                    leftIcon='faArrowLeft'
+                    onLeftPress={() => navigation.goBack()}                            
+                /> 
+              )}
               <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
                   <Text preset="heading" text="Wallet recovery" style={{color: headerTitle, zIndex: 10}} />
               </View>
-              <View style={$contentContainer}>            
+              <View style={$contentContainer}>                              
+                  <MnemonicInput   
+                        ref={mnemonicInputRef}             
+                        mnemonic={mnemonic}
+                        isValidMnemonic={isValidMnemonic}
+                        setMnemonic={setMnemonic}
+                        onConfirm={onConfirmMnemonic}
+                        onError={handleError}
+                  />
                   <>
-                  {isValidMnemonic ? (
-                  <>
-                      <Card
-                          style={$card}
-                          ContentComponent={
-                              <ListItem
-                                  tx='backupScreen.mnemonicTitle'
-                                  subText={mnemonic}
-                                  LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='1'/></View>}                  
-                                  style={$item}                            
-                              /> 
-                          }        
-                      />                          
+                  {isValidMnemonic && (
+                                                                
                       <Card
                           style={$card}
                           HeadingComponent={
                               <>
                               <ListItem
                                   tx="recoveryFromMints"
-                                  subTx="recoveryFromMintsDesc"
+                                  subTx={mintsStore.mintCount > 0 ? undefined : "recoveryFromMintsDesc"}
                                   LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='2'/></View>} 
                                   RightComponent={mintsStore.mintCount > 0 ? (
                                       <View style={$rightContainer}>
@@ -654,6 +658,7 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
                                   key={mint.mintUrl}
                                   mint={mint}
                                   mintBalance={proofsStore.getMintBalance(mint.mintUrl)}
+                                  selectedUnit={selectedKeyset?.unit as MintUnit}
                                   onMintSelect={() => onMintSelect(mint)}
                                   isSelectable={true}
                                   isSelected={selectedMintUrl === mint.mintUrl}                                  
@@ -677,29 +682,29 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
                                           {(startIndex > 0 || totalRecoveredAmount > 0) && (
                                               <Button
                                                   onPress={onCompleteAddress}
-                                                  tx="common.complete"                                                        
+                                                  tx="common.completed"                                                        
                                                   preset='secondary'                                        
                                               />
                                           )} 
                                       </View>
       
-                                      <View style={$buttonContainer}>
-                                      <Text 
-                                          text={translate("recovery.intervalParam", { 
-                                              startIndex: startIndex,
-                                              endIndex: endIndex
-                                          })} 
-                                          size='xxs' 
-                                          style={{color: textHint, alignSelf: 'center', marginTop: spacing.small}}
-                                      />
-                                      <Pressable onPress={toggleIndexModal}>
-                                          <Text 
-                                              tx="recovery.setManually"
-                                              size='xxs' 
-                                              style={{color: textHint, alignSelf: 'center', marginTop: spacing.small}}
-                                          />  
-                                      </Pressable>                                    
-                                      </View>
+                                      <View style={[$buttonContainer,{marginTop: 0}]}>
+                                        <Text 
+                                            text={translate("recovery.intervalParam", { 
+                                                startIndex: startIndex,
+                                                endIndex: endIndex
+                                            })} 
+                                            size='xxs' 
+                                            style={{color: textHint, alignSelf: 'center', marginTop: spacing.small}}
+                                        />
+                                        <Pressable onPress={toggleIndexModal}>
+                                            <Text 
+                                                tx="recovery.setManually"
+                                                size='xxs' 
+                                                style={{color: textHint, alignSelf: 'center', marginTop: spacing.small}}
+                                            />  
+                                        </Pressable>                                    
+                                        </View>
                                       <View style={[$buttonContainer,{marginTop: 0}]}>
                                       <Text 
                                           text={translate("recovery.keysetID", { 
@@ -730,52 +735,8 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
                                   )}
                               </>   
                           }         
-                      />                                                         
-                  </>
-                  ) : (
-                      <Card
-                          style={$card}
-                          ContentComponent={
-                              <ListItem
-                                  tx="recoveryInsertMnemonic"
-                                  subTx={'recoveryInsertMnemonicDesc'}
-                                  LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='1'/></View>}                  
-                                  style={$item}                            
-                              /> 
-                          }
-                          FooterComponent={
-                              <>
-                              <TextInput
-                                  ref={mnemonicInputRef}
-                                  onChangeText={(mnemonic: string) => setMnemonic(mnemonic)}
-                                  value={mnemonic}
-                                  numberOfLines={3}
-                                  multiline={true}
-                                  autoCapitalize='none'
-                                  keyboardType='default'
-                                  maxLength={150}
-                                  placeholder={translate("mnemonicPhrasePlaceholder")}
-                                  selectTextOnFocus={true}                    
-                                  style={[$mnemonicInput, {backgroundColor: inputBg, flexWrap: 'wrap'}]}
-                              />
-                              <View style={$buttonContainer}>
-                                  {mnemonic ? (
-                                      <Button
-                                          onPress={onConfirmMnemonic}
-                                          tx='common.confirm'                        
-                                      />
-                                  ) : (
-                                      <Button
-                                          onPress={onPasteMnemonic}
-                                          tx='common.paste'                        
-                                      />
-                                  )
-                              }                    
-                              </View>
-                              </>
-                          }           
                       />
-                      )}                
+                  )}                
                   </>
               </View>
               <BottomModal

@@ -176,7 +176,7 @@ export const WalletStoreModel = types
     
         if (!keys) {
             throw new AppError(
-              Err.VALIDATION_ERROR, 
+              Err.NOTFOUND_ERROR, 
               'Device secure storage could not return wallet keys, please reinstall and use your seed phrase to recover wallet.'
             )
         }

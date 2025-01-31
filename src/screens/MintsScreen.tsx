@@ -68,7 +68,12 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(
     }
 
     const toggleMintMenuModal = () => setIsMintMenuVisible(previousState => !previousState)
-    const toggleShareModal = () => setIsShareModalVisible(previousState => !previousState)
+    const toggleShareModal = () => {      
+      if(isShareModalVisible) {
+        setSelectedMint(undefined)
+      }
+      setIsShareModalVisible(previousState => !previousState)      
+    }
 
     const pasteMintUrl = async () => {
       const url = await Clipboard.getString()

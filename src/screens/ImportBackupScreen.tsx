@@ -91,7 +91,7 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
                 if(existing && existing.SEED.mnemonic) {
                     setMnemonicExists(true)
                 }                
-            } catch (e: any) {
+            } catch (e: any) {                
                 handleError(e)
             } 
         }
@@ -502,7 +502,7 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
         )}           
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
-        {isLoading && <Loading statusMessage={statusMessage} textStyle={{color: 'white'}} style={{backgroundColor: loadingBg, opacity: 1}}/>}    
+        {isLoading && <Loading statusMessage={statusMessage} textStyle={{color: 'white'}} style={{backgroundColor: headerBg, opacity: 1}}/>}    
       </Screen>
     )
   }
