@@ -165,14 +165,14 @@ async function _runMigrations(rootStore: RootStore) {
             userSettingsStore.setExchangeCurrency(CurrencyCode.USD)
             userSettingsStore.setTheme(ThemeCode.DEFAULT)
 
-            if(!userSettingsStore.isLocalBackupOn) {
+            /* if(!userSettingsStore.isLocalBackupOn) {
                 const proofs = proofsStore.allProofs
                 const pendingProofs = proofsStore.pendingProofs
 
                 Database.addOrUpdateProofs(proofs, false, false)
                 Database.addOrUpdateProofs(pendingProofs, true, false)
                 userSettingsStore.setIsLocalBackupOn(true)
-            }
+            }*/
             
             for (const mint of mintsStore.allMints) {
                 for(const keysetId of mint.keysetIds) {

@@ -291,10 +291,6 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
 
             keys.SEED = seed      
             
-            // save keys as we need them next for publishing the recovered profile to relays
-            await KeyChain.saveWalletKeys(keys)            
-            walletStore.cleanCachedWalletKeys()
-
             if(isNewProfileNeeded) {
                 
                 await walletProfileStore.create(
@@ -313,8 +309,10 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
                 )
             }
 
-
-
+            await KeyChain.saveWalletKeys(keys)            
+            walletStore.cleanCachedWalletKeys()
+            // force publish now that we have keys available
+            await walletProfileStore.publishToRelays()
             userSettingsStore.setIsOnboarded(true)
 
             if(!mintsStore.mintExists(MINIBITS_MINT_URL)) {

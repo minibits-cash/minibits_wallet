@@ -164,17 +164,30 @@ export const TransactionListItem = observer(function (
         if(profile && profile.picture) {
           return (
             <View style={$pictureContainer}>
-              <Image 
-                style={
-                  {
-                    width: verticalScale(34),
-                    height: verticalScale(34),
-                    borderRadius: verticalScale(34) / 2,
-                  }
-                } 
-                source={{uri: profile.picture}}
-                defaultSource={require('../../../assets/icons/nostr.png')}
-              />  
+              {profile.picture ? (
+                <Image 
+                  style={
+                    {
+                      width: verticalScale(34),
+                      height: verticalScale(34),
+                      borderRadius: verticalScale(34) / 2,
+                    }
+                  } 
+                  source={{uri: profile.picture}}
+                  // defaultSource={require('../../../assets/icons/nostr.png')}
+                /> 
+              ) : (
+                <Image 
+                  style={
+                    {
+                      width: verticalScale(34),
+                      height: verticalScale(34),
+                      borderRadius: verticalScale(34) / 2,
+                    }
+                  } 
+                  source={require('../../../assets/icons/nostr.png')}                  
+                />
+              )}               
             </View>  
           )
         } 

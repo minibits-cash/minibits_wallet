@@ -108,11 +108,9 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
             return
           }         
           
-          setIsLoading(true)
+          setIsLoading(true)          
 
-          let walletKeys: WalletKeys | undefined = await KeyChain.getWalletKeys()
-
-          if(!walletKeys) {
+          if(!await KeyChain.hasWalletKeys()) {
             setStatusMessage('Creating wallet keys...')
 
             const keys = KeyChain.generateWalletKeys()            

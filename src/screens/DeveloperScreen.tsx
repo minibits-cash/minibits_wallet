@@ -75,12 +75,12 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
     const syncTransactionsFromDb = function () {
       setIsLoading(true)
       try {
-        const result = Database.getTransactions(
+        const dbTransactions = Database.getTransactions(
           maxTransactionsInHistory,
           0,
         )
 
-        if (result && result.length > 0) {
+        if (dbTransactions && dbTransactions.length > 0) {
             // remove all from the transactionsStore model
             transactionsStore.removeAllTransactions()
 
@@ -90,7 +90,7 @@ export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observ
             transactionsStore.addRecentByUnit()
 
             setIsLoading(false)
-            setInfo(translate('resetCompletedDetail', { transCount: result.length }))
+            setInfo(translate('resetCompletedDetail', { transCount: dbTransactions.length }))
             return true
         }
 

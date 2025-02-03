@@ -196,11 +196,11 @@ export const TransactionsStoreModel = types
         }),
         addToHistory(limit: number, offset: number, onlyPending: boolean){
             // Appends transaction to the map and adds reference to history from database.
-            const result = Database.getTransactions(limit, offset, onlyPending)
-            log.trace('[addToHistory] dbResult ids', {ids: result?._array.map(t => t.id)})            
+            const dbTransactions = Database.getTransactions(limit, offset, onlyPending)
+            log.trace('[addToHistory] dbResult ids', {ids: dbTransactions.map(t => t.id)})            
 
-            if (result && result.length > 0) {
-                for (const dbTransaction of result._array) {
+            if (dbTransactions && dbTransactions.length > 0) {
+                for (const dbTransaction of dbTransactions) {
                     const createdAt = new Date(dbTransaction.createdAt)                    
                     const inStoreTransaction = {...dbTransaction, createdAt}
 

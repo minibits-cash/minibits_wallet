@@ -702,6 +702,7 @@ const ReceiveInfoBlock = function (props: {
                               url={sentFromUrl}
                           />
                           <View style={$pictureContainer}>
+                          {profilePicture ? (
                             <Image 
                               style={
                                 {
@@ -711,8 +712,20 @@ const ReceiveInfoBlock = function (props: {
                                 }
                               } 
                               source={{uri: profilePicture}}
-                              defaultSource={require('../../assets/icons/nostr.png')}
-                            />  
+                              // defaultSource={require('../../assets/icons/nostr.png')}
+                            /> 
+                          ):(
+                            <Image 
+                              style={
+                                {
+                                  width: verticalScale(40),
+                                  height: verticalScale(40),
+                                  borderRadius: verticalScale(40) / 2,
+                                }
+                              } 
+                              source={require('../../assets/icons/nostr.png')}                              
+                            /> 
+                          )} 
                           </View> 
                         </View>
                       ) : (

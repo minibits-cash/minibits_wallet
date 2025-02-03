@@ -44,6 +44,12 @@ export const WalletProfileStoreModel = types
     .actions(self => ({  
         publishToRelays: flow(function* publishToRelays() {
             try {
+                const hasKeys = yield KeyChain.hasWalletKeys()
+                
+                if(!hasKeys) {
+                    log.debug('[publishToRelays] Profile will not be published to relays, wallet keys not yet available.')
+                }
+
                 const {pubkey, name, picture, nip05, lud16} = self
 
                 // announce to minibits relay + default public relays with replaceable event           
@@ -80,8 +86,9 @@ export const WalletProfileStoreModel = types
                 
                 return publishedEvent
                 
-            } catch (e: any) {       
-                log.error(e.name, e.message)         
+            } catch (e: any) {     
+                // on profile creation / recovery this fails at first as nostr keys are not yet saved  
+                log.warn(e.name, e.message)         
                 return false // silent
             }                    
         })        
@@ -95,8 +102,8 @@ export const WalletProfileStoreModel = types
             self.name = name // default name is set on server side, equals walletId
             self.nip05 = nip05 // default is name@minibits.cash set on server side
             self.lud16 = lud16 // equals to nip05 for all @minibits.cash addresses, set on server side
-            self.picture = avatar // default picture is set on server side  
-            
+            self.picture = avatar // default picture is set on server side              
+
             yield self.publishToRelays()
         })
     }))   

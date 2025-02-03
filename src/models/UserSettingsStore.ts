@@ -25,9 +25,8 @@ export const UserSettingsStoreModel = types
         theme: types.optional(types.frozen<ThemeCode>(), ThemeCode.DEFAULT),
         nextTheme: types.optional(types.frozen<ThemeCode>(), ThemeCode.DEFAULT),
         isOnboarded: types.optional(types.boolean, false),        
-        isAuthOn: types.optional(types.boolean, false), 
-        isLocalBackupOn: types.optional(types.boolean, true),        
-        isBatchClaimOn: types.optional(types.boolean, false),
+        isAuthOn: types.optional(types.boolean, false),        
+        isBatchClaimOn: types.optional(types.boolean, true),
         isLoggerOn: types.optional(types.boolean, true),
         logLevel: types.optional(types.frozen<LogLevel>(), LogLevel.ERROR)
     })
@@ -51,10 +50,6 @@ export const UserSettingsStoreModel = types
         setIsOnboarded: (isOnboarded: boolean) => {            
             self.isOnboarded = isOnboarded
             return isOnboarded   
-        },
-        setIsLocalBackupOn: (isLocalBackupOn: boolean) => {            
-            self.isLocalBackupOn = isLocalBackupOn            
-            return isLocalBackupOn
         },
         setIsAuthOn: flow(function* setIsAuthOn(
             isAuthOn: boolean,

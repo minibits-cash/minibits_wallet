@@ -14,7 +14,7 @@ const {
     userSettingsStore
 } = rootStoreInstance
 
-const customSentryTransport: transportFunctionType = props => {    
+const customSentryTransport: transportFunctionType<{SENTRY: any}> = props => {    
 
     if (!props.options?.SENTRY) {
         throw Error('No sentry instance provided')
@@ -27,7 +27,8 @@ const customSentryTransport: transportFunctionType = props => {
 
     if (props.level.text === 'error') {                
         // Capture error log
-        if (props.rawMsg && props.rawMsg.stack && props.rawMsg.message) {
+        const {stack, message} = props.rawMsg as Error
+        if (stack && message) {
             // this is probably a JS error
             props.options.SENTRY.captureException(props.rawMsg)
         } else {
@@ -53,7 +54,7 @@ const customSentryTransport: transportFunctionType = props => {
 }
 
   
-const log = logger.createLogger<LogLevel.TRACE | LogLevel.DEBUG | LogLevel.INFO | LogLevel.WARN | LogLevel.ERROR>({    
+const log = logger.createLogger({    
     severity: __DEV__ ? LogLevel.TRACE : LogLevel.DEBUG,
     levels: {
         trace: 0,

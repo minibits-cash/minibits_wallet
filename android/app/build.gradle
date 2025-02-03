@@ -5,7 +5,6 @@ apply plugin: "com.google.gms.google-services"
 
 import com.android.build.OutputFile
 
-
 /**
  * This is the configuration block to customize your React Native Android app.
  * By default you don't need to apply any configuration, just uncomment the lines you need.
@@ -96,8 +95,8 @@ android {
         applicationId "com.minibits_wallet"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 58016
-        versionName "0.1.11"
+        versionCode 58017
+        versionName "0.2.0"
     }
 
     splits {
