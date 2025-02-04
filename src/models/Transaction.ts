@@ -11,18 +11,18 @@ export interface TransactionRecord {
     fee: number
     unit: MintUnit
     data: string
-    sentFrom?: string
-    sentTo?: string
-    profile?: string
-    memo?: string
-    zapRequest?: string
-    inputToken?: string
-    outputToken?: string
-    proof?: string
+    sentFrom?: string | null
+    sentTo?: string | null
+    profile?: string | null
+    memo?: string | null
+    zapRequest?: string | null
+    inputToken?: string | null
+    outputToken?: string | null
+    proof?: string | null
     mint: string
-    balanceAfter?: number
-    noteToSelf?: string
-    tags?: Array<string>
+    balanceAfter?: number | null
+    noteToSelf?: string | null
+    tags?: Array<string> | null
     status: TransactionStatus 
     createdAt: Date   
 }
@@ -63,18 +63,18 @@ export const TransactionModel = types
         fee: types.optional(types.integer, 0),
         unit: types.frozen<MintUnit>(),
         data: types.string,
-        sentFrom: types.maybe(types.string),
-        sentTo: types.maybe(types.string),
-        profile: types.maybe(types.string),
-        memo: types.maybe(types.string),
+        sentFrom: types.maybe(types.maybeNull(types.string)),
+        sentTo: types.maybe(types.maybeNull(types.string)),
+        profile: types.maybe(types.maybeNull(types.string)),
+        memo: types.maybe(types.maybeNull(types.string)),
         mint: types.string,
-        zapRequest: types.maybe(types.string),
-        inputToken: types.maybe(types.string),
-        outputToken: types.maybe(types.string),
-        proof: types.maybe(types.string),
-        balanceAfter: types.maybe(types.integer),
-        noteToSelf: types.maybe(types.string),
-        tags: types.maybe(types.array(types.string)),
+        zapRequest: types.maybe(types.maybeNull(types.string)),
+        inputToken: types.maybe(types.maybeNull(types.string)),
+        outputToken: types.maybe(types.maybeNull(types.string)),
+        proof: types.maybe(types.maybeNull(types.string)),
+        balanceAfter: types.maybe(types.maybeNull(types.integer)),
+        noteToSelf: types.maybe(types.maybeNull(types.string)),
+        tags: types.maybe(types.maybeNull(types.array(types.string))),
         status: types.frozen<TransactionStatus>(),
         createdAt: types.optional(types.Date, new Date()),
     })

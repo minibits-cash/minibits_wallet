@@ -4,7 +4,7 @@ import { isObj } from '@cashu/cashu-ts/src/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { observer } from 'mobx-react-lite'
 import { getSnapshot } from 'mobx-state-tree'
-import { DimensionValue, LayoutAnimation, Platform, TextStyle, UIManager, View, ViewStyle } from 'react-native'
+import { DimensionValue, Image, LayoutAnimation, Platform, TextStyle, UIManager, View, ViewStyle } from 'react-native'
 import JSONTree from 'react-native-json-tree'
 import {
   $sizeStyles,
@@ -157,22 +157,35 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
   return (
     <Screen contentContainerStyle={$screen} preset="scroll">
       <View style={[$headerContainer, {backgroundColor: headerBg, justifyContent: 'space-around', paddingBottom: spacing.huge}]}>
-        <View
-          style={{
-              marginEnd: spacing.small,
-              flex: 0,
-              borderRadius: spacing.small,
-              padding: spacing.extraSmall,
-              backgroundColor: colors.palette.orange600
-          }}
-        >
-          <SvgXml 
+      {mintInfo && mintInfo.icon_url ? (
+              <Image 
+                style={
+                  {
+                    width: spacing.extraLarge,
+                    height: spacing.extraLarge,
+                    borderRadius: spacing.small,
+                  }
+                } 
+                source={{uri: mintInfo.icon_url}}                
+              /> 
+          ):(
+            <View
+              style={{
+                marginEnd: spacing.small,
+                flex: 0,
+                borderRadius: spacing.small,
+                padding: spacing.extraSmall,
+                backgroundColor: colors.palette.orange600
+              }}
+            >           
+            <SvgXml 
               width={spacing.medium} 
               height={spacing.medium} 
               xml={MintIcon}
               fill='white'
-          />
+            />
           </View>
+        )}        
         <Text preset='subheading' text={mintInfo?.name ?? mint?.shortname} style={{color: headerTitle}}/>
         {mint?.units && (
           <View style={{flexDirection: 'row'}}>
@@ -494,7 +507,7 @@ function ContactCard(props: { info: GetInfoResponse, popupMessage: (msg: string)
 }
 
 /** don't render these because they're rendered in separate components */
-const detailsHiddenKeys = new Set(['name', 'motd', 'description', 'description_long', 'nuts', 'contact'])
+const detailsHiddenKeys = new Set(['name', 'motd', 'description', 'description_long', 'nuts', 'contact', 'icon_url', 'time'])
 
 /** key-value pairs of details about the mint */
 function MintInfoDetails(props: { info: GetInfoResponse, popupMessage: (msg: string) => void }) {

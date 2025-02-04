@@ -18,9 +18,7 @@ import {
 import codePush, { RemotePackage } from 'react-native-code-push'
 import {moderateScale, verticalScale} from '@gocodingnow/rn-size-matters'
 import { SvgXml } from 'react-native-svg'
-import notifee, { AndroidImportance } from '@notifee/react-native'
 import { NavigationState, Route, TabBar, TabView } from 'react-native-tab-view'
-import { NotificationService, TASK_QUEUE_CHANNEL_ID, TASK_QUEUE_CHANNEL_NAME } from '../services/notificationService'
 import {useThemeColor, spacing, colors, typography} from '../theme'
 import {
   Button,
@@ -527,7 +525,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     }
 
     const tabWidth = moderateScale(75)
-
+    
     const getActiveTabColor = (state: NavigationState<Route>) => {
         return useThemeColor('headerTitle')
     }
@@ -545,7 +543,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                                 textStyle={{color: 'white'}}
                                 containerStyle={focused ? {} : {opacity: 0.5}}
                             />
-                        )}
+                        )}                       
                         indicatorStyle={{backgroundColor: getActiveTabColor(props.navigationState)}}                    
                         style={{backgroundColor: headerBg, shadowColor: 'transparent'}}
                     />
