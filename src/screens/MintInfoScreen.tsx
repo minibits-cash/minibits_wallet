@@ -1,5 +1,5 @@
-import React, { FC, useEffect, useMemo, useState } from 'react'
-import { GetInfoResponse, SwapMethod } from '@cashu/cashu-ts'
+import React, { useEffect, useMemo, useState } from 'react'
+import { GetInfoResponse as CashuGetInfoResponse, SwapMethod } from '@cashu/cashu-ts'
 import { isObj } from '@cashu/cashu-ts/src/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { observer } from 'mobx-react-lite'
@@ -25,7 +25,6 @@ import { CollapsibleText } from '../components/CollapsibleText'
 import { translate } from '../i18n'
 import { useStores } from '../models'
 import { Mint, MintStatus } from '../models/Mint'
-import { SettingsStackScreenProps } from '../navigation'
 import { log } from '../services'
 import { colors, spacing, typography, useThemeColor } from '../theme'
 import useColorScheme from '../theme/useThemeColor'
@@ -35,6 +34,7 @@ import { CurrencySign } from './Wallet/CurrencySign'
 import { SvgXml } from 'react-native-svg'
 import { CurrencyCode, formatCurrency } from '../services/wallet/currency'
 import { QRShareModal } from '../components/QRShareModal'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -50,6 +50,8 @@ interface MethodLimit {
   min?: number,
   max?: number,
 }
+
+type GetInfoResponse = CashuGetInfoResponse & {icon_url: string}
 
 const iconMap: Partial<Record<keyof GetInfoResponse, IconTypes>> = {
   'name': 'faTag',
@@ -67,8 +69,12 @@ const contactIconMap: Record<string, IconTypes> = {
   'nostr': 'faCircleNodes'
 }
 
-export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer(function MintInfoScreen(_props) {
-  const { navigation, route } = _props
+type Props = StaticScreenProps<{
+  mintUrl : string
+}>
+
+export const MintInfoScreen = observer(function MintInfoScreen({ route }: Props) {
+  const navigation = useNavigation()
   useHeader({
     leftIcon: 'faArrowLeft',
     onLeftPress: () => {

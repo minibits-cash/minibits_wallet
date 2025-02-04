@@ -16,7 +16,6 @@ import {
 import Clipboard from '@react-native-clipboard/clipboard'
 import JSONTree from 'react-native-json-tree'
 import {colors, spacing, typography, useThemeColor} from '../theme'
-import {TransactionsStackScreenProps} from '../navigation'
 import EventEmitter from '../utils/eventEmitter'
 import {
   Button,
@@ -53,7 +52,7 @@ import { CurrencySign } from './Wallet/CurrencySign'
 import { MintUnit, formatCurrency, getCurrency } from "../services/wallet/currency"
 import { PaymentRequest } from '../models/PaymentRequest'
 import { pollerExists } from '../utils/poller'
-import { useFocusEffect } from '@react-navigation/native'
+import { StaticScreenProps, useFocusEffect, useNavigation } from '@react-navigation/native'
 import { QRCodeBlock } from './Wallet/QRCode'
 import { MintListItem } from './Mints/MintListItem'
 import { Token, getDecodedToken } from '@cashu/cashu-ts'
@@ -71,9 +70,13 @@ type ProofsByStatus = {
   isReceived: Proof[]
 }
 
-export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
-  observer(function TranDetailScreen(_props) {
-    const {navigation, route} = _props
+type Props = StaticScreenProps<{
+  id: number
+}>
+
+export const TranDetailScreen =
+  observer(function TranDetailScreen({ route }: Props) {
+    const navigation = useNavigation()
     const {transactionsStore, userSettingsStore, mintsStore} = useStores()
     
     const noteInputRef = useRef<TextInput>(null)

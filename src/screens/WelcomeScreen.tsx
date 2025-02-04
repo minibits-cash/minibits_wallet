@@ -15,10 +15,8 @@ import {
   } from 'react-native-animated-pagination-dots'
 // import { isRTL } from "../i18n"
 import {useStores} from '../models'
-import {AppStackScreenProps} from '../navigation'
 import {spacing, colors, useThemeColor} from '../theme'
 import {useHeader} from '../utils/useHeader'
-import {useSafeAreaInsetsStyle} from '../utils/useSafeAreaInsetsStyle'
 import {
   Button,
   ErrorModal,
@@ -32,10 +30,9 @@ import {TxKeyPath, translate} from '../i18n'
 import AppError from '../utils/AppError'
 import { MINIBITS_MINT_URL } from '@env'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
-import { KeyChain, NostrClient, WalletKeys } from '../services'
+import { KeyChain } from '../services'
 import { delay } from '../utils/utils'
-import { getRandomUsername } from '../utils/usernames'
-
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView)
 
@@ -73,13 +70,12 @@ const PAGES = [
         ],
         final: 'welcomeScreen.page3.final'
     }       
-] 
+]
 
-// const welcomeLogo = require("../../assets/images/logo.png")
+type Props = StaticScreenProps<{}>
 
-export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
-  function WelcomeScreen(_props) {
-    const {navigation} = _props
+export const WelcomeScreen = function () {
+    const navigation = useNavigation()
     const headerBg = useThemeColor('header')  
 
     useHeader({
@@ -134,7 +130,8 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
           relaysStore.addDefaultRelays()
           userSettingsStore.setIsOnboarded(true)
 
-          navigation.navigate('Tabs', {screen: 'WalletNavigator', params: {screen: 'Wallet', params: {}}})
+          navigation.navigate('Tabs')
+          
           await delay(1000)
           setStatusMessage('')
           setIsLoading(false)   
@@ -146,7 +143,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
 
     const gotoRecovery = async function () {
         try {            
-            navigation.navigate('RecoveryOptions', {})
+            navigation.navigate('RecoveryOptions', {fromScreen: 'Welcome'})
         } catch (e: any) {
             handleError(e)
         }      
@@ -286,7 +283,7 @@ export const WelcomeScreen: FC<AppStackScreenProps<'Welcome'>> =
             {isLoading && <Loading statusMessage={statusMessage} style={{backgroundColor: headerBg, opacity: 1}} textStyle={{color: 'white'}}/>}
         </Screen>
     )
-  }
+}
 
 const $dotsContainer: ViewStyle ={
     height: 50,

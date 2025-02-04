@@ -13,7 +13,6 @@ import {
   ImageStyle,
 } from 'react-native'
 import {spacing, useThemeColor, colors, typography} from '../theme'
-import {WalletStackScreenProps} from '../navigation'
 import {
   Button,
   Icon,
@@ -41,7 +40,7 @@ import AppError, {Err} from '../utils/AppError'
 import {Mint, MintBalance} from '../models/Mint'
 import EventEmitter from '../utils/eventEmitter'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
-import {useFocusEffect} from '@react-navigation/native'
+import {StaticScreenProps, useFocusEffect, useNavigation} from '@react-navigation/native'
 import {Contact, ContactType} from '../models/Contact'
 import {getImageSource, infoMessage} from '../utils/utils'
 import {ReceiveOption} from './ReceiveScreen'
@@ -74,8 +73,17 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
-export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
-  function TopupScreen({navigation, route}) {
+type Props = StaticScreenProps<{
+  unit: MintUnit,
+  paymentOption?: ReceiveOption,
+  contact?: Contact,
+  lnurlParams?: LNURLWithdrawParams,
+  mintUrl?: string, 
+}>
+
+export const TopupScreen = observer(
+  function TopupScreen({ route }: Props) {
+    const navigation = useNavigation()
     const isInternetReachable = useIsInternetReachable()
 
     const {
@@ -544,11 +552,8 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     }
 
     const gotoContacts = function () {
-      navigation.navigate('ContactsNavigator', {
-        screen: 'Contacts',
-        params: {
-          paymentOption: ReceiveOption.SEND_PAYMENT_REQUEST,
-        },
+      navigation.navigate('Contacts', {        
+          paymentOption: ReceiveOption.SEND_PAYMENT_REQUEST        
       })
     }
 
@@ -615,7 +620,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
       setIsWithdrawRequestSending(false)
       setPaymentOption(ReceiveOption.SHOW_INVOICE)
 
-      navigation.popToTop()
+      navigation.navigate('Tabs')
     }
 
     const handleError = function (e: AppError): void {
@@ -650,8 +655,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
               ? mintsStore.findByUrl(mintBalanceToTopup?.mintUrl)
               : undefined
           }
-          unit={unit}
-          navigation={navigation}
+          unit={unit}          
         />
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <View style={$amountContainer}>

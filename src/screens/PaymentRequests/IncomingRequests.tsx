@@ -15,7 +15,6 @@ import {
   InfoModal,
   Loading,
 } from '../../components'
-import {WalletStackParamList} from '../../navigation'
 import {useStores} from '../../models'
 import AppError from '../../utils/AppError'
 import { PaymentRequest } from '../../models/PaymentRequest'
@@ -23,10 +22,7 @@ import { StackNavigationProp } from '@react-navigation/stack'
 import { PaymentRequestListItem } from './PaymentRequestListItem'
 
 
-export const IncomingRequests = observer(function (props: {
-    navigation: StackNavigationProp<WalletStackParamList, "PaymentRequests", undefined>,       
-}) {    
-    const {navigation} = props
+export const IncomingRequests = observer(function IncomingRequests() {        
     const {paymentRequestsStore} = useStores()
 
     const [info, setInfo] = useState('')
@@ -46,11 +42,7 @@ export const IncomingRequests = observer(function (props: {
         setError(e)
     }
 
-    const headerBg = useThemeColor('header')
-    const iconColor = useThemeColor('textDim')
-    const hintColor = useThemeColor('textDim')
-    const activeIconColor = useThemeColor('button')
-    
+    const hintColor = useThemeColor('textDim')       
 
     return (
     <Screen contentContainerStyle={$screen}>
@@ -62,8 +54,7 @@ export const IncomingRequests = observer(function (props: {
                     return(
                         <PaymentRequestListItem                                        
                             pr={item}
-                            isFirst={index === 0}                            
-                            navigation={navigation}                                               
+                            isFirst={index === 0}                                                        
                         />
                     )
                 }}

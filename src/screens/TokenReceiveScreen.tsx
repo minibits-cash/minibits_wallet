@@ -5,7 +5,6 @@ import {
     TextStyle,
     TextInput,
 } from 'react-native'
-import {WalletStackScreenProps} from '../navigation'
 import {colors, spacing, useThemeColor} from '../theme'
 import {log} from '../services/logService'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
@@ -20,10 +19,15 @@ import { MintHeader } from './Mints/MintHeader'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { translate } from '../i18n'
 import { MintUnit } from '../services/wallet/currency'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
+type Props = StaticScreenProps<{
+    unit: MintUnit    
+    mintUrl?: string
+}>
 
-export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = function TokenReceiveScreen(_props) {
-    const {navigation, route} = _props
+export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) {
+    const navigation = useNavigation()
     const tokenInputRef = useRef<TextInput>(null)
     const {mintsStore} = useStores()
 
@@ -105,7 +109,7 @@ export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = fu
 
         try {
             const tokenResult = IncomingParser.findAndExtract(encodedToken, IncomingDataType.CASHU)
-            return IncomingParser.navigateWithIncomingData(tokenResult, navigation, unit, mint && mint.mintUrl)
+            return IncomingParser.navigateWithIncomingData(tokenResult, unit, mint && mint.mintUrl)
             
         } catch (e: any) {            
             handleError(e)  
@@ -137,8 +141,7 @@ export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = fu
         <Screen preset="fixed" contentContainerStyle={$screen}>
             <MintHeader 
                 mint={mint}
-                unit={unit!}
-                navigation={navigation}
+                unit={unit!}                
             />
             <View style={[$headerContainer, {backgroundColor: headerBg}]}>                
                 <Text

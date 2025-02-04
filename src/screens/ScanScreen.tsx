@@ -7,7 +7,6 @@ import {
     View,
     TextStyle,
 } from 'react-native'
-import {WalletStackScreenProps} from '../navigation'
 import {Camera, CameraType} from 'react-native-camera-kit'
 import { URDecoder } from '@gandlaf21/bc-ur'
 import {spacing, typography, useThemeColor} from '../theme'
@@ -23,15 +22,20 @@ import { translate } from '../i18n'
 import { MintUnit } from '../services/wallet/currency'
 import { Mint } from '../models/Mint'
 import { CashuUtils } from '../services/cashu/cashuUtils'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
 const hasAndroidCameraPermission = async () => {
     const cameraPermission = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA)
-    return cameraPermission !== PermissionsAndroid.RESULTS.BLOCKED && cameraPermission !== PermissionsAndroid.RESULTS.DENIED
+    return cameraPermission !== PermissionsAndroid.RESULTS.DENIED
 }
 
+type Props = StaticScreenProps<{
+    unit: MintUnit    
+    mintUrl?: string,      
+  }>
 
-export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScreen(_props) {
-    const {navigation, route} = _props
+export const ScanScreen = function ScanScreen({ route }: Props) {
+    const navigation = useNavigation()
     const {mintsStore} = useStores()
 
     const [shouldLoad, setShouldLoad] = useState<boolean>(false)        
@@ -50,7 +54,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
           const routes = navigation.getState()?.routes
           let prevRoute: string = ''
 
-          if(routes.length >= 2) {
+          if(routes && routes.length >= 2) {
             prevRoute = routes[routes.length - 2].name
               log.trace('prevRouteName', prevRoute)
               setPrevRouteName(prevRoute)
@@ -130,7 +134,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                 log.trace('TokenReceive')
                 try {     
                     const tokenResult = IncomingParser.findAndExtract(incoming, IncomingDataType.CASHU)
-                    return IncomingParser.navigateWithIncomingData(tokenResult, navigation, unit, mint && mint.mintUrl)
+                    return IncomingParser.navigateWithIncomingData(tokenResult, unit, mint && mint.mintUrl)
                     
                 } catch (e: any) {
                     const maybeLnurl = LnurlUtils.findEncodedLnurl(incoming)
@@ -144,7 +148,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                                 await IncomingParser.navigateWithIncomingData({
                                     type: IncomingDataType.LNURL,
                                     encoded: encodedLnurl
-                                }, navigation, unit, mint && mint.mintUrl)
+                                }, unit, mint && mint.mintUrl)
                             }
                             return
                         } catch (e2: any) {
@@ -161,7 +165,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
             case 'LightningPay':     
                 try {               
                     const invoiceResult = IncomingParser.findAndExtract(incoming, IncomingDataType.INVOICE)
-                    return IncomingParser.navigateWithIncomingData(invoiceResult, navigation, unit, mint && mint.mintUrl)
+                    return IncomingParser.navigateWithIncomingData(invoiceResult, unit, mint && mint.mintUrl)
                     
                 } catch (e: any) {
                     const maybeLnurlAddress = LnurlUtils.findEncodedLnurlAddress(incoming)
@@ -175,7 +179,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                                 await IncomingParser.navigateWithIncomingData({
                                     type: IncomingDataType.LNURL_ADDRESS,
                                     encoded: validAddress
-                                }, navigation, unit, mint && mint.mintUrl)    
+                                }, unit, mint && mint.mintUrl)    
                             }
                             return          
                         } catch (e3: any) {
@@ -195,7 +199,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                                 await IncomingParser.navigateWithIncomingData({
                                     type: IncomingDataType.LNURL,
                                     encoded: encodedLnurl
-                                }, navigation, unit, mint && mint.mintUrl)
+                                }, unit, mint && mint.mintUrl)
                             }
                             return
                         } catch (e2: any) {
@@ -215,7 +219,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                                 await IncomingParser.navigateWithIncomingData({
                                     type: IncomingDataType.CASHU_PAYMENT_REQUEST,
                                     encoded: encodedPr
-                                }, navigation, unit, mint && mint.mintUrl)
+                                }, unit, mint && mint.mintUrl)
                             }
                             return
                         } catch (e3: any) {
@@ -232,7 +236,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
                 try {
                 // generic scan button on wallet screen
                   const incomingData = IncomingParser.findAndExtract(incoming)              
-                  return IncomingParser.navigateWithIncomingData(incomingData, navigation, unit, mint && mint.mintUrl)   
+                  return IncomingParser.navigateWithIncomingData(incomingData, unit, mint && mint.mintUrl)   
                 } catch (e: any) {
                   e.name = Err.VALIDATION_ERROR
                   e.params = {caller: 'onIncomingData', clipboard: incoming.slice(0, 100)}

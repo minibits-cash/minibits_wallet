@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useState, useEffect, useCallback, useRef, ReactElement} from 'react'
-import {useFocusEffect} from '@react-navigation/native'
+import {StaticScreenProps, useFocusEffect, useNavigation} from '@react-navigation/native'
 import {
   TextStyle,
   ViewStyle,
@@ -18,7 +18,7 @@ import {
 import codePush, { RemotePackage } from 'react-native-code-push'
 import {moderateScale, verticalScale} from '@gocodingnow/rn-size-matters'
 import { SvgXml } from 'react-native-svg'
-import { NavigationState, Route, TabBar, TabView } from 'react-native-tab-view'
+import { NavigationState, Route, TabBar, TabBarItemProps, TabBarProps, TabView } from 'react-native-tab-view'
 import {useThemeColor, spacing, colors, typography} from '../theme'
 import {
   Button,
@@ -37,7 +37,6 @@ import {
 } from '../components'
 import EventEmitter from '../utils/eventEmitter'
 import {useStores} from '../models'
-import {WalletStackScreenProps} from '../navigation'
 import {Mint, UnitBalance} from '../models/Mint'
 import {MintsByUnit} from '../models/MintsStore'
 import {HANDLE_CLAIM_TASK, HANDLE_RECEIVED_EVENT_TASK, KeyChain, log, NostrClient, WalletTaskResult} from '../services'
@@ -66,10 +65,12 @@ import { getUnixTime } from 'date-fns/getUnixTime'
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
 const MINT_CHECK_INTERVAL = 60
 
-interface WalletScreenProps extends WalletStackScreenProps<'Wallet'> {}
+type Props = StaticScreenProps<{
+    scannedMintUrl?: string
+}>
 
-export const WalletScreen: FC<WalletScreenProps> = observer(
-  function WalletScreen({route, navigation}) {    
+export const WalletScreen = observer(function WalletScreen({ route }: Props) {
+    const navigation = useNavigation() 
     const {        
         mintsStore, 
         proofsStore, 
@@ -241,8 +242,7 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
 
             const incomingData = IncomingParser.findAndExtract(url)
             await IncomingParser.navigateWithIncomingData(
-                incomingData, 
-                navigation,
+                incomingData,                 
                 currentUnit
             )
 
@@ -258,12 +258,12 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     
 
     const gotoUpdate = function() {
-        navigation.navigate('SettingsNavigator', {screen: 'Update', params: {
+        navigation.navigate('Update', {
             isNativeUpdateAvailable, 
             isUpdateAvailable, 
             updateDescription,
             updateSize
-        }, initial: false})
+        })
     }
     
     
@@ -379,9 +379,8 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
         navigation.navigate('TokenReceive', {unit: currentUnit})
     }
 
-    const gotoTranDetail = function (id: number) {
-        // navigation.navigate('TranDetail', {id})
-        navigation.navigate('TransactionsNavigator', {screen: 'TranDetail', params: {id}, initial: false})
+    const gotoTranDetail = function (id: number) {        
+        navigation.navigate('TranDetail', {id})
     }
 
     const gotoPaymentRequests = function () {
@@ -389,15 +388,13 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
     }
 
     const gotoProfile = function () {
-        navigation.navigate('ContactsNavigator', {screen: 'Profile', params: {}, initial: false})
+        navigation.navigate('Profile')
     }
 
     const gotoMintInfo = function (mintUrl: string) {
         setIsMintsModalVisible(false)
-        navigation.navigate('SettingsNavigator', {
-            screen: 'MintInfo', 
-            params: {mintUrl}, 
-            initial: false
+        navigation.navigate('MintInfo', {
+            mintUrl
         })
     }
 
@@ -537,11 +534,11 @@ export const WalletScreen: FC<WalletScreenProps> = observer(
                     <TabBar                        
                         {...props}                        
                         tabStyle={{width: tabWidth}}
-                        renderLabel={({ route, focused, color }) => (
+                        renderTabBarItem={({ route }) => (
                             <CurrencySign
                                 mintUnit={route.key as MintUnit}
                                 textStyle={{color: 'white'}}
-                                containerStyle={focused ? {} : {opacity: 0.5}}
+                                // containerStyle={focused ? {} : {opacity: 0.5}}
                             />
                         )}                       
                         indicatorStyle={{backgroundColor: getActiveTabColor(props.navigationState)}}                    

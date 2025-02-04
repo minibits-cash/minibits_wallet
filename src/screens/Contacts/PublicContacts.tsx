@@ -11,13 +11,12 @@ import {NostrClient, NostrEvent, NostrFilter, NostrProfile} from '../../services
 import AppError, { Err } from '../../utils/AppError'
 import { log } from '../../services/logService'
 import { Contact, ContactType } from '../../models/Contact'
-import { StackNavigationProp } from '@react-navigation/stack'
-import { ContactsStackParamList } from '../../navigation'
 import { SendOption } from '../SendScreen'
 import { ReceiveOption } from '../ReceiveScreen'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { IncomingDataType, IncomingParser } from '../../services/incomingParser'
 import { translate } from '../../i18n'
+import { useNavigation } from '@react-navigation/native'
 
 
 // const defaultPublicNpub = 'npub14n7frsyufzqsxlvkx8vje22cjah3pcwnnyqncxkuj2243jvt9kmqsdgs52'
@@ -29,12 +28,12 @@ if (Platform.OS === 'android' &&
     UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
-export const PublicContacts = observer(function (props: {    
-    navigation: StackNavigationProp<ContactsStackParamList, "Contacts", undefined>,    
+export const PublicContacts = observer(function (props: {
     paymentOption: ReceiveOption | SendOption |undefined}
 ) { 
+    
     const {contactsStore, relaysStore, userSettingsStore} = useStores()
-    const {navigation} = props
+    const navigation = useNavigation()
     
     const npubInputRef = useRef<TextInput>(null)    
     const relayInputRef = useRef<TextInput>(null)
@@ -357,27 +356,22 @@ export const PublicContacts = observer(function (props: {
             }*/
             
             if(paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) {
-                navigation.navigate('WalletNavigator', { 
-                    screen: 'Topup',
-                    params: {
-                        paymentOption, 
-                        contact                            
-                    },                                            
+                navigation.navigate('Topup', {
+                    paymentOption, 
+                    contact,
+                    unit: userSettingsStore.preferredUnit
                 })
-            }
            
-            return
+                return
+            }
         }
 
 
-        if(paymentOption && paymentOption === SendOption.SEND_TOKEN) {            
-
-            navigation.navigate('WalletNavigator', { 
-                screen: 'Send',
-                params: {   
+        if(paymentOption && paymentOption === SendOption.SEND_TOKEN) {
+            navigation.navigate('Send', {   
                     paymentOption,                  
-                    contact                    
-                },
+                    contact,
+                    unit: userSettingsStore.preferredUnit                  
             })
             
             return
@@ -397,7 +391,8 @@ export const PublicContacts = observer(function (props: {
             await IncomingParser.navigateWithIncomingData({
                 type: IncomingDataType.LNURL_ADDRESS,
                 encoded: contact.lud16
-            }, navigation, userSettingsStore.preferredUnit)
+            }, userSettingsStore.preferredUnit)
+            
             setIsLoading(false)
 
             //reset

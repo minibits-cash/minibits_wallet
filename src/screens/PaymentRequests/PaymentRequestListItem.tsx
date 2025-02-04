@@ -22,19 +22,20 @@ import {getImageSource} from '../../utils/utils'
 import {SendOption} from '../SendScreen'
 import {translate} from '../../i18n'
 import { CurrencyAmount } from '../Wallet/CurrencyAmount'
+import { useNavigation } from '@react-navigation/native'
+import { MintUnit } from '../../services/wallet/currency'
 
 export interface PaymentRequestListProps {
   pr: PaymentRequest
-  isFirst: boolean
-  navigation: any
+  isFirst: boolean  
   onShowQRModal?: any
 }
 
-export const PaymentRequestListItem = observer(function (
+export const PaymentRequestListItem = observer(function PaymentRequestListItem(
   props: PaymentRequestListProps,
 ) {
-  const {pr, isFirst, navigation, onShowQRModal} = props
-  const hintColor = useThemeColor('textDim')
+  const navigation = useNavigation()
+  const {pr, onShowQRModal} = props  
   const secToExpiry = differenceInSeconds(pr.expiresAt as Date, new Date())
   const expiryBg =
     secToExpiry < 0
@@ -44,24 +45,12 @@ export const PaymentRequestListItem = observer(function (
       : colors.palette.success300
   const separatorColor = useThemeColor('separator')
 
-  const onGotoContactDetail = function () {
-    log.trace(pr)
-    navigation.navigate('ContactsNavigator', {
-      screen: 'ContactDetail',
-      params: {
-        contact:
-          pr.type === PaymentRequestType.INCOMING
-            ? pr.contactFrom
-            : pr.contactTo,
-      },
-    })
-  }
-
   const onPressPaymentRequest = function () {
     if (pr.type === PaymentRequestType.INCOMING) {
       navigation.navigate('Transfer', {
         paymentRequest: pr,
         paymentOption: SendOption.PAY_PAYMENT_REQUEST,
+        unit: pr.invoicedUnit as MintUnit
       })
     } else {
       if (onShowQRModal) {

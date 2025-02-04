@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState, useCallback, useRef} from 'react'
-import {useFocusEffect} from '@react-navigation/native'
+import {StaticScreenProps, useFocusEffect, useNavigation} from '@react-navigation/native'
 import {
   UIManager,
   Platform,
@@ -12,7 +12,6 @@ import {
   Keyboard,
 } from 'react-native'
 import {spacing, useThemeColor, colors, typography} from '../theme'
-import {WalletStackScreenProps} from '../navigation'
 import {
   Button,
   Icon,
@@ -34,7 +33,7 @@ import AppError, {Err} from '../utils/AppError'
 import {MintBalance} from '../models/Mint'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {addSeconds} from 'date-fns'
-import { PaymentRequestStatus } from '../models/PaymentRequest'
+import { PaymentRequest, PaymentRequestStatus } from '../models/PaymentRequest'
 import { DecodedLightningInvoice, LightningUtils } from '../services/lightning/lightningUtils'
 import { SendOption } from './SendScreen'
 import { round, roundDown, roundUp, toNumber } from '../utils/number'
@@ -51,6 +50,7 @@ import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { translate } from '../i18n'
 import { MemoInputCard } from '../components/MemoInputCard'
 import { TRANSFER_TASK } from '../services/wallet/transferTask'
+import { LNURLWithdrawParams } from 'js-lnurl'
 
 
 if (
@@ -60,9 +60,22 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
-export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
-  function TransferScreen({route, navigation}) {
+type Props = StaticScreenProps<{
+  unit: MintUnit,
+  encodedInvoice?: string,
+  paymentRequest?: PaymentRequest, 
+  lnurlParams?: LNURLPayParams & {address?: string},
+  fixedAmount?: number, 
+  comment?: string      
+  paymentOption?: SendOption,
+  mintUrl?: string,
+  isDonation?: boolean,
+  donationForName?: string
+}>
 
+export const TransferScreen = observer(
+  function TransferScreen({ route }: Props) {
+    const navigation = useNavigation()
     const amountInputRef = useRef<TextInput>(null)
     const lnurlCommentInputRef = useRef<TextInput>(null)
 
@@ -615,7 +628,7 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
     } catch (e: any) {
       resetState()
       handleError(e)
-      navigation.popToTop()
+      navigation.navigate('Tabs')
     }
 }
 
@@ -686,7 +699,7 @@ const retryAfterSpentCleaned = async function () {
 
 const onClose = function () {
     resetState()
-    navigation.popToTop()
+    navigation.navigate('Tabs')
 }
 
 
@@ -708,8 +721,7 @@ const amountInputColor = useThemeColor('amountInput')
               ? mintsStore.findByUrl(mintBalanceToTransferFrom?.mintUrl)
               : undefined
           }
-          unit={unit}
-          navigation={navigation}
+          unit={unit}          
         />
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <View style={$amountContainer}>
@@ -891,10 +903,7 @@ const amountInputColor = useThemeColor('amountInput')
                         tx={'common.close'}
                         onPress={() => {
                           if (isInvoiceDonation) {
-                            navigation.navigate('ContactsNavigator', {
-                              screen: 'Contacts',
-                              params: {},
-                            })
+                            navigation.navigate('Contacts', {})
                           } else {
                             navigation.navigate('Wallet', {})
                           }

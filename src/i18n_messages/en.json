@@ -448,7 +448,8 @@
 	"tabNavigator": {
 		"contactsLabel": "Contacts",
 		"settingsLabel": "Settings",
-		"walletLabel": "Wallet"
+		"walletLabel": "Wallet",
+		"transactionsLabel": "Transactions"
 	},
 	"tokenReceiveScreen": {
 		"onPasteEmptyClipboard": "First copy ecash token, then paste.",

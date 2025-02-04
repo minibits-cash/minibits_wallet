@@ -28,7 +28,7 @@ export const navigationRef = createNavigationContainerRef()
  * Gets the current screen from any navigation state.
  */
 export function getActiveRouteName(state: NavigationState | PartialState<NavigationState>) {
-  const route = state.routes[state.index]
+  const route = state.routes[state.index!]
 
   // Found the active route -- return the name
   if (!route.state) return route.name
@@ -80,10 +80,11 @@ export function useBackButtonHandler(canExit: (routeName: string) => boolean) {
     }
 
     // Subscribe when we come to life
-    BackHandler.addEventListener("hardwareBackPress", onBackPress)
+    const backHandlerEventSubscription = BackHandler.addEventListener('hardwareBackPress', onBackPress)
+    
 
     // Unsubscribe when we're done
-    return () => BackHandler.removeEventListener("hardwareBackPress", onBackPress)
+    return () => backHandlerEventSubscription.remove()
   }, [])
 }
 
@@ -112,7 +113,7 @@ export function useNavigationPersistence(storage: any, persistenceKey: string) {
 
   const routeNameRef = useRef<string | undefined>()
 
-  const onNavigationStateChange = (state) => {
+  const onNavigationStateChange = (state: NavigationState) => {
     const previousRouteName = routeNameRef.current
     const currentRouteName = getActiveRouteName(state)
 
@@ -154,7 +155,7 @@ export function useNavigationPersistence(storage: any, persistenceKey: string) {
  */
 export function navigate(name: any, params?: any) {
   if (navigationRef.isReady()) {
-    navigationRef.navigate(name as never, params as never)
+    navigationRef.navigate(name, params as never)
   }
 }
 

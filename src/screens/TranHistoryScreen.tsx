@@ -24,16 +24,15 @@ import {
   Loading,
   BottomModal,
 } from '../components'
-import {TransactionsStackScreenProps} from '../navigation'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import {Database, log} from '../services'
 import AppError from '../utils/AppError'
 import {TransactionListItem} from './Transactions/TransactionListItem'
 import { Transaction, TransactionStatus } from '../models/Transaction'
-import { height } from '@fortawesome/free-solid-svg-icons/faWallet'
 import { translate } from '../i18n'
 import { maxTransactionsInHistory } from '../models/TransactionsStore'
+import { useNavigation } from '@react-navigation/native'
 
 if (Platform.OS === 'android' &&
   UIManager.setLayoutAnimationEnabledExperimental) {
@@ -42,8 +41,8 @@ if (Platform.OS === 'android' &&
 // Number of transactions held in TransactionsStore model
 const limit = maxTransactionsInHistory
 
-export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> = observer(function TranHistoryScreen(_props) {
-    const {navigation} = _props
+export const TranHistoryScreen = observer(function TranHistoryScreen() {
+    const navigation = useNavigation()
     const {transactionsStore, mintsStore} = useStores()
     useHeader({
       leftIcon: 'faArrowLeft',

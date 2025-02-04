@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React from 'react'
 import * as Sentry from '@sentry/react-native'
 import {
     APP_ENV,
@@ -49,11 +49,9 @@ if (!__DEV__) {
     })
 }
 
-interface AppProps {
-  appName: string
-}
 
-function App(props: AppProps) {    
+function App() {
+    
     const {userSettingsStore, relaysStore} = useStores()    
 
     const {rehydrated} = useInitialRootStore(async() => {

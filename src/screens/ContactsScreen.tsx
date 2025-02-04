@@ -5,7 +5,6 @@ import { TabBar, TabView, Route } from 'react-native-tab-view'
 import {colors, spacing, typography, useThemeColor} from '../theme'
 import {Header, Icon, Screen} from '../components'
 import {useStores} from '../models'
-import {ContactsStackScreenProps} from '../navigation'
 import { PrivateContacts } from './Contacts/PrivateContacts'
 import { PublicContacts } from './Contacts/PublicContacts'
 import { log } from '../services/logService'
@@ -13,11 +12,15 @@ import { getImageSource } from '../utils/utils'
 import { ReceiveOption } from './ReceiveScreen'
 import { SendOption } from './SendScreen'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+
+type Props = StaticScreenProps<{
+    paymentOption?: ReceiveOption | SendOption
+}>
 
 
-interface ContactsScreenProps extends ContactsStackScreenProps<'Contacts'> {}
-
-export const ContactsScreen: FC<ContactsScreenProps> = observer(function ContactsScreen({route, navigation}) {    
+export const ContactsScreen = observer(function ContactsScreen({ route }: Props) {
+    const navigation = useNavigation() 
     const {walletProfileStore} = useStores()
     
     let paymentOption: ReceiveOption | SendOption | undefined
@@ -29,9 +32,9 @@ export const ContactsScreen: FC<ContactsScreenProps> = observer(function Contact
     const renderScene = ({route}: {route: Route}) => {
         switch (route.key) {
           case 'first':
-            return <PrivateContacts navigation={navigation} paymentOption={paymentOption} />
+            return <PrivateContacts paymentOption={paymentOption} />
           case 'second':
-            return <PublicContacts navigation={navigation} paymentOption={paymentOption} />
+            return <PublicContacts paymentOption={paymentOption} />
           default:
             return null
         }

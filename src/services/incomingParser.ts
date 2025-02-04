@@ -7,6 +7,7 @@ import { LightningUtils } from './lightning/lightningUtils'
 import { LnurlUtils } from './lnurl/lnurlUtils'
 import { LnurlClient } from './lnurlService'
 import { MintUnit } from './wallet/currency'
+import { RootNavigation } from '../navigation'
 
 export enum IncomingDataType {
     CASHU = 'CASHU',
@@ -156,11 +157,11 @@ const navigateWithIncomingData = async function (
     incoming: {
         type: IncomingDataType, 
         encoded: any
-    }, 
-    navigation: StackNavigationProp<any>,
+    },    
     unit: MintUnit,
     mintUrl?: string
 ) {
+    const navigation = RootNavigation
 
     switch (incoming.type) {
         case IncomingDataType.CASHU:

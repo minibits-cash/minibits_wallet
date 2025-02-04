@@ -3,10 +3,8 @@ import React, {FC, useState, useEffect} from 'react'
 import {TextStyle, View, ViewStyle} from 'react-native'
 import notifee, { AndroidImportance } from '@notifee/react-native'
 import {spacing, useThemeColor, colors} from '../theme'
-import {AppStackScreenProps} from '../navigation'
 import {
-  Button,
-  Icon,
+  Button,  
   Card,
   Screen,
   ListItem,
@@ -22,12 +20,16 @@ import { useStores } from '../models'
 import { SYNC_STATE_WITH_ALL_MINTS_TASK, SyncStateTaskResult } from '../services/walletService'
 import EventEmitter from '../utils/eventEmitter'
 import { translate } from '../i18n'
-import { NotificationService, TASK_QUEUE_CHANNEL_ID, TASK_QUEUE_CHANNEL_NAME } from '../services/notificationService'
+import { TASK_QUEUE_CHANNEL_ID, TASK_QUEUE_CHANNEL_NAME } from '../services/notificationService'
 import { minibitsPngIcon } from '../components/MinibitsIcon'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
+type Props = StaticScreenProps<{
+  fromScreen?: string
+}>
 
-export const RecoveryOptionsScreen: FC<AppStackScreenProps<'RecoveryOptions'>> = observer(
-  function RecoveryOptionsScreen({route, navigation}) {
+export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ route }: Props) {
+    const navigation = useNavigation()
     useHeader({
       leftIcon: 'faArrowLeft',
       onLeftPress: () => navigation.goBack(),

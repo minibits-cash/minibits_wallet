@@ -23,14 +23,11 @@ import {$sizeStyles} from '../../components/Text'
 import {getRandomUsername} from '../../utils/usernames'
 import {scale} from '@gocodingnow/rn-size-matters'
 import {translate} from '../../i18n'
+import { useNavigation } from '@react-navigation/native'
 
-export const RandomName = observer(function (props: {
-  navigation: any
-  pubkey: string
-}) {
-  // const navigation = useNavigation()
-  const {userSettingsStore, walletProfileStore} = useStores()
-  const {navigation} = props
+export const RandomName = observer(function (props: {pubkey: string}) {
+  const navigation = useNavigation()
+  const {walletProfileStore} = useStores()  
 
   const [randomNames, setRandomNames] = useState<string[]>([])
   const [selectedName, setSelectedName] = useState<string>('')

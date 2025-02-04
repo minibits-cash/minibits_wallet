@@ -8,7 +8,6 @@ import {
 } from '@env'
 import codePush from "react-native-code-push"
 import {colors, spacing, useThemeColor} from '../theme'
-import {SettingsStackScreenProps} from '../navigation' // @demo remove-current-line
 import {
   Icon,
   ListItem,
@@ -25,23 +24,27 @@ import {useHeader} from '../utils/useHeader'
 import AppError from '../utils/AppError'
 import { log } from '../services'
 import {Env} from '../utils/envtypes'
-import { CommonActions, StackActions } from '@react-navigation/native'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 import { translate } from '../i18n'
 
 
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
 
+type Props = StaticScreenProps<{
+    isNativeUpdateAvailable: boolean, 
+    isUpdateAvailable: boolean, 
+    updateDescription: string,
+    updateSize: string
+}>
 
-export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(function UpdateScreen(_props) {
-    const {navigation, route} = _props
+export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
+    const navigation = useNavigation()
     const {
         isUpdateAvailable, 
         isNativeUpdateAvailable,
         updateDescription,
         updateSize
-    } = route.params
-
-    // const isUpdateAvailable = true
+    } = route.params   
 
     useHeader({
         leftIcon: 'faArrowLeft',

@@ -2,7 +2,6 @@ import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
 import {TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
-import {SettingsStackScreenProps} from '../navigation'
 import {
   ListItem,
   Screen,
@@ -15,15 +14,16 @@ import {
   Header,
 } from '../components'
 import AppError from '../utils/AppError'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
-export const BackupOptionsScreen: FC<SettingsStackScreenProps<'BackupOptions'>> = observer(
-  function BackupOptionsScreen(_props) {
-    
-    const {navigation} = _props    
+type Props = StaticScreenProps<{}>
+
+export const BackupOptionsScreen = observer(function BackupOptionsScreen() {    
+    const navigation = useNavigation()
+
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<AppError | undefined>()
-    const [info, setInfo] = useState('')    
-    
+    const [info, setInfo] = useState('')
 
     const gotoExportBackup = function () {
       navigation.navigate('ExportBackup')

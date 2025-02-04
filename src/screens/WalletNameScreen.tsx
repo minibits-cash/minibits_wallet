@@ -8,11 +8,17 @@ import {RandomName} from './Contacts/RandomName'
 import {OwnName} from './Contacts/OwnName'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
-import {ContactsStackScreenProps} from '../navigation'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
-interface WalletNameScreenProps extends ContactsStackScreenProps<'WalletName'>{}
+type Props = StaticScreenProps<{
+    isNativeUpdateAvailable: boolean, 
+    isUpdateAvailable: boolean, 
+    updateDescription: string,
+    updateSize: string
+}>
 
-export const WalletNameScreen: FC<WalletNameScreenProps> = observer(function WalletNameScreen({route, navigation}) {    
+export const WalletNameScreen = observer(function WalletNameScreen({ route }: Props) {
+    const navigation = useNavigation()    
     useHeader({        
         leftIcon: 'faArrowLeft',
         onLeftPress: () => navigation.goBack(), 
@@ -24,9 +30,9 @@ export const WalletNameScreen: FC<WalletNameScreenProps> = observer(function Wal
     const renderScene = ({route}: {route: Route}) => {
         switch (route.key) {
           case 'first':
-            return <OwnName navigation={navigation} pubkey={pubkey as string} />
+            return <OwnName pubkey={pubkey as string} />
           case 'second':
-            return <RandomName navigation={navigation} pubkey={pubkey as string} />
+            return <RandomName pubkey={pubkey as string} />
           default:
             return null
         }
@@ -61,7 +67,7 @@ export const WalletNameScreen: FC<WalletNameScreenProps> = observer(function Wal
                 renderScene={renderScene}
                 onIndexChange={setIndex}
                 initialLayout={{ width: spacing.screenWidth}}
-                sceneContainerStyle={{flex: 1}}
+                pagerStyle={{flex: 1}}                
                 style={{flex: 1}}
             />
         </>
