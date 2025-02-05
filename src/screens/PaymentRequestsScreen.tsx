@@ -7,11 +7,12 @@ import {Screen, Text} from '../components'
 import { IncomingRequests } from './PaymentRequests/IncomingRequests'
 import { OutgoingRequests } from './PaymentRequests/OutgoingRequests'
 import { useHeader } from '../utils/useHeader'
-import { WalletStackScreenProps } from '../navigation'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
-interface PaymentRequestsScreenProps extends WalletStackScreenProps<'PaymentRequests'> {}
+type Props = StaticScreenProps<undefined>
 
-export const PaymentRequestsScreen: FC<PaymentRequestsScreenProps> = observer(function PaymentRequestsScreen({route, navigation}) {
+export const PaymentRequestsScreen = observer(function PaymentRequestsScreen({ route } : Props) {
+    const navigation = useNavigation()
     useHeader({
         leftIcon: 'faArrowLeft',
         onLeftPress: () => navigation.goBack(),
@@ -20,9 +21,9 @@ export const PaymentRequestsScreen: FC<PaymentRequestsScreenProps> = observer(fu
     const renderScene = ({route}: {route: Route}) => {
         switch (route.key) {
           case 'first':
-            return <IncomingRequests navigation={navigation}/>
+            return <IncomingRequests/>
           case 'second':
-            return <OutgoingRequests navigation={navigation}/>
+            return <OutgoingRequests/>
           default:
             return null
         }

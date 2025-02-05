@@ -19,7 +19,7 @@ type Props = StaticScreenProps<{
 }>
 
 
-export const ContactsScreen = observer(function ContactsScreen({ route }: Props) {
+export const ContactsScreen = observer(function ({ route }: Props) {
     const navigation = useNavigation() 
     const {walletProfileStore} = useStores()
     

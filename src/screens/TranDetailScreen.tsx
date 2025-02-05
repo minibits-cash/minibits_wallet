@@ -52,13 +52,14 @@ import { CurrencySign } from './Wallet/CurrencySign'
 import { MintUnit, formatCurrency, getCurrency } from "../services/wallet/currency"
 import { PaymentRequest } from '../models/PaymentRequest'
 import { pollerExists } from '../utils/poller'
-import { StaticScreenProps, useFocusEffect, useNavigation } from '@react-navigation/native'
+import { CommonActions, StackActions, StaticScreenProps, useFocusEffect, useNavigation } from '@react-navigation/native'
 import { QRCodeBlock } from './Wallet/QRCode'
 import { MintListItem } from './Mints/MintListItem'
 import { Token, getDecodedToken } from '@cashu/cashu-ts'
-import { faTruckMedical } from '@fortawesome/free-solid-svg-icons'
 import { RECEIVE_OFFLINE_COMPLETE_TASK, RECEIVE_TASK } from '../services/wallet/receiveTask'
 import { REVERT_TASK } from '../services/wallet/revertTask'
+import { TranHistoryScreen } from './TranHistoryScreen'
+import { WalletScreen } from './WalletScreen'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
@@ -71,13 +72,14 @@ type ProofsByStatus = {
 }
 
 type Props = StaticScreenProps<{
-  id: number
+  id: number,
+  prevScreen: 'Wallet' | 'TranHistory'
 }>
 
-export const TranDetailScreen =
-  observer(function TranDetailScreen({ route }: Props) {
+export const TranDetailScreen = observer(function TranDetailScreen({ route }: Props) {
     const navigation = useNavigation()
-    const {transactionsStore, userSettingsStore, mintsStore} = useStores()
+    const {id, prevScreen} = route.params
+    const {transactionsStore, mintsStore} = useStores()
     
     const noteInputRef = useRef<TextInput>(null)
 
@@ -96,8 +98,7 @@ export const TranDetailScreen =
     }
 
     useFocusEffect(useCallback(() => {
-      try {
-        const {id} = route.params        
+      try {        
         const tx = transactionsStore.findById(id, true) // load full tokens
         log.trace('Transaction loaded', {id: tx?.id, unit: tx?.unit, note: tx?.noteToSelf, inputToken: tx?.inputToken, outputToken: tx?.inputToken})
 
@@ -174,15 +175,28 @@ export const TranDetailScreen =
     }
 
     const onBack = function () {
-      if(transaction && transaction.inputToken &&  transaction.inputToken.length > 40) {
-        transaction.pruneInputToken(transaction.inputToken)
-      }
+        if(transaction && transaction.inputToken &&  transaction.inputToken.length > 40) {
+            transaction.pruneInputToken(transaction.inputToken)
+        }
 
-      if(transaction && transaction.outputToken && transaction.outputToken.length > 40) {
-        transaction.pruneOutputToken(transaction.outputToken)
-      }
-      
-      navigation.goBack()
+        if(transaction && transaction.outputToken && transaction.outputToken.length > 40) {
+            transaction.pruneOutputToken(transaction.outputToken)
+        }
+
+        log.trace('[onBack]', {prevScreen})
+
+        if(prevScreen === 'TranHistory') {
+            navigation.goBack()
+        } else {
+            navigation.dispatch(                
+                CommonActions.reset({
+                    index: 1,
+                    routes: [{
+                        name: 'WalletNavigator'
+                    }]
+                })
+            )
+        }
     }
 
     const handleError = function (e: AppError): void {      

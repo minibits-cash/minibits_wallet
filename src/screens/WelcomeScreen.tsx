@@ -72,9 +72,9 @@ const PAGES = [
     }       
 ]
 
-type Props = StaticScreenProps<{}>
+type Props = StaticScreenProps<undefined>
 
-export const WelcomeScreen = function () {
+export const WelcomeScreen = function ({ route }: Props) {
     const navigation = useNavigation()
     const headerBg = useThemeColor('header')  
 

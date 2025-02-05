@@ -2,7 +2,6 @@ import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
 import {Switch, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
-import {SettingsStackScreenProps} from '../navigation'
 import {
   Icon,
   ListItem,
@@ -21,9 +20,12 @@ import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import { KeyChain } from '../services'
 import { BIOMETRY_TYPE } from 'react-native-keychain'
 import { log } from '../services/logService'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
-export const SecurityScreen: FC<SettingsStackScreenProps<'Security'>> = observer(function SecurityScreen(_props) {
-    const {navigation} = _props
+type Props = StaticScreenProps<undefined>
+
+export const SecurityScreen = observer(function SecurityScreen({ route }: Props) {
+    const navigation = useNavigation()
     useHeader({
         leftIcon: 'faArrowLeft',
         onLeftPress: () => navigation.goBack(),

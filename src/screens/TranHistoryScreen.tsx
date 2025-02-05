@@ -32,7 +32,7 @@ import {TransactionListItem} from './Transactions/TransactionListItem'
 import { Transaction, TransactionStatus } from '../models/Transaction'
 import { translate } from '../i18n'
 import { maxTransactionsInHistory } from '../models/TransactionsStore'
-import { useNavigation } from '@react-navigation/native'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
 if (Platform.OS === 'android' &&
   UIManager.setLayoutAnimationEnabledExperimental) {
@@ -41,9 +41,11 @@ if (Platform.OS === 'android' &&
 // Number of transactions held in TransactionsStore model
 const limit = maxTransactionsInHistory
 
-export const TranHistoryScreen = observer(function TranHistoryScreen() {
+type Props = StaticScreenProps<undefined>
+
+export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: Props) {
     const navigation = useNavigation()
-    const {transactionsStore, mintsStore} = useStores()
+    const {transactionsStore} = useStores()
     useHeader({
       leftIcon: 'faArrowLeft',
       onLeftPress: () => navigation.goBack(),
@@ -189,11 +191,6 @@ export const TranHistoryScreen = observer(function TranHistoryScreen() {
         setIsHeaderVisible(true)
     }
 
-    const gotoTranDetail = function (id: number) {
-        navigation.navigate('TranDetail', {id})
-    }
-
-
     const onDelete = function (status: TransactionStatus) {
         try {
             toggleDeleteModal()
@@ -297,8 +294,6 @@ export const TranHistoryScreen = observer(function TranHistoryScreen() {
                                         transaction={item as Transaction}
                                         isFirst={index === 0}
                                         isTimeAgoVisible={false}
-                                        gotoTranDetail={gotoTranDetail}
-                                        
                                     />
                                 ))}
                                 </>

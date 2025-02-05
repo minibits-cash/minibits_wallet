@@ -2,7 +2,6 @@ import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
 import {Alert, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
-import {SettingsStackScreenProps} from '../navigation'
 import {
     APP_ENV,    
     NATIVE_VERSION_ANDROID,
@@ -25,7 +24,7 @@ import {useHeader} from '../utils/useHeader'
 import {rootStoreInstance, useStores} from '../models'
 import {translate} from '../i18n'
 import AppError from '../utils/AppError'
-import {Database, KeyChain, NostrClient, log} from '../services'
+import {Database, KeyChain} from '../services'
 import {MMKVStorage} from '../services'
 import { LogLevel } from '../services/log/logTypes'
 import { getSnapshot } from 'mobx-state-tree'
@@ -33,11 +32,12 @@ import { delay } from '../utils/delay'
 import RNExitApp from 'react-native-exit-app'
 import { TransactionStatus } from '../models/Transaction'
 import { maxTransactionsInHistory } from '../models/TransactionsStore'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
-// refresh
+type Props = StaticScreenProps<undefined>
 
-export const DeveloperScreen: FC<SettingsStackScreenProps<'Developer'>> = observer(function DeveloperScreen(_props) {
-    const {navigation} = _props
+export const DeveloperScreen = observer(function DeveloperScreen({ route }: Props) {
+    const navigation = useNavigation()
     useHeader({
       leftIcon: 'faArrowLeft',
       onLeftPress: () => navigation.goBack(),

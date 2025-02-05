@@ -2,7 +2,6 @@ import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
 import {Switch, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
-import {SettingsStackScreenProps} from '../navigation'
 import {
   ListItem,
   Screen,
@@ -19,24 +18,20 @@ import {useStores} from '../models'
 import AppError from '../utils/AppError'
 import { KeyChain, MinibitsClient, } from '../services'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
-import { CommonActions, StackActions } from '@react-navigation/native'
+import { StackActions, StaticScreenProps, useNavigation } from '@react-navigation/native'
 import { translate } from '../i18n'
 
-enum TorStatus {
-    NOTINIT = 'NOTINIT',
-    STARTING = 'STARTING',
-    DONE = 'DONE',
-}
+type Props = StaticScreenProps<undefined>
 
-export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(function PrivacyScreen(_props) {
-    const {navigation} = _props
+export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
+    const navigation = useNavigation()
     useHeader({
         leftIcon: 'faArrowLeft',
         onLeftPress: () => {
             const routes = navigation.getState()?.routes
             let prevRouteName: string = ''
 
-            if(routes.length >= 2) {
+            if(routes && routes.length >= 2) {
                 prevRouteName = routes[routes.length - 2].name
             }
 
@@ -46,7 +41,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
                 navigation.dispatch(
                     StackActions.replace('Settings')                    
                 )
-                navigation.navigate('WalletNavigator', {screen: 'Wallet'})
+                navigation.navigate('Wallet', {})
             }  
         }
     })
@@ -73,7 +68,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
     }
 
     const gotoOwnKeys = function() {        
-        navigation.navigate('ContactsNavigator', {screen: 'OwnKeys'})
+        navigation.navigate('OwnKeys', {})
     }
 
     const resetProfile = async function() {
@@ -107,7 +102,7 @@ export const PrivacyScreen: FC<SettingsStackScreenProps<'Privacy'>> = observer(f
             )
 
 
-            navigation.navigate('ContactsNavigator', {screen: 'Profile'})
+            navigation.navigate('Profile')
             setIsLoading(false)
         } catch (e: any) {
             handleError(e)

@@ -18,7 +18,7 @@ import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
 type Props = StaticScreenProps<{}>
 
-export const BackupOptionsScreen = observer(function BackupOptionsScreen() {    
+export const BackupOptionsScreen = observer(function () {    
     const navigation = useNavigation()
 
     const [isLoading, setIsLoading] = useState(false)

@@ -29,9 +29,8 @@ if (Platform.OS === 'android' &&
 }
 
 export const PublicContacts = observer(function (props: {
-    paymentOption: ReceiveOption | SendOption |undefined}
-) { 
-    
+    paymentOption: ReceiveOption | SendOption | undefined}
+) {
     const {contactsStore, relaysStore, userSettingsStore} = useStores()
     const navigation = useNavigation()
     

@@ -36,7 +36,7 @@ import {
   TokenReceiveScreen,
   NwcScreen,
 } from "../screens"
-import { spacing, typography } from "../theme"
+import { colors, spacing, typography } from "../theme"
 import { moderateVerticalScale } from "@gocodingnow/rn-size-matters"
 
 const $tabBar: ViewStyle = {  
@@ -154,13 +154,11 @@ export const TabsNavigator = createBottomTabNavigator({
   screenOptions: {
     headerShown: false,
     tabBarHideOnKeyboard: true,
-    tabBarStyle: [$tabBar, { height: moderateVerticalScale(70), /*backgroundColor: bgColor*/ }],
-    /*tabBarActiveTintColor: activeColor as string,
-    tabBarInactiveTintColor: textColor as string,
-    tabBarLabelStyle: [$tabBarLabel, {color: textColor}],*/
+    tabBarStyle: [$tabBar, { height: moderateVerticalScale(70) }],
     tabBarItemStyle: $tabBarItem,
     animation: 'shift',
-    
+    tabBarLabelStyle: {fontFamily: typography.primary?.light},
+    tabBarActiveTintColor: colors.palette.primary200
   },
   screens: {
     WalletNavigator: {

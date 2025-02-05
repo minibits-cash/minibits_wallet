@@ -1,5 +1,6 @@
 import {  
   createStaticNavigation,
+  DarkTheme,
   DefaultTheme,  
   StaticParamList,  
 } from "@react-navigation/native"
@@ -19,6 +20,7 @@ import { rootStoreInstance } from "../models"
 import {  TabsNavigator  } from "./TabsNavigator"
 import { navigationRef, useBackButtonHandler } from "./navigationUtilities"
 import { useThemeColor } from "../theme"
+import useColorScheme from "../theme/useThemeColor"
 
 
 /**
@@ -58,19 +60,35 @@ const Navigation = createStaticNavigation(RootStack)
 export const AppNavigator = observer(function AppNavigator() {  
 
     useBackButtonHandler((routeName) => exitRoutes.includes(routeName))  
-    const bgColor = useThemeColor('background')
+    
+    const dark = useColorScheme() === 'dark' ? true : false
+    const background = useThemeColor('background') as string
+    const primary = useThemeColor('tint') as string
+    const card = useThemeColor('background') as string
+    const text = useThemeColor('text') as string
+    const border = 'transparent'
+    const notification = useThemeColor('warn') as string
+    const systemTheme = dark ? DarkTheme : DefaultTheme
+
+    const NavigationTheme = {
+        ...systemTheme,
+        dark,
+        colors: {
+          ...DefaultTheme.colors,
+          background, 
+          primary,
+          card,
+          text,
+          border,
+          notification
+        },
+        fonts: DefaultTheme.fonts
+    }
 
     return (
         <Navigation 
-        ref={navigationRef}
-        theme={{
-            dark: true,
-            colors: {
-            ...DefaultTheme.colors,
-            background: bgColor as string,          
-            },
-            fonts: DefaultTheme.fonts        
-        }} 
+            ref={navigationRef}
+            theme={NavigationTheme} 
         />
     )
 })

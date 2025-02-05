@@ -10,12 +10,7 @@ import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
-type Props = StaticScreenProps<{
-    isNativeUpdateAvailable: boolean, 
-    isUpdateAvailable: boolean, 
-    updateDescription: string,
-    updateSize: string
-}>
+type Props = StaticScreenProps<undefined>
 
 export const WalletNameScreen = observer(function WalletNameScreen({ route }: Props) {
     const navigation = useNavigation()    

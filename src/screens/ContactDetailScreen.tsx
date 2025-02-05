@@ -21,7 +21,7 @@ type Props = StaticScreenProps<{
     contact: Contact
 }>
 
-export const ContactDetailScreen = observer(function ContactScreen({ route }: Props) {
+export const ContactDetailScreen = observer(function ({ route }: Props) {
     const navigation = useNavigation()
     const {contact} = route.params
     const {contactsStore, userSettingsStore} = useStores()

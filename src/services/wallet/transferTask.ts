@@ -330,12 +330,28 @@ export const transferTask = async function (
                 } else {
                     if (e.params && e.params.message && e.params.message.includes('Token already spent')) {
 
-                        message = 'Token already spent, going to sync wallet pending proofs'
+                        message = 'Token already spent, going to sync wallet pending proofs with the mint.'
                         taskResult.message = message
 
                         log.error('[transfer]', message, {
                             transactionId: transaction.id
                         })                        
+                    } else if (e.params && e.params.message && e.params.message.includes('Proofs are pending')) {
+                        // if melt quote is UNPAID wallet used pending by mint proofs for this transaction
+                        // we do not want to return them to spendable but keep them pending
+                        message = 'Pending proofs were used for this transaction, going to sync proofsToMeltFrom with the mint.'
+                        taskResult.message = message
+
+                        log.error('[transfer]', message, {
+                            transactionId: transaction.id
+                        })
+                        
+                        await WalletTask.syncStateWithMintTask({
+                            proofsToSync: proofsToMeltFrom,
+                            mintUrl,
+                            isPending: true
+                        })
+                        
                     } else {
                         // if melt quote is UNPAID return proofs from pending to spendable balance
                         proofsStore.removeProofs(proofsToMeltFrom, true, true)

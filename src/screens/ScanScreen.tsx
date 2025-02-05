@@ -32,7 +32,7 @@ const hasAndroidCameraPermission = async () => {
 type Props = StaticScreenProps<{
     unit: MintUnit    
     mintUrl?: string,      
-  }>
+}>
 
 export const ScanScreen = function ScanScreen({ route }: Props) {
     const navigation = useNavigation()

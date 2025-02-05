@@ -2,7 +2,6 @@ import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
 import {Share, Switch, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
-import {ContactsStackScreenProps} from '../navigation'
 import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, Loading, Header} from '../components'
 import {useStores} from '../models'
 import AppError, { Err } from '../utils/AppError'
@@ -12,12 +11,12 @@ import { log } from '../services/logService'
 import { KeyChain, MinibitsClient, NostrClient, NostrProfile } from '../services'
 import { translate } from '../i18n'
 import { CollapsibleText } from '../components/CollapsibleText'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
-interface ProfileScreenProps extends ContactsStackScreenProps<'Profile'> {}
+type Props = StaticScreenProps<undefined>
 
-export const ProfileScreen: FC<ProfileScreenProps> = observer(
-  function ProfileScreen({navigation}) {    
-    
+export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {    
+    const navigation = useNavigation()
     const {walletProfileStore, userSettingsStore, relaysStore, walletStore} = useStores() 
     const {npub, nip05, pubkey} = walletProfileStore    
 
@@ -62,7 +61,7 @@ export const ProfileScreen: FC<ProfileScreenProps> = observer(
 
     const gotoPrivacy = function() {
         toggleUpdateModal()
-        navigation.navigate('SettingsNavigator', {screen: 'Privacy'})
+        navigation.navigate('Privacy')
     }
 
 

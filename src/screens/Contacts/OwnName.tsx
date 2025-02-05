@@ -19,7 +19,7 @@ import { QRCodeBlock } from '../Wallet/QRCode'
 import { MintBalance } from '../../models/Mint'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { roundUp } from '../../utils/number'
-import { LnurlClient } from '../../services/lnurlService'
+import { LNURLPayParams, LnurlClient } from '../../services/lnurlService'
 import { useNavigation } from '@react-navigation/native'
 
 const DEFAULT_DONATION_AMOUNT = 500
@@ -193,7 +193,7 @@ export const OwnName = observer(function (props: {pubkey: string}) {
                 const addressParamsResult = await LnurlClient.getLnurlAddressParams(DONATION_LNURL_ADDRESS) // throws
 
                 return navigation.navigate('Transfer', { 
-                    lnurlParams: addressParamsResult.lnurlParams,                
+                    lnurlParams: addressParamsResult.lnurlParams as LNURLPayParams,                
                     paymentOption: SendOption.LNURL_PAY,
                     fixedAmount: donationAmount,
                     unit: 'sat',

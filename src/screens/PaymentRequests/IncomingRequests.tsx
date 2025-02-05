@@ -22,7 +22,7 @@ import { StackNavigationProp } from '@react-navigation/stack'
 import { PaymentRequestListItem } from './PaymentRequestListItem'
 
 
-export const IncomingRequests = observer(function IncomingRequests() {        
+export const IncomingRequests = observer(function () {        
     const {paymentRequestsStore} = useStores()
 
     const [info, setInfo] = useState('')

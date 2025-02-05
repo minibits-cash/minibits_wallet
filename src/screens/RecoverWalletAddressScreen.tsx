@@ -1,30 +1,31 @@
 import { observer } from 'mobx-react-lite'
-import React, { FC, useEffect, useRef, useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { LayoutAnimation, Platform, TextInput, TextStyle, UIManager, View, ViewStyle } from 'react-native'
 import { validateMnemonic } from '@scure/bip39'
 import QuickCrypto from 'react-native-quick-crypto'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import { mnemonicToSeedSync } from '@scure/bip39'
-import { colors, spacing, useThemeColor } from '../theme'
-import { AppStackScreenProps } from '../navigation'
-import { Icon, ListItem, Screen, Text, Card, Loading, ErrorModal, InfoModal, BottomModal, Button } from '../components'
+import { spacing, useThemeColor } from '../theme'
+import { Icon, ListItem, Screen, Text, Card, Loading, ErrorModal, Button } from '../components'
 import { useHeader } from '../utils/useHeader'
 import AppError, { Err } from '../utils/AppError'
-import { MinibitsClient, NostrClient } from '../services'
+import { MinibitsClient } from '../services'
 import { useStores } from '../models'
 import { MnemonicInput } from './Recovery/MnemonicInput'
-import { TransactionStatus } from '../models/Transaction'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 import { delay } from '../utils/utils'
 import { WalletProfileRecord } from '../models/WalletProfileStore'
 import { translate } from '../i18n'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
-export const RecoverWalletAddressScreen: FC<AppStackScreenProps<'RecoverWalletAddress'>> = observer(function RecoverWalletAddressScreen(_props) {
-  const { navigation, route } = _props
+type Props = StaticScreenProps<undefined>
+
+export const RecoverWalletAddressScreen = observer(function RecoverWalletAddressScreen({ route }: Props) {
+  const navigation = useNavigation()
   useHeader({
     leftIcon: 'faArrowLeft',
     onLeftPress: () => {
@@ -127,7 +128,7 @@ export const RecoverWalletAddressScreen: FC<AppStackScreenProps<'RecoverWalletAd
       await delay(1000)
       setStatusMessage('')
       setIsLoading(false)
-      navigation.navigate('Tabs', { screen: 'WalletNavigator', params: { screen: 'Wallet', params: {} } })
+      navigation.navigate('Tabs')
     } catch (e: any) {
       handleError(e)
     }

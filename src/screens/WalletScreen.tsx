@@ -262,7 +262,8 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             isNativeUpdateAvailable, 
             isUpdateAvailable, 
             updateDescription,
-            updateSize
+            updateSize,
+            prevScreen: 'Wallet'
         })
     }
     
@@ -379,10 +380,6 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         navigation.navigate('TokenReceive', {unit: currentUnit})
     }
 
-    const gotoTranDetail = function (id: number) {        
-        navigation.navigate('TranDetail', {id})
-    }
-
     const gotoPaymentRequests = function () {
         navigation.navigate('PaymentRequests')
     }
@@ -483,8 +480,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                                                 key={item.id}
                                                 transaction={item}
                                                 isFirst={index === 0}
-                                                isTimeAgoVisible={true}
-                                                gotoTranDetail={() => gotoTranDetail(item.id!)}
+                                                isTimeAgoVisible={true}                                                
                                             />
                                         )}
                                     }                                        

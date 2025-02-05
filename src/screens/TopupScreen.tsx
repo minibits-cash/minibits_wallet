@@ -52,8 +52,7 @@ import {
 } from '@gocodingnow/rn-size-matters'
 import {
   CurrencyCode,
-  MintUnit,
-  formatCurrency,
+  MintUnit,  
   getCurrency,
 } from '../services/wallet/currency'
 import {MintHeader} from './Mints/MintHeader'
@@ -61,7 +60,6 @@ import useIsInternetReachable from '../utils/useIsInternetReachable'
 import {MintBalanceSelector} from './Mints/MintBalanceSelector'
 import {QRCodeBlock} from './Wallet/QRCode'
 import numbro from 'numbro'
-import {MintListItem} from './Mints/MintListItem'
 import {TranItem} from './TranDetailScreen'
 import {translate} from '../i18n'
 import { TOPUP_TASK } from '../services/wallet/topupTask'
@@ -81,8 +79,7 @@ type Props = StaticScreenProps<{
   mintUrl?: string, 
 }>
 
-export const TopupScreen = observer(
-  function TopupScreen({ route }: Props) {
+export const TopupScreen = observer(function TopupScreen({ route }: Props) {
     const navigation = useNavigation()
     const isInternetReachable = useIsInternetReachable()
 

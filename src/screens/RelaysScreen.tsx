@@ -4,7 +4,6 @@ import Clipboard from '@react-native-clipboard/clipboard'
 import React, {FC, useEffect, useRef, useState} from 'react'
 import {FlatList, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
-import {SettingsStackScreenProps} from '../navigation' // @demo remove-current-line
 import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal} from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
@@ -13,13 +12,12 @@ import AppError, { Err } from '../utils/AppError'
 import { log, WalletTask } from '../services'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { translate } from '../i18n'
-import { NotificationService } from '../services/notificationService'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
-interface SettingsScreenProps extends SettingsStackScreenProps<'Relays'> {}
+type Props = StaticScreenProps<undefined>
 
-export const RelaysScreen: FC<SettingsScreenProps> = observer(
-  function RelaysScreen(_props) {
-    const {navigation} = _props
+export const RelaysScreen = observer(function RelaysScreen({ route }: Props) {
+    const navigation = useNavigation()
 
     useHeader({
         leftIcon: 'faArrowLeft',

@@ -64,7 +64,7 @@ type Props = StaticScreenProps<{
   unit: MintUnit,
   encodedInvoice?: string,
   paymentRequest?: PaymentRequest, 
-  lnurlParams?: LNURLPayParams & {address?: string},
+  lnurlParams?: LNURLPayParams,
   fixedAmount?: number, 
   comment?: string      
   paymentOption?: SendOption,
@@ -73,8 +73,7 @@ type Props = StaticScreenProps<{
   donationForName?: string
 }>
 
-export const TransferScreen = observer(
-  function TransferScreen({ route }: Props) {
+export const TransferScreen = observer(function TransferScreen({ route }: Props) {
     const navigation = useNavigation()
     const amountInputRef = useRef<TextInput>(null)
     const lnurlCommentInputRef = useRef<TextInput>(null)

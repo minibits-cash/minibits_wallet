@@ -84,8 +84,7 @@ type Props = StaticScreenProps<{
     mintUrl?: string,   
 }>
 
-export const SendScreen = observer(
-  function SendScreen({ route }: Props) {
+export const SendScreen = observer(function SendScreen({ route }: Props) {
     const navigation = useNavigation()
     const isInternetReachable = useIsInternetReachable()
 
