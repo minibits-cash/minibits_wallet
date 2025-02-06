@@ -446,7 +446,7 @@ export const WalletStoreModel = types
                 return {proofs, swapFeePaid}
 
             } catch (e: any) {
-                if(!e.message.includes('timeout')) {
+                if(!e.message.toLowerCase().includes('timeout')) {
                   currentCounter.removeInFlightRequest(transactionId)
                 }                
                 throw new AppError(
@@ -523,9 +523,9 @@ export const WalletStoreModel = types
                 }
 
             } catch (e: any) {
-                if(!e.message.includes('timeout')) {
+                if(!e.message.toLowerCase().includes('timeout')) {
                   currentCounter.removeInFlightRequest(transactionId)
-                } 
+                }      
 
                 let message = 'Swap to prepare ecash to send has failed.'
                 if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
@@ -593,18 +593,18 @@ export const WalletStoreModel = types
                 mintQuote,
             }
             } catch (e: any) {
-            let message = 'The mint could not return an invoice.'
-            if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
-            throw new AppError(
-                Err.MINT_ERROR, 
-                message, 
-                {
-                    message: e.message,
-                    caller: 'createLightningMintQuote', 
-                    mintUrl,            
-                }
-            )
-            }
+              let message = 'The mint could not return a mint quote.'
+              if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
+              throw new AppError(
+                  Err.MINT_ERROR, 
+                  message, 
+                  {
+                      message: e.message,
+                      caller: 'createLightningMintQuote', 
+                      mintUrl,            
+                  }
+              )
+              }
         }),
         checkLightningMintQuote: flow(function* checkLightningMintQuote(  
             mintUrl: string,
@@ -704,9 +704,9 @@ export const WalletStoreModel = types
                 return proofs
         
             } catch (e: any) {
-              if(!e.message.includes('timeout')) {
-                currentCounter.removeInFlightRequest(transactionId)
-              } 
+                if(!e.message.toLowerCase().includes('timeout')) {
+                  currentCounter.removeInFlightRequest(transactionId)
+                }      
                 
                 let message = 'Error on request to mint new ecash.'
                 if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
@@ -738,17 +738,17 @@ export const WalletStoreModel = types
             return lightningQuote
         
             } catch (e: any) {
-            let message = 'The mint could not return the lightning quote.'
-            if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
-            throw new AppError(
-                Err.MINT_ERROR, 
-                message,
-                {
-                    message: e.message,
-                    caller: 'createLightningMeltQuote', 
-                    request: {mintUrl, unit, encodedInvoice},            
-                }
-            )
+                let message = 'The mint could not return the lightning quote.'
+                if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
+                throw new AppError(
+                    Err.MINT_ERROR, 
+                    message,
+                    {
+                        message: e.message,
+                        caller: 'createLightningMeltQuote', 
+                        request: {mintUrl, unit, encodedInvoice},            
+                    }
+                )
             }
         }),
         payLightningMelt: flow(function* payLightningMelt(  
@@ -807,9 +807,9 @@ export const WalletStoreModel = types
                 return meltResponse
 
             } catch (e: any) {
-              if(!e.message.includes('timeout')) {
-                currentCounter.removeInFlightRequest(transactionId)
-              } 
+                if(!e.message.toLowerCase().includes('timeout')) {
+                  currentCounter.removeInFlightRequest(transactionId)
+                }      
 
                 let message = 'Lightning payment failed.'
                 if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;

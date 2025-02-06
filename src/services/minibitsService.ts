@@ -291,7 +291,7 @@ const fetchApi = async (url: string, options: MinibitsRequestOptions, timeout = 
 
     if (!response) {
         controller.abort()
-        throw new AppError(Err.NETWORK_TIMEOUT, 'API takes too long to respond', {caller: 'fetchApi', url})
+        throw new AppError(Err.NETWORK_TIMEOUT, 'Timeout: API takes too long to respond.', {caller: 'fetchApi', url})
     }    
 
     const responseJson = await response.json()        
