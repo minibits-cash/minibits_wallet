@@ -91,7 +91,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     const [routes] = useState(
         groupedMints.map((mintUnit) => ({
             key: mintUnit.unit,
-            title: getCurrency(mintUnit.unit).code,
+            title: getCurrency(mintUnit.unit).code            
         }))
     )
     const [tabIndex, setTabIndex] = useState(0)
@@ -242,7 +242,8 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
 
             const incomingData = IncomingParser.findAndExtract(url)
             await IncomingParser.navigateWithIncomingData(
-                incomingData,                 
+                incomingData, 
+                navigation,                 
                 currentUnit
             )
 
@@ -386,13 +387,17 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
 
     const gotoProfile = function () {
         // @ts-ignore
-        navigation.navigate('ContactsNavigator', {screen: 'Profile'})        
+        navigation.navigate('ContactsNavigator', {
+            screen: 'Profile'
+        })        
     }
 
     const gotoMintInfo = function (mintUrl: string) {
-        setIsMintsModalVisible(false)        
-        navigation.navigate('MintInfo', {
-            mintUrl
+        setIsMintsModalVisible(false)
+        //@ts-ignore       
+        navigation.navigate('SettingsNavigator', {
+            screen: 'MintInfo',
+            params: {mintUrl}            
         })
     }
 
@@ -529,7 +534,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             <View style={{backgroundColor: headerBg, marginTop: -spacing.small}}>
                 <View style={{width: routes.length * tabWidth, alignSelf: 'center', backgroundColor: headerBg}}>
                     <TabBar                        
-                        {...props}                        
+                        {...props}                 
                         tabStyle={{width: tabWidth}}
                         renderTabBarItem={({ route }) => (
                             <CurrencySign

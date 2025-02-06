@@ -7,6 +7,7 @@ import {
     View,
     TextStyle,
 } from 'react-native'
+// @ts-ignore
 import {Camera, CameraType} from 'react-native-camera-kit'
 import { URDecoder } from '@gandlaf21/bc-ur'
 import {spacing, typography, useThemeColor} from '../theme'
@@ -134,7 +135,7 @@ export const ScanScreen = function ScanScreen({ route }: Props) {
                 log.trace('TokenReceive')
                 try {     
                     const tokenResult = IncomingParser.findAndExtract(incoming, IncomingDataType.CASHU)
-                    return IncomingParser.navigateWithIncomingData(tokenResult, unit, mint && mint.mintUrl)
+                    return IncomingParser.navigateWithIncomingData(tokenResult, navigation, unit, mint && mint.mintUrl)
                     
                 } catch (e: any) {
                     const maybeLnurl = LnurlUtils.findEncodedLnurl(incoming)
@@ -148,7 +149,7 @@ export const ScanScreen = function ScanScreen({ route }: Props) {
                                 await IncomingParser.navigateWithIncomingData({
                                     type: IncomingDataType.LNURL,
                                     encoded: encodedLnurl
-                                }, unit, mint && mint.mintUrl)
+                                }, navigation, unit, mint && mint.mintUrl)
                             }
                             return
                         } catch (e2: any) {
@@ -165,7 +166,7 @@ export const ScanScreen = function ScanScreen({ route }: Props) {
             case 'LightningPay':     
                 try {               
                     const invoiceResult = IncomingParser.findAndExtract(incoming, IncomingDataType.INVOICE)
-                    return IncomingParser.navigateWithIncomingData(invoiceResult, unit, mint && mint.mintUrl)
+                    return IncomingParser.navigateWithIncomingData(invoiceResult, navigation, unit, mint && mint.mintUrl)
                     
                 } catch (e: any) {
                     const maybeLnurlAddress = LnurlUtils.findEncodedLnurlAddress(incoming)
@@ -179,7 +180,7 @@ export const ScanScreen = function ScanScreen({ route }: Props) {
                                 await IncomingParser.navigateWithIncomingData({
                                     type: IncomingDataType.LNURL_ADDRESS,
                                     encoded: validAddress
-                                }, unit, mint && mint.mintUrl)    
+                                }, navigation, unit, mint && mint.mintUrl)    
                             }
                             return          
                         } catch (e3: any) {
@@ -199,7 +200,7 @@ export const ScanScreen = function ScanScreen({ route }: Props) {
                                 await IncomingParser.navigateWithIncomingData({
                                     type: IncomingDataType.LNURL,
                                     encoded: encodedLnurl
-                                }, unit, mint && mint.mintUrl)
+                                }, navigation, unit, mint && mint.mintUrl)
                             }
                             return
                         } catch (e2: any) {
@@ -219,7 +220,7 @@ export const ScanScreen = function ScanScreen({ route }: Props) {
                                 await IncomingParser.navigateWithIncomingData({
                                     type: IncomingDataType.CASHU_PAYMENT_REQUEST,
                                     encoded: encodedPr
-                                }, unit, mint && mint.mintUrl)
+                                }, navigation, unit, mint && mint.mintUrl)
                             }
                             return
                         } catch (e3: any) {
@@ -236,7 +237,7 @@ export const ScanScreen = function ScanScreen({ route }: Props) {
                 try {
                 // generic scan button on wallet screen
                   const incomingData = IncomingParser.findAndExtract(incoming)              
-                  return IncomingParser.navigateWithIncomingData(incomingData, unit, mint && mint.mintUrl)   
+                  return IncomingParser.navigateWithIncomingData(incomingData, navigation, unit, mint && mint.mintUrl)   
                 } catch (e: any) {
                   e.name = Err.VALIDATION_ERROR
                   e.params = {caller: 'onIncomingData', clipboard: incoming.slice(0, 100)}

@@ -123,15 +123,15 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
             log.trace('[onConfirm]', {mintUrl: mint?.mintUrl, unit, resultType: result.type})
 
             if(result.type === IncomingDataType.INVOICE) {
-                return IncomingParser.navigateWithIncomingData(result, unit, mint && mint.mintUrl)
+                return IncomingParser.navigateWithIncomingData(result, navigation, unit, mint && mint.mintUrl)
             }
 
             if(result.type === IncomingDataType.LNURL) {
-                await IncomingParser.navigateWithIncomingData(result, unit, mint && mint.mintUrl)
+                await IncomingParser.navigateWithIncomingData(result, navigation, unit, mint && mint.mintUrl)
             }
             
             if(result.type === IncomingDataType.LNURL_ADDRESS) {
-                await IncomingParser.navigateWithIncomingData(result, unit, mint && mint.mintUrl)   
+                await IncomingParser.navigateWithIncomingData(result, navigation, unit, mint && mint.mintUrl)   
             }
           
         } catch (e: any) {

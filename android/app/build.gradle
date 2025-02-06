@@ -95,7 +95,7 @@ android {
         applicationId "com.minibits_wallet"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 58020
+        versionCode 58022
         versionName "0.2.0"
     }
 
@@ -176,6 +176,15 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    // Fetch request hang issue
+    // define a BOM and its version
+    implementation(platform("com.squareup.okhttp3:okhttp-bom:5.0.0-alpha.12"))
+
+    // define any required OkHttp artifacts without version
+    implementation("com.squareup.okhttp3:okhttp")
+    implementation("com.squareup.okhttp3:logging-interceptor")
+    implementation("com.squareup.okhttp3:okhttp-urlconnection")
 }
 
 // code-push

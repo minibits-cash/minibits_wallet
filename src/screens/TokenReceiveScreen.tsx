@@ -109,7 +109,7 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
 
         try {
             const tokenResult = IncomingParser.findAndExtract(encodedToken, IncomingDataType.CASHU)
-            return IncomingParser.navigateWithIncomingData(tokenResult, unit, mint && mint.mintUrl)
+            return IncomingParser.navigateWithIncomingData(tokenResult, navigation, unit, mint && mint.mintUrl)
             
         } catch (e: any) {            
             handleError(e)  

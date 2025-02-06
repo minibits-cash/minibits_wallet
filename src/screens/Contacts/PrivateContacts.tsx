@@ -208,7 +208,7 @@ export const PrivateContacts = observer(function (props: {
                 await IncomingParser.navigateWithIncomingData({
                     type: IncomingDataType.LNURL_ADDRESS,
                     encoded: contact.lud16
-                }, userSettingsStore.preferredUnit)
+                }, navigation, userSettingsStore.preferredUnit)
 
                 //reset
                 navigation.setParams({

@@ -45,7 +45,7 @@ export enum ReceiveOption {
 }
 
 type Props = StaticScreenProps<{
-  encodedToken?: string
+  encodedToken?: string  
 }>
 
 export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {

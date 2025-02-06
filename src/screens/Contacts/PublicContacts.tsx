@@ -390,7 +390,7 @@ export const PublicContacts = observer(function (props: {
             await IncomingParser.navigateWithIncomingData({
                 type: IncomingDataType.LNURL_ADDRESS,
                 encoded: contact.lud16
-            }, userSettingsStore.preferredUnit)
+            }, navigation, userSettingsStore.preferredUnit)
             
             setIsLoading(false)
 
