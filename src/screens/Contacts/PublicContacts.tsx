@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { IncomingDataType, IncomingParser } from '../../services/incomingParser'
 import { translate } from '../../i18n'
 import { useNavigation } from '@react-navigation/native'
+import { toJS } from 'mobx'
 
 
 // const defaultPublicNpub = 'npub14n7frsyufzqsxlvkx8vje22cjah3pcwnnyqncxkuj2243jvt9kmqsdgs52'
@@ -355,10 +356,14 @@ export const PublicContacts = observer(function (props: {
             }*/
             
             if(paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) {
-                navigation.navigate('Topup', {
-                    paymentOption, 
-                    contact,
-                    unit: userSettingsStore.preferredUnit
+                //@ts-ignore
+                navigation.navigate('WalletNavigator', {
+                    screen: 'Topup',
+                    params: {
+                      paymentOption, 
+                      contact: toJS(contact),
+                      unit: userSettingsStore.preferredUnit                       
+                    }                  
                 })
            
                 return
@@ -367,12 +372,16 @@ export const PublicContacts = observer(function (props: {
 
 
         if(paymentOption && paymentOption === SendOption.SEND_TOKEN) {
-            navigation.navigate('Send', {   
-                    paymentOption,                  
-                    contact,
-                    unit: userSettingsStore.preferredUnit                  
+            //@ts-ignore
+            navigation.navigate('WalletNavigator', {
+                screen: 'Send',
+                params: {
+                    paymentOption, 
+                    contact: toJS(contact),
+                    unit: userSettingsStore.preferredUnit                       
+                }                  
             })
-            
+
             return
         }
 
@@ -404,9 +413,7 @@ export const PublicContacts = observer(function (props: {
 
         log.trace('[gotoContactDetail]', contact)
 
-        navigation.navigate('ContactDetail', {
-            contact            
-        })
+        navigation.navigate('ContactDetail', {contact: toJS(contact)})
     }
 
 

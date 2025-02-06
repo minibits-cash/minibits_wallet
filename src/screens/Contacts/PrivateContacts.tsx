@@ -18,6 +18,7 @@ import { infoMessage, warningMessage } from '../../utils/utils'
 import { IncomingDataType, IncomingParser } from '../../services/incomingParser'
 import { translate } from '../../i18n'
 import { RouteProp, useNavigation } from '@react-navigation/native'
+import { toJS } from 'mobx'
 
 
 
@@ -170,10 +171,14 @@ export const PrivateContacts = observer(function (props: {
                 }
 
                 // contactsStore.selectContact(contact)
-                navigation.navigate('Topup', {
-                  paymentOption,
-                  contact,
-                  unit: userSettingsStore.preferredUnit                                
+                //@ts-ignore
+                navigation.navigate('WalletNavigator', {
+                  screen: 'Topup',
+                  params: {
+                    paymentOption, 
+                    contact: toJS(contact),
+                    unit: userSettingsStore.preferredUnit                       
+                  }                  
                 })
                 
                 setIsLoading(false)
@@ -188,10 +193,14 @@ export const PrivateContacts = observer(function (props: {
                     await NostrClient.verifyNip05(contact.nip05 as string, contact.pubkey) // throws
                 }
                 
-                navigation.navigate('Send', {
-                  paymentOption, 
-                  contact,
-                  unit: userSettingsStore.preferredUnit                       
+                //@ts-ignore
+                navigation.navigate('WalletNavigator', {
+                  screen: 'Send',
+                  params: {
+                    paymentOption, 
+                    contact: toJS(contact),
+                    unit: userSettingsStore.preferredUnit                       
+                  }                  
                 })
 
                 setIsLoading(false)
@@ -218,7 +227,7 @@ export const PrivateContacts = observer(function (props: {
                 return
             }
 
-            navigation.navigate('ContactDetail', {contact})
+            navigation.navigate('ContactDetail', {contact: toJS(contact)})
 
         } catch (e: any) {
             // reset so that invalid contact can be deleted

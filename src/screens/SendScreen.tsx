@@ -8,7 +8,7 @@ import React, {
   useRef,
   useMemo,
 } from 'react'
-import {StaticScreenProps, useFocusEffect, useNavigation} from '@react-navigation/native'
+import {StackActions, StaticScreenProps, useFocusEffect, useNavigation} from '@react-navigation/native'
 import {
   UIManager,
   Platform,
@@ -789,8 +789,10 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
 
     const gotoContacts = function () {
-        navigation.navigate('Contacts', {
-            paymentOption: SendOption.SEND_TOKEN
+        //@ts-ignore
+        navigation.navigate('ContactsNavigator', {
+            screen: 'Contacts',
+            params: {paymentOption: SendOption.SEND_TOKEN}            
         })
     }
 
@@ -809,7 +811,9 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         setIsProofSelectorModalVisible(false)
         setIsLoading(false)
 
-        navigation.navigate('Tabs')
+        navigation.dispatch(                
+            StackActions.popToTop()
+        )
     }
 
 

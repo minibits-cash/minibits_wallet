@@ -16,6 +16,7 @@ import { SendOption } from './SendScreen'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 import { translate } from '../i18n'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+import { toJS } from 'mobx'
 
 type Props = StaticScreenProps<{
     contact: Contact
@@ -52,20 +53,27 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
 
     
     const gotoTopup = () => {
-        
-        navigation.navigate('Topup', {             
-            paymentOption: ReceiveOption.SEND_PAYMENT_REQUEST,
-            contact,
-            unit: userSettingsStore.preferredUnit
+        //@ts-ignore
+        navigation.navigate('WalletNavigator', {
+            screen: 'Topup',
+            params: {
+                paymentOption: ReceiveOption.SEND_PAYMENT_REQUEST,
+              contact: toJS(contact),
+              unit: userSettingsStore.preferredUnit                       
+            }                  
         })
     }
 
 
-    const gotoSend = () => {        
-        navigation.navigate('Send', {           
-            paymentOption: SendOption.SEND_TOKEN,
-            contact,
-            unit: userSettingsStore.preferredUnit            
+    const gotoSend = () => {
+        //@ts-ignore
+        navigation.navigate('WalletNavigator', {
+            screen: 'Send',
+            params: {
+                paymentOption: SendOption.SEND_TOKEN,
+                contact: toJS(contact),
+                unit: userSettingsStore.preferredUnit                       
+            }                  
         })
     }
 

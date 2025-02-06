@@ -16,7 +16,7 @@ import { MINIBITS_NIP05_DOMAIN } from '@env'
 import { delay } from '../utils/utils'
 import { WalletProfileRecord } from '../models/WalletProfileStore'
 import { translate } from '../i18n'
-import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+import { StackActions, StaticScreenProps, useNavigation } from '@react-navigation/native'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
@@ -128,7 +128,10 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
       await delay(1000)
       setStatusMessage('')
       setIsLoading(false)
-      navigation.navigate('Tabs')
+      
+      navigation.dispatch(                
+        StackActions.popToTop()
+      )
     } catch (e: any) {
       handleError(e)
     }

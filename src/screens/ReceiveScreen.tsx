@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useState, useCallback, useEffect} from 'react'
-import {StaticScreenProps, useFocusEffect, useNavigation} from '@react-navigation/native'
+import {CommonActions, StackActions, StaticScreenProps, useFocusEffect, useNavigation} from '@react-navigation/native'
 import {TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import {spacing, useThemeColor, colors, typography} from '../theme'
 import {
@@ -264,8 +264,11 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
 
     const gotoWallet = function() {
        resetState()
-       navigation.navigate('Tabs')
+       navigation.dispatch(                
+        StackActions.popToTop()
+       )
     }
+    
 
     const handleError = function (e: AppError): void {
       resetState()

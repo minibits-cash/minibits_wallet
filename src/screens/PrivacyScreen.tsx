@@ -28,21 +28,7 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
     useHeader({
         leftIcon: 'faArrowLeft',
         onLeftPress: () => {
-            const routes = navigation.getState()?.routes
-            let prevRouteName: string = ''
-
-            if(routes && routes.length >= 2) {
-                prevRouteName = routes[routes.length - 2].name
-            }
-
-            if(prevRouteName === 'Settings') {
-                navigation.navigate('Settings')
-            } else {
-                navigation.dispatch(
-                    StackActions.replace('Settings')                    
-                )
-                navigation.navigate('Wallet', {})
-            }  
+            navigation.goBack() 
         }
     })
 
@@ -67,8 +53,9 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
         }
     }
 
-    const gotoOwnKeys = function() {        
-        navigation.navigate('OwnKeys', {})
+    const gotoOwnKeys = function() { 
+        //@ts-ignore       
+        navigation.navigate('ContactsNavigator', {screen: 'OwnKeys'})
     }
 
     const resetProfile = async function() {

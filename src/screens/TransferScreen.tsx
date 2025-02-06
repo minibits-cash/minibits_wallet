@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState, useCallback, useRef} from 'react'
-import {StaticScreenProps, useFocusEffect, useNavigation} from '@react-navigation/native'
+import {StackActions, StaticScreenProps, useFocusEffect, useNavigation} from '@react-navigation/native'
 import {
   UIManager,
   Platform,
@@ -627,7 +627,9 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
     } catch (e: any) {
       resetState()
       handleError(e)
-      navigation.navigate('Tabs')
+      navigation.dispatch(                
+        StackActions.popToTop()
+      )
     }
 }
 
@@ -698,7 +700,9 @@ const retryAfterSpentCleaned = async function () {
 
 const onClose = function () {
     resetState()
-    navigation.navigate('Tabs')
+    navigation.dispatch(                
+      StackActions.popToTop()
+    )
 }
 
 

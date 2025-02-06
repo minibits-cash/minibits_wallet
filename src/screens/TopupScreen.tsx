@@ -40,7 +40,7 @@ import AppError, {Err} from '../utils/AppError'
 import {Mint, MintBalance} from '../models/Mint'
 import EventEmitter from '../utils/eventEmitter'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
-import {StaticScreenProps, useFocusEffect, useNavigation} from '@react-navigation/native'
+import {StackActions, StaticScreenProps, useFocusEffect, useNavigation} from '@react-navigation/native'
 import {Contact, ContactType} from '../models/Contact'
 import {getImageSource, infoMessage} from '../utils/utils'
 import {ReceiveOption} from './ReceiveScreen'
@@ -617,7 +617,9 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
       setIsWithdrawRequestSending(false)
       setPaymentOption(ReceiveOption.SHOW_INVOICE)
 
-      navigation.navigate('Tabs')
+      navigation.dispatch(                
+        StackActions.popToTop()
+       )
     }
 
     const handleError = function (e: AppError): void {
