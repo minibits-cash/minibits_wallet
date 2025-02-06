@@ -83,6 +83,8 @@ function App() {
                     }
                 }  
             }
+        } else {
+            setIsAuthenticated(true)
         }
 
         if(userSettingsStore.theme !== userSettingsStore.nextTheme) {
