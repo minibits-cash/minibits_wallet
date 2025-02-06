@@ -385,11 +385,12 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     }
 
     const gotoProfile = function () {
-        navigation.navigate('Profile')
+        // @ts-ignore
+        navigation.navigate('ContactsNavigator', {screen: 'Profile'})        
     }
 
     const gotoMintInfo = function (mintUrl: string) {
-        setIsMintsModalVisible(false)
+        setIsMintsModalVisible(false)        
         navigation.navigate('MintInfo', {
             mintUrl
         })
@@ -534,7 +535,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                             <CurrencySign
                                 mintUnit={route.key as MintUnit}
                                 textStyle={{color: 'white'}}
-                                // containerStyle={focused ? {} : {opacity: 0.5}}
+                                containerStyle={{padding: spacing.medium, width: tabWidth}}
                             />
                         )}                       
                         indicatorStyle={{backgroundColor: getActiveTabColor(props.navigationState)}}                    

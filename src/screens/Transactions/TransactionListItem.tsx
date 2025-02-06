@@ -36,6 +36,7 @@ export const TransactionListItem = observer(function (props: TransactionListProp
   const onPress = function() {
     const currentScreen = getActiveRouteName(navigation.getState()!)
     log.trace('[onPress]', {currentScreen})
+    // @ts-ignore
     navigation.navigate('TransactionsNavigator', {screen: 'TranDetail', params: {id: tx.id, prevScreen: currentScreen}})
   }  
 

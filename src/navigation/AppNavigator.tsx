@@ -63,18 +63,18 @@ export const AppNavigator = observer(function AppNavigator() {
     
     const dark = useColorScheme() === 'dark' ? true : false
     const background = useThemeColor('background') as string
-    const primary = useThemeColor('tint') as string
+    const primary = useThemeColor('tabActiveIcon') as string
     const card = useThemeColor('background') as string
     const text = useThemeColor('text') as string
     const border = 'transparent'
     const notification = useThemeColor('warn') as string
     const systemTheme = dark ? DarkTheme : DefaultTheme
+    
 
-    const NavigationTheme = {
-        ...systemTheme,
+    const NavigationTheme = {        
         dark,
         colors: {
-          ...DefaultTheme.colors,
+          ...systemTheme.colors,
           background, 
           primary,
           card,
@@ -86,7 +86,8 @@ export const AppNavigator = observer(function AppNavigator() {
     }
 
     return (
-        <Navigation 
+        <Navigation
+            // @ts-ignore
             ref={navigationRef}
             theme={NavigationTheme} 
         />

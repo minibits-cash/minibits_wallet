@@ -1,6 +1,7 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 import { StaticParamList } from "@react-navigation/native"
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
+import { PlatformPressable } from '@react-navigation/elements'
 import React from "react"
 import { TextStyle, ViewStyle } from "react-native"
 import { Icon } from "../components"
@@ -45,8 +46,11 @@ const $tabBar: ViewStyle = {
   elevation: 0
 }
 
-const $tabBarItem: ViewStyle = {
-  paddingTop: spacing.medium,
+const $tabBarItem = {
+  paddingTop: spacing.small,
+  android_ripple: {
+    radius: 20
+  }
 }
 
 const $tabBarLabel: TextStyle = {
@@ -156,37 +160,46 @@ export const TabsNavigator = createBottomTabNavigator({
     tabBarHideOnKeyboard: true,
     tabBarStyle: [$tabBar, { height: moderateVerticalScale(70) }],
     tabBarItemStyle: $tabBarItem,
+    tabBarLabelStyle: $tabBarLabel,    
     animation: 'shift',
-    tabBarLabelStyle: {fontFamily: typography.primary?.light},
-    tabBarActiveTintColor: colors.palette.primary200
+    tabBarButton: (props) => (
+      <PlatformPressable
+        {...props}
+        android_ripple={{ 
+          color: colors.light.tabActiveIcon,
+          radius: 45,
+          borderless: true
+        }}
+      />
+    ),   
   },
   screens: {
     WalletNavigator: {
       screen: WalletStack,
       options: {
         tabBarLabel: translate("tabNavigator.walletLabel"),
-        tabBarIcon: ({ focused }) => <Icon icon="faWallet" /*color={focused ? activeColor : textColor}*/ size={spacing.large} />          
+        tabBarIcon: ({ focused, color }) => <Icon icon="faWallet" color={color} size={spacing.large} />,                       
       }
     },
     TransactionsNavigator: {
       screen: TransactionsStack,
       options: {
         tabBarLabel: translate("tabNavigator.transactionsLabel"),
-        tabBarIcon: ({ focused }) => <Icon icon="faListUl" /*color={focused ? activeColor : textColor}*/ size={spacing.large} />,      
+        tabBarIcon: ({ focused, color }) => <Icon icon="faListUl" color={color} size={spacing.large} />,        
       }
     },
     ContactsNavigator: {
       screen: ContactsStack,
       options: {
         tabBarLabel: translate("tabNavigator.contactsLabel"),
-        tabBarIcon: ({ focused }) => <Icon icon="faAddressBook" /*color={focused ? activeColor : textColor}*/ size={spacing.large} />,      
+        tabBarIcon: ({ focused, color }) => <Icon icon="faAddressBook" color={color} size={spacing.large} />,        
       }
     },
     SettingsNavigator: {
       screen: SettingsStack,
       options: {
         tabBarLabel: translate("tabNavigator.settingsLabel"),
-        tabBarIcon: ({ focused }) => <Icon icon="faGears" /*color={focused ? activeColor : textColor}*/ size={spacing.large} />,           
+        tabBarIcon: ({ focused, color }) => <Icon icon="faGears" color={color} size={spacing.large} />,        
       }
     },
   }
