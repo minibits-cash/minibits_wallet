@@ -649,7 +649,8 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                                     }
                                     style={{
                                         width: spacing.screenWidth * 0.28,
-                                        marginRight: spacing.small,                                                                                                                                 
+                                        marginRight: spacing.small,
+                                        marginBottom: spacing.extraSmall                                                                                                                                 
                                     }}                                        
                                 />
                             )}

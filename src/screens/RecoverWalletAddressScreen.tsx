@@ -5,7 +5,7 @@ import { validateMnemonic } from '@scure/bip39'
 import QuickCrypto from 'react-native-quick-crypto'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import { mnemonicToSeedSync } from '@scure/bip39'
-import { spacing, useThemeColor } from '../theme'
+import { colors, spacing, useThemeColor } from '../theme'
 import { Icon, ListItem, Screen, Text, Card, Loading, ErrorModal, Button } from '../components'
 import { useHeader } from '../utils/useHeader'
 import AppError, { Err } from '../utils/AppError'
@@ -166,17 +166,30 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
           onError={handleError}
         />
         {isValidMnemonic && profileToRecover && (
+          <>
           <Card
             style={$card}
             ContentComponent={
               <ListItem
                 text={profileToRecover.nip05}
-                subText="This is the wallet address linked to the provided seed. If you continue, your current address will reset to this one, but wallet seed phrase will NOT be updated."
+                subText="This is the wallet address linked to the provided seed."
                 LeftComponent={<View style={[$numIcon, { backgroundColor: numIconColor }]}><Text text='2' /></View>}
                 style={$item}
               />
             }
           />
+          <Card
+            style={[$card]}            
+            ContentComponent={
+              <ListItem
+                text={'Do not forget!'}
+                subText="Your current address will reset, but current wallet seed phrase will NOT be changed. Make a backup!"
+                LeftComponent={<View style={[$numIcon, { backgroundColor: numIconColor }]}><Text text='3' /></View>}
+                style={$item}
+              />
+            }
+          />
+          </>
         )}
       </View>
       {isValidMnemonic && (

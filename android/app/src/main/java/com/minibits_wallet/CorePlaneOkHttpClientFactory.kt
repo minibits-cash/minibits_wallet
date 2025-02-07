@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit
 class CorePlaneOkHttpClientFactory : OkHttpClientFactory {
     override fun createNewNetworkModuleClient(): OkHttpClient {
         val okHttpVersion = OkHttp.VERSION
-        Log.d("OkHttpFactory", "Using OkHttp version: $okHttpVersion")
+        // Log.d("OkHttpFactory", "Using OkHttp version: $okHttpVersion")
 
         return OkHttpClientProvider.createClientBuilder()
             .dns(CorePlaneOkHttpDNSSelector(CorePlaneOkHttpDNSSelector.IPvMode.IPV4_FIRST))

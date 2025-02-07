@@ -105,8 +105,12 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
 
 
     const gotoContacts = function () {
-        navigation.navigate('Contacts', {
-            paymentOption: SendOption.LNURL_ADDRESS
+        //@ts-ignore
+        navigation.navigate('ContactsNavigator', {
+            screen: 'Contacts',
+            params: {
+                paymentOption: SendOption.LNURL_ADDRESS
+            }            
         })
     }
 

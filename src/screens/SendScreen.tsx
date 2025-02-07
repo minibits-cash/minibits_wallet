@@ -810,6 +810,8 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         setIsNostrDMModalVisible(false)
         setIsProofSelectorModalVisible(false)
         setIsLoading(false)
+        setResultModalInfo(undefined)
+        setIsResultModalVisible(false)
 
         navigation.dispatch(                
             StackActions.popToTop()

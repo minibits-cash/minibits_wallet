@@ -20,6 +20,7 @@ import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { translate } from '../i18n'
 import { MintUnit } from '../services/wallet/currency'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+import { SendOption } from './SendScreen'
 
 type Props = StaticScreenProps<{
     unit: MintUnit    
@@ -90,14 +91,21 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
 
     const gotoScan = async function () {
         tokenInputRef.current?.blur()
-        navigation.navigate('Scan', {mintUrl: mint?.mintUrl, unit})
+        navigation.navigate('Scan', {
+            mintUrl: mint?.mintUrl, 
+            unit
+        })
     }
 
 
     /* const gotoContacts = function () {
+        //@ts-ignore
         navigation.navigate('ContactsNavigator', {
             screen: 'Contacts', 
-            params: {paymentOption: SendOption.LNURL_ADDRESS}})
+            params: {
+                paymentOption: SendOption.LNURL_ADDRESS
+            }
+        })
     } */
 
 

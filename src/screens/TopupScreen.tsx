@@ -532,7 +532,6 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
 
           if (updated.length > 1) {
             updated[1].sentToRelays = relaysToShareTo
-            updated[1].sentEvent = sentEvent
 
             // status does not change, just add event and relay info to tx.data
             transaction.setStatus(                            
@@ -549,8 +548,12 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
     }
 
     const gotoContacts = function () {
-      navigation.navigate('Contacts', {        
-          paymentOption: ReceiveOption.SEND_PAYMENT_REQUEST        
+      //@ts-ignore
+      navigation.navigate('ContactsNavigator', {
+          screen: 'Contacts',
+          params: {
+            paymentOption: ReceiveOption.SEND_PAYMENT_REQUEST
+          }                  
       })
     }
 
@@ -616,6 +619,8 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
       setIsWithdrawModalVisible(false)
       setIsWithdrawRequestSending(false)
       setPaymentOption(ReceiveOption.SHOW_INVOICE)
+      setResultModalInfo(undefined)
+      setIsResultModalVisible(false)
 
       navigation.dispatch(                
         StackActions.popToTop()
