@@ -95,7 +95,7 @@ android {
         applicationId "com.minibits_wallet"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 58024
+        versionCode 58025
         versionName "0.2.0"
     }
 
@@ -159,7 +159,7 @@ android {
             def abi = output.getFilter(OutputFile.ABI)
             if (abi != null) {  // null for the universal-debug, universal-release variants
                 output.versionCodeOverride =
-                        defaultConfig.versionCode * 1000 + versionCodes.get(abi)
+                    defaultConfig.versionCode * 1000 + versionCodes.get(abi)
             }
 
         }
@@ -177,14 +177,18 @@ dependencies {
         implementation jscFlavor
     }
 
-    // Fetch request hang issue
-    // define a BOM and its version
-    implementation(platform("com.squareup.okhttp3:okhttp-bom:5.0.0-alpha.12"))
-
-    // define any required OkHttp artifacts without version
+    // Minibits: Fetch requests hanging issue - not used for now, does not work with custom DNS selector IPV4_FIRST strategy
+    /* implementation(platform("com.squareup.okhttp3:okhttp-bom:5.0.0-alpha.12"))
+    
     implementation("com.squareup.okhttp3:okhttp")
-    implementation("com.squareup.okhttp3:logging-interceptor")
-    implementation("com.squareup.okhttp3:okhttp-urlconnection")
+    implementation("com.squareup.okhttp3:logging-interceptor")    
+
+    configurations.all {
+        resolutionStrategy {
+            force "com.squareup.okhttp3:okhttp:5.0.0-alpha.12"
+            force "com.squareup.okhttp3:logging-interceptor:5.0.0-alpha.12"
+        }
+    }*/    
 }
 
 // code-push
