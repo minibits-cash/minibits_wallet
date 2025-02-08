@@ -22,7 +22,7 @@ import { roundUp } from '../../utils/number'
 import { LNURLPayParams, LnurlClient } from '../../services/lnurlService'
 import { useNavigation } from '@react-navigation/native'
 
-const DEFAULT_DONATION_AMOUNT = 500
+const DEFAULT_DONATION_AMOUNT = 10
 const DONATION_LNURL_ADDRESS = 'minibits@minibits.cash'
 
 export const OwnName = observer(function (props: {pubkey: string}) { 
@@ -191,16 +191,19 @@ export const OwnName = observer(function (props: {pubkey: string}) {
             if(selectedBalance && selectedBalance.balances['sat']! + feeReserve >= donationAmount) {
 
                 const addressParamsResult = await LnurlClient.getLnurlAddressParams(DONATION_LNURL_ADDRESS) // throws
-
-                return navigation.navigate('Transfer', { 
-                    lnurlParams: addressParamsResult.lnurlParams as LNURLPayParams,                
-                    paymentOption: SendOption.LNURL_PAY,
-                    fixedAmount: donationAmount,
-                    unit: 'sat',
-                    comment,
-                    mintUrl: selectedBalance.mintUrl,
-                    isDonation: true,
-                    donationForName: ownName                    
+                //@ts-ignore
+                return navigation.navigate('WalletNavigator', {
+                    screen: 'Transfer', 
+                    params: { 
+                        lnurlParams: addressParamsResult.lnurlParams as LNURLPayParams,                
+                        paymentOption: SendOption.LNURL_PAY,
+                        fixedAmount: donationAmount,
+                        unit: 'sat',
+                        comment,
+                        mintUrl: selectedBalance.mintUrl,
+                        isDonation: true,
+                        donationForName: ownName                    
+                    }
                 })
             } else {
                 const invoice = await MinibitsClient.createDonation(

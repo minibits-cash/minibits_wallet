@@ -453,10 +453,14 @@ useEffect(() => {
 
 
 const gotoContacts = function () {
+  resetState()
+  navigation.dispatch(                
+    StackActions.popToTop()
+  )
   //@ts-ignore
   navigation.navigate('ContactsNavigator', {
       screen: 'Contacts',
-      params: {paymentOption: SendOption.SEND_TOKEN}            
+      params: {}            
   })
 }
 
