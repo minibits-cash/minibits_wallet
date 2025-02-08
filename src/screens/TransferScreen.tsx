@@ -428,6 +428,7 @@ useEffect(() => {
     
                 if(pr) {
                     pr.setStatus(PaymentRequestStatus.PAID)
+                    pr.transactionId = transaction?.id
                 }
             }
         }
@@ -450,6 +451,22 @@ useEffect(() => {
     }
 }, [isTransferTaskSentToQueue])
 
+
+const gotoContacts = function () {
+  //@ts-ignore
+  navigation.navigate('ContactsNavigator', {
+      screen: 'Contacts',
+      params: {paymentOption: SendOption.SEND_TOKEN}            
+  })
+}
+
+
+const gotoWallet = function() {
+  resetState()
+  navigation.dispatch(                
+   StackActions.popToTop()
+  )
+}
 
 
 const resetState = function () {
@@ -624,12 +641,9 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
         setMintBalanceToTransferFrom(balanceToTransferFrom)
         // continues in hook that handles other mint selection by user
             
-    } catch (e: any) {
-      resetState()
+    } catch (e: any) {      
       handleError(e)
-      navigation.dispatch(                
-        StackActions.popToTop()
-      )
+      gotoWallet()
     }
 }
 
@@ -695,14 +709,6 @@ const retryAfterSpentCleaned = async function () {
   } finally {
     toggleResultModal() //close
   }
-}
-    
-
-const onClose = function () {
-    resetState()
-    navigation.dispatch(                
-      StackActions.popToTop()
-    )
 }
 
 
@@ -823,7 +829,7 @@ const amountInputColor = useThemeColor('amountInput')
               <View style={$buttonContainer}>
                 <Button                    
                   tx="common.close"
-                  onPress={onClose}
+                  onPress={gotoWallet}
                   preset="secondary"
                 />
               </View>
@@ -838,7 +844,7 @@ const amountInputColor = useThemeColor('amountInput')
                 title={translate('payCommon.payFrom')}
                 confirmTitle={translate('payCommon.payNow')}
                 onMintBalanceSelect={onMintBalanceSelect}
-                onCancel={onClose}
+                onCancel={gotoWallet}
                 onMintBalanceConfirm={transfer}
               />
             )}
@@ -881,7 +887,7 @@ const amountInputColor = useThemeColor('amountInput')
                 <Button
                   preset="secondary"
                   tx={'common.close'}
-                  onPress={onClose}
+                  onPress={gotoWallet}
                 />
               </View>
             </View>
@@ -906,9 +912,9 @@ const amountInputColor = useThemeColor('amountInput')
                         tx={'common.close'}
                         onPress={() => {
                           if (isInvoiceDonation) {
-                            navigation.navigate('Contacts', {})
+                            gotoContacts()
                           } else {
-                            navigation.navigate('Wallet', {})
+                            gotoWallet()
                           }
                         }}
                       />
@@ -980,9 +986,7 @@ const amountInputColor = useThemeColor('amountInput')
                       <Button
                         preset="secondary"
                         tx={'common.close'}
-                        onPress={() => {
-                          navigation.navigate('Wallet', {})
-                        }}
+                        onPress={gotoWallet}
                       />
                     </View>
                   </>

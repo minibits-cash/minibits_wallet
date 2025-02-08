@@ -608,6 +608,14 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
       }
     }
 
+
+    const gotoWallet = function() {
+      resetState()
+      navigation.dispatch(                
+       StackActions.popToTop()
+      )
+    }
+
     const resetState = function () {
       // reset state so it does not interfere next payment
       setAmountToTopup('')
@@ -621,10 +629,6 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
       setPaymentOption(ReceiveOption.SHOW_INVOICE)
       setResultModalInfo(undefined)
       setIsResultModalVisible(false)
-
-      navigation.dispatch(                
-        StackActions.popToTop()
-       )
     }
 
     const handleError = function (e: AppError): void {
@@ -792,7 +796,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
                 <Button
                   preset="secondary"
                   tx='common.close'
-                  onPress={resetState}
+                  onPress={gotoWallet}
                 />
               </View>
             </View>
@@ -807,7 +811,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
                 contactToSendFrom={contactToSendFrom as Contact}
                 contactToSendTo={contactToSendTo as Contact}
                 amountToTopup={amountToTopup}
-                onClose={resetState}
+                onClose={gotoWallet}
               />
             ) : (
               <SendAsNostrDMBlock
@@ -836,7 +840,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
                 amountToTopup={amountToTopup}
                 lnurlWithdrawParams={lnurlWithdrawParams as LNURLWithdrawParams}
                 lnurlWithdrawResult={lnurlWithdrawResult as LnurlWithdrawResult}
-                onClose={resetState}
+                onClose={gotoWallet}
               />
             ) : (
               <LnurlWithdrawBlock
@@ -870,7 +874,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
                       <Button
                         preset="secondary"
                         tx='common.close'
-                        onPress={() => navigation.navigate('Wallet', {})}
+                        onPress={gotoWallet}
                       />
                     </View>
                   </>

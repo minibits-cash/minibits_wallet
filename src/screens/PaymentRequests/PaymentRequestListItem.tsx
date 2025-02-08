@@ -24,6 +24,7 @@ import {translate} from '../../i18n'
 import { CurrencyAmount } from '../Wallet/CurrencyAmount'
 import { useNavigation } from '@react-navigation/native'
 import { MintUnit } from '../../services/wallet/currency'
+import { toJS } from 'mobx'
 
 export interface PaymentRequestListProps {
   pr: PaymentRequest
@@ -48,7 +49,7 @@ export const PaymentRequestListItem = observer(function PaymentRequestListItem(
   const onPressPaymentRequest = function () {
     if (pr.type === PaymentRequestType.INCOMING) {
       navigation.navigate('Transfer', {
-        paymentRequest: pr,
+        paymentRequest: toJS(pr),
         paymentOption: SendOption.PAY_PAYMENT_REQUEST,
         unit: pr.invoicedUnit as MintUnit
       })

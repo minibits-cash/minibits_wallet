@@ -797,6 +797,14 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     }
 
 
+    const gotoWallet = function() {
+        resetState()
+        navigation.dispatch(                
+         StackActions.popToTop()
+        )
+     }
+
+
     const resetState = function () {
         // reset state so it does not interfere next payment
         setAmountToSend('')
@@ -812,10 +820,6 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         setIsLoading(false)
         setResultModalInfo(undefined)
         setIsResultModalVisible(false)
-
-        navigation.dispatch(                
-            StackActions.popToTop()
-        )
     }
 
 
@@ -934,7 +938,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                         <Button
                             preset="secondary"
                             tx={'common.close'}
-                            onPress={resetState}
+                            onPress={gotoWallet}
                         />
                     </View>
                 </View>
@@ -965,7 +969,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 contactToSendFrom={contactToSendFrom as Contact}
                 contactToSendTo={contactToSendTo as Contact}                
                 amountToSend={amountToSend}
-                onClose={resetState}                
+                onClose={gotoWallet}                
             />
             ) : (
             <SendAsNostrDMBlock
@@ -1002,7 +1006,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                       <Button
                         preset="secondary"
                         tx={'common.close'}
-                        onPress={() => navigation.navigate('Wallet', {})}
+                        onPress={gotoWallet}
                       />
                     </View>
                   </>

@@ -82,10 +82,15 @@ export const PaymentRequestsStoreModel = types
                 log.info('[removePaymentRequest]', 'PaymentRequest removed from the store')                
             }
         },
-        removeExpired() {
-            return self.paymentRequests.replace(
-                self.paymentRequests.filter(pr => isAfter(pr.expiresAt as Date, new Date()))
-            )            
+        removePaidOrExpired() {
+            log.trace('[removePaidOrExpired] start', self.paymentRequests)
+            const filtered = self.paymentRequests.filter(pr => isAfter(
+                pr.expiresAt as Date, new Date()) && 
+                pr.status === PaymentRequestStatus.ACTIVE
+            )
+            log.trace('[removePaidOrExpired] filtered', filtered)
+
+            return self.paymentRequests.replace(filtered)
         },
     }))
     .views(self => ({

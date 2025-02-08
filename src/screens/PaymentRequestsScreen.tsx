@@ -1,5 +1,5 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useState} from 'react'
+import React, {FC, useEffect, useState} from 'react'
 import {TextStyle, View, ViewStyle} from 'react-native'
 import { TabBar, TabView, Route } from 'react-native-tab-view'
 import {colors, spacing, useThemeColor} from '../theme'
@@ -8,6 +8,8 @@ import { IncomingRequests } from './PaymentRequests/IncomingRequests'
 import { OutgoingRequests } from './PaymentRequests/OutgoingRequests'
 import { useHeader } from '../utils/useHeader'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+import { useStores } from '../models'
+import { log } from '../services'
 
 type Props = StaticScreenProps<undefined>
 
@@ -16,7 +18,17 @@ export const PaymentRequestsScreen = observer(function PaymentRequestsScreen({ r
     useHeader({
         leftIcon: 'faArrowLeft',
         onLeftPress: () => navigation.goBack(),
-    })    
+    })
+    const {paymentRequestsStore} = useStores()
+    
+    useEffect(() => {
+        onDeletePaidOrExpired()
+    }, [])
+      
+    const onDeletePaidOrExpired = function() {
+        log.trace('[onDeletePaidOrExpired] start')
+        paymentRequestsStore.removePaidOrExpired()
+    }
     
     const renderScene = ({route}: {route: Route}) => {
         switch (route.key) {

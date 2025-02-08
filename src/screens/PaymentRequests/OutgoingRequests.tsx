@@ -29,8 +29,7 @@ import { QRCodeBlock } from '../Wallet/QRCode'
 import { useNavigation } from '@react-navigation/native'
 
 
-export const OutgoingRequests = observer(function () {
-    const navigation = useNavigation()
+export const OutgoingRequests = observer(function () {    
     const {paymentRequestsStore} = useStores()
    
     const [info, setInfo] = useState('')
@@ -39,13 +38,6 @@ export const OutgoingRequests = observer(function () {
     const [isLoading, setIsLoading] = useState(false)
     const [isQRModalVisible, setIsQRModalVisible] = useState(false)   
 
-    useEffect(() => {
-        onDeleteExpired()
-    }, [])
-      
-    const onDeleteExpired = function() {
-        paymentRequestsStore.removeExpired()
-    }
 
     const toggleQRModal = () => {   
         if(isQRModalVisible) {

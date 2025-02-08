@@ -20,6 +20,7 @@ import AppError from '../../utils/AppError'
 import { PaymentRequest } from '../../models/PaymentRequest'
 import { StackNavigationProp } from '@react-navigation/stack'
 import { PaymentRequestListItem } from './PaymentRequestListItem'
+import { log } from '../../services'
 
 
 export const IncomingRequests = observer(function () {        
@@ -28,14 +29,6 @@ export const IncomingRequests = observer(function () {
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState(false)
-
-    useEffect(() => {
-        onDeleteExpired()
-    }, [])
-      
-    const onDeleteExpired = function() {
-        paymentRequestsStore.removeExpired()
-    }
 
     const handleError = function (e: AppError): void {
         setIsLoading(false)
