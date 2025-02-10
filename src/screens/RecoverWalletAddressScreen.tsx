@@ -9,7 +9,7 @@ import { colors, spacing, useThemeColor } from '../theme'
 import { Icon, ListItem, Screen, Text, Card, Loading, ErrorModal, Button } from '../components'
 import { useHeader } from '../utils/useHeader'
 import AppError, { Err } from '../utils/AppError'
-import { MinibitsClient } from '../services'
+import { MinibitsClient, log } from '../services'
 import { useStores } from '../models'
 import { MnemonicInput } from './Recovery/MnemonicInput'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
@@ -87,7 +87,7 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
 
       const profile = await MinibitsClient.getWalletProfileBySeedHash(seedHash as string) // throws if not found
 
-      console.log('[onCheckWalletAddress] profileToRecover', { profile })
+      log.trace('[onCheckWalletAddress] profileToRecover', { profile })
 
       if (profile.nip05.includes(MINIBITS_NIP05_DOMAIN)) {
         setProfileToRecover(profile)
@@ -114,7 +114,7 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
 
       const keys = await walletStore.getCachedWalletKeys()
 
-      console.log('[onCompleteAddress] Wallet keys', { keys })
+      log.trace('[onCompleteAddress] Wallet keys', { keys })
 
       await walletProfileStore.recover(
         keys.NOSTR.publicKey,
