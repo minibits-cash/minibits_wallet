@@ -1510,34 +1510,29 @@ const handlePendingTopupTask = async function (params: {paymentRequest: PaymentR
             throw new AppError(Err.VALIDATION_ERROR, 'Returned quote is different then the one requested', {mintUrl, quote, mintQuote})
         }
 
-        switch (state) {
-            /* 
-             * UNPAID or ISSUED 
-             */         
-            case MintQuoteState.UNPAID:
-            case MintQuoteState.ISSUED:
-                if (isBefore(pr.expiresAt as Date, new Date())) {
-                    log.debug('[handlePendingTopupTask]', `Invoice expired, removing: ${pr.paymentHash}`)
-    
-                    // expire related tx - but only if it has not been completed before this check
-                    if(transaction.status !== TransactionStatus.COMPLETED) {
-                        const transactionDataUpdate = {
-                            status: TransactionStatus.EXPIRED,
-                            message: 'Invoice expired',                        
-                            createdAt: new Date(),
-                        }                        
-    
-                        await transactionsStore.updateStatuses(
-                            [transactionId],
-                            TransactionStatus.EXPIRED,
-                            JSON.stringify(transactionDataUpdate),
-                        ) 
-                    }
-    
-                    stopPolling(`handlePendingTopupPoller-${paymentHash}`)         
-                    paymentRequestsStore.removePaymentRequest(pr)
-                }
-                // continue
+        if (isBefore(pr.expiresAt as Date, new Date())) {
+            log.debug('[handlePendingTopupTask]', `Invoice expired, removing: ${pr.paymentHash}`)
+
+            // expire related tx - but only if it has not been completed before this check
+            if(transaction.status !== TransactionStatus.COMPLETED) {
+                const transactionDataUpdate = {
+                    status: TransactionStatus.EXPIRED,
+                    message: 'Invoice expired',                        
+                    createdAt: new Date(),
+                }                        
+
+                await transactionsStore.updateStatuses(
+                    [transactionId],
+                    TransactionStatus.EXPIRED,
+                    JSON.stringify(transactionDataUpdate),
+                ) 
+            }
+
+            stopPolling(`handlePendingTopupPoller-${paymentHash}`)         
+            paymentRequestsStore.removePaymentRequest(pr)
+        }
+
+        switch (state) {            
             case MintQuoteState.UNPAID:
                 log.trace('[handlePendingTopupTask] Quote not paid', {mintUrl, mintQuote})                
     
@@ -1622,7 +1617,7 @@ const handlePendingTopupTask = async function (params: {paymentRequest: PaymentR
                     )
         
                     transaction.setProfile(
-                        JSON.stringify(getSnapshot(pr.contactTo)) 
+                        JSON.stringify(pr.contactTo) 
                     )
                 }
                 
@@ -1648,6 +1643,8 @@ const handlePendingTopupTask = async function (params: {paymentRequest: PaymentR
             case MintQuoteState.ISSUED:
                 log.trace('[handlePendingTopupTask] Quote already issued', {mintUrl, mintQuote})            
 
+                paymentRequestsStore.removePaymentRequest(pr)  
+                
                 return {
                     taskFunction: HANDLE_PENDING_TOPUP_TASK,
                     transaction,
@@ -1673,8 +1670,7 @@ const handlePendingTopupTask = async function (params: {paymentRequest: PaymentR
                 } as WalletTaskResult          
         }
 
-    } catch (e: any) {
-
+    } catch (e: any) {        
         return {
             taskFunction: HANDLE_PENDING_TOPUP_TASK,
             mintUrl,

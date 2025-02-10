@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState, useCallback, useRef} from 'react'
-import {useFocusEffect} from '@react-navigation/native'
+import {StackActions, StaticScreenProps, useFocusEffect, useNavigation} from '@react-navigation/native'
 import {
   UIManager,
   Platform,
@@ -12,7 +12,6 @@ import {
   Keyboard,
 } from 'react-native'
 import {spacing, useThemeColor, colors, typography} from '../theme'
-import {WalletStackScreenProps} from '../navigation'
 import {
   Button,
   Icon,
@@ -34,7 +33,7 @@ import AppError, {Err} from '../utils/AppError'
 import {MintBalance} from '../models/Mint'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {addSeconds} from 'date-fns'
-import { PaymentRequestStatus } from '../models/PaymentRequest'
+import { PaymentRequest, PaymentRequestStatus } from '../models/PaymentRequest'
 import { DecodedLightningInvoice, LightningUtils } from '../services/lightning/lightningUtils'
 import { SendOption } from './SendScreen'
 import { round, roundDown, roundUp, toNumber } from '../utils/number'
@@ -51,6 +50,7 @@ import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { translate } from '../i18n'
 import { MemoInputCard } from '../components/MemoInputCard'
 import { TRANSFER_TASK } from '../services/wallet/transferTask'
+import { LNURLWithdrawParams } from 'js-lnurl'
 
 
 if (
@@ -60,9 +60,21 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
-export const TransferScreen: FC<WalletStackScreenProps<'Transfer'>> = observer(
-  function TransferScreen({route, navigation}) {
+type Props = StaticScreenProps<{
+  unit: MintUnit,
+  encodedInvoice?: string,
+  paymentRequest?: PaymentRequest, 
+  lnurlParams?: LNURLPayParams,
+  fixedAmount?: number, 
+  comment?: string      
+  paymentOption?: SendOption,
+  mintUrl?: string,
+  isDonation?: boolean,
+  donationForName?: string
+}>
 
+export const TransferScreen = observer(function TransferScreen({ route }: Props) {
+    const navigation = useNavigation()
     const amountInputRef = useRef<TextInput>(null)
     const lnurlCommentInputRef = useRef<TextInput>(null)
 
@@ -416,6 +428,7 @@ useEffect(() => {
     
                 if(pr) {
                     pr.setStatus(PaymentRequestStatus.PAID)
+                    pr.transactionId = transaction?.id
                 }
             }
         }
@@ -438,6 +451,26 @@ useEffect(() => {
     }
 }, [isTransferTaskSentToQueue])
 
+
+const gotoContacts = function () {
+  resetState()
+  navigation.dispatch(                
+    StackActions.popToTop()
+  )
+  //@ts-ignore
+  navigation.navigate('ContactsNavigator', {
+      screen: 'Contacts',
+      params: {}            
+  })
+}
+
+
+const gotoWallet = function() {
+  resetState()
+  navigation.dispatch(                
+   StackActions.popToTop()
+  )
+}
 
 
 const resetState = function () {
@@ -612,10 +645,9 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
         setMintBalanceToTransferFrom(balanceToTransferFrom)
         // continues in hook that handles other mint selection by user
             
-    } catch (e: any) {
-      resetState()
+    } catch (e: any) {      
       handleError(e)
-      navigation.popToTop()
+      gotoWallet()
     }
 }
 
@@ -682,12 +714,6 @@ const retryAfterSpentCleaned = async function () {
     toggleResultModal() //close
   }
 }
-    
-
-const onClose = function () {
-    resetState()
-    navigation.popToTop()
-}
 
 
 const handleError = function(e: AppError): void {
@@ -708,8 +734,7 @@ const amountInputColor = useThemeColor('amountInput')
               ? mintsStore.findByUrl(mintBalanceToTransferFrom?.mintUrl)
               : undefined
           }
-          unit={unit}
-          navigation={navigation}
+          unit={unit}          
         />
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <View style={$amountContainer}>
@@ -808,7 +833,7 @@ const amountInputColor = useThemeColor('amountInput')
               <View style={$buttonContainer}>
                 <Button                    
                   tx="common.close"
-                  onPress={onClose}
+                  onPress={gotoWallet}
                   preset="secondary"
                 />
               </View>
@@ -823,7 +848,7 @@ const amountInputColor = useThemeColor('amountInput')
                 title={translate('payCommon.payFrom')}
                 confirmTitle={translate('payCommon.payNow')}
                 onMintBalanceSelect={onMintBalanceSelect}
-                onCancel={onClose}
+                onCancel={gotoWallet}
                 onMintBalanceConfirm={transfer}
               />
             )}
@@ -866,7 +891,7 @@ const amountInputColor = useThemeColor('amountInput')
                 <Button
                   preset="secondary"
                   tx={'common.close'}
-                  onPress={onClose}
+                  onPress={gotoWallet}
                 />
               </View>
             </View>
@@ -891,12 +916,9 @@ const amountInputColor = useThemeColor('amountInput')
                         tx={'common.close'}
                         onPress={() => {
                           if (isInvoiceDonation) {
-                            navigation.navigate('ContactsNavigator', {
-                              screen: 'Contacts',
-                              params: {},
-                            })
+                            gotoContacts()
                           } else {
-                            navigation.navigate('Wallet', {})
+                            gotoWallet()
                           }
                         }}
                       />
@@ -968,9 +990,7 @@ const amountInputColor = useThemeColor('amountInput')
                       <Button
                         preset="secondary"
                         tx={'common.close'}
-                        onPress={() => {
-                          navigation.navigate('Wallet', {})
-                        }}
+                        onPress={gotoWallet}
                       />
                     </View>
                   </>

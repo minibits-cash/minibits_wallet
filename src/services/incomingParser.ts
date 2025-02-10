@@ -5,8 +5,10 @@ import { log } from './logService'
 import { CashuUtils } from './cashu/cashuUtils'
 import { LightningUtils } from './lightning/lightningUtils'
 import { LnurlUtils } from './lnurl/lnurlUtils'
-import { LnurlClient } from './lnurlService'
+import { LNURLPayParams, LnurlClient } from './lnurlService'
 import { MintUnit } from './wallet/currency'
+import { RootNavigation } from '../navigation'
+import { NavigationProp } from '@react-navigation/native'
 
 export enum IncomingDataType {
     CASHU = 'CASHU',
@@ -156,34 +158,45 @@ const navigateWithIncomingData = async function (
     incoming: {
         type: IncomingDataType, 
         encoded: any
-    }, 
-    navigation: StackNavigationProp<any>,
-    unit: MintUnit,
+    },
+    navigation: Omit<NavigationProp<ReactNavigation.RootParamList>, "getState">, 
+    unit: MintUnit,    
     mintUrl?: string
 ) {
+    
 
     switch (incoming.type) {
         case IncomingDataType.CASHU:
-            return navigation.navigate('Receive', {
-                encodedToken: incoming.encoded,
-                unit,
-                mintUrl
+            //@ts-ignore
+            return navigation.navigate('WalletNavigator', {
+                screen: 'Receive', 
+                params: {
+                    encodedToken: incoming.encoded,
+                }
             })
 
         case IncomingDataType.CASHU_PAYMENT_REQUEST:
-            return navigation.navigate('Send', {
-                encodedCashuPaymentRequest: incoming.encoded,
-                paymentOption: SendOption.PAY_PAYMENT_REQUEST,
-                unit,
-                mintUrl
+            //@ts-ignore
+            return navigation.navigate('WalletNavigator', {
+                screen: 'Send', 
+                params: {
+                    encodedCashuPaymentRequest: incoming.encoded,
+                    paymentOption: SendOption.PAY_PAYMENT_REQUEST,
+                    unit,
+                    mintUrl
+                }
             })
                 
         case IncomingDataType.INVOICE:
-            return navigation.navigate('Transfer', {
-                encodedInvoice: incoming.encoded,
-                paymentOption: SendOption.PASTE_OR_SCAN_INVOICE,
-                unit,
-                mintUrl
+            //@ts-ignore
+            return navigation.navigate('WalletNavigator', {
+                screen: 'Transfer', 
+                params: {
+                    encodedInvoice: incoming.encoded,
+                    paymentOption: SendOption.PASTE_OR_SCAN_INVOICE,
+                    unit,
+                    mintUrl
+                }
             })
 
         case (IncomingDataType.LNURL):
@@ -191,21 +204,29 @@ const navigateWithIncomingData = async function (
                 const paramsResult = await LnurlClient.getLnurlParams(incoming.encoded)
                 const {lnurlParams} = paramsResult
 
-                if(lnurlParams.tag === 'withdrawRequest') {                
-                    return navigation.navigate('Topup', {
-                        lnurlParams,
-                        paymentOption: ReceiveOption.LNURL_WITHDRAW,
-                        unit,
-                        mintUrl
+                if(lnurlParams.tag === 'withdrawRequest') {
+                    //@ts-ignore                
+                    return navigation.navigate('WalletNavigator', {
+                        screen: 'Topup',
+                        params: {
+                            lnurlParams,
+                            paymentOption: ReceiveOption.LNURL_WITHDRAW,
+                            unit,
+                            mintUrl
+                        }                        
                     })
                 }
 
                 if(lnurlParams.tag === 'payRequest') {
-                    return navigation.navigate('Transfer', {
-                        lnurlParams,                    
-                        paymentOption: SendOption.LNURL_PAY,
-                        unit,
-                        mintUrl
+                    //@ts-ignore
+                    return navigation.navigate('WalletNavigator', {
+                        screen: 'Transfer',
+                        params: {
+                            lnurlParams,                    
+                            paymentOption: SendOption.LNURL_PAY,
+                            unit,
+                            mintUrl
+                        }                        
                     })
                 }
 
@@ -220,12 +241,15 @@ const navigateWithIncomingData = async function (
         case (IncomingDataType.LNURL_ADDRESS):
             try {
                 const addressParamsResult = await LnurlClient.getLnurlAddressParams(incoming.encoded) // throws
-
-                return navigation.navigate('Transfer', {
-                    lnurlParams: addressParamsResult.lnurlParams,                
-                    paymentOption: SendOption.LNURL_PAY,                                     
-                    unit,
-                    mintUrl
+                //@ts-ignore
+                return navigation.navigate('WalletNavigator', {
+                    screen: 'Transfer', 
+                    params: {
+                        lnurlParams: addressParamsResult.lnurlParams as LNURLPayParams,                
+                        paymentOption: SendOption.LNURL_PAY,                                     
+                        unit,
+                        mintUrl
+                    }
                 })
             } catch (e: any) {
                 throw new AppError(Err.SERVER_ERROR, 'Could not get Lightning address details from the server.', {
@@ -236,8 +260,12 @@ const navigateWithIncomingData = async function (
             }
             
         case IncomingDataType.MINT_URL:
-            return navigation.navigate('Wallet', {
-                scannedMintUrl: incoming.encoded,
+            //@ts-ignore
+            return navigation.navigate('WalletNavigator', {
+                screen: 'Wallet',
+                params: {
+                    scannedMintUrl: incoming.encoded,
+                }                
             })
 
         default:

@@ -5,7 +5,6 @@ import {
     TextStyle,
     TextInput,
 } from 'react-native'
-import {WalletStackScreenProps} from '../navigation'
 import {colors, spacing, useThemeColor} from '../theme'
 import {log} from '../services/logService'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
@@ -22,9 +21,15 @@ import { MintHeader } from './Mints/MintHeader'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { translate } from '../i18n'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
-export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = function LightningPayScreen(_props) {
-    const {navigation, route} = _props
+type Props = StaticScreenProps<{
+    unit: MintUnit    
+    mintUrl?: string,  
+}>
+
+export const LightningPayScreen = function LightningPayScreen({ route }: Props) {
+    const navigation = useNavigation()
     const lightningInputRef = useRef<TextInput>(null)
     const {mintsStore} = useStores()
     const isInternetReachable = useIsInternetReachable()
@@ -93,14 +98,20 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
 
     const gotoScan = async function () {
         lightningInputRef.current?.blur()
-        navigation.navigate('Scan', {mintUrl: mint?.mintUrl, unit})
+        navigation.navigate('Scan', {
+            mintUrl: mint?.mintUrl, unit
+        })
     }
 
 
     const gotoContacts = function () {
+        //@ts-ignore
         navigation.navigate('ContactsNavigator', {
-            screen: 'Contacts', 
-            params: {paymentOption: SendOption.LNURL_ADDRESS}})
+            screen: 'Contacts',
+            params: {
+                paymentOption: SendOption.LNURL_ADDRESS
+            }            
+        })
     }
 
 
@@ -153,15 +164,13 @@ export const LightningPayScreen: FC<WalletStackScreenProps<'LightningPay'>> = fu
     const inputBg = useThemeColor('background')
     const contactIcon = useThemeColor('headerTitle')
     const headerBg = useThemeColor('header')
-    const headerTitle = useThemeColor('headerTitle')
-    
+    const headerTitle = useThemeColor('headerTitle')    
 
     return (
         <Screen preset="fixed" contentContainerStyle={$screen}>
             <MintHeader 
                 mint={mint}
-                unit={unit!}
-                navigation={navigation}
+                unit={unit}                
             />
             <View style={[$headerContainer, {backgroundColor: headerBg}]}>                
                 <Text

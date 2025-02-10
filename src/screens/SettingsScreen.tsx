@@ -10,29 +10,25 @@ import {
 } from '@env'
 import codePush, { RemotePackage } from 'react-native-code-push'
 import {ThemeCode, Themes, colors, spacing, useThemeColor} from '../theme'
-import {SettingsStackScreenProps} from '../navigation' // @demo remove-current-line
 import {ListItem, Screen, Text, Card, NwcIcon, Button, BottomModal, InfoModal, Icon} from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import {translate} from '../i18n'
-import { Database, log } from '../services'
+import { log } from '../services'
 import {Env} from '../utils/envtypes'
 import { round } from '../utils/number'
-import { Currencies, CurrencyCode, getCurrency } from '../services/wallet/currency'
-import { getMintColor } from './WalletScreen'
+import { Currencies, CurrencyCode } from '../services/wallet/currency'
 import { NotificationService } from '../services/notificationService'
 import { SvgXml } from 'react-native-svg'
 import { CurrencySign } from './Wallet/CurrencySign'
-import { CommonActions } from '@react-navigation/native'
-
-
-interface SettingsScreenProps extends SettingsStackScreenProps<'Settings'> {}
+import { CommonActions, StaticScreenProps, useNavigation } from '@react-navigation/native'
 
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
 
-export const SettingsScreen: FC<SettingsScreenProps> = observer(
-  function SettingsScreen(_props) {
-    const {navigation} = _props
+type Props = StaticScreenProps<undefined>
+
+export const SettingsScreen = observer(function SettingsScreen({ route }: Props) {
+    const navigation = useNavigation()
     useHeader({}) // default header component
     const appState = useRef(AppState.currentState)
     const {
@@ -184,7 +180,8 @@ export const SettingsScreen: FC<SettingsScreenProps> = observer(
           isNativeUpdateAvailable, 
           isUpdateAvailable, 
           updateDescription,
-          updateSize
+          updateSize,
+          prevScreen: 'Settings'
       })
   }
 

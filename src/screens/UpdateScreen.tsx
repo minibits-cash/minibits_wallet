@@ -8,7 +8,6 @@ import {
 } from '@env'
 import codePush from "react-native-code-push"
 import {colors, spacing, useThemeColor} from '../theme'
-import {SettingsStackScreenProps} from '../navigation' // @demo remove-current-line
 import {
   Icon,
   ListItem,
@@ -17,31 +16,36 @@ import {
   Card,
   Loading,
   ErrorModal,
-  InfoModal,
-  BottomModal,
+  InfoModal,  
   Button,
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import AppError from '../utils/AppError'
 import { log } from '../services'
 import {Env} from '../utils/envtypes'
-import { CommonActions, StackActions } from '@react-navigation/native'
+import { CommonActions, StaticScreenProps, useNavigation } from '@react-navigation/native'
 import { translate } from '../i18n'
 
 
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
 
+type Props = StaticScreenProps<{
+    isNativeUpdateAvailable: boolean, 
+    isUpdateAvailable: boolean, 
+    updateDescription: string,
+    updateSize: string
+    prevScreen: 'Settings' | 'Wallet'
+}>
 
-export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(function UpdateScreen(_props) {
-    const {navigation, route} = _props
+export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
+    const navigation = useNavigation()
     const {
         isUpdateAvailable, 
         isNativeUpdateAvailable,
         updateDescription,
-        updateSize
-    } = route.params
-
-    // const isUpdateAvailable = true
+        updateSize,
+        prevScreen
+    } = route.params   
 
     useHeader({
         leftIcon: 'faArrowLeft',
@@ -50,22 +54,19 @@ export const UpdateScreen: FC<SettingsStackScreenProps<'Update'>> = observer(fun
             navigation.setParams({isNativeUpdateAvailable: undefined})
             navigation.setParams({updateDescription: undefined})
             navigation.setParams({updateSize: undefined})
-            /* const routes = navigation.getState()?.routes
-            let prevRouteName: string = ''
 
-            if(routes.length >= 2) {
-                prevRouteName = routes[routes.length - 2].name
-            }
-
-            if(prevRouteName === 'Settings') {
-                navigation.navigate('Settings')
+            if(prevScreen === 'Settings') {
+                navigation.goBack()
             } else {
-                navigation.dispatch(
-                    StackActions.replace('Settings')                    
+                navigation.dispatch(                
+                    CommonActions.reset({
+                        index: 1,
+                        routes: [{
+                            name: 'WalletNavigator'
+                        }]
+                    })
                 )
-                navigation.navigate('WalletNavigator', {screen: 'Wallet'})
-            }*/
-            navigation.goBack()   
+            } 
         },
     })
 

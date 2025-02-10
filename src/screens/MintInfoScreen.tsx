@@ -1,10 +1,10 @@
-import React, { FC, useEffect, useMemo, useState } from 'react'
-import { GetInfoResponse, SwapMethod } from '@cashu/cashu-ts'
+import React, { useEffect, useMemo, useState } from 'react'
+import { GetInfoResponse as CashuGetInfoResponse, SwapMethod } from '@cashu/cashu-ts'
 import { isObj } from '@cashu/cashu-ts/src/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { observer } from 'mobx-react-lite'
 import { getSnapshot } from 'mobx-state-tree'
-import { DimensionValue, LayoutAnimation, Platform, TextStyle, UIManager, View, ViewStyle } from 'react-native'
+import { DimensionValue, Image, LayoutAnimation, Platform, TextStyle, UIManager, View, ViewStyle } from 'react-native'
 import JSONTree from 'react-native-json-tree'
 import {
   $sizeStyles,
@@ -25,7 +25,6 @@ import { CollapsibleText } from '../components/CollapsibleText'
 import { translate } from '../i18n'
 import { useStores } from '../models'
 import { Mint, MintStatus } from '../models/Mint'
-import { SettingsStackScreenProps } from '../navigation'
 import { log } from '../services'
 import { colors, spacing, typography, useThemeColor } from '../theme'
 import useColorScheme from '../theme/useThemeColor'
@@ -35,6 +34,7 @@ import { CurrencySign } from './Wallet/CurrencySign'
 import { SvgXml } from 'react-native-svg'
 import { CurrencyCode, formatCurrency } from '../services/wallet/currency'
 import { QRShareModal } from '../components/QRShareModal'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -50,6 +50,8 @@ interface MethodLimit {
   min?: number,
   max?: number,
 }
+
+type GetInfoResponse = CashuGetInfoResponse & {icon_url: string}
 
 const iconMap: Partial<Record<keyof GetInfoResponse, IconTypes>> = {
   'name': 'faTag',
@@ -67,8 +69,12 @@ const contactIconMap: Record<string, IconTypes> = {
   'nostr': 'faCircleNodes'
 }
 
-export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer(function MintInfoScreen(_props) {
-  const { navigation, route } = _props
+type Props = StaticScreenProps<{
+  mintUrl : string
+}>
+
+export const MintInfoScreen = observer(function MintInfoScreen({ route }: Props) {
+  const navigation = useNavigation()
   useHeader({
     leftIcon: 'faArrowLeft',
     onLeftPress: () => {
@@ -157,22 +163,35 @@ export const MintInfoScreen: FC<SettingsStackScreenProps<'MintInfo'>> = observer
   return (
     <Screen contentContainerStyle={$screen} preset="scroll">
       <View style={[$headerContainer, {backgroundColor: headerBg, justifyContent: 'space-around', paddingBottom: spacing.huge}]}>
-        <View
-          style={{
-              marginEnd: spacing.small,
-              flex: 0,
-              borderRadius: spacing.small,
-              padding: spacing.extraSmall,
-              backgroundColor: colors.palette.orange600
-          }}
-        >
-          <SvgXml 
+      {mintInfo && mintInfo.icon_url ? (
+              <Image 
+                style={
+                  {
+                    width: spacing.extraLarge,
+                    height: spacing.extraLarge,
+                    borderRadius: spacing.small,
+                  }
+                } 
+                source={{uri: mintInfo.icon_url}}                
+              /> 
+          ):(
+            <View
+              style={{
+                marginEnd: spacing.small,
+                flex: 0,
+                borderRadius: spacing.small,
+                padding: spacing.extraSmall,
+                backgroundColor: colors.palette.orange600
+              }}
+            >           
+            <SvgXml 
               width={spacing.medium} 
               height={spacing.medium} 
               xml={MintIcon}
               fill='white'
-          />
+            />
           </View>
+        )}        
         <Text preset='subheading' text={mintInfo?.name ?? mint?.shortname} style={{color: headerTitle}}/>
         {mint?.units && (
           <View style={{flexDirection: 'row'}}>
@@ -386,17 +405,16 @@ function NutsCard(props: {info: GetInfoResponse}) {
 
   // detailed nuts are separated from simple ones if we want to show more info abt them in the future
   for (const [nut, info] of Object.entries(props.info.nuts)) {
-    if (nut === '15' && info) {
+    if (nut === '15' && Array.isArray(info) && info.length > 0) {
       // see https://github.com/cashubtc/nuts/blob/main/15.md - multipath payments
       // in the future, it might be nice to show for which currencies are multipath payments supported
       // for example by extending NutItem
-      nutsSimple.push(['15', (info)[0]?.mpp ?? false])
+      nutsSimple.push(['15', info[0].mpp ?? false])
       continue;
-    }
-    // bug: nutshell 0.15.3 returns NUT17Entry[], instead of { supported: NUT17Entry[] }
+    }    
     // see https://github.com/cashubtc/nutshell/issues/588
-    if (nut === '17' && Array.isArray(info) && (info as NUT17Entry[]).length > 0) {
-      nutsSimple.push(['17', (info as NUT17Entry[]).some(m => m.unit === 'sat')])
+    if (nut === '17' && Array.isArray(info) && info.length > 0) {
+      nutsSimple.push(['17', info.some(m => m.unit === 'sat')])
       continue;
     }
     // proper nut-17 response handling (not implemented in nutshell yet)
@@ -494,7 +512,7 @@ function ContactCard(props: { info: GetInfoResponse, popupMessage: (msg: string)
 }
 
 /** don't render these because they're rendered in separate components */
-const detailsHiddenKeys = new Set(['name', 'motd', 'description', 'description_long', 'nuts', 'contact'])
+const detailsHiddenKeys = new Set(['name', 'motd', 'description', 'description_long', 'nuts', 'contact', 'icon_url', 'time'])
 
 /** key-value pairs of details about the mint */
 function MintInfoDetails(props: { info: GetInfoResponse, popupMessage: (msg: string) => void }) {

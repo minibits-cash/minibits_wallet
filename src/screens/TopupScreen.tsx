@@ -13,7 +13,6 @@ import {
   ImageStyle,
 } from 'react-native'
 import {spacing, useThemeColor, colors, typography} from '../theme'
-import {WalletStackScreenProps} from '../navigation'
 import {
   Button,
   Icon,
@@ -41,7 +40,7 @@ import AppError, {Err} from '../utils/AppError'
 import {Mint, MintBalance} from '../models/Mint'
 import EventEmitter from '../utils/eventEmitter'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
-import {useFocusEffect} from '@react-navigation/native'
+import {StackActions, StaticScreenProps, useFocusEffect, useNavigation} from '@react-navigation/native'
 import {Contact, ContactType} from '../models/Contact'
 import {getImageSource, infoMessage} from '../utils/utils'
 import {ReceiveOption} from './ReceiveScreen'
@@ -53,8 +52,7 @@ import {
 } from '@gocodingnow/rn-size-matters'
 import {
   CurrencyCode,
-  MintUnit,
-  formatCurrency,
+  MintUnit,  
   getCurrency,
 } from '../services/wallet/currency'
 import {MintHeader} from './Mints/MintHeader'
@@ -62,7 +60,6 @@ import useIsInternetReachable from '../utils/useIsInternetReachable'
 import {MintBalanceSelector} from './Mints/MintBalanceSelector'
 import {QRCodeBlock} from './Wallet/QRCode'
 import numbro from 'numbro'
-import {MintListItem} from './Mints/MintListItem'
 import {TranItem} from './TranDetailScreen'
 import {translate} from '../i18n'
 import { TOPUP_TASK } from '../services/wallet/topupTask'
@@ -74,8 +71,16 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
-export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
-  function TopupScreen({navigation, route}) {
+type Props = StaticScreenProps<{
+  unit: MintUnit,
+  paymentOption?: ReceiveOption,
+  contact?: Contact,
+  lnurlParams?: LNURLWithdrawParams,
+  mintUrl?: string, 
+}>
+
+export const TopupScreen = observer(function TopupScreen({ route }: Props) {
+    const navigation = useNavigation()
     const isInternetReachable = useIsInternetReachable()
 
     const {
@@ -527,7 +532,6 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
 
           if (updated.length > 1) {
             updated[1].sentToRelays = relaysToShareTo
-            updated[1].sentEvent = sentEvent
 
             // status does not change, just add event and relay info to tx.data
             transaction.setStatus(                            
@@ -544,11 +548,12 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
     }
 
     const gotoContacts = function () {
+      //@ts-ignore
       navigation.navigate('ContactsNavigator', {
-        screen: 'Contacts',
-        params: {
-          paymentOption: ReceiveOption.SEND_PAYMENT_REQUEST,
-        },
+          screen: 'Contacts',
+          params: {
+            paymentOption: ReceiveOption.SEND_PAYMENT_REQUEST
+          }                  
       })
     }
 
@@ -603,6 +608,14 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
       }
     }
 
+
+    const gotoWallet = function() {
+      resetState()
+      navigation.dispatch(                
+       StackActions.popToTop()
+      )
+    }
+
     const resetState = function () {
       // reset state so it does not interfere next payment
       setAmountToTopup('')
@@ -614,8 +627,8 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
       setIsWithdrawModalVisible(false)
       setIsWithdrawRequestSending(false)
       setPaymentOption(ReceiveOption.SHOW_INVOICE)
-
-      navigation.popToTop()
+      setResultModalInfo(undefined)
+      setIsResultModalVisible(false)
     }
 
     const handleError = function (e: AppError): void {
@@ -650,8 +663,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
               ? mintsStore.findByUrl(mintBalanceToTopup?.mintUrl)
               : undefined
           }
-          unit={unit}
-          navigation={navigation}
+          unit={unit}          
         />
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <View style={$amountContainer}>
@@ -784,7 +796,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                 <Button
                   preset="secondary"
                   tx='common.close'
-                  onPress={resetState}
+                  onPress={gotoWallet}
                 />
               </View>
             </View>
@@ -799,7 +811,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                 contactToSendFrom={contactToSendFrom as Contact}
                 contactToSendTo={contactToSendTo as Contact}
                 amountToTopup={amountToTopup}
-                onClose={resetState}
+                onClose={gotoWallet}
               />
             ) : (
               <SendAsNostrDMBlock
@@ -828,7 +840,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                 amountToTopup={amountToTopup}
                 lnurlWithdrawParams={lnurlWithdrawParams as LNURLWithdrawParams}
                 lnurlWithdrawResult={lnurlWithdrawResult as LnurlWithdrawResult}
-                onClose={resetState}
+                onClose={gotoWallet}
               />
             ) : (
               <LnurlWithdrawBlock
@@ -862,7 +874,7 @@ export const TopupScreen: FC<WalletStackScreenProps<'Topup'>> = observer(
                       <Button
                         preset="secondary"
                         tx='common.close'
-                        onPress={() => navigation.navigate('Wallet', {})}
+                        onPress={gotoWallet}
                       />
                     </View>
                   </>

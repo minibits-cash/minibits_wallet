@@ -5,7 +5,6 @@ import {validateMnemonic} from '@scure/bip39'
 import QuickCrypto from 'react-native-quick-crypto'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import {colors, spacing, useThemeColor} from '../theme'
-import {AppStackScreenProps} from '../navigation' // @demo remove-current-line
 import {
   Icon,
   ListItem,
@@ -20,9 +19,8 @@ import {
   $sizeStyles,
   Header,
 } from '../components'
-import {useHeader} from '../utils/useHeader'
 import AppError, { Err } from '../utils/AppError'
-import { KeyChain, log, MinibitsClient, NostrClient } from '../services'
+import { KeyChain, log, MinibitsClient } from '../services'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { useStores } from '../models'
 import { MintListItem } from './Mints/MintListItem'
@@ -30,7 +28,7 @@ import { Mint } from '../models/Mint'
 import { MintKeyset } from '@cashu/cashu-ts'
 import { CashuUtils } from '../services/cashu/cashuUtils'
 import { Proof } from '../models/Proof'
-import { Transaction, TransactionData, TransactionRecord, TransactionStatus, TransactionType } from '../models/Transaction'
+import { Transaction, TransactionData, TransactionStatus, TransactionType } from '../models/Transaction'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import { mnemonicToSeedSync } from '@scure/bip39'
 import { MINIBITS_MINT_URL, MINIBITS_NIP05_DOMAIN } from '@env'
@@ -43,6 +41,7 @@ import { isObj } from '@cashu/cashu-ts/src/utils'
 import { translate } from '../i18n'
 import { WalletProfileRecord } from '../models/WalletProfileStore'
 import { MnemonicInput } from './Recovery/MnemonicInput'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
@@ -50,8 +49,10 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 const RESTORE_INDEX_INTERVAL = 50
 
-export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = observer(function SeedRecoveryScreen(_props) {
-    const {navigation, route} = _props    
+type Props = StaticScreenProps<undefined>
+
+export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }: Props) {
+    const navigation = useNavigation()
     const {
         mintsStore, 
         proofsStore, 
@@ -507,10 +508,6 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
 
             keys.SEED = seed
 
-            // save keys as we need them next for publishing the recovered profile to relays
-            await KeyChain.saveWalletKeys(keys)            
-            walletStore.cleanCachedWalletKeys()
-
             if(isNewProfileNeeded) {
                 
                 await walletProfileStore.create(
@@ -529,6 +526,10 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
                 )
             }
 
+            await KeyChain.saveWalletKeys(keys)            
+            walletStore.cleanCachedWalletKeys()
+            // force publish now that we have keys available
+            await walletProfileStore.publishToRelays()
             userSettingsStore.setIsOnboarded(true)
 
             if(!mintsStore.mintExists(MINIBITS_MINT_URL)) {
@@ -538,7 +539,7 @@ export const SeedRecoveryScreen: FC<AppStackScreenProps<'SeedRecovery'>> = obser
             setStatusMessage(translate('recovery.completed'))
                         
             // go directly to the wallet (profile hase been rehydrated from the one with the seed)
-            navigation.navigate('Tabs', {screen: 'WalletNavigator', params: {screen: 'Wallet', params: {}}})
+            navigation.navigate('Tabs')
             await delay(1000)
             setStatusMessage('')
             setIsLoading(false)       

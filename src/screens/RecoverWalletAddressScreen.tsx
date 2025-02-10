@@ -1,30 +1,31 @@
 import { observer } from 'mobx-react-lite'
-import React, { FC, useEffect, useRef, useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { LayoutAnimation, Platform, TextInput, TextStyle, UIManager, View, ViewStyle } from 'react-native'
 import { validateMnemonic } from '@scure/bip39'
 import QuickCrypto from 'react-native-quick-crypto'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import { mnemonicToSeedSync } from '@scure/bip39'
 import { colors, spacing, useThemeColor } from '../theme'
-import { AppStackScreenProps } from '../navigation'
-import { Icon, ListItem, Screen, Text, Card, Loading, ErrorModal, InfoModal, BottomModal, Button } from '../components'
+import { Icon, ListItem, Screen, Text, Card, Loading, ErrorModal, Button } from '../components'
 import { useHeader } from '../utils/useHeader'
 import AppError, { Err } from '../utils/AppError'
-import { MinibitsClient, NostrClient } from '../services'
+import { MinibitsClient, log } from '../services'
 import { useStores } from '../models'
 import { MnemonicInput } from './Recovery/MnemonicInput'
-import { TransactionStatus } from '../models/Transaction'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 import { delay } from '../utils/utils'
 import { WalletProfileRecord } from '../models/WalletProfileStore'
 import { translate } from '../i18n'
+import { StackActions, StaticScreenProps, useNavigation } from '@react-navigation/native'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
-export const RecoverWalletAddressScreen: FC<AppStackScreenProps<'RecoverWalletAddress'>> = observer(function RecoverWalletAddressScreen(_props) {
-  const { navigation, route } = _props
+type Props = StaticScreenProps<undefined>
+
+export const RecoverWalletAddressScreen = observer(function RecoverWalletAddressScreen({ route }: Props) {
+  const navigation = useNavigation()
   useHeader({
     leftIcon: 'faArrowLeft',
     onLeftPress: () => {
@@ -86,7 +87,7 @@ export const RecoverWalletAddressScreen: FC<AppStackScreenProps<'RecoverWalletAd
 
       const profile = await MinibitsClient.getWalletProfileBySeedHash(seedHash as string) // throws if not found
 
-      console.log('[onCheckWalletAddress] profileToRecover', { profile })
+      log.trace('[onCheckWalletAddress] profileToRecover', { profile })
 
       if (profile.nip05.includes(MINIBITS_NIP05_DOMAIN)) {
         setProfileToRecover(profile)
@@ -113,7 +114,7 @@ export const RecoverWalletAddressScreen: FC<AppStackScreenProps<'RecoverWalletAd
 
       const keys = await walletStore.getCachedWalletKeys()
 
-      console.log('[onCompleteAddress] Wallet keys', { keys })
+      log.trace('[onCompleteAddress] Wallet keys', { keys })
 
       await walletProfileStore.recover(
         keys.NOSTR.publicKey,
@@ -127,7 +128,10 @@ export const RecoverWalletAddressScreen: FC<AppStackScreenProps<'RecoverWalletAd
       await delay(1000)
       setStatusMessage('')
       setIsLoading(false)
-      navigation.navigate('Tabs', { screen: 'WalletNavigator', params: { screen: 'Wallet', params: {} } })
+      
+      navigation.dispatch(                
+        StackActions.popToTop()
+      )
     } catch (e: any) {
       handleError(e)
     }
@@ -162,17 +166,30 @@ export const RecoverWalletAddressScreen: FC<AppStackScreenProps<'RecoverWalletAd
           onError={handleError}
         />
         {isValidMnemonic && profileToRecover && (
+          <>
           <Card
             style={$card}
             ContentComponent={
               <ListItem
                 text={profileToRecover.nip05}
-                subText="This is the wallet address linked to the provided seed. If you continue, your current address will reset to this one, but wallet seed phrase will NOT be updated."
+                subText="This is the wallet address linked to the provided seed."
                 LeftComponent={<View style={[$numIcon, { backgroundColor: numIconColor }]}><Text text='2' /></View>}
                 style={$item}
               />
             }
           />
+          <Card
+            style={[$card]}            
+            ContentComponent={
+              <ListItem
+                text={'Do not forget!'}
+                subText="Your current address will reset, but current wallet seed phrase will NOT be changed. Make a backup!"
+                LeftComponent={<View style={[$numIcon, { backgroundColor: numIconColor }]}><Text text='3' /></View>}
+                style={$item}
+              />
+            }
+          />
+          </>
         )}
       </View>
       {isValidMnemonic && (

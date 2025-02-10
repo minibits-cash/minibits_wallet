@@ -4,7 +4,7 @@ import {FlatList, TextStyle, View, ViewStyle} from 'react-native'
 import {validateMnemonic} from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import {colors, spacing, useThemeColor} from '../theme'
-import {SettingsStackScreenProps} from '../navigation' // @demo remove-current-line
+
 import {
   Icon,
   ListItem,
@@ -24,10 +24,12 @@ import { scale } from '@gocodingnow/rn-size-matters'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { translate } from '../i18n'
 import { useStores } from '../models'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
+type Props = StaticScreenProps<{}>
 
-export const MnemonicScreen: FC<SettingsStackScreenProps<'Mnemonic'>> = observer(function MnemonicScreen(_props) {
-    const {navigation, route} = _props    
+export const MnemonicScreen = observer(function MnemonicScreen({ route }: Props) {
+    const navigation = useNavigation()    
     useHeader({
         leftIcon: 'faArrowLeft',
         onLeftPress: () => {            

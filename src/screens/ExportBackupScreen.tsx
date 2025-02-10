@@ -21,7 +21,6 @@ import {
   Loading,
   BottomModal,
 } from '../components'
-import {SettingsStackScreenProps} from '../navigation'
 import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
 import AppError from '../utils/AppError'
@@ -41,15 +40,13 @@ import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { Token, getDecodedToken, getEncodedToken } from '@cashu/cashu-ts'
 import { minibitsPngIcon } from '../components/MinibitsIcon'
-
-interface ExportBackupScreenProps extends SettingsStackScreenProps<'ExportBackup'> {}
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
 const OPTIMIZE_FROM_PROOFS_COUNT = 5
+type Props = StaticScreenProps<undefined>
 
-export const ExportBackupScreen: FC<ExportBackupScreenProps> =
-  function ExportBackup(_props) {
-
-  const { navigation } = _props
+export const ExportBackupScreen = function ExportBackup({ route }: Props) {
+  const navigation = useNavigation()
   const { 
       mintsStore, 
       contactsStore, 

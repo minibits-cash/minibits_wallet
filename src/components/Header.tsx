@@ -18,7 +18,7 @@ import { displayName as appName } from '../../app.json'
 import { ExtendedEdge, useSafeAreaInsetsStyle } from "../utils/useSafeAreaInsetsStyle"
 import { Icon, IconTypes } from "./Icon"
 import { Text, TextProps } from "./Text"
-import { verticalScale } from "@gocodingnow/rn-size-matters"
+
 
 export interface HeaderProps {
   /**
@@ -187,7 +187,7 @@ export function Header(props: HeaderProps) {
     rightTxOptions,
     safeAreaEdges = ["top"],
     TitleActionComponent,
-    title= appName,
+    title = appName,
     titleMode = "center",
     titleTx,
     titleTxOptions,

@@ -1,0 +1,46 @@
+diff --git a/node_modules/react-native-modal/dist/modal.d.ts b/node_modules/react-native-modal/dist/modal.d.ts
+index b63bcfc..071204f 100644
+--- a/node_modules/react-native-modal/dist/modal.d.ts
++++ b/node_modules/react-native-modal/dist/modal.d.ts
+@@ -1,5 +1,5 @@
+ import * as React from 'react';
+-import { Animated, EmitterSubscription, PanResponderGestureState, PanResponderInstance, StyleProp, ViewStyle, ViewProps } from 'react-native';
++import { Animated, EmitterSubscription,NativeEventSubscription, PanResponderGestureState, PanResponderInstance, StyleProp, ViewStyle, ViewProps } from 'react-native';
+ import * as PropTypes from 'prop-types';
+ import * as animatable from 'react-native-animatable';
+ import { Direction, OrNull, PresentationStyle, OnOrientationChange, GestureResponderEvent } from './types';
+@@ -149,6 +149,7 @@ export declare class ReactNativeModal extends React.Component<ModalProps, State>
+     contentRef: any;
+     panResponder: OrNull<PanResponderInstance>;
+     didUpdateDimensionsEmitter: OrNull<EmitterSubscription>;
++    backHandlerEventSubscription: OrNull<NativeEventSubscription> = null;
+     interactionHandle: OrNull<number>;
+     constructor(props: ModalProps);
+     static getDerivedStateFromProps(nextProps: Readonly<ModalProps>, state: State): {
+diff --git a/node_modules/react-native-modal/dist/modal.js b/node_modules/react-native-modal/dist/modal.js
+index 80f4e75..30ba0b4 100644
+--- a/node_modules/react-native-modal/dist/modal.js
++++ b/node_modules/react-native-modal/dist/modal.js
+@@ -65,6 +65,7 @@ export class ReactNativeModal extends React.Component {
+         this.currentSwipingDirection = null;
+         this.panResponder = null;
+         this.didUpdateDimensionsEmitter = null;
++        this.backHandlerEventSubscription
+         this.interactionHandle = null;
+         this.getDeviceHeight = () => this.props.deviceHeight || this.state.deviceHeight;
+         this.getDeviceWidth = () => this.props.deviceWidth || this.state.deviceWidth;
+@@ -453,10 +454,12 @@ export class ReactNativeModal extends React.Component {
+         if (this.state.isVisible) {
+             this.open();
+         }
+-        BackHandler.addEventListener('hardwareBackPress', this.onBackButtonPress);
++        this.backHandlerEventSubscription = BackHandler.addEventListener('hardwareBackPress', this.onBackButtonPress);
+     }
+     componentWillUnmount() {
+-        BackHandler.removeEventListener('hardwareBackPress', this.onBackButtonPress);
++        if (this.backHandlerEventSubscription) {
++            this.backHandlerEventSubscription.remove();
++        }
+         if (this.didUpdateDimensionsEmitter) {
+             this.didUpdateDimensionsEmitter.remove();
+         }

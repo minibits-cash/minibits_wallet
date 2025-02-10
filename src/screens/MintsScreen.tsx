@@ -6,7 +6,6 @@ import {
     MINIBITS_MINT_URL 
 } from '@env'
 import {colors, spacing, typography, useThemeColor} from '../theme'
-import {SettingsStackScreenProps} from '../navigation'
 import {
   Button,
   Icon,
@@ -31,19 +30,18 @@ import { SvgXml } from 'react-native-svg'
 import { isStateTreeNode } from 'mobx-state-tree'
 import { MintKeyset } from '@cashu/cashu-ts'
 import { QRShareModal } from '../components/QRShareModal'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
+type Props = StaticScreenProps<{}>
 
-
-export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(
-  function MintsScreen({route, navigation}) {
-        
+export const MintsScreen = observer(function MintsScreen({ route }: Props) {
+    const navigation = useNavigation()    
     useHeader({
       leftIcon: 'faArrowLeft',
       onLeftPress: () => navigation.goBack(),
     })
 
-    const {mintsStore, proofsStore, walletStore} = useStores()
-    // const {walletStore} = nonPersistedStores
+    const {mintsStore, proofsStore, walletStore, userSettingsStore} = useStores()    
     const mintInputRef = useRef<TextInput>(null)
 
     const [mintUrl, setMintUrl] = useState('')
@@ -88,7 +86,7 @@ export const MintsScreen: FC<SettingsStackScreenProps<'Mints'>> = observer(
 
     const gotoScan = function () {
         toggleAddMintModal()
-        navigation.navigate('WalletNavigator', {screen: 'Scan'})
+        navigation.navigate('Scan', {unit: userSettingsStore.preferredUnit})
     }
 
 

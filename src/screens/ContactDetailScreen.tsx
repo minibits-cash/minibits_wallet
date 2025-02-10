@@ -2,13 +2,12 @@ import {observer} from 'mobx-react-lite'
 import React, {FC, useRef, useState} from 'react'
 import {Image, Share, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import { colors, spacing, useThemeColor} from '../theme'
-import {ContactsStackScreenProps} from '../navigation'
 import {Icon, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, ListItem} from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import AppError, { Err } from '../utils/AppError'
 import Clipboard from '@react-native-clipboard/clipboard'
-import { ContactType } from '../models/Contact'
+import { Contact, ContactType } from '../models/Contact'
 import { NostrClient, log } from '../services'
 import { getImageSource } from '../utils/utils'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
@@ -16,12 +15,15 @@ import { ReceiveOption } from './ReceiveScreen'
 import { SendOption } from './SendScreen'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 import { translate } from '../i18n'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+import { toJS } from 'mobx'
 
+type Props = StaticScreenProps<{
+    contact: Contact
+}>
 
-interface ContactDetailScreenProps extends ContactsStackScreenProps<'ContactDetail'> {}
-
-export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
-  function ContactScreen({route, navigation}) {
+export const ContactDetailScreen = observer(function ({ route }: Props) {
+    const navigation = useNavigation()
     const {contact} = route.params
     const {contactsStore, userSettingsStore} = useStores()
     const noteInputRef = useRef<TextInput>(null)
@@ -51,27 +53,27 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
 
     
     const gotoTopup = () => {
-        
-        navigation.navigate('WalletNavigator', { 
+        //@ts-ignore
+        navigation.navigate('WalletNavigator', {
             screen: 'Topup',
             params: {
                 paymentOption: ReceiveOption.SEND_PAYMENT_REQUEST,
-                contact,
-                unit: userSettingsStore.preferredUnit               
-            },            
+              contact: toJS(contact),
+              unit: userSettingsStore.preferredUnit                       
+            }                  
         })
     }
 
 
     const gotoSend = () => {
-        log.trace('[gotoSend] start')
-        navigation.navigate('WalletNavigator', { 
-            screen: 'Send',            
+        //@ts-ignore
+        navigation.navigate('WalletNavigator', {
+            screen: 'Send',
             params: {
                 paymentOption: SendOption.SEND_TOKEN,
-                contact,
-                unit: userSettingsStore.preferredUnit                
-            },
+                contact: toJS(contact),
+                unit: userSettingsStore.preferredUnit                       
+            }                  
         })
     }
 
@@ -82,9 +84,8 @@ export const ContactDetailScreen: FC<ContactDetailScreenProps> = observer(
                 type: IncomingDataType.LNURL_ADDRESS,
                 encoded: contact.lud16                
             }, 
-            navigation,
-            userSettingsStore.preferredUnit
-        )    
+            navigation, 
+            userSettingsStore.preferredUnit)    
             
             return          
         } catch (e: any) {

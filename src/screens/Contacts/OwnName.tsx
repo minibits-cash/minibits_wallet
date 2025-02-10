@@ -19,16 +19,17 @@ import { QRCodeBlock } from '../Wallet/QRCode'
 import { MintBalance } from '../../models/Mint'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { roundUp } from '../../utils/number'
-import { LnurlClient } from '../../services/lnurlService'
+import { LNURLPayParams, LnurlClient } from '../../services/lnurlService'
+import { useNavigation } from '@react-navigation/native'
 
-const DEFAULT_DONATION_AMOUNT = 500
+const DEFAULT_DONATION_AMOUNT = 10
 const DONATION_LNURL_ADDRESS = 'minibits@minibits.cash'
 
-export const OwnName = observer(function (props: {navigation: any, pubkey: string}) { 
-    // const navigation = useNavigation() 
+export const OwnName = observer(function (props: {pubkey: string}) { 
+    const navigation = useNavigation() 
     const ownNameInputRef = useRef<TextInput>(null)
     const {proofsStore, walletProfileStore} = useStores()
-    const {pubkey, navigation} = props 
+    const {pubkey} = props 
     
     const [ownName, setOwnName] = useState<string>('')
     const [info, setInfo] = useState('')        
@@ -190,19 +191,19 @@ export const OwnName = observer(function (props: {navigation: any, pubkey: strin
             if(selectedBalance && selectedBalance.balances['sat']! + feeReserve >= donationAmount) {
 
                 const addressParamsResult = await LnurlClient.getLnurlAddressParams(DONATION_LNURL_ADDRESS) // throws
-
-                return navigation.navigate('WalletNavigator', { 
-                    screen: 'Transfer',
+                //@ts-ignore
+                return navigation.navigate('WalletNavigator', {
+                    screen: 'Transfer', 
                     params: { 
-                        lnurlParams: addressParamsResult.lnurlParams,                
+                        lnurlParams: addressParamsResult.lnurlParams as LNURLPayParams,                
                         paymentOption: SendOption.LNURL_PAY,
                         fixedAmount: donationAmount,
                         unit: 'sat',
                         comment,
                         mintUrl: selectedBalance.mintUrl,
                         isDonation: true,
-                        donationForName: ownName
-                    },
+                        donationForName: ownName                    
+                    }
                 })
             } else {
                 const invoice = await MinibitsClient.createDonation(

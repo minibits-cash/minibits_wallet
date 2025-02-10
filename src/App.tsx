@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useState } from 'react'
 import * as Sentry from '@sentry/react-native'
 import {
     APP_ENV,
@@ -26,7 +26,10 @@ import Config from './config'
 import {log} from './services'
 import {Env} from './utils/envtypes'
 import AppError from './utils/AppError'
-import { Image, View } from 'react-native'
+import { Image, TextStyle, View } from 'react-native'
+import { spacing, typography } from './theme'
+import { displayName } from '../app.json'
+import { Text } from './components/Text'
 
 /* Set default size ratio for styling */
 setSizeMattersBaseWidth(375)
@@ -49,12 +52,10 @@ if (!__DEV__) {
     })
 }
 
-interface AppProps {
-  appName: string
-}
-
-function App(props: AppProps) {    
-    const {userSettingsStore, relaysStore} = useStores()    
+function App() {
+    
+    const {userSettingsStore, relaysStore} = useStores()
+    const [isAuthenticated, setIsAuthenticated] = useState(false)    
 
     const {rehydrated} = useInitialRootStore(async() => {
         log.trace('[useInitialRootStore]', 'Root store rehydrated')
@@ -65,6 +66,7 @@ function App(props: AppProps) {
         if(userSettingsStore.isAuthOn) {
             try {
                 const authToken = await KeyChain.getOrCreateAuthToken(userSettingsStore.isAuthOn)
+                setIsAuthenticated(true)
                 log.trace('[useInitialRootStore]', {authToken})
             } catch (e: any) {
                 log.warn('[useInitialRootStore]', 'Authentication failed', {message: e.message})
@@ -81,6 +83,8 @@ function App(props: AppProps) {
                     }
                 }  
             }
+        } else {
+            setIsAuthenticated(true)
         }
 
         if(userSettingsStore.theme !== userSettingsStore.nextTheme) {
@@ -94,10 +98,11 @@ function App(props: AppProps) {
 
     
 
-    if (!rehydrated) {    
+    if (!rehydrated || !isAuthenticated) {    
         return (
             <ErrorBoundary catchErrors={Config.catchErrors}>
                 <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+                    <Text text={displayName} style={$title} />
                     <Image source={require('../android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png')} />
                 </View>
             </ErrorBoundary>
@@ -112,6 +117,13 @@ function App(props: AppProps) {
         </ErrorBoundary>
         </SafeAreaProvider>
     )
+}
+
+const $title: TextStyle = {
+    textAlign: "center",
+    fontFamily: typography.logo.normal,
+    fontSize: spacing.large,
+    color: 'white'
 }
 
 const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY

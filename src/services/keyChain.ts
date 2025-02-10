@@ -39,7 +39,7 @@ export type WalletKeys = {
 
 const getSupportedBiometryType = async function () {
     try {
-        const biometryType = await _Keychain.getSupportedBiometryType({})
+        const biometryType = await _Keychain.getSupportedBiometryType()
         log.trace('biometryType', biometryType)
         return biometryType
     } catch (e: any) {
@@ -168,6 +168,26 @@ const saveWalletKeys = async function (
 
       log.debug('[getWalletKeys]', 'Did not find existing wallet keys in the KeyChain')
       return undefined
+    } catch (e: any) {
+      throw new AppError(Err.KEYCHAIN_ERROR, e.message, e)
+    }
+  }
+
+
+  /**
+   * Has wallet keys in KeyChain/KeyStore
+   *
+   */
+  const hasWalletKeys = async function (): Promise<boolean> {    
+    try {      
+      const hasWalletKeys = await _Keychain.hasGenericPassword({
+          service: KeyChainServiceName.KEYS,          
+      })
+
+      log.debug('[hasWalletKeys]', hasWalletKeys)
+
+      return hasWalletKeys
+
     } catch (e: any) {
       throw new AppError(Err.KEYCHAIN_ERROR, e.message, e)
     }
@@ -396,6 +416,7 @@ export const KeyChain = {
     saveWalletKeys,
     migrateWalletKeys,
     getWalletKeys,
+    hasWalletKeys,
     removeWalletKeys,
 
     generateAuthToken,

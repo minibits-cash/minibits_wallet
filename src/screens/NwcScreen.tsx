@@ -3,7 +3,6 @@ import { Observer } from 'mobx-react-lite'
 import React, {FC, useEffect, useRef, useState} from 'react'
 import {FlatList, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
-import {SettingsStackScreenProps} from '../navigation' // @demo remove-current-line
 import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, Loading} from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
@@ -13,13 +12,13 @@ import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { NwcConnection } from '../models/NwcStore'
 import { QRCodeBlock } from './Wallet/QRCode'
 import { CollapsibleText } from '../components/CollapsibleText'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
-interface NwcScreenProps extends SettingsStackScreenProps<'Nwc'> {}
+type Props = StaticScreenProps<{}>
 
-export const NwcScreen: FC<NwcScreenProps> = observer(
-  function NwcScreen(_props) {
+export const NwcScreen = observer(function NwcScreen(_props) {
 
-    const {navigation} = _props
+    const navigation = useNavigation()
     const connectionNameInputRef = useRef<TextInput>(null)
     const dailyLimitInputRef = useRef<TextInput>(null)
     const {nwcStore, walletProfileStore} = useStores()   

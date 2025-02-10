@@ -1,5 +1,5 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useState} from 'react'
+import React, {FC, useEffect, useState} from 'react'
 import {TextStyle, View, ViewStyle} from 'react-native'
 import { TabBar, TabView, Route } from 'react-native-tab-view'
 import {colors, spacing, useThemeColor} from '../theme'
@@ -7,22 +7,35 @@ import {Screen, Text} from '../components'
 import { IncomingRequests } from './PaymentRequests/IncomingRequests'
 import { OutgoingRequests } from './PaymentRequests/OutgoingRequests'
 import { useHeader } from '../utils/useHeader'
-import { WalletStackScreenProps } from '../navigation'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+import { useStores } from '../models'
+import { log } from '../services'
 
-interface PaymentRequestsScreenProps extends WalletStackScreenProps<'PaymentRequests'> {}
+type Props = StaticScreenProps<undefined>
 
-export const PaymentRequestsScreen: FC<PaymentRequestsScreenProps> = observer(function PaymentRequestsScreen({route, navigation}) {
+export const PaymentRequestsScreen = observer(function PaymentRequestsScreen({ route } : Props) {
+    const navigation = useNavigation()
     useHeader({
         leftIcon: 'faArrowLeft',
         onLeftPress: () => navigation.goBack(),
-    })    
+    })
+    const {paymentRequestsStore} = useStores()
+    
+    useEffect(() => {
+        onDeletePaidOrExpired()
+    }, [])
+      
+    const onDeletePaidOrExpired = function() {
+        log.trace('[onDeletePaidOrExpired] start')
+        paymentRequestsStore.removePaidOrExpired()
+    }
     
     const renderScene = ({route}: {route: Route}) => {
         switch (route.key) {
           case 'first':
-            return <IncomingRequests navigation={navigation}/>
+            return <IncomingRequests/>
           case 'second':
-            return <OutgoingRequests navigation={navigation}/>
+            return <OutgoingRequests/>
           default:
             return null
         }

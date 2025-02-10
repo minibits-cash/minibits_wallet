@@ -1,9 +1,8 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useState, useCallback, useEffect} from 'react'
-import {useFocusEffect} from '@react-navigation/native'
+import {CommonActions, StackActions, StaticScreenProps, useFocusEffect, useNavigation} from '@react-navigation/native'
 import {TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import {spacing, useThemeColor, colors, typography} from '../theme'
-import {WalletStackScreenProps} from '../navigation'
 import {
   Button,
   Icon,
@@ -19,12 +18,12 @@ import {
 import {Mint} from '../models/Mint'
 import {Transaction, TransactionStatus} from '../models/Transaction'
 import {useStores} from '../models'
-import {MAX_SWAP_INPUT_SIZE, TransactionTaskResult, WalletTask} from '../services'
+import {TransactionTaskResult, WalletTask} from '../services'
 import {log} from '../services/logService'
 import AppError, { Err } from '../utils/AppError'
 import EventEmitter from '../utils/eventEmitter'
 
-import {CashuUtils, CashuProof} from '../services/cashu/cashuUtils'
+import {CashuUtils} from '../services/cashu/cashuUtils'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {MintListItem} from './Mints/MintListItem'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
@@ -38,16 +37,19 @@ import { translate } from '../i18n'
 import { Token, getDecodedToken } from '@cashu/cashu-ts'
 import { RECEIVE_OFFLINE_PREPARE_TASK, RECEIVE_TASK } from '../services/wallet/receiveTask'
 
-export enum ReceiveOption {
-  // CREATE_AND_SEND_PAYMENT_REQUEST = 'CREATE_AND_SEND_PAYMENT_REQUEST',
+export enum ReceiveOption {  
   SEND_PAYMENT_REQUEST = 'SEND_PAYMENT_REQUEST',
   PASTE_OR_SCAN_TOKEN = 'PASTE_OR_SCAN_TOKEN',
   SHOW_INVOICE = 'SHOW_INVOICE',
   LNURL_WITHDRAW = 'LNURL_WITHDRAW'
 }
 
-export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
-  function ReceiveScreen({route, navigation}) {
+type Props = StaticScreenProps<{
+  encodedToken?: string  
+}>
+
+export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
+    const navigation = useNavigation()
     const isInternetReachable = useIsInternetReachable()
     const {mintsStore, walletStore} = useStores()
 
@@ -262,8 +264,11 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
 
     const gotoWallet = function() {
        resetState()
-       navigation.popToTop()
+       navigation.dispatch(                
+        StackActions.popToTop()
+       )
     }
+    
 
     const handleError = function (e: AppError): void {
       resetState()
@@ -279,8 +284,7 @@ export const ReceiveScreen: FC<WalletStackScreenProps<'Receive'>> = observer(
       <Screen preset="auto" contentContainerStyle={$screen}>
             <MintHeader 
                 mint={undefined}
-                unit={unit}
-                navigation={navigation}
+                unit={unit}                
             />
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
             {toNumber(receivedAmount) > 0 ? (

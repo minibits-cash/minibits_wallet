@@ -8,15 +8,15 @@ import { CurrencyAmount } from "../Wallet/CurrencyAmount"
 import { observer } from "mobx-react-lite"
 import { StackNavigationProp } from "@react-navigation/stack"
 import { moderateScale } from "@gocodingnow/rn-size-matters"
+import { useNavigation } from "@react-navigation/native"
 
 export const MintHeader = observer(function(props: {
     unit: MintUnit,
-    mint?: Mint,    
-    navigation: StackNavigationProp<any>
-  }
+    mint?: Mint    
+}
 ) {
-  
-    const {mint, unit, navigation} = props
+    const navigation = useNavigation()
+    const {mint, unit} = props
 
     const getActiveUnitColor = () => {
         /* switch (props.unit) {

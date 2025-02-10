@@ -1,8 +1,8 @@
 diff --git a/node_modules/@scure/bip32/index.ts b/node_modules/@scure/bip32/index.ts
-index 3368385..0659773 100644
+index 0c9c91c..14c9ae2 100644
 --- a/node_modules/@scure/bip32/index.ts
 +++ b/node_modules/@scure/bip32/index.ts
-@@ -8,6 +8,7 @@ import { bytesToHex, concatBytes, createView, hexToBytes, utf8ToBytes } from '@n
+@@ -25,6 +25,7 @@ import { bytesToHex, concatBytes, createView, hexToBytes, utf8ToBytes } from '@n
  import { secp256k1 as secp } from '@noble/curves/secp256k1';
  import { mod } from '@noble/curves/abstract/modular';
  import { createBase58check } from '@scure/base';
@@ -10,28 +10,28 @@ index 3368385..0659773 100644
  
  const Point = secp.ProjectivePoint;
  const base58check = createBase58check(sha256);
-@@ -97,7 +98,8 @@ export class HDKey {
+@@ -114,7 +115,8 @@ export class HDKey {
            seed.length
        );
      }
 -    const I = hmac(sha512, MASTER_SECRET, seed);
-+    //const I = hmac(sha512, MASTER_SECRET, seed);
++    // const I = hmac(sha512, MASTER_SECRET, seed);
 +    const I = new Uint8Array(QuickCrypto.createHmac('sha512', MASTER_SECRET).update(seed).digest());
      return new HDKey({
        versions,
        chainCode: I.slice(32),
-@@ -220,7 +222,8 @@ export class HDKey {
+@@ -237,7 +239,8 @@ export class HDKey {
        // Normal child: serP(point(kpar)) || ser32(index)
        data = concatBytes(this.pubKey, data);
      }
 -    const I = hmac(sha512, this.chainCode, data);
-+    // const I = hmac(sha512, this.chainCode, data);
-+    const I = new Uint8Array(QuickCrypto.createHmac('sha512', this.chainCode).update(data).digest()); 
++    //const I = hmac(sha512, this.chainCode, data);
++    const I = new Uint8Array(QuickCrypto.createHmac('sha512', this.chainCode).update(data).digest())
      const childTweak = bytesToNumber(I.slice(0, 32));
      const chainCode = I.slice(32);
      if (!secp.utils.isValidPrivateKey(childTweak)) {
 diff --git a/node_modules/@scure/bip32/package.json b/node_modules/@scure/bip32/package.json
-index 5222d18..69ff82b 100644
+index e866fba..6389575 100644
 --- a/node_modules/@scure/bip32/package.json
 +++ b/node_modules/@scure/bip32/package.json
 @@ -6,15 +6,8 @@
@@ -41,7 +41,7 @@ index 5222d18..69ff82b 100644
 -  "main": "./lib/index.js",
 -  "module": "./lib/esm/index.js",
 +  "main": "./index.ts",
-   "types": "./lib/index.d.ts",
+   "types": "./lib/index.d.ts",  
 -  "exports": {
 -    ".": {
 -      "import": "./lib/esm/index.js",
@@ -49,5 +49,5 @@ index 5222d18..69ff82b 100644
 -    }
 -  },
    "dependencies": {
-     "@noble/curves": "~1.7.0",
-     "@noble/hashes": "~1.6.0",
+     "@noble/curves": "~1.8.1",
+     "@noble/hashes": "~1.7.1",

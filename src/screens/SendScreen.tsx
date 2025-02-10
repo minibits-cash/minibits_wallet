@@ -8,7 +8,7 @@ import React, {
   useRef,
   useMemo,
 } from 'react'
-import {useFocusEffect} from '@react-navigation/native'
+import {StackActions, StaticScreenProps, useFocusEffect, useNavigation} from '@react-navigation/native'
 import {
   UIManager,
   Platform,
@@ -23,7 +23,6 @@ import {
   Image,
 } from 'react-native'
 import {spacing, typography, useThemeColor, colors} from '../theme'
-import {WalletStackScreenProps} from '../navigation'
 import {
   Button,
   Icon,
@@ -77,9 +76,16 @@ if (Platform.OS === 'android' &&
     UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
-export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
-  function SendScreen({route, navigation}) {
+type Props = StaticScreenProps<{
+    unit: MintUnit,
+    paymentOption?: SendOption,
+    encodedCashuPaymentRequest?: string,
+    contact?: Contact,
+    mintUrl?: string,   
+}>
 
+export const SendScreen = observer(function SendScreen({ route }: Props) {
+    const navigation = useNavigation()
     const isInternetReachable = useIsInternetReachable()
 
     const {
@@ -783,12 +789,20 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
 
 
     const gotoContacts = function () {
+        //@ts-ignore
         navigation.navigate('ContactsNavigator', {
-            screen: 'Contacts', 
-            params: {            
-              paymentOption: SendOption.SEND_TOKEN
-            }})
+            screen: 'Contacts',
+            params: {paymentOption: SendOption.SEND_TOKEN}            
+        })
     }
+
+
+    const gotoWallet = function() {
+        resetState()
+        navigation.dispatch(                
+         StackActions.popToTop()
+        )
+     }
 
 
     const resetState = function () {
@@ -804,8 +818,8 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
         setIsNostrDMModalVisible(false)
         setIsProofSelectorModalVisible(false)
         setIsLoading(false)
-
-        navigation.popToTop()
+        setResultModalInfo(undefined)
+        setIsResultModalVisible(false)
     }
 
 
@@ -825,8 +839,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
       <Screen preset="fixed" contentContainerStyle={$screen}>
         <MintHeader 
             mint={mintBalanceToSendFrom ? mintsStore.findByUrl(mintBalanceToSendFrom?.mintUrl) : undefined}
-            unit={unitRef.current}
-            navigation={navigation}
+            unit={unitRef.current}            
         />
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>        
             <View style={$amountContainer}>
@@ -925,7 +938,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                         <Button
                             preset="secondary"
                             tx={'common.close'}
-                            onPress={resetState}
+                            onPress={gotoWallet}
                         />
                     </View>
                 </View>
@@ -956,7 +969,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                 contactToSendFrom={contactToSendFrom as Contact}
                 contactToSendTo={contactToSendTo as Contact}                
                 amountToSend={amountToSend}
-                onClose={resetState}                
+                onClose={gotoWallet}                
             />
             ) : (
             <SendAsNostrDMBlock
@@ -993,7 +1006,7 @@ export const SendScreen: FC<WalletStackScreenProps<'Send'>> = observer(
                       <Button
                         preset="secondary"
                         tx={'common.close'}
-                        onPress={() => navigation.navigate('Wallet', {})}
+                        onPress={gotoWallet}
                       />
                     </View>
                   </>

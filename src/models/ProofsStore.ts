@@ -91,7 +91,7 @@ export const ProofsStoreModel = types
         // Proofs are not more persisted in mmkv storage but loaded from database when hydrating the model
         loadProofsFromDatabase: flow(function* loadProofsFromDatabase() {             
             
-            const unspentAndPendingProofs = yield Database.getProofs(true, true, false)            
+            const unspentAndPendingProofs = yield Database.getProofs(true, true, false)
             
             // Group into isUnspent and isPending
             const groupedProofs = unspentAndPendingProofs.reduce(

@@ -1,11 +1,10 @@
-import React, {FC, useState, useEffect, useRef} from 'react'
+import React, {useState, useEffect, useRef} from 'react'
 import {
     ViewStyle,
     View,
     TextStyle,
     TextInput,
 } from 'react-native'
-import {WalletStackScreenProps} from '../navigation'
 import {colors, spacing, useThemeColor} from '../theme'
 import {log} from '../services/logService'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
@@ -20,10 +19,16 @@ import { MintHeader } from './Mints/MintHeader'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { translate } from '../i18n'
 import { MintUnit } from '../services/wallet/currency'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+import { SendOption } from './SendScreen'
 
+type Props = StaticScreenProps<{
+    unit: MintUnit    
+    mintUrl?: string
+}>
 
-export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = function TokenReceiveScreen(_props) {
-    const {navigation, route} = _props
+export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) {
+    const navigation = useNavigation()
     const tokenInputRef = useRef<TextInput>(null)
     const {mintsStore} = useStores()
 
@@ -86,14 +91,21 @@ export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = fu
 
     const gotoScan = async function () {
         tokenInputRef.current?.blur()
-        navigation.navigate('Scan', {mintUrl: mint?.mintUrl, unit})
+        navigation.navigate('Scan', {
+            mintUrl: mint?.mintUrl, 
+            unit
+        })
     }
 
 
     /* const gotoContacts = function () {
+        //@ts-ignore
         navigation.navigate('ContactsNavigator', {
             screen: 'Contacts', 
-            params: {paymentOption: SendOption.LNURL_ADDRESS}})
+            params: {
+                paymentOption: SendOption.LNURL_ADDRESS
+            }
+        })
     } */
 
 
@@ -137,8 +149,7 @@ export const TokenReceiveScreen: FC<WalletStackScreenProps<'TokenReceive'>> = fu
         <Screen preset="fixed" contentContainerStyle={$screen}>
             <MintHeader 
                 mint={mint}
-                unit={unit!}
-                navigation={navigation}
+                unit={unit!}                
             />
             <View style={[$headerContainer, {backgroundColor: headerBg}]}>                
                 <Text

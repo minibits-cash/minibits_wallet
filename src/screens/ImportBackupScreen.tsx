@@ -7,7 +7,6 @@ import QuickCrypto from 'react-native-quick-crypto'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import { mnemonicToSeedSync } from '@scure/bip39'
 import {colors, spacing, typography, useThemeColor} from '../theme'
-import {AppStackScreenProps, goBack} from '../navigation' // @demo remove-current-line
 import {
   Icon,
   ListItem,
@@ -36,16 +35,18 @@ import { ProofsStoreSnapshot } from '../models/ProofsStore'
 import { MintsStoreSnapshot } from '../models/MintsStore'
 import { ContactsStoreSnapshot } from '../models/ContactsStore'
 import { CashuMint, MintActiveKeys } from '@cashu/cashu-ts'
-import { MintUnit } from '../services/wallet/currency'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
-export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = observer(
-  function ImportBackupScreen(_props) {
-    const {navigation, route} = _props    
+type Props = StaticScreenProps<undefined>
+
+export const ImportBackupScreen = observer(function ImportBackupScreen({ route }: Props) {
+    const navigation = useNavigation()
+
     useHeader({
         leftIcon: 'faArrowLeft',
         onLeftPress: () => {            
@@ -291,10 +292,6 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
 
             keys.SEED = seed      
             
-            // save keys as we need them next for publishing the recovered profile to relays
-            await KeyChain.saveWalletKeys(keys)            
-            walletStore.cleanCachedWalletKeys()
-
             if(isNewProfileNeeded) {
                 
                 await walletProfileStore.create(
@@ -313,8 +310,10 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
                 )
             }
 
-
-
+            await KeyChain.saveWalletKeys(keys)            
+            walletStore.cleanCachedWalletKeys()
+            // force publish now that we have keys available
+            await walletProfileStore.publishToRelays()
             userSettingsStore.setIsOnboarded(true)
 
             if(!mintsStore.mintExists(MINIBITS_MINT_URL)) {
@@ -324,7 +323,7 @@ export const ImportBackupScreen: FC<AppStackScreenProps<'ImportBackup'>> = obser
             setStatusMessage(translate('recovery.completed'))
                         
             // go directly to the wallet (profile hase been rehydrated from the one with the seed)
-            navigation.navigate('Tabs', {screen: 'WalletNavigator', params: {screen: 'Wallet', params: {}}})
+            navigation.navigate('Tabs')
             await delay(1000)
             setStatusMessage('')
             setIsLoading(false)       

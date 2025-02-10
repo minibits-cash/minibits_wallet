@@ -16,7 +16,6 @@ import {
 import Clipboard from '@react-native-clipboard/clipboard'
 import JSONTree from 'react-native-json-tree'
 import {colors, spacing, typography, useThemeColor} from '../theme'
-import {TransactionsStackScreenProps} from '../navigation'
 import EventEmitter from '../utils/eventEmitter'
 import {
   Button,
@@ -53,13 +52,14 @@ import { CurrencySign } from './Wallet/CurrencySign'
 import { MintUnit, formatCurrency, getCurrency } from "../services/wallet/currency"
 import { PaymentRequest } from '../models/PaymentRequest'
 import { pollerExists } from '../utils/poller'
-import { useFocusEffect } from '@react-navigation/native'
+import { CommonActions, StackActions, StaticScreenProps, useFocusEffect, useNavigation } from '@react-navigation/native'
 import { QRCodeBlock } from './Wallet/QRCode'
 import { MintListItem } from './Mints/MintListItem'
 import { Token, getDecodedToken } from '@cashu/cashu-ts'
-import { faTruckMedical } from '@fortawesome/free-solid-svg-icons'
 import { RECEIVE_OFFLINE_COMPLETE_TASK, RECEIVE_TASK } from '../services/wallet/receiveTask'
 import { REVERT_TASK } from '../services/wallet/revertTask'
+import { TranHistoryScreen } from './TranHistoryScreen'
+import { WalletScreen } from './WalletScreen'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
@@ -71,10 +71,15 @@ type ProofsByStatus = {
   isReceived: Proof[]
 }
 
-export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
-  observer(function TranDetailScreen(_props) {
-    const {navigation, route} = _props
-    const {transactionsStore, userSettingsStore, mintsStore} = useStores()
+type Props = StaticScreenProps<{
+  id: number,
+  prevScreen: 'Wallet' | 'TranHistory'
+}>
+
+export const TranDetailScreen = observer(function TranDetailScreen({ route }: Props) {
+    const navigation = useNavigation()
+    const {id, prevScreen} = route.params
+    const {transactionsStore, mintsStore} = useStores()
     
     const noteInputRef = useRef<TextInput>(null)
 
@@ -93,8 +98,7 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
     }
 
     useFocusEffect(useCallback(() => {
-      try {
-        const {id} = route.params        
+      try {        
         const tx = transactionsStore.findById(id, true) // load full tokens
         log.trace('Transaction loaded', {id: tx?.id, unit: tx?.unit, note: tx?.noteToSelf, inputToken: tx?.inputToken, outputToken: tx?.inputToken})
 
@@ -171,15 +175,28 @@ export const TranDetailScreen: FC<TransactionsStackScreenProps<'TranDetail'>> =
     }
 
     const onBack = function () {
-      if(transaction && transaction.inputToken &&  transaction.inputToken.length > 40) {
-        transaction.pruneInputToken(transaction.inputToken)
-      }
+        if(transaction && transaction.inputToken &&  transaction.inputToken.length > 40) {
+            transaction.pruneInputToken(transaction.inputToken)
+        }
 
-      if(transaction && transaction.outputToken && transaction.outputToken.length > 40) {
-        transaction.pruneOutputToken(transaction.outputToken)
-      }
-      
-      navigation.goBack()
+        if(transaction && transaction.outputToken && transaction.outputToken.length > 40) {
+            transaction.pruneOutputToken(transaction.outputToken)
+        }
+
+        log.trace('[onBack]', {prevScreen})
+
+        if(prevScreen === 'TranHistory') {
+            navigation.goBack()
+        } else {
+            navigation.dispatch(                
+                CommonActions.reset({
+                    index: 1,
+                    routes: [{
+                        name: 'WalletNavigator'
+                    }]
+                })
+            )
+        }
     }
 
     const handleError = function (e: AppError): void {      
@@ -702,6 +719,7 @@ const ReceiveInfoBlock = function (props: {
                               url={sentFromUrl}
                           />
                           <View style={$pictureContainer}>
+                          {profilePicture ? (
                             <Image 
                               style={
                                 {
@@ -711,8 +729,20 @@ const ReceiveInfoBlock = function (props: {
                                 }
                               } 
                               source={{uri: profilePicture}}
-                              defaultSource={require('../../assets/icons/nostr.png')}
-                            />  
+                              // defaultSource={require('../../assets/icons/nostr.png')}
+                            /> 
+                          ):(
+                            <Image 
+                              style={
+                                {
+                                  width: verticalScale(40),
+                                  height: verticalScale(40),
+                                  borderRadius: verticalScale(40) / 2,
+                                }
+                              } 
+                              source={require('../../assets/icons/nostr.png')}                              
+                            /> 
+                          )} 
                           </View> 
                         </View>
                       ) : (
@@ -1292,17 +1322,25 @@ const TopupInfoBlock = function (props: {
 }) {
   const {transaction, navigation, mint} = props
   const {mintsStore} = useStores()
-  
-  // retrieve pr from NOT COMPLETED transaction as it might have been expired and removed from storage
-  const paymentRequest = getPaymentRequestToRetry(transaction)
   const isInternetReachable = useIsInternetReachable()  
-  
+
+  const [paymentRequest, setPaymentRequest] = useState<PaymentRequest | undefined>(undefined)
   const [isPendingTopupTaskSentToQueue, setIsPendingTopupTaskSentToQueue] = useState<boolean>(false)
   const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
   const [resultModalInfo, setResultModalInfo] = useState<
     {status: TransactionStatus; message: string} | undefined
   >()
-  const [isLoading, setIsLoading] = useState(false)  
+  const [isLoading, setIsLoading] = useState(false)
+  
+  useFocusEffect(useCallback(() => {
+      // retrieve pr from NOT COMPLETED transaction as it might have been expired and removed from storage
+      log.trace('[TopupInfoBlock] useFocusEffect start')
+      const pr = getPaymentRequestToRetry(transaction)
+      if(pr) {
+        log.trace('[TopupInfoBlock] found payment request')
+        setPaymentRequest(pr)
+      }      
+  }, []))
 
   useFocusEffect(useCallback(() => {
       const handlePendingTopupTaskResult = async (result: TransactionTaskResult) => {
@@ -1440,6 +1478,16 @@ const TopupInfoBlock = function (props: {
                 </>
             }
         />
+        {transaction.status === TransactionStatus.PENDING && paymentRequest && (
+          <View style={{marginBottom: spacing.small}}>
+            <QRCodeBlock 
+              qrCodeData={paymentRequest.encodedInvoice}
+              title={translate("tranDetailScreen.invoice")}
+              type='Bolt11Invoice'
+              size={spacing.screenWidth * 0.8}
+            />
+          </View>
+        )}
         <Card
             labelTx='tranDetailScreen.topupTo'
             style={$dataCard}
@@ -1454,17 +1502,7 @@ const TopupInfoBlock = function (props: {
                   <Text text={transaction.mint} />
               )              
             }
-        />
-        {transaction.status === TransactionStatus.PENDING && paymentRequest && (
-            <View style={{marginBottom: spacing.small}}>
-              <QRCodeBlock 
-                qrCodeData={paymentRequest.encodedInvoice}
-                title={translate("tranDetailScreen.invoice")}
-                type='Bolt11Invoice'
-                size={spacing.screenWidth * 0.8}
-              />
-            </View>
-        )}        
+        />        
         <BottomModal
           isVisible={isResultModalVisible ? true : false}          
           ContentComponent={
@@ -1870,6 +1908,7 @@ const getPaymentRequestToRetry = (
     transaction: Transaction,
   ): PaymentRequest | undefined => {
     try {
+      log.trace('[getPaymentRequestToRetry] start')
         if(transaction.type !== (TransactionType.TOPUP)) {
             return undefined
         }
@@ -1880,14 +1919,20 @@ const getPaymentRequestToRetry = (
             return undefined
         }
 
-        const {mintsStore} = useStores()
+
+        /* const {mintsStore} = useStores()
 
         // skip if mint is still offline
         const {mint} = transaction
         const mintInstance = mintsStore.findByUrl(mint)
+
+        log.trace('[getPaymentRequestToRetry] mint', {mint: mintInstance})
+
         if(!mintInstance || mintInstance.status === MintStatus.OFFLINE) {
             return undefined
-        }
+        }*/
+
+        
 
         const data = JSON.parse(transaction.data)
         const pendingRecord = data.find(
@@ -1895,6 +1940,8 @@ const getPaymentRequestToRetry = (
         )
 
         const paymentRequest: PaymentRequest = pendingRecord.paymentRequest
+
+        log.trace('[getPaymentRequestToRetry]', {paymentRequest})
 
         if(!paymentRequest) {return undefined}
         if(pollerExists(`handlePendingTopupPoller-${paymentRequest.paymentHash}`)) {return undefined}

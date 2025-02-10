@@ -4,7 +4,6 @@ import {Image, LayoutAnimation, Platform, TextInput, TextStyle, UIManager, View,
 import {getPublicKey} from 'nostr-tools/pure'
 import { hexToBytes } from '@noble/hashes/utils'
 import {colors, spacing, typography, useThemeColor} from '../theme'
-import {ContactsStackScreenProps} from '../navigation'
 import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, Loading} from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
@@ -15,6 +14,7 @@ import { KeyChain, NostrKeyPair, NostrClient, NostrProfile } from '../services'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 import { ProfileHeader } from '../components/ProfileHeader'
 import { translate } from '../i18n'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
 
 if (Platform.OS === 'android' &&
@@ -22,10 +22,11 @@ if (Platform.OS === 'android' &&
     UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
-interface OwnKeysScreenProps extends ContactsStackScreenProps<'OwnKeys'> {}
+type Props = StaticScreenProps<{}>
 
-export const OwnKeysScreen: FC<OwnKeysScreenProps> = observer(function OwnKeysScreen({navigation}) {    
+export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {    
 
+    const navigation = useNavigation()
     const {walletProfileStore, walletStore, relaysStore} = useStores() 
 
     useHeader({        

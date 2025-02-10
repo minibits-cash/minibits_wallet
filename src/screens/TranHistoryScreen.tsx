@@ -24,16 +24,15 @@ import {
   Loading,
   BottomModal,
 } from '../components'
-import {TransactionsStackScreenProps} from '../navigation'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import {Database, log} from '../services'
 import AppError from '../utils/AppError'
 import {TransactionListItem} from './Transactions/TransactionListItem'
 import { Transaction, TransactionStatus } from '../models/Transaction'
-import { height } from '@fortawesome/free-solid-svg-icons/faWallet'
 import { translate } from '../i18n'
 import { maxTransactionsInHistory } from '../models/TransactionsStore'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
 if (Platform.OS === 'android' &&
   UIManager.setLayoutAnimationEnabledExperimental) {
@@ -42,9 +41,11 @@ if (Platform.OS === 'android' &&
 // Number of transactions held in TransactionsStore model
 const limit = maxTransactionsInHistory
 
-export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> = observer(function TranHistoryScreen(_props) {
-    const {navigation} = _props
-    const {transactionsStore, mintsStore} = useStores()
+type Props = StaticScreenProps<undefined>
+
+export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: Props) {
+    const navigation = useNavigation()
+    const {transactionsStore} = useStores()
     useHeader({
       leftIcon: 'faArrowLeft',
       onLeftPress: () => navigation.goBack(),
@@ -190,11 +191,6 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
         setIsHeaderVisible(true)
     }
 
-    const gotoTranDetail = function (id: number) {
-        navigation.navigate('TranDetail', {id})
-    }
-
-
     const onDelete = function (status: TransactionStatus) {
         try {
             toggleDeleteModal()
@@ -298,8 +294,6 @@ export const TranHistoryScreen: FC<TransactionsStackScreenProps<'TranHistory'>> 
                                         transaction={item as Transaction}
                                         isFirst={index === 0}
                                         isTimeAgoVisible={false}
-                                        gotoTranDetail={gotoTranDetail}
-                                        
                                     />
                                 ))}
                                 </>

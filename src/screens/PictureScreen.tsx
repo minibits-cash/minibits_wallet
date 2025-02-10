@@ -4,16 +4,17 @@ import {Image, Pressable, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {Button, Card, ErrorModal, Header, InfoModal, ListItem, Loading, Screen, Text} from '../components'
 import {useStores} from '../models'
-import {ContactsStackScreenProps} from '../navigation'
 import { MinibitsClient} from '../services'
 import AppError from '../utils/AppError'
 import { ProfileHeader } from '../components/ProfileHeader'
 import { scale } from '@gocodingnow/rn-size-matters'
 import { getImageSource } from '../utils/utils'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
-interface PictureScreenProps extends ContactsStackScreenProps<'Picture'> {}
+type Props = StaticScreenProps<undefined>
 
-export const PictureScreen: FC<PictureScreenProps> = observer(function PictureScreen({route, navigation}) {    
+export const PictureScreen = (function PictureScreen({ route }: Props) {    
+    const navigation = useNavigation()
     const {walletProfileStore} = useStores()
 
     const [info, setInfo] = useState('')

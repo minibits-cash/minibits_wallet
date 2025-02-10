@@ -7,7 +7,7 @@ import {
     View,
     TextStyle,
 } from 'react-native'
-import {WalletStackScreenProps} from '../navigation'
+// @ts-ignore
 import {Camera, CameraType} from 'react-native-camera-kit'
 import { URDecoder } from '@gandlaf21/bc-ur'
 import {spacing, typography, useThemeColor} from '../theme'
@@ -23,15 +23,20 @@ import { translate } from '../i18n'
 import { MintUnit } from '../services/wallet/currency'
 import { Mint } from '../models/Mint'
 import { CashuUtils } from '../services/cashu/cashuUtils'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
 const hasAndroidCameraPermission = async () => {
     const cameraPermission = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA)
-    return cameraPermission !== PermissionsAndroid.RESULTS.BLOCKED && cameraPermission !== PermissionsAndroid.RESULTS.DENIED
+    return cameraPermission !== PermissionsAndroid.RESULTS.DENIED
 }
 
+type Props = StaticScreenProps<{
+    unit: MintUnit    
+    mintUrl?: string,      
+}>
 
-export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScreen(_props) {
-    const {navigation, route} = _props
+export const ScanScreen = function ScanScreen({ route }: Props) {
+    const navigation = useNavigation()
     const {mintsStore} = useStores()
 
     const [shouldLoad, setShouldLoad] = useState<boolean>(false)        
@@ -50,7 +55,7 @@ export const ScanScreen: FC<WalletStackScreenProps<'Scan'>> = function ScanScree
           const routes = navigation.getState()?.routes
           let prevRoute: string = ''
 
-          if(routes.length >= 2) {
+          if(routes && routes.length >= 2) {
             prevRoute = routes[routes.length - 2].name
               log.trace('prevRouteName', prevRoute)
               setPrevRouteName(prevRoute)

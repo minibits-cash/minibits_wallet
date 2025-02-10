@@ -20,19 +20,16 @@ import {
   Icon,
   BottomModal,
 } from '../../components'
-import {WalletStackParamList} from '../../navigation'
 import {useStores} from '../../models'
 import AppError from '../../utils/AppError'
 import { PaymentRequest } from '../../models/PaymentRequest'
 import { StackNavigationProp } from '@react-navigation/stack'
 import { PaymentRequestListItem } from './PaymentRequestListItem'
 import { QRCodeBlock } from '../Wallet/QRCode'
+import { useNavigation } from '@react-navigation/native'
 
 
-export const OutgoingRequests = observer(function (props: {
-    navigation: StackNavigationProp<WalletStackParamList, "PaymentRequests", undefined>,       
-}) {
-    const {navigation} = props
+export const OutgoingRequests = observer(function () {    
     const {paymentRequestsStore} = useStores()
    
     const [info, setInfo] = useState('')
@@ -41,13 +38,6 @@ export const OutgoingRequests = observer(function (props: {
     const [isLoading, setIsLoading] = useState(false)
     const [isQRModalVisible, setIsQRModalVisible] = useState(false)   
 
-    useEffect(() => {
-        onDeleteExpired()
-    }, [])
-      
-    const onDeleteExpired = function() {
-        paymentRequestsStore.removeExpired()
-    }
 
     const toggleQRModal = () => {   
         if(isQRModalVisible) {
@@ -84,8 +74,7 @@ export const OutgoingRequests = observer(function (props: {
                     return(
                         <PaymentRequestListItem                                        
                             pr={item}
-                            isFirst={index === 0}
-                            navigation={navigation}
+                            isFirst={index === 0}                            
                             onShowQRModal={onShowQRModal}                                                       
                         />
                     )

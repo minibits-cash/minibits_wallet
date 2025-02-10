@@ -12,19 +12,19 @@ import {colors, spacing, typography, useThemeColor} from '../../theme'
 import useIsInternetReachable from '../../utils/useIsInternetReachable'
 import {translate} from '../../i18n'
 import { CurrencyAmount } from '../Wallet/CurrencyAmount'
-import { NostrProfile } from '../../services'
+import { NostrProfile, log } from '../../services'
 import { moderateScale, verticalScale } from '@gocodingnow/rn-size-matters'
+import { useNavigation } from '@react-navigation/native'
+import { getActiveRouteName } from '../../navigation'
 
 export interface TransactionListProps {
   transaction: Transaction
   isFirst: boolean
-  isTimeAgoVisible: boolean
-  gotoTranDetail: any
+  isTimeAgoVisible: boolean  
 }
 
-export const TransactionListItem = observer(function (
-  props: TransactionListProps,
-) {
+export const TransactionListItem = observer(function (props: TransactionListProps) {
+  const navigation = useNavigation()
   const {transaction: tx, isTimeAgoVisible} = props
 
   const txReceiveColor = useThemeColor('receivedAmount')
@@ -32,6 +32,13 @@ export const TransactionListItem = observer(function (
   const txErrorColor = useThemeColor('textDim')
   const txPendingColor = useThemeColor('textDim')
   const isInternetReachable = useIsInternetReachable()
+
+  const onPress = function() {
+    const currentScreen = getActiveRouteName(navigation.getState()!)
+    log.trace('[onPress]', {currentScreen})
+    // @ts-ignore
+    navigation.navigate('TransactionsNavigator', {screen: 'TranDetail', params: {id: tx.id, prevScreen: currentScreen}})
+  }  
 
   const getProfileName = function(profileString: string): string {
     try {
@@ -164,17 +171,30 @@ export const TransactionListItem = observer(function (
         if(profile && profile.picture) {
           return (
             <View style={$pictureContainer}>
-              <Image 
-                style={
-                  {
-                    width: verticalScale(34),
-                    height: verticalScale(34),
-                    borderRadius: verticalScale(34) / 2,
-                  }
-                } 
-                source={{uri: profile.picture}}
-                defaultSource={require('../../../assets/icons/nostr.png')}
-              />  
+              {profile.picture ? (
+                <Image 
+                  style={
+                    {
+                      width: verticalScale(34),
+                      height: verticalScale(34),
+                      borderRadius: verticalScale(34) / 2,
+                    }
+                  } 
+                  source={{uri: profile.picture}}
+                  // defaultSource={require('../../../assets/icons/nostr.png')}
+                /> 
+              ) : (
+                <Image 
+                  style={
+                    {
+                      width: verticalScale(34),
+                      height: verticalScale(34),
+                      borderRadius: verticalScale(34) / 2,
+                    }
+                  } 
+                  source={require('../../../assets/icons/nostr.png')}                  
+                />
+              )}               
             </View>  
           )
         } 
@@ -255,7 +275,7 @@ export const TransactionListItem = observer(function (
         }          
         topSeparator={props.isFirst ? false : true}
         style={$item}
-        onPress={() => props.gotoTranDetail(tx.id)}
+        onPress={onPress}
       />
     )
 

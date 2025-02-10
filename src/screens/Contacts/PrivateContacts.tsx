@@ -5,7 +5,6 @@ import {verticalScale} from '@gocodingnow/rn-size-matters'
 import {colors, spacing, useThemeColor} from '../../theme'
 import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
 import {useStores} from '../../models'
-import {ContactsStackParamList} from '../../navigation'
 import { MinibitsClient, NostrClient, NostrProfile } from '../../services'
 import AppError, { Err } from '../../utils/AppError'
 import {MINIBITS_NIP05_DOMAIN} from '@env'
@@ -18,16 +17,17 @@ import { SendOption } from '../SendScreen'
 import { infoMessage, warningMessage } from '../../utils/utils'
 import { IncomingDataType, IncomingParser } from '../../services/incomingParser'
 import { translate } from '../../i18n'
-import { RouteProp } from '@react-navigation/native'
+import { RouteProp, useNavigation } from '@react-navigation/native'
+import { toJS } from 'mobx'
 
 
 
-export const PrivateContacts = observer(function (props: {
-    navigation: StackNavigationProp<ContactsStackParamList, "Contacts", undefined>,             
+export const PrivateContacts = observer(function (props: {    
     paymentOption: ReceiveOption | SendOption | undefined},    
 ) { 
     const {contactsStore, relaysStore, userSettingsStore} = useStores()
-    const {navigation} = props
+    const navigation = useNavigation()
+    
     const contactNameInputRef = useRef<TextInput>(null)
  
     const [info, setInfo] = useState('')
@@ -171,12 +171,14 @@ export const PrivateContacts = observer(function (props: {
                 }
 
                 // contactsStore.selectContact(contact)
-                navigation.navigate('WalletNavigator', { 
-                    screen: 'Topup',
-                    params: {
-                        paymentOption,
-                        contact                             
-                    },                                            
+                //@ts-ignore
+                navigation.navigate('WalletNavigator', {
+                  screen: 'Topup',
+                  params: {
+                    paymentOption, 
+                    contact: toJS(contact),
+                    unit: userSettingsStore.preferredUnit                       
+                  }                  
                 })
                 
                 setIsLoading(false)
@@ -191,12 +193,14 @@ export const PrivateContacts = observer(function (props: {
                     await NostrClient.verifyNip05(contact.nip05 as string, contact.pubkey) // throws
                 }
                 
-                navigation.navigate('WalletNavigator', { 
-                    screen: 'Send',
-                    params: {
-                        paymentOption, 
-                        contact                        
-                    },
+                //@ts-ignore
+                navigation.navigate('WalletNavigator', {
+                  screen: 'Send',
+                  params: {
+                    paymentOption, 
+                    contact: toJS(contact),
+                    unit: userSettingsStore.preferredUnit                       
+                  }                  
                 })
 
                 setIsLoading(false)
@@ -223,7 +227,7 @@ export const PrivateContacts = observer(function (props: {
                 return
             }
 
-            navigation.navigate('ContactDetail', {contact})
+            navigation.navigate('ContactDetail', {contact: toJS(contact)})
 
         } catch (e: any) {
             // reset so that invalid contact can be deleted

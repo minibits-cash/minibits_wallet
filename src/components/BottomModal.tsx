@@ -1,4 +1,4 @@
-import React, { ComponentType, Fragment, ReactElement } from "react"
+import React, { ComponentType, Fragment, ReactElement, useEffect } from "react"
 import Modal from 'react-native-modal'
 import {
   StyleProp,
@@ -7,7 +7,8 @@ import {
   View,
   ViewStyle,
   ColorValue,
-  StatusBar,  
+  StatusBar,
+  BackHandler,  
 } from "react-native"
 import { colors, useThemeColor, spacing } from "../theme"
 import { Text, TextProps } from "./Text"
@@ -105,7 +106,6 @@ interface ModalProps extends ViewProps {
  * Modal
  */
 export function BottomModal(props: ModalProps) {
-
   const {
     isVisible = true,    
     onBackdropPress,

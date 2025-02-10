@@ -180,9 +180,13 @@ export const colors = {
      */
     headerSubTitle: palette.primary200,
     /**
-     * The default color of the bottom menu.
+     * The default color of the tab icon.
      */
-    menu: palette.neutral200,
+    tabIcon: palette.neutral800,
+    /**
+     * The default color of the active tab icon.
+     */
+    tabActiveIcon: palette.primary400,
     /**
      * The default border color.
      */
@@ -307,9 +311,13 @@ export const colors = {
      */
     headerSubTitle: palette.primary200,
     /**
-     * The default color of the bottom menu.
+     * The default color of the tab icon.
      */
-    menu: palette.neutral700,
+    tabIcon: palette.neutral200,
+    /**
+     * The default color of the active tab icon.
+     */
+    tabActiveIcon: palette.primary400,
     /**
      * The default border color.
      */
@@ -434,9 +442,13 @@ export const colors = {
      */
     headerSubTitle: palette.gold100,
     /**
-     * The default color of the bottom menu.
+     * The default color of the tab icon.
      */
-    menu: palette.neutral700,
+    tabIcon: palette.neutral200,
+    /**
+     * The default color of the active tab icon.
+     */
+    tabActiveIcon: palette.gold200,
     /**
      * The default border color.
      */
