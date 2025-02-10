@@ -53,6 +53,7 @@ jobs:
         with:
           path: android/app/build.gradle
           expose-version-name: 'true' # sets ANDROID_VERSION_NAME to env
+          expose-version-code: 'true' # sets ANDROID_VERSION_CODE to env
       
       # Get commit hash
       - name: Get commit hash
@@ -88,7 +89,8 @@ jobs:
           echo APP_ENV='PROD' >> .env          
           echo SENTRY_DSN='${{ secrets.SENTRY_DSN }}' >> .env          
           echo CODEPUSH_PRODUCTION_DEPLOYMENT_KEY='${{ secrets.CODEPUSH_PRODUCTION_DEPLOYMENT_KEY }}' >> .env
-          echo NATIVE_VERSION_ANDROID='${{ env.ANDROID_VERSION_NAME }}' >> .env
+          echo ANDROID_VERSION_CODE='${{ env.ANDROID_VERSION_CODE }}' >> .env
+          echo ANDROID_VERSION_NAME='${{ env.ANDROID_VERSION_NAME }}' >> .env          
           echo JS_BUNDLE_VERSION='${{ env.CURRENT_JS_VERSION }}' >> .env
           echo MINIBITS_SERVER_API_KEY='${{ secrets.MINIBITS_SERVER_API_KEY }}' >> .env
           echo MINIBIT_SERVER_NOSTR_PUBKEY='${{ secrets.MINIBIT_SERVER_NOSTR_PUBKEY }}' >> .env

@@ -3,10 +3,10 @@ import * as Sentry from '@sentry/react-native'
 import {
     APP_ENV,
     SENTRY_DSN,
-    JS_BUNDLE_VERSION,
-    NATIVE_VERSION_ANDROID,
+    JS_BUNDLE_VERSION,    
     CODEPUSH_STAGING_DEPLOYMENT_KEY,
-    CODEPUSH_PRODUCTION_DEPLOYMENT_KEY,    
+    CODEPUSH_PRODUCTION_DEPLOYMENT_KEY,
+    ANDROID_VERSION_NAME,    
 } from '@env'
 import codePush from 'react-native-code-push'
 import FlashMessage from "react-native-flash-message"
@@ -40,7 +40,7 @@ if (!__DEV__) {
         dsn: SENTRY_DSN,
         environment: APP_ENV,
         release: `minibits_wallet_android@${JS_BUNDLE_VERSION}`,
-        dist: NATIVE_VERSION_ANDROID,
+        dist: ANDROID_VERSION_NAME,
         beforeSend: function (event, hint) {
             const exception = hint.originalException
             if (exception instanceof AppError) {

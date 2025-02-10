@@ -51,8 +51,7 @@ import {
     CODEPUSH_STAGING_DEPLOYMENT_KEY,
     CODEPUSH_PRODUCTION_DEPLOYMENT_KEY,
     MINIBITS_MINT_URL,
-    NATIVE_VERSION_ANDROID,
-    JS_BUNDLE_VERSION
+    ANDROID_VERSION_NAME
 } from '@env'
 import { round } from '../utils/number'
 import { IncomingParser } from '../services/incomingParser'
@@ -120,13 +119,12 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                 const update = await codePush.checkForUpdate(deploymentKey, handleBinaryVersionMismatchCallback)                
                 
                 if (update && update.failedInstall !== true) {  // do not announce update that failed to install before
-                    if(JS_BUNDLE_VERSION.includes(update.appVersion)) {
+                    if(ANDROID_VERSION_NAME === update.appVersion) {
                         setUpdateDescription(update.description)
                         setUpdateSize(`${round(update.packageSize *  0.000001, 2)}MB`)
                         setIsUpdateAvailable(true)
                         toggleUpdateModal()
-                    }
-                    // log.trace('OTA Update available', update, 'checkForUpdate')
+                    }                    
                 }             
             } catch (e: any) {                
                 return false // silent
@@ -146,7 +144,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
 
     
     const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {
-        log.info('[handleBinaryVersionMismatchCallback] triggered', NATIVE_VERSION_ANDROID, update)
+        log.info('[handleBinaryVersionMismatchCallback] triggered', ANDROID_VERSION_NAME, update)
         setIsNativeUpdateAvailable(true)
         toggleUpdateModal()
     }

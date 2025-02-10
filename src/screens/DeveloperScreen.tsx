@@ -3,10 +3,11 @@ import React, {FC, useEffect, useState} from 'react'
 import {Alert, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {
-    APP_ENV,    
-    NATIVE_VERSION_ANDROID,
+    APP_ENV,        
     JS_BUNDLE_VERSION,
     COMMIT,
+    ANDROID_VERSION_NAME,
+    ANDROID_VERSION_CODE,
 } from '@env'
 import packageJson from '../../package.json'
 import {  
@@ -260,12 +261,13 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
                 <ListItem
                   tx="developerScreen.info"
                   subText={`Environment: ${APP_ENV}
-Native version: ${NATIVE_VERSION_ANDROID}
 JS Bundle version: ${JS_BUNDLE_VERSION}
+Commit: ${COMMIT}
+Android version name: ${ANDROID_VERSION_NAME}
+Android version code: ${ANDROID_VERSION_CODE}
 DB version: ${dbVersion}
 State size: ${walletStateSize.toLocaleString()} bytes
 React Native: ${rnVersion}
-Commit: ${COMMIT}
 Sentry id: ${walletProfileStore.walletId}
                   `}
                   leftIcon='faInfoCircle'
