@@ -260,12 +260,16 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     
 
     const gotoUpdate = function() {
-        navigation.navigate('Update', {
-            isNativeUpdateAvailable, 
-            isUpdateAvailable, 
-            updateDescription,
-            updateSize,
-            prevScreen: 'Wallet'
+        //@ts-ignore
+        navigation.navigate('SettingsNavigator', {
+            screen: 'Update',
+            params: {
+                isNativeUpdateAvailable, 
+                isUpdateAvailable, 
+                updateDescription,
+                updateSize,
+                prevScreen: 'Wallet'
+            }            
         })
     }
     
