@@ -65,11 +65,11 @@
     "react-native-logs": "^5.3.0",
     "react-native-mmkv": "^2.12.2",
     "react-native-modal": "^13.0.1",
-    "react-native-quick-sqlite": "8.2.7",
     "react-native-pager-view": "^6.7.0",
     "react-native-qrcode-svg": "^6.3.14",
     "react-native-quick-base64": "^2.1.2",
     "react-native-quick-crypto": "^0.7.11",
+    "react-native-quick-sqlite": "8.2.7",
     "react-native-reanimated": "^3.16.7",
     "react-native-safe-area-context": "^5.1.0",
     "react-native-screens": "^4.6.0",
@@ -108,5 +108,6 @@
   },
   "engines": {
     "node": ">=18 || 20 || 22"
-  }
+  },
+  "packageManager": "yarn@3.6.4"
 }
