@@ -20,7 +20,7 @@ import { useStores } from '../models'
 import { SYNC_STATE_WITH_ALL_MINTS_TASK, SyncStateTaskResult } from '../services/walletService'
 import EventEmitter from '../utils/eventEmitter'
 import { translate } from '../i18n'
-import { TASK_QUEUE_CHANNEL_ID, TASK_QUEUE_CHANNEL_NAME } from '../services/notificationService'
+import { NotificationService, TASK_QUEUE_CHANNEL_ID, TASK_QUEUE_CHANNEL_NAME } from '../services/notificationService'
 import { minibitsPngIcon } from '../components/MinibitsIcon'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
@@ -75,27 +75,17 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
 
     const gotoAddressRecovery = function () {
       navigation.navigate('RecoverWalletAddress')
-  }
+    }
 
 
     const checkSpent = async function () {
       setIsLoading(true)
       setIsSyncStateSentToQueue(true)
-      
-      await notifee.displayNotification({
-        title: TASK_QUEUE_CHANNEL_NAME,
-        body: 'Cleaning spent ecash from spendable balance...',
-        android: {
-            channelId: TASK_QUEUE_CHANNEL_ID,
-            asForegroundService: true,
-            largeIcon: minibitsPngIcon,
-            importance: AndroidImportance.HIGH,
-            progress: {
-                indeterminate: true,
-            },
-        },
-        data: {task: SYNC_STATE_WITH_ALL_MINTS_TASK},
-      })      
+
+      await NotificationService.createForegroundNotification(
+        'Cleaning spent ecash from spendable balance...',
+        {task: SYNC_STATE_WITH_ALL_MINTS_TASK}
+      )
     }
 
 

@@ -15,6 +15,7 @@ import { HANDLE_NWC_REQUEST_TASK, WalletTask, WalletTaskResult } from './walletS
 import { SyncQueue } from './syncQueueService'
 import { delay } from '../utils/delay'
 import TaskQueue, { Task, TaskId, TaskStatus } from 'taskon'
+import { minibitsPngIcon } from '../components/MinibitsIcon'
 
 export type NotifyReceiveToLnurlData = {
     type: 'NotifyReceiveToLnurlData',
@@ -244,6 +245,15 @@ const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {
 
     if(!isNwcRequestTaskRunning) {
 
+        const isChannelCreated = await notifee.isChannelCreated(NWC_CHANNEL_ID)
+        if (!isChannelCreated) {
+            await notifee.createChannel({
+                id: NWC_CHANNEL_ID,
+                name: NWC_CHANNEL_NAME,
+                sound: 'default',
+            })
+        }
+
         await notifee.displayNotification({
             title: NWC_CHANNEL_NAME,
             body: 'Processing remote NWC command...',
@@ -289,13 +299,56 @@ const _getRemoteData = async function(remoteMessage: FirebaseMessagingTypes.Remo
 }
 
 
+// Foreground service creation for long running tasks
+const createForegroundNotification = async function (body: string, data: {task: string, data?: any}) {
+    log.trace('Start', {body, data}, 'createForegroundNotification')
+    // Request permissions (required for iOS) // needed?
+    if(Platform.OS === 'ios') {
+      await notifee.requestPermission()
+    }
+
+    const isChannelCreated = await notifee.isChannelCreated(TASK_QUEUE_CHANNEL_ID)
+    if (!isChannelCreated) {
+        await notifee.createChannel({
+            id: TASK_QUEUE_CHANNEL_ID,
+            name: TASK_QUEUE_CHANNEL_NAME,
+            sound: 'default',
+        })
+    }
+    
+    return notifee.displayNotification({
+        title: TASK_QUEUE_CHANNEL_NAME,
+        body,
+        android: {
+            channelId: TASK_QUEUE_CHANNEL_ID,
+            asForegroundService: true,
+            largeIcon: minibitsPngIcon,
+            importance: AndroidImportance.HIGH,
+            progress: {
+                indeterminate: true,
+            }
+        },
+        data
+    })
+}
+
+
 // Local notification creation
 const createLocalNotification = async function (title: string, body: string, largeIcon?: string) {
     log.trace('Start', {title, body, largeIcon}, 'createLocalNotification')
     // Request permissions (required for iOS)
     if(Platform.OS === 'ios') {
       await notifee.requestPermission()
-    }    
+    }
+    
+    const isChannelCreated = await notifee.isChannelCreated(DEFAULT_CHANNEL_ID)
+    if (!isChannelCreated) {
+        await notifee.createChannel({
+            id: DEFAULT_CHANNEL_ID,
+            name: DEFAULT_CHANNEL_NAME,
+            sound: 'default',
+        })
+    }
 
     // Display a notification
     if(largeIcon) {
@@ -375,6 +428,7 @@ const stopForegroundService = async function (): Promise<void> {
 
 export const NotificationService = {
     initNotifications,
+    createForegroundNotification,
     createLocalNotification,
     onBackgroundNotification,
     onForegroundNotification,    

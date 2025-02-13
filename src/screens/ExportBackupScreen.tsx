@@ -20,6 +20,7 @@ import {
   InfoModal,
   Loading,
   BottomModal,
+  Header,
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
@@ -34,7 +35,7 @@ import { ProofsStoreSnapshot } from '../models/ProofsStore'
 import { getSnapshot } from 'mobx-state-tree'
 import { ContactsStoreSnapshot } from '../models/ContactsStore'
 import { MintsStoreSnapshot } from '../models/MintsStore'
-import { SWAP_ALL_TASK, TASK_QUEUE_CHANNEL_ID, TASK_QUEUE_CHANNEL_NAME, WalletTask, WalletTaskResult } from '../services'
+import { NotificationService, SWAP_ALL_TASK, TASK_QUEUE_CHANNEL_ID, TASK_QUEUE_CHANNEL_NAME, WalletTask, WalletTaskResult } from '../services'
 import { TransactionStatus } from '../models/Transaction'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
@@ -42,7 +43,7 @@ import { Token, getDecodedToken, getEncodedToken } from '@cashu/cashu-ts'
 import { minibitsPngIcon } from '../components/MinibitsIcon'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
-const OPTIMIZE_FROM_PROOFS_COUNT = 5
+const OPTIMIZE_FROM_PROOFS_COUNT = 4
 type Props = StaticScreenProps<undefined>
 
 export const ExportBackupScreen = function ExportBackup({ route }: Props) {
@@ -53,10 +54,10 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
       proofsStore 
   } = useStores()
 
-  useHeader({
+  /* useHeader({
       leftIcon: 'faArrowLeft',
       onLeftPress: () => navigation.goBack(),
-  })
+  }) */
 
   const [info, setInfo] = useState('')
   const [error, setError] = useState<AppError | undefined>()
@@ -169,37 +170,12 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
             // Supports batching in case proofs count is above limit.
             
             setIsLoading(true)
-            setIsSwapAllSentToQueue(true)
-            
-            await notifee.displayNotification({
-              title: TASK_QUEUE_CHANNEL_NAME,
-              body: 'Optimizing ecash proofs denominations...',
-              android: {
-                  channelId: TASK_QUEUE_CHANNEL_ID,
-                  asForegroundService: true,
-                  largeIcon: minibitsPngIcon,
-                  importance: AndroidImportance.HIGH,
-                  progress: {
-                      indeterminate: true,
-                  }
-              },
-              data: {task: SWAP_ALL_TASK}
-            })
-            
-            /* await notifee.displayNotification({
-              title: TEST_CHANNEL_NAME,
-              body: 'Test task is running...',
-              android: {
-                  channelId: TEST_CHANNEL_ID,
-                  asForegroundService: true,
-                  largeIcon: minibitsPngIcon,
-                  importance: AndroidImportance.HIGH,
-                  progress: {
-                      indeterminate: true,
-                  }
-              },
-              data: {task: TEST_TASK_FN}
-            }) */
+            setIsSwapAllSentToQueue(true)             
+
+            await NotificationService.createForegroundNotification(
+              'Optimizing ecash proofs denominations...',
+              {task: SWAP_ALL_TASK}
+            )
           }
         }
       ]
@@ -400,6 +376,10 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
 
   return (
     <Screen contentContainerStyle={$screen} preset="scroll">
+      <Header            
+          leftIcon='faArrowLeft'
+          onLeftPress={() => navigation.goBack()}            
+      />
       <View style={[$headerContainer, {backgroundColor: headerBg}]}>
         <Text
           preset="heading"
@@ -496,10 +476,11 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
               />
           </View>            
         </View>        
-        {isLoading && <Loading statusMessage='Do not quit until completed...' />}
-        {error && <ErrorModal error={error} />}
-        {info && <InfoModal message={info} />}
+
       </View>
+      {isLoading && <Loading />}
+      {error && <ErrorModal error={error} />}
+      {info && <InfoModal message={info} />}
       <View style={$bottomContainer}>
         {proofsStore.proofsCount > 0 && (
             <View style={$buttonContainer}>
