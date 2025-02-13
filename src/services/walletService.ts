@@ -420,6 +420,11 @@ const swapAllTask = async function (): Promise<WalletTaskResult> {
 
         for (const unit of mint.units) {
             const proofsToOptimize = proofsStore.getByMint(mint.mintUrl, { isPending: false, unit, ascending: true })
+
+            if(proofsToOptimize.length === 0) {
+                continue
+            }
+
             initialProofsCount += proofsToOptimize.length            
             const mintBalance = mint.balances
 
@@ -459,7 +464,8 @@ const swapAllTask = async function (): Promise<WalletTaskResult> {
                 }
             } else {
                 // If the length is less than or equal to limit, run with all proofs.
-                const proofsAmount = CashuUtils.getProofsAmount(proofsToOptimize)         
+                const proofsAmount = CashuUtils.getProofsAmount(proofsToOptimize)
+                
                 const sendResult = await sendTask(
                     mintBalance!,
                     proofsAmount,

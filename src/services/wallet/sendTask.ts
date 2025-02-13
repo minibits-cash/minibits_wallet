@@ -40,7 +40,11 @@ export const sendTask = async function (
     const mintUrl = mintBalanceToSendFrom.mintUrl
 
     log.trace('[sendTask]', 'mintBalanceToSendFrom', mintBalanceToSendFrom)
-    log.trace('[sendTask]', 'amountToSend', {amountToSend, unit})    
+    log.trace('[sendTask]', 'amountToSend', {amountToSend, unit}) 
+    
+    if(amountToSend <= 0) {
+        throw new AppError(Err.VALIDATION_ERROR, 'Amount to send must be above zero.')
+    }
 
     // create draft transaction
     const transactionData: TransactionData[] = [
