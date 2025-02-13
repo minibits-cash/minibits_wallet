@@ -412,21 +412,20 @@ const swapAllTask = async function (): Promise<WalletTaskResult> {
     let initialProofsCount = 0
     let finalProofsCount = 0
     const errors: string[] = []
-
-    // Move all proofs by mint units to pending as in offline mode (do not ask for swap)
-    for (const mint of mintsStore.allMints) {
-        // Do not create a pending transaction above mint's spent sync (check) limit as it becomes stuck pending
-        // As well keep tokens reasonably sized so that a device can keep related transaction in the state / load it from DB
-        const maxBatchSize = MAX_SWAP_INPUT_SIZE        
+    // Do not create a pending transaction above mint's spent sync (check) limit as it becomes stuck pending
+    // As well keep tokens reasonably sized so that a device can keep related transaction in the state / load it from DB
+    const maxBatchSize = MAX_SWAP_INPUT_SIZE
+    
+    for (const mint of mintsStore.allMints) {     
 
         for (const unit of mint.units) {
-            const proofsToOptimize = proofsStore.getByMint(mint.mintUrl, { isPending: false, unit })
+            const proofsToOptimize = proofsStore.getByMint(mint.mintUrl, { isPending: false, unit, ascending: true })
             initialProofsCount += proofsToOptimize.length            
             const mintBalance = mint.balances
 
-            if (initialProofsCount > maxBatchSize) {
+            if (proofsToOptimize.length > maxBatchSize) {
                 let index = 0
-                for (let i = 0; i < initialProofsCount; i += maxBatchSize) {
+                for (let i = 0; i < proofsToOptimize.length; i += maxBatchSize) {
                     index++
                     const batch = proofsToOptimize.slice(i, i + maxBatchSize)
                     const batchAmount = CashuUtils.getProofsAmount(batch)

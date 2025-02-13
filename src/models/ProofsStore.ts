@@ -54,6 +54,7 @@ export const ProofsStoreModel = types
                 isPending: boolean,
                 unit?: MintUnit,                
                 keysetIds?: string[]
+                ascending?: boolean
             }
         ): Proof[] {
             let proofs: Proof[] = []
@@ -66,18 +67,32 @@ export const ProofsStoreModel = types
             }
 
             if (options.unit) {
-                return proofs.filter(
-                    proof => proof.mintUrl === mintUrl && 
-                    proof.unit === options.unit
-                )
-                .slice()
-                .sort((a, b) => b.amount - a.amount)   
+                if(options.ascending) {
+                    return proofs.filter(
+                        proof => proof.mintUrl === mintUrl && 
+                        proof.unit === options.unit
+                    )
+                    .slice()
+                    .sort((a, b) => a.amount - b.amount)   
+                } else {
+                    return proofs.filter(
+                        proof => proof.mintUrl === mintUrl && 
+                        proof.unit === options.unit
+                    )
+                    .slice()
+                    .sort((a, b) => b.amount - a.amount)   
+                }                
             }
 
-            return proofs.filter(proof => proof.mintUrl === mintUrl)
+            if(options.ascending) {
+                return proofs.filter(proof => proof.mintUrl === mintUrl)
+                .slice()
+                .sort((a, b) => a.amount - b.amount)
+            } else {
+                return proofs.filter(proof => proof.mintUrl === mintUrl)
                 .slice()
                 .sort((a, b) => b.amount - a.amount)
-
+            }
         },        
         getProofInstance(proof: Proof, isPending: boolean = false) {
             return self.getBySecret(proof.secret, isPending)
