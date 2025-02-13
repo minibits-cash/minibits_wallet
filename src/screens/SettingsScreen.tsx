@@ -139,7 +139,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
 
   const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {            
     // silent
-    // setIsNativeUpdateAvailable(true)
+    setIsNativeUpdateAvailable(true)
   }
 
   const gotoMints = function() {

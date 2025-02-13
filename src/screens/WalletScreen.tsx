@@ -119,6 +119,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                 const update = await codePush.checkForUpdate(deploymentKey, handleBinaryVersionMismatchCallback)                
                 
                 if (update && update.failedInstall !== true) {  // do not announce update that failed to install before
+                    // log.trace('[checkForUpdate]', update)
                     if(ANDROID_VERSION_NAME === update.appVersion) {
                         setUpdateDescription(update.description)
                         setUpdateSize(`${round(update.packageSize *  0.000001, 2)}MB`)
@@ -140,7 +141,6 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         }, 500)
         
     }, [])
-
 
     
     const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {

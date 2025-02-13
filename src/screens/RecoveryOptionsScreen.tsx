@@ -1,6 +1,7 @@
 import {observer} from 'mobx-react-lite'
 import React, {useState, useEffect} from 'react'
 import {TextStyle, View, ViewStyle} from 'react-native'
+import notifee, { AndroidImportance } from '@notifee/react-native'
 import {spacing, useThemeColor, colors} from '../theme'
 import {
   Button,  
@@ -11,6 +12,7 @@ import {
   ErrorModal,
   InfoModal,
   Loading,
+  BottomModal,
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
@@ -21,6 +23,7 @@ import EventEmitter from '../utils/eventEmitter'
 import { translate } from '../i18n'
 import { NotificationService } from '../services/notificationService'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+import { ResultModalInfo } from './Wallet/ResultModalInfo'
 
 type Props = StaticScreenProps<{
   fromScreen?: string
@@ -37,7 +40,8 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<AppError | undefined>()
     const [info, setInfo] = useState('')
-    const [isSyncStateSentToQueue, setIsSyncStateSentToQueue] = useState<boolean>(false)    
+    const [isSyncStateSentToQueue, setIsSyncStateSentToQueue] = useState<boolean>(false)
+    const [isNotificationModalVisible, setIsNotificationModalVisible] = useState(false) 
 
 
     useEffect(() => {
@@ -59,7 +63,14 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
       }
   }, [isSyncStateSentToQueue])
 
+    const openNotificationSettings = async function() {
+      await notifee.openNotificationSettings()        
+    }
 
+
+    const toggleNotificationModal = () =>
+      setIsNotificationModalVisible(previousState => !previousState)
+  
 
     const gotoSeedRecovery = function () {
       navigation.navigate('SeedRecovery')
@@ -77,6 +88,13 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
 
 
     const checkSpent = async function () {
+      const enabled = await NotificationService.areNotificationsEnabled()
+
+      if(!enabled) {
+        toggleNotificationModal()
+        return
+      }
+      
       setIsLoading(true)
       setIsSyncStateSentToQueue(true)
 
@@ -209,7 +227,28 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
           {error && <ErrorModal error={error} />}
           {info && <InfoModal message={info} />}                    
         </View>
-
+        <BottomModal
+          isVisible={isNotificationModalVisible ? true : false}          
+          ContentComponent={
+            <>
+              <ResultModalInfo
+                icon="faTriangleExclamation"
+                iconColor={colors.palette.accent300}
+                title={"Permission needed"}
+                message={"Minibits needs a permission to display notification while this task will be running."}
+              />
+              <View style={$buttonContainer}>
+                <Button
+                    preset="secondary"
+                    text={'Open settings'}
+                    onPress={openNotificationSettings}
+                />                      
+              </View>
+            </>
+          }
+          onBackButtonPress={toggleNotificationModal}
+          onBackdropPress={toggleNotificationModal}
+        />
       </Screen>
     )
   },
@@ -257,4 +296,9 @@ const $lightningCard: ViewStyle = {
 const $item: ViewStyle = {
   paddingHorizontal: spacing.small,
   paddingLeft: 0,
+}
+
+const $buttonContainer: ViewStyle = {
+  flexDirection: 'row',
+  alignSelf: 'center',
 }

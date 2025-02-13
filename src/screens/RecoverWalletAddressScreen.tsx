@@ -170,23 +170,21 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
           <Card
             style={$card}
             ContentComponent={
+              <>
               <ListItem
                 text={profileToRecover.nip05}
                 subText="This is the wallet address linked to the provided seed."
                 LeftComponent={<View style={[$numIcon, { backgroundColor: numIconColor }]}><Text text='2' /></View>}
                 style={$item}
+                bottomSeparator
               />
-            }
-          />
-          <Card
-            style={[$card]}            
-            ContentComponent={
               <ListItem
-                text={'Do not forget!'}
-                subText="Your current address will reset, but current wallet seed phrase will NOT be changed. Make a backup!"
+                text={'Do not lose your ecash!'}
+                subText="Your current wallet seed phrase will NOT be changed. Keep it in a safe place!"
                 LeftComponent={<View style={[$numIcon, { backgroundColor: numIconColor }]}><Text text='3' /></View>}
                 style={$item}
               />
+              </>
             }
           />
           </>

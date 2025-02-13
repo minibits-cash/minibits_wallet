@@ -69,6 +69,7 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
   const [isMintsInBackup, setIsMintsInBackup] = useState(true)
   const [isContactsInBackup, setIsContactsInBackup] = useState(true)
   const [isResultModalVisible, setIsResultModalVisible] = useState(false)
+  const [isNotificationModalVisible, setIsNotificationModalVisible] = useState(false) 
   const [resultModalInfo, setResultModalInfo] = useState<
     {status: TransactionStatus; title?: string, message: string} | undefined
   >()
@@ -133,12 +134,18 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
   }, [isSwapAllSentToQueue])
 
 
+  const openNotificationSettings = async function() {
+    await notifee.openNotificationSettings()        
+  }
   
   const toggleResultModal = () => {
       setIsResultModalVisible(previousState => !previousState)
       WalletTask.syncStateWithAllMintsQueue({isPending: true})
   }     
   
+  const toggleNotificationModal = () =>
+    setIsNotificationModalVisible(previousState => !previousState)
+
 
   const toggleBackupEcashSwitch = () =>
       setIsEcashInBackup(previousState => !previousState)
@@ -152,7 +159,14 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
       setIsContactsInBackup(previousState => !previousState)
 
 
-  const optimizeProofAmountsStart = function () {
+  const optimizeProofAmountsStart = async function () {
+    const enabled = await NotificationService.areNotificationsEnabled()
+
+    if(!enabled) {
+      toggleNotificationModal()
+      return
+    }
+
     Alert.alert(
       'Optimize ecash proofs',
       'Do you want to swap your wallet ecash for proofs with optimal denominations? The size of your backup will decrease.',
@@ -544,6 +558,28 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
         }
         onBackButtonPress={toggleResultModal}
         onBackdropPress={toggleResultModal}
+      />
+      <BottomModal
+        isVisible={isNotificationModalVisible ? true : false}          
+        ContentComponent={
+          <>
+            <ResultModalInfo
+                  icon="faTriangleExclamation"
+                  iconColor={colors.palette.accent300}
+                  title={"Permission needed"}
+                  message={"Minibits needs a permission to display notification while this task will be running."}
+                />
+                <View style={$buttonContainer}>
+                  <Button
+                      preset="secondary"
+                      text={'Open settings'}
+                      onPress={openNotificationSettings}
+                  />                      
+                </View>
+          </>
+        }
+        onBackButtonPress={toggleNotificationModal}
+        onBackdropPress={toggleNotificationModal}
       />
     </Screen>
   )
