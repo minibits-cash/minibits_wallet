@@ -1,7 +1,6 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useState, useEffect} from 'react'
+import React, {useState, useEffect} from 'react'
 import {TextStyle, View, ViewStyle} from 'react-native'
-import notifee, { AndroidImportance } from '@notifee/react-native'
 import {spacing, useThemeColor, colors} from '../theme'
 import {
   Button,  
@@ -20,8 +19,7 @@ import { useStores } from '../models'
 import { SYNC_STATE_WITH_ALL_MINTS_TASK, SyncStateTaskResult } from '../services/walletService'
 import EventEmitter from '../utils/eventEmitter'
 import { translate } from '../i18n'
-import { NotificationService, TASK_QUEUE_CHANNEL_ID, TASK_QUEUE_CHANNEL_NAME } from '../services/notificationService'
-import { minibitsPngIcon } from '../components/MinibitsIcon'
+import { NotificationService } from '../services/notificationService'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
 type Props = StaticScreenProps<{
