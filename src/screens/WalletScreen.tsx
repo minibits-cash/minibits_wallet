@@ -260,6 +260,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     
 
     const gotoUpdate = function() {
+        setIsUpdateModalVisible(false)
         //@ts-ignore
         navigation.navigate('SettingsNavigator', {
             screen: 'Update',
