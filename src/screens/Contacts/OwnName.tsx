@@ -22,7 +22,7 @@ import { roundUp } from '../../utils/number'
 import { LNURLPayParams, LnurlClient } from '../../services/lnurlService'
 import { useNavigation } from '@react-navigation/native'
 
-const DEFAULT_DONATION_AMOUNT = 10
+const DEFAULT_DONATION_AMOUNT = 500
 const DONATION_LNURL_ADDRESS = 'minibits@minibits.cash'
 
 export const OwnName = observer(function (props: {pubkey: string}) { 
