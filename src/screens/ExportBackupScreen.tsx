@@ -496,11 +496,10 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
               />
           </View>            
         </View>        
-
+        {isLoading && <Loading statusMessage='Do not quit until completed...' />}
+        {error && <ErrorModal error={error} />}
+        {info && <InfoModal message={info} />}
       </View>
-      {isLoading && <Loading statusMessage='Do not quit until completed...' />}
-      {error && <ErrorModal error={error} />}
-      {info && <InfoModal message={info} />}
       <View style={$bottomContainer}>
         {proofsStore.proofsCount > 0 && (
             <View style={$buttonContainer}>
