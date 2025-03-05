@@ -422,8 +422,7 @@ export const receiveSync = async function (
                 token,
                 transactionId   
             )
-        } catch (e: any) {
-            // ugly but should do the trick if previous nwcTransfer got interrupted
+        } catch (e: any) {            
             if(e.message.includes('outputs have already been signed before')) {                
                 log.error('[receiveSync] Increasing proofsCounter outdated values and repeating receiveSync.')
                 receivedResult = await walletStore.receive(

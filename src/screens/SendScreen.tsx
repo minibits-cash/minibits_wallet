@@ -622,17 +622,17 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
     const increaseProofsCounterAndRetry = async function () {
         try {
-        const walletInstance = await walletStore.getWallet(
-            mintBalanceToSendFrom?.mintUrl as string, 
-            unitRef.current, 
-            {withSeed: true}
-        )
-        const mintInstance = mintsStore.findByUrl(mintBalanceToSendFrom?.mintUrl as string)
-        const counter = mintInstance!.getProofsCounterByKeysetId!(walletInstance.keysetId)
-        counter!.increaseProofsCounter(20)
+            const walletInstance = await walletStore.getWallet(
+                mintBalanceToSendFrom?.mintUrl as string, 
+                unitRef.current, 
+                {withSeed: true}
+            )
+            const mintInstance = mintsStore.findByUrl(mintBalanceToSendFrom?.mintUrl as string)
+            const counter = mintInstance!.getProofsCounterByKeysetId!(walletInstance.keysetId)
+            counter!.increaseProofsCounter(10)
 
-        // retry send
-        onMintBalanceConfirm()
+            // retry send
+            onMintBalanceConfirm()
         } catch (e: any) {            
             handleError(e)
         } finally {

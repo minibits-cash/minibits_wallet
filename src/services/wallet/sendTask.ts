@@ -346,15 +346,33 @@ export const sendFromMintSync = async function (
                 amountWithFees, 
                 returnedAmount, 
                 transactionId
-            }) 
-            
-            const sendResult = await walletStore.send(
-                mintUrl,
-                amountToSend,                
-                unit,            
-                proofsToSendFrom,
-                transactionId
-            )
+            })
+
+            let sendResult = undefined
+
+            try {
+                sendResult = await walletStore.send(
+                    mintUrl,
+                    amountToSend,                
+                    unit,            
+                    proofsToSendFrom,
+                    transactionId
+                )
+            } catch (e: any) {                
+                if(e.params && e.params.message.includes('outputs have already been signed before')) {          
+                    log.error('[sendFromMintSync] Increasing proofsCounter outdated values and repeating send.')      
+                    sendResult = await walletStore.send(
+                        mintUrl,
+                        amountToSend,                
+                        unit,            
+                        proofsToSendFrom,
+                        transactionId,
+                        {increaseCounterBy: 10}
+                    )
+                } else {
+                    throw e
+                }
+            }
 
             returnedProofs = sendResult.returnedProofs
             proofsToSend = sendResult.proofsToSend
@@ -433,9 +451,9 @@ export const sendFromMintSync = async function (
             })            
 
             await WalletTask.syncStateWithMintTask({
-                    proofsToSync: proofsStore.getByMint(mintUrl, {isPending: true, unit}),
-                    mintUrl,
-                    isPending: true
+                proofsToSync: proofsStore.getByMint(mintUrl, {isPending: true, unit}),
+                mintUrl,
+                isPending: true
             })
         }
 

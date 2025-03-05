@@ -269,7 +269,7 @@ export const WalletStoreModel = types
           const requestedKeys = mintInstance.keys!.find((k: MintKeys) => k.id === options.keysetId)
 
           if(!requestedKeys) {
-            throw new AppError(Err.NOTFOUND_ERROR, 'Mint has no keys with provided keyset id.', {
+            throw new AppError(Err.NOTFOUND_ERROR, 'Mint has no keys with provided keyset id, refresh mint settings.', {
               mintUrl, 
               keysetId: options.keysetId
             })
@@ -293,9 +293,10 @@ export const WalletStoreModel = types
           const activeKeys = mintInstance.keys!.find((k: MintKeys) => k.id === activeKeyset.id)
 
           if(!activeKeys) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Wallet has not any keys for the selected unit.', {
+            throw new AppError(Err.VALIDATION_ERROR, 'Wallet has not any keys for the selected unit, refresh mint settings.', {
               mintUrl, 
-              unit
+              unit,
+              activeKeysetId: activeKeyset.id
             })
           }
             
@@ -462,7 +463,8 @@ export const WalletStoreModel = types
             unit: MintUnit,  
             proofsToSendFrom: Proof[],
             transactionId: number,
-            options?: {              
+            options?: {
+              increaseCounterBy?: number,             
               inFlightRequest?: InFlightRequest<SendParams>       
             }
         ) {
@@ -482,6 +484,11 @@ export const WalletStoreModel = types
             )
 
             const currentCounter = mintInstance.getProofsCounterByKeysetId!(cashuWallet.keysetId)
+            
+            // outputs error healing
+            if(options && options.increaseCounterBy) {
+              currentCounter.increaseProofsCounter(options.increaseCounterBy)
+            }
         
             log.debug('[WalletStore.send] counter', currentCounter.counter)
             
@@ -758,6 +765,7 @@ export const WalletStoreModel = types
             proofsToMeltFrom: CashuProof[],  // proofAmount >= amount + fee_reserve
             transactionId: number,
             options?: {
+              increaseCounterBy?: number,
               inFlightRequest?: InFlightRequest<MeltParams>
             }
         ) {
@@ -776,8 +784,13 @@ export const WalletStoreModel = types
             )
 
             const currentCounter = mintInstance.getProofsCounterByKeysetId!(cashuWallet.keysetId)
+
+            // outputs error healing
+            if(options && options.increaseCounterBy) {
+              currentCounter.increaseProofsCounter(options.increaseCounterBy)
+            }
         
-            log.debug('[WalletStore.mintProofs] counter', currentCounter.counter)
+            log.debug('[WalletStore.payLightningMelt] counter', currentCounter.counter)
             
             const meltParams: MeltParams = options?.inFlightRequest?.request || {
                 meltQuote,              

@@ -172,15 +172,33 @@ export const transferTask = async function (
             unit         
         })
 
-        transaction.setInputToken(inputToken)        
+        transaction.setInputToken(inputToken)
+        
+        try {
+            meltResponse = await walletStore.payLightningMelt(
+                mintUrl,
+                unit,
+                meltQuote,
+                proofsToMeltFrom,
+                transactionId,
+            )
+        } catch (e: any) {
+            if(e.params && e.params.message.includes('outputs have already been signed before')) {                
+                log.error('[transferTask] Increasing proofsCounter outdated values and repeating payLightningMelt.')
+                meltResponse = await walletStore.payLightningMelt(
+                    mintUrl,
+                    unit,
+                    meltQuote,
+                    proofsToMeltFrom,
+                    transactionId,
+                    {increaseCounterBy: 10}
+                )
+            } else {
+                throw e
+            }
+        }
 
-        meltResponse = await walletStore.payLightningMelt(
-            mintUrl,
-            unit,
-            meltQuote,
-            proofsToMeltFrom,
-            transactionId,
-        )
+
         
         if (meltResponse.quote.state === MeltQuoteState.PAID) {
             
