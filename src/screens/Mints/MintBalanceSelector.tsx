@@ -16,14 +16,16 @@ export const MintBalanceSelector = observer(function (props: {
     unit: MintUnit
     title: string
     confirmTitle: string
+    collapsible?: boolean
     onMintBalanceSelect: any
     onCancel: any  
     onMintBalanceConfirm: any
   }) {
   
+    const collapsible = props.collapsible === false ? false : true // default true
     const {mintsStore} = useStores()
     const [isKeyboardVisible, setIsKeyboardVisible] = useState(false)
-    const [allVisible, setAllVisible] = useState<boolean>(false)
+    const [allVisible, setAllVisible] = useState<boolean>(collapsible ? false : true)
     // log.trace('[MintBalanceSelector]', props.selectedMintBalance.mintUrl)
   
     useEffect(() => {
@@ -70,7 +72,7 @@ export const MintBalanceSelector = observer(function (props: {
     return (
       <View style={{flex: 1}}>
         <Card
-          style={props.mintBalances.length > 1 ? [$card, {paddingTop: spacing.extraSmall}] : [$card, {paddingVertical: spacing.extraSmall}]}
+          style={props.mintBalances.length > 1 && collapsible ? [$card, {paddingTop: spacing.extraSmall}] : [$card, {paddingVertical: spacing.extraSmall}]}
           label={props.title}                    
           ContentComponent={
             <>
@@ -87,13 +89,13 @@ export const MintBalanceSelector = observer(function (props: {
                               isSelectable={true}
                               isSelected={!!props.selectedMintBalance ? props.selectedMintBalance.mintUrl === item.mintUrl : false}
                               separator={index === 0 || allVisible === false ? undefined : 'top'}
-                              style={(!allVisible && props.selectedMintBalance && props.selectedMintBalance.mintUrl !== item.mintUrl) ? {display: 'none'} : {}}                            
+                              style={(!allVisible && collapsible && props.selectedMintBalance && props.selectedMintBalance.mintUrl !== item.mintUrl) ? {display: 'none'} : {}}                            
                           />
                       )
                   }}
                   keyExtractor={(item) => item.mintUrl} 
                   style={{ flexGrow: 0, maxHeight: spacing.screenHeight * 0.35 }}
-                  ListFooterComponent={props.mintBalances.length > 1 ? (
+                  ListFooterComponent={props.mintBalances.length > 1 && collapsible ? (
                     <View style={{alignItems: 'center'}}>
                       <Button 
                         tx={allVisible ? 'common.hideMore' : 'common.showMore'}

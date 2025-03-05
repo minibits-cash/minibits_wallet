@@ -12,6 +12,7 @@ import {
   MeltProofsResponse,  
   CheckStateEnum,
   OutputAmounts,
+  MintQuoteResponse,
 } from '@cashu/cashu-ts'
 import { isObj } from '@cashu/cashu-ts/src/utils'
 import { JS_BUNDLE_VERSION } from '@env'
@@ -618,34 +619,30 @@ export const WalletStoreModel = types
             quote: string,  
         ) {
             try {
-            const cashuMint: CashuMint = yield self.getMint(mintUrl)
-            const {
-                request: encodedInvoice, 
-                quote: mintQuote, 
-                state,      
-            } = yield cashuMint.checkMintQuote(      
-                quote
-            )
-        
-            log.info('[checkLightningMintQuote]', {encodedInvoice, mintQuote, state})
-        
-            return {
-                encodedInvoice,
-                mintQuote,
-                state
-            }
+              const cashuMint: CashuMint = yield self.getMint(mintUrl)
+              const quoteResponse: MintQuoteResponse = yield cashuMint.checkMintQuote(      
+                  quote
+              )
+          
+              log.info('[checkLightningMintQuote]', {quoteResponse})
+          
+              return {
+                  encodedInvoice: quoteResponse.request,
+                  mintQuote: quoteResponse.quote,
+                  state: quoteResponse.state
+              }
             } catch (e: any) {
-            let message = 'The mint could not return the state of a mint quote.'
-            if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
-            throw new AppError(
-                Err.MINT_ERROR, 
-                message, 
-                {
-                    message: e.message,
-                    caller: 'checkLightningMintQuote', 
-                    mintUrl,            
-                }
-            )
+              let message = 'The mint could not return the state of a mint quote.'
+              if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
+              throw new AppError(
+                  Err.MINT_ERROR, 
+                  message, 
+                  {
+                      message: e.message,
+                      caller: 'checkLightningMintQuote', 
+                      mintUrl,            
+                  }
+              )
             }
         }),
         mintProofs: flow(function* mintProofs(  
@@ -706,7 +703,7 @@ export const WalletStoreModel = types
 
                 currentCounter.removeInFlightRequest(transactionId)            
                 
-                log.info('[mintProofs]', {proofs})        
+                log.debug('[mintProofs]', {amount: mintParams.amount, quote: mintParams.quote, proofs})        
         
                 return proofs
         

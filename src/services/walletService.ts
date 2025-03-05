@@ -6,6 +6,7 @@ import {log} from './logService'
 import {Proof} from '../models/Proof'
 import {
   Transaction,
+  TransactionData,
   TransactionStatus,
   TransactionType
 } from '../models/Transaction'
@@ -128,6 +129,10 @@ type WalletTaskService = {
         transaction: Transaction
     ) => Promise<void>
     testQueue: () => Promise<void>
+    recoverMintQuote: (params: {
+        mintUrl: string, 
+        mintQuote: string
+    }) => Promise<{recoveredAmount: number}>
 }
 
 export interface WalletTaskResult {
@@ -1691,6 +1696,135 @@ const handlePendingTopupTask = async function (params: {paymentRequest: PaymentR
 }
 
 
+const recoverMintQuote = async function (params: {mintUrl: string, mintQuote: string}): Promise<{recoveredAmount: number}> {
+    const {mintUrl, mintQuote} = params
+    const mintInstance = mintsStore.findByUrl(mintUrl as string)
+    const unit = 'sat'    
+    
+    if(!mintInstance || !mintQuote) {
+        throw new AppError(Err.VALIDATION_ERROR, 'Missing mint or mint quote', {mintUrl})
+    }
+    
+    // check is quote has been paid
+    const { state, mintQuote: quote, encodedInvoice } = await walletStore.checkLightningMintQuote(mintUrl, mintQuote)
+
+    if (quote !== mintQuote) {
+        throw new AppError(Err.VALIDATION_ERROR, 'Returned quote is different then the one requested', {mintUrl, quote, mintQuote})
+    }
+
+    switch (state) {            
+        case MintQuoteState.UNPAID:
+            log.trace('[handlePendingTopupTask] Quote not paid', {mintUrl, mintQuote})                
+            throw new AppError(Err.VALIDATION_ERROR, `Quote ${mintQuote} is not paid`)                
+        case MintQuoteState.PAID:
+            const invoice = LightningUtils.decodeInvoice(encodedInvoice)
+            const {amount, description} = LightningUtils.getInvoiceData(invoice)
+
+            const transactionData: TransactionData[] = [
+                {
+                    status: TransactionStatus.DRAFT,
+                    amount,
+                    unit,
+                    createdAt: new Date(),
+                }
+            ]
+
+            const newTransaction = {
+                type: TransactionType.TOPUP,
+                amount,
+                fee: 0,
+                unit,
+                data: JSON.stringify(transactionData),
+                memo: description,
+                mint: mintUrl,
+                status: TransactionStatus.DRAFT,
+            }
+            // store tx in db and in the model
+            const transaction = await transactionsStore.addTransaction(newTransaction)
+            const transactionId = transaction.id                 
+    
+            let proofs: CashuProof[] = []
+    
+            try {        
+                proofs = (await walletStore.mintProofs(
+                    mintUrl as string,
+                    amount,
+                    'sat',
+                    mintQuote,
+                    transactionId
+                ))
+            } catch (e: any) {
+                if(e.message.includes('outputs have already been signed before')) {
+                    
+                    log.error('[handlePendingTopupTask] Increasing proofsCounter outdated values and repeating mintProofs.')                        
+    
+                    proofs = (await walletStore.mintProofs(
+                        mintUrl as string,
+                        amount,
+                        unit,
+                        mintQuote,
+                        transactionId,
+                        {increaseCounterBy: 10}
+                    ))
+                } else {
+                    throw e
+                }
+            }
+            
+            if (!proofs || proofs.length === 0) {        
+                throw new AppError(Err.VALIDATION_ERROR, 'Mint did not return any proofs.')
+            }        
+    
+            // we got proofs, accept to the wallet asap
+            const {addedAmount: recoveredAmount} = WalletUtils.addCashuProofs(
+                mintUrl as string,
+                proofs,
+                {
+                    unit,
+                    transactionId,
+                    isPending: false               
+                }
+            )                
+            
+            const currencyCode = getCurrency(unit).code  
+    
+            // update related tx
+            const transactionDataUpdate = {
+                status: TransactionStatus.COMPLETED,
+                createdAt: new Date(),
+            }
+    
+            // await for final status
+            await transactionsStore.updateStatuses(
+                [transactionId],
+                TransactionStatus.COMPLETED,
+                JSON.stringify(transactionDataUpdate),
+            )
+            
+            // Update tx with current total balance of topup unit/currency
+            const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
+            transaction.setBalanceAfter(balanceAfter)            
+                    
+            
+            return { recoveredAmount }
+        /* 
+            * ISSUED 
+            */
+        case MintQuoteState.ISSUED:
+            log.trace('[handlePendingTopupTask] Quote already issued', {mintUrl, mintQuote})            
+
+            throw new AppError(Err.VALIDATION_ERROR, `Quote ${mintQuote} already issued.`) 
+        /* 
+            * UNKNOWN 
+            */
+        default:
+            log.error(`[handlePendingTopupTask] Unknown MintQuoteState`, {state})
+            throw new AppError(Err.VALIDATION_ERROR, `Quote ${mintQuote} has unknown state ${state}`)        
+    }   
+
+}
+
+
 const handleClaimQueue = async function (): Promise<void> {
     
     log.info('[handleClaimQueue] start')
@@ -2208,5 +2342,6 @@ export const WalletTask: WalletTaskService = {
     transferQueue,      
     topupQueue,
     revertQueue,
-    testQueue
+    testQueue,
+    recoverMintQuote
 }
