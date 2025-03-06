@@ -81,6 +81,7 @@ const getConnectionRelays = function () {
 
 const MIN_LIGHTNING_FEE = 2 // sats
 const LIGHTNING_FEE_PERCENT = 1
+const MAX_MULTI_PAY_INVOICES = 5
 
 const getSupportedMethods = function () {
     return [
@@ -181,6 +182,10 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                 body = 'Pay invoice error: '
             }
 
+            if(nwcResponse.result_type === 'multi_pay_invoice') {
+                body = 'Multi pay invoice error: '
+            }
+
             if(nwcResponse.result_type === 'get_balance') {
                 body = 'Get balance error: '
             }
@@ -201,14 +206,130 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                 `<b>${self.name}</b> - Nostr Wallet Connect`,
                 body + (nwcResponse as NwcError).error.message,
                 nwcPngUrl
-            )
-            
+            )            
         }    
 
         yield NostrClient.publish(
             responseEvent,
             self.connectionRelays                    
         )    
+    }),
+    payInvoice: flow(function* payInvoice(nwcRequest: NwcRequest, encodedInvoice: string, requestEvent: NostrEvent) {
+        log.debug('[Nwc.payInvoice] start')       
+
+        try {            
+            const walletStore = self.getWalletStore()
+            const proofsStore = self.getProofsStore()
+        
+            const invoice = LightningUtils.decodeInvoice(encodedInvoice)
+
+            const {
+                amount: amountToPay, 
+                expiry, 
+                description, 
+                timestamp
+            } = LightningUtils.getInvoiceData(invoice)
+
+            const invoiceExpiry = addSeconds(new Date(timestamp as number * 1000), expiry as number)
+            
+            // Calculated on device to avoid mintQuote call for minibits mint
+            const feeReserve = Math.max(MIN_LIGHTNING_FEE, amountToPay * LIGHTNING_FEE_PERCENT / 100) 
+            const totalAmountToPay = amountToPay + feeReserve 
+
+            let mintBalance: MintBalance | undefined = undefined            
+            const minibitsBalance = proofsStore.getMintBalance(MINIBITS_MINT_URL)
+
+            if(minibitsBalance && minibitsBalance.balances.sat! >= totalAmountToPay) {
+                mintBalance = minibitsBalance                
+            } else {
+                mintBalance = proofsStore.getMintBalanceWithMaxBalance('sat')
+            }
+            
+            const availableBalanceSat = mintBalance?.balances.sat || 0
+
+            if(!mintBalance || availableBalanceSat < totalAmountToPay) {
+                const message = `Insufficient balance to pay this invoice.`
+                return {
+                    result_type: nwcRequest.method,
+                    error: { code: 'INSUFFICIENT_BALANCE', message}
+                } as NwcError
+            }
+
+            if(totalAmountToPay > self.remainingDailyLimit) {
+                const message = `Your remaining daily limit of ${self.remainingDailyLimit} SAT would be exceeded with this payment.`
+                return {
+                    result_type: nwcRequest.method,
+                    error: { code: 'QUOTA_EXCEEDED', message}
+                } as NwcError
+            }
+            
+            const meltQuote: MeltQuoteResponse = yield walletStore.createLightningMeltQuote(
+                mintBalance.mintUrl,
+                'sat',
+                encodedInvoice,
+            )
+
+            const result = yield transferTask(
+                mintBalance,
+                amountToPay,                    
+                'sat',
+                meltQuote,                  
+                description || '',
+                invoiceExpiry as Date,
+                encodedInvoice,
+                requestEvent
+            )
+
+            if(result.meltQuote?.quote === self.lastMeltQuoteId) {
+                throw new AppError(Err.ALREADY_EXISTS_ERROR, 'Already processed', {quote: result.meltQuote?.quote})
+            }
+
+            self.setLastMeltQuoteId(result.meltQuote?.quote)
+
+            let nwcResponse: NwcResponse | NwcError
+    
+            if(result.transaction?.status === TransactionStatus.COMPLETED) {
+                const updatedLimit = self.remainingDailyLimit - 
+                (result.transaction.amount + result.transaction.fee)
+    
+                nwcResponse = {
+                    result_type: nwcRequest.method,
+                    result: {
+                      preimage: result.preimage,
+                    }
+                } as NwcResponse
+    
+                log.trace('[handleTransferTaskResult] Updating remainingLimit', {
+                    connection: self.name,
+                    beforeUpdate: self.remainingDailyLimit,
+                    afterUpdate: updatedLimit
+                })
+    
+                self.setRemainingDailyLimit(updatedLimit)            
+    
+                yield NotificationService.createLocalNotification(
+                    `<b>${self.name}</b> - Nostr Wallet Connect`,
+                    `Paid ${result.transaction.amount} SAT${result.transaction.fee > 0 ? ', fee ' + result.transaction.fee + ' SAT' : ''}. Remaining today's limit is ${self.remainingDailyLimit} SAT`,
+                    nwcPngUrl
+                )
+                
+            } else {
+                nwcResponse = {
+                    result_type: nwcRequest.method,
+                    error: { code: 'INTERNAL', message: result.message}
+                } as NwcError
+            }
+    
+            return nwcResponse
+
+        } catch (e: any) {            
+            log.error(`[NwcConnection.handlePayInvoice] ${e.message}`)
+            
+            return {
+                result_type: nwcRequest.method,
+                error: { code: 'INTERNAL', message: e.message}
+            } as NwcError
+        }
     }),
 }))
 .actions(self => ({
@@ -287,7 +408,6 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             connection: self.name,
             amountMsat: nwcRequest.params.amount,                         
         })
-
                      
         const proofsStore = self.getProofsStore()
         const mintBalance = proofsStore.getMintBalanceWithMaxBalance('sat')
@@ -388,128 +508,45 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         } as NwcResponse
     },
     handlePayInvoice: flow(function* handlePayInvoice(nwcRequest: NwcRequest, requestEvent: NostrEvent) {
-        log.debug('[Nwc.handlePayInvoice] start')       
-
-        try {
-            const encoded = nwcRequest.params.invoice
-            const walletStore = self.getWalletStore()
-            const proofsStore = self.getProofsStore()
-
-            // reset daily limit if day changed while keeping live connection
-            if(!isSameDay(self.currentDay, new Date())) {                
-                self.setRemainingDailyLimit(self.dailyLimit)
-                self.setCurrentDay()
-            }
+        log.debug('[Nwc.handlePayInvoice] start') 
         
-            const invoice = LightningUtils.decodeInvoice(encoded)
-
-            const {
-                amount: amountToPay, 
-                expiry, 
-                description, 
-                timestamp
-            } = LightningUtils.getInvoiceData(invoice)
-
-            const invoiceExpiry = addSeconds(new Date(timestamp as number * 1000), expiry as number)
-            
-            // Calculated on device to avoid mintQuote call for minibits mint
-            const feeReserve = Math.max(MIN_LIGHTNING_FEE, amountToPay * LIGHTNING_FEE_PERCENT / 100) 
-            const totalAmountToPay = amountToPay + feeReserve 
-
-            let mintBalance: MintBalance | undefined = undefined            
-            const minibitsBalance = proofsStore.getMintBalance(MINIBITS_MINT_URL)
-
-            if(minibitsBalance && minibitsBalance.balances.sat! >= totalAmountToPay) {
-                mintBalance = minibitsBalance                
-            } else {
-                mintBalance = proofsStore.getMintBalanceWithMaxBalance('sat')
-            }
-            
-            const availableBalanceSat = mintBalance?.balances.sat || 0
-
-            if(!mintBalance || availableBalanceSat < totalAmountToPay) {
-                const message = `Insufficient balance to pay this invoice.`
-                return {
-                    result_type: nwcRequest.method,
-                    error: { code: 'INSUFFICIENT_BALANCE', message}
-                } as NwcError
-            }
-
-            if(totalAmountToPay > self.remainingDailyLimit) {
-                const message = `Your remaining daily limit of ${self.remainingDailyLimit} SAT would be exceeded with this payment.`
-                return {
-                    result_type: nwcRequest.method,
-                    error: { code: 'QUOTA_EXCEEDED', message}
-                } as NwcError
-            }
-            
-            const meltQuote: MeltQuoteResponse = yield walletStore.createLightningMeltQuote(
-                mintBalance.mintUrl,
-                'sat',
-                encoded,
-            )
-
-            const result = yield transferTask(
-                mintBalance,
-                amountToPay,                    
-                'sat',
-                meltQuote,                  
-                description || '',
-                invoiceExpiry as Date,
-                encoded,
-                requestEvent
-            )
-
-            if(result.meltQuote?.quote === self.lastMeltQuoteId) {
-                throw new AppError(Err.ALREADY_EXISTS_ERROR, 'Already processed', {quote: result.meltQuote?.quote})
-            }
-
-            self.setLastMeltQuoteId(result.meltQuote?.quote)
-
-            let nwcResponse: NwcResponse | NwcError
-    
-            if(result.transaction?.status === TransactionStatus.COMPLETED) {
-                const updatedLimit = self.remainingDailyLimit - 
-                (result.transaction.amount + result.transaction.fee)
-    
-                nwcResponse = {
-                    result_type: 'pay_invoice',
-                    result: {
-                      preimage: result.preimage,
-                    }
-                } as NwcResponse
-    
-                log.trace('[handleTransferTaskResult] Updating remainingLimit', {
-                    connection: self.name,
-                    beforeUpdate: self.remainingDailyLimit,
-                    afterUpdate: updatedLimit
-                })
-    
-                self.setRemainingDailyLimit(updatedLimit)            
-    
-                yield NotificationService.createLocalNotification(
-                    `<b>${self.name}</b> - Nostr Wallet Connect`,
-                    `Paid ${result.transaction.amount} SAT${result.transaction.fee > 0 ? ', fee ' + result.transaction.fee + ' SAT' : ''}. Remaining today's limit is ${self.remainingDailyLimit} SAT`,
-                    nwcPngUrl
-                )
-                
-            } else {
-                nwcResponse = {
-                    result_type: 'pay_invoice',
-                    error: { code: 'INTERNAL', message: result.message}
-                } as NwcError
-            }
-    
-            return nwcResponse
-
-        } catch (e: any) {            
-            log.error(`[NwcConnection.handlePayInvoice] ${e.message}`)
-            
-            return {
-                result_type: nwcRequest.method,
-                error: { code: 'INTERNAL', message: e.message}
-            } as NwcError
+        // reset daily limit if day changed while keeping live connection
+        if(!isSameDay(self.currentDay, new Date())) {                
+            self.setRemainingDailyLimit(self.dailyLimit)
+            self.setCurrentDay()
         }
+
+        const nwcResponse = yield self.payInvoice(nwcRequest, nwcRequest.params.invoice, requestEvent)
+        return nwcResponse as NwcResponse | NwcError
+    }),
+    handleMultiPayInvoice: flow(function* handleMultiPayInvoice(nwcRequest: NwcRequest, requestEvent: NostrEvent) {
+        log.debug('[Nwc.handleMultiPayInvoice] start')       
+        
+        const encodedInvoices: string[] = nwcRequest.params.invoices
+
+        if(encodedInvoices.length > MAX_MULTI_PAY_INVOICES) {
+            const nwcResponse = {
+                result_type: 'multi_pay_invoice',
+                error: { code: 'INTERNAL', message: 'Can not process more than 5 payments at once.'}
+            } as NwcError
+
+            return [nwcResponse] as NwcError[]
+        }
+
+        // reset daily limit if day changed while keeping live connection
+        if(!isSameDay(self.currentDay, new Date())) {                
+            self.setRemainingDailyLimit(self.dailyLimit)
+            self.setCurrentDay()
+        }
+
+        const nwcResponses: (NwcResponse | NwcError)[] = []
+
+        for (const invoice of encodedInvoices) {
+            const nwcResponse = yield self.payInvoice(nwcRequest, invoice, requestEvent)
+            nwcResponses.push(nwcResponse)
+        }
+
+        return nwcResponses
     })
 }))
 .actions(self => ({
@@ -527,29 +564,34 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             nwcRequest = decryptedNwcRequest
         }
         
-        let nwcResponse: NwcResponse | NwcError
+        let nwcResponse: NwcResponse | NwcError | undefined = undefined
+        let nwcResponses: (NwcResponse | NwcError)[] = []       
 
         log.trace('[Nwc.handleRequest] request event', {requestEvent})
         log.trace('[Nwc.handleRequest] decrypted nwc command', {nwcRequest})
 
         switch (nwcRequest.method) {
             case 'get_info':                
-                nwcResponse = self.handleGetInfo(nwcRequest)
+                nwcResponse = self.handleGetInfo(nwcRequest)                
                 break
             case 'list_transactions':                
-                nwcResponse = self.handleListTransactions(nwcRequest)    
+                nwcResponse = self.handleListTransactions(nwcRequest)                
                 break                 
             case 'get_balance':                
-                nwcResponse = self.handleGetBalance(nwcRequest)    
+                nwcResponse = self.handleGetBalance(nwcRequest)                
                 break 
             case 'make_invoice':                
-                nwcResponse = yield self.handleMakeInvoice(nwcRequest, requestEvent)
+                nwcResponse = yield self.handleMakeInvoice(nwcRequest, requestEvent)                
                 break
             case 'lookup_invoice':                
-                nwcResponse = self.handleLookupInvoice(nwcRequest)    
+                nwcResponse = self.handleLookupInvoice(nwcRequest)                
                 break        
             case 'pay_invoice':                 
-                nwcResponse = yield self.handlePayInvoice(nwcRequest, requestEvent)
+                nwcResponse = yield self.handlePayInvoice(nwcRequest, requestEvent)                
+                break
+            case 'multi_pay_invoice':                 
+                const responses = yield self.handleMultiPayInvoice(nwcRequest, requestEvent)
+                nwcResponses = [...responses]
                 break
             default:
                 const message = `NWC method ${nwcRequest.method} is unknown or not yet supported.`
@@ -561,11 +603,16 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                 log.error(message, {nwcRequest})
         }
 
-         
-        yield self.sendResponse(nwcResponse, requestEvent)
+        // support for multiple responses from one nwc request (multi_pay_invoice)
+        if(nwcResponse) {
+            nwcResponses.push(nwcResponse)
+        }
 
-        return nwcResponse
+        for (const response of nwcResponses) {
+            yield self.sendResponse(response, requestEvent)
+        }        
 
+        return nwcResponses[0]
     }),
 }))
 
@@ -775,9 +822,6 @@ export const NwcStoreModel = types
 
             const nwcResponse: NwcResponse | NwcError = 
                 yield targetConnection.handleNwcRequestTask(event, decryptedNwcRequest)
-
-            // prevent rare cases where this might not be called in SyncQueue._handleTaskResult
-            //yield NotificationService.stopForegroundService()
 
             return {                
                 taskFunction: HANDLE_NWC_REQUEST_TASK,            
