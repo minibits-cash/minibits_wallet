@@ -148,7 +148,8 @@ export const NwcConnectionModel = types.model('NwcConnection', {
 }))
 .views(self => ({
     get connectionString(): string {
-        return `nostr+walletconnect://${self.walletPubkey}?relay=${self.connectionRelays.join('&relay=')}&secret=${self.connectionSecret}`
+        const walletProfileStore = self.getWalletProfileStore()
+        return `nostr+walletconnect://${self.walletPubkey}?relay=${self.connectionRelays.join('&relay=')}&secret=${self.connectionSecret}&lud16=${walletProfileStore.lud16}`
     },
 }))
 
