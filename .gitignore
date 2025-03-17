@@ -2,6 +2,7 @@
 .env
 google-services.json
 minibits-upload-key.keystore
+GoogleService-Info.plist
 
 # OSX
 #
