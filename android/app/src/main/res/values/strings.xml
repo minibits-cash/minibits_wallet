@@ -1,4 +1,4 @@
 <resources>
     <string name="app_name">Minibits</string>
-    <string moduleConfig="true" name="CodePushDeploymentKey">mockkey</string><!-- real key passed to codepush in .sync method -->
+    <!--string moduleConfig="true" name="CodePushDeploymentKey">mockkey</string--><!-- real key passed to codepush in .sync method -->
 </resources>

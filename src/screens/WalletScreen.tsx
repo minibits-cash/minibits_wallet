@@ -15,7 +15,7 @@ import {
   LayoutAnimation,
   AppStateStatus,  
 } from 'react-native'
-import codePush, { RemotePackage } from 'react-native-code-push'
+// import codePush, { RemotePackage } from 'react-native-code-push'
 import {moderateScale, verticalScale} from '@gocodingnow/rn-size-matters'
 import { SvgXml } from 'react-native-svg'
 import { NavigationState, Route, TabBar, TabBarItemProps, TabBarProps, TabView } from 'react-native-tab-view'
@@ -113,7 +113,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     const [isNativeUpdateAvailable, setIsNativeUpdateAvailable] = useState<boolean>(false)
 
     // On app start
-    useEffect(() => {
+    /* useEffect(() => {
         const checkForUpdate = async () => {            
             try {
                 const update = await codePush.checkForUpdate(deploymentKey, handleBinaryVersionMismatchCallback)                
@@ -140,15 +140,15 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             checkForUpdate()
         }, 500)
         
-    }, [])
+    }, []) 
 
     
     const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {
         log.info('[handleBinaryVersionMismatchCallback] triggered', ANDROID_VERSION_NAME, update)
         setIsNativeUpdateAvailable(true)
         toggleUpdateModal()
-    }
-
+    } */
+    
     // On app start
     useEffect(() => {        
         const getInitialData  = async () => {

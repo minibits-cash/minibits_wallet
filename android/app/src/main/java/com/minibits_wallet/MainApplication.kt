@@ -12,7 +12,7 @@ import com.facebook.react.defaults.DefaultReactNativeHost
 import com.facebook.react.soloader.OpenSourceMergedSoMapping
 import com.facebook.soloader.SoLoader
 import com.facebook.react.modules.network.OkHttpClientProvider
-import com.microsoft.codepush.react.CodePush
+// import com.microsoft.codepush.react.CodePush
 
 class MainApplication : Application(), ReactApplication {
 
@@ -35,9 +35,9 @@ class MainApplication : Application(), ReactApplication {
         // 2. Override the getJSBundleFile method in order to let
         // the CodePush runtime determine where to get the JS
         // bundle location from on each app start
-        override fun getJSBundleFile(): String {
-            return CodePush.getJSBundleFile() 
-        }
+        // override fun getJSBundleFile(): String {
+        //    return CodePush.getJSBundleFile() 
+        // }
       }
 
   override val reactHost: ReactHost

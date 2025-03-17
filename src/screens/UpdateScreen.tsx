@@ -6,7 +6,7 @@ import {
     CODEPUSH_STAGING_DEPLOYMENT_KEY,
     CODEPUSH_PRODUCTION_DEPLOYMENT_KEY, 
 } from '@env'
-import codePush from "react-native-code-push"
+// import codePush from "react-native-code-push"
 import {colors, spacing, useThemeColor} from '../theme'
 import {
   Icon,
@@ -78,7 +78,7 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
 
 
     const handleUpdate = function (): void {
-        try {
+        /*try {
             codePush.sync({
                 deploymentKey,
                 rollbackRetryOptions: {
@@ -102,7 +102,7 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
             })
         } catch (e: any) {
             handleError(e)
-        }
+        }*/
     }
 
 

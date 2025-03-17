@@ -8,7 +8,7 @@ import {
     CODEPUSH_STAGING_DEPLOYMENT_KEY,
     CODEPUSH_PRODUCTION_DEPLOYMENT_KEY,
 } from '@env'
-import codePush, { RemotePackage } from 'react-native-code-push'
+// import codePush, { RemotePackage } from 'react-native-code-push'
 import {ThemeCode, Themes, colors, spacing, useThemeColor} from '../theme'
 import {ListItem, Screen, Text, Card, NwcIcon, Button, BottomModal, InfoModal, Icon} from '../components'
 import {useHeader} from '../utils/useHeader'
@@ -54,12 +54,12 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
     useEffect(() => {
         const checkForUpdate = async () => {
             try {
-                const update = await codePush.checkForUpdate(deploymentKey, handleBinaryVersionMismatchCallback)
+                /*const update = await codePush.checkForUpdate(deploymentKey, handleBinaryVersionMismatchCallback)
                 if (update && update.failedInstall !== true) {  // do not announce update that failed to install before
                     setUpdateDescription(update.description)
                     setUpdateSize(`${round(update.packageSize *  0.000001, 2)}MB`)                  
                     setIsUpdateAvailable(true)
-                }
+                }*/
                 
             } catch (e: any) {
                 log.info(e.name, e.message)
@@ -137,10 +137,10 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
     setIsThemeModalVisible(previousState => !previousState)
   }
 
-  const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {            
+ /* const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {            
     // silent
     setIsNativeUpdateAvailable(true)
-  }
+  } */
 
   const gotoMints = function() {
     navigation.navigate('Mints', {})
