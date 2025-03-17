@@ -1,0 +1,20 @@
+--- a/node_modules/react-native-exit-app/ios/RNExitApp/RNExitApp.h
++++ b/node_modules/react-native-exit-app/ios/RNExitApp/RNExitApp.h
+@@ -1,13 +1,13 @@
+ #if __has_include(<React/RCTBridgeModule.h>)
+ #import <React/RCTBridgeModule.h>
+-#elif __has_include("RCTBridgeModule.h")
+-#import "RCTBridgeModule.h"
++#elif __has_include(<React/RCTBridgeModule.h>)
++#import <React/RCTBridgeModule.h>
+ #else
+-#import "React/RCTBridgeModule.h"
++#import <React/RCTBridgeModule.h>
+ #endif
+ 
+ #if RCT_NEW_ARCH_ENABLED
+-#import <React-Codegen/RNExitAppSpec/RNExitAppSpec.h>
++#import <ReactCodegen/RNExitAppSpec/RNExitAppSpec.h>
+ #endif
+ 
+ @interface RNExitApp : NSObject <RCTBridgeModule>
