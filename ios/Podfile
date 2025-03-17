@@ -16,7 +16,10 @@ end
 
 target 'minibits_wallet' do
   config = use_native_modules!
-
+  #firebase
+  use_frameworks! :linkage => :static
+  $RNFirebaseAsStaticFramework = true
+  #firebase end
   use_react_native!(
     :path => config[:reactNativePath],
     # An absolute path to your application root.
