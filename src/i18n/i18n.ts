@@ -28,8 +28,17 @@ i18n.enableFallback = true;
 // also, react native provides locales in the en_US format, whereas js expect them in en-US format
 // this is smaller than a full intl polyfill and does what we need
 
+
+let localeIos = "en_US"
+ 
+/*if(Platform.OS === 'ios') {
+  if(NativeModules.SettingsManager.settings.AppleLocale || NativeModules.SettingsManager.settings.AppleLanguages[0]){
+    localeIos = NativeModules.SettingsManager.settings.AppleLocale ||  NativeModules.SettingsManager.settings.AppleLanguages[0]
+  }
+}*/
+
 const fullLocaleRN: string = (Platform.OS === 'ios'
-  ? NativeModules.SettingsManager.settings.AppleLocale
+  ? localeIos
   : NativeModules.I18nManager.localeIdentifier
 ).toString().replaceAll('_', '-')
 

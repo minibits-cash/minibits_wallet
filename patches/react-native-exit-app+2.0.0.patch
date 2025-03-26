@@ -1,8 +1,8 @@
 diff --git a/node_modules/react-native-exit-app/ios/RNExitApp/RNExitApp.h b/node_modules/react-native-exit-app/ios/RNExitApp/RNExitApp.h
-index 3d7124c..e200589 100644
+index 50a2135..78a9256 100644
 --- a/node_modules/react-native-exit-app/ios/RNExitApp/RNExitApp.h
 +++ b/node_modules/react-native-exit-app/ios/RNExitApp/RNExitApp.h
-@@ -6,10 +6,6 @@
+@@ -6,14 +6,10 @@
  #import "React/RCTBridgeModule.h"
  #endif
  
@@ -13,3 +13,50 @@ index 3d7124c..e200589 100644
  @interface RNExitApp : NSObject <RCTBridgeModule>
  @end
  
+-#if RCT_NEW_ARCH_ENABLED
+-@interface RNExitApp () <NativeRNExitAppSpec>
+-@end
+-#endif
++//#if RCT_NEW_ARCH_ENABLED
++//@interface RNExitApp () <NativeRNExitAppSpec>
++//@end
++//#endif
+diff --git a/node_modules/react-native-exit-app/ios/RNExitApp/RNExitApp.mm b/node_modules/react-native-exit-app/ios/RNExitApp/RNExitApp.mm
+index bec5948..ef219ec 100644
+--- a/node_modules/react-native-exit-app/ios/RNExitApp/RNExitApp.mm
++++ b/node_modules/react-native-exit-app/ios/RNExitApp/RNExitApp.mm
+@@ -2,9 +2,9 @@
+ 
+ #import "RNExitApp.h"
+ 
+-#if RCT_NEW_ARCH_ENABLED
+-#import <RNExitAppSpec/RNExitAppSpec.h>
+-#endif
++//#if RCT_NEW_ARCH_ENABLED
++//#import <RNExitAppSpec/RNExitAppSpec.h>
++//#endif
+ 
+ @implementation RNExitApp
+ 
+@@ -17,14 +17,14 @@ @implementation RNExitApp
+ 
+ # pragma mark - New Architecture
+ 
+-#if RCT_NEW_ARCH_ENABLED
++//#if RCT_NEW_ARCH_ENABLED
+ 
+-- (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
+-    (const facebook::react::ObjCTurboModule::InitParams &)params
+-{
+-    return std::make_shared<facebook::react::NativeRNExitAppSpecJSI>(params);
+-}
++//- (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
++//    (const facebook::react::ObjCTurboModule::InitParams &)params
++//{
++//    return std::make_shared<facebook::react::NativeRNExitAppSpecJSI>(params);
++//}
+ 
+-#endif
++//#endif
+ 
+ @end
