@@ -1,0 +1,22 @@
+diff --git a/node_modules/react-native/ReactCommon/react/renderer/animations/utils.h b/node_modules/react-native/ReactCommon/react/renderer/animations/utils.h
+index 41b9be9..7ffc2f4 100644
+--- a/node_modules/react-native/ReactCommon/react/renderer/animations/utils.h
++++ b/node_modules/react-native/ReactCommon/react/renderer/animations/utils.h
+@@ -105,15 +105,11 @@ static inline bool shouldFirstComeBeforeSecondMutation(
+     // must come first.
+     if (lhs.type == ShadowViewMutation::Type::Remove &&
+         lhs.parentShadowView.tag == rhs.parentShadowView.tag) {
+-      if (lhs.index > rhs.index) {
+-        return true;
+-      } else {
+-        return false;
+-      }
++        return lhs.index > rhs.index;
+     }
+   }
+ 
+-  return false;
++  return &lhs < &rhs;
+ }
+ 
+ std::pair<Float, Float> calculateAnimationProgress(

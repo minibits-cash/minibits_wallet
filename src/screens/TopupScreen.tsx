@@ -64,13 +64,6 @@ import {TranItem} from './TranDetailScreen'
 import {translate} from '../i18n'
 import { TOPUP_TASK } from '../services/wallet/topupTask'
 
-if (
-  Platform.OS === 'android' &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true)
-}
-
 type Props = StaticScreenProps<{
   unit: MintUnit,
   paymentOption?: ReceiveOption,
@@ -426,7 +419,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
         }
         setIsAmountEndEditing(true)
         // We do not make memo focus mandatory
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+        LayoutAnimation.easeInEaseOut()
         // Show mint selector
         setIsMintSelectorVisible(true)
       } catch (e: any) {
@@ -435,7 +428,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
     }
 
     const onMemoEndEditing = function () {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+      LayoutAnimation.easeInEaseOut()
 
       // Show mint selector
       if (availableMintBalances.length > 0) {
@@ -679,6 +672,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
               editable={
                 transactionStatus === TransactionStatus.PENDING ? false : true
               }
+              returnKeyType={'done'}
             />
             <Text
               size="sm"

@@ -18,10 +18,6 @@ import { WalletProfileRecord } from '../models/WalletProfileStore'
 import { translate } from '../i18n'
 import { StackActions, StaticScreenProps, useNavigation } from '@react-navigation/native'
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true)
-}
-
 type Props = StaticScreenProps<undefined>
 
 export const RecoverWalletAddressScreen = observer(function RecoverWalletAddressScreen({ route }: Props) {
@@ -52,7 +48,7 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
         throw new AppError(Err.VALIDATION_ERROR, translate('backupScreen.missingMnemonicError'))
       }
 
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+      LayoutAnimation.easeInEaseOut()
 
       if (!validateMnemonic(mnemonic, wordlist)) {
         throw new AppError(Err.VALIDATION_ERROR, translate("recoveryInvalidMnemonicError"))

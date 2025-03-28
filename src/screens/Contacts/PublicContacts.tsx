@@ -24,11 +24,6 @@ import { toJS } from 'mobx'
 const defaultPublicNpub = 'npub1kvaln6tm0re4d99q9e4ma788wpvnw0jzkz595cljtfgwhldd75xsj9tkzv'
 const maxContactsToLoad = 20
 
-if (Platform.OS === 'android' &&
-    UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true)
-}
-
 export const PublicContacts = observer(function (props: {
     paymentOption: ReceiveOption | SendOption | undefined}
 ) {
@@ -418,13 +413,13 @@ export const PublicContacts = observer(function (props: {
 
 
     const collapseProfile = function () {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)        
+        LayoutAnimation.easeInEaseOut()        
         setIsOwnProfileVisible(false)
         
     }
 
     const expandProfile = function () {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+        LayoutAnimation.easeInEaseOut()
         setIsOwnProfileVisible(true)
     }
 

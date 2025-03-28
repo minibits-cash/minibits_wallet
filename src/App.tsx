@@ -4,8 +4,6 @@ import {
     APP_ENV,
     SENTRY_DSN,
     JS_BUNDLE_VERSION,    
-    CODEPUSH_STAGING_DEPLOYMENT_KEY,
-    CODEPUSH_PRODUCTION_DEPLOYMENT_KEY,
     ANDROID_VERSION_NAME,    
 } from '@env'
 // import codePush from 'react-native-code-push'
@@ -26,7 +24,7 @@ import Config from './config'
 import {log} from './services'
 import {Env} from './utils/envtypes'
 import AppError from './utils/AppError'
-import { Image, TextStyle, View } from 'react-native'
+import { Image, TextStyle, View, Platform, UIManager } from 'react-native'
 import { spacing, typography } from './theme'
 import { displayName } from '../app.json'
 import { Text } from './components/Text'
@@ -50,6 +48,11 @@ if (!__DEV__) {
         },
         enableTracing: false
     })
+}
+
+if (Platform.OS === 'android' &&
+    UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
 function App() {

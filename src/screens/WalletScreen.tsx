@@ -13,7 +13,8 @@ import {
   Pressable,
   Linking,
   LayoutAnimation,
-  AppStateStatus,  
+  AppStateStatus,
+  Platform,  
 } from 'react-native'
 // import codePush, { RemotePackage } from 'react-native-code-push'
 import {moderateScale, verticalScale} from '@gocodingnow/rn-size-matters'
@@ -46,14 +47,9 @@ import {TransactionListItem} from './Transactions/TransactionListItem'
 import {WalletTask} from '../services'
 import {translate} from '../i18n'
 import AppError, { Err } from '../utils/AppError'
-import {
-    APP_ENV,      
-    CODEPUSH_STAGING_DEPLOYMENT_KEY,
-    CODEPUSH_PRODUCTION_DEPLOYMENT_KEY,
-    MINIBITS_MINT_URL,
-    ANDROID_VERSION_NAME
+import {    
+    MINIBITS_MINT_URL,    
 } from '@env'
-import { round } from '../utils/number'
 import { IncomingParser } from '../services/incomingParser'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { CurrencySign } from './Wallet/CurrencySign'
@@ -62,7 +58,7 @@ import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import { LeftProfileHeader } from './ContactsScreen'
 import { getUnixTime } from 'date-fns/getUnixTime'
 
-const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
+
 const MINT_CHECK_INTERVAL = 60
 
 type Props = StaticScreenProps<{
@@ -913,12 +909,16 @@ const MintsByUnitList = observer(function (props: {
 
     const onSelectedMint = function (mintUrl: string) {
         if (selectedMintUrl && selectedMintUrl === mintUrl) {            
-            LayoutAnimation.easeInEaseOut()
+            if(Platform.OS === 'android') {
+                LayoutAnimation.easeInEaseOut()
+            }
             setSelectedMintUrl(undefined)
             return
         }
 
-        LayoutAnimation.easeInEaseOut()
+        if(Platform.OS === 'android') {
+            LayoutAnimation.easeInEaseOut()
+        }
         setSelectedMintUrl(mintUrl)        
     }
         
@@ -962,7 +962,7 @@ const MintsByUnitList = observer(function (props: {
                     //topSeparator={true}
                     style={$item}
                     onPress={() => onSelectedMint(mint.mintUrl)}
-                    topSeparator={index !== 0 ?? true}
+                    topSeparator={index > 0 ? true : false}
                 />
                 {selectedMintUrl === mint.mintUrl &&  (
                     <View style={{flexDirection: 'row', marginBottom: spacing.small, justifyContent: 'flex-start'}}>

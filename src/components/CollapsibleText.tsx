@@ -19,7 +19,7 @@ const maxLines = 50
 export const CollapsibleText = (props: CollapsibleProps) => {
   const [collapsed, setCollapsed] = useState(props?.collapsed ?? false)
   const toggleCollapse = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+    LayoutAnimation.easeInEaseOut()
     setCollapsed(!collapsed)
   }
   const textDim = useThemeColor('textDim')

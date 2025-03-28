@@ -11,7 +11,9 @@
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		902F38392D92C792005DB998 /* OpenSSL.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 902F38382D92C792005DB998 /* OpenSSL.xcframework */; };
-		90C59D872D9195980061E3E1 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 90C59D862D9195980061E3E1 /* GoogleService-Info.plist */; };
+		9044DC252D95937D00F918A6 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 9044DC242D95937D00F918A6 /* GoogleService-Info.plist */; };
+		A1B9A6F7058C4F12AB677FD4 /* nostr.png in Resources */ = {isa = PBXBuildFile; fileRef = AB8A46AD84194C2583FF9193 /* nostr.png */; };
+		C3AB98FDBCF446F99A4EA648 /* Gluten-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 6DA8A3418B7A4B348B67B9E7 /* Gluten-Regular.ttf */; };
 		CD7DC745CFA9F47C2D6FFA1D /* Pods_minibits_wallet.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4ACC08249CA13DFDBBBD7A8B /* Pods_minibits_wallet.framework */; };
 		D610B97F2318E8AB9D0962D2 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
@@ -24,10 +26,13 @@
 		3B4392A12AC88292D35C810B /* Pods-minibits_wallet.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-minibits_wallet.debug.xcconfig"; path = "Target Support Files/Pods-minibits_wallet/Pods-minibits_wallet.debug.xcconfig"; sourceTree = "<group>"; };
 		4ACC08249CA13DFDBBBD7A8B /* Pods_minibits_wallet.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_minibits_wallet.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		5709B34CF0A7D63546082F79 /* Pods-minibits_wallet.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-minibits_wallet.release.xcconfig"; path = "Target Support Files/Pods-minibits_wallet/Pods-minibits_wallet.release.xcconfig"; sourceTree = "<group>"; };
+		6DA8A3418B7A4B348B67B9E7 /* Gluten-Regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Gluten-Regular.ttf"; path = "../assets/fonts/Gluten-Regular.ttf"; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = minibits_wallet/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = minibits_wallet/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		902F38382D92C792005DB998 /* OpenSSL.xcframework */ = {isa = PBXFileReference; expectedSignature = "AppleDeveloperProgram:67RAULRX93:Marcin Krzyzanowski"; lastKnownFileType = wrapper.xcframework; name = OpenSSL.xcframework; path = "Pods/OpenSSL-Universal/OpenSSL.xcframework"; sourceTree = "<group>"; };
-		90C59D862D9195980061E3E1 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		9044DC232D9556F600F918A6 /* minibits_wallet.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = minibits_wallet.entitlements; path = minibits_wallet/minibits_wallet.entitlements; sourceTree = "<group>"; };
+		9044DC242D95937D00F918A6 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "minibits_wallet/GoogleService-Info.plist"; sourceTree = "<group>"; };
+		AB8A46AD84194C2583FF9193 /* nostr.png */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = nostr.png; path = ../assets/icons/nostr.png; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
@@ -47,6 +52,7 @@
 		13B07FAE1A68108700A75B9A /* minibits_wallet */ = {
 			isa = PBXGroup;
 			children = (
+				9044DC232D9556F600F918A6 /* minibits_wallet.entitlements */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
@@ -66,6 +72,15 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		4B24E47762034A51AEE63594 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				6DA8A3418B7A4B348B67B9E7 /* Gluten-Regular.ttf */,
+				AB8A46AD84194C2583FF9193 /* nostr.png */,
+			);
+			name = Resources;
+			sourceTree = "<group>";
+		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
 			isa = PBXGroup;
 			children = (
@@ -76,12 +91,13 @@
 		83CBB9F61A601CBA00E9B192 = {
 			isa = PBXGroup;
 			children = (
-				90C59D862D9195980061E3E1 /* GoogleService-Info.plist */,
+				9044DC242D95937D00F918A6 /* GoogleService-Info.plist */,
 				13B07FAE1A68108700A75B9A /* minibits_wallet */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				BBD78D7AC51CEA395F1C20DB /* Pods */,
+				4B24E47762034A51AEE63594 /* Resources */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -168,9 +184,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
-				90C59D872D9195980061E3E1 /* GoogleService-Info.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				D610B97F2318E8AB9D0962D2 /* PrivacyInfo.xcprivacy in Resources */,
+				C3AB98FDBCF446F99A4EA648 /* Gluten-Regular.ttf in Resources */,
+				A1B9A6F7058C4F12AB677FD4 /* nostr.png in Resources */,
+				9044DC252D95937D00F918A6 /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -282,6 +300,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = minibits_wallet/minibits_wallet.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = GR2ZKMCLAM;
 				ENABLE_BITCODE = NO;
@@ -297,7 +316,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.ios.minibits-wallet";
+				PRODUCT_BUNDLE_IDENTIFIER = cash.minibits.wallet;
 				PRODUCT_NAME = minibits_wallet;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -311,6 +330,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = minibits_wallet/minibits_wallet.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = GR2ZKMCLAM;
 				INFOPLIST_FILE = minibits_wallet/Info.plist;
@@ -325,7 +345,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.ios.minibits-wallet";
+				PRODUCT_BUNDLE_IDENTIFIER = cash.minibits.wallet;
 				PRODUCT_NAME = minibits_wallet;
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
@@ -413,10 +433,7 @@
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					" ",
-				);
+				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
@@ -497,10 +514,7 @@
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					" ",
-				);
+				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;

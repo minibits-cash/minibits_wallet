@@ -43,10 +43,6 @@ import { WalletProfileRecord } from '../models/WalletProfileStore'
 import { MnemonicInput } from './Recovery/MnemonicInput'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true)
-}
-
 const RESTORE_INDEX_INTERVAL = 50
 
 type Props = StaticScreenProps<undefined>
@@ -143,7 +139,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                 throw new AppError(Err.VALIDATION_ERROR, translate('backupScreen.missingMnemonicError'))
             }
 
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)            
+            LayoutAnimation.easeInEaseOut()            
 
             if (!validateMnemonic(mnemonic, wordlist)) {
                 throw new AppError(Err.VALIDATION_ERROR, translate("recoveryInvalidMnemonicError"))

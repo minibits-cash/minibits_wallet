@@ -1,0 +1,13 @@
+{
+  "migIndex": 1,
+  "data": [
+    {
+      "path": "assets/fonts/Gluten-Regular.ttf",
+      "sha1": "96270757924e60e26763e8814aaa2000f470d352"
+    },
+    {
+      "path": "assets/icons/nostr.png",
+      "sha1": "c4558cc304ea0d6e908c7f43d8c7026041daaf3e"
+    }
+  ]
+}

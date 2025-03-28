@@ -17,11 +17,6 @@ import { translate } from '../i18n'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
 
-if (Platform.OS === 'android' &&
-    UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true)
-}
-
 type Props = StaticScreenProps<{}>
 
 export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {    
@@ -141,7 +136,7 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
               profile.name = nip05Name as string
             }
 
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+            LayoutAnimation.easeInEaseOut()
 
             log.trace('Got valid profile', profile)    
             setOwnProfile(profile)

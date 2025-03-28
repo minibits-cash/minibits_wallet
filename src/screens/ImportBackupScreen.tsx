@@ -37,11 +37,6 @@ import { ContactsStoreSnapshot } from '../models/ContactsStore'
 import { CashuMint, MintActiveKeys } from '@cashu/cashu-ts'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true)
-}
-
 type Props = StaticScreenProps<undefined>
 
 export const ImportBackupScreen = observer(function ImportBackupScreen({ route }: Props) {
@@ -111,7 +106,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
                 throw new AppError(Err.VALIDATION_ERROR, translate('backupScreen.missingMnemonicError'))
             }
 
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)            
+            LayoutAnimation.easeInEaseOut()            
 
             if (!validateMnemonic(mnemonic, wordlist)) {
                 throw new AppError(Err.VALIDATION_ERROR, translate("recoveryInvalidMnemonicError"))
@@ -203,7 +198,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
             throw new AppError(Err.VALIDATION_ERROR, 'Missing backup.')
           }
 
-          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)    
+          LayoutAnimation.easeInEaseOut()    
 
           const snapshot = getWalletSnapshot() // throws
 

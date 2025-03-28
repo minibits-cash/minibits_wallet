@@ -7,11 +7,6 @@ import { isObj } from '@cashu/cashu-ts/src/utils'
 import JSONTree from 'react-native-json-tree'
 import Clipboard from '@react-native-clipboard/clipboard'
 
-if (Platform.OS === 'android' &&
-    UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true)
-}
-
 type ErrorModalProps = {
     error: AppError 
 }
@@ -28,7 +23,7 @@ export const ErrorModal: FC<ErrorModalProps> = function ({ error }) {
     }, [error])
 
     const toggleParams = () => {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+        LayoutAnimation.easeInEaseOut()
         setIsParamsVisible(previousState => !previousState)
     }
 

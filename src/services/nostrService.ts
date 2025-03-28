@@ -12,9 +12,9 @@ import { neventEncode as nostrNeventEncode, npubEncode, decode as nip19Decode } 
 import {SimplePool} from 'nostr-tools/pool'
 import { hexToBytes } from '@noble/hashes/utils'
 import { PrivateDirectMessage, Metadata } from 'nostr-tools/kinds'
-import {
+/*import {
     MINIBITS_RELAY_URL,    
-} from '@env'
+} from '@env'*/
 import {NostrKeyPair} from './keyChain'
 import {log} from './logService'
 import AppError, { Err } from '../utils/AppError'
@@ -22,6 +22,7 @@ import { MinibitsClient } from './minibitsService'
 import { rootStoreInstance } from '../models'
 import { WalletTask } from './walletService'
 
+// refresh
 
 export {     
     NostrEvent, 
@@ -49,9 +50,10 @@ export type Nip05VerificationRecord = {
 }
 
 // TODO cleanup all this shit, move to RelayStore model
+// refresh
 
 const _defaultPublicRelays: string[] = ['wss://relay.primal.net', 'wss://relay.damus.io']
-const _minibitsRelays: string[] = [MINIBITS_RELAY_URL]
+const _minibitsRelays: string[] = ['wss://relay.minibits.cash']
 
 let _pool: any = undefined
 

@@ -34,10 +34,6 @@ import { translate } from '../i18n'
 import { maxTransactionsInHistory } from '../models/TransactionsStore'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
-if (Platform.OS === 'android' &&
-  UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true)
-}
 // Number of transactions held in TransactionsStore model
 const limit = maxTransactionsInHistory
 
@@ -181,13 +177,13 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
 
     
     const collapseHeader = function () {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)        
+        LayoutAnimation.easeInEaseOut()        
         setIsHeaderVisible(false)
         
     }
 
     const expandHeader = function () {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+        LayoutAnimation.easeInEaseOut()
         setIsHeaderVisible(true)
     }
 

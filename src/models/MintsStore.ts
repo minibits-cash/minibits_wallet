@@ -105,6 +105,10 @@ export const MintsStoreModel = types
     }))
     .actions(self => ({
         addMint: flow(function* addMint(mintUrl: string) {
+            if(!mintUrl) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Mint URL is required.')
+            }
+            
             if(!mintUrl.includes('.onion') && !mintUrl.startsWith('https')) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Mint URL needs to start with https.')
             }

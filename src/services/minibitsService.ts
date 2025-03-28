@@ -7,7 +7,7 @@ import {
 } from '@env'
 import { WalletProfile, WalletProfileRecord } from "../models/WalletProfileStore"
 import { CurrencyCode } from "./wallet/currency"
-
+ // refresh // refresh
 
 type MinibitsRequestArgs = {
 	method: 'POST' | 'PUT' | 'DELETE' | 'GET'
@@ -292,8 +292,8 @@ const fetchApi = async (url: string, options: MinibitsRequestOptions, timeout = 
     if (!response) {
         controller.abort()
         throw new AppError(Err.NETWORK_TIMEOUT, 'Timeout: API takes too long to respond.', {caller: 'fetchApi', url})
-    }    
-
+    }
+    
     const responseJson = await response.json()        
 
     if(responseJson && responseJson.error) {            

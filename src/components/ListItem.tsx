@@ -292,19 +292,20 @@ const $separatorBottom: ViewStyle = {
 }
 
 const $textStyle: TextStyle = {
-  // alignSelf: 'flex-start',
-  paddingVertical: spacing.extraSmall,
-  // alignSelf: "center",
+  alignSelf: 'flex-start',
+  // paddingVertical: spacing.extraSmall,  
   textAlignVertical: 'center',
-  flexGrow: 1,
-  flexShrink: 1,
+  // borderColor: 'red',
+  // borderWidth: 1,  
 }
 
 const $subTextContainer: ViewStyle = {  
-  flex: 1,
-  flexDirection: 'column',  
-  // borderColor: 'red',
+  flex: 1,  
+  flexDirection: 'column', 
+  justifyContent: 'center',  
+  // borderColor: 'green',
   // borderWidth: 1,
+  alignSelf: 'stretch',
 }
 
 const $subTextStyle: TextStyle = {
@@ -315,7 +316,7 @@ const $subTextStyle: TextStyle = {
 
 const $touchableStyle: ViewStyle = {
   flexDirection: "row",
-  alignItems: "flex-start",  
+  alignItems: "flex-start",   
 }
 
 const $componentContainer: ViewStyle = {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react"
-import { FlatList, Keyboard, LayoutAnimation, View, ViewStyle } from "react-native"
+import { FlatList, Keyboard, LayoutAnimation, Platform, View, ViewStyle } from "react-native"
 import { observer } from "mobx-react-lite"
 import { Button, Card} from "../../components"
 import { spacing } from "../../theme"
@@ -32,14 +32,18 @@ export const MintBalanceSelector = observer(function (props: {
       const keyboardDidShowListener = Keyboard.addListener(
         'keyboardDidShow',
         () => {
-          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+          if(Platform.OS === 'android') {
+            LayoutAnimation.easeInEaseOut()
+          }
           setIsKeyboardVisible(true);
         }
       );
       const keyboardDidHideListener = Keyboard.addListener(
         'keyboardDidHide',
         () => {
-          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+          if(Platform.OS === 'android') {
+            LayoutAnimation.easeInEaseOut()
+          }
           setIsKeyboardVisible(false);
         }
       );
@@ -53,13 +57,13 @@ export const MintBalanceSelector = observer(function (props: {
 
     useEffect(() => {    
       if(!props.selectedMintBalance) {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)        
+        LayoutAnimation.easeInEaseOut()        
         setAllVisible(true)
       }
     }, [])
   
     const toggleAllVisible = function () {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+      LayoutAnimation.easeInEaseOut()
       setAllVisible(!allVisible)
     }
   

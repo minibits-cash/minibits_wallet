@@ -17,13 +17,12 @@ import {
 import { debounce } from "lodash"
 import * as Sentry from '@sentry/react-native'
 import type {RootStore} from '../RootStore'
-import {KeyChain, MinibitsClient, MMKVStorage} from '../../services'
+import {KeyChain, MMKVStorage} from '../../services'
 import {Database} from '../../services'
 import { log } from  '../../services/logService'
 import { rootStoreModelVersion } from '../RootStore'
 import AppError, { Err } from '../../utils/AppError'
 import { LogLevel } from '../../services/log/logTypes'
-import { MintStatus } from '../Mint'
 import { CurrencyCode } from '../../services/wallet/currency'
 import { ThemeCode } from '../../theme'
 
@@ -79,14 +78,15 @@ export async function setupRootStore(rootStore: RootStore) {
     }
 
     // track changes & save snapshot to the storage not more then once per second
-    const saveSnapshot = debounce((snapshot) => {        
+    /* const saveSnapshot = debounce((snapshot) => {        
         MMKVStorage.save(ROOT_STORAGE_KEY, snapshot)
-    }, 1000)
+    }, 1000)*/    
 
     _disposer = onSnapshot(rootStore, snapshot => {
         // log.trace('[setupRootStore] onSnapshot *** MMKV SHOULD SAVE ***')        
-        saveSnapshot(snapshot)
-        // log.trace('[setupRootStore] saved', {walletStore: snapshot.walletStore})
+        // saveSnapshot(snapshot)
+        // log.trace('[setupRootStore] saved', {walletStore: snapshot.walletStore})        
+        MMKVStorage.save(ROOT_STORAGE_KEY, snapshot)        
     })
 
     // run migrations if needed, needs to be after onSnapshot to be persisted

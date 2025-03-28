@@ -71,11 +71,6 @@ export enum SendOption {
     // DONATION = 'DONATION',
 }
 
-if (Platform.OS === 'android' &&
-    UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true)
-}
-
 type Props = StaticScreenProps<{
     unit: MintUnit,
     paymentOption?: SendOption,
@@ -549,7 +544,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 return
             }
 
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+            LayoutAnimation.easeInEaseOut()
             
             setAmountToSend(`${numbro(amountToSend).format({thousandSeparated: true, mantissa: getCurrency(unitRef.current).mantissa})}`)
             setAvailableMintBalances(availableBalances)
@@ -568,7 +563,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     
 
     const onMemoEndEditing = function () {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+        LayoutAnimation.easeInEaseOut()
         
         // Show mint selector
         if (availableMintBalances.length > 0) {

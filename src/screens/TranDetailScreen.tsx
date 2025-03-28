@@ -58,12 +58,6 @@ import { MintListItem } from './Mints/MintListItem'
 import { Token, getDecodedToken } from '@cashu/cashu-ts'
 import { RECEIVE_OFFLINE_COMPLETE_TASK, RECEIVE_TASK } from '../services/wallet/receiveTask'
 import { REVERT_TASK } from '../services/wallet/revertTask'
-import { TranHistoryScreen } from './TranHistoryScreen'
-import { WalletScreen } from './WalletScreen'
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true)
-}
 
 type ProofsByStatus = {
   isSpent: Proof[]
@@ -93,7 +87,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
     const [isAuditTrailVisible, setIsAuditTrailVisible] = useState<boolean>(false)
 
     const toggleAuditTrail = () => {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+      LayoutAnimation.easeInEaseOut()
       setIsAuditTrailVisible(!isAuditTrailVisible)
     }
 

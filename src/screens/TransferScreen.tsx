@@ -50,15 +50,6 @@ import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { translate } from '../i18n'
 import { MemoInputCard } from '../components/MemoInputCard'
 import { TRANSFER_TASK } from '../services/wallet/transferTask'
-import { LNURLWithdrawParams } from 'js-lnurl'
-
-
-if (
-  Platform.OS === 'android' &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true)
-}
 
 type Props = StaticScreenProps<{
   unit: MintUnit,

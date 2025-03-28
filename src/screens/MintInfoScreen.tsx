@@ -36,11 +36,6 @@ import { CurrencyCode, formatCurrency } from '../services/wallet/currency'
 import { QRShareModal } from '../components/QRShareModal'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true)
-}
-
 interface DetailedNutInfo {
   methods: Array<SwapMethod>;
   disabled: boolean;
@@ -133,7 +128,7 @@ export const MintInfoScreen = observer(function MintInfoScreen({ route }: Props)
   }, [])
 
   const toggleLocalInfo = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+    LayoutAnimation.easeInEaseOut()
     setIsLocalInfoVisible(!isLocalInfoVisible)
   }
 
