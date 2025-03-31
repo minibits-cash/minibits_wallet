@@ -94,12 +94,16 @@ const initNotifications = async () => {
     await messaging().registerDeviceForRemoteMessages()
     const deviceToken = await messaging().getToken()
     log.trace(`[initNotifications] Device token: ${deviceToken}`)
+    if(Platform.OS === 'ios') {
+        const apnsToken = await messaging().getAPNSToken()
+        log.trace(`[initNotifications] APNS token: ${apnsToken}`)        
+    }
     
     const {walletProfileStore} = rootStoreInstance
     if(deviceToken && deviceToken !== walletProfileStore.device) {
         // if device token changed, update the server        
         await walletProfileStore.setDevice(deviceToken)        
-    }
+    }    
 
     messaging().onTokenRefresh(token => {
         if(token !== walletProfileStore.device) {
@@ -107,18 +111,20 @@ const initNotifications = async () => {
         }
     })
 
-    notifee.isChannelCreated(DEFAULT_CHANNEL_ID).then(isCreated => {
-        if (!isCreated) {
-            notifee.createChannel({
-            id: DEFAULT_CHANNEL_ID,
-            name: DEFAULT_CHANNEL_NAME,
-            vibration: true,
-            importance: AndroidImportance.HIGH,
-            })
-        }
-    })      
+    if(Platform.OS === 'android') {
     
-    notifee.isChannelCreated(NWC_CHANNEL_ID).then(isCreated => {
+        notifee.isChannelCreated(DEFAULT_CHANNEL_ID).then(isCreated => {
+            if (!isCreated) {
+                notifee.createChannel({
+                id: DEFAULT_CHANNEL_ID,
+                name: DEFAULT_CHANNEL_NAME,
+                vibration: true,
+                importance: AndroidImportance.HIGH,
+                })
+            }
+        })      
+    
+        notifee.isChannelCreated(NWC_CHANNEL_ID).then(isCreated => {
         if (!isCreated) {
             notifee.createChannel({
             id: NWC_CHANNEL_ID,
@@ -126,28 +132,40 @@ const initNotifications = async () => {
             sound: 'default',
             })
         }
-    })
+        })
 
-    notifee.isChannelCreated(TASK_QUEUE_CHANNEL_ID).then(isCreated => {
-        if (!isCreated) {
-            notifee.createChannel({
-            id: TASK_QUEUE_CHANNEL_ID,
-            name: TASK_QUEUE_CHANNEL_NAME,
-            sound: 'default',
-            })
-        }
-    })
+        notifee.isChannelCreated(TASK_QUEUE_CHANNEL_ID).then(isCreated => {
+            if (!isCreated) {
+                notifee.createChannel({
+                id: TASK_QUEUE_CHANNEL_ID,
+                name: TASK_QUEUE_CHANNEL_NAME,
+                sound: 'default',
+                })
+            }
+        })
 
-    notifee.isChannelCreated(TEST_CHANNEL_ID).then(isCreated => {
-        if (!isCreated) {
-            notifee.createChannel({
-            id: TEST_CHANNEL_ID,
-            name: TASK_QUEUE_CHANNEL_NAME,
-            sound: 'default',
-            })
-        }
-    })
-
+        notifee.isChannelCreated(TEST_CHANNEL_ID).then(isCreated => {
+            if (!isCreated) {
+                notifee.createChannel({
+                id: TEST_CHANNEL_ID,
+                name: TASK_QUEUE_CHANNEL_NAME,
+                sound: 'default',
+                })
+            }
+        })  
+    } else {
+        await notifee.setNotificationCategories([
+            {
+                id: DEFAULT_CHANNEL_ID,              
+            },
+            {
+                id: NWC_CHANNEL_ID,              
+            },
+            {
+                id: TASK_QUEUE_CHANNEL_ID,              
+            },
+        ]);
+    }
 
 }
 
@@ -245,13 +263,15 @@ const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {
 
     if(!isNwcRequestTaskRunning) {
 
-        const isChannelCreated = await notifee.isChannelCreated(NWC_CHANNEL_ID)
-        if (!isChannelCreated) {
-            await notifee.createChannel({
-                id: NWC_CHANNEL_ID,
-                name: NWC_CHANNEL_NAME,
-                sound: 'default',
-            })
+        if(Platform.OS === 'android') {
+            const isChannelCreated = await notifee.isChannelCreated(NWC_CHANNEL_ID)
+            if (!isChannelCreated) {
+                await notifee.createChannel({
+                    id: NWC_CHANNEL_ID,
+                    name: NWC_CHANNEL_NAME,
+                    sound: 'default',
+                })
+            }
         }
 
         await notifee.displayNotification({
@@ -265,6 +285,9 @@ const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {
                 progress: {
                     indeterminate: true,
                 },
+            },
+            ios: {
+                categoryId: NWC_CHANNEL_ID,
             },
             data: {task: HANDLE_NWC_REQUEST_TASK,  data: requestEvent}, // Pass the task data to the foreground service
         })
@@ -328,6 +351,9 @@ const createForegroundNotification = async function (body: string, data: {task: 
                 indeterminate: true,
             }
         },
+        ios: {
+            categoryId: TASK_QUEUE_CHANNEL_ID,
+        },
         data
     })
 }
@@ -363,6 +389,9 @@ const createLocalNotification = async function (title: string, body: string, lar
                 id: 'default',
               },
             },
+            ios: {
+                categoryId: DEFAULT_CHANNEL_ID,
+            },
         })
         
         return notificationId
@@ -376,6 +405,9 @@ const createLocalNotification = async function (title: string, body: string, lar
               pressAction: {
                 id: 'default',
               },         
+            },
+            ios: {
+                categoryId: DEFAULT_CHANNEL_ID,
             },
         })
         

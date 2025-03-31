@@ -1,14 +1,11 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useRef, useState} from 'react'
-import {AppState, TextStyle, View, ViewStyle, useColorScheme} from 'react-native'
-import notifee from '@notifee/react-native'
+import {AppState, Platform, TextStyle, View, ViewStyle, useColorScheme} from 'react-native'
+import notifee, { AuthorizationStatus } from '@notifee/react-native'
 import messaging from '@react-native-firebase/messaging'
 import {
-    APP_ENV,      
-    CODEPUSH_STAGING_DEPLOYMENT_KEY,
-    CODEPUSH_PRODUCTION_DEPLOYMENT_KEY,
+    APP_ENV,
 } from '@env'
-// import codePush, { RemotePackage } from 'react-native-code-push'
 import {ThemeCode, Themes, colors, spacing, useThemeColor} from '../theme'
 import {ListItem, Screen, Text, Card, NwcIcon, Button, BottomModal, InfoModal, Icon} from '../components'
 import {useHeader} from '../utils/useHeader'
@@ -22,8 +19,6 @@ import { NotificationService } from '../services/notificationService'
 import { SvgXml } from 'react-native-svg'
 import { CurrencySign } from './Wallet/CurrencySign'
 import { CommonActions, StaticScreenProps, useNavigation } from '@react-navigation/native'
-
-const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
 
 type Props = StaticScreenProps<undefined>
 
@@ -71,7 +66,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
 
 
     useEffect(() => {
-      const getNotificationPermission = async () => {
+      const getDeviceToken = async () => {
           try {
               const enabled = await NotificationService.areNotificationsEnabled()
               setAreNotificationsEnabled(enabled)
@@ -88,7 +83,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
               return false // silent
           }
       } 
-      getNotificationPermission()
+      getDeviceToken()
   }, [])
 
 
@@ -175,7 +170,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
     ))
   }
 
-  const gotoUpdate = function() {
+  /* const gotoUpdate = function() {
       navigation.navigate('Update', {
           isNativeUpdateAvailable, 
           isUpdateAvailable, 
@@ -183,14 +178,28 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
           updateSize,
           prevScreen: 'Settings'
       })
-  }
+  }*/
 
   const gotoNwc = function() {
     navigation.navigate('Nwc')
   } 
 
   const openNotificationSettings = async function() {
+    if(Platform.OS === 'android') {
       await notifee.openNotificationSettings()        
+    } else {
+      const settings  = await notifee.requestPermission()
+      if (settings.authorizationStatus >= AuthorizationStatus.AUTHORIZED) {
+        log.trace('iOS Permission settings:', settings)
+        await messaging().registerDeviceForRemoteMessages()        
+        const deviceToken = await messaging().getToken()
+        if(deviceToken) {
+          await walletProfileStore.setDevice(deviceToken)
+        } 
+      } else {
+        log.trace('iOS user declined permissions')
+      }
+    }  
   }
 
   /* const gotoPreferredUnit = function() {
@@ -434,7 +443,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                     bottomSeparator={true}
                     onPress={gotoPrivacy}
                 />
-                <ListItem
+                {/*<ListItem
                     tx='settingsScreen.update'     
                     leftIcon='faWandMagicSparkles'
                     leftIconColor={(isUpdateAvailable || isNativeUpdateAvailable) ? colors.palette.iconMagenta200 : colors.palette.neutral400}
@@ -450,7 +459,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                     style={$item}
                     bottomSeparator={true}
                     onPress={gotoUpdate}
-                />
+                />*/}
                 <ListItem
                     tx='settingsScreen.devOptions'
                     leftIcon='faCode'
