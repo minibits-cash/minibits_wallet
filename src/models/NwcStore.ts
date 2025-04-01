@@ -38,6 +38,7 @@ import { MintBalance } from './Mint'
 import { transferTask } from '../services/wallet/transferTask'
 import { topupTask } from '../services/wallet/topupTask'
 import { WalletProfileStore } from './WalletProfileStore'
+import { Platform } from 'react-native'
 
 type NwcError = {
     result_type: string,
@@ -203,7 +204,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             }            
             
             yield NotificationService.createLocalNotification(
-                `<b>${self.name}</b> - Nostr Wallet Connect`,
+                Platform.OS === 'android' ? `<b>${self.name}</b> - Nostr Wallet Connect` : `${self.name} - Nostr Wallet Connect`,
                 body + (nwcResponse as NwcError).error.message,
                 nwcPngUrl
             )            
@@ -308,7 +309,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                 self.setRemainingDailyLimit(updatedLimit)            
     
                 yield NotificationService.createLocalNotification(
-                    `<b>${self.name}</b> - Nostr Wallet Connect`,
+                    Platform.OS === 'android' ? `<b>${self.name}</b> - Nostr Wallet Connect` : `${self.name} - Nostr Wallet Connect`,
                     `Paid ${result.transaction.amount} SAT${result.transaction.fee > 0 ? ', fee ' + result.transaction.fee + ' SAT' : ''}. Remaining today's limit is ${self.remainingDailyLimit} SAT`,
                     nwcPngUrl
                 )
@@ -458,7 +459,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             } as NwcResponse
 
             yield NotificationService.createLocalNotification(
-                `<b>${self.name}</b> - Nostr Wallet Connect`,
+                Platform.OS === 'android' ? `<b>${self.name}</b> - Nostr Wallet Connect` : `${self.name} - Nostr Wallet Connect`,
                 `Invoice for ${result.paymentRequest.invoicedAmount} SATS has been created.`,
                 nwcPngUrl
             )
@@ -790,7 +791,7 @@ export const NwcStoreModel = types
                 
                 //yield NotificationService.stopForegroundService()
                 yield NotificationService.createLocalNotification(
-                    `<b>Nostr Wallet Connect</b> error`,
+                    Platform.OS === 'android' ? `<b>Nostr Wallet Connect<b> error` : `Nostr Wallet Connect error`,
                     message,
                     nwcPngUrl
                 )
@@ -808,7 +809,7 @@ export const NwcStoreModel = types
                 
                 //yield NotificationService.stopForegroundService()
                 yield NotificationService.createLocalNotification(
-                    `<b>Nostr Wallet Connect</b> error`,
+                    Platform.OS === 'android' ? `<b>Nostr Wallet Connect<b> error` : `Nostr Wallet Connect error`,
                     message,
                     nwcPngUrl
                 )

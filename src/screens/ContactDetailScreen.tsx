@@ -17,6 +17,7 @@ import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 import { translate } from '../i18n'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 import { toJS } from 'mobx'
+import FastImage from 'react-native-fast-image'
 
 type Props = StaticScreenProps<{
     contact: Contact
@@ -187,7 +188,7 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
             {picture ? (
                 <View style={{borderRadius: 48, overflow: 'hidden'}}>
-                    <Image style={{width: 96, height: 96}} source={{uri: getImageSource(picture)}} />
+                    <FastImage style={{width: 96, height: 96}} source={{uri: getImageSource(picture)}} />
                 </View>
             ) : (
                 <Icon

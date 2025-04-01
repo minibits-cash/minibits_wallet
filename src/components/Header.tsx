@@ -8,7 +8,8 @@ import {
   ViewStyle,  
   StatusBar,
   StatusBarProps,
-  ColorValue
+  ColorValue,
+  Platform
 } from "react-native"
 import { useIsFocused } from '@react-navigation/native'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
@@ -213,7 +214,7 @@ export function Header(props: HeaderProps) {
         <HeaderAction
           tx={leftTx}
           text={leftText}
-          icon={leftIcon}
+          icon={leftIcon === "faArrowLeft" ? Platform.OS === 'ios' ? 'faChevronLeft' : leftIcon : leftIcon}
           iconColor={leftIconColor as string}
           onPress={onLeftPress}
           txOptions={leftTxOptions}

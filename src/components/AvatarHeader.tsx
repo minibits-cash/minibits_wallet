@@ -5,6 +5,8 @@ import { Icon, Text } from "."
 import { spacing, useThemeColor } from "../theme"
 import { getImageSource } from '../utils/utils'
 import { iconRegistry } from '.'
+import { log } from "../services"
+import FastImage from "react-native-fast-image"
 
 
 export interface AvatarHeaderProps {
@@ -26,11 +28,13 @@ export const AvatarHeader = observer(function (props: AvatarHeaderProps) {
   const headerBg = useThemeColor('header')
   const borderColor = useThemeColor('border')
 
+  // log.trace('AvatarHeader', 'render', { props })
+
   return (
     <View style={[$headerContainer(props.headerHeightModifier ?? 0.2), { backgroundColor: props.headerBgColor || headerBg }]}>
       <View style={{ marginBottom: spacing.small }}>
         {props.picture ? (
-          <Image
+          <FastImage
             style={{
               width: 90,
               height: props.pictureHeight ?? 96,

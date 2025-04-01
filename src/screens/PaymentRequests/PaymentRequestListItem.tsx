@@ -25,6 +25,7 @@ import { CurrencyAmount } from '../Wallet/CurrencyAmount'
 import { useNavigation } from '@react-navigation/native'
 import { MintUnit } from '../../services/wallet/currency'
 import { toJS } from 'mobx'
+import FastImage from 'react-native-fast-image'
 
 export interface PaymentRequestListProps {
   pr: PaymentRequest
@@ -116,19 +117,16 @@ export const PaymentRequestListItem = observer(function PaymentRequestListItem(
                   alignItems: 'center',
                   width: 100,
                 }}>
-                <Image
-                  style={[
-                    $profileIcon,
-                    {
-                      width: 40,
-                      height: pr.contactTo?.isExternalDomain ? 40 : 43,
-                      borderRadius: pr.contactTo?.isExternalDomain ? 20 : 0,
-                    },
-                  ]}
-                  source={{
-                    uri: getImageSource(pr.contactTo?.picture as string),
-                  }}
-                />
+                    <FastImage style={[                            
+                        $profileIcon, {
+                            width: 40, 
+                            height: pr.contactTo.isExternalDomain ? 40 :  43,
+                            borderRadius: pr.contactTo.isExternalDomain ? 20 :  0,
+                        }] as import("react-native-fast-image").ImageStyle}
+                        source={{
+                            uri: getImageSource(pr.contactTo.picture as string) 
+                        }} 
+                    />
                 <Text
                   size="xxs"
                   style={{color: dim}}
@@ -171,20 +169,15 @@ export const PaymentRequestListItem = observer(function PaymentRequestListItem(
                 }}>
                 {pr.contactFrom.picture ? (
                   <View style={{borderRadius: 20, overflow: 'hidden'}}>
-                    <Image
-                      style={[
-                        $profileIcon,
-                        {
-                          width: 40,
-                          height: pr.contactFrom.isExternalDomain ? 40 : 43,
-                          borderRadius: pr.contactFrom.isExternalDomain
-                            ? 20
-                            : 0,
-                        },
-                      ]}
-                      source={{
-                        uri: getImageSource(pr.contactFrom.picture as string),
-                      }}
+                    <FastImage style={[                            
+                        $profileIcon, {
+                            width: 40, 
+                            height: pr.contactFrom.isExternalDomain ? 40 :  43,
+                            borderRadius: pr.contactFrom.isExternalDomain ? 20 :  0,
+                        }] as import("react-native-fast-image").ImageStyle}
+                        source={{
+                            uri: getImageSource(pr.contactFrom.picture as string) 
+                        }} 
                     />
                   </View>
                 ) : (

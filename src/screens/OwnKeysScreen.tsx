@@ -15,6 +15,7 @@ import { MINIBITS_NIP05_DOMAIN } from '@env'
 import { ProfileHeader } from '../components/ProfileHeader'
 import { translate } from '../i18n'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+import FastImage from 'react-native-fast-image'
 
 
 type Props = StaticScreenProps<{}>
@@ -277,7 +278,7 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
                                 LeftComponent={
                                     <View style={{marginRight: spacing.medium, borderRadius: 20, overflow: 'hidden'}}>
                                         {ownProfile.picture ? (
-                                            <Image 
+                                            <FastImage 
                                                 source={{uri: ownProfile.picture}}
                                                 style={{width: 40, height: 40}}
                                             />

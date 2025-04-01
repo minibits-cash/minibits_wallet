@@ -13,6 +13,7 @@ import { ReceiveOption } from './ReceiveScreen'
 import { SendOption } from './SendScreen'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+import FastImage from 'react-native-fast-image'
 
 type Props = StaticScreenProps<{
     paymentOption?: ReceiveOption | SendOption
@@ -94,7 +95,7 @@ export const LeftProfileHeader = observer(function (props: {
     return (        
         <Pressable style={{marginHorizontal: spacing.small}} onPress={props.gotoProfile}>                
             {walletProfileStore.picture && props.isAvatarVisible ? (                    
-                <Image 
+                <FastImage 
                     style={
                         {
                             width: 40, 

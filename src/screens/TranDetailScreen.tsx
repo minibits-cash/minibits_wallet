@@ -58,6 +58,7 @@ import { MintListItem } from './Mints/MintListItem'
 import { Token, getDecodedToken } from '@cashu/cashu-ts'
 import { RECEIVE_OFFLINE_COMPLETE_TASK, RECEIVE_TASK } from '../services/wallet/receiveTask'
 import { REVERT_TASK } from '../services/wallet/revertTask'
+import FastImage from 'react-native-fast-image'
 
 type ProofsByStatus = {
   isSpent: Proof[]
@@ -714,7 +715,7 @@ const ReceiveInfoBlock = function (props: {
                           />
                           <View style={$pictureContainer}>
                           {profilePicture ? (
-                            <Image 
+                            <FastImage 
                               style={
                                 {
                                   width: verticalScale(40),
@@ -726,7 +727,7 @@ const ReceiveInfoBlock = function (props: {
                               // defaultSource={require('../../assets/icons/nostr.png')}
                             /> 
                           ):(
-                            <Image 
+                            <FastImage 
                               style={
                                 {
                                   width: verticalScale(40),

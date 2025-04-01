@@ -35,6 +35,7 @@ import { SvgXml } from 'react-native-svg'
 import { CurrencyCode, formatCurrency } from '../services/wallet/currency'
 import { QRShareModal } from '../components/QRShareModal'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+import FastImage from 'react-native-fast-image'
 
 interface DetailedNutInfo {
   methods: Array<SwapMethod>;
@@ -159,7 +160,7 @@ export const MintInfoScreen = observer(function MintInfoScreen({ route }: Props)
     <Screen contentContainerStyle={$screen} preset="scroll">
       <View style={[$headerContainer, {backgroundColor: headerBg, justifyContent: 'space-around', paddingBottom: spacing.huge}]}>
       {mintInfo && mintInfo.icon_url ? (
-              <Image 
+              <FastImage 
                 style={
                   {
                     width: spacing.extraLarge,
@@ -195,6 +196,7 @@ export const MintInfoScreen = observer(function MintInfoScreen({ route }: Props)
                 //containerStyle={{marginTop: spacing.small}}
                 key={unit}
                 mintUnit={unit}
+                textStyle={{color: 'white'}}
               />
             ))}
           </View>
@@ -222,16 +224,19 @@ export const MintInfoScreen = observer(function MintInfoScreen({ route }: Props)
         }
         />
         {mintInfo && mintLimitInfo?.any && <MintLimitsCard info={mintInfo} limitInfo={mintLimitInfo}/>}
-        {mintInfo && <ContactCard info={mintInfo} popupMessage={setInfo} />}
-        <Card
-          labelTx={mintInfo && "mintInfo.keyValueInfoCardHeading"}
-          // HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
-          ContentComponent={
-            <>
-              {mintInfo && <MintInfoDetails info={mintInfo} popupMessage={setInfo} />}
-            </>
-          }
-        />
+        {mintInfo && 
+          <>
+            <ContactCard info={mintInfo} popupMessage={setInfo} />
+            <Card
+              labelTx={"mintInfo.keyValueInfoCardHeading"}            
+              ContentComponent={
+                <>
+                  {mintInfo && <MintInfoDetails info={mintInfo} popupMessage={setInfo} />}
+                </>
+              }
+            />
+          </>
+        }
         {mintInfo && <NutsCard info={mintInfo} />}
         <Card
           ContentComponent={

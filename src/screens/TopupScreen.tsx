@@ -63,6 +63,7 @@ import numbro from 'numbro'
 import {TranItem} from './TranDetailScreen'
 import {translate} from '../i18n'
 import { TOPUP_TASK } from '../services/wallet/topupTask'
+import FastImage from 'react-native-fast-image'
 
 type Props = StaticScreenProps<{
   unit: MintUnit,
@@ -1080,15 +1081,13 @@ const NostrDMInfoBlock = observer(function (props: {
         marginBottom: spacing.medium,
       }}>
       <View style={{flexDirection: 'column', alignItems: 'center', width: 100}}>
-        <Image
+        <FastImage
           style={[
-            $profileIcon,
-            {
+            $profileIcon, {
               width: 40,
               height: walletProfileStore.isOwnProfile ? 40 : 43,
-              borderRadius: walletProfileStore.isOwnProfile ? 20 : 0,
-            },
-          ]}
+              borderRadius: walletProfileStore.isOwnProfile ? 20 : 0,            
+          }] as import("react-native-fast-image").ImageStyle}
           source={{
             uri: getImageSource(props.contactToSendFrom.picture as string),
           }}
@@ -1139,14 +1138,12 @@ const NostrDMInfoBlock = observer(function (props: {
       <View style={{flexDirection: 'column', alignItems: 'center', width: 100}}>
         {props.contactToSendTo.picture ? (
           <View style={{borderRadius: 20, overflow: 'hidden'}}>
-            <Image
+            <FastImage
               style={[
-                $profileIcon,
-                {
+                $profileIcon, {
                   width: 40,
-                  height: 40,
-                },
-              ]}
+                  height: 40,                
+              }] as import("react-native-fast-image").ImageStyle}
               source={{
                 uri: getImageSource(props.contactToSendTo.picture as string),
               }}

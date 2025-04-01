@@ -1,15 +1,16 @@
-import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
-import {Image, Pressable, TextStyle, View, ViewStyle} from 'react-native'
+import {Pressable, TextStyle, View, ViewStyle} from 'react-native'
+import FastImage from 'react-native-fast-image'
 import {colors, spacing, useThemeColor} from '../theme'
 import {Button, Card, ErrorModal, Header, InfoModal, ListItem, Loading, Screen, Text} from '../components'
 import {useStores} from '../models'
-import { MinibitsClient} from '../services'
+import { log, MinibitsClient} from '../services'
 import AppError from '../utils/AppError'
 import { ProfileHeader } from '../components/ProfileHeader'
 import { scale } from '@gocodingnow/rn-size-matters'
 import { getImageSource } from '../utils/utils'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+
 
 type Props = StaticScreenProps<undefined>
 
@@ -75,13 +76,14 @@ export const PictureScreen = (function PictureScreen({ route }: Props) {
         <View style={$contentContainer}>
             <View style={$picturesContainer}>
                 {pictures.map((png, index) => {
+                    // log.trace('PictureScreen', 'png', png)
                     return (
                         <Pressable
                             key={index}
                             onPress={() => onPictureSelect(png)}
                             style={(png === selectedPicture) ? [$unselected, {borderColor: selectedColor}] : $unselected}
                         >
-                            <Image style={{width: scale(80), height: scale(85)}} source={{uri: getImageSource(png)}} />
+                            <FastImage style={{width: scale(80), height: scale(85)}} source={{uri: getImageSource(png)}} />
                         </Pressable>
                     )
                 })}

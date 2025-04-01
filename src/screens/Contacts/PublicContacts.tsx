@@ -18,6 +18,7 @@ import { IncomingDataType, IncomingParser } from '../../services/incomingParser'
 import { translate } from '../../i18n'
 import { useNavigation } from '@react-navigation/native'
 import { toJS } from 'mobx'
+import FastImage from 'react-native-fast-image'
 
 
 // const defaultPublicNpub = 'npub14n7frsyufzqsxlvkx8vje22cjah3pcwnnyqncxkuj2243jvt9kmqsdgs52'
@@ -456,7 +457,7 @@ export const PublicContacts = observer(function (props: {
                         LeftComponent={
                             <View style={{marginRight: spacing.medium, borderRadius: 20, overflow: 'hidden' }}>
                                 {ownProfile.picture ? (
-                                    <Image 
+                                    <FastImage 
                                         source={{uri: ownProfile.picture}}
                                         style={{width: 40, height: 40}}
                                     />
@@ -488,7 +489,7 @@ export const PublicContacts = observer(function (props: {
                                     LeftComponent={
                                         <View style={{marginRight: spacing.medium, borderRadius: 20, overflow: 'hidden'}}>
                                             {item.picture ? (
-                                                <Image 
+                                                <FastImage 
                                                     source={{uri: item.picture}}
                                                     style={{width: 40, height: 40}}
                                                 />

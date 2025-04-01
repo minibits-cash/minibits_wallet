@@ -57,6 +57,7 @@ import { CurrencyCode, MintUnit, MintUnitCurrencyPairs, convertToFromSats, getCu
 import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import { LeftProfileHeader } from './ContactsScreen'
 import { getUnixTime } from 'date-fns/getUnixTime'
+import FastImage from 'react-native-fast-image'
 
 
 const MINT_CHECK_INTERVAL = 60
@@ -735,7 +736,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             <ListItem
                 LeftComponent={
                     <View style={{marginRight: spacing.medium}}>                        
-                        <Image 
+                        <FastImage 
                             source={{uri: 'https://www.minibits.cash/img/minibits_icon-192.png'}}
                             style={{width: 40, height: 40}}
                         />

@@ -6,6 +6,7 @@ import { ListItem } from "../../components"
 import { Contact } from "../../models/Contact"
 import { spacing } from "../../theme"
 import { getImageSource } from '../../utils/utils'
+import FastImage from 'react-native-fast-image'
 
 
 export interface ContactListProps {
@@ -26,12 +27,12 @@ export const ContactListItem = observer(function (props: ContactListProps) {
         subText={contact.nip05}        
         LeftComponent={
             <View style={{}}>
-                <Image 
+                <FastImage 
                     style={[$iconContainer, {
                         width: 40, 
                         height: contact.isExternalDomain ? 40 :  43,
                         borderRadius: 20,
-                    }]}
+                    }] as import("react-native-fast-image").ImageStyle}
                     source={{uri: getImageSource(contact.picture as string)}} 
                 />
                 {/*contact.lud16 && (
@@ -63,7 +64,7 @@ export const ContactListItem = observer(function (props: ContactListProps) {
 
   const $iconContainer: ImageStyle = {
     padding: spacing.extraSmall,
-    alignSelf: "center",
+    alignSelf: 'center',
     marginRight: spacing.medium,
   }
   

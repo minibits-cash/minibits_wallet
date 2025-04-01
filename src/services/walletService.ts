@@ -35,6 +35,7 @@ import { MintUnit, formatCurrency, getCurrency } from './wallet/currency'
 import { MinibitsClient } from './minibitsService'
 import { KeyChain } from './keyChain'
 import { UnsignedEvent } from 'nostr-tools'
+import { Platform } from 'react-native'
 
 /**
  * The default number of proofs per denomination to keep in a wallet.
@@ -2030,7 +2031,7 @@ const receiveEventsFromRelaysQueue = async function (): Promise<void> {
                 log.trace('[receiveEventsFromRelays]', `Eose: Got ${eventsBatch.length} receive events`)
                 
                 const connections = pool.listConnectionStatus()                
-                for (const conn of connections) {
+                for (const conn of Array.from(connections)) {
                     const relayInstance = relaysStore.findByUrl(conn[0])
                     if(conn[1] === true) {
                         log.trace('[receiveEventsFromRelays] Connection is OPEN', {conn: conn[0]})             
@@ -2287,8 +2288,8 @@ const _sendReceiveNotification = async function (
     const currencyCode = getCurrency(unit).code
     if(receivedAmount && receivedAmount > 0) {
         await NotificationService.createLocalNotification(
-            `<b>⚡${formatCurrency(receivedAmount, currencyCode)} ${currencyCode}</b> received!`,
-            `${isZap ? 'Zap' : 'Ecash'} from <b>${sentFrom || 'unknown payer'}</b> is now in your wallet.`,
+            Platform.OS === 'android' ? `<b>⚡${formatCurrency(receivedAmount, currencyCode)} ${currencyCode}</b> received!` : `⚡${formatCurrency(receivedAmount, currencyCode)} ${currencyCode} received!`,
+            Platform.OS === 'android' ? `${isZap ? 'Zap' : 'Ecash'} from <b>${sentFrom || 'unknown payer'}</b> is now in your wallet.` : `${isZap ? 'Zap' : 'Ecash'} from ${sentFrom || 'unknown payer'} is now in your wallet.`,
             sentFromPicture       
         ) 
     }
@@ -2299,7 +2300,7 @@ const _sendReceiveNotification = async function (
 
 const _sendPaymentRequestNotification = async function (pr: PaymentRequest) {    
     await NotificationService.createLocalNotification(
-        `⚡ Please pay <b>${formatCurrency(pr.invoicedAmount, getCurrency(pr.invoicedUnit!).code)} ${getCurrency(pr.invoicedUnit!).code}</b>!`,
+        Platform.OS === 'android' ? `⚡ Please pay <b>${formatCurrency(pr.invoicedAmount, getCurrency(pr.invoicedUnit!).code)} ${getCurrency(pr.invoicedUnit!).code}</b>!` : `⚡ Please pay ${formatCurrency(pr.invoicedAmount, getCurrency(pr.invoicedUnit!).code)} ${getCurrency(pr.invoicedUnit!).code}!`,
         `${pr.contactFrom.nip05 || 'Unknown'} has sent you a request to pay an invoice.`,
         pr.contactFrom.picture,
     )

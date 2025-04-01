@@ -62,6 +62,18 @@ PODS:
   - hermes-engine (0.79.0-rc.3):
     - hermes-engine/Pre-built (= 0.79.0-rc.3)
   - hermes-engine/Pre-built (0.79.0-rc.3)
+  - libwebp (1.5.0):
+    - libwebp/demux (= 1.5.0)
+    - libwebp/mux (= 1.5.0)
+    - libwebp/sharpyuv (= 1.5.0)
+    - libwebp/webp (= 1.5.0)
+  - libwebp/demux (1.5.0):
+    - libwebp/webp
+  - libwebp/mux (1.5.0):
+    - libwebp/demux
+  - libwebp/sharpyuv (1.5.0)
+  - libwebp/webp (1.5.0):
+    - libwebp/sharpyuv
   - nanopb (3.30910.0):
     - nanopb/decode (= 3.30910.0)
     - nanopb/encode (= 3.30910.0)
@@ -1971,6 +1983,10 @@ PODS:
     - React-Core
     - React-RCTFabric
     - ReactCommon/turbomodule/core
+  - RNFastImage (8.6.3):
+    - React-Core
+    - SDWebImage (~> 5.11.1)
+    - SDWebImageWebPCoder (~> 0.8.4)
   - RNFBApp (21.12.3):
     - Firebase/CoreOnly (= 11.10.0)
     - React-Core
@@ -2282,6 +2298,12 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+  - SDWebImage (5.11.1):
+    - SDWebImage/Core (= 5.11.1)
+  - SDWebImage/Core (5.11.1)
+  - SDWebImageWebPCoder (0.8.5):
+    - libwebp (~> 1.0)
+    - SDWebImage/Core (~> 5.10)
   - Sentry/HybridSDK (8.48.0)
   - SocketRocket (0.7.1)
   - Yoga (0.0.0)
@@ -2368,6 +2390,7 @@ DEPENDENCIES:
   - ReactNativeCameraKit (from `../node_modules/react-native-camera-kit`)
   - "RNCClipboard (from `../node_modules/@react-native-clipboard/clipboard`)"
   - RNExitApp (from `../node_modules/react-native-exit-app`)
+  - RNFastImage (from `../node_modules/react-native-fast-image`)
   - "RNFBApp (from `../node_modules/@react-native-firebase/app`)"
   - "RNFBMessaging (from `../node_modules/@react-native-firebase/messaging`)"
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
@@ -2389,10 +2412,13 @@ SPEC REPOS:
     - FirebaseMessaging
     - GoogleDataTransport
     - GoogleUtilities
+    - libwebp
     - nanopb
     - OpenSSL-Universal
     - PromisesObjC
     - React-Codegen
+    - SDWebImage
+    - SDWebImageWebPCoder
     - Sentry
     - SocketRocket
 
@@ -2556,6 +2582,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@react-native-clipboard/clipboard"
   RNExitApp:
     :path: "../node_modules/react-native-exit-app"
+  RNFastImage:
+    :path: "../node_modules/react-native-fast-image"
   RNFBApp:
     :path: "../node_modules/@react-native-firebase/app"
   RNFBMessaging:
@@ -2593,6 +2621,7 @@ SPEC CHECKSUMS:
   GoogleDataTransport: aae35b7ea0c09004c3797d53c8c41f66f219d6a7
   GoogleUtilities: 26a3abef001b6533cf678d3eb38fd3f614b7872d
   hermes-engine: 222573b97e0c0023ee02f5a8480d6aa3080ceb3f
+  libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   OpenSSL-Universal: d776ce24dab24323e6995dfb17c64d598885d05c
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
@@ -2669,6 +2698,7 @@ SPEC CHECKSUMS:
   ReactNativeCameraKit: 7bbc43ee30850444b6086bf5aa3b10e085a38446
   RNCClipboard: 055cd8f50702b9ebc5a58f7622e0cda073878d21
   RNExitApp: 2f85821d19ae680d29aa2aa27aaba6a2fee5f0e1
+  RNFastImage: 462a183c4b0b6b26fdfd639e1ed6ba37536c3b87
   RNFBApp: 11d842b835d7e484a306e66e6fd02a13c0478fdc
   RNFBMessaging: fbb4b994cdd8fbf90d4310008893520628c0ba2d
   RNGestureHandler: 8ff2b1434b0ff8bab28c8242a656fb842990bbc8
@@ -2678,6 +2708,8 @@ SPEC CHECKSUMS:
   RNScreens: a25b818417609cbd805474dffd2d28b229704cfc
   RNSentry: 12d6285a94b3a4fe74d2678ee8cfbbfdba2a3b6c
   RNSVG: 4470464e129f6bc58b78b961850b054dbbea8ef7
+  SDWebImage: a7f831e1a65eb5e285e3fb046a23fcfbf08e696d
+  SDWebImageWebPCoder: 908b83b6adda48effe7667cd2b7f78c897e5111d
   Sentry: 1ca8405451040482877dcd344dfa3ef80b646631
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
   Yoga: c6ca19219fc9fa053e4c87451b673bc389dcc133

@@ -16,6 +16,7 @@ import { NostrProfile, log } from '../../services'
 import { moderateScale, verticalScale } from '@gocodingnow/rn-size-matters'
 import { useNavigation } from '@react-navigation/native'
 import { getActiveRouteName } from '../../navigation'
+import FastImage from 'react-native-fast-image'
 
 export interface TransactionListProps {
   transaction: Transaction
@@ -172,7 +173,7 @@ export const TransactionListItem = observer(function (props: TransactionListProp
           return (
             <View style={$pictureContainer}>
               {profile.picture ? (
-                <Image 
+                <FastImage 
                   style={
                     {
                       width: verticalScale(34),
@@ -184,7 +185,7 @@ export const TransactionListItem = observer(function (props: TransactionListProp
                   // defaultSource={require('../../../assets/icons/nostr.png')}
                 /> 
               ) : (
-                <Image 
+                <FastImage 
                   style={
                     {
                       width: verticalScale(34),

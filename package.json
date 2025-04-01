@@ -58,6 +58,7 @@
     "react-native-camera-kit": "14.2.0",
     "react-native-dotenv": "^3.4.11",
     "react-native-exit-app": "^2.0.0",
+    "react-native-fast-image": "^8.6.3",
     "react-native-flash-message": "^0.4.2",
     "react-native-gesture-handler": "^2.24.0",
     "react-native-json-tree": "^1.5.0",

@@ -60,6 +60,7 @@ import { PaymentRequest as CashuPaymentRequest, PaymentRequestTransport, Payment
 import { ProfilePointer } from 'nostr-tools/nip19'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 import { SEND_TASK } from '../services/wallet/sendTask'
+import FastImage from 'react-native-fast-image'
 
 export enum SendOption {
     SEND_TOKEN = 'SEND_TOKEN',
@@ -1284,12 +1285,12 @@ const NostDMInfoBlock = observer(function (props: {
     return(
         <View style={{flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', marginBottom: spacing.medium}}>
             <View style={{flexDirection: 'column', alignItems: 'center', width: 100}}>
-                    <Image style={[
+                    <FastImage style={[
                         $profileIcon, {
                             width: 40, 
                             height: walletProfileStore.isOwnProfile ? 40 :  43,
                             borderRadius: walletProfileStore.isOwnProfile ? 20 :  0,
-                        }]} 
+                        }] as import("react-native-fast-image").ImageStyle}
                         source={{
                             uri: getImageSource(props.contactToSendFrom.picture as string)
                         }} 
@@ -1309,12 +1310,12 @@ const NostDMInfoBlock = observer(function (props: {
             <View style={{flexDirection: 'column', alignItems: 'center', width: 100}}>
                 {props.contactToSendTo.picture ? (
                     <View style={{borderRadius: 20, overflow: 'hidden'}}>
-                        <Image style={[
+                        <FastImage style={[                            
                             $profileIcon, {
                                 width: 40, 
                                 height: props.contactToSendTo.isExternalDomain ? 40 :  43,
                                 borderRadius: props.contactToSendTo.isExternalDomain ? 20 :  0,
-                            }]} 
+                            }] as import("react-native-fast-image").ImageStyle}
                             source={{
                                 uri: getImageSource(props.contactToSendTo.picture as string) 
                             }} 
