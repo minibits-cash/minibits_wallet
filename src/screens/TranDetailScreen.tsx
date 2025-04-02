@@ -222,6 +222,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
         
     const colorScheme = useColorScheme()
     const headerTitle = useThemeColor('headerTitle')
+    const inputText = useThemeColor('text')
 
   return (
       <Screen contentContainerStyle={$screen} preset="auto">        
@@ -257,7 +258,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                             ref={noteInputRef}
                             onChangeText={note => setNote(note)}                                    
                             value={`${note}`}
-                            style={$noteInput}
+                            style={[$noteInput, {color: inputText}]}
                             onEndEditing={onNoteSave}
                             maxLength={200}
                             keyboardType="default"

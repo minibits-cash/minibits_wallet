@@ -148,6 +148,7 @@ export const RelaysScreen = observer(function RelaysScreen({ route }: Props) {
     const iconColor = useThemeColor('textDim')
     const headerBg = useThemeColor('header')
     const inputBg = useThemeColor('background')
+    const inputText = useThemeColor('text')
     const iconBottom = useThemeColor('button')
     const mainButtonColor = useThemeColor('card')
     const screenBg = useThemeColor('background')
@@ -260,7 +261,7 @@ export const RelaysScreen = observer(function RelaysScreen({ route }: Props) {
                         maxLength={128}
                         placeholder='wss://...'
                         selectTextOnFocus={true}
-                        style={[$relayInput, {backgroundColor: inputBg}]}
+                        style={[$relayInput, {backgroundColor: inputBg, color: inputText}]}
                     />
                     <Button
                         tx={'common.paste'}

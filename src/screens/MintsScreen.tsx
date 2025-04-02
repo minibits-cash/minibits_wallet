@@ -281,6 +281,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
     const headerBg = useThemeColor('header')
     const iconColor = useThemeColor('textDim')
     const inputBg = useThemeColor('background')
+    const inputText = useThemeColor('text')
     const headerTitle = useThemeColor('headerTitle')
     const buttonBorder = useThemeColor('card')
 
@@ -427,7 +428,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
                             autoCapitalize='none'
                             keyboardType='default'
                             value={mintUrl}
-                            style={[$mintInput, {backgroundColor: inputBg}]}
+                            style={[$mintInput, {backgroundColor: inputBg, color: inputText}]}
                             maxLength={200}
                             placeholder='https://'
                         />

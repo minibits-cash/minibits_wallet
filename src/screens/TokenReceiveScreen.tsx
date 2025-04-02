@@ -141,6 +141,7 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
     const hintText = useThemeColor('textDim')
     const scanIcon = useThemeColor('text')    
     const inputBg = useThemeColor('background')
+    const inputText = useThemeColor('text')
     const contactIcon = useThemeColor('button')
     const headerBg = useThemeColor('header')
     const headerTitle = useThemeColor('headerTitle')    
@@ -195,7 +196,7 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
                                 numberOfLines={4}
                                 multiline={true}                                                    
                                 selectTextOnFocus={true}
-                                style={[$addressInput, {backgroundColor: inputBg}]}                        
+                                style={[$addressInput, {backgroundColor: inputBg, color: inputText}]}                        
                             />
                         </View>                        
                             {!!encodedToken && encodedToken?.length > 1 ? (

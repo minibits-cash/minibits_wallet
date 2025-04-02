@@ -207,6 +207,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
     const headerBg = useThemeColor('header')
     const inputBg = useThemeColor('background')
     const mintsModalBg = useThemeColor('background')
+    const inputText = useThemeColor('text')
     
     return (
       <Screen preset="fixed" contentContainerStyle={$screen}>
@@ -393,7 +394,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
                         keyboardType='default'
                         maxLength={40}                        
                         selectTextOnFocus={true}
-                        style={[$quoteInput, {backgroundColor: inputBg}]}
+                        style={[$quoteInput, {backgroundColor: inputBg, color: inputText}]}
                     />
                     <Button
                         tx={'common.paste'}

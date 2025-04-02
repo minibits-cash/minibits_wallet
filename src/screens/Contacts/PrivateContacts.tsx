@@ -248,8 +248,8 @@ export const PrivateContacts = observer(function (props: {
         setError(e)
     }
     
-    const domainText = useThemeColor('textDim')
-    const iconColor = useThemeColor('textDim')
+    const domainText = useThemeColor('textDim')    
+    const inputText = useThemeColor('text')
     const inputBg = useThemeColor('background')
     const mainButtonColor = useThemeColor('card')
     const mainButtonIcon = useThemeColor('mainButtonIcon')
@@ -350,8 +350,8 @@ export const PrivateContacts = observer(function (props: {
                   maxLength={80}
                   selectTextOnFocus={true}
                   style={[
-                    $contactInput,
-                    {backgroundColor: inputBg},
+                    $contactInput,                    
+                    {backgroundColor: inputBg, color: inputText},
                     isExternalDomain && {
                       marginRight: spacing.small,
                       borderTopRightRadius: spacing.small,

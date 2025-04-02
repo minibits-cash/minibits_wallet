@@ -26,7 +26,7 @@ export const MemoInputCard = forwardRef<TextInput, MemoInputProps>((props, memoI
   } = props
 
   const placeholderTextColor = useThemeColor('textDim')
-  const memoTextColor = useThemeColor('text')  
+  const inputText = useThemeColor('text')  
   
   return (
     <Card
@@ -38,7 +38,7 @@ export const MemoInputCard = forwardRef<TextInput, MemoInputProps>((props, memoI
             onChangeText={memo => setMemo(memo)}
             onEndEditing={onMemoEndEditing}
             value={`${memo}`}
-            style={[$memoInput, {color: memoTextColor}]}
+            style={[$memoInput, {color: inputText}]}
             maxLength={maxLength}
             keyboardType="default"
             selectTextOnFocus={true}

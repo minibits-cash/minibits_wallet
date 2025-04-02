@@ -157,7 +157,8 @@ export const NwcScreen = observer(function NwcScreen(_props) {
     
     const iconColor = useThemeColor('textDim')
     const headerBg = useThemeColor('header')
-    const inputBg = useThemeColor('background')    
+    const inputBg = useThemeColor('background')
+    const inputText = useThemeColor('text')      
     const mainButtonColor = useThemeColor('card')
     const screenBg = useThemeColor('background')
     const mainButtonIcon = useThemeColor('button')
@@ -317,7 +318,6 @@ export const NwcScreen = observer(function NwcScreen(_props) {
                     flexDirection: 'row',                    
                     marginTop: spacing.small,
                 }}> 
-                  
                     <TextInput
                         ref={connectionNameInputRef}
                         onChangeText={(name) => setNewConnectionName(name)}
@@ -327,7 +327,7 @@ export const NwcScreen = observer(function NwcScreen(_props) {
                         maxLength={64}
                         placeholder='My NWC application'
                         selectTextOnFocus={true}
-                        style={[$connInput, {backgroundColor: inputBg}]}
+                        style={[$connInput, {backgroundColor: inputBg, color: inputText}]}
                     />
                 </View>
                 <Text
@@ -345,9 +345,9 @@ export const NwcScreen = observer(function NwcScreen(_props) {
                         value={newConnectionDailyLimit}                        
                         keyboardType='numeric'
                         maxLength={8}
-                        placeholder='Enter daily limit in satoshi'
+                        placeholder='Enter daily limit in SAT'
                         selectTextOnFocus={true}
-                        style={[$connInput, {backgroundColor: inputBg}]}
+                        style={[$connInput, {backgroundColor: inputBg, color: inputText}]}
                     />
                     <Button
                         preset='secondary'

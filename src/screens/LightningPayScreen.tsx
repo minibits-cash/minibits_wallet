@@ -162,6 +162,7 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
     const hintText = useThemeColor('textDim')
     const scanIcon = useThemeColor('text')    
     const inputBg = useThemeColor('background')
+    const inputText = useThemeColor('text')
     const contactIcon = useThemeColor('headerTitle')
     const headerBg = useThemeColor('header')
     const headerTitle = useThemeColor('headerTitle')    
@@ -216,7 +217,7 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
                                 numberOfLines={4}
                                 multiline={true}                         
                                 selectTextOnFocus={true}
-                                style={[$addressInput, {backgroundColor: inputBg}]}                        
+                                style={[$addressInput, {backgroundColor: inputBg, color: inputText}]}                        
                             />
                         </View>                        
                             {!!lightningData && lightningData?.length > 1 ? (

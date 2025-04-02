@@ -272,6 +272,7 @@ export const OwnName = observer(function (props: {pubkey: string}) {
     const hint = useThemeColor('textDim')
     const currentNameColor = colors.palette.primary200
     const inputBg = useThemeColor('background')
+    const inputText = useThemeColor('text')
     const small = 1000
     const medium = 1500
     const large = 2000
@@ -293,7 +294,7 @@ export const OwnName = observer(function (props: {pubkey: string}) {
                                 ref={ownNameInputRef}
                                 onChangeText={(name) => onOwnNameChange(name)}                        
                                 value={`${ownName}`}
-                                style={[$ownNameInput, {backgroundColor: inputBg}]}
+                                style={[$ownNameInput, {backgroundColor: inputBg, color: inputText}]}
                                 maxLength={16}
                                 keyboardType="default"
                                 selectTextOnFocus={true}                        

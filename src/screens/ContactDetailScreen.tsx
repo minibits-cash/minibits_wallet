@@ -179,6 +179,7 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
     const mainButtonColor = useThemeColor('card')
     const mainButtonIcon = useThemeColor('mainButtonIcon')
     const mainButtonText = useThemeColor('text')
+    const inputText = useThemeColor('text')
   
 
     const {type, name, display_name, npub, nip05, picture, about, lud16} = contact
@@ -220,7 +221,7 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
                                 ref={noteInputRef}
                                 onChangeText={note => setNote(note)}                                    
                                 value={`${note}`}
-                                style={$noteInput}
+                                style={[$noteInput, {color: inputText}]}
                                 onEndEditing={onNoteSave}
                                 maxLength={200}
                                 keyboardType="default"

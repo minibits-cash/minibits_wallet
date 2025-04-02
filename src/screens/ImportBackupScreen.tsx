@@ -335,6 +335,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
     const headerBg = useThemeColor('header')
     const numIconColor = useThemeColor('textDim')
     const textHint = useThemeColor('textDim')
+    const inputText = useThemeColor('text')
     const inputBg = useThemeColor('background')
     const loadingBg = useThemeColor('background')
     const headerTitle = useThemeColor('headerTitle')
@@ -413,7 +414,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
                             keyboardType='default'                            
                             placeholder={'Paste your backup'}
                             selectTextOnFocus={true}                    
-                            style={[$backupInput, {backgroundColor: inputBg, flexWrap: 'wrap'}]}
+                            style={[$backupInput, {backgroundColor: inputBg, flexWrap: 'wrap', color: inputText}]}
                         />
                         <View style={$buttonContainer}>
                             {backup ? (

@@ -431,6 +431,7 @@ export const PublicContacts = observer(function (props: {
     
     const insets = useSafeAreaInsets()
     const inputBg = useThemeColor('background')
+    const inputText = useThemeColor('text')
     
     return (
     <Screen contentContainerStyle={$screen}>
@@ -563,7 +564,7 @@ export const PublicContacts = observer(function (props: {
                         maxLength={64}
                         placeholder='npub...'
                         selectTextOnFocus={true}
-                        style={[$npubInput, {backgroundColor: inputBg}]}                        
+                        style={[$npubInput, {backgroundColor: inputBg, color: inputText},]}                        
                     />
                     <Button
                         tx={'common.paste'}
@@ -601,7 +602,7 @@ export const PublicContacts = observer(function (props: {
                         maxLength={64}
                         placeholder='wss://...'
                         selectTextOnFocus={true}
-                        style={[$npubInput, {backgroundColor: inputBg}]}                        
+                        style={[$npubInput, {backgroundColor: inputBg, color: inputText},]}                        
                     />
                     <Button
                         tx={'common.paste'}

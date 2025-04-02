@@ -554,6 +554,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
     const numIconColor = useThemeColor('textDim')
     const textHint = useThemeColor('textDim')
     const inputBg = useThemeColor('background')
+    const inputText = useThemeColor('text')
     const headerTitle = useThemeColor('headerTitle')
 
     if(mnemonicExists) {
@@ -746,7 +747,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                               ref={indexInputRef}
                               onChangeText={index => setStartIndexString(index)}
                               value={startIndexString}
-                              style={[$noteInput, {backgroundColor: inputBg}]}
+                              style={[$noteInput, {backgroundColor: inputBg, color: inputText}]}
                               maxLength={8}
                               selectTextOnFocus={true}
                               keyboardType='numeric'

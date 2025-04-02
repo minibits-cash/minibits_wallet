@@ -226,6 +226,7 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
     const iconNip05 = useThemeColor('textDim')
     const textResult = useThemeColor('textDim')
     const inputBg = useThemeColor('background')
+    const inputText = useThemeColor('text')
     
     return (
       <Screen contentContainerStyle={$screen} preset='auto'>
@@ -257,7 +258,7 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
                                   maxLength={30}
                                   placeholder='name@domain.com'
                                   selectTextOnFocus={true}
-                                  style={[$nip05Input, {backgroundColor: inputBg}]}                                                   
+                                  style={[$nip05Input, {backgroundColor: inputBg, color: inputText}]}                                                   
                                 />
                                 <Button
                                   tx='common.paste'
@@ -335,7 +336,7 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
                                 maxLength={64}
                                 placeholder='nsec...'
                                 selectTextOnFocus={true}
-                                style={[$nip05Input, {backgroundColor: inputBg}]}                                                
+                                style={[$nip05Input, {backgroundColor: inputBg, color: inputText}]}                                                
                             />
                             <Button
                                 tx='common.paste'

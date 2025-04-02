@@ -646,7 +646,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
     
     const headerBg = useThemeColor('header')    
     const placeholderTextColor = useThemeColor('textDim')
-    const memoTextColor = useThemeColor('text')
+    const inputText = useThemeColor('text')
     const amountInputColor = useThemeColor('amountInput')
 
     return (
@@ -693,7 +693,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
                     onChangeText={memo => setMemo(memo)}
                     onEndEditing={onMemoEndEditing}
                     value={`${memo}`}
-                    style={[$memoInput, {color: memoTextColor}]}
+                    style={[$memoInput, {color: inputText}]}
                     maxLength={200}
                     keyboardType="default"
                     selectTextOnFocus={true}

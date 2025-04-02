@@ -239,8 +239,8 @@ const _receiveToLnurlHandler = async function(remoteData: NotifyReceiveToLnurlDa
     const currencyCode = getCurrency(unit as MintUnit).code
 
     await createLocalNotification(
-        `<b>⚡${formatCurrency(amount, currencyCode)} ${currencyCode}</b> incoming!`,
-        `${zapSenderProfile ? 'Zap' : 'Payment'} from <b>${zapSenderProfile?.nip05 || 'unknown payer'}</b> is ready to be received.${comment ? ' Message from sender: ' + comment : ''}`,
+        Platform.OS === 'android' ? `<b>⚡${formatCurrency(amount, currencyCode)} ${currencyCode}</b> incoming!` : `⚡${formatCurrency(amount, currencyCode)} ${currencyCode} incoming!`,
+        Platform.OS === 'android' ? `${zapSenderProfile ? 'Zap' : 'Payment'} from <b>${zapSenderProfile?.nip05 || 'unknown payer'}</b> is ready to be received.${comment ? ' Message from sender: ' + comment : ''}` : `${zapSenderProfile ? 'Zap' : 'Payment'} from ${zapSenderProfile?.nip05 || 'unknown payer'} is ready to be received.${comment ? ' Message from sender: ' + comment : ''}`,
         zapSenderProfile?.picture       
     )
 }
@@ -262,7 +262,7 @@ const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {
         .some(task => String(task.taskId).includes('handleNwcRequestTask'))   
 
     if(!isNwcRequestTaskRunning) {
-
+        
         if(Platform.OS === 'android') {
             const isChannelCreated = await notifee.isChannelCreated(NWC_CHANNEL_ID)
             if (!isChannelCreated) {
@@ -292,9 +292,26 @@ const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {
             data: {task: HANDLE_NWC_REQUEST_TASK,  data: requestEvent}, // Pass the task data to the foreground service
         })
 
+        if(Platform.OS === 'ios') {
+            WalletTask.handleNwcRequestQueue({requestEvent})
+        }
+            
+
     } else {
         // if fg service is already running, add new nwc command to the queue
-        WalletTask.handleNwcRequestQueue({requestEvent})        
+        WalletTask.handleNwcRequestQueue({requestEvent})
+        
+        if(Platform.OS === 'ios') {
+
+            await notifee.displayNotification({
+                title: NWC_CHANNEL_NAME,
+                body: 'Processing remote NWC command...',
+                ios: {
+                    categoryId: NWC_CHANNEL_ID,
+                }
+            })
+        }
+        
     }
 
     // make some room for foreground service to start and pass nwcRequest to the queue
