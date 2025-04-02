@@ -352,6 +352,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
 
     const addMint = async function ({scannedMintUrl = ''} = {}) {
         // necessary
+        // @ts-ignore
         navigation.setParams({scannedMintUrl: undefined})       
 
         const newMintUrl = scannedMintUrl || defaultMintUrl
@@ -376,15 +377,18 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     }
 
     const gotoScan = function () {
+        // @ts-ignore
         navigation.navigate('Scan', {unit: currentUnit})
     }
 
     const gotoTokenReceive = async function () {
         toggleReceiveModal()
+        // @ts-ignore
         navigation.navigate('TokenReceive', {unit: currentUnit})
     }
 
     const gotoPaymentRequests = function () {
+        // @ts-ignore
         navigation.navigate('PaymentRequests')
     }
 
@@ -407,12 +411,14 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     const gotoTopup = function (mintUrl?: string) {
         if(mintUrl) {
             setIsMintsModalVisible(false)
+            // @ts-ignore
             navigation.navigate('Topup', {                        
                 mintUrl,
                 unit: currentUnit
             })
         } else {
             setIsReceiveModalVisible(false)
+            // @ts-ignore
             navigation.navigate('Topup', {                                        
                 unit: currentUnit
             })
@@ -424,12 +430,14 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         log.trace({mintUrl})
         if(mintUrl) {
             setIsMintsModalVisible(false)
+            // @ts-ignore
             navigation.navigate('LightningPay', {
                 mintUrl,
                 unit: currentUnit
             })
         } else {
             setIsSendModalVisible(false)
+            // @ts-ignore
             navigation.navigate('LightningPay', {                                        
                 unit: currentUnit
             })
@@ -440,6 +448,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     const gotoSend = function () {
         // log.trace('[gotoSend]', {currentUnit})
         setIsSendModalVisible(false)
+        // @ts-ignore
         navigation.navigate('Send', {                                        
             unit: currentUnit
         })

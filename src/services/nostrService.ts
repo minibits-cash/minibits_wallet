@@ -10,7 +10,7 @@ import { encrypt, decrypt } from 'nostr-tools/nip04'
 import { wrapEvent, unwrapEvent } from 'nostr-tools/nip59'
 import { neventEncode as nostrNeventEncode, npubEncode, decode as nip19Decode } from 'nostr-tools/nip19'
 import {SimplePool} from 'nostr-tools/pool'
-import { hexToBytes } from '@noble/hashes/utils'
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
 import { PrivateDirectMessage, Metadata } from 'nostr-tools/kinds'
 /*import {
     MINIBITS_RELAY_URL,    
@@ -94,7 +94,7 @@ const reconnectToRelays = async function () {
 
     let isRefreshSubNeeded: boolean = false
 
-    for (const conn of connections) {        
+    for (const conn of Array.from(connections)) {        
         if(conn[1] === false) {
             pool.ensureRelay(conn[0])
             isRefreshSubNeeded = true
@@ -122,11 +122,15 @@ const getHexkey = function (key: string): string {
     try {
         const decoded = nip19Decode(key)
 
-        if(decoded) {
+        if(decoded && decoded.type === 'npub') {
             return decoded.data as string
         }
+
+        if(decoded && decoded.type === 'nsec') {
+            return bytesToHex(decoded.data) as string
+        }
         
-        throw new Error('Invalid npub key.')
+        throw new Error('Invalid npub or nsec key.')
 
     } catch (e: any) {
         throw new AppError(Err.VALIDATION_ERROR, e.message)

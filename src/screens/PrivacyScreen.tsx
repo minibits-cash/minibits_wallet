@@ -66,8 +66,9 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
             const newKeyPair = KeyChain.generateNostrKeyPair()
 
             // update Nostr keys
-            const keys = await walletStore.getCachedWalletKeys()
-            keys.NOSTR = newKeyPair
+            const cachedKeys = await walletStore.getCachedWalletKeys()
+            const keys = { ...cachedKeys } // Create a shallow copy to avoid modifying readonly properties
+            keys['NOSTR'] = newKeyPair
 
             await KeyChain.saveWalletKeys(keys)
             walletStore.cleanCachedWalletKeys()
@@ -87,9 +88,10 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
                 pictures[0],
                 false // isOwnProfile
             )
-
-
-            navigation.navigate('Profile')
+            // @ts-ignore
+            navigation.navigate('ContactsNavigator', {
+                screen: 'Profile'
+            })
             setIsLoading(false)
         } catch (e: any) {
             handleError(e)

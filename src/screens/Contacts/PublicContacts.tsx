@@ -218,7 +218,7 @@ export const PublicContacts = observer(function (props: {
           setInfo(translate("contactsScreen.publicContacts.npubPasteError"))
           return
         }  
-        setNewPublicPubkey(key)        
+        setNewPublicPubkey(key.trim())        
     }
 
 

@@ -1829,6 +1829,13 @@ const recoverMintQuote = async function (params: {mintUrl: string, mintQuote: st
 const handleClaimQueue = async function (): Promise<void> {
     
     log.info('[handleClaimQueue] start')
+    const {isOwnProfile} = walletProfileStore
+
+    if(isOwnProfile) {
+        log.info('[handleClaimQueue] Skipping claim queue, wallet uses own Nostr keys...')
+        return
+    }
+
     const {isBatchClaimOn} = userSettingsStore
     const keys = await walletStore.getCachedWalletKeys() // throws  
 

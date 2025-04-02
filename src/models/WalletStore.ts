@@ -169,7 +169,7 @@ export const WalletStoreModel = types
     .actions(self => ({
       getCachedWalletKeys: flow(function* getWalletKeys() {    
         if (self.walletKeys) {        
-          log.trace('[getCachedWalletKeys]', 'Returning cached walletKeys')
+          log.trace('[getCachedWalletKeys]', 'Returning cached walletKeys', self.walletKeys)
           return self.walletKeys     
         }    
         

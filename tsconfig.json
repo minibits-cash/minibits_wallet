@@ -3,7 +3,7 @@
   "compilerOptions": {
     "jsx": "react",
     "typeRoots": ["./src/utils/envtypes"],
-    "lib": ["ES2017"],
+    "lib": ["ES2022"],
     "paths": {
         "nostr-tools/*": ["./node_modules/nostr-tools/lib/types/*"]
     },

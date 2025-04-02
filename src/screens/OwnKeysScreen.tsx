@@ -16,6 +16,7 @@ import { ProfileHeader } from '../components/ProfileHeader'
 import { translate } from '../i18n'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 import FastImage from 'react-native-fast-image'
+import { nip19 } from 'nostr-tools'
 
 
 type Props = StaticScreenProps<{}>
@@ -64,7 +65,7 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
           setInfo(translate("nostr.pasteError"))
           return
         }  
-        setOwnNip05(nip)        
+        setOwnNip05(nip.trim())        
     }
 
 
@@ -166,7 +167,9 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
             }
             // validate that nsec matches profile pubkey
             const privateKey = NostrClient.getHexkey(ownNsec)
+            log.trace('Got private key', privateKey)
             const publicKey = getPublicKey(hexToBytes(privateKey))
+            log.trace('Got public key', publicKey)
 
             if(publicKey !== ownProfile.pubkey) {
                 throw new AppError(Err.VALIDATION_ERROR, translate("nsecPrivatePublicKeyMismatchError"), {publicKey})
@@ -198,14 +201,15 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
             )
 
             // update Nostr keys
-            const keys = await walletStore.getCachedWalletKeys()
-            keys.NOSTR = ownKeyPair
+            const cachedKeys = await walletStore.getCachedWalletKeys()
+            const keys = { ...cachedKeys } // Create a shallow copy to avoid modifying readonly properties
+            keys['NOSTR'] = ownKeyPair
 
             await KeyChain.saveWalletKeys(keys)
             walletStore.cleanCachedWalletKeys()
 
             setIsLoading(false)
-            setIsProfileChangeCompleted(true)           
+            setIsProfileChangeCompleted(true)
             
         } catch(e: any) {
             handleError(e)
@@ -215,6 +219,14 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
 
     const onCancelChange = async function () {
         resetState()
+    }
+
+    const onProfileChangeClose = async function () {
+        resetState()
+        // @ts-ignore
+        navigation.navigate('ContactsNavigator', {
+            screen: 'Profile'
+        })  
     }
 
 
@@ -397,7 +409,7 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
             isVisible={isProfileChangeCompleted ? true : false}            
             ContentComponent={
                 <View style={$bottomModal}>                
-                    <ProfileHeader headerBg='transparent' />
+                    <ProfileHeader headerBg='transparent' headerTextStyle={{color: textResult}}/>
                     <Text 
                         style={{color: textResult, textAlign: 'center', marginTop: spacing.small}} 
                         tx="nostr.lastStandDialog.complete"
@@ -406,15 +418,13 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
                     <Button
                         preset="secondary"
                         tx='common.close'
-                        onPress={() => {
-                            navigation.navigate('Contacts', {})
-                        }}
+                        onPress={onProfileChangeClose}
                     />
                     </View>             
                 </View>
             }
-            onBackButtonPress={() => navigation.navigate('Contacts', {})}
-            onBackdropPress={() => navigation.navigate('Contacts', {})}
+            onBackButtonPress={onProfileChangeClose}
+            onBackdropPress={onProfileChangeClose}
         />
         {isLoading && <Loading />}
         {error && <ErrorModal error={error} />}

@@ -184,6 +184,7 @@ export const WalletProfileStoreModel = types
             log.trace('[updateNip05]', 'profileRecord', {profileRecord})
 
             self.hydrate(profileRecord)
+            self.isOwnProfile = isOwnProfile
             
             log.info('[updateNip05]', 'Wallet nip05 updated in the WalletProfileStore', {self})
             return self         

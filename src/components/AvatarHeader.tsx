@@ -1,6 +1,6 @@
 import { observer } from "mobx-react-lite"
 import React from "react"
-import { ColorValue, Image, TextStyle, View, ViewStyle } from "react-native"
+import { ColorValue, Image, StyleProp, TextStyle, View, ViewStyle } from "react-native"
 import { Icon, Text } from "."
 import { spacing, useThemeColor } from "../theme"
 import { getImageSource } from '../utils/utils'
@@ -12,6 +12,7 @@ import FastImage from "react-native-fast-image"
 export interface AvatarHeaderProps {
   heading?: string,
   text?: string,
+  textStyle?: StyleProp<TextStyle>
   picture?: string
   /** default is 96 for pic, 48 for icon - another option is 90 or 80 */
   pictureHeight?: number,
@@ -62,7 +63,7 @@ export const AvatarHeader = observer(function (props: AvatarHeaderProps) {
         )}
       </View>
       {props.heading && <Text style={{ fontSize: 26, lineHeight: 40 }} text={props.heading} adjustsFontSizeToFit={true} numberOfLines={1} />}
-      {props.text && <Text preset='bold' text={props.text} style={{ color: 'white', marginBottom: spacing.small }} numberOfLines={2} />}
+      {props.text && <Text preset='bold' text={props.text} style={[{ color: 'white', marginBottom: spacing.small }, props.textStyle]} numberOfLines={2} />}
       {props.children}
     </View>
   )
