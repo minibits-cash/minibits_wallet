@@ -5,6 +5,7 @@ import {
   View,
   Switch,
   Alert,
+  Platform,
 } from 'react-native'
 import {btoa} from 'react-native-quick-base64'
 import notifee, { AndroidImportance } from '@notifee/react-native'
@@ -186,10 +187,15 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
             setIsLoading(true)
             setIsSwapAllSentToQueue(true)             
 
-            await NotificationService.createForegroundNotification(
-              'Optimizing ecash proofs denominations...',
-              {task: SWAP_ALL_TASK}
-            )
+            if(Platform.OS === 'android') {
+              await NotificationService.createForegroundNotification(
+                'Optimizing ecash proofs denominations...',
+                {task: SWAP_ALL_TASK}
+              )
+            } else {
+              // iOS does not support fg notifications with long running tasks
+              WalletTask.swapAllQueue()
+            } 
           }
         }
       ]

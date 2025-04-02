@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {useState, useEffect, useRef} from 'react'
-import {TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import {Platform, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import notifee, { AndroidImportance } from '@notifee/react-native'
 import {spacing, useThemeColor, colors} from '../theme'
 import {
@@ -79,7 +79,11 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
   }, [isSyncStateSentToQueue])
 
     const openNotificationSettings = async function() {
-      await notifee.openNotificationSettings()        
+      if(Platform.OS === 'android') {
+        await notifee.openNotificationSettings()        
+      } else {
+        const settings  = await notifee.requestPermission()
+      }
     }
 
 
@@ -126,10 +130,15 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
       setIsLoading(true)
       setIsSyncStateSentToQueue(true)
 
-      await NotificationService.createForegroundNotification(
-        'Cleaning spent ecash from spendable balance...',
-        {task: SYNC_STATE_WITH_ALL_MINTS_TASK}
-      )
+      if(Platform.OS === 'android') {
+        await NotificationService.createForegroundNotification(
+          'Cleaning spent ecash from spendable balance...',
+          {task: SYNC_STATE_WITH_ALL_MINTS_TASK}
+        )
+      } else {
+        // iOS does not support fg notifications with long running tasks
+        WalletTask.syncStateWithAllMintsQueue({isPending: false})        
+      }      
     }
 
 

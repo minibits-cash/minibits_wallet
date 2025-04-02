@@ -339,14 +339,10 @@ const _getRemoteData = async function(remoteMessage: FirebaseMessagingTypes.Remo
 }
 
 
-// Foreground service creation for long running tasks
+// Foreground service creation for Android long running tasks
 const createForegroundNotification = async function (body: string, data: {task: string, data?: any}) {
     log.trace('Start', {body, data}, 'createForegroundNotification')
-    // Request permissions (required for iOS) // needed?
-    if(Platform.OS === 'ios') {
-      await notifee.requestPermission()
-    }
-
+    
     const isChannelCreated = await notifee.isChannelCreated(TASK_QUEUE_CHANNEL_ID)
     if (!isChannelCreated) {
         await notifee.createChannel({
@@ -354,8 +350,8 @@ const createForegroundNotification = async function (body: string, data: {task: 
             name: TASK_QUEUE_CHANNEL_NAME,
             sound: 'default',
         })
-    }
-    
+    }    
+        
     return notifee.displayNotification({
         title: TASK_QUEUE_CHANNEL_NAME,
         body,
