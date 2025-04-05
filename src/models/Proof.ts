@@ -12,6 +12,12 @@ export type BackupProof = Proof & {
     updatedAt: Date
 }
 
+const ProofDleq = types.model('ProofDleq', {
+    r: types.string,
+    s: types.string,
+    e: types.string,
+})
+
 /**
  * Proof model
  */
@@ -22,6 +28,7 @@ export const ProofModel = types
         amount: types.number,
         secret: types.identifier,
         C: types.string,
+        dleq: types.maybe(ProofDleq),
         tId: types.number,
         mintUrl: types.string,
         unit: types.frozen<MintUnit>(),

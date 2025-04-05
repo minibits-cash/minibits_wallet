@@ -419,13 +419,30 @@ export const WalletStoreModel = types
                 currentCounter.increaseProofsCounter(options.increaseCounterBy)
             }
 
-            log.debug('[WalletStore.receive] counter', currentCounter.counter)            
+            log.debug('[WalletStore.receive] counter', currentCounter.counter)
+            
+            // P2PK locked tokens can be received only by the wallet they are locked to
+            const isLocked = CashuUtils.isTokenP2PKLocked(decodedToken)
+            let isLockedToWallet = false
+            const walletKeys = yield self.getCachedWalletKeys()
+    
+            if(isLocked) {
+                const lockedToPK = CashuUtils.getP2PKPubkeySecret(decodedToken.proofs[0].secret)
+                const walletP2PK = '02' + walletKeys.NOSTR.publicKey
 
+                isLockedToWallet = lockedToPK === walletP2PK
+                
+                if(!isLockedToWallet) {
+                    throw new AppError(Err.VALIDATION_ERROR, 'Ecash token is locked to another wallet, can not receive it.', {lockedToPK, walletP2PK})
+                }
+            }
+          
             const receiveParams: ReceiveParams = options?.inFlightRequest?.request || {
                 token: decodedToken,
                 options: {
                     keysetId: cashuWallet.keysetId,                    
-                    counter: currentCounter.counter,                    
+                    counter: currentCounter.counter,
+                    privkey: isLockedToWallet ? walletKeys.NOSTR.privateKey : undefined,                   
                 }
             }                
             
@@ -437,7 +454,9 @@ export const WalletStoreModel = types
                 const proofs = yield cashuWallet.receive(
                   receiveParams.token,
                   receiveParams.options
-                )                
+                )
+                
+                log.trace('[WalletStore.receive]', {proofs})
                 
                 currentCounter.removeInFlightRequest(transactionId)               
                 

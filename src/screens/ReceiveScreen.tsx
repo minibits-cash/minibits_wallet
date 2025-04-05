@@ -68,6 +68,8 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
     const [memo, setMemo] = useState('')
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
+    const [isP2PKLocked, setIsP2PKLocked] = useState(false)
+    const [isP2PKLockedToWallet, setIsP2PKLockedToWallet] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [isReceiveTaskSentToQueue, setIsReceiveTaskSentToQueue] = useState(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)
@@ -179,8 +181,15 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
         
         const decoded = getDecodedToken(encoded)
         const tokenAmount = CashuUtils.getProofsAmount(decoded.proofs)
+        const isLocked = CashuUtils.isTokenP2PKLocked(decoded)
+        let isLockedToWallet = false
 
-        log.trace('decoded token', {decoded})
+        if(isLocked) {
+          const lockedToPK = CashuUtils.getP2PKPubkeySecret(decoded.proofs[0].secret)
+          isLockedToWallet = lockedToPK === '02'+(await walletStore.getCachedWalletKeys()).NOSTR.publicKey          
+        }
+
+        log.trace('decoded token', {decoded, isLocked, isLockedToWallet})
         log.trace('tokenAmount', {tokenAmount})
 
         if(!decoded.unit) {
@@ -191,6 +200,8 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
         const currency = getCurrency(decoded.unit as MintUnit)
 
         setToken(decoded)
+        setIsP2PKLocked(isLocked)
+        setIsP2PKLockedToWallet(isLockedToWallet)
         setAmountToReceive(numbro(tokenAmount / currency.precision).format({thousandSeparated: true, mantissa: currency.mantissa}))
         setUnit(decoded.unit as MintUnit)
         
@@ -286,31 +297,45 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
                 mint={undefined}
                 unit={unit}                
             />
-        <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-            {toNumber(receivedAmount) > 0 ? (
+        <View style={[$headerContainer, {backgroundColor: headerBg}]}>    
             <View style={$amountContainer}>
                 <TextInput                                        
-                    value={receivedAmount}                    
+                    value={toNumber(receivedAmount) > 0 ? receivedAmount : amountToReceive}                    
                     style={[$amountInput, {color: amountInputColor}]}
                     maxLength={9}                    
                     editable={false}
                 />
             </View>
+            {isP2PKLocked ? (
+              <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                <Icon
+                  containerStyle={$iconLockContainer}
+                  icon={toNumber(receivedAmount) > 0 ? "faLockOpen" : "faLock"}
+                  size={spacing.medium}
+                  color={amountInputColor}
+                />
+                {isP2PKLockedToWallet ? (
+                  <Text
+                      size='sm'
+                      tx={toNumber(receivedAmount) > 0 ? "receiveScreen.received" : "receiveScreen.lockedToWalletPK"}
+                      style={{color: amountInputColor, textAlign: 'center'}}
+                  />
+                ) : (
+                  <Text
+                      size='sm'
+                      tx={toNumber(receivedAmount) > 0 ? "receiveScreen.received" : "receiveScreen.lockedToUnknownPK"}
+                      style={{color: amountInputColor, textAlign: 'center'}}
+                  />
+                )}
+              </View>
             ) : (
-            <View style={$amountContainer}>
-                <TextInput                                        
-                    value={amountToReceive}
-                    style={[$amountInput, {color: amountInputColor}]}
-                    maxLength={9}                    
-                    editable={false}
-                />
-            </View>
-           )}
-            <Text
-                size='sm'
-                tx={toNumber(receivedAmount) > 0 ? "receiveScreen.received" : "receiveScreen.toReceive"}
-                style={{color: amountInputColor, textAlign: 'center'}}
-            />
+              <Text
+                  size='sm'
+                  tx={toNumber(receivedAmount) > 0 ? "receiveScreen.received" : "receiveScreen.toReceive"}
+                  style={{color: amountInputColor, textAlign: 'center'}}
+              />
+            )}
+
         </View>
         <View style={$contentContainer}>          
           {token && toNumber(amountToReceive) > 0 && (
@@ -575,6 +600,12 @@ const $iconContainer: ViewStyle = {
   padding: spacing.extraSmall,
   alignSelf: 'center',
   marginRight: spacing.medium,
+}
+
+const $iconLockContainer: ViewStyle = {
+  padding: spacing.extraSmall,
+  alignSelf: 'center',
+  // marginRight: spacing.extraSmall,
 }
 
 const $buttonContainer: ViewStyle = {

@@ -227,35 +227,35 @@ const getProofsSubset = function (
 
 
 const validateMintKeys = function (keys: object): boolean {
-    let isValid = true
-    try {
-      const allKeys = Object.keys(keys)
-  
-      if (!allKeys) {
-        return false
-      }
-  
-      if (allKeys.length < 1) {
-        return false
-      }
-      allKeys.forEach(k => {
-        //try parse int?
-        if (isNaN(Number(k))) {
-          isValid = false
-        }
-        if (!isPow2(Number(k))) {
-          isValid = false
-        }
-      })
-      return isValid
-    } catch (error) {
+  let isValid = true
+  try {
+    const allKeys = Object.keys(keys)
+
+    if (!allKeys) {
       return false
     }
+
+    if (allKeys.length < 1) {
+      return false
+    }
+    allKeys.forEach(k => {
+      //try parse int?
+      if (isNaN(Number(k))) {
+        isValid = false
+      }
+      if (!isPow2(Number(k))) {
+        isValid = false
+      }
+    })
+    return isValid
+  } catch (error) {
+    return false
   }
-  
-  const isPow2 = function (number: number) {
-    return Math.log2(number) % 1 === 0
-  }
+}
+
+const isPow2 = function (number: number) {
+  return Math.log2(number) % 1 === 0
+}
 
 
 
@@ -273,6 +273,30 @@ const getMintFromProof = function (
 }
 
 
+const getP2PKPubkeySecret = function (secret: string) {
+  try {
+    let secretObject = JSON.parse(secret)
+    if (secretObject[0] == "P2PK" && secretObject[1]["data"] != undefined) {
+      return secretObject[1]["data"]
+    }
+  } catch {}
+  return ""
+}
+
+
+const isTokenP2PKLocked = function (token: Token) {
+  const secrets = token.proofs.map((p) => p.secret)
+  for (const secret of secrets) {
+    try {
+      if (getP2PKPubkeySecret(secret)) {
+        return true
+      }
+    } catch {}
+  }
+  return false
+}
+
+
 
 
 export const CashuUtils = {
@@ -286,5 +310,7 @@ export const CashuUtils = {
     getProofsToSend,
     getProofsSubset,
     validateMintKeys,
-    getMintFromProof
+    getMintFromProof,
+    getP2PKPubkeySecret,
+    isTokenP2PKLocked
 }

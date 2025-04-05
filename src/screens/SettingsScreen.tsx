@@ -367,7 +367,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                         width={spacing.large} 
                         height={spacing.large} 
                         xml={NwcIcon}   
-                        style={{}}                     
+                        style={{marginRight: spacing.small}}                     
                       />
                     </View>
                     }   

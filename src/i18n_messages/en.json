@@ -336,7 +336,9 @@
 		"showOrShareInvoiceDescription": "Present or share lightning invoice for an amount you want to receive.",
 		"status": "Status",
 		"title": "Receive",
-		"toReceive": "Amount to receive"
+		"toReceive": "Amount to receive",
+		"lockedToWalletPK": "Locked to your keys",
+		"lockedToUnknownPK": "Can not unlock"
 	},
 	"recoverToWallet": "Recover to wallet",
 	"recovery": {

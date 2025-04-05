@@ -227,7 +227,7 @@ export const receiveOfflinePrepareTask = async function (
                 mintUrl: mintToReceive,
                 transaction: blockedTransaction,
                 message: `The mint ${mintToReceive} is blocked. You can unblock it in Settings.`,
-            } as TransactionTaskResult
+            } as unknown as TransactionTaskResult
         }
 
         // Update transaction status

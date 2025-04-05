@@ -31,7 +31,7 @@ import { transferTask } from './wallet/transferTask'
 import { revertTask } from './wallet/revertTask'
 import { WalletUtils } from './wallet/utils'
 import { NotificationService } from './notificationService'
-import { MintUnit, formatCurrency, getCurrency } from './wallet/currency'
+import { CurrencyCode, MintUnit, formatCurrency, getCurrency } from './wallet/currency'
 import { MinibitsClient } from './minibitsService'
 import { KeyChain } from './keyChain'
 import { UnsignedEvent } from 'nostr-tools'
@@ -2276,13 +2276,27 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
 
 
 
-const _sendReceiveNotification = async function (    
+const _sendReceiveNotification = async function (
     receivedAmount: number,
     unit: MintUnit,
     isZap: boolean,
     sentFrom: string,
     sentFromPicture?: string
 ): Promise<void> {
+    const getNotificationContent = (
+        amount: number,
+        currency: CurrencyCode,
+        zap: boolean,
+        sender: string
+    ): { title: string; body: string } => {
+        const title = Platform.OS === 'android'
+            ? `<b>⚡${formatCurrency(amount, currency)} ${currency}</b> received!`
+            : `⚡${formatCurrency(amount, currency)} ${currency} received!`
+        const body = Platform.OS === 'android'
+            ? `${zap ? 'Zap' : 'Ecash'} from <b>${sender || 'unknown payer'}</b> is now in your wallet.`
+            : `${zap ? 'Zap' : 'Ecash'} from ${sender || 'unknown payer'} is now in your wallet.`
+        return { title, body };
+    }
     
     const enabled = await NotificationService.areNotificationsEnabled()
     if(!enabled) {
@@ -2294,11 +2308,8 @@ const _sendReceiveNotification = async function (
     //
     const currencyCode = getCurrency(unit).code
     if(receivedAmount && receivedAmount > 0) {
-        await NotificationService.createLocalNotification(
-            Platform.OS === 'android' ? `<b>⚡${formatCurrency(receivedAmount, currencyCode)} ${currencyCode}</b> received!` : `⚡${formatCurrency(receivedAmount, currencyCode)} ${currencyCode} received!`,
-            Platform.OS === 'android' ? `${isZap ? 'Zap' : 'Ecash'} from <b>${sentFrom || 'unknown payer'}</b> is now in your wallet.` : `${isZap ? 'Zap' : 'Ecash'} from ${sentFrom || 'unknown payer'} is now in your wallet.`,
-            sentFromPicture       
-        ) 
+        const { title, body } = getNotificationContent(receivedAmount, currencyCode, isZap, sentFrom);
+        await NotificationService.createLocalNotification(title, body, sentFromPicture);
     }
 
     return

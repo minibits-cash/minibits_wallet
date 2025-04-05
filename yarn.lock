@@ -1576,16 +1576,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@cashu/cashu-ts@minibits-cash/cashu-ts#2b51a7ba7a8461a0040359eecda37b98b603692c":
-  version: 2.0.0-minibits.1
-  resolution: "@cashu/cashu-ts@https://github.com/minibits-cash/cashu-ts.git#commit=2b51a7ba7a8461a0040359eecda37b98b603692c"
+"@cashu/cashu-ts@minibits-cash/cashu-ts#3c44632df9113af2ae743709d2b37c9556ea9ccb":
+  version: 2.4.0
+  resolution: "@cashu/cashu-ts@https://github.com/minibits-cash/cashu-ts.git#commit=3c44632df9113af2ae743709d2b37c9556ea9ccb"
   dependencies:
     "@cashu/crypto": ^0.3.4
     "@noble/curves": ^1.3.0
     "@noble/hashes": ^1.3.3
-    "@scure/bip32": ^1.3.3
     buffer: ^6.0.3
-  checksum: a906be2c9c5d5e2b48edc836216f6673bf79b5ecbcd1762deb004cf610e2dcf6507c09d0fe635487903c41918d7f50758c6352e4be33e406c4a3c719534ccd75
+  checksum: dc90ac2c93139a58e4cd15dcb619c3d8e328096374e85980202e68f70df452c0af372494e597bbca92cd5cfed8a5435ddc635e4511d41674fa22e6e91dec5461
   languageName: node
   linkType: hard
 
@@ -3724,7 +3723,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@scure/bip32@npm:^1.3.3, @scure/bip32@npm:^1.5.0":
+"@scure/bip32@npm:^1.5.0":
   version: 1.6.2
   resolution: "@scure/bip32@npm:1.6.2"
   dependencies:
@@ -9182,7 +9181,7 @@ __metadata:
     "@babel/plugin-proposal-export-namespace-from": ^7.18.9
     "@babel/preset-env": ^7.25.3
     "@babel/runtime": ^7.25.0
-    "@cashu/cashu-ts": "minibits-cash/cashu-ts#2b51a7ba7a8461a0040359eecda37b98b603692c"
+    "@cashu/cashu-ts": "minibits-cash/cashu-ts#3c44632df9113af2ae743709d2b37c9556ea9ccb"
     "@fortawesome/fontawesome-svg-core": ^6.7.2
     "@fortawesome/free-brands-svg-icons": ^6.7.2
     "@fortawesome/free-regular-svg-icons": ^6.7.2

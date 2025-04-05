@@ -59,7 +59,6 @@ import { LeftProfileHeader } from './ContactsScreen'
 import { getUnixTime } from 'date-fns/getUnixTime'
 import FastImage from 'react-native-fast-image'
 
-
 const MINT_CHECK_INTERVAL = 60
 
 type Props = StaticScreenProps<{

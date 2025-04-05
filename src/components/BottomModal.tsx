@@ -170,7 +170,8 @@ export function BottomModal(props: ModalProps) {
       onBackdropPress={onBackdropPress}
       onBackButtonPress={onBackButtonPress}
       backdropOpacity={backdropOpacity}
-      style={[$outerContainerBase]}      
+      style={[$outerContainerBase]}
+      //coverScreen={true}      
       {...otherProps}
     >
       <StatusBar backgroundColor={isVisible ? statusBarOnModalOpen : undefined} />

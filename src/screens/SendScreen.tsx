@@ -48,7 +48,7 @@ import { Proof } from '../models/Proof'
 import { Contact, ContactType } from '../models/Contact'
 import { getImageSource, infoMessage } from '../utils/utils'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
-import { MintUnit, MintUnits, formatCurrency, getCurrency } from "../services/wallet/currency"
+import { CurrencyCode, MintUnit, MintUnits, formatCurrency, getCurrency } from "../services/wallet/currency"
 import { MintHeader } from './Mints/MintHeader'
 import { MintBalanceSelector } from './Mints/MintBalanceSelector'
 import { round, toNumber } from '../utils/number'
@@ -61,6 +61,8 @@ import { ProfilePointer } from 'nostr-tools/nip19'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 import { SEND_TASK } from '../services/wallet/sendTask'
 import FastImage from 'react-native-fast-image'
+import { CurrencyAmount } from './Wallet/CurrencyAmount'
+import { CashuUtils } from '../services/cashu/cashuUtils'
 
 export enum SendOption {
     SEND_TOKEN = 'SEND_TOKEN',
@@ -130,7 +132,8 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     const [isSendTaskSentToQueue, setIsSendTaskSentToQueue] = useState(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)
     const [isNostrDMSending, setIsNostrDMSending] = useState(false)
-    const [isNostrDMSuccess, setIsNostrDMSuccess] = useState(false)     
+    const [isNostrDMSuccess, setIsNostrDMSuccess] = useState(false)
+    const [isLockedToPubkey, setIsLockedToPubkey] = useState(false)     
 
     useEffect(() => {
         const focus = () => {
@@ -523,6 +526,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     const toggleNostrDMModal = () => setIsNostrDMModalVisible(previousState => !previousState)
     const toggleProofSelectorModal = () => setIsProofSelectorModalVisible(previousState => !previousState)
     const toggleResultModal = () => setIsResultModalVisible(previousState => !previousState)
+    const toggleIsLockedToPubkey = () => setIsLockedToPubkey(previousState => !previousState)
 
     const onAmountEndEditing = function () {
         try {        
@@ -946,7 +950,9 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             <SelectProofsBlock
                 mintBalanceToSendFrom={mintBalanceToSendFrom as MintBalance}
                 unit={unitRef.current}
-                selectedProofs={selectedProofs}               
+                selectedProofs={selectedProofs}
+                isLockedToPubkey={isLockedToPubkey}          
+                toggleIsLockedToPubkey={toggleIsLockedToPubkey}    
                 toggleProofSelectorModal={toggleProofSelectorModal}
                 toggleSelectedProof={toggleSelectedProof} 
                 resetSelectedProofs={resetSelectedProofs}           
@@ -1057,8 +1063,10 @@ const SelectProofsBlock = observer(function (props: {
     mintBalanceToSendFrom: MintBalance
     unit: MintUnit
     selectedProofs: Proof[]
+    isLockedToPubkey: boolean
     toggleProofSelectorModal: any                    
     toggleSelectedProof: any
+    toggleIsLockedToPubkey: any
     resetSelectedProofs: any
     onOfflineSendConfirm: any
   }) {
@@ -1074,13 +1082,13 @@ const SelectProofsBlock = observer(function (props: {
     
     return (
         <View style={$bottomModal}>
-            <Text text='Select ecash to send' />
+            <Text text='Select ecash to send' style={{marginTop: spacing.large}}/>
             <Text
-                text='You can send only exact ecash denominations while you are offline.'
-                style={{color: hintColor, paddingHorizontal: spacing.small, textAlign: 'center', marginBottom: spacing.small}}
+                text='You can only send exact ecash denominations while you are offline.'
+                style={{color: hintColor, paddingHorizontal: spacing.small, textAlign: 'center'}}
                 size='xs'
             />
-            <View style={{maxHeight: spacing.screenHeight * 0.45}}>
+            <View style={{maxHeight: spacing.screenHeight * 0.4}}>
                 <FlatList<Proof>
                     data={proofsStore.getByMint(props.mintBalanceToSendFrom.mintUrl, {isPending: false, unit: props.unit})}
                     renderItem={({ item }) => {
@@ -1101,17 +1109,34 @@ const SelectProofsBlock = observer(function (props: {
                     keyExtractor={(item) => item.secret}
                 />
             </View>
-            <View style={[$buttonContainer, {marginTop: spacing.extraLarge}]}>
-                <Button
-                    text="Create token"
-                    onPress={props.onOfflineSendConfirm}
-                    style={{marginRight: spacing.medium}}          
-                />
-                <Button 
-                    preset="secondary" 
-                    text="Cancel" 
-                    onPress={onCancel} 
-                />        
+            <View style={[$bottomContainer, {marginTop: spacing.extraLarge}]}>
+                <View style={[$buttonContainer, {marginBottom: spacing.medium}]}>
+                    <CurrencyAmount 
+                            amount={CashuUtils.getProofsAmount(props.selectedProofs)} 
+                            mintUnit={props.unit}
+                            
+                            size='large'            
+                    />
+                    <Button
+                        preset={'tertiary'}
+                        onPress={() => props.toggleIsLockedToPubkey()}
+                        LeftAccessory={() => <Icon icon={props.isLockedToPubkey ? 'faLock' : 'faLock'}/>}
+                        text={props.isLockedToPubkey ? 'Locked' : 'Lock'}
+                        style={{minWidth: 80}}
+                    />
+                </View>
+                <View style={[$buttonContainer]}>
+                    <Button
+                        text="Create token"
+                        onPress={props.onOfflineSendConfirm}
+                        style={{marginRight: spacing.medium}}          
+                    />
+                    <Button 
+                        preset="secondary" 
+                        text="Cancel" 
+                        onPress={onCancel} 
+                    />        
+                </View>
             </View>
         </View>
     )
