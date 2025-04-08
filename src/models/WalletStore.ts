@@ -519,10 +519,9 @@ export const WalletStoreModel = types
                 proofs: proofsToSendFrom,
                 options: {
                     keysetId: cashuWallet.keysetId,                   
-                    counter: options?.p2pk ? undefined : currentCounter.counter,
+                    counter: options?.p2pk ? undefined : currentCounter.counter, // p2pk is not deterministic
                     includeFees: false, // fee reserve needs to be already in proofsToSendFrom
                     p2pk: options?.p2pk
-                    // pubkey: options?.p2pk?.pubkey,
                 }
             }                
             

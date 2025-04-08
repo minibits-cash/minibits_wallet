@@ -1127,40 +1127,42 @@ const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previous
                         onPress={onScanLockedPubkey}
                     />
                 </View>
-                <View
-                    style={{
-                        flexDirection: 'row',
-                        marginTop: spacing.medium,
-                        alignItems: 'center',
-                        borderBottomWidth: 1,
-                        borderBottomColor: inputBg
-                    }}
-                    >
-                    <FlatList
-                        data={contactsStore.contacts}
-                        renderItem={({ item }) => {
-                            return (
-                                <ContactItem 
-                                    contact={item}
-                                    onPress={() => setLockedPubkey(item.pubkey)}
-                                    containerStyle={{
-                                        paddingHorizontal: spacing.small,
-                                        borderRadius: spacing.tiny,
-                                        backgroundColor: lockedPubkey === item.pubkey ? inputBg : undefined,
-                                    }}                                    
-                                />
-                            )
-                            }}
-                        horizontal={true}
-                        keyExtractor={(item) => item.pubkey}
-                        style={{marginBottom: spacing.medium}}
-                        contentContainerStyle={{
-                            justifyContent: 'center', // Center items horizontally
-                            alignItems: 'center',    // Center items vertically
-                            flexGrow: 1,
+                {contactsStore.contacts.length > 0 && (
+                    <View
+                        style={{
+                            flexDirection: 'row',
+                            marginTop: spacing.medium,
+                            alignItems: 'center',
+                            borderBottomWidth: 1,
+                            borderBottomColor: inputBg
                         }}
-                    />
-                </View>
+                        >
+                        <FlatList
+                            data={contactsStore.contacts}
+                            renderItem={({ item }) => {
+                                return (
+                                    <ContactItem 
+                                        contact={item}
+                                        onPress={() => setLockedPubkey(item.pubkey)}
+                                        containerStyle={{
+                                            paddingHorizontal: spacing.small,
+                                            borderRadius: spacing.tiny,
+                                            backgroundColor: lockedPubkey === item.pubkey ? inputBg : undefined,
+                                        }}                                    
+                                    />
+                                )
+                                }}
+                            horizontal={true}
+                            keyExtractor={(item) => item.pubkey}
+                            style={{marginBottom: spacing.medium}}
+                            contentContainerStyle={{
+                                justifyContent: 'center', // Center items horizontally
+                                alignItems: 'center',    // Center items vertically
+                                flexGrow: 1,
+                            }}
+                        />
+                    </View>
+                )}
                 <Text
                     size="xxs"
                     style={{color: hintColor, marginTop: spacing.small}}
@@ -1597,7 +1599,13 @@ const ContactItem = function (props: {
                     color={tokenTextColor}                
                 />
             )}
-            <Text size='xxs' style={{color: tokenTextColor}} text={props.contact.name || props.contact.npub.slice(0, 10)}/>
+            <Text 
+                size='xxs' 
+                ellipsizeMode='tail'
+                numberOfLines={1}
+                style={{color: tokenTextColor, maxWidth: 50}} 
+                text={props.contact.name|| props.contact.npub}
+            />
         </Pressable>
     )
 }
