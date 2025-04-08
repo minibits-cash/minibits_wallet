@@ -80,7 +80,8 @@
 		"copySuccessParam": "Copied %{param}",
 		"hide": "Hide",
 		"show": "Show",
-		"update": "Update"
+		"update": "Update",
+		"none": ""
 	},
 	"confirmBackupRecovery": "Do you really want to recover ecash from the backup?",
 	"confirmMintRemoval": "Do you really want to remove %{hostname} - %{shortname} from the wallet?",
@@ -440,6 +441,8 @@
 		"contactAddress": "Share contact address"
 	},
 	"shareWalletAddress": "Share wallet address",
+	"shareWalletPubkey": "Share wallet public key (HEX)",
+	"shareWalletNpub": "Share wallet public key (NPUB)",
 	"showErrors": "Show errors",
 	"showOnboarding": "Show onboarding again",
 	"showOnboardingDesc": "Go through onboarding screens again next time you restart Minibits.",

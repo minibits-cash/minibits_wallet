@@ -115,7 +115,8 @@ type WalletTaskService = {
         amountToSend: number,
         unit: MintUnit,
         memo: string,
-        selectedProofs: Proof[]
+        selectedProofs: Proof[],
+        p2pk?: { pubkey: string; locktime?: number; refundKeys?: Array<string> }
     ) => Promise<void>
     swapAllQueue: () => Promise<void>
     topupQueue: (
@@ -374,7 +375,8 @@ const sendQueue = async function (
     amountToSend: number,
     unit: MintUnit,
     memo: string,
-    selectedProofs: Proof[]
+    selectedProofs: Proof[],
+    p2pk?: { pubkey: string; locktime?: number; refundKeys?: Array<string> }
 ): Promise<void> {
     const now = new Date().getTime()
     SyncQueue.addPrioritizedTask(
@@ -384,7 +386,8 @@ const sendQueue = async function (
             amountToSend,
             unit,
             memo,
-            selectedProofs       
+            selectedProofs,
+            p2pk     
         )
     )
     return
@@ -1220,7 +1223,8 @@ const handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTask
                                 inFlight.request.proofs,
                                 transaction.id,
                                 {
-                                    inFlightRequest: inFlight
+                                    inFlightRequest: inFlight,
+                                    p2pk: undefined
                                 }
                             )
     

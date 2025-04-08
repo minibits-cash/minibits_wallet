@@ -65,6 +65,7 @@ export type SendParams = {
 			offline?: boolean;
 			includeFees?: boolean;
 			includeDleq?: boolean;
+      p2pk?: { pubkey: string; locktime?: number; refundKeys?: Array<string> }
 		}
 }
 
@@ -485,7 +486,8 @@ export const WalletStoreModel = types
             transactionId: number,
             options?: {
               increaseCounterBy?: number,             
-              inFlightRequest?: InFlightRequest<SendParams>       
+              inFlightRequest?: InFlightRequest<SendParams>
+              p2pk: { pubkey: string; locktime?: number; refundKeys?: Array<string> }      
             }
         ) {
 
@@ -517,8 +519,10 @@ export const WalletStoreModel = types
                 proofs: proofsToSendFrom,
                 options: {
                     keysetId: cashuWallet.keysetId,                   
-                    counter: currentCounter.counter,
-                    includeFees: false // fee reserve needs to be already in proofsToSendFrom
+                    counter: options?.p2pk ? undefined : currentCounter.counter,
+                    includeFees: false, // fee reserve needs to be already in proofsToSendFrom
+                    p2pk: options?.p2pk
+                    // pubkey: options?.p2pk?.pubkey,
                 }
             }                
             
@@ -536,8 +540,8 @@ export const WalletStoreModel = types
 
                 currentCounter.removeInFlightRequest(transactionId)
             
-                log.trace(`[WalletStore.send] ${keep.length} returnedProofs`)
-                log.trace(`[WalletStore.send] ${send.length} proofsToSend`)            
+                log.trace(`[WalletStore.send] ${keep.length} returnedProofs`, {keep})
+                log.trace(`[WalletStore.send] ${send.length} proofsToSend`, {send})            
                 
                 const totalAmountToSendFrom: number = CashuUtils.getProofsAmount(proofsToSendFrom)
                 const returnedAmount: number = CashuUtils.getProofsAmount(keep)            

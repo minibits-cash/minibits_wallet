@@ -34,7 +34,8 @@ export const sendTask = async function (
     amountToSend: number,
     unit: MintUnit,
     memo: string,
-    selectedProofs: Proof[]
+    selectedProofs: Proof[],
+    p2pk?: { pubkey: string; locktime?: number; refundKeys?: Array<string> }
 ) : Promise<TransactionTaskResult> {
 
     const mintUrl = mintBalanceToSendFrom.mintUrl
@@ -84,6 +85,7 @@ export const sendTask = async function (
             unit,
             selectedProofs,
             transaction.id,
+            p2pk
         )
 
         // Update transaction status
@@ -192,6 +194,7 @@ export const sendFromMintSync = async function (
     unit: MintUnit,
     selectedProofs: Proof[],
     transactionId: number,
+    p2pk?: { pubkey: string; locktime?: number; refundKeys?: Array<string> }
 ) {
     const mintUrl = mintBalance.mintUrl
     const mintInstance = mintsStore.findByUrl(mintUrl)    
@@ -306,8 +309,11 @@ export const sendFromMintSync = async function (
         let swapFeePaid: number = 0
         let proofsToSend: CashuProof[] | Proof[] = []
         let returnedProofs: CashuProof[] = []
+        let isSwapNeeded: boolean = false
 
-        let isSwapNeeded: boolean = proofsToSendFromAmount - amountToSend > 0 ? true : false        
+        if(p2pk || proofsToSendFromAmount - amountToSend > 0) {
+            isSwapNeeded = true
+        }      
 
         log.trace('[sendFromMintSync]', {proofsToSendFromAmount, amountToSend})
         /* 
@@ -356,7 +362,8 @@ export const sendFromMintSync = async function (
                     amountToSend,                
                     unit,            
                     proofsToSendFrom,
-                    transactionId
+                    transactionId,
+                    {p2pk}
                 )
             } catch (e: any) {                
                 if(e.params && e.params.message.includes('outputs have already been signed before')) {          
@@ -367,7 +374,7 @@ export const sendFromMintSync = async function (
                         unit,            
                         proofsToSendFrom,
                         transactionId,
-                        {increaseCounterBy: 10}
+                        {p2pk, increaseCounterBy: 10}
                     )
                 } else {
                     throw e
@@ -380,16 +387,18 @@ export const sendFromMintSync = async function (
             
             // add proofs returned by the mint after the split
             log.trace('[sendFromMintSync] add returned proofs to spendable')
-
-            WalletUtils.addCashuProofs(
-                mintUrl,
-                returnedProofs,
-                {
-                    unit,
-                    transactionId,
-                    isPending: false
-                }
-            )           
+            
+            if(returnedProofs.length > 0) {
+                WalletUtils.addCashuProofs(
+                    mintUrl,
+                    returnedProofs,
+                    {
+                        unit,
+                        transactionId,
+                        isPending: false
+                    }
+                ) 
+            }          
             
         } else {        
             // SWAP is NOT needed, we've found denominations that match exact amount

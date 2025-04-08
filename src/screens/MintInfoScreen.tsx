@@ -273,7 +273,7 @@ export const MintInfoScreen = observer(function MintInfoScreen({ route }: Props)
 
         )}        
         <QRShareModal
-            url={route.params.mintUrl}
+            data={route.params.mintUrl}
             shareModalTx='mintsScreen.share'
             subHeading={mintInfo?.name ?? translate('mintInfo.loadingNamePlaceholder')}
             type='URL'

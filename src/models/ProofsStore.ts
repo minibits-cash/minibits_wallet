@@ -138,6 +138,12 @@ export const ProofsStoreModel = types
         addProofs(newProofs: Proof[], isPending: boolean = false): {addedAmount: number, addedProofs: Proof[]} {
             try {
                 const proofs = isPending ? self.pendingProofs : self.proofs
+
+                if(newProofs.length === 0) {
+                    log.error('[addProofs]', 'No proofs to add')
+                    return {addedAmount: 0, addedProofs: []}
+                }
+
                 let addedAmount: number = 0
                 let addedProofs: Proof[] = []
                 const unit: MintUnit = newProofs[0].unit

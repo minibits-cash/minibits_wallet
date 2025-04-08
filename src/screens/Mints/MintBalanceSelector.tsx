@@ -16,8 +16,10 @@ export const MintBalanceSelector = observer(function (props: {
     unit: MintUnit
     title: string
     confirmTitle: string
+    secondaryConfirmTitle?: string
     collapsible?: boolean
     onMintBalanceSelect: any
+    onSecondaryMintBalanceSelect?: any
     onCancel: any  
     onMintBalanceConfirm: any
   }) {
@@ -116,11 +118,21 @@ export const MintBalanceSelector = observer(function (props: {
         <View style={$bottomContainer}>
           {!isKeyboardVisible && (
           <View style={[$buttonContainer, {marginTop: spacing.large}]}>
+                          
+              {props.secondaryConfirmTitle && (
+                <Button
+                  text={props.secondaryConfirmTitle}
+                  preset="secondary"
+                  onPress={props.onSecondaryMintBalanceSelect}
+                  style={{marginRight: spacing.medium}}          
+                />
+              )}
               <Button
                 text={props.confirmTitle}
                 onPress={props.onMintBalanceConfirm}
                 style={{marginRight: spacing.medium}}          
               />
+
               <Button
                 preset="secondary"
                 tx={'common.cancel'}

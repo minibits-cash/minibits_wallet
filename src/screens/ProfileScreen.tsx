@@ -9,9 +9,10 @@ import { ProfileHeader } from '../components/ProfileHeader'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { log } from '../services/logService'
 import { KeyChain, MinibitsClient, NostrClient, NostrProfile } from '../services'
-import { translate } from '../i18n'
+import { translate, TxKeyPath } from '../i18n'
 import { CollapsibleText } from '../components/CollapsibleText'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+import { QRShareModal } from '../components/QRShareModal'
 
 type Props = StaticScreenProps<undefined>
 
@@ -25,6 +26,8 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
     )
     const [isUpdateModalVisible, setIsUpdateModalVisible] = useState<boolean>(false)
     const [isShareModalVisible, setIsShareModalVisible] = useState<boolean>(false)
+    const [isQrCodeModalVisible, setIsQrCodeModalVisible] = useState(false)
+    const [qrCodeData, setQrCodeData] = useState<{title: TxKeyPath, data: string}>(undefined)
     const [isLoading, setIsLoading] = useState<boolean>(false)
     const [info, setInfo] = useState('')    
     const [error, setError] = useState<AppError | undefined>()
@@ -44,8 +47,8 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
         setIsUpdateModalVisible(previousState => !previousState)
     }
 
-    const toggleShareModal = () => {
-        setIsShareModalVisible(previousState => !previousState)
+    const toggleQrCodeModal = () => {
+        setIsQrCodeModalVisible(previousState => !previousState)
     }
         
     const gotoAvatar = function() {
@@ -64,22 +67,33 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
         navigation.navigate('Privacy')
     }
 
+    const toggleShareModal = () => {      
+        setIsShareModalVisible(previousState => !previousState)      
+    }
 
-    const onCopyNpub = function () {        
-        try {
-          Clipboard.setString(npub)
-        } catch (e: any) {
-          setInfo(translate('common.copyFailParam', { param: e.message }))
-        }
+    const onShareNpub = function () { 
+        toggleShareModal()
+        setQrCodeData({
+            title: 'shareWalletNpub',
+            data: npub,
+        })
+        
+        setTimeout(() => {
+            toggleQrCodeModal()
+        }, 500) // ios fix
     }
 
 
-    const onCopyPubkey = function () {        
-        try {
-          Clipboard.setString(pubkey)
-        } catch (e: any) {
-          setInfo(translate('common.copyFailParam', { param: e.message }))
-        }
+    const onSharePubkey = function () {
+        toggleShareModal()
+        setQrCodeData({
+            title: 'shareWalletPubkey',
+            data: pubkey,
+        })
+
+        setTimeout(() => {
+            toggleQrCodeModal()
+        }, 500) // ios fix
     }
 
     const onCopyNip05 = function () {        
@@ -278,23 +292,32 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
                             bottomSeparator={true}
                         />    
                         <ListItem
-                            text="Copy Nostr public key (NPUB)"
+                            tx="shareWalletNpub"
                             subText={npub}
-                            leftIcon='faCopy'
-                            onPress={onCopyNpub}
+                            leftIcon='faQrcode'
+                            onPress={onShareNpub}
                             bottomSeparator={true}
                         />
                         <ListItem
-                            text="Copy Nostr public key (HEX)"
+                            tx="shareWalletPubkey"
                             subText={pubkey}
-                            leftIcon='faCopy'
-                            onPress={onCopyPubkey}
+                            leftIcon='faQrcode'
+                            onPress={onSharePubkey}
                         />
                     </>
                 }
                 onBackButtonPress={toggleShareModal}
                 onBackdropPress={toggleShareModal}
             />
+            {qrCodeData && (
+                <QRShareModal
+                    data={qrCodeData.data}
+                    subHeadingTx={qrCodeData.title}
+                    type='PUBKEY'
+                    isVisible={isQrCodeModalVisible}
+                    onClose={toggleQrCodeModal}
+                />
+            )}
             {isLoading && <Loading />}
             {error && <ErrorModal error={error} />}
             {info && <InfoModal message={info} />}

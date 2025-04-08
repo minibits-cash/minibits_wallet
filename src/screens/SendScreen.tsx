@@ -10,8 +10,6 @@ import React, {
 } from 'react'
 import {StackActions, StaticScreenProps, useFocusEffect, useNavigation} from '@react-navigation/native'
 import {
-  UIManager,
-  Platform,
   TextInput,
   TextStyle,
   View,
@@ -21,6 +19,7 @@ import {
   FlatList,
   ImageStyle,
   Image,
+  Pressable,
 } from 'react-native'
 import {spacing, typography, useThemeColor, colors} from '../theme'
 import {
@@ -33,6 +32,7 @@ import {
   ErrorModal,
   BottomModal,
   Text,
+  ListItem,
 } from '../components'
 import {TransactionStatus, Transaction} from '../models/Transaction'
 import {useStores} from '../models'
@@ -63,6 +63,8 @@ import { SEND_TASK } from '../services/wallet/sendTask'
 import FastImage from 'react-native-fast-image'
 import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import { CashuUtils } from '../services/cashu/cashuUtils'
+import Clipboard from '@react-native-clipboard/clipboard'
+import { getUnixTime } from 'date-fns'
 
 export enum SendOption {
     SEND_TOKEN = 'SEND_TOKEN',
@@ -98,6 +100,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
     const amountInputRef = useRef<TextInput>(null)
     const memoInputRef = useRef<TextInput>(null)
+const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
     const unitRef = useRef<MintUnit>('sat')
     
     const [paymentOption, setPaymentOption] = useState<SendOption>(SendOption.SHOW_TOKEN)
@@ -133,7 +136,10 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)
     const [isNostrDMSending, setIsNostrDMSending] = useState(false)
     const [isNostrDMSuccess, setIsNostrDMSuccess] = useState(false)
-    const [isLockedToPubkey, setIsLockedToPubkey] = useState(false)     
+    const [isLockedToPubkey, setIsLockedToPubkey] = useState(false)
+    const [isPubkeySelectorModalVisible, setIsPubkeySelectorModalVisible] = useState(false)
+    const [lockedPubkey, setLockedPubkey] = useState<string | undefined>() // Added lockedPubkey state
+    const [lockTime, setLockTime] = useState<number | undefined>(1)
 
     useEffect(() => {
         const focus = () => {
@@ -172,28 +178,27 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         return () => {}
     }, [])
 
+    const getContactFrom = () => {
+        const {
+            pubkey,
+            npub,
+            name,
+            picture,
+        } = walletProfileStore
+
+        return {
+            pubkey,
+            npub,
+            name,
+            picture
+        } as Contact
+    }
 
     // Send to contact
     useFocusEffect(
         useCallback(() => {
 
             const {paymentOption, contact} = route.params
-
-            const getContactFrom = () => {
-                const {
-                    pubkey,
-                    npub,
-                    name,
-                    picture,
-                } = walletProfileStore
-
-                return {
-                    pubkey,
-                    npub,
-                    name,
-                    picture
-                } as Contact
-            }
 
             const prepareSendToContact = () => {
                 try {
@@ -206,7 +211,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                         relays = relaysStore.allUrls
                     }
         
-                    if (!relays) {                    
+                    if (relays.length === 0) {                    
                         throw new AppError(Err.VALIDATION_ERROR, 'Missing NOSTR relays')
                     }
                     
@@ -527,6 +532,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     const toggleProofSelectorModal = () => setIsProofSelectorModalVisible(previousState => !previousState)
     const toggleResultModal = () => setIsResultModalVisible(previousState => !previousState)
     const toggleIsLockedToPubkey = () => setIsLockedToPubkey(previousState => !previousState)
+const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previousState => !previousState)
 
     const onAmountEndEditing = function () {
         try {        
@@ -599,6 +605,24 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         setMintBalanceToSendFrom(balance)
     }
 
+  
+    const onLockPubkeyStart = function () {
+        togglePubkeySelectorModal()
+    }
+
+    const onLockPubkeySelect = function () {
+        if(!lockedPubkey) {
+            return
+        }
+        setIsLockedToPubkey(true)
+        togglePubkeySelectorModal()
+    }
+
+    const onLockPubkeyCancel = function () { 
+        togglePubkeySelectorModal()
+        setLockedPubkey(undefined)
+    }
+
 
     const onMintBalanceConfirm = async function () {
         if (!mintBalanceToSendFrom) {
@@ -606,16 +630,32 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         }       
 
         setIsLoading(true)       
-        setIsSendTaskSentToQueue(true)       
-
         const amountToSendInt = round(toNumber(amountToSend) * getCurrency(unitRef.current).precision, 0)
 
+        const p2pk: { 
+            pubkey: string; 
+            locktime?: number; 
+            refundKeys?: Array<string> 
+        } = {}
+
+        log.trace('[onMintBalanceConfirm] lockedPubkey', {lockedPubkey})
+
+        if(lockedPubkey) {
+            p2pk.pubkey = '02'+lockedPubkey
+            if(lockTime && lockTime > 0) {
+                p2pk.locktime = getUnixTime(new Date(Date.now() + lockTime * 24 * 60 * 60))
+                log.trace('[onMintBalanceConfirm] Locktime', {locktime: p2pk.locktime})
+            }
+        }   
+
+        setIsSendTaskSentToQueue(true) 
         WalletTask.sendQueue(
             mintBalanceToSendFrom as MintBalance,
             amountToSendInt,
             unitRef.current,
             memo,
-            selectedProofs
+            selectedProofs,
+            p2pk
         )
     }
 
@@ -787,13 +827,41 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         onMintBalanceConfirm()
     }
 
-
     const gotoContacts = function () {
-        //@ts-ignore
-        navigation.navigate('ContactsNavigator', {
-            screen: 'Contacts',
-            params: {paymentOption: SendOption.SEND_TOKEN}            
-        })
+        if(encodedTokenToSend && 
+            lockedPubkey && 
+            contactsStore.contacts.some(c => c.pubkey === lockedPubkey
+        )) {
+
+            const contact = contactsStore.findByPubkey(lockedPubkey)
+            let relays: string[] = []                           
+
+            if(contact?.type === ContactType.PUBLIC) {
+                relays = relaysStore.allPublicUrls
+            } else {
+                relays = relaysStore.allUrls
+            }
+
+            if (relays.length === 0) {                    
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing NOSTR relays')
+            }
+            
+            setPaymentOption(SendOption.SEND_TOKEN)
+            setContactToSendFrom(getContactFrom())                
+            setContactToSendTo(contact)                
+            setRelaysToShareTo(relays)
+
+            if(encodedTokenToSend) {
+                toggleNostrDMModal() // open if we already have a token
+            }
+
+        } else {
+            //@ts-ignore
+            navigation.navigate('ContactsNavigator', {
+                screen: 'Contacts',
+                params: {paymentOption: SendOption.SEND_TOKEN}            
+            })
+        }
     }
 
 
@@ -820,6 +888,9 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         setIsLoading(false)
         setResultModalInfo(undefined)
         setIsResultModalVisible(false)
+        setLockTime(undefined)
+        setIsLockedToPubkey(false)
+        setLockedPubkey(undefined)
     }
 
 
@@ -834,6 +905,24 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
     const headerBg = useThemeColor('header')
     const amountInputColor = useThemeColor('amountInput')
+    const hintColor = useThemeColor('textDim')
+    const inputText = useThemeColor('text')
+    const inputBg = useThemeColor('background')
+    const buttonBorder = useThemeColor('card')
+
+
+    const onPasteLockedPubkey = async function () {
+        try {
+            const pastedText = await Clipboard.getString()
+            setLockedPubkey(pastedText)
+        } catch (e: any) {
+            handleError(e)
+        }
+    }
+
+    const onScanLockedPubkey = async function () {
+// TODO        
+    }
 
     return (
       <Screen preset="fixed" contentContainerStyle={$screen}>
@@ -862,7 +951,28 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     size='sm'
                     text="Amount to send"
                     style={{color: amountInputColor, textAlign: 'center'}}
-                />  
+                />
+                {lockedPubkey && (
+                    <View
+                        style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}
+                    >
+                        <Icon 
+                            icon="faLock"
+                            size={spacing.small}
+                            color={amountInputColor} 
+                        />
+                        <Text
+                            size='xxs'
+                            text="Locked"
+                            style={{color: amountInputColor, marginLeft: spacing.tiny}}
+                        />
+
+                    </View>
+                )}
             </View>          
         </View>
         <View style={$contentContainer}>
@@ -883,7 +993,9 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     unit={unitRef.current}
                     title='Send from mint'
                     confirmTitle={isOfflineSend ? 'Send offline' : 'Create token'}
+                    secondaryConfirmTitle='Lock'
                     onMintBalanceSelect={onMintBalanceSelect}
+                    onSecondaryMintBalanceSelect={onLockPubkeyStart}
                     onCancel={onMintBalanceCancel}              
                     onMintBalanceConfirm={isOfflineSend ? onSelectProofsOffline : onMintBalanceConfirm}
                 />
@@ -961,6 +1073,164 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
           }
           onBackButtonPress={toggleProofSelectorModal}
           onBackdropPress={toggleProofSelectorModal}
+        />
+        <BottomModal
+            isVisible={isPubkeySelectorModalVisible}
+            ContentComponent={
+                <View style={$bottomModal}>
+                <Text text="Lock ecash" preset="subheading" />
+                <Text
+                    size="xxs"
+                    style={{color: hintColor}}
+                    text="Lock ecash token to one of your contacts or to a public key. Only the receiver will be able to unlock it."
+                />
+                <View
+                    style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        marginTop: spacing.small,
+                    }}>
+                    <TextInput
+                        ref={pubkeyInputRef}
+                        onChangeText={pubkey =>
+                            setLockedPubkey(pubkey)
+                        }
+                        value={lockedPubkey}
+                        autoCapitalize="none"
+                        keyboardType="default"                  
+                        maxLength={64}
+                        selectTextOnFocus={true}
+                        style={[
+                            $pubkeyInput,                    
+                            {backgroundColor: inputBg, color: inputText},
+                        ]}
+                    />
+                    <Button
+                        preset='secondary'
+                        tx='common.paste'
+                        style={{
+                            borderRadius: 0,
+                            marginLeft: -spacing.small,
+                            borderLeftWidth: 1,
+                            borderLeftColor: buttonBorder                 
+                        }}
+                        onPress={onPasteLockedPubkey}
+                    />
+                    <Button
+                        preset='secondary'
+                        tx="common.scan"
+                        style={{
+                            borderTopLeftRadius: 0,
+                            borderBottomLeftRadius: 0,  
+                            marginHorizontal: 1,                                
+                        }}
+                        onPress={onScanLockedPubkey}
+                    />
+                </View>
+                <View
+                    style={{
+                        flexDirection: 'row',
+                        marginTop: spacing.medium,
+                        alignItems: 'center',
+                        borderBottomWidth: 1,
+                        borderBottomColor: inputBg
+                    }}
+                    >
+                    <FlatList
+                        data={contactsStore.contacts}
+                        renderItem={({ item }) => {
+                            return (
+                                <ContactItem 
+                                    contact={item}
+                                    onPress={() => setLockedPubkey(item.pubkey)}
+                                    containerStyle={{
+                                        paddingHorizontal: spacing.small,
+                                        borderRadius: spacing.tiny,
+                                        backgroundColor: lockedPubkey === item.pubkey ? inputBg : undefined,
+                                    }}                                    
+                                />
+                            )
+                            }}
+                        horizontal={true}
+                        keyExtractor={(item) => item.pubkey}
+                        style={{marginBottom: spacing.medium}}
+                        contentContainerStyle={{
+                            justifyContent: 'center', // Center items horizontally
+                            alignItems: 'center',    // Center items vertically
+                            flexGrow: 1,
+                        }}
+                    />
+                </View>
+                <Text
+                    size="xxs"
+                    style={{color: hintColor, marginTop: spacing.small}}
+                    text="Lock for" 
+                />
+                <View
+                    style={[
+                        $buttonContainer,
+                        {
+                            marginVertical: spacing.small, 
+                            borderBottomWidth: 1, 
+                            borderBottomColor: inputBg,
+                            paddingBottom: spacing.small,
+                            alignSelf: 'stretch',
+                            justifyContent: 'center'
+                        }
+                    ]}
+                >
+                    <Button
+                        preset={lockTime === 1 ? "secondary" : "tertiary"}
+                        text={"1 day"}
+                        onPress={() => setLockTime(1)}
+                        style={{                    
+                            minHeight: verticalScale(40), 
+                            paddingVertical: verticalScale(spacing.tiny),
+                            marginRight: spacing.small                   
+                        }} 
+                        textStyle={{fontSize: 14}}
+                    />              
+                    <Button
+                        preset={lockTime === 7 ? "secondary" : "tertiary"}
+                        text={"1 week"}
+                        onPress={() => setLockTime(7)}
+                        style={{                    
+                            minHeight: verticalScale(40), 
+                            paddingVertical: verticalScale(spacing.tiny),
+                            marginRight: spacing.small                   
+                        }}  
+                        textStyle={{fontSize: 14}}
+                    />
+                    <Button
+                        preset={lockTime ? "tertiary" : "secondary"}
+                        text={"forever"}
+                        onPress={() => setLockTime(undefined)}
+                        style={{                    
+                            minHeight: verticalScale(40), 
+                            paddingVertical: verticalScale(spacing.tiny),
+                            marginRight: spacing.small                   
+                        }} 
+                        textStyle={{fontSize: 14}}
+                        />
+                </View>
+                <View style={[$buttonContainer, {marginTop: spacing.medium}]}>
+                    <Button
+                        text="Lock"
+                        LeftAccessory={() => (<Icon icon="faLock" color="white" size={spacing.medium}/>)}
+                        onPress={onLockPubkeySelect}
+                        style={{marginRight: spacing.medium}}
+                    />
+                    <Button
+                        style={{marginRight: spacing.medium}}
+                        preset="tertiary"
+                        tx="common.cancel"
+                        onPress={onLockPubkeyCancel}
+                    />
+                </View>
+            </View>                                             
+            }
+            onBackButtonPress={togglePubkeySelectorModal}
+            onBackdropPress={togglePubkeySelectorModal}
         />
         <BottomModal
           isVisible={isNostrDMModalVisible ? true : false}
@@ -1294,6 +1564,44 @@ const SendAsNostrDMBlock = observer(function (props: {
     )
 })
 
+const ContactItem = function (props: {
+    contact: Contact
+    onPress: any
+    containerStyle?: ViewStyle
+}) {
+    const textColor = useThemeColor('textDim')
+    const tokenTextColor = useThemeColor('textDim')
+
+    return (
+        <Pressable 
+            style={[{flexDirection: 'column', alignItems: 'center'}, props.containerStyle]}
+            onPress={props.onPress}
+        >
+            {props.contact.picture ? (
+                <View style={{borderRadius: 20, overflow: 'hidden'}}>
+                    <FastImage style={[
+                        $profileIcon, {
+                        width: 40, 
+                        height: props.contact.isExternalDomain ? 40 :  43,
+                        borderRadius: props.contact.isExternalDomain ? 20 :  0,
+                        }] as import("react-native-fast-image").ImageStyle}
+                        source={{
+                            uri: getImageSource(props.contact.picture as string) 
+                        }} 
+                    />
+                </View>
+            ) : (
+                <Icon
+                    icon='faCircleUser'                                
+                    size={38}                    
+                    color={tokenTextColor}                
+                />
+            )}
+            <Text size='xxs' style={{color: tokenTextColor}} text={props.contact.name || props.contact.npub.slice(0, 10)}/>
+        </Pressable>
+    )
+}
+
 const NostDMInfoBlock = observer(function (props: {
     contactToSendFrom: Contact
     amountToSend: string
@@ -1309,52 +1617,26 @@ const NostDMInfoBlock = observer(function (props: {
 
     return(
         <View style={{flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', marginBottom: spacing.medium}}>
-            <View style={{flexDirection: 'column', alignItems: 'center', width: 100}}>
-                    <FastImage style={[
-                        $profileIcon, {
-                            width: 40, 
-                            height: walletProfileStore.isOwnProfile ? 40 :  43,
-                            borderRadius: walletProfileStore.isOwnProfile ? 20 :  0,
-                        }] as import("react-native-fast-image").ImageStyle}
-                        source={{
-                            uri: getImageSource(props.contactToSendFrom.picture as string)
-                        }} 
-                    />
-                    <Text size='xxs' style={{color: tokenTextColor}} text={props.contactToSendFrom.name}/>
-            </View>
+            <ContactItem
+                contact={props.contactToSendFrom}
+                onPress={undefined}
+                containerStyle={{height: 60}}
+            />
             <Text size='xxs' style={{color: tokenTextColor, textAlign: 'center', marginLeft: 30,  marginBottom: 20}} text='...........' />
             <View style={{flexDirection: 'column', alignItems: 'center'}}>                
                 <Icon
-                        icon='faPaperPlane'                                
+                        icon='faPaperPlane'                                         
                         size={spacing.medium}                    
                         color={tokenTextColor}                
                 />
                 <Text size='xxs' style={{color: tokenTextColor, marginBottom: -10}} text={`${amountToSendDisplay} ${getCurrency(props.unit).code}`} />
             </View>
             <Text size='xxs' style={{color: tokenTextColor, textAlign: 'center', marginRight: 30, marginBottom: 20}} text='...........' />
-            <View style={{flexDirection: 'column', alignItems: 'center', width: 100}}>
-                {props.contactToSendTo.picture ? (
-                    <View style={{borderRadius: 20, overflow: 'hidden'}}>
-                        <FastImage style={[                            
-                            $profileIcon, {
-                                width: 40, 
-                                height: props.contactToSendTo.isExternalDomain ? 40 :  43,
-                                borderRadius: props.contactToSendTo.isExternalDomain ? 20 :  0,
-                            }] as import("react-native-fast-image").ImageStyle}
-                            source={{
-                                uri: getImageSource(props.contactToSendTo.picture as string) 
-                            }} 
-                        />
-                    </View>
-                ) : (
-                    <Icon
-                        icon='faCircleUser'                                
-                        size={38}                    
-                        color={tokenTextColor}                
-                    />
-                )}
-                <Text size='xxs' style={{color: tokenTextColor}} text={props.contactToSendTo.name || props.contactToSendTo.npub.slice(0, 10)}/>
-            </View>
+            <ContactItem
+                contact={props.contactToSendTo}
+                onPress={undefined}
+                containerStyle={{height: 60}}
+            />
         </View>
     )
 
@@ -1373,11 +1655,22 @@ const $headerContainer: TextStyle = {
 
 }
 
+const $pubkeyInput: TextStyle = {
+    flex: 1,
+    // borderRadius: 0,
+    borderRadius: spacing.extraSmall,    
+    fontSize: verticalScale(16),
+    padding: spacing.small,
+    alignSelf: 'stretch',
+    textAlignVertical: 'top',
+// borderWidth: 1,
+}
+
 const $amountContainer: ViewStyle = {
 }
 
 const $amountInput: TextStyle = {    
-    borderRadius: spacing.small,
+   borderRadius: spacing.small,
     margin: 0,
     padding: 0,
     fontSize: verticalScale(48),

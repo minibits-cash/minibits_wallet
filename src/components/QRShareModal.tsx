@@ -10,13 +10,14 @@ import { translate, TxKeyPath } from '../i18n';
 import { Button } from './Button';
 
 interface QRShareModalProps {
-  url: string,
+  data: string,
   isVisible?: boolean,
   onClose?: () => void,
   type: QRCodeBlockTypes
   shareModalTitle?: string,
   shareModalTx?: TxKeyPath,
   subHeading?: string,
+  subHeadingTx?: TxKeyPath,
   label?: string
   labelTx?: TxKeyPath,
   size?: number,
@@ -25,12 +26,13 @@ interface QRShareModalProps {
 export const QRShareModal = (props: QRShareModalProps) => {
   const labelText = useThemeColor('textDim')
   const {
-    url,
+    data,
     isVisible = true,
     onClose = () => {},
     shareModalTitle,
     shareModalTx,
     subHeading,
+    subHeadingTx,
     type,
     label,
     labelTx,
@@ -38,22 +40,26 @@ export const QRShareModal = (props: QRShareModalProps) => {
   } = props
 
   let finalTx: TxKeyPath | undefined = shareModalTx
-  if (!shareModalTx && !shareModalTitle) finalTx = 'common.share'
+
 
   return (
     <BottomModal
       isVisible={isVisible}
       ContentComponent={
-        <>
-          <Text
-            tx={finalTx}
-            text={shareModalTitle}            
-            style={{alignSelf: 'center', marginBottom: spacing.small}}
-          />
+        <> 
+          {shareModalTx || shareModalTitle && (
+            <Text
+              tx={shareModalTx}
+              text={shareModalTitle}            
+              style={{alignSelf: 'center', marginBottom: spacing.small}}
+            />
+          )
+          }
           <View style={$newContainer}>
             <QRCodeBlock
-              qrCodeData={url.toString()}
-              title={subHeading || shareModalTitle || translate('common.share')}
+              qrCodeData={data.toString()}
+              title={subHeading}
+              titleTx={subHeadingTx}
               type={type}
               size={size}
             />
@@ -72,7 +78,7 @@ export const QRShareModal = (props: QRShareModalProps) => {
             <View style={$buttonContainer}>
               <Button 
                 onPress={props.onClose}
-                text='Close'
+                tx='common.close'
                 preset='tertiary'
               />
             </View>

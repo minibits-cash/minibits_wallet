@@ -8,25 +8,26 @@ import Clipboard from "@react-native-clipboard/clipboard"
 import { moderateScale, verticalScale } from "@gocodingnow/rn-size-matters"
 import { colors, spacing } from "../../theme"
 import { useEffect, useState } from "react"
-import { translate } from "../../i18n"
+import { translate, TxKeyPath } from "../../i18n"
 import { CashuUtils, CashuProof } from "../../services/cashu/cashuUtils"
 import { log } from "../../services"
 import { Token, getDecodedToken, getEncodedToken } from '@cashu/cashu-ts';
 
-export type QRCodeBlockTypes = 'EncodedV3Token' | 'EncodedV4Token' | 'Bolt11Invoice' | 'URL' | 'NWC'
+export type QRCodeBlockTypes = 'EncodedV3Token' | 'EncodedV4Token' | 'Bolt11Invoice' | 'URL' | 'NWC' | 'PUBKEY'
 
 const ANIMATED_QR_FRAGMENT_LENGTH = 150
 const ANIMATED_QR_INTERVAL = 250
 
 export const QRCodeBlock = function (props: {  
     qrCodeData: string    
-    title: string
+    title?: string
+    titleTx?: TxKeyPath
     type: QRCodeBlockTypes
     size?: number
   }
 ) {
   
-    const {qrCodeData, title, type, size} = props
+    const {qrCodeData, title, titleTx, type, size} = props
     const [qrError, setQrError] = useState<Error | undefined>()
     const [encodedV3Token, setEncodedV3Token] = useState<string | undefined>()
     const [decodedToken, setDecodedToken] = useState<Token>()
@@ -175,6 +176,7 @@ export const QRCodeBlock = function (props: {
     return (
       <Card
         heading={title}
+        headingTx={titleTx}
         headingStyle={{textAlign: 'center', color: colors.light.text, marginBottom: spacing.extraSmall}}
         style={{backgroundColor: 'white', paddingBottom: spacing.small}}
         ContentComponent={qrError ? (

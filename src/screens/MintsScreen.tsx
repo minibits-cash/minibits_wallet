@@ -270,7 +270,10 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
     const onShare = function () {
       if (!selectedMint) return
       toggleMintMenuModal()
-      toggleShareModal()
+      setTimeout(() => {
+        toggleShareModal()
+      }, 500)
+      
     }
 
     const handleError = function (e: AppError) {
@@ -492,7 +495,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
         />
         {selectedMint && (
           <QRShareModal
-              url={selectedMint.mintUrl}
+              data={selectedMint.mintUrl}
               shareModalTx='mintsScreen.share'
               subHeading={selectedMint?.shortname}
               type='URL'
