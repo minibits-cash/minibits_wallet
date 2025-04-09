@@ -614,6 +614,11 @@ const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previous
         if(!lockedPubkey) {
             return
         }
+
+        if(lockedPubkey.startsWith('nsec')) {
+            throw new AppError(Err.VALIDATION_ERROR, 'Invalid key. Please provide public key in NPUB or HEX format.')
+        }
+
         setIsLockedToPubkey(true)
         togglePubkeySelectorModal()
     }
@@ -641,14 +646,26 @@ const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previous
         log.trace('[onMintBalanceConfirm] lockedPubkey', {lockedPubkey})
 
         if(lockedPubkey) {
-            p2pk.pubkey = '02'+lockedPubkey
+            if(lockedPubkey.startsWith('npub')) {
+                p2pk.pubkey = '02' + NostrClient.getHexkey(lockedPubkey)
+            } else {
+                if(lockedPubkey.length === 64) {
+                    p2pk.pubkey = '02' + lockedPubkey
+                } else if(lockedPubkey.length === 66) {
+                    p2pk.pubkey = lockedPubkey
+                } else {
+                    throw new AppError(Err.VALIDATION_ERROR, 'Invalid key. Please provide public key in NPUB or HEX format.')
+                }    
+            }
+            
             if(lockTime && lockTime > 0) {
                 p2pk.locktime = getUnixTime(new Date(Date.now() + lockTime * 24 * 60 * 60))
-                log.trace('[onMintBalanceConfirm] Locktime', {locktime: p2pk.locktime})
+                log.trace('[onMintBalanceConfirm] Locktime', {pubkey: p2pk.pubkey, locktime: p2pk.locktime})
             }
         }   
 
-        setIsSendTaskSentToQueue(true) 
+        setIsSendTaskSentToQueue(true)
+
         WalletTask.sendQueue(
             mintBalanceToSendFrom as MintBalance,
             amountToSendInt,
@@ -1098,7 +1115,7 @@ const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previous
                         value={lockedPubkey}
                         autoCapitalize="none"
                         keyboardType="default"                  
-                        maxLength={64}
+                        maxLength={66}
                         selectTextOnFocus={true}
                         style={[
                             $pubkeyInput,                    

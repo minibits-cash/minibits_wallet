@@ -21,6 +21,7 @@ import AppError, { Err } from '../utils/AppError'
 import { MinibitsClient } from './minibitsService'
 import { rootStoreInstance } from '../models'
 import { WalletTask } from './walletService'
+import { nip19 } from 'nostr-tools'
 
 // refresh
 
@@ -156,6 +157,17 @@ const decodeNprofile = function (nprofile: string) {
         throw new AppError(Err.VALIDATION_ERROR, e.message)
     }  
 }
+
+/* const maybeConvertNpub = function (key: string) {
+    // Check and convert npub to P2PK
+    if (key && key.startsWith("npub1")) {
+      const { type, data } = nip19Decode(key)
+      if (type === "npub" && data.length === 64) {
+        key = "02" + data
+      }
+    }
+    return key
+}*/
 
 
 const encryptNip04 = async function (    
@@ -544,11 +556,13 @@ export const NostrClient = { // TODO split helper functions to separate module
     getDefaultRelays,
     getMinibitsRelays,
     getAllRelays,
+    getNostrKeys,
     reconnectToRelays,
     getNpubkey,
     getHexkey,
     neventEncode,
     decodeNprofile,
+    // maybeConvertNpub,
     encryptNip04,
     decryptNip04,
     encryptAndSendDirectMessageNip17,

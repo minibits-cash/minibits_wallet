@@ -18,7 +18,7 @@ import {
 import {Mint} from '../models/Mint'
 import {Transaction, TransactionStatus} from '../models/Transaction'
 import {useStores} from '../models'
-import {TransactionTaskResult, WalletTask} from '../services'
+import {NostrClient, TransactionTaskResult, WalletTask} from '../services'
 import {log} from '../services/logService'
 import AppError, { Err } from '../utils/AppError'
 import EventEmitter from '../utils/eventEmitter'
@@ -186,7 +186,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
 
         if(isLocked) {
           const lockedToPK = CashuUtils.getP2PKPubkeySecret(decoded.proofs[0].secret)
-          isLockedToWallet = lockedToPK === '02'+(await walletStore.getCachedWalletKeys()).NOSTR.publicKey          
+          isLockedToWallet = lockedToPK === '02' + (await NostrClient.getNostrKeys()).publicKey          
         }
 
         log.trace('decoded token', {decoded, isLocked, isLockedToWallet})

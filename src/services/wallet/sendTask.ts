@@ -9,7 +9,11 @@ import {rootStoreInstance} from '../../models'
 import {CashuUtils, CashuProof} from '../cashu/cashuUtils'
 import AppError, {Err} from '../../utils/AppError'
 import {    
+    CashuMint,
+    CashuWallet,
+    CheckStateEnum,
     MintKeyset,
+    ProofState,
     getEncodedToken,
 } from '@cashu/cashu-ts'
 import { MAX_SWAP_INPUT_SIZE, TransactionTaskResult, WalletTask } from '../walletService'
@@ -139,18 +143,43 @@ export const sendTask = async function (
         if(selectedProofs.length === 0) {
 
             const proofsToSync = proofsStore.getByMint(mintUrl, {isPending: true})
+            
+            const wsMint = new CashuMint(mintUrl)
+            const wsWallet = new CashuWallet(wsMint)
+            
+            try {
+                const unsub = await wsWallet.onProofStateUpdates(
+                    [proofsToSend[0]],
+                    async (proofState: ProofState) => {
+                        log.trace(`Websocket: proof state updated: ${proofState.state}`)
+                        
+                        if (proofState.state == CheckStateEnum.SPENT) {
+                            WalletTask.syncStateWithMintQueue({proofsToSync, mintUrl, isPending: true})
+                            unsub()
+                        }
+                    },
+                    async (error: any) => {
+                        throw error
+                    }
+                );
+            } catch (error: any) {
+                log.error(Err.NETWORK_ERROR,
+                    "Error in websocket subscription. Starting poller.",
+                    error.message
+                )
 
-            poller(
-                `syncStateWithMintPoller-${mintUrl}`,
-                WalletTask.syncStateWithMintQueue,
-                {
-                    interval: 6 * 1000,
-                    maxPolls: 5,
-                    maxErrors: 2
-                },
-                {proofsToSync, mintUrl, isPending: true}
-            )
-            .then(() => log.trace('[syncStateWithMintPoller]', 'polling completed', {mintUrl}))  
+                /* poller(
+                    `syncStateWithMintPoller-${mintUrl}`,
+                    WalletTask.syncStateWithMintQueue,
+                    {
+                        interval: 6 * 1000,
+                        maxPolls: 3,
+                        maxErrors: 1
+                    },
+                    {proofsToSync, mintUrl, isPending: true}
+                )
+                .then(() => log.trace('[syncStateWithMintPoller]', 'polling completed', {mintUrl})) */
+            }    
         }
 
         return {
