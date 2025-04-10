@@ -963,6 +963,7 @@ const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previous
                             ? false 
                             : true
                     }
+                    returnKeyType={'done'}
                 />
                 <Text
                     size='sm'

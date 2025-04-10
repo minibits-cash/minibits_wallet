@@ -739,6 +739,7 @@ const amountInputColor = useThemeColor('amountInput')
               keyboardType="numeric"
               selectTextOnFocus={true}
               editable={isAmountEditable ? true : false}
+              returnKeyType={'done'}
             />
 
             {encodedInvoice && (meltQuote?.fee_reserve || finalFee) ? (
