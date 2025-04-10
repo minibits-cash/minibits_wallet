@@ -161,24 +161,24 @@ export const sendTask = async function (
                     async (error: any) => {
                         throw error
                     }
-                );
+                )
             } catch (error: any) {
                 log.error(Err.NETWORK_ERROR,
                     "Error in websocket subscription. Starting poller.",
                     error.message
                 )
 
-                /* poller(
+                poller(
                     `syncStateWithMintPoller-${mintUrl}`,
                     WalletTask.syncStateWithMintQueue,
                     {
-                        interval: 6 * 1000,
+                        interval: 10 * 1000,
                         maxPolls: 3,
                         maxErrors: 1
                     },
                     {proofsToSync, mintUrl, isPending: true}
                 )
-                .then(() => log.trace('[syncStateWithMintPoller]', 'polling completed', {mintUrl})) */
+                .then(() => log.trace('[syncStateWithMintPoller]', 'polling completed', {mintUrl}))
             }    
         }
 

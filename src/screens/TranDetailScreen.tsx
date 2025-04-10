@@ -1363,10 +1363,10 @@ const TopupInfoBlock = function (props: {
           toggleResultModal()            
       }
 
-      // Subscribe to the 'sendCompleted' event
+      // Subscribe to the event
       EventEmitter.on(`ev_${HANDLE_PENDING_TOPUP_TASK}_result`, handlePendingTopupTaskResult)
 
-      // Unsubscribe from the 'sendCompleted' event on component unmount
+      // Unsubscribe from the event on component unmount
       return () => {
           EventEmitter.off(`ev_${HANDLE_PENDING_TOPUP_TASK}_result`, handlePendingTopupTaskResult)
       }

@@ -11,6 +11,8 @@ import { PaymentRequest, PaymentRequestStatus, PaymentRequestType } from '../../
 import { WalletUtils } from './utils'
 import { MintUnit } from './currency'
 import { NostrEvent } from '../nostrService'
+import { Err } from '../../utils/AppError'
+import { CashuMint, CashuWallet, MintQuoteResponse } from '@cashu/cashu-ts'
 
 const {
     transactionsStore,
@@ -137,16 +139,39 @@ export const topupTask = async function (
         )
 
         if(!nwcEvent) {
-            poller(
-                `handlePendingTopupPoller-${paymentRequest.paymentHash}`, 
-                WalletTask.handlePendingTopupQueue,
-                {
-                    interval: 6 * 1000,
-                    maxPolls: 10,
-                    maxErrors: 2
-                },        
-                {paymentRequest})   
-            .then(() => log.trace('Polling completed', [], `handlePendingTopupPoller`))
+            const wsMint = new CashuMint(mintUrl)
+            const wsWallet = new CashuWallet(wsMint)
+
+            try {
+                const unsub = await wsWallet.onMintQuotePaid(
+                    mintQuote,
+                    async (m: MintQuoteResponse) => {
+                        log.trace(`Websocket: mint quote PAID: ${m.quote}`)
+                        WalletTask.handlePendingTopupQueue({paymentRequest})
+                        unsub()                        
+                    },
+                    async (error: any) => {
+                        throw error
+                    }
+                )
+            } catch (error: any) {
+                log.error(Err.NETWORK_ERROR,
+                    "Error in websocket subscription. Starting poller.",
+                    error.message
+                )
+
+                poller(
+                    `handlePendingTopupPoller-${paymentRequest.paymentHash}`, 
+                    WalletTask.handlePendingTopupQueue,
+                    {
+                        interval: 10 * 1000,
+                        maxPolls: 6,
+                        maxErrors: 2
+                    },        
+                    {paymentRequest})   
+                .then(() => log.trace('Polling completed', [], `handlePendingTopupPoller`))
+            }
+            
         }
 
         return {

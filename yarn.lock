@@ -1576,15 +1576,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@cashu/cashu-ts@minibits-cash/cashu-ts#3c44632df9113af2ae743709d2b37c9556ea9ccb":
+"@cashu/cashu-ts@minibits-cash/cashu-ts#80b973474e50c4f301a9eb0e5eb42ffaa140d57c":
   version: 2.4.0
-  resolution: "@cashu/cashu-ts@https://github.com/minibits-cash/cashu-ts.git#commit=3c44632df9113af2ae743709d2b37c9556ea9ccb"
+  resolution: "@cashu/cashu-ts@https://github.com/minibits-cash/cashu-ts.git#commit=80b973474e50c4f301a9eb0e5eb42ffaa140d57c"
   dependencies:
     "@cashu/crypto": ^0.3.4
     "@noble/curves": ^1.3.0
     "@noble/hashes": ^1.3.3
     buffer: ^6.0.3
-  checksum: dc90ac2c93139a58e4cd15dcb619c3d8e328096374e85980202e68f70df452c0af372494e597bbca92cd5cfed8a5435ddc635e4511d41674fa22e6e91dec5461
+  checksum: bcfe33ab4184fbc075cab8845ccc177cd0fe9aba6417e78b84da50a77ad46bbdd73dd48a09ca831fddfc64daed7a4f8e452bab2bf9370cb447103da3566177c1
   languageName: node
   linkType: hard
 
@@ -9181,7 +9181,7 @@ __metadata:
     "@babel/plugin-proposal-export-namespace-from": ^7.18.9
     "@babel/preset-env": ^7.25.3
     "@babel/runtime": ^7.25.0
-    "@cashu/cashu-ts": "minibits-cash/cashu-ts#3c44632df9113af2ae743709d2b37c9556ea9ccb"
+    "@cashu/cashu-ts": "minibits-cash/cashu-ts#80b973474e50c4f301a9eb0e5eb42ffaa140d57c"
     "@fortawesome/fontawesome-svg-core": ^6.7.2
     "@fortawesome/free-brands-svg-icons": ^6.7.2
     "@fortawesome/free-regular-svg-icons": ^6.7.2
