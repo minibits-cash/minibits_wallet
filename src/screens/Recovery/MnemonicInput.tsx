@@ -44,7 +44,8 @@ export const MnemonicInput = forwardRef<TextInput, MnemonicInputProps>((props, m
     const numIconColor = useThemeColor('textDim')
     const textHint = useThemeColor('textDim')
     const inputBg = useThemeColor('background')
-    const inputText = useThemeColor('text')  
+    const inputText = useThemeColor('text')
+    const placeholderTextColor = useThemeColor('textDim')
   
   return (
     <>
@@ -84,6 +85,7 @@ export const MnemonicInput = forwardRef<TextInput, MnemonicInputProps>((props, m
                 keyboardType='default'
                 maxLength={100}
                 placeholder={translate("mnemonicPhrasePlaceholder")}
+                placeholderTextColor={placeholderTextColor}
                 selectTextOnFocus={true}                    
                 style={[$mnemonicInput, {backgroundColor: inputBg, flexWrap: 'wrap', color: inputText}]}
             />

@@ -166,6 +166,7 @@ export const NwcScreen = observer(function NwcScreen(_props) {
     const $subText = {color: useThemeColor('textDim'), fontSize: verticalScale(14)}
     const headerTitle = useThemeColor('headerTitle')
     const buttonBorder = useThemeColor('card')
+    const placeholderTextColor = useThemeColor('textDim')
     
     return (
       <Screen contentContainerStyle={$screen}>
@@ -326,6 +327,7 @@ export const NwcScreen = observer(function NwcScreen(_props) {
                         keyboardType='default'
                         maxLength={64}
                         placeholder='My NWC application'
+                        placeholderTextColor={placeholderTextColor}
                         selectTextOnFocus={true}
                         style={[$connInput, {backgroundColor: inputBg, color: inputText}]}
                     />
@@ -346,6 +348,7 @@ export const NwcScreen = observer(function NwcScreen(_props) {
                         keyboardType='numeric'
                         maxLength={8}
                         placeholder='Enter daily limit in SAT'
+                        placeholderTextColor={placeholderTextColor}
                         selectTextOnFocus={true}
                         style={[$connInput, {backgroundColor: inputBg, color: inputText}]}
                     />

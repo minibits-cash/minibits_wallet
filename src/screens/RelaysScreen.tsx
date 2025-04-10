@@ -154,6 +154,7 @@ export const RelaysScreen = observer(function RelaysScreen({ route }: Props) {
     const screenBg = useThemeColor('background')
     const mainButtonIcon = useThemeColor('button')
     const headerTitle = useThemeColor('headerTitle') 
+    const placeholderTextColor = useThemeColor('textDim')
     
     return (
       <Screen contentContainerStyle={$screen} preset='fixed'>
@@ -260,6 +261,7 @@ export const RelaysScreen = observer(function RelaysScreen({ route }: Props) {
                         keyboardType='default'
                         maxLength={128}
                         placeholder='wss://...'
+                        placeholderTextColor={placeholderTextColor}
                         selectTextOnFocus={true}
                         style={[$relayInput, {backgroundColor: inputBg, color: inputText}]}
                     />

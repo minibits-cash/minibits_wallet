@@ -239,6 +239,7 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
     const textResult = useThemeColor('textDim')
     const inputBg = useThemeColor('background')
     const inputText = useThemeColor('text')
+    const placeholderTextColor = useThemeColor('textDim')
     
     return (
       <Screen contentContainerStyle={$screen} preset='auto'>
@@ -269,6 +270,7 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
                                   keyboardType='default'
                                   maxLength={30}
                                   placeholder='name@domain.com'
+                                  placeholderTextColor={placeholderTextColor}
                                   selectTextOnFocus={true}
                                   style={[$nip05Input, {backgroundColor: inputBg, color: inputText}]}                                                   
                                 />
@@ -347,6 +349,7 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
                                 keyboardType='default'
                                 maxLength={64}
                                 placeholder='nsec...'
+                                placeholderTextColor={placeholderTextColor}
                                 selectTextOnFocus={true}
                                 style={[$nip05Input, {backgroundColor: inputBg, color: inputText}]}                                                
                             />

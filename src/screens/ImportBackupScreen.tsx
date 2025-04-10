@@ -318,6 +318,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
             setStatusMessage(translate('recovery.completed'))
                         
             // go directly to the wallet (profile hase been rehydrated from the one with the seed)
+            // @ts-ignore
             navigation.navigate('Tabs')
             await delay(1000)
             setStatusMessage('')
@@ -339,6 +340,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
     const inputBg = useThemeColor('background')
     const loadingBg = useThemeColor('background')
     const headerTitle = useThemeColor('headerTitle')
+    const placeholderTextColor = useThemeColor('textDim')
 
     if(mnemonicExists) {
       return (
@@ -413,6 +415,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
                             autoCapitalize='none'
                             keyboardType='default'                            
                             placeholder={'Paste your backup'}
+                            placeholderTextColor={placeholderTextColor}
                             selectTextOnFocus={true}                    
                             style={[$backupInput, {backgroundColor: inputBg, flexWrap: 'wrap', color: inputText}]}
                         />

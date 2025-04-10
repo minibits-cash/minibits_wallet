@@ -224,7 +224,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
               toggleNostrDMModal() // open if we already have an invoice
             }
 
-            //reset
+            // @ts-ignore
             navigation.setParams({
               paymentOption: undefined,
               contact: undefined,

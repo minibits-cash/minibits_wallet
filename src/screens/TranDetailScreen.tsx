@@ -202,6 +202,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
     const headerBg = useThemeColor('header')
     const iconColor = useThemeColor('textDim')
     const inputBg = useThemeColor('background')
+    const placeholderTextColor = useThemeColor('textDim')
         
     const getFormattedAmount = function(): string {
         if (!transaction) { return '' }
@@ -264,6 +265,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                             keyboardType="default"
                             selectTextOnFocus={true}
                             placeholder={translate("privateNotePlaceholder")}
+                            placeholderTextColor={placeholderTextColor}
                             editable={
                                 isNoteEditing
                                 ? true

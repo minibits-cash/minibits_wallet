@@ -86,12 +86,14 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
 
     const gotoScan = function () {
         toggleAddMintModal()
+        // @ts-ignore
         navigation.navigate('Scan', {unit: userSettingsStore.preferredUnit})
     }
 
 
     const gotoInfo = function () {        
         if(!selectedMint) {return}
+        // @ts-ignore
         navigation.navigate('MintInfo', {mintUrl: selectedMint?.mintUrl})
         onMintUnselect()
     }
@@ -287,6 +289,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
     const inputText = useThemeColor('text')
     const headerTitle = useThemeColor('headerTitle')
     const buttonBorder = useThemeColor('card')
+    const placeholderTextColor = useThemeColor('textDim')
 
     return (
       <Screen preset="scroll" contentContainerStyle={$screen}>
@@ -434,6 +437,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
                             style={[$mintInput, {backgroundColor: inputBg, color: inputText}]}
                             maxLength={200}
                             placeholder='https://'
+                            placeholderTextColor={placeholderTextColor}
                         />
                         <Button
                             preset='secondary'

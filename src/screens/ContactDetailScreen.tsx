@@ -180,6 +180,7 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
     const mainButtonIcon = useThemeColor('mainButtonIcon')
     const mainButtonText = useThemeColor('text')
     const inputText = useThemeColor('text')
+    const placeholderTextColor = useThemeColor('textDim')
   
 
     const {type, name, display_name, npub, nip05, picture, about, lud16} = contact
@@ -227,6 +228,7 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
                                 keyboardType="default"
                                 selectTextOnFocus={true}
                                 placeholder={translate("privateNotePlaceholder")}
+                                placeholderTextColor={placeholderTextColor}
                                 editable={
                                     isNoteEditing
                                     ? true
