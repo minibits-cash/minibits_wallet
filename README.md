@@ -19,7 +19,7 @@ Minibits is an ecash and lightning wallet with a focus on ease of use and securi
 
 Platform support
 - [x] Android app
-- [ ] iOS app
+- [x] iOS app [✨ New in early Testflight, not yet public] 
 - [x] Light and dark mode
 - [x] i18n support
 - [ ] Other then EN languange support
@@ -35,40 +35,43 @@ Mints
 
 Receive ecash
 - [x] Scan QR code of a ecash token
-- [x] Animated QR codes support for large tokens [✨ New!]
+- [x] Animated QR codes support for large tokens
 - [x] Paste ecash token from the clipboard
 - [x] Receive Nostr zaps or Lightning payments to minibits.cash address
 - [x] Receive ecash from another wallet over NOSTR message sent to minibits.cash address
 - [x] Receive ecash in person while being offline, redeem later (MVP version)
-- [x] Realtime and encrypted push notifications on receive to minibits.cash lightning address [✨ New!]
+- [x] Realtime and encrypted push notifications on receive to minibits.cash lightning address
+- [ ] Display or send cashu payment requests
 
 Send ecash
 - [x] Share ecash token to send through another app
 - [x] Show ecash token as a QR code
-- [x] Show large ecash token as an animated QR code [✨ New!]
+- [x] Show large ecash token as an animated QR code
 - [x] Send ecash to contact (minibits.cash or another NOSTR address)
-- [ ] Lock ecash sent offline to the receiver wallet key
+- [x] Lock ecash to the receiver wallet key (P2PK) [✨ New!]
+- [x] Set lock expiry to allow recovery of locked ecash after timeout (P2PK) [✨ New!]
+- [x] Scan and pay cashu payment requests
 
 Top up wallet
 - [x] Show QR code with bitcoin Lightning invoice to pay
 - [x] Share encoded bitcoin Lightning invoice to pay
-- [x] Share payment request with a contact over NOSTR message
+- [x] Share lightning invoice with a contact over NOSTR message
 - [x] Top up balance with LNURL Withdraw
 
 Pay / Cash out from wallet
 - [x] One click ZAPS - tip users of NOSTR social network
 - [x] Pay bitcoin Lightning invoice with your ecash
-- [x] Pay payment request received from another contact
+- [x] Pay lightning invoices received from another contact
 - [x] Pay to LNURL Pay static links / codes
 - [x] Pay to Lightning address
-- [ ] Transfer (swap) ecash to another mint
+- [ ] Swap ecash between mints / currencies in a single step
 
 Transaction history
 - [x] Unified transaction history for all kinds of transactions
 - [x] Audit trail of transaction events
 - [x] Filter pending transactions
 - [x] Retry after recoverable transaction errors
-- [x] Revert pending transaction in 1 click (get back tokens not claimed by receiver) [✨ New!]
+- [x] Revert pending transaction in 1 click (get back tokens not claimed by receiver)
 - [ ] Tags and related filtering of transactions
 - [x] Delete incomplete and failed transactions from history
 
@@ -83,9 +86,9 @@ Contacts
 
 Backup and recovery
 - [x] Local append-only backup of all ecash in a database separate from wallet storage
-- [x] Export wallet backup with ecash, mints, contacts and recent transactions [✨ New!]
+- [x] Export wallet backup with ecash, mints, contacts and recent transactions
 - [x] Recovery of ecash using 12 words menmonic phrase in case of lost device
-- [x] Recovery by importing wallet backup [✨ New!]
+- [x] Recovery by importing wallet backup
 - [x] Move wallet address from another device using the seed phrase
 - [x] Recover wallet in case spent ecash remains in the wallet
 - [x] Retry transaction after recoverable errors
@@ -93,7 +96,7 @@ Backup and recovery
 
 
 Interoperability
-- [x] Nostr Wallet Connect - lets you initiate payments from another app, such as Nostr client [✨ New!]
+- [x] Nostr Wallet Connect - lets you initiate payments from another app, such as Nostr client
 - [x] Deeplinks - app reacts to lightning: and cashu: URIs
 
 
@@ -129,7 +132,7 @@ As a result, the following architectural constraints are in place:
 
 Open architectural concepts that were still open for discussion when the wallet had been released
 - [x] Contacts management - identities, sharing contacts, send ecash with the UX of tradfi instant payment while keeping privacy towards mints - Implemented as NOSTR keypairs and NIP05 public sharable names that ecash can be sent to
-- [x] Off-device backup strategy - Implemented using @gandlafbtc concept of deterministic secrets
+- [x] Off-device backup strategy - Implemented using @gandlafbtc concept of deterministic secrets + wallet export and import
 - [ ] UX and naming conventions - ecash is not always intuitive. UX for new users heavily depends on using the right abstractions or terms to describe what is going on. This wallet wants to serve as a means to test what could work. One of the first ideas is to avoid terms such as token or proof and propose the term --coin ++ecash instead.
 - [ ] Suitable Tor daemon available to replace not maintained react-native-tor. From v0.1.8-beta.33 connection through Orbot in VPN mode is possible.
 
@@ -140,6 +143,8 @@ Minibits wallet is in early beta and available as of now only for Android device
 - [x] Download it from Google Play
 - [x] Join testing program on Google Play to get early releases to test (Submit your email to get an invite on [Minibits.cash](https://www.minibits.cash))
 - [x] Download .apk file from Releases page and install it on your phone
+- [ ] Try on Testflight
+- [ ] Download from AppStore
 
 
 # Development
