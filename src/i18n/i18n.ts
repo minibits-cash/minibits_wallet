@@ -1,13 +1,14 @@
 // import * as Localization from "expo-localization"
 import { I18n } from "i18n-js"
-import { NativeModules, Platform } from "react-native"
+//import { NativeModules, Platform } from "react-native"
+import { getLocales } from "react-native-localize"
 
 // if English isn't your default language, move Translations to the appropriate language file.
 import en from "../i18n_messages/en.json"
 import sk from "../i18n_messages/sk.json"
 
 type Translations = typeof en;
-export const i18n = new I18n({ 'en-US': en })
+export const i18n = new I18n()
 
 /**
  * we need always include "*-US" for some valid language codes because when you change the system language,
@@ -29,25 +30,30 @@ i18n.enableFallback = true;
 // this is smaller than a full intl polyfill and does what we need
 
 
-let localeIos = "en_US"
+// let localeIos = "en_US"
+// let localeAndroid = "en_US"
  
 /*if(Platform.OS === 'ios') {
   if(NativeModules.SettingsManager.settings.AppleLocale || NativeModules.SettingsManager.settings.AppleLanguages[0]){
     localeIos = NativeModules.SettingsManager.settings.AppleLocale ||  NativeModules.SettingsManager.settings.AppleLanguages[0]
   }
-}*/
+}
 
 const fullLocaleRN: string = (Platform.OS === 'ios'
   ? localeIos
-  : NativeModules.I18nManager.localeIdentifier
+  : localeAndroid
 ).toString().replaceAll('_', '-')
 
 const localeJSFormat = fullLocaleRN.includes("-") 
   ? fullLocaleRN.split("-")[0]
   : fullLocaleRN.slice(0, 2)
 
-i18n.locale = localeJSFormat
+  */
 
+const deviceLocales = getLocales()
+i18n.locale = deviceLocales[0].languageCode
+
+console.log('[i18n]', {deviceLocales, locale: i18n.locale})
 
 /**
  * Builds up valid keypaths for translations.

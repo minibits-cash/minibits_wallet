@@ -528,7 +528,7 @@ function MintInfoDetails(props: { info: GetInfoResponse, popupMessage: (msg: str
         text={translate('mintInfo.emptyValueParam', { param: key })}
       />
       
-      let stringValue = isObj(value) ? JSON.stringify(value) : value.toString()
+      let stringValue = isObj(value) ? JSON.stringify(value) : value.toString() ?? ''
       let valueComponent = stringValue.trim() !== ''
         ? <Text size='xs' text={stringValue} />
         : missingComponent;

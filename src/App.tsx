@@ -41,8 +41,8 @@ if (!__DEV__) {
         dist: ANDROID_VERSION_NAME,
         beforeSend: function (event, hint) {
             const exception = hint.originalException
-            if (exception instanceof AppError) {
-            event.fingerprint = [exception.name.toString()]
+            if (exception instanceof AppError && exception.name) {
+                event.fingerprint = [exception.name.toString()]
             }
             return event
         },

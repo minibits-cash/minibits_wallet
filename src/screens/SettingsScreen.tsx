@@ -360,14 +360,14 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                       borderRadius: spacing.small,
                       padding: spacing.tiny, 
                       backgroundColor: 'white',
-                      marginRight: spacing.medium
+                      marginRight: spacing.small
                     }}
                     >
                       <SvgXml 
                         width={spacing.large} 
                         height={spacing.large} 
                         xml={NwcIcon}   
-                        style={{marginRight: spacing.small}}                     
+                        //style={{marginRight: spacing.small}}                     
                       />
                     </View>
                     }   

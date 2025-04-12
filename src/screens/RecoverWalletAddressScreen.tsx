@@ -197,6 +197,7 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
                   <Icon
                     icon='faCircleUser'
                     size={spacing.medium}
+                    color="white"
                   />
                 )}
                 onPress={onCompleteAddress}
@@ -209,6 +210,7 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
                   <Icon
                     icon='faCircleUser'
                     size={spacing.medium}
+                    color="white"
                   />
                 )}
                 onPress={onFindWalletAddress}

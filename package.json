@@ -1,6 +1,6 @@
 {
   "name": "minibits_wallet",
-  "version": "0.2.0-beta.11",
+  "version": "0.2.2-beta.1",
   "private": true,
   "scripts": {
     "android:clean": "cd android && ./gradlew clean",
@@ -20,7 +20,7 @@
     "clean": "react-native-clean-project"
   },
   "dependencies": {
-    "@cashu/cashu-ts": "minibits-cash/cashu-ts#ee96af888b20ec32ab1854fd53ccf5f0c69df055",
+    "@cashu/cashu-ts": "minibits-cash/cashu-ts#ec5ff88db34d47911e2fa3b97109243b60eee646",
     "@fortawesome/fontawesome-svg-core": "^6.7.2",
     "@fortawesome/free-brands-svg-icons": "^6.7.2",
     "@fortawesome/free-regular-svg-icons": "^6.7.2",
@@ -53,7 +53,7 @@
     "numbro": "^2.5.0",
     "patch-package": "^8.0.0",
     "react": "19.0.0",
-    "react-native": "0.79.0-rc.3",
+    "react-native": "0.79.0",
     "react-native-animated-pagination-dots": "^0.1.73",
     "react-native-camera-kit": "14.2.0",
     "react-native-dotenv": "^3.4.11",
@@ -63,6 +63,7 @@
     "react-native-gesture-handler": "^2.24.0",
     "react-native-json-tree": "^1.5.0",
     "react-native-keychain": "^10.0.0",
+    "react-native-localize": "^3.4.1",
     "react-native-logs": "^5.3.0",
     "react-native-mmkv": "^3.2.0",
     "react-native-modal": "^14.0.0-rc.1",
@@ -89,10 +90,10 @@
     "@react-native-community/cli": "18.0.0",
     "@react-native-community/cli-platform-android": "18.0.0",
     "@react-native-community/cli-platform-ios": "18.0.0",
-    "@react-native/babel-preset": "0.79.0-rc.3",
-    "@react-native/eslint-config": "0.79.0-rc.3",
-    "@react-native/metro-config": "0.79.0-rc.3",
-    "@react-native/typescript-config": "0.79.0-rc.3",
+    "@react-native/babel-preset": "0.79.0",
+    "@react-native/eslint-config": "0.79.0",
+    "@react-native/metro-config": "0.79.0",
+    "@react-native/typescript-config": "0.79.0",
     "@tsconfig/react-native": "^3.0.0",
     "@types/jest": "^29.5.13",
     "@types/lodash.clonedeep": "^4.5.9",

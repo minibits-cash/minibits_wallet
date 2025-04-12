@@ -719,15 +719,10 @@ const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previous
     }
 
 
-
     const onMintBalanceCancel = async function () {
-        setIsMintSelectorVisible(false)
-        
-        amountInputRef && amountInputRef.current
-        ? amountInputRef.current.focus()
-        : false
+        resetState()
+        gotoWallet()
     }
-
 
 
     const sendAsNostrDM = async function () {
@@ -1161,17 +1156,17 @@ const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previous
                                 return (
                                     <ContactItem 
                                         contact={item}
-                                        onPress={() => setLockedPubkey(item.pubkey)}
+                                        onPress={() => setLockedPubkey(item.npub)}
                                         containerStyle={{
                                             paddingHorizontal: spacing.small,
                                             borderRadius: spacing.tiny,
-                                            backgroundColor: lockedPubkey === item.pubkey ? inputBg : undefined,
+                                            backgroundColor: lockedPubkey === item.npub ? inputBg : undefined,
                                         }}                                    
                                     />
                                 )
                                 }}
                             horizontal={true}
-                            keyExtractor={(item) => item.pubkey}
+                            keyExtractor={(item) => item.npub}
                             style={{marginBottom: spacing.medium}}
                             contentContainerStyle={{
                                 justifyContent: 'center', // Center items horizontally

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react"
 import { FlatList, Keyboard, LayoutAnimation, Platform, View, ViewStyle } from "react-native"
 import { observer } from "mobx-react-lite"
 import { Button, Card} from "../../components"
-import { spacing } from "../../theme"
+import { spacing, useThemeColor } from "../../theme"
 import { MintBalance } from "../../models/Mint"
 import { MintUnit } from "../../services/wallet/currency"
 
@@ -74,6 +74,7 @@ export const MintBalanceSelector = observer(function (props: {
       return props.onMintBalanceSelect(balance)
     }
     
+    const buttonSecondaryBg = useThemeColor("buttonSecondaryPressed")
   
     return (
       <View style={{flex: 1}}>

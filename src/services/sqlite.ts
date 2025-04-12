@@ -150,7 +150,7 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
     // silent    
     log.info(
       Err.DATABASE_ERROR,
-      'Database migrations error: ' + e.toString(),      
+      'Database migrations error: ' + JSON.stringify(e),      
     )
   }
 }

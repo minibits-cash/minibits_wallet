@@ -465,8 +465,9 @@ const $contentContainer: TextStyle = {
 }
 
 const $mintsContainer: TextStyle = {
-  flex: 1, 
+  // flex: 1, 
   alignSelf: 'stretch',
+  minHeight: spacing.screenHeight * 0.15,
 }
 
 const $quoteContainer: TextStyle = {
