@@ -25,6 +25,7 @@ import { Proof } from './Proof'
 
 import { InFlightRequest, Mint } from './Mint'
 import { getRootStore } from './helpers/getRootStore'
+import { getUnixTime } from 'date-fns/getUnixTime'
 
 
 /* 
@@ -432,9 +433,16 @@ export const WalletStoreModel = types
                 const walletP2PK = '02' + walletKeys.NOSTR.publicKey
 
                 isLockedToWallet = lockedToPK === walletP2PK
+                const locktime = CashuUtils.getP2PKLocktime(decodedToken.proofs[0].secret)                
                 
-                if(!isLockedToWallet) {
+                if(!isLockedToWallet && !locktime) {
                     throw new AppError(Err.VALIDATION_ERROR, 'Ecash token is locked to another wallet, can not receive it.', {lockedToPK, walletP2PK})
+                }
+
+                const currentTimestamp = getUnixTime(new Date(Date.now()))
+
+                if(locktime && locktime > currentTimestamp) {
+                  throw new AppError(Err.VALIDATION_ERROR, 'Ecash token is locked to another wallet, and lock has not yet expired. Try again later.', {locktime, currentTimestamp})
                 }
             }
           

@@ -1,6 +1,6 @@
 {
   "name": "minibits_wallet",
-  "version": "0.2.2-beta.1",
+  "version": "0.2.2-beta.2",
   "private": true,
   "scripts": {
     "android:clean": "cd android && ./gradlew clean",
@@ -17,7 +17,7 @@
     "adb:unreverse": "adb devices && adb reverse --remove-all",
     "adb:inspect": "adb shell input keyevent 82",
     "postinstall": "patch-package --exclude 'nothing'",
-    "clean": "react-native-clean-project"
+    "clean": "npx react-native-clean-project"
   },
   "dependencies": {
     "@cashu/cashu-ts": "minibits-cash/cashu-ts#ec5ff88db34d47911e2fa3b97109243b60eee646",

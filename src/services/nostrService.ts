@@ -519,7 +519,7 @@ const getTagsByName = function(tagsArray: string[][], tagName: string): string[]
 }
 
 // returns first element after tag name
-const getFirstTagValue = function (tagsArray: string[][], tagName: string): string | undefined {
+const getFirstTagValue = function (tagsArray: string[][], tagName: string): string | number | undefined {
     const tag = tagsArray.find(([name]) => name === tagName)
     return tag ? tag[1] : undefined
 }

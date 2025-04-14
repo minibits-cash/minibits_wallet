@@ -10,6 +10,7 @@ import { getDecodedToken } from '@cashu/cashu-ts'
 import {Proof} from '../../models/Proof'
 import { log } from '../logService'
 import { decodePaymentRequest, sumProofs } from '@cashu/cashu-ts/src/utils'
+import { NostrClient } from '../nostrService'
 
 export {CashuProof}
 
@@ -273,14 +274,25 @@ const getMintFromProof = function (
 }
 
 
-const getP2PKPubkeySecret = function (secret: string) {
+const getP2PKPubkeySecret = function (secret: string): string | undefined {
   try {
     let secretObject = JSON.parse(secret)
     if (secretObject[0] == "P2PK" && secretObject[1]["data"] != undefined) {
       return secretObject[1]["data"]
     }
   } catch {}
-  return ""
+  return undefined
+}
+
+
+const getP2PKLocktime = function (secret: string): number | undefined {
+  try {
+    let secretObject = JSON.parse(secret)
+    if (secretObject[0] == "P2PK" && secretObject[1]["tags"] != undefined) {
+      return NostrClient.getFirstTagValue(secretObject[1]["tags"], 'locktime') as number
+    }
+  } catch {}
+  return undefined
 }
 
 
@@ -312,5 +324,6 @@ export const CashuUtils = {
     validateMintKeys,
     getMintFromProof,
     getP2PKPubkeySecret,
+    getP2PKLocktime,
     isTokenP2PKLocked
 }
