@@ -11,6 +11,7 @@ import {Proof} from '../../models/Proof'
 import { log } from '../logService'
 import { decodePaymentRequest, sumProofs } from '@cashu/cashu-ts/src/utils'
 import { NostrClient } from '../nostrService'
+import { getUnixTime } from 'date-fns/getUnixTime'
 
 export {CashuProof}
 
@@ -301,7 +302,14 @@ const isTokenP2PKLocked = function (token: Token) {
   for (const secret of secrets) {
     try {
       if (getP2PKPubkeySecret(secret)) {
-        return true
+        const locktime = CashuUtils.getP2PKLocktime(secret)
+        const currentTimestamp = getUnixTime(new Date(Date.now()))
+
+        if(!locktime) {
+          return true          
+        } else if (locktime > currentTimestamp) {
+          return true
+        }        
       }
     } catch {}
   }

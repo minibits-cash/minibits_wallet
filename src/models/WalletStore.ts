@@ -423,27 +423,21 @@ export const WalletStoreModel = types
 
             log.debug('[WalletStore.receive] counter', currentCounter.counter)
             
-            // P2PK locked tokens can be received only by the wallet they are locked to
+            // P2PK locked tokens can be received only by the wallet they are locked to (if lock has not expired)
             const isLocked = CashuUtils.isTokenP2PKLocked(decodedToken)
             let isLockedToWallet = false
             const walletKeys = yield self.getCachedWalletKeys()
     
             if(isLocked) {
                 const lockedToPK = CashuUtils.getP2PKPubkeySecret(decodedToken.proofs[0].secret)
+                const locktime = CashuUtils.getP2PKLocktime(decodedToken.proofs[0].secret)
                 const walletP2PK = '02' + walletKeys.NOSTR.publicKey
 
-                isLockedToWallet = lockedToPK === walletP2PK
-                const locktime = CashuUtils.getP2PKLocktime(decodedToken.proofs[0].secret)                
+                isLockedToWallet = lockedToPK === walletP2PK                
                 
-                if(!isLockedToWallet && !locktime) {
-                    throw new AppError(Err.VALIDATION_ERROR, 'Ecash token is locked to another wallet, can not receive it.', {lockedToPK, walletP2PK})
-                }
-
-                const currentTimestamp = getUnixTime(new Date(Date.now()))
-
-                if(locktime && locktime > currentTimestamp) {
-                  throw new AppError(Err.VALIDATION_ERROR, 'Ecash token is locked to another wallet, and lock has not yet expired. Try again later.', {locktime, currentTimestamp})
-                }
+                if(!isLockedToWallet) {
+                    throw new AppError(Err.VALIDATION_ERROR, 'Ecash token is locked to another wallet, can not receive it.', {lockedToPK, walletP2PK, locktime})
+                }                
             }
           
             const receiveParams: ReceiveParams = options?.inFlightRequest?.request || {
