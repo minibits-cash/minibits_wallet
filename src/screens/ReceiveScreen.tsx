@@ -182,7 +182,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
         const decoded = getDecodedToken(encoded)
         const tokenAmount = CashuUtils.getProofsAmount(decoded.proofs)
         const isLocked = CashuUtils.isTokenP2PKLocked(decoded)
-        let isLockedToWallet = false
+        let isLockedToWallet = false        
 
         if(isLocked) {
           const lockedToPK = CashuUtils.getP2PKPubkeySecret(decoded.proofs[0].secret)
