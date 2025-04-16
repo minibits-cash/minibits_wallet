@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useRef, useState} from 'react'
-import {FlatList, LayoutAnimation, Platform, Pressable, Switch, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
+import {FlatList, LayoutAnimation, Platform, Pressable, ScrollView, Switch, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
 import {validateMnemonic} from '@scure/bip39'
 import QuickCrypto from 'react-native-quick-crypto'
 import { wordlist } from '@scure/bip39/wordlists/english'
@@ -559,7 +559,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
 
     if(mnemonicExists) {
         return (
-            <Screen contentContainerStyle={$screen} preset="auto">
+            <Screen contentContainerStyle={$screen} preset="fixed">
                 <Header                
                     leftIcon='faArrowLeft'
                     onLeftPress={() => navigation.goBack()}                            
@@ -567,7 +567,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                 <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
                     <Text preset="heading" text="Wallet recovery" style={{color: headerTitle, zIndex: 10}} />
                 </View>
-                <View style={$contentContainer}>                
+                <ScrollView style={$contentContainer}>                
                     <Card
                         style={$card}
                         ContentComponent={
@@ -590,12 +590,12 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                             </View>                    
                         }          
                     />
-                </View>
+                </ScrollView>
             </Screen>
         )
     } else {
         return (
-            <Screen contentContainerStyle={$screen} preset="auto">
+            <Screen contentContainerStyle={$screen} preset="fixed">
               {isRecoveryStarted ? (
                 <Header/> 
               ) : (
@@ -607,7 +607,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
               <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
                   <Text preset="heading" text="Wallet recovery" style={{color: headerTitle, zIndex: 10}} />
               </View>
-              <View style={$contentContainer}>                              
+              <ScrollView style={$contentContainer}>                              
                   <MnemonicInput   
                         ref={mnemonicInputRef}             
                         mnemonic={mnemonic}
@@ -736,7 +736,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                       />
                   )}                
                   </>
-              </View>
+              </ScrollView>
               <BottomModal
                 isVisible={isIndexModalVisible}
                 ContentComponent={

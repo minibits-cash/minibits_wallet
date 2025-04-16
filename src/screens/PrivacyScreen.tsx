@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
-import {Switch, TextStyle, View, ViewStyle} from 'react-native'
+import {Switch, TextStyle, View, ViewStyle, ScrollView} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {
   ListItem,
@@ -108,11 +108,11 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
     const headerTitle = useThemeColor('headerTitle') 
 
     return (
-      <Screen style={$screen} preset='auto'>
+      <Screen style={$screen} preset='fixed'>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text preset="heading" text="Privacy" style={{color: headerTitle}} />
         </View>
-        <View style={$contentContainer}>
+        <ScrollView style={$contentContainer}>
             {/*<Card
                 style={[$card, {marginTop: spacing.medium}]}
                 ContentComponent={
@@ -254,7 +254,7 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
                 }
             />
           {isLoading && <Loading />}
-        </View>
+        </ScrollView>
         {/*<BottomModal
             isVisible={isTorModalVisible ? true : false}            
             ContentComponent={

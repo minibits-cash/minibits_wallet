@@ -6,6 +6,7 @@ import {
   Switch,
   Alert,
   Platform,
+  ScrollView,
 } from 'react-native'
 import {btoa} from 'react-native-quick-base64'
 import notifee, { AndroidImportance } from '@notifee/react-native'
@@ -395,7 +396,7 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
 
 
   return (
-    <Screen contentContainerStyle={$screen} preset="scroll">
+    <Screen contentContainerStyle={$screen} preset="fixed">
       <Header            
           leftIcon='faArrowLeft'
           onLeftPress={() => navigation.goBack()}            
@@ -407,7 +408,7 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
           style={{color: headerTitle}}
         />
       </View>
-      <View style={$contentContainer}>
+      <ScrollView style={$contentContainer}>
           <Card
             ContentComponent={
               <>
@@ -495,9 +496,8 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
                   }}                  
               />
           </View>            
-        </View>        
-
-      </View>
+        </View>
+      </ScrollView>
       {isLoading && <Loading />}
       {error && <ErrorModal error={error} />}
       {info && <InfoModal message={info} />}

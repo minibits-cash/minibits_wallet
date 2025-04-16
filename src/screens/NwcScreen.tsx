@@ -169,7 +169,7 @@ export const NwcScreen = observer(function NwcScreen(_props) {
     const placeholderTextColor = useThemeColor('textDim')
     
     return (
-      <Screen contentContainerStyle={$screen}>
+      <Screen contentContainerStyle={$screen} preset='fixed'>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text
             preset='heading'

@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react'
-import {Text as RNText, TextStyle, View, ViewStyle, TextInput } from 'react-native'
+import {Text as RNText, TextStyle, View, ViewStyle, TextInput, ScrollView } from 'react-native'
 import {colors, spacing, typography, useThemeColor} from '../../theme'
 import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
 import {useStores} from '../../models'
@@ -281,8 +281,8 @@ export const OwnName = observer(function (props: {pubkey: string}) {
     const domainText = useThemeColor('textDim')
     
     return (
-      <Screen contentContainerStyle={$screen} preset='auto'>
-        <View style={$contentContainer}>
+      <Screen contentContainerStyle={$screen} preset='fixed'>
+        <ScrollView style={$contentContainer}>
             {!isChecked ? (
                 <Card
                     style={[$card, {marginTop: spacing.small}]}
@@ -416,7 +416,7 @@ export const OwnName = observer(function (props: {pubkey: string}) {
                 />
             )}
         {isLoading && <Loading />}
-        </View>
+        </ScrollView>
         <BottomModal
           isVisible={isResultModalVisible ? true : false}
           ContentComponent={            

@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
-import {Linking, Platform, Switch, TextStyle, View, ViewStyle} from 'react-native'
+import {Linking, Platform, ScrollView, Switch, TextStyle, View, ViewStyle} from 'react-native'
 import {
     APP_ENV,      
     CODEPUSH_STAGING_DEPLOYMENT_KEY,
@@ -135,11 +135,11 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
     const headerTitle = useThemeColor('headerTitle')
 
     return (
-      <Screen contentContainerStyle={$screen}>
+      <Screen contentContainerStyle={$screen} preset='fixed'>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text preset="heading" tx="updateScreen.updateManagerTitle" style={{color: headerTitle}} />
         </View>
-        <View style={$contentContainer}>
+        <ScrollView style={$contentContainer}>
           <Card
             style={$card}
             ContentComponent={
@@ -220,7 +220,7 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
             }
           />
           {isLoading && <Loading />}
-        </View>        
+        </ScrollView>        
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}      
       </Screen>

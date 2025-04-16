@@ -607,7 +607,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     const nwcCardsData = nwcStore.all.filter(c => c.remainingDailyLimit !== c.dailyLimit)
 
     return (        
-      <Screen contentContainerStyle={$screen}>
+      <Screen contentContainerStyle={$screen} preset='fixed'>
             <Header 
                 LeftActionComponent={<LeftProfileHeader 
                     gotoProfile={gotoProfile}
@@ -1057,7 +1057,7 @@ export const getMintColor = function (unit: MintUnit) {
 
 
 const $screen: ViewStyle = {
-    flex: 1,
+   
 }
 
 const $headerContainer: TextStyle = {

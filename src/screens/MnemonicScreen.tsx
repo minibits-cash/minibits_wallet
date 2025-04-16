@@ -95,7 +95,7 @@ export const MnemonicScreen = observer(function MnemonicScreen({ route }: Props)
     const headerTitle = useThemeColor('headerTitle')
 
     return (
-      <Screen contentContainerStyle={$screen}>
+      <Screen contentContainerStyle={$screen} preset='fixed'>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text preset="heading" tx='backupScreen.seedBackup' style={{color: headerTitle}} />
         </View>

@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
-import {Alert, TextStyle, View, ViewStyle} from 'react-native'
+import {Alert, Platform, ScrollView, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {
     APP_ENV,        
@@ -246,7 +246,7 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
     const headerTitle = useThemeColor('headerTitle')
 
     return (
-      <Screen style={$screen} preset='auto'>
+      <Screen style={$screen} preset='fixed'>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text
             preset="heading"
@@ -254,7 +254,7 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
             style={{color: headerTitle}}
           />
         </View>
-        <View style={$contentContainer}>          
+        <ScrollView style={$contentContainer}>          
           <Card
             style={[$card]}
             HeadingComponent={
@@ -263,8 +263,6 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
                   subText={`Environment: ${APP_ENV}
 JS Bundle version: ${JS_BUNDLE_VERSION}
 Commit: ${COMMIT}
-Android version name: ${ANDROID_VERSION_NAME}
-Android version code: ${ANDROID_VERSION_CODE}
 DB version: ${dbVersion}
 State size: ${walletStateSize.toLocaleString()} bytes
 React Native: ${rnVersion}
@@ -355,7 +353,7 @@ Sentry id: ${walletProfileStore.walletId}
               </>
             }
             />
-        </View>
+        </ScrollView>
         <BottomModal
           isVisible={isLogLevelSelectorVisible ? true : false}
           style={{alignItems: 'stretch'}}          

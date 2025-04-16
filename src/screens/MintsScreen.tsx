@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useRef, useState} from 'react'
-import {Alert, TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import {Alert, ScrollView, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
 import {
     MINIBITS_MINT_URL 
@@ -292,11 +292,11 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
     const placeholderTextColor = useThemeColor('textDim')
 
     return (
-      <Screen preset="scroll" contentContainerStyle={$screen}>
+      <Screen preset='fixed' contentContainerStyle={$screen}>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text preset="heading" tx="manageMints" style={{color: headerTitle}} />
         </View>
-        <View style={$contentContainer}>
+        <ScrollView style={$contentContainer}>
             <Card
                 style={$actionCard}
                 ContentComponent={
@@ -354,7 +354,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
             />
           )}
           {isLoading && <Loading />}
-        </View>
+        </ScrollView>
         <BottomModal
           isVisible={isMintMenuVisible ? true : false}
           style={{alignItems: 'stretch'}}          
@@ -526,12 +526,12 @@ const $headerContainer: TextStyle = {
 }
 
 const $contentContainer: TextStyle = {
+  marginTop: -spacing.extraLarge * 1.5,
   padding: spacing.extraSmall,
 }
 
 const $actionCard: ViewStyle = {
   marginBottom: spacing.small,
-  marginTop: -spacing.extraLarge * 1.5,
   minHeight: 70,
   paddingVertical: 0,  
 }

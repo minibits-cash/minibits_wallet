@@ -4,7 +4,7 @@ import { isObj } from '@cashu/cashu-ts/src/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { observer } from 'mobx-react-lite'
 import { getSnapshot } from 'mobx-state-tree'
-import { DimensionValue, Image, LayoutAnimation, Platform, TextStyle, UIManager, View, ViewStyle } from 'react-native'
+import { DimensionValue, Image, LayoutAnimation, Platform, ScrollView, TextStyle, UIManager, View, ViewStyle } from 'react-native'
 import JSONTree from 'react-native-json-tree'
 import {
   $sizeStyles,
@@ -157,7 +157,7 @@ export const MintInfoScreen = observer(function MintInfoScreen({ route }: Props)
   const headerTitle = useThemeColor('headerTitle')
 
   return (
-    <Screen contentContainerStyle={$screen} preset="scroll">
+    <Screen contentContainerStyle={$screen} preset="fixed">
       <View style={[$headerContainer, {backgroundColor: headerBg, justifyContent: 'space-around', paddingBottom: spacing.huge}]}>
       {mintInfo && mintInfo.icon_url ? (
               <FastImage 
@@ -202,7 +202,7 @@ export const MintInfoScreen = observer(function MintInfoScreen({ route }: Props)
           </View>
         )}
       </View>
-      <View style={$contentContainer}>
+      <ScrollView style={$contentContainer}>
         {isLoading ? (
           <View style={{height: spacing.screenHeight * 0.4}}><Loading/></View>
         ) : (
@@ -282,7 +282,7 @@ export const MintInfoScreen = observer(function MintInfoScreen({ route }: Props)
           />
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
-      </View>
+      </ScrollView>
     </Screen>
   )
 })
@@ -439,6 +439,7 @@ function NutsCard(props: {info: GetInfoResponse}) {
   return (
     <Card
       labelTx="mintInfo.nutsHeading"
+      style={{marginBottom: spacing.small}}
       // HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
       ContentComponent={
         <View style={{flexDirection: 'row', flexWrap: 'wrap'}}>

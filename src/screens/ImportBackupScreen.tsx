@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useRef, useState} from 'react'
-import {LayoutAnimation, Platform, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
+import {LayoutAnimation, Platform, ScrollView, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
 import {validateMnemonic} from '@scure/bip39'
 import { btoa, atob } from 'react-native-quick-base64'
 import QuickCrypto from 'react-native-quick-crypto'
@@ -344,11 +344,11 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
 
     if(mnemonicExists) {
       return (
-        <Screen contentContainerStyle={$screen} preset="auto">
+        <Screen contentContainerStyle={$screen} preset="fixed">
             <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
                 <Text preset="heading" text="Wallet recovery" style={{color: headerTitle, zIndex: 10}} />
             </View>
-            <View style={$contentContainer}>                
+            <ScrollView style={$contentContainer}>                
                 <Card
                     style={$card}
                     ContentComponent={
@@ -371,12 +371,12 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
                         </View>                    
                     }          
                 />
-            </View>            
+            </ScrollView>            
         </Screen>
       )
   } else {
     return (
-      <Screen contentContainerStyle={$screen} preset="scroll">
+      <Screen contentContainerStyle={$screen} preset="fixed">
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
             <Text 
               preset="heading" 
@@ -384,7 +384,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
               style={{color: headerTitle, textAlign: 'center'}}               
             />
         </View>
-        <View style={$contentContainer}>            
+        <ScrollView style={$contentContainer}>            
             <MnemonicInput   
                 ref={mnemonicInputRef}             
                 mnemonic={mnemonic}
@@ -477,7 +477,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
                   }        
               />
             )}
-        </View>
+        </ScrollView>
         {isValidMnemonic && (
         <View style={$bottomContainer}>
             <View style={$buttonContainer}>                

@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {useState, useEffect, useRef} from 'react'
-import {Platform, TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import {Platform, ScrollView, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import notifee, { AndroidImportance } from '@notifee/react-native'
 import {spacing, useThemeColor, colors} from '../theme'
 import {
@@ -227,7 +227,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
               style={{color: 'white'}}
             />
         </View>
-        <View style={$contentContainer}>  
+        <ScrollView style={$contentContainer}>  
         {route.params && route.params.fromScreen !== 'Settings' && (                
             <Card
                 style={$ecashCard}
@@ -345,7 +345,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
           {isLoading && <Loading />}        
           {error && <ErrorModal error={error} />}
           {info && <InfoModal message={info} />}                    
-        </View>
+        </ScrollView>
         <BottomModal
           isVisible={isNotificationModalVisible ? true : false}          
           ContentComponent={

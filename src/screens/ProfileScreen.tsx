@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
-import {Share, Switch, TextStyle, View, ViewStyle} from 'react-native'
+import {ScrollView, Share, Switch, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, Loading, Header} from '../components'
 import {useStores} from '../models'
@@ -165,7 +165,7 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
     const $itemRight = {color: useThemeColor('textDim')}
     
     return (
-      <Screen contentContainerStyle={$screen} preset='auto'>
+      <Screen contentContainerStyle={$screen} preset='fixed'>
             <Header 
                 leftIcon='faArrowLeft'
                 onLeftPress={() => {navigation.goBack()}}
@@ -173,7 +173,7 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
                 onRightPress={onCopyNip05}
             />        
             <ProfileHeader />        
-            <View style={$contentContainer}>
+            <ScrollView style={$contentContainer}>
                 <Card
                     ContentComponent={                        
                         <>
@@ -245,7 +245,7 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
                     </>
                     }
                 />
-            </View>
+            </ScrollView>
             <BottomModal
                 isVisible={isUpdateModalVisible ? true : false}
                 style={{alignItems: 'stretch'}}

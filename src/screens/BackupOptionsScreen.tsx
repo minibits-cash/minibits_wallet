@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
-import {TextStyle, View, ViewStyle} from 'react-native'
+import {ScrollView, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {
   ListItem,
@@ -43,7 +43,7 @@ export const BackupOptionsScreen = observer(function () {
     const headerTitle = useThemeColor('headerTitle')
 
     return (
-      <Screen preset='scroll' contentContainerStyle={$screen}>
+      <Screen preset='fixed' contentContainerStyle={$screen}>
         <Header                
             leftIcon='faArrowLeft'
             onLeftPress={() => navigation.goBack()}                            
@@ -51,7 +51,7 @@ export const BackupOptionsScreen = observer(function () {
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text preset="heading" text="Backup" style={{color: headerTitle}} />
         </View>
-        <View style={$contentContainer}>
+        <ScrollView style={$contentContainer}>
             <Card
                 style={$card}
                 HeadingComponent={
@@ -85,7 +85,7 @@ export const BackupOptionsScreen = observer(function () {
                 }
             />                   
         {isLoading && <Loading />}
-        </View>        
+        </ScrollView>        
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
       </Screen>

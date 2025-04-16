@@ -1,6 +1,6 @@
 import { observer } from 'mobx-react-lite'
 import React, { useRef, useState } from 'react'
-import { LayoutAnimation, Platform, TextInput, TextStyle, UIManager, View, ViewStyle } from 'react-native'
+import { LayoutAnimation, Platform, ScrollView, TextInput, TextStyle, UIManager, View, ViewStyle } from 'react-native'
 import { validateMnemonic } from '@scure/bip39'
 import QuickCrypto from 'react-native-quick-crypto'
 import { wordlist } from '@scure/bip39/wordlists/english'
@@ -144,7 +144,7 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
   const headerTitle = useThemeColor('headerTitle')
 
   return (
-    <Screen contentContainerStyle={$screen} preset="scroll">
+    <Screen contentContainerStyle={$screen} preset="fixed">
       <View style={[$headerContainer, { backgroundColor: headerBg }]}>
         <Text
           preset="heading"
@@ -152,7 +152,7 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
           style={{ color: headerTitle, textAlign: 'center' }}
         />
       </View>
-      <View style={$contentContainer}>
+      <ScrollView style={$contentContainer}>
         <MnemonicInput
           ref={mnemonicInputRef}
           mnemonic={mnemonic}
@@ -185,7 +185,7 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
           />
           </>
         )}
-      </View>
+      </ScrollView>
       {isValidMnemonic && (
         <View style={$bottomContainer}>
           <View style={$buttonContainer}>

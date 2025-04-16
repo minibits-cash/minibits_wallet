@@ -151,7 +151,7 @@ function ScreenWithScrolling(props: ScreenProps) {
     style,
   } = props as ScrollScreenProps
 
-  const ref = useRef<ScrollView>()
+  const ref = useRef<ScrollView>(null)
 
   const { scrollEnabled, onContentSizeChange, onLayout } = useAutoPreset(props as AutoScreenProps)
 
@@ -177,6 +177,7 @@ function ScreenWithScrolling(props: ScreenProps) {
         ScrollViewProps?.contentContainerStyle,
         contentContainerStyle,
       ]}
+      bouncesZoom={false}
     >
       {children}
     </ScrollView>
@@ -231,6 +232,7 @@ const $outerStyle: ViewStyle = {
 }
 
 const $innerStyle: ViewStyle = {
+  flex: 1,
   justifyContent: "flex-start",
   alignItems: "stretch",   
 }

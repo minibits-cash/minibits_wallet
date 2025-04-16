@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
-import {Switch, TextStyle, View, ViewStyle} from 'react-native'
+import {ScrollView, Switch, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {
   Icon,
@@ -100,11 +100,11 @@ export const SecurityScreen = observer(function SecurityScreen({ route }: Props)
     const headerTitle = useThemeColor('headerTitle')
 
     return (
-      <Screen style={$screen}>
+      <Screen preset='fixed' contentContainerStyle={$screen}>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text preset="heading" text="Security" style={{color: headerTitle}} />
         </View>
-        <View style={$contentContainer}>
+        <ScrollView style={$contentContainer}>
             <Card
                 style={$card}
                 ContentComponent={
@@ -144,7 +144,7 @@ export const SecurityScreen = observer(function SecurityScreen({ route }: Props)
                 }
             />            
           {isLoading && <Loading />}
-        </View>
+        </ScrollView>
         <BottomModal
             isVisible={isAuthModalVisible ? true : false}            
             ContentComponent={

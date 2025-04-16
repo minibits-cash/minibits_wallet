@@ -1,5 +1,5 @@
 import React, {FC, useEffect, useState} from 'react'
-import {Pressable, TextStyle, View, ViewStyle} from 'react-native'
+import {Pressable, ScrollView, TextStyle, View, ViewStyle} from 'react-native'
 import FastImage from 'react-native-fast-image'
 import {colors, spacing, useThemeColor} from '../theme'
 import {Button, Card, ErrorModal, Header, InfoModal, ListItem, Loading, Screen, Text} from '../components'
@@ -67,13 +67,13 @@ export const PictureScreen = (function PictureScreen({ route }: Props) {
     const selectedColor = colors.palette.success200    
 
     return (
-      <Screen contentContainerStyle={$screen} preset='auto'> 
+      <Screen contentContainerStyle={$screen} preset='fixed'> 
         <Header                
             leftIcon='faArrowLeft'
             onLeftPress={() => navigation.goBack()}                            
         />       
         <ProfileHeader />
-        <View style={$contentContainer}>
+        <ScrollView style={$contentContainer}>
             <View style={$picturesContainer}>
                 {pictures.map((png, index) => {
                     // log.trace('PictureScreen', 'png', png)
@@ -110,7 +110,7 @@ export const PictureScreen = (function PictureScreen({ route }: Props) {
                     />
                 </View>
             )}            
-        </View>
+        </ScrollView>
         {isLoading && <Loading />}      
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}

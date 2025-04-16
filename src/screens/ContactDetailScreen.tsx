@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useRef, useState} from 'react'
-import {Image, Share, TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import {Image, ScrollView, Share, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import { colors, spacing, useThemeColor} from '../theme'
 import {Icon, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, ListItem} from '../components'
 import {useHeader} from '../utils/useHeader'
@@ -186,7 +186,7 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
     const {type, name, display_name, npub, nip05, picture, about, lud16} = contact
     
     return (
-      <Screen contentContainerStyle={$screen} preset='scroll'>
+      <Screen contentContainerStyle={$screen} preset='fixed'>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
             {picture ? (
                 <View style={{borderRadius: 48, overflow: 'hidden'}}>
@@ -201,7 +201,7 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
             )}
             <Text preset='bold' text={(nip05) ? nip05 : name} style={{color: 'white', marginBottom: spacing.small}} />          
         </View>
-        <View style={$contentContainer}>
+        <ScrollView style={$contentContainer}>
             {type === ContactType.PUBLIC ? (
                 <Card
                     style={$card}
@@ -294,7 +294,7 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
                 }
             />
             )}            
-        </View>
+        </ScrollView>
         <View style={[$bottomContainer]}>
             {type === ContactType.PUBLIC &&  contact.nip05 && (                
                 <Button

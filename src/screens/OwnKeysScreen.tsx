@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useRef, useState} from 'react'
-import {Image, LayoutAnimation, Platform, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
+import {Image, LayoutAnimation, Platform, ScrollView, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
 import {getPublicKey} from 'nostr-tools/pure'
 import { hexToBytes } from '@noble/hashes/utils'
 import {colors, spacing, typography, useThemeColor} from '../theme'
@@ -242,8 +242,8 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
     const placeholderTextColor = useThemeColor('textDim')
     
     return (
-      <Screen contentContainerStyle={$screen} preset='auto'>
-            <View style={$contentContainer}>
+      <Screen contentContainerStyle={$screen} preset='fixed'>
+            <ScrollView style={$contentContainer}>
             <Card
                 style={$card}
                 ContentComponent={
@@ -407,7 +407,7 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
 
             )}
 
-        </View>
+        </ScrollView>
         <BottomModal
             isVisible={isProfileChangeCompleted ? true : false}            
             ContentComponent={

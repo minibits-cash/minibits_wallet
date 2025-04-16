@@ -179,7 +179,7 @@ export const ListItem = function (props: ListItemProps) {
   const $containerStyles = [
     topSeparator && $separatorTop, { borderTopColor: separatorColor },
     bottomSeparator && $separatorBottom, { borderBottomColor: separatorColor },
-    $containerStyleOverride,
+    $containerStyleOverride, {paddingVertical: spacing.tiny - 2},
   ]
 
   const $touchableStyles = [$touchableStyle, { minHeight: height }, style]

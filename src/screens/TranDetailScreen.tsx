@@ -7,6 +7,7 @@ import {
   Linking,
   Platform,
   Pressable,  
+  ScrollView,  
   TextInput,
   TextStyle,
   UIManager,
@@ -226,7 +227,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
     const inputText = useThemeColor('text')
 
   return (
-      <Screen contentContainerStyle={$screen} preset="auto">        
+      <Screen contentContainerStyle={$screen} preset="fixed">        
         {transaction && (
           <>
             <Header 
@@ -250,7 +251,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                   style={[$tranAmount, {color: headerTitle}]}
               />              
             </View>
-            <View style={$contentContainer}>
+            <ScrollView style={$contentContainer}>
               <Card
                 style={$actionCard}
                 ContentComponent={
@@ -441,7 +442,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                   }
                 />
               )}              
-            </View>
+            </ScrollView>
           </>
         )}        
         {error && <ErrorModal error={error} />}

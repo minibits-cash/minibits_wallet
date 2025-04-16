@@ -320,6 +320,7 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
                 }                        
                 onScrollBeginDrag={collapseHeader}
                 onStartReached={expandHeader}
+                stickySectionHeadersEnabled={false}
                 keyExtractor={(item, index) => String(item.id) as string}
                 ListEmptyComponent={            
                     <Card
@@ -332,7 +333,7 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
                         style={$card}                
                     />
                 }
-                style={{maxHeight: spacing.screenHeight * 0.66}}                                
+                style={{maxHeight: spacing.screenHeight * 0.6}}                                
             />    
           {isLoading && <Loading shiftedUp={true} />}
         </View>

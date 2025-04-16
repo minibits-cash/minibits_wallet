@@ -8,7 +8,7 @@
     "android:test": "react-native run-android --mode=release",
     "android:bundle": "react-native build-android --mode=release",
     "android:apk": "cd android && ./gradlew assembleRelease",
-    "ios": "npx react-native run-ios --scheme \"minibits_wallet\" --workspace \"ios/minibits_wallet.xcworkspace\"",
+    "ios:dev": "npx react-native run-ios --scheme \"minibits_wallet\"",
     "lint": "eslint .",
     "start": "react-native start",
     "test": "jest",

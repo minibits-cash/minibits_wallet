@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useRef, useState} from 'react'
-import {AppState, Platform, TextStyle, View, ViewStyle, useColorScheme} from 'react-native'
+import {AppState, LayoutAnimation, Platform, ScrollView, TextStyle, View, ViewStyle, useColorScheme} from 'react-native'
 import notifee, { AuthorizationStatus } from '@notifee/react-native'
 import messaging from '@react-native-firebase/messaging'
 import {
@@ -44,6 +44,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
     const [isThemeModalVisible, setIsThemeModalVisible] = useState<boolean>(false)
     const [isNativeUpdateAvailable, setIsNativeUpdateAvailable] = useState<boolean>(false)
     const [areNotificationsEnabled, setAreNotificationsEnabled] = useState<boolean>(false)
+    const [isHeaderVisible, setIsHeaderVisible] = useState(true)
     const [info, setInfo] = useState('')
 
     useEffect(() => {
@@ -256,6 +257,25 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
     toggleThemeModal()  
   }
 
+  const collapseHeader = function () {
+      LayoutAnimation.easeInEaseOut()        
+      setIsHeaderVisible(false)
+      
+  }
+
+  const expandHeader = function () {
+      LayoutAnimation.easeInEaseOut()
+      setIsHeaderVisible(true)
+  }
+
+  const isCloseToBottom = function ({layoutMeasurement, contentOffset, contentSize}){
+    return layoutMeasurement.height + contentOffset.y >= contentSize.height - 20
+  }
+ 
+  const isCloseToTop = function({layoutMeasurement, contentOffset, contentSize}){
+      return contentOffset.y == 0;
+  }
+
   const $itemRight = {color: useThemeColor('textDim')}
   const headerBg = useThemeColor('header')
   const headerTitle = useThemeColor('headerTitle')  
@@ -263,15 +283,17 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
   const defaultThemeColor = colorScheme === 'dark' ? Themes[ThemeCode.DARK]?.color : Themes[ThemeCode.LIGHT]?.color
     
     return (
-      <Screen contentContainerStyle={$screen} preset='auto'>
-        <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text
+      <Screen contentContainerStyle={$screen} preset='fixed'>
+          <View style={[$headerContainer, {backgroundColor: headerBg}]}>
+           <Text
             preset='heading'
             tx='settingsScreen.title'
             style={{color: headerTitle}}
           />
         </View>
-        <View style={$contentContainer}>
+        <ScrollView 
+          style={$contentContainer}
+        >
           <Card
             style={$card}
             ContentComponent={
@@ -471,8 +493,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
               </>
             }
           />
-          
-        </View>
+        </ScrollView>
         <BottomModal
           isVisible={isCurrencyModalVisible ? true : false}
           style={{alignItems: 'stretch'}}
@@ -538,7 +559,8 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
 )
 
 const $screen: ViewStyle = {
-  // flex: 1,
+  
+
 }
 
 const $headerContainer: TextStyle = {
@@ -548,10 +570,8 @@ const $headerContainer: TextStyle = {
 }
 
 const $contentContainer: TextStyle = {
-  // flex: 1,
   marginTop: -spacing.extraLarge * 2,
   padding: spacing.extraSmall,
-  // alignItems: 'center',
 }
 
 const $card: ViewStyle = {
