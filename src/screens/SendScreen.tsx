@@ -1005,11 +1005,11 @@ const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previous
                     selectedMintBalance={mintBalanceToSendFrom as MintBalance}
                     unit={unitRef.current}
                     title='Send from mint'
-                    confirmTitle={isOfflineSend ? 'Send offline' : 'Create token'}
-                    secondaryConfirmTitle='Lock'
+                    confirmTitle={isOfflineSend ? 'Send offline' : 'Create token'}                    
+                    secondaryConfirmTitle='Lock'                    
                     onMintBalanceSelect={onMintBalanceSelect}
                     onSecondaryMintBalanceSelect={onLockPubkeyStart}
-                    onCancel={onMintBalanceCancel}              
+                    onCancel={onMintBalanceCancel}                                           
                     onMintBalanceConfirm={isOfflineSend ? onSelectProofsOffline : onMintBalanceConfirm}
                 />
             )}

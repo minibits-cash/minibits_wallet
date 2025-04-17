@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react"
 import { FlatList, Keyboard, LayoutAnimation, Platform, View, ViewStyle } from "react-native"
 import { observer } from "mobx-react-lite"
-import { Button, Card} from "../../components"
+import { Button, Card, Icon, IconTypes} from "../../components"
 import { spacing, useThemeColor } from "../../theme"
 import { MintBalance } from "../../models/Mint"
 import { MintUnit } from "../../services/wallet/currency"
@@ -16,7 +16,10 @@ export const MintBalanceSelector = observer(function (props: {
     unit: MintUnit
     title: string
     confirmTitle: string
+    confirmIcon?: IconTypes
     secondaryConfirmTitle?: string
+    secondaryConfirmIcon?: IconTypes
+    cancelIcon?: IconTypes
     collapsible?: boolean
     onMintBalanceSelect: any
     onSecondaryMintBalanceSelect?: any
@@ -74,7 +77,8 @@ export const MintBalanceSelector = observer(function (props: {
       return props.onMintBalanceSelect(balance)
     }
     
-    const buttonSecondaryBg = useThemeColor("buttonSecondaryPressed")
+    
+    const secondaryIconColor = useThemeColor("textDim")
   
     return (
       <View style={{flex: 1}}>
@@ -123,6 +127,11 @@ export const MintBalanceSelector = observer(function (props: {
               {props.secondaryConfirmTitle && (
                 <Button
                   text={props.secondaryConfirmTitle}
+                  LeftAccessory={() =>
+                    (props.secondaryConfirmIcon && (
+                      <Icon icon={props.secondaryConfirmIcon} color={secondaryIconColor} size={spacing.medium}/>
+                    ))
+                  }
                   preset="secondary"
                   onPress={props.onSecondaryMintBalanceSelect}
                   style={{marginRight: spacing.medium}}          
@@ -130,12 +139,20 @@ export const MintBalanceSelector = observer(function (props: {
               )}
               <Button
                 text={props.confirmTitle}
+                LeftAccessory={() =>
+                  <Icon icon={props.confirmIcon ? props.confirmIcon : 'faCheckCircle'} color="white" size={spacing.medium}/>
+                }
                 onPress={props.onMintBalanceConfirm}
                 style={{marginRight: spacing.medium}}          
               />
 
               <Button
                 preset="secondary"
+                LeftAccessory={() =>
+                  (props.cancelIcon && (
+                    <Icon icon={props.cancelIcon} color={secondaryIconColor} size={spacing.medium}/>
+                  ))
+                }
                 tx={'common.cancel'}
                 onPress={props.onCancel}
               />
