@@ -135,8 +135,7 @@ interface ListItemActionProps {
  *
  * - [Documentation and Examples](https://github.com/infinitered/ignite/blob/master/docs/Components-ListItem.md)
  */
-export const ListItem = function (props: ListItemProps) {
-  const colorScheme = useColorScheme()  
+export const ListItem = function (props: ListItemProps) { 
 
   const {
     bottomSeparator,
@@ -179,7 +178,7 @@ export const ListItem = function (props: ListItemProps) {
   const $containerStyles = [
     topSeparator && $separatorTop, { borderTopColor: separatorColor },
     bottomSeparator && $separatorBottom, { borderBottomColor: separatorColor },
-    $containerStyleOverride, {paddingVertical: spacing.tiny - 2},
+    $containerStyleOverride, {paddingVertical: spacing.tiny},
   ]
 
   const $touchableStyles = [$touchableStyle, { minHeight: height }, style]

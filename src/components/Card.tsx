@@ -308,7 +308,7 @@ export const Card = function (props: CardProps) {
 const $containerBase: ViewStyle = {
   borderRadius: spacing.medium,
   paddingHorizontal: spacing.medium,
-  paddingVertical: spacing.small,
+  paddingVertical: spacing.extraSmall,
  // borderWidth: 1,
   shadowColor: colors.palette.neutral600,
   shadowOffset: { width: 0, height: 10 },

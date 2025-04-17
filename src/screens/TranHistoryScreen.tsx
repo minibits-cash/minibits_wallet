@@ -10,6 +10,11 @@ import {
   UIManager,
   LayoutAnimation,
 } from 'react-native'
+import Animated, {
+    useSharedValue,
+    useAnimatedStyle,
+    withTiming,
+} from 'react-native-reanimated'
 import {formatDistance, toDate} from 'date-fns'
 import {useThemeColor, spacing, colors, typography} from '../theme'
 import {
@@ -175,16 +180,17 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
         }
     }
 
-    
-    const collapseHeader = function () {
-        LayoutAnimation.easeInEaseOut()        
-        setIsHeaderVisible(false)
-        
-    }
+    const headerHeight = useSharedValue(spacing.screenHeight * 0.20); // Initial height
+    const isVisible = useSharedValue(true);
 
-    const expandHeader = function () {
-        LayoutAnimation.easeInEaseOut()
-        setIsHeaderVisible(true)
+    const collapseHeader = () => {
+        headerHeight.value = spacing.screenHeight * 0.08
+        isVisible.value = false
+    }
+    
+    const expandHeader = () => {
+        headerHeight.value = spacing.screenHeight * 0.20
+        isVisible.value = true
     }
 
     const onDelete = function (status: TransactionStatus) {
@@ -210,6 +216,12 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
         setError(e)
     }
 
+    const animatedHeader = useAnimatedStyle(() => {
+        return {
+          height: withTiming(headerHeight.value, { duration: 300 }),
+          // opacity: withTiming(isVisible.value ? 1 : 0, { duration: 300 }),
+        }
+    })
     const headerBg = useThemeColor('header')
     const iconColor = useThemeColor('textDim')    
     const activeIconColor = useThemeColor('button')    
@@ -225,9 +237,9 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
 
     return (
       <Screen contentContainerStyle={$screen}>        
-        <View style={[isHeaderVisible ? $headerContainer : $headerCollapsed, {backgroundColor: headerBg}]}>
+        <Animated.View style={[animatedHeader, $headerContainer, {backgroundColor: headerBg}]}>
             <Text preset="heading" text="History" style={{color: headerTitle}} />
-        </View>
+        </Animated.View>
             
         <View style={$contentContainer}>
             <Card
@@ -302,7 +314,7 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
                 ListFooterComponent={
                     <>
                     {sections.length > 0 && (
-                        <View style={{alignItems: 'center', marginVertical: spacing.small}}>
+                        <View style={{alignItems: 'center'}}>
                             {!showPendingOnly && isAll || showPendingOnly && pendingIsAll ? (
                                 <Text tx="tranHistory.listIsComplete" size="xs" />
                             ) : (
@@ -318,8 +330,8 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
                     )}                    
                     </>
                 }                        
-                onScrollBeginDrag={collapseHeader}
-                onStartReached={expandHeader}
+                onEndReached={collapseHeader}
+                onStartReached={expandHeader}                
                 stickySectionHeadersEnabled={false}
                 keyExtractor={(item, index) => String(item.id) as string}
                 ListEmptyComponent={            
@@ -333,7 +345,7 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
                         style={$card}                
                     />
                 }
-                style={{maxHeight: spacing.screenHeight * 0.6}}                                
+                style={{maxHeight: spacing.screenHeight * 0.62}}                                
             />    
           {isLoading && <Loading shiftedUp={true} />}
         </View>

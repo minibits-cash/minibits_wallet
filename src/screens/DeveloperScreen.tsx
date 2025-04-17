@@ -315,7 +315,7 @@ Sentry id: ${walletProfileStore.walletId}
           <Card
             label='Danger zone'
             labelStyle={{marginTop: spacing.medium}}
-            style={[$card]}
+            style={[$card, {marginBottom: spacing.large}]}
             HeadingComponent={
               <>
                 <ListItem

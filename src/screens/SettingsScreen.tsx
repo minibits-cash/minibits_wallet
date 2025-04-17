@@ -284,7 +284,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
     
     return (
       <Screen contentContainerStyle={$screen} preset='fixed'>
-          <View style={[$headerContainer, {backgroundColor: headerBg}]}>
+          <View style={[isHeaderVisible ? $headerContainer : $headerCollapsed, {backgroundColor: headerBg}]}>
            <Text
             preset='heading'
             tx='settingsScreen.title'
@@ -444,7 +444,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
             }
           />
           <Card
-            style={[$card, {marginTop: spacing.large}]}
+            style={[$card, {marginVertical: spacing.large}]}
             ContentComponent={
               <>
                 <ListItem
@@ -559,7 +559,6 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
 )
 
 const $screen: ViewStyle = {
-  
 
 }
 
@@ -569,9 +568,16 @@ const $headerContainer: TextStyle = {
   height: spacing.screenHeight * 0.20,
 }
 
+const $headerCollapsed: TextStyle = {
+  alignItems: 'center',
+  paddingBottom: spacing.medium,
+  height: spacing.screenHeight * 0.08,
+}
+
 const $contentContainer: TextStyle = {
   marginTop: -spacing.extraLarge * 2,
   padding: spacing.extraSmall,
+  
 }
 
 const $card: ViewStyle = {
