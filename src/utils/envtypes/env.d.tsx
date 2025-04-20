@@ -7,6 +7,8 @@ declare module '@env' {
     export const MINIBITS_NIP05_DOMAIN: string
     export const MINIBITS_RELAY_URL: string
     export const MINIBITS_MINT_URL: string
+    export const HOT_UPDATER_URL: string
+    export const HOT_UPDATER_API_KEY: string
     export const ANDROID_VERSION_NAME: string
     export const ANDROID_VERSION_CODE: string  
     export const JS_BUNDLE_VERSION: string

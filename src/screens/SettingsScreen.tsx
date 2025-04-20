@@ -5,6 +5,8 @@ import notifee, { AuthorizationStatus } from '@notifee/react-native'
 import messaging from '@react-native-firebase/messaging'
 import {
     APP_ENV,
+    HOT_UPDATER_API_KEY,
+    HOT_UPDATER_URL,
 } from '@env'
 import {ThemeCode, Themes, colors, spacing, useThemeColor} from '../theme'
 import {ListItem, Screen, Text, Card, NwcIcon, Button, BottomModal, InfoModal, Icon} from '../components'
@@ -19,6 +21,7 @@ import { NotificationService } from '../services/notificationService'
 import { SvgXml } from 'react-native-svg'
 import { CurrencySign } from './Wallet/CurrencySign'
 import { CommonActions, StaticScreenProps, useNavigation } from '@react-navigation/native'
+import { HotUpdater } from '@hot-updater/react-native'
 
 type Props = StaticScreenProps<undefined>
 
@@ -50,18 +53,36 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
     useEffect(() => {
         const checkForUpdate = async () => {
             try {
-                /*const update = await codePush.checkForUpdate(deploymentKey, handleBinaryVersionMismatchCallback)
-                if (update && update.failedInstall !== true) {  // do not announce update that failed to install before
-                    setUpdateDescription(update.description)
-                    setUpdateSize(`${round(update.packageSize *  0.000001, 2)}MB`)                  
+                const updateInfo = await HotUpdater.checkForUpdate({
+                    source: HOT_UPDATER_URL,
+                    requestHeaders: {
+                        Authorization: `Bearer ${HOT_UPDATER_API_KEY}`,
+                    },
+                })
+
+                log.debug('[checkForUpdate]', {updateInfo})
+
+                if (!updateInfo) {
+                    return
+                }
+
+                if(!__DEV__) {
                     setIsUpdateAvailable(true)
-                }*/
+                    setUpdateDescription(updateInfo.message)
+                    
+                    if (updateInfo.shouldForceUpdate) {
+                        // apply emergency update immediately
+                        await HotUpdater.updateBundle(updateInfo.id, updateInfo.fileUrl)
+                        HotUpdater.reload()
+                    }
+                }
                 
             } catch (e: any) {
-                log.info(e.name, e.message)
-                return false // silent
+                log.error(e)
+                return false
             }
-        } 
+        }
+
         checkForUpdate()
     }, [])
 
@@ -139,26 +160,32 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
   } */
 
   const gotoMints = function() {
+    // @ts-ignore
     navigation.navigate('Mints', {})
   }
 
   const gotoSecurity = function() {
+    // @ts-ignore
     navigation.navigate('Security')
   }    
     
   const gotoPrivacy = function() {
+    // @ts-ignore
       navigation.navigate('Privacy')
   }
 
   const gotoDevOptions = function() {
+    // @ts-ignore
     navigation.navigate('Developer')
   }
 
   const gotoRelays = function() {
+    // @ts-ignore
       navigation.navigate('Relays')
-    }
-
+  }
+  
   const gotoBackupOptions = function() {
+    // @ts-ignore
     navigation.navigate('BackupOptions')
   }
 
@@ -171,7 +198,8 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
     ))
   }
 
-  /* const gotoUpdate = function() {
+  const gotoUpdate = function() {
+      // @ts-ignore
       navigation.navigate('Update', {
           isNativeUpdateAvailable, 
           isUpdateAvailable, 
@@ -179,9 +207,10 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
           updateSize,
           prevScreen: 'Settings'
       })
-  }*/
+  }
 
   const gotoNwc = function() {
+    // @ts-ignore
     navigation.navigate('Nwc')
   } 
 
@@ -465,7 +494,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                     bottomSeparator={true}
                     onPress={gotoPrivacy}
                 />
-                {/*<ListItem
+                <ListItem
                     tx='settingsScreen.update'     
                     leftIcon='faWandMagicSparkles'
                     leftIconColor={(isUpdateAvailable || isNativeUpdateAvailable) ? colors.palette.iconMagenta200 : colors.palette.neutral400}
@@ -481,7 +510,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                     style={$item}
                     bottomSeparator={true}
                     onPress={gotoUpdate}
-                />*/}
+                />
                 <ListItem
                     tx='settingsScreen.devOptions'
                     leftIcon='faCode'

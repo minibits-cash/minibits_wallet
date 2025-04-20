@@ -13,6 +13,7 @@ import com.facebook.react.soloader.OpenSourceMergedSoMapping
 import com.facebook.soloader.SoLoader
 import com.facebook.react.modules.network.OkHttpClientProvider
 // import com.microsoft.codepush.react.CodePush
+import com.hotupdater.HotUpdater
 
 class MainApplication : Application(), ReactApplication {
 
@@ -38,6 +39,9 @@ class MainApplication : Application(), ReactApplication {
         // override fun getJSBundleFile(): String {
         //    return CodePush.getJSBundleFile() 
         // }
+        override fun getJSBundleFile(): String? {  
+          return HotUpdater.getJSBundleFile(applicationContext)  
+        } 
       }
 
   override val reactHost: ReactHost

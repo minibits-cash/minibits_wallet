@@ -48,7 +48,8 @@ export const ContactsScreen = observer(function ({ route }: Props) {
     ])
 
     const gotoProfile = function () {        
-        navigation.navigate('Profile')
+        // @ts-ignore
+        navigation.navigate('Profile', {prevScreen: 'Contacts'})
     }
 
     const headerBg = useThemeColor('header')

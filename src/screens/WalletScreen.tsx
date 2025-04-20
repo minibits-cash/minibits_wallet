@@ -14,7 +14,8 @@ import {
   Linking,
   LayoutAnimation,
   AppStateStatus,
-  Platform,  
+  Platform,
+  Alert,  
 } from 'react-native'
 // import codePush, { RemotePackage } from 'react-native-code-push'
 import {moderateScale, verticalScale} from '@gocodingnow/rn-size-matters'
@@ -48,6 +49,8 @@ import {WalletTask} from '../services'
 import {translate} from '../i18n'
 import AppError, { Err } from '../utils/AppError'
 import {    
+    HOT_UPDATER_API_KEY,
+    HOT_UPDATER_URL,
     MINIBITS_MINT_URL,    
 } from '@env'
 import { IncomingParser } from '../services/incomingParser'
@@ -58,6 +61,7 @@ import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import { LeftProfileHeader } from './ContactsScreen'
 import { getUnixTime } from 'date-fns/getUnixTime'
 import FastImage from 'react-native-fast-image'
+import { HotUpdater } from '@hot-updater/react-native'
 
 const MINT_CHECK_INTERVAL = 60
 
@@ -109,24 +113,38 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     const [isNativeUpdateAvailable, setIsNativeUpdateAvailable] = useState<boolean>(false)
 
     // On app start
-    /* useEffect(() => {
-        const checkForUpdate = async () => {            
+    useEffect(() => {
+        const checkForUpdate = async () => {
             try {
-                const update = await codePush.checkForUpdate(deploymentKey, handleBinaryVersionMismatchCallback)                
-                
-                if (update && update.failedInstall !== true) {  // do not announce update that failed to install before
-                    // log.trace('[checkForUpdate]', update)
-                    if(ANDROID_VERSION_NAME === update.appVersion) {
-                        setUpdateDescription(update.description)
-                        setUpdateSize(`${round(update.packageSize *  0.000001, 2)}MB`)
-                        setIsUpdateAvailable(true)
-                        toggleUpdateModal()
-                    }                    
-                }             
-            } catch (e: any) {                
-                return false // silent
-            }           
+                const updateInfo = await HotUpdater.checkForUpdate({
+                    source: HOT_UPDATER_URL,
+                    requestHeaders: {
+                        Authorization: `Bearer ${HOT_UPDATER_API_KEY}`,
+                    },
+                })
 
+                log.debug('[checkForUpdate]', {updateInfo})
+
+                if (!updateInfo) {
+                    return
+                }
+
+                if(!__DEV__) {
+                    setIsUpdateAvailable(true)
+                    setUpdateDescription(updateInfo.message)
+                    toggleUpdateModal()
+
+                    if (updateInfo.shouldForceUpdate) {
+                        // apply emergency update immediately
+                        await HotUpdater.updateBundle(updateInfo.id, updateInfo.fileUrl)
+                        HotUpdater.reload()
+                    }
+                }
+                
+            } catch (e: any) {
+                log.error(e)
+                return false
+            }
         } 
         
         setTimeout(() => {
@@ -139,11 +157,11 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     }, []) 
 
     
-    const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {
+    /* const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {
         log.info('[handleBinaryVersionMismatchCallback] triggered', ANDROID_VERSION_NAME, update)
         setIsNativeUpdateAvailable(true)
         toggleUpdateModal()
-    } */
+    }*/
     
     // On app start
     useEffect(() => {        
@@ -394,7 +412,10 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     const gotoProfile = function () {
         // @ts-ignore
         navigation.navigate('ContactsNavigator', {
-            screen: 'Profile'
+            screen: 'Profile',
+            params: {
+                prevScreen: 'Wallet'
+            }
         })        
     }
 
@@ -718,7 +739,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                         textStyle={{marginLeft: spacing.tiny}}
                         preset='secondary'
                     /> 
-                </View>  
+                </View>
             </View>
             {info && <InfoModal message={info} />}
             {error && <ErrorModal error={error} />}

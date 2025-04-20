@@ -6,7 +6,6 @@ import {
     JS_BUNDLE_VERSION,    
     ANDROID_VERSION_NAME,    
 } from '@env'
-// import codePush from 'react-native-code-push'
 import FlashMessage from "react-native-flash-message"
 import {  
   SafeAreaProvider,
@@ -129,7 +128,4 @@ const $title: TextStyle = {
     color: 'white'
 }
 
-/*const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
-const codePushOptions = { deploymentKey, checkFrequency: codePush.CheckFrequency.MANUAL }
-export default codePush(codePushOptions)(App)*/
 export default App

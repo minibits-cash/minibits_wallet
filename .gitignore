@@ -3,6 +3,7 @@
 google-services.json
 minibits-upload-key.keystore
 GoogleService-Info.plist
+minibits-prod-firebase-adminsdk.json
 
 # OSX
 #

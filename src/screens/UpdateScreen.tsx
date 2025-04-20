@@ -2,9 +2,9 @@ import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
 import {Linking, Platform, ScrollView, Switch, TextStyle, View, ViewStyle} from 'react-native'
 import {
-    APP_ENV,      
-    CODEPUSH_STAGING_DEPLOYMENT_KEY,
-    CODEPUSH_PRODUCTION_DEPLOYMENT_KEY, 
+    APP_ENV,
+    HOT_UPDATER_API_KEY,
+    HOT_UPDATER_URL,      
 } from '@env'
 // import codePush from "react-native-code-push"
 import {colors, spacing, useThemeColor} from '../theme'
@@ -18,16 +18,17 @@ import {
   ErrorModal,
   InfoModal,  
   Button,
+  BottomModal,
 } from '../components'
 import {useHeader} from '../utils/useHeader'
-import AppError from '../utils/AppError'
+import AppError, { Err } from '../utils/AppError'
 import { log } from '../services'
 import {Env} from '../utils/envtypes'
 import { CommonActions, StaticScreenProps, useNavigation } from '@react-navigation/native'
 import { translate } from '../i18n'
+import { HotUpdater, useHotUpdaterStore } from '@hot-updater/react-native'
+import { ResultModalInfo } from './Wallet/ResultModalInfo'
 
-
-const deploymentKey = APP_ENV === Env.PROD ? CODEPUSH_PRODUCTION_DEPLOYMENT_KEY : CODEPUSH_STAGING_DEPLOYMENT_KEY
 
 type Props = StaticScreenProps<{
     isNativeUpdateAvailable: boolean, 
@@ -45,14 +46,20 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
         updateDescription,
         updateSize,
         prevScreen
-    } = route.params   
+    } = route.params
+
+    const { progress, isBundleUpdated } = useHotUpdaterStore()
 
     useHeader({
         leftIcon: 'faArrowLeft',
         onLeftPress: () => {
+            //@ts-ignore
             navigation.setParams({isUpdateAvailable: undefined})
+            //@ts-ignore
             navigation.setParams({isNativeUpdateAvailable: undefined})
+            //@ts-ignore
             navigation.setParams({updateDescription: undefined})
+            //@ts-ignore
             navigation.setParams({updateSize: undefined})
 
             if(prevScreen === 'Settings') {
@@ -70,39 +77,35 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
         },
     })
 
-    // const {userSettingsStore} = useStores()
-
     const [info, setInfo] = useState('')
     const [isLoading, setIsLoading] = useState(false)
+    const [isUpdateModalVisible, setIsUpdateModalVisible] = useState(false)
     const [error, setError] = useState<AppError | undefined>()
 
+    const toggleUpdateModal = () => {
+        setIsUpdateModalVisible(previousState => !previousState)
+    }
 
-    const handleUpdate = function (): void {
-        /*try {
-            codePush.sync({
-                deploymentKey,
-                rollbackRetryOptions: {
-                    delayInHours: 1,
-                    maxRetryAttempts: 3
+    const handleUpdate = async function () {
+        try {
+            setIsUpdateModalVisible(true)
+            const updateInfo = await HotUpdater.checkForUpdate({
+                source: HOT_UPDATER_URL,
+                requestHeaders: {
+                    Authorization: `Bearer ${HOT_UPDATER_API_KEY}`,
                 },
-                installMode: codePush.InstallMode.IMMEDIATE,
-                
-            },
-            (status) => {
-                switch (status) {
-                    case codePush.SyncStatus.DOWNLOADING_PACKAGE:
-                        log.trace('Downloading update...')
-                        setInfo(translate("updateScreen.downloading"))
-                        break
-                    case codePush.SyncStatus.INSTALLING_UPDATE:
-                        log.trace('Installing update...')
-                        setInfo(translate("updateScreen.installing"))
-                        break
-                }
             })
-        } catch (e: any) {
+
+            if (!updateInfo) {
+                throw new AppError(Err.NETWORK_ERROR, 'Could not retrieve update information')
+            }
+
+            await HotUpdater.updateBundle(updateInfo.id, updateInfo.fileUrl)
+            HotUpdater.reload()
+
+        } catch(e: any) {
             handleError(e)
-        }*/
+        }
     }
 
 
@@ -128,6 +131,7 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
 
     const handleError = function (e: AppError): void {
         setIsLoading(false)
+        setIsUpdateModalVisible(false)
         setError(e)
     }
     
@@ -162,14 +166,14 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
                         topSeparator={true}                   
                         style={$item}
                     />                    
-                    <ListItem
+                    {/*<ListItem
                         tx='updateScreen.updateSize'
                         subText={updateSize || '1.0MB'}
                         leftIcon='faDownload'
                         leftIconColor={colors.palette.neutral500}                         
                         topSeparator={true}                   
                         style={$item}
-                    />
+                    />*/}
                     </>
                 )}
                 {isNativeUpdateAvailable && (
@@ -220,7 +224,21 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
             }
           />
           {isLoading && <Loading />}
-        </ScrollView>        
+        </ScrollView>
+        <BottomModal
+            isVisible={isUpdateModalVisible ? true : false}
+            style={{alignItems: 'stretch', padding: spacing.small}}
+            ContentComponent={  
+                <ResultModalInfo 
+                    icon='faDownload'
+                    iconColor={colors.palette.accent400}
+                    title={`${Math.round(progress * 100)}%`}
+                    message='Update is in progress...'
+                />     
+            }
+            onBackButtonPress={toggleUpdateModal}
+            onBackdropPress={toggleUpdateModal}
+        /> 
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}      
       </Screen>

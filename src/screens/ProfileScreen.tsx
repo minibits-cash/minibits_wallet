@@ -11,13 +11,18 @@ import { log } from '../services/logService'
 import { KeyChain, MinibitsClient, NostrClient, NostrProfile } from '../services'
 import { translate, TxKeyPath } from '../i18n'
 import { CollapsibleText } from '../components/CollapsibleText'
-import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+import { CommonActions, StaticScreenProps, useNavigation } from '@react-navigation/native'
 import { QRShareModal } from '../components/QRShareModal'
 
-type Props = StaticScreenProps<undefined>
+type Props = StaticScreenProps<{
+    prevScreen: 'Contacts' | 'Wallet'
+}>
 
 export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {    
     const navigation = useNavigation()
+    const {
+        prevScreen
+    } = route.params 
     const {walletProfileStore, userSettingsStore, relaysStore, walletStore} = useStores() 
     const {npub, nip05, pubkey} = walletProfileStore    
 
@@ -168,7 +173,20 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
       <Screen contentContainerStyle={$screen} preset='fixed'>
             <Header 
                 leftIcon='faArrowLeft'
-                onLeftPress={() => {navigation.goBack()}}
+                onLeftPress={() => {
+                    if(prevScreen === 'Wallet') {
+                        navigation.dispatch(                
+                            CommonActions.reset({
+                                index: 1,
+                                routes: [{
+                                    name: 'WalletNavigator'
+                                }]
+                            })
+                        )
+                    } else {
+                        navigation.goBack()
+                    } 
+                }}
                 rightIcon='faCopy'
                 onRightPress={onCopyNip05}
             />        

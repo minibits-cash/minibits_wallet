@@ -14,6 +14,7 @@ import { colors, useThemeColor, spacing } from "../theme"
 import { Text, TextProps } from "./Text"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Header } from "@react-navigation/stack"
+import { moderateVerticalScale } from "@gocodingnow/rn-size-matters"
 
 
 interface ModalProps extends ViewProps {
@@ -136,7 +137,7 @@ export function BottomModal(props: ModalProps) {
   const insets = useSafeAreaInsets()
 
   const $innerContainerStyle = [    
-    $innerContainerBase, { backgroundColor: useThemeColor('card'), paddingBottom: insets.bottom + 60 }, $containerStyleOverride   
+    $innerContainerBase, { backgroundColor: useThemeColor('card'), paddingBottom: insets.bottom + moderateVerticalScale(40) }, $containerStyleOverride   
   ]
   
   const isHeadingPresent = !!(HeadingComponent || heading || headingTx)
@@ -163,6 +164,7 @@ export function BottomModal(props: ModalProps) {
   const statusBarOnModalOpen = useThemeColor('statusBarOnModalOpen')
 
   return (
+    <View>
     <Modal      
       isVisible={isVisible}
       statusBarTranslucent={false}
@@ -214,7 +216,8 @@ export function BottomModal(props: ModalProps) {
             />
           ))}
       </View>      
-    </Modal>    
+    </Modal>
+    </View>    
   )
 }
 
