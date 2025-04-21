@@ -38,8 +38,6 @@ import {
   NwcScreen,
 } from "../screens"
 import { colors, spacing, typography } from "../theme"
-import { moderateVerticalScale } from "@gocodingnow/rn-size-matters"
-import { initialWindowMetrics } from "react-native-safe-area-context"
 
 const $tabBar: ViewStyle = {  
   borderTopColor: 'transparent',
@@ -48,10 +46,7 @@ const $tabBar: ViewStyle = {
 }
 
 const $tabBarItem = {
-  paddingTop: spacing.small,
-  android_ripple: {
-    radius: 20
-  }
+  paddingVertical: spacing.small,
 }
 
 const $tabBarLabel: TextStyle = {
@@ -153,25 +148,23 @@ declare global {
   }
 }
 
-
 export const TabsNavigator = createBottomTabNavigator({
   initialRouteName: "WalletNavigator",
   backBehavior: 'firstRoute',
   screenOptions: {
     headerShown: false,
     tabBarHideOnKeyboard: true,
-    tabBarStyle: [$tabBar, { height: 70 + initialWindowMetrics?.insets.bottom }],
-    tabBarItemStyle: $tabBarItem,
+    tabBarShowLabel: false,
+    tabBarStyle: [$tabBar, { 
+      marginBottom: spacing.medium
+    }],
+    tabBarItemStyle: [$tabBarItem, {}],
     tabBarLabelStyle: $tabBarLabel,    
     animation: 'shift',
     tabBarButton: (props) => (
       <PlatformPressable
         {...props}
-        android_ripple={{ 
-          color: colors.light.tabActiveIcon,
-          radius: 45,
-          borderless: true
-        }}
+        android_ripple={{color: 'transparent'}}       
       />
     ),   
   },

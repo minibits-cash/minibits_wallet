@@ -103,10 +103,7 @@ export const TransactionListItem = observer(function (props: TransactionListProp
     switch (tx.status) {
       case TransactionStatus.COMPLETED:
         return (
-          timeAgo +
-          translate('transactionCommon.status.completedFee', {
-            fee: (tx.fee && tx.fee > 0) ? ' · Fee ' + tx.fee : '',
-          })
+          timeAgo + (tx.fee && tx.fee > 0) ? ' · Fee ' + tx.fee : ''          
         )
       case TransactionStatus.DRAFT:
         return timeAgo + translate('transactionCommon.status.draft')

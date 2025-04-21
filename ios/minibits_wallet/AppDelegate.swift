@@ -48,7 +48,7 @@ class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {
     RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: "index")
 #else
     Bundle.main.url(forResource: "main", withExtension: "jsbundle")
-    HotUpdater.bundleURL()
+    return HotUpdater.bundleURL()
 #endif
   }
 }
