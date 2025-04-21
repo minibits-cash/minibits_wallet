@@ -529,6 +529,7 @@
 		"status": {
 			"blocked": "Blocked",
 			"completedFee": "Completed %{fee}",
+			"completed": "Completed",
 			"draft": "Draft",
 			"error": "Error",
 			"expired": "Expired",

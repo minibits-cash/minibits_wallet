@@ -345,7 +345,7 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
                         style={$card}                
                     />
                 }
-                style={{maxHeight: spacing.screenHeight * 0.62}}                                
+                style={{maxHeight: spacing.screenHeight * 0.57}}                                
             />    
           {isLoading && <Loading shiftedUp={true} />}
         </View>
@@ -411,6 +411,7 @@ const $headerCollapsed: TextStyle = {
 const $contentContainer: TextStyle = {
   //minHeight: spacing.screenHeight * 0.5,
   //padding: spacing.extraSmall,
+  
 }
 
 const $actionCard: ViewStyle = {
