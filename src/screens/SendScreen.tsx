@@ -619,6 +619,28 @@ const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previous
             throw new AppError(Err.VALIDATION_ERROR, 'Invalid key. Please provide public key in NPUB or HEX format.')
         }
 
+        const contact = contactsStore.findByNpub(lockedPubkey) || contactsStore.findByPubkey(lockedPubkey)
+
+        if(contact) {
+            log.trace('[onLockPubkeySelect] Provided pubkey belongs to a contact', {contactName: contact.name})
+            let relays: string[] = []                           
+
+            if(contact?.type === ContactType.PUBLIC) {
+                relays = relaysStore.allPublicUrls
+            } else {
+                relays = relaysStore.allUrls
+            }
+    
+            if (relays.length === 0) {                    
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing NOSTR relays')
+            }
+            
+            setPaymentOption(SendOption.SEND_TOKEN)
+            setContactToSendFrom(getContactFrom())                
+            setContactToSendTo(contact)                
+            setRelaysToShareTo(relays)
+        }
+
         setIsLockedToPubkey(true)
         togglePubkeySelectorModal()
     }
@@ -626,6 +648,7 @@ const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previous
     const onLockPubkeyCancel = function () { 
         togglePubkeySelectorModal()
         setLockedPubkey(undefined)
+        setContactToSendTo(undefined)
     }
 
 
@@ -840,32 +863,10 @@ const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previous
     }
 
     const gotoContacts = function () {
-        if(encodedTokenToSend && 
-            lockedPubkey && 
-            contactsStore.contacts.some(c => c.pubkey === lockedPubkey
-        )) {
 
-            const contact = contactsStore.findByPubkey(lockedPubkey)
-            let relays: string[] = []                           
+        if(encodedTokenToSend && contactToSendTo) {
 
-            if(contact?.type === ContactType.PUBLIC) {
-                relays = relaysStore.allPublicUrls
-            } else {
-                relays = relaysStore.allUrls
-            }
-
-            if (relays.length === 0) {                    
-                throw new AppError(Err.VALIDATION_ERROR, 'Missing NOSTR relays')
-            }
-            
-            setPaymentOption(SendOption.SEND_TOKEN)
-            setContactToSendFrom(getContactFrom())                
-            setContactToSendTo(contact)                
-            setRelaysToShareTo(relays)
-
-            if(encodedTokenToSend) {
-                toggleNostrDMModal() // open if we already have a token
-            }
+            toggleNostrDMModal() // open if we already have a token
 
         } else {
             //@ts-ignore

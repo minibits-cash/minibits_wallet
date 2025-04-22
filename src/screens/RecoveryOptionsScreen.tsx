@@ -160,7 +160,13 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
       toggleMintSelectorModal()
 
       if(mintBalanceToMintFrom) {
-        toggleMintQuoteModal()
+        if(Platform.OS === 'ios') {
+          setTimeout(() => {
+            toggleMintQuoteModal()
+          }, 500)
+        } else {
+          toggleMintQuoteModal()
+        }
       }      
     }
 
@@ -467,13 +473,14 @@ const $contentContainer: TextStyle = {
 const $mintsContainer: TextStyle = {
   // flex: 1, 
   alignSelf: 'stretch',
-  minHeight: spacing.screenHeight * 0.15,
+  minHeight: spacing.screenHeight * 0.4,
 }
 
 const $quoteContainer: TextStyle = {
   // flex: 1,
   padding: spacing.small,
   alignSelf: 'stretch',
+  minHeight: spacing.screenHeight * 0.3,
 }
 
 const $pasteButton: ViewStyle = {

@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useRef, useState} from 'react'
-import {Alert, ScrollView, TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import {Alert, Platform, ScrollView, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
 import {
     MINIBITS_MINT_URL 
@@ -272,10 +272,13 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
     const onShare = function () {
       if (!selectedMint) return
       toggleMintMenuModal()
-      setTimeout(() => {
+      if(Platform.OS === 'ios') {
+        setTimeout(() => {
+          toggleShareModal()
+        }, 500)
+      } else {
         toggleShareModal()
-      }, 500)
-      
+      }
     }
 
     const handleError = function (e: AppError) {

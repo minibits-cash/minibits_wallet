@@ -351,7 +351,7 @@ export const OwnName = observer(function (props: {pubkey: string}) {
                                             text='Minibits'
                                             style={{fontFamily: 'Gluten-Regular', fontSize: 18}}
                                         />{' '}
-                                        kindly asks you for a small donation for your {ownName+MINIBITS_NIP05_DOMAIN} wallet address.
+                                        kindly asks you for a small donation for your new wallet address.
                                     </RNText>                                    
                                     <CurrencyAmount
                                         amount={DEFAULT_DONATION_AMOUNT}
@@ -405,10 +405,11 @@ export const OwnName = observer(function (props: {pubkey: string}) {
                                             onPress={resetState}                            
                                         />   
                                     </View>
-                                    <View style={{flexDirection: 'row', alignItems: 'center', margin: spacing.medium}}>
-                                        <Icon icon='faInfoCircle' />
-                                        <Text style={{color: hint}} size='xxs' tx='contactsScreen.ownName.betaWarning'/>
-                                    </View>
+                                    <ListItem
+                                        textStyle={{fontSize: 12, color: hint}}
+                                        leftIcon='faInfoCircle'
+                                        tx='contactsScreen.ownName.betaWarning'
+                                    />
                                 </>
                             )}
                         </View>
@@ -448,12 +449,14 @@ export const OwnName = observer(function (props: {pubkey: string}) {
   
 const $screen: ViewStyle = {
     // flex: 1
+
 }
 
 
 const $contentContainer: TextStyle = {    
     // flex:1,
     padding: spacing.extraSmall,
+    //marginBottom: spacing.medium
 }
 
 const $iconContainer: ViewStyle = {
@@ -463,12 +466,12 @@ const $iconContainer: ViewStyle = {
 
 const $supportText: TextStyle = {
     padding: spacing.small,
-    // textAlign: 'center',
+    textAlign: 'center',
     fontSize: 16,
 }
 
 const $card: ViewStyle = {
-    marginBottom: 0,
+    //marginBottom: 0,
 }
 
 const $payButtonContainer: ViewStyle = {    
@@ -513,33 +516,9 @@ const $buttonContainer: ViewStyle = {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: spacing.small,    
+    marginVertical: spacing.extraSmall,    
 }
 
 const $ownNameButton: ViewStyle = {
     maxHeight: 50,
-}
-
-
-const $invoiceContainer: ViewStyle = {
-    borderRadius: spacing.small,
-    alignSelf: 'stretch',
-    padding: spacing.small,
-    maxHeight: 150,
-    marginTop: spacing.small,
-    marginBottom: spacing.large,
-  }
-
-  const $qrCodeContainer: ViewStyle = {
-    alignItems: 'center',
-    backgroundColor: 'white',
-    paddingHorizontal: spacing.small,    
-    marginHorizontal: spacing.small,
-    marginBottom: spacing.small,
-    borderRadius: spacing.small
-}
-
-const $bottomModal: ViewStyle = {    
-    alignItems: 'center',
-    paddingVertical: spacing.large,
 }

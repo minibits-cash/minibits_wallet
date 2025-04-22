@@ -219,18 +219,19 @@ export const PrivateContacts = observer(function (props: {
                     encoded: contact.lud16
                 }, navigation, userSettingsStore.preferredUnit)
 
-                //reset
+                //@ts-ignore
                 navigation.setParams({
                     paymentOption: undefined,
                 })
 
                 return
             }
-
+            //@ts-ignore
             navigation.navigate('ContactDetail', {contact: toJS(contact)})
 
         } catch (e: any) {
             // reset so that invalid contact can be deleted
+            //@ts-ignore
             navigation.setParams({
                 paymentOption: undefined,
             })
@@ -239,7 +240,8 @@ export const PrivateContacts = observer(function (props: {
         }
     }
 
-    const gotoProfile = function () {        
+    const gotoProfile = function () { 
+        //@ts-ignore      
         navigation.navigate('Profile')
     }
 

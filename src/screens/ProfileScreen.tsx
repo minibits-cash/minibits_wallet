@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
-import {ScrollView, Share, Switch, TextStyle, View, ViewStyle} from 'react-native'
+import {Platform, ScrollView, Share, Switch, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, Loading, Header} from '../components'
 import {useStores} from '../models'
@@ -83,9 +83,13 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
             data: npub,
         })
         
-        setTimeout(() => {
+        if(Platform.OS === 'ios') {
+            setTimeout(() => {
+                toggleQrCodeModal()
+            }, 500) // ios fix
+        } else {
             toggleQrCodeModal()
-        }, 500) // ios fix
+        }
     }
 
 
@@ -96,9 +100,13 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
             data: pubkey,
         })
 
-        setTimeout(() => {
+        if(Platform.OS === 'ios') {
+            setTimeout(() => {
+                toggleQrCodeModal()
+            }, 500) // ios fix
+        } else {
             toggleQrCodeModal()
-        }, 500) // ios fix
+        }
     }
 
     const onCopyNip05 = function () {        

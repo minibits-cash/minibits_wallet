@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useRef, useState} from 'react'
-import {Image, ScrollView, Share, TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import {Image, Platform, ScrollView, Share, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import { colors, spacing, useThemeColor} from '../theme'
 import {Icon, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, ListItem} from '../components'
 import {useHeader} from '../utils/useHeader'
@@ -148,8 +148,14 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
             setInfo(translate("syncCompleted"))
             return
         } catch (e: any) {
-            toggleContactModal()      
-            handleError(e)
+            toggleContactModal()
+            if(Platform.OS === 'ios') {
+                setTimeout(() => {
+                    handleError(e)
+                }, 500) 
+            } else {
+                handleError(e)
+            }
         }        
     }
 
