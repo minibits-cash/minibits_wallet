@@ -91,6 +91,7 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
 
     const gotoScan = async function () {
         tokenInputRef.current?.blur()
+        //@ts-ignore
         navigation.navigate('Scan', {
             mintUrl: mint?.mintUrl, 
             unit
@@ -127,6 +128,7 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
 
 
     const gotoTopup = async function () {
+        //@ts-ignore
         navigation.navigate('Topup', {
             unit,
             mintUrl: mint?.mintUrl            

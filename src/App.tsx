@@ -36,7 +36,7 @@ if (!__DEV__) {
     Sentry.init({
         dsn: SENTRY_DSN,
         environment: APP_ENV,
-        release: `minibits_wallet_android@${JS_BUNDLE_VERSION}`,
+        release: Platform.OS === 'android' ? `minibits_wallet_android@${JS_BUNDLE_VERSION}` : `minibits_wallet_ios@${JS_BUNDLE_VERSION}`,
         dist: ANDROID_VERSION_NAME,
         beforeSend: function (event, hint) {
             const exception = hint.originalException

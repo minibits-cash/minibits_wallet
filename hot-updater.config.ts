@@ -1,4 +1,5 @@
 import { metro } from '@hot-updater/metro';
+import { withSentry } from "@hot-updater/sentry-plugin";
 import {firebaseStorage, firebaseDatabase} from '@hot-updater/firebase';
 import * as admin from 'firebase-admin';
 import { defineConfig } from 'hot-updater';
@@ -11,8 +12,15 @@ import 'dotenv/config';
 const credential = admin.credential.applicationDefault();
 
 export default defineConfig({
-  build: metro({
+  build: withSentry(
+    metro({
     enableHermes: true,
+    sourcemap: true
+  }),
+  {
+    org: process.env.SENTRY_ORG,
+    project: process.env.SENTRY_PROJECT,
+    authToken: process.env.SENTRY_AUTH_TOKEN!, 
   }),
   storage: firebaseStorage({
     projectId: process.env.HOT_UPDATER_FIREBASE_PROJECT_ID!,
