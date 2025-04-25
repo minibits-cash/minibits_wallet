@@ -87,7 +87,10 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
     const gotoScan = function () {
         toggleAddMintModal()
         // @ts-ignore
-        navigation.navigate('Scan', {unit: userSettingsStore.preferredUnit})
+        navigation.navigate('WalletNavigator', { 
+          screen: 'Scan', 
+          params: {unit: userSettingsStore.preferredUnit}
+        })
     }
 
 

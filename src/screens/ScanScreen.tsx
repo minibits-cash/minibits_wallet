@@ -162,7 +162,17 @@ export const ScanScreen = function ScanScreen({ route }: Props) {
                     e.message = translate("scanReceiveExtractFail")
                     handleError(e)
                     break
-                }   
+                }
+            case 'Send':     
+                try {               
+                    const pubkey = IncomingParser.findAndExtract(incoming, IncomingDataType.NPUB_OR_HEX) // throws
+                    return IncomingParser.navigateWithIncomingData(pubkey, navigation, unit, mint && mint.mintUrl)
+                    
+                } catch (e: any) {
+                    e.params = incoming                    
+                    handleError(e)  
+                    break
+                } 
             case 'LightningPay':     
                 try {               
                     const invoiceResult = IncomingParser.findAndExtract(incoming, IncomingDataType.INVOICE)

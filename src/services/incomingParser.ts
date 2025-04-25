@@ -9,6 +9,7 @@ import { LNURLPayParams, LnurlClient } from './lnurlService'
 import { MintUnit } from './wallet/currency'
 import { RootNavigation } from '../navigation'
 import { NavigationProp } from '@react-navigation/native'
+import { NostrClient } from './nostrService'
 
 export enum IncomingDataType {
     CASHU = 'CASHU',
@@ -17,6 +18,7 @@ export enum IncomingDataType {
     LNURL = 'LNURL',
     LNURL_ADDRESS = 'LNURL_ADDRESS',
     MINT_URL = 'MINT_URL',
+    NPUB_OR_HEX = 'NPUB_OR_HEX',    
 }
 
 const findAndExtract = function (
@@ -66,7 +68,24 @@ const findAndExtract = function (
                 return {
                     type: expectedType,
                     encoded: incomingData
-                }  
+                }
+            case IncomingDataType.NPUB_OR_HEX:
+                if(incomingData.startsWith('npub')) {
+                    encoded = '02' + NostrClient.getHexkey(incomingData)
+                } else {
+                    if(incomingData.length === 64) {
+                        encoded = '02' + incomingData
+                    } else if(incomingData.length === 66) {
+                        encoded = incomingData
+                    } else {
+                        throw new AppError(Err.VALIDATION_ERROR, 'Invalid key. Please provide public key in NPUB or HEX format.')
+                    }    
+                }
+
+                return {
+                    type: expectedType,
+                    encoded
+                } 
             default:
                 throw new AppError(Err.NOTFOUND_ERROR, 'Unknown expectedType', {expectedType})
         }
@@ -266,6 +285,13 @@ const navigateWithIncomingData = async function (
                 params: {
                     scannedMintUrl: incoming.encoded,
                 }                
+            })
+
+        case IncomingDataType.NPUB_OR_HEX:
+            // popTo used to goBack with params within the same navigator
+            //@ts-ignore
+            return navigation.popTo('Send', {                
+                scannedPubkey: incoming.encoded,                                
             })
 
         default:

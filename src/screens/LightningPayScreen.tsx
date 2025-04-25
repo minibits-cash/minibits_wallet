@@ -98,6 +98,7 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
 
     const gotoScan = async function () {
         lightningInputRef.current?.blur()
+        //@ts-ignore
         navigation.navigate('Scan', {
             mintUrl: mint?.mintUrl, unit
         })
@@ -147,6 +148,7 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
 
 
     const gotoSend = async function () {
+        //@ts-ignore
         navigation.navigate('Send', {
             unit,
             mintUrl: mint?.mintUrl            

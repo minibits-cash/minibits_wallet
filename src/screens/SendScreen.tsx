@@ -81,7 +81,8 @@ type Props = StaticScreenProps<{
     paymentOption?: SendOption,
     encodedCashuPaymentRequest?: string,
     contact?: Contact,
-    mintUrl?: string,   
+    mintUrl?: string,
+    scannedPubkey?: string 
 }>
 
 export const SendScreen = observer(function SendScreen({ route }: Props) {
@@ -225,6 +226,7 @@ const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
                     }
 
                     //reset
+                    //@ts-ignore
                     navigation.setParams({
                         paymentOption: undefined,
                         contact: undefined
@@ -375,6 +377,7 @@ const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
                     setIsMintSelectorVisible(true)
 
                     //reset
+                    //@ts-ignore
                     navigation.setParams({
                         paymentOption: undefined,
                         encodedCashuPaymentRequest: undefined
@@ -395,6 +398,22 @@ const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
             
         }, [route.params?.paymentOption])
     )
+
+    // Scan pubkey to lock to
+    useEffect(() => {   
+        const {scannedPubkey} = route.params
+        log.trace('[useEffect]', scannedPubkey)
+
+        const handleScannedPubkey = () => {
+            setLockedPubkey(scannedPubkey)
+            setIsPubkeySelectorModalVisible(true)
+        }
+
+        if(scannedPubkey) {
+            handleScannedPubkey()
+        }        
+    }, [route.params?.scannedPubkey])
+    
 
     
     // Offline send
@@ -532,7 +551,7 @@ const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
     const toggleProofSelectorModal = () => setIsProofSelectorModalVisible(previousState => !previousState)
     const toggleResultModal = () => setIsResultModalVisible(previousState => !previousState)
     const toggleIsLockedToPubkey = () => setIsLockedToPubkey(previousState => !previousState)
-const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previousState => !previousState)
+    const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previousState => !previousState)
 
     const onAmountEndEditing = function () {
         try {        
@@ -660,6 +679,7 @@ const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previous
         setIsLoading(true)       
         const amountToSendInt = round(toNumber(amountToSend) * getCurrency(unitRef.current).precision, 0)
 
+        //@ts-ignore
         const p2pk: { 
             pubkey: string; 
             locktime?: number; 
@@ -933,8 +953,16 @@ const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previous
         }
     }
 
-    const onScanLockedPubkey = async function () {
-// TODO        
+    const gotoScan = async function () {
+        log.trace('[onScanLockedPubkey]')
+       
+        togglePubkeySelectorModal()
+        //@ts-ignore
+        navigation.navigate('Scan', { 
+            unit: unitRef.current,  
+            mintUrl: mintBalanceToSendFrom.mintUrl
+        })
+        
     }
 
     return (
@@ -1138,7 +1166,7 @@ const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previous
                             borderBottomLeftRadius: 0,  
                             marginHorizontal: 1,                                
                         }}
-                        onPress={onScanLockedPubkey}
+                        onPress={gotoScan}
                     />
                 </View>
                 {contactsStore.contacts.length > 0 && (
