@@ -392,8 +392,8 @@ const $screen: ViewStyle = {
 
 const $headerContainer: TextStyle = {
     alignItems: 'center',
-    padding: spacing.extraSmall,    
-    height: spacing.screenHeight * 0.20, 
+    paddingBottom: spacing.extraSmall,    
+    height: spacing.screenHeight * 0.15, 
 }
 
 const $contentContainer: TextStyle = {

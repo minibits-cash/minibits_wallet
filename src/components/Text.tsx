@@ -66,7 +66,7 @@ export function Text(props: TextProps) {
     $styleOverride,    
   ]
 
-  const $baseFontFamily = { fontFamily: typography.primary } as TextStyle
+  const $baseFontFamily = { fontFamily: typography.primary.normal } as TextStyle
 
   return (
     <RNText {...rest} style={[$baseFontFamily, $styles]}>

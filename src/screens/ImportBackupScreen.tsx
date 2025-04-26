@@ -510,8 +510,8 @@ const $screen: ViewStyle = {flex: 1}
 
 const $headerContainer: TextStyle = {
   alignItems: 'center',
-  padding: spacing.medium,
-  height: spacing.screenHeight * 0.20,
+  paddingBottom: spacing.medium,
+  height: spacing.screenHeight * 0.15,
 }
 
 const $contentContainer: TextStyle = {

@@ -85,7 +85,6 @@ const $screen: ViewStyle = {
 const $headerContainer: TextStyle = {
     alignItems: 'center',
     paddingBottom: spacing.medium,
-    paddingTop: 0,
-    height: spacing.screenHeight * 0.1,
+    height: spacing.screenHeight * 0.15,
   }
 

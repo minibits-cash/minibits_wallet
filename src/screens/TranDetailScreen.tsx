@@ -60,6 +60,7 @@ import { Token, getDecodedToken } from '@cashu/cashu-ts'
 import { RECEIVE_OFFLINE_COMPLETE_TASK, RECEIVE_TASK } from '../services/wallet/receiveTask'
 import { REVERT_TASK } from '../services/wallet/revertTask'
 import FastImage from 'react-native-fast-image'
+import { MintHeader } from './Mints/MintHeader'
 
 type ProofsByStatus = {
   isSpent: Proof[]
@@ -230,10 +231,11 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
       <Screen contentContainerStyle={$screen} preset="fixed">        
         {transaction && (
           <>
-            <Header 
-                  leftIcon='faArrowLeft'
-                  onLeftPress={onBack}
-                                      
+            <MintHeader 
+                mint={mint}
+                unit={transaction.unit}
+                hideBalance={true} 
+                onBackPress={onBack}           
             />
             <View style={[$headerContainer, {
                 backgroundColor: headerBg, 
@@ -241,10 +243,6 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                 paddingBottom: spacing.huge
               }]}
             >              
-              <CurrencySign 
-                mintUnit={transaction.unit}
-                textStyle={{color: headerTitle}}              
-              />
               <Text
                   preset="heading"
                   text={getFormattedAmount()}
@@ -494,7 +492,7 @@ const ReceiveInfoBlock = function (props: {
 
           if(eventIdHex) {
 
-            const nevent = NostrClient.neventEncode(eventIdHex)
+            const nevent = NostrClient.neventEncode(eventIdHex as string)
             setEventUrl(`${urlPrefix}${nevent}`)
 
             log.trace('[extractZapUrls]', {eventIdHex, nevent})
@@ -1958,7 +1956,8 @@ const $screen: ViewStyle = {}
 
 const $headerContainer: TextStyle = {
     alignItems: 'center',
-    height: spacing.screenHeight * 0.20,
+    paddingBottom: spacing.medium,
+    height: spacing.screenHeight * 0.15,
 }
 
 const $contentContainer: TextStyle = {

@@ -249,8 +249,8 @@ const $screen: ViewStyle = {}
 
 const $headerContainer: TextStyle = {
   alignItems: 'center',
-  padding: spacing.medium,
-  height: spacing.screenHeight * 0.20,
+  paddingBottom: spacing.medium,
+  height: spacing.screenHeight * 0.15,
 }
 
 const $buttonContainer: ViewStyle = {
@@ -260,8 +260,9 @@ const $buttonContainer: ViewStyle = {
 }
 
 const $contentContainer: TextStyle = {  
-  marginTop: -spacing.extraLarge * 2,
-  padding: spacing.extraSmall,  
+    flex: 1,
+    marginTop: -spacing.extraLarge * 2,
+    padding: spacing.extraSmall,  
 }
 
 const $card: ViewStyle = {

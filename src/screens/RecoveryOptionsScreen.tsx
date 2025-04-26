@@ -105,16 +105,19 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
 
 
     const gotoSeedRecovery = function () {
+      //@ts-ignore
       navigation.navigate('SeedRecovery')
     }
 
 
     const gotoImportBackup = function () {
+      //@ts-ignore
       navigation.navigate('ImportBackup')
     }
 
 
     const gotoAddressRecovery = function () {
+      //@ts-ignore
       navigation.navigate('RecoverWalletAddress')
     }
 
@@ -459,8 +462,8 @@ const $screen: ViewStyle = {
 
 const $headerContainer: TextStyle = {
   alignItems: 'center',
-  padding: spacing.medium,
-  height: spacing.screenHeight * 0.20,
+  paddingBottom: spacing.medium,
+  height: spacing.screenHeight * 0.15,
 }
 
 const $contentContainer: TextStyle = {

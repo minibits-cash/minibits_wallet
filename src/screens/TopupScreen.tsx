@@ -1264,7 +1264,7 @@ const $headerContainer: TextStyle = {
   alignItems: 'center',
   padding: spacing.extraSmall,
   paddingTop: 0,
-  height: spacing.screenHeight * 0.2,
+  height: spacing.screenHeight * 0.20,
 }
 
 const $amountContainer: ViewStyle = {}

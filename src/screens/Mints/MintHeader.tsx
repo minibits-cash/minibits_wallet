@@ -12,11 +12,13 @@ import { useNavigation } from "@react-navigation/native"
 
 export const MintHeader = observer(function(props: {
     unit: MintUnit,
-    mint?: Mint    
+    mint?: Mint
+    hideBalance?: boolean
+    onBackPress?: () => void   
 }
 ) {
     const navigation = useNavigation()
-    const {mint, unit} = props
+    const {mint, unit, hideBalance, onBackPress} = props
 
     const getActiveUnitColor = () => {
         /* switch (props.unit) {
@@ -45,7 +47,7 @@ export const MintHeader = observer(function(props: {
                         size='xxs'
                     />)}
                     <CurrencySign 
-                        mintUnit={unit && unit}
+                        mintUnit={unit}
                         textStyle={{color: 'white'}}
                         containerStyle={{
                             borderBottomWidth: 2, 
@@ -57,8 +59,10 @@ export const MintHeader = observer(function(props: {
                 </>
             }
             leftIcon='faArrowLeft'
-            onLeftPress={() => navigation.goBack()}                
-            RightActionComponent={mint && unit ? (
+            onLeftPress={() => {
+                onBackPress ? onBackPress() : navigation.goBack()
+            }}                
+            RightActionComponent={mint && unit && !hideBalance ? (
                 <CurrencyAmount 
                     mintUnit={unit}
                     amount={mint?.balances?.balances[unit as MintUnit] || 0}

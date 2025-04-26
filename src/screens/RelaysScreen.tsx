@@ -294,17 +294,18 @@ export const RelaysScreen = observer(function RelaysScreen({ route }: Props) {
 )
 
 const $screen: ViewStyle = {
-  flex: 1,
+  //flex: 1,
 }
 
 const $headerContainer: TextStyle = {
   alignItems: 'center',
-  padding: spacing.medium,
-  height: spacing.screenHeight * 0.1,
+  paddingBottom: spacing.medium,
+  height: spacing.screenHeight * 0.15,
 }
 
 const $contentContainer: TextStyle = {
   flex: 1,
+  marginTop: -spacing.extraLarge * 2,
   padding: spacing.extraSmall,
   // alignItems: 'center',
 }

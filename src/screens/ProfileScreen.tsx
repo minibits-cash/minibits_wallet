@@ -58,17 +58,20 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
         
     const gotoAvatar = function() {
         toggleUpdateModal()
+        //@ts-ignore
         navigation.navigate('Picture')
     }
 
     const gotoWalletName = function() {
         toggleUpdateModal()
+        //@ts-ignore
         navigation.navigate('WalletName')
     }
 
 
     const gotoPrivacy = function() {
         toggleUpdateModal()
+        //@ts-ignore
         navigation.navigate('Privacy')
     }
 

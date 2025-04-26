@@ -180,7 +180,7 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
         }
     }
 
-    const headerHeight = useSharedValue(spacing.screenHeight * 0.20); // Initial height
+    const headerHeight = useSharedValue(spacing.screenHeight * 0.15); // Initial height
     const isVisible = useSharedValue(true);
 
     const collapseHeader = () => {
@@ -189,7 +189,7 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
     }
     
     const expandHeader = () => {
-        headerHeight.value = spacing.screenHeight * 0.20
+        headerHeight.value = spacing.screenHeight * 0.15
         isVisible.value = true
     }
 
@@ -399,13 +399,7 @@ const $screen: ViewStyle = {
 const $headerContainer: TextStyle = {
     alignItems: 'center',
     paddingBottom: spacing.medium,
-    height: spacing.screenHeight * 0.20,
-}
-
-const $headerCollapsed: TextStyle = {
-    alignItems: 'center',
-    paddingBottom: spacing.medium,
-    height: spacing.screenHeight * 0.08,
+    height: spacing.screenHeight * 0.15,
 }
 
 const $contentContainer: TextStyle = {
