@@ -1318,7 +1318,7 @@ const TopupInfoBlock = function (props: {
     navigation: any
 }) {
   const {transaction, navigation, mint} = props
-  const {mintsStore} = useStores()
+  const {mintsStore, walletStore} = useStores()
   const isInternetReachable = useIsInternetReachable()  
 
   const [paymentRequest, setPaymentRequest] = useState<PaymentRequest | undefined>(undefined)
@@ -1383,6 +1383,17 @@ const TopupInfoBlock = function (props: {
           return
       }    
       setIsLoading(true)
+
+      if(resultModalInfo && resultModalInfo.message.includes('outputs have already been signed before')) {
+        const walletInstance = await walletStore.getWallet(
+          mint.mintUrl as string, 
+          paymentRequest.mintUnit, 
+          {withSeed: true}
+        )
+        const mintInstance = mintsStore.findByUrl(mint.mintUrl as string)
+        const counter = mintInstance!.getProofsCounterByKeysetId!(walletInstance.keysetId)
+        counter!.increaseProofsCounter(10)
+      }
 
       setIsPendingTopupTaskSentToQueue(true)
       WalletTask.handlePendingTopupQueue(
