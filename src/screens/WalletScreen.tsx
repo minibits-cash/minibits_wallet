@@ -1098,9 +1098,6 @@ const $tabContainer: TextStyle = {
     // borderColor: 'green',
 }
 
-const $promoContainer: TextStyle = {
-    marginTop: -spacing.extraLarge * 1.5,
-}
 
 const $rightContainer: ViewStyle = {
     padding: spacing.extraSmall,
@@ -1110,30 +1107,15 @@ const $rightContainer: ViewStyle = {
 
 const $card: ViewStyle = {    
     marginBottom: spacing.small,
-    //paddingTop: 0,
     marginHorizontal: spacing.extraSmall,    
 }
 
-const $cardHeading: TextStyle = {
-  fontFamily: typography.primary?.medium,
-  fontSize: verticalScale(18),
-}
 
 const $unitBalance: TextStyle = {
     fontSize: verticalScale(48),
     lineHeight: verticalScale(48)
 }
 
-const $promoIconContainer: ViewStyle = {
-  marginTop: -spacing.large,
-  alignItems: 'center',
-}
-
-const $promoText: TextStyle = {
-  padding: spacing.small,
-  textAlign: 'center',
-  fontSize: 18,
-}
 
 const $item: ViewStyle = {
   marginHorizontal: spacing.micro,
@@ -1148,7 +1130,7 @@ const $nwcContainer: ViewStyle = {
 const $bottomContainer: ViewStyle = {
   justifyContent: 'flex-end',
   paddingHorizontal: spacing.extraSmall,
-  marginTop: spacing.large,
+  // marginTop: spacing.small,
   marginBottom: 0
 }
 

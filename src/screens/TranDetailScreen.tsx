@@ -88,10 +88,16 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
     const [note, setNote] = useState<string>('')    
     const [mint, setMint] = useState<Mint | undefined>()
     const [isAuditTrailVisible, setIsAuditTrailVisible] = useState<boolean>(false)
+    const [isTokenTrackingVisible, setIsTokenTrackingVisible] = useState<boolean>(false)
 
     const toggleAuditTrail = () => {
       LayoutAnimation.easeInEaseOut()
       setIsAuditTrailVisible(!isAuditTrailVisible)
+    }
+
+    const toggleTokenTracking = () => {
+      LayoutAnimation.easeInEaseOut()
+      setIsTokenTrackingVisible(!isTokenTrackingVisible)
     }
 
     useFocusEffect(useCallback(() => {
@@ -402,40 +408,56 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                   label='Token tracking'   
                   ContentComponent={
                     <>
-                    {transaction.inputToken && (
-                      <ListItem
-                        text='Inputs'
-                        subText={transaction.inputToken}
-                        subTextEllipsizeMode='middle'
-                        subTextStyle={{fontFamily: typography.code?.normal}}
+                    <ListItem
+                        text='Logged ecash tokens for debugging purposes'
                         RightComponent={
                           <View style={$rightContainer}>
                             <Button
-                              onPress={copyInputToken}
-                              text={translate("common.copy")}
+                              onPress={toggleTokenTracking}
+                              text={isTokenTrackingVisible ? translate("common.hide") : translate("common.show")}
                               preset="secondary"
                             />
                           </View>
                         }
                     />
-                    )}
-                    {transaction.outputToken && (
-                      <ListItem
-                        text='Outputs'
-                        subText={transaction.outputToken}
-                        subTextEllipsizeMode='middle'
-                        subTextStyle={{fontFamily: typography.code?.normal}}
-                        RightComponent={
-                          <View style={$rightContainer}>
-                            <Button
-                              onPress={copyOutputToken}
-                              text={translate("common.copy")}
-                              preset="secondary"
-                            />
-                          </View>
-                        }
-                    />
-                    )}                        
+                    {isTokenTrackingVisible && (
+                      <>
+                        {transaction.inputToken && (
+                          <ListItem
+                            text='Inputs'
+                            subText={transaction.inputToken}
+                            subTextEllipsizeMode='middle'
+                            subTextStyle={{fontFamily: typography.code?.normal}}
+                            RightComponent={
+                              <View style={$rightContainer}>
+                                <Button
+                                  onPress={copyInputToken}
+                                  text={translate("common.copy")}
+                                  preset="secondary"
+                                />
+                              </View>
+                            }
+                        />
+                        )}
+                        {transaction.outputToken && (
+                          <ListItem
+                            text='Outputs'
+                            subText={transaction.outputToken}
+                            subTextEllipsizeMode='middle'
+                            subTextStyle={{fontFamily: typography.code?.normal}}
+                            RightComponent={
+                              <View style={$rightContainer}>
+                                <Button
+                                  onPress={copyOutputToken}
+                                  text={translate("common.copy")}
+                                  preset="secondary"
+                                />
+                              </View>
+                            }
+                        />
+                        )}
+                      </> 
+                    )}                      
                   </>
                   }
                 />
@@ -1975,6 +1997,7 @@ const $contentContainer: TextStyle = {
     // flex: 1,
     padding: spacing.extraSmall,
     marginTop: -spacing.extraLarge * 1.5,
+    paddingBottom: spacing.medium,
 }
 
 const $tranAmount: TextStyle = {
