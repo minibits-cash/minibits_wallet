@@ -470,7 +470,9 @@ export const WalletStoreModel = types
                 return {proofs, swapFeePaid}
 
             } catch (e: any) {
-                if(!e.message.toLowerCase().includes('timeout')) {
+                if(!e.message.toLowerCase().includes('timeout') &&
+                   !e.message.toLowerCase().includes('network request failed')) {
+                  // remove in-flight request only if it was not a timeout or network error
                   currentCounter.removeInFlightRequest(transactionId)
                 }                
                 throw new AppError(
@@ -555,9 +557,11 @@ export const WalletStoreModel = types
                 }
 
             } catch (e: any) {
-                if(!e.message.toLowerCase().includes('timeout')) {
-                  currentCounter.removeInFlightRequest(transactionId)
-                }      
+              if(!e.message.toLowerCase().includes('timeout') &&
+                 !e.message.toLowerCase().includes('network request failed')) {
+                // remove in-flight request only if it was not a timeout or network error
+                currentCounter.removeInFlightRequest(transactionId)
+              }  
 
                 let message = 'Swap to prepare ecash to send has failed.'
                 if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
@@ -732,9 +736,11 @@ export const WalletStoreModel = types
                 return proofs
         
             } catch (e: any) {
-                if(!e.message.toLowerCase().includes('timeout')) {
+                if(!e.message.toLowerCase().includes('timeout') &&
+                   !e.message.toLowerCase().includes('network request failed')) {
+                  // remove in-flight request only if it was not a timeout or network error
                   currentCounter.removeInFlightRequest(transactionId)
-                }      
+                }       
                 
                 let message = 'Error on request to mint new ecash.'
                 if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
@@ -841,7 +847,9 @@ export const WalletStoreModel = types
                 return meltResponse
 
             } catch (e: any) {
-                if(!e.message.toLowerCase().includes('timeout')) {
+                if(!e.message.toLowerCase().includes('timeout') &&
+                   !e.message.toLowerCase().includes('network request failed')) {
+                  // remove in-flight request only if it was not a timeout or network error
                   currentCounter.removeInFlightRequest(transactionId)
                 }      
 

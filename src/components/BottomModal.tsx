@@ -161,27 +161,27 @@ export function BottomModal(props: ModalProps) {
     FooterTextProps?.style,
   ]
 
-  const statusBarOnModalOpen = useThemeColor('statusBarOnModalOpen')
+  // const statusBarOnModalOpen = useThemeColor('statusBarOnModalOpen')
 
   return (
     <View>
     <Modal      
       isVisible={isVisible}
-      statusBarTranslucent={false}
+      statusBarTranslucent={true}
       avoidKeyboard={true}     
       onBackdropPress={onBackdropPress}
       onBackButtonPress={onBackButtonPress}
       backdropOpacity={backdropOpacity}
       style={[$outerContainerBase]}
-      //coverScreen={true}      
+      // coverScreen={true}      
       {...otherProps}
     >
-      <StatusBar backgroundColor={isVisible ? statusBarOnModalOpen : undefined} />
+      {/*<StatusBar backgroundColor={isVisible ? statusBarOnModalOpen : undefined} />*/}
       <View style={[$innerContainerBase, $innerContainerStyle]}>        
           {HeadingComponent ||
             (isHeadingPresent && (
               <Text
-                weight="bold"
+                weight="medium"
                 text={heading}
                 tx={headingTx}
                 txOptions={headingTxOptions}

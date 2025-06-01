@@ -1085,7 +1085,7 @@ const $screen: ViewStyle = {
 const $headerContainer: TextStyle = {
     alignItems: 'center',
     // padding: spacing.tiny,  
-    height: spacing.screenHeight * 0.28,
+    height: spacing.screenHeight * 0.27,
 }
 
 const $tabContainer: TextStyle = {

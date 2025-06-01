@@ -2089,7 +2089,7 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
         // this is not valid for events sent from LNURL bridge, that are sent and signed by a minibits server key
         // and *** do not contain sentFrom *** // LEGACY, replaced by claim api
         let sentFromPubkey = directMessageEvent.pubkey
-        let sentFrom = NostrClient.getFirstTagValue(directMessageEvent.tags, 'from')
+        let sentFrom = NostrClient.getFirstTagValue(directMessageEvent.tags, 'from') as string
         let sentFromNpub = NostrClient.getNpubkey(sentFromPubkey)
         let contactFrom: Contact | undefined = undefined
         let zapSenderProfile: NostrProfile | undefined = undefined 

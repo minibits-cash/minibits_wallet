@@ -169,6 +169,15 @@ export const TransactionListItem = observer(function (props: TransactionListProp
           return (<Icon containerStyle={$txIconContainer} icon="faArrowTurnDown" size={spacing.medium} color={txPendingColor}/>)        
       }
 
+      if([TransactionType.SEND, TransactionType.TRANSFER].includes(tx.type)) {
+        if(tx.profile) {
+          const profilePicture = getProfilePicture(tx.profile)
+          if(profilePicture) {
+            return profilePicture
+          }
+        }
+      }
+
       return (<Icon containerStyle={$txIconContainer} icon="faArrowTurnUp" size={spacing.medium} color={txSendColor}/>)
     }
 

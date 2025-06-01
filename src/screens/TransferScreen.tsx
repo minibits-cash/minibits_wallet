@@ -69,7 +69,7 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
     const amountInputRef = useRef<TextInput>(null)
     const lnurlCommentInputRef = useRef<TextInput>(null)
 
-    const {proofsStore, mintsStore, paymentRequestsStore, walletStore, walletProfileStore} = useStores()
+    const {proofsStore, mintsStore, paymentRequestsStore, walletStore, walletProfileStore, contactsStore} = useStores()
     // const {walletStore} = nonPersistedStores
 
     const isInternetReachable = useIsInternetReachable()
@@ -377,9 +377,15 @@ useEffect(() => {
         setTransaction(transaction)
     
         if(transaction && lnurlPayParams && lnurlPayParams.address) {
-            transaction.setSentTo(                                 
-                lnurlPayParams.address as string
-            )
+
+            const profile = contactsStore.findByLud16(lnurlPayParams.address)
+            
+            if (profile) {
+              transaction.setSentTo(profile.nip05 || profile.name)  
+              transaction.setProfile(JSON.stringify(profile))
+            } else {
+              transaction.setSentTo(lnurlPayParams.address) 
+            }
         }
     
         if (error) { // This handles timed out pending payments
@@ -583,12 +589,19 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
     log.trace("[onEncodedInvoice] start", {mintUrl, unit})
     
     try {
+        //@ts-ignore
         navigation.setParams({encodedInvoice: undefined})
+        //@ts-ignore
         navigation.setParams({paymentRequest: undefined})
+        //@ts-ignore
         navigation.setParams({lnurlParams: undefined})
+        //@ts-ignore
         navigation.setParams({paymentOption: undefined})
+        //@ts-ignore
         navigation.setParams({fixedAmount: undefined})
+        //@ts-ignore
         navigation.setParams({isDonation: undefined})
+        //@ts-ignore
         navigation.setParams({donationForName: undefined})
 
         const invoice = LightningUtils.decodeInvoice(encoded)
