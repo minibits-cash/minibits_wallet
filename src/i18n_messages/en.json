@@ -10,7 +10,8 @@
 	"amount": {
 		"requested": "Requested amount",
 		"topup": "Topup amount",
-		"withdraw": "Withdraw amount"
+		"withdraw": "Withdraw amount",
+		"send": "Amount to send"
 	},
 	"attention": "Attention!",
 	"backupScreen": {

@@ -50,6 +50,7 @@ import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { translate } from '../i18n'
 import { MemoInputCard } from '../components/MemoInputCard'
 import { TRANSFER_TASK } from '../services/wallet/transferTask'
+import { CurrencyAmount } from './Wallet/CurrencyAmount'
 
 type Props = StaticScreenProps<{
   unit: MintUnit,
@@ -69,7 +70,15 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
     const amountInputRef = useRef<TextInput>(null)
     const lnurlCommentInputRef = useRef<TextInput>(null)
 
-    const {proofsStore, mintsStore, paymentRequestsStore, walletStore, walletProfileStore, contactsStore} = useStores()
+    const {
+      proofsStore, 
+      mintsStore, 
+      paymentRequestsStore, 
+      walletStore, 
+      walletProfileStore, 
+      contactsStore,
+      userSettingsStore
+    } = useStores()
     // const {walletStore} = nonPersistedStores
 
     const isInternetReachable = useIsInternetReachable()
@@ -729,6 +738,30 @@ const headerBg = useThemeColor('header')
 const iconColor = useThemeColor('textDim')
 const amountInputColor = useThemeColor('amountInput')
 
+  const convertedAmountColor = useThemeColor('headerSubTitle')    
+
+  const getConvertedAmount = function () {
+      if (!walletStore.exchangeRate) {
+        return undefined
+      }
+
+      const precision = getCurrency(unit).precision
+      return convertToFromSats(
+          round(toNumber(amountToTransfer) * precision, 0) || 0, 
+          getCurrency(unit).code,
+          walletStore.exchangeRate
+      )
+  }
+
+  const isConvertedAmountVisible = function () {
+    return (
+      walletStore.exchangeRate &&
+      (userSettingsStore.exchangeCurrency === getCurrency(unit).code ||
+        unit === 'sat') &&
+      getConvertedAmount() !== undefined
+    )
+  }
+
 
     return (
       <Screen preset="fixed" contentContainerStyle={$screen}>
@@ -762,11 +795,27 @@ const amountInputColor = useThemeColor('amountInput')
                 finalFee={finalFee}
               />
             ) : (
-              <Text
-                size="sm"
-                tx="payCommon.amountToPayLabel"
-                style={{color: amountInputColor, textAlign: 'center'}}
-              />
+              <>
+                {isConvertedAmountVisible() && ( 
+                    <CurrencyAmount
+                        amount={getConvertedAmount() ?? 0}
+                        currencyCode={unit === 'sat' ? userSettingsStore.exchangeCurrency : CurrencyCode.SAT}
+                        symbolStyle={{color: convertedAmountColor, marginTop: spacing.tiny, fontSize: verticalScale(10)}}
+                        amountStyle={{color: convertedAmountColor, lineHeight: spacing.small}}                        
+                        size='small'
+                        containerStyle={{justifyContent: 'center'}}
+                    />
+                )}
+                <Text
+                  size="xs"
+                  tx="payCommon.amountToPayLabel"
+                  style={{
+                    color: amountInputColor, 
+                    textAlign: 'center',
+                    marginTop: isConvertedAmountVisible() ? -spacing.extraSmall : undefined
+                  }}
+                />
+              </>
             )}
           </View>
         </View>

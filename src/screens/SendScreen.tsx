@@ -48,7 +48,7 @@ import { Proof } from '../models/Proof'
 import { Contact, ContactType } from '../models/Contact'
 import { getImageSource, infoMessage } from '../utils/utils'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
-import { CurrencyCode, MintUnit, MintUnits, formatCurrency, getCurrency } from "../services/wallet/currency"
+import { CurrencyCode, MintUnit, MintUnits, convertToFromSats, formatCurrency, getCurrency } from "../services/wallet/currency"
 import { MintHeader } from './Mints/MintHeader'
 import { MintBalanceSelector } from './Mints/MintBalanceSelector'
 import { round, toNumber } from '../utils/number'
@@ -96,7 +96,8 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         mintsStore, 
         relaysStore,
         walletStore,
-        contactsStore
+        contactsStore,
+        userSettingsStore
     } = useStores()
 
     const amountInputRef = useRef<TextInput>(null)
@@ -961,8 +962,31 @@ const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
         navigation.navigate('Scan', { 
             unit: unitRef.current,  
             mintUrl: mintBalanceToSendFrom.mintUrl
-        })
-        
+        })        
+    }
+
+    const convertedAmountColor = useThemeColor('headerSubTitle')    
+
+    const getConvertedAmount = function () {
+        if (!walletStore.exchangeRate) {
+            return undefined
+        }
+
+        const precision = getCurrency(unitRef.current).precision
+        return convertToFromSats(
+            round(toNumber(amountToSend) * precision, 0) || 0, 
+            getCurrency(unitRef.current).code,
+            walletStore.exchangeRate
+        )
+    }
+
+    const isConvertedAmountVisible = function () {
+        return (
+        walletStore.exchangeRate &&
+        (userSettingsStore.exchangeCurrency === getCurrency(unitRef.current).code ||
+        unitRef.current === 'sat') &&
+        getConvertedAmount() !== undefined
+        )
     }
 
     return (
@@ -989,17 +1013,23 @@ const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
                     }
                     returnKeyType={'done'}
                 />
-                <Text
-                    size='sm'
-                    text="Amount to send"
-                    style={{color: amountInputColor, textAlign: 'center'}}
-                />
-                {lockedPubkey && (
+                {isConvertedAmountVisible() && ( 
+                    <CurrencyAmount
+                        amount={getConvertedAmount() ?? 0}
+                        currencyCode={unitRef.current === 'sat' ? userSettingsStore.exchangeCurrency : CurrencyCode.SAT}
+                        symbolStyle={{color: convertedAmountColor, marginTop: spacing.tiny, fontSize: verticalScale(10)}}
+                        amountStyle={{color: convertedAmountColor, lineHeight: spacing.small}}                        
+                        size='small'
+                        containerStyle={{justifyContent: 'center'}}
+                    />
+                )}
+                {lockedPubkey ? (
                     <View
                         style={{
                             flexDirection: 'row',
                             alignItems: 'center',
-                            justifyContent: 'center'
+                            justifyContent: 'center',
+                            marginTop: isConvertedAmountVisible() ? -spacing.extraSmall : undefined
                         }}
                     >
                         <Icon 
@@ -1008,12 +1038,22 @@ const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
                             color={amountInputColor} 
                         />
                         <Text
-                            size='xxs'
+                            size='xs'
                             text="Locked"
                             style={{color: amountInputColor, marginLeft: spacing.tiny}}
                         />
 
                     </View>
+                ) : (
+                    <Text
+                        size='xs'
+                        tx='amount.send'
+                        style={{
+                            color: amountInputColor,
+                            textAlign: 'center',
+                            marginTop: isConvertedAmountVisible() ? -spacing.extraSmall : undefined
+                        }}
+                    />
                 )}
             </View>          
         </View>
@@ -1028,7 +1068,7 @@ const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
                 onMemoEndEditing={onMemoEndEditing}
               />
             )}
-            {isMintSelectorVisible && (
+            {isMintSelectorVisible && !encodedTokenToSend && (
                 <MintBalanceSelector
                     mintBalances={availableMintBalances}
                     selectedMintBalance={mintBalanceToSendFrom as MintBalance}
