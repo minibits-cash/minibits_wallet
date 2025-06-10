@@ -155,7 +155,7 @@ export const TransactionListItem = observer(function (props: TransactionListProp
         return (<Icon containerStyle={$txIconContainer} icon="faClock" size={spacing.medium} color={txErrorColor}/>)
       }
   
-      if([TransactionType.RECEIVE, TransactionType.TOPUP].includes(tx.type)) {
+      if([TransactionType.RECEIVE, TransactionType.TOPUP, TransactionType.RECEIVE_BY_PAYMENT_REQUEST].includes(tx.type)) {
         if(tx.profile) {
           const profilePicture = getProfilePicture(tx.profile)
           if(profilePicture) {
@@ -233,7 +233,7 @@ export const TransactionListItem = observer(function (props: TransactionListProp
         LeftComponent={getLeftIcon(tx)}  
         RightComponent={
           <View style={$txContainer}>
-            {([TransactionType.RECEIVE, TransactionType.RECEIVE_OFFLINE].includes(tx.type)) && (
+            {([TransactionType.RECEIVE, TransactionType.RECEIVE_OFFLINE, TransactionType.RECEIVE_BY_PAYMENT_REQUEST].includes(tx.type)) && (
                 <>
                 {[TransactionStatus.COMPLETED].includes(tx.status) && (
                     <CurrencyAmount 

@@ -15,7 +15,7 @@ import {CashuProof, CashuUtils} from './cashu/cashuUtils'
 import {LightningUtils} from './lightning/lightningUtils'
 import AppError, {Err} from '../utils/AppError'
 import {MintBalance, MintStatus} from '../models/Mint'
-import {MeltQuoteResponse, MintQuoteState, Token, getDecodedToken, getEncodedToken} from '@cashu/cashu-ts'
+import {MeltQuoteResponse, MintQuoteState, PaymentRequestPayload, Token, getDecodedToken, getEncodedToken} from '@cashu/cashu-ts'
 import {Mint} from '../models/Mint'
 import {pollerExists, stopPolling} from '../utils/poller'
 import { NostrClient, NostrEvent, NostrProfile } from './nostrService'
@@ -24,7 +24,12 @@ import { PaymentRequest, PaymentRequestStatus, PaymentRequestType } from '../mod
 import { IncomingDataType, IncomingParser } from './incomingParser'
 import { Contact } from '../models/Contact'
 import { SyncQueue } from './syncQueueService'
-import { receiveTask, receiveOfflinePrepareTask, receiveOfflineCompleteTask} from './wallet/receiveTask'
+import { 
+    receiveTask, 
+    receiveOfflinePrepareTask, 
+    receiveOfflineCompleteTask, 
+    receiveByCashuPaymentRequestTask
+} from './wallet/receiveTask'
 import { sendTask } from './wallet/sendTask'
 import { topupTask } from './wallet/topupTask'
 import { transferTask } from './wallet/transferTask'
@@ -33,9 +38,9 @@ import { WalletUtils } from './wallet/utils'
 import { NotificationService } from './notificationService'
 import { CurrencyCode, MintUnit, formatCurrency, getCurrency } from './wallet/currency'
 import { MinibitsClient } from './minibitsService'
-import { KeyChain } from './keyChain'
 import { UnsignedEvent } from 'nostr-tools'
 import { Platform } from 'react-native'
+import { cashuPaymentRequestTask } from './wallet/cashuPaymentRequestTask'
 
 /**
  * The default number of proofs per denomination to keep in a wallet.
@@ -126,6 +131,12 @@ type WalletTaskService = {
         memo: string,
         contactToSendTo?: Contact,
         nwcEvent?: NostrEvent
+    ) => Promise<void>
+    cashuPaymentRequestQueue: (
+        mintBalanceToReceiveTo: MintBalance,
+        amountToRequest: number,
+        unit: MintUnit,
+        memo: string,
     ) => Promise<void>
     revertQueue: (
         transaction: Transaction
@@ -536,6 +547,26 @@ const topupQueue = async function (
             memo,
             contactToSendTo,
             nwcEvent
+        )
+    )
+    return
+}
+
+
+const cashuPaymentRequestQueue = async function (
+    mintBalanceToReceiveTo: MintBalance,
+    amountToRequest: number,
+    unit: MintUnit,
+    memo: string,
+): Promise<void> {
+    const now = new Date().getTime()
+    SyncQueue.addPrioritizedTask(
+        `cashuPaymentRequestTask-${now}`,            
+        async () => await cashuPaymentRequestTask(
+            mintBalanceToReceiveTo,
+            amountToRequest,
+            unit,
+            memo,
         )
     )
     return
@@ -2195,12 +2226,7 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
                 message: 'Incoming ecash token has been received.',
                 proofsCount: decoded.proofs.length,
                 proofsAmount: receivedAmount,
-                notificationInputs: {
-                    event: directMessageEvent,
-                    decrypted: decryptedMessage,
-                    transaction,
-                    receivedAmount
-                } // not used`
+                transaction
             } as WalletTaskResult                  
         }
 
@@ -2259,13 +2285,46 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
                 paymentRequest            
             } as WalletTaskResult
         }
-        else if(incoming.type === IncomingDataType.CASHU_PAYMENT_REQUEST) {
-            throw new AppError(Err.NOTFOUND_ERROR, 'CASHU_PAYMENT_REQUEST support is not yet implemented.', {caller: HANDLE_RECEIVED_EVENT_TASK})
+
+        else if(incoming.type === IncomingDataType.CASHU_PAYMENT_REQUEST_PAYLOAD) {
+            const decoded: PaymentRequestPayload = JSON.parse(incoming.encoded)
+            log.trace('[handleReceivedEventTask]', 'Decoded payment request payload', {decoded})
+
+            const {transaction, receivedAmount, message} = await receiveByCashuPaymentRequestTask(
+                decoded
+            )
+
+            // store contact or zapseder in tx details
+            if(transaction && sentFrom) {
+                if (contactFrom) {
+                    transaction.setProfile(JSON.stringify(contactFrom))
+                    transaction.setSentFrom(sentFrom)
+                }
+    
+                // We do it defensively only after cash is received
+                // and asynchronously so we speed up queue
+                _sendReceiveNotification(
+                    receivedAmount,
+                    transaction.unit,
+                    false,
+                    sentFrom,
+                    sentFromPicture                
+                ) // TODO move to task result handler
+            }
+
+            return {
+                mintUrl: decoded.mint,
+                taskFunction: HANDLE_RECEIVED_EVENT_TASK,
+                message,
+                proofsCount: decoded.proofs.length,
+                proofsAmount: receivedAmount,
+                transaction,
+            } as WalletTaskResult   
         }            
         else if (incoming.type === IncomingDataType.LNURL) {
             throw new AppError(Err.NOTFOUND_ERROR, 'LNURL support is not yet implemented.', {caller: HANDLE_RECEIVED_EVENT_TASK})
         } else {
-            throw new AppError(Err.NOTFOUND_ERROR, 'Received unknown message', incoming)
+            throw new AppError(Err.NOTFOUND_ERROR, 'Received unknown event message', {caller: HANDLE_RECEIVED_EVENT_TASK,incoming})
         }
     } catch (e: any) {
         log.error('[handleReceivedEventTask]', e.name, e.message)
@@ -2364,6 +2423,7 @@ export const WalletTask: WalletTaskService = {
     swapAllQueue,
     transferQueue,      
     topupQueue,
+    cashuPaymentRequestQueue,
     revertQueue,
     testQueue,
     recoverMintQuote

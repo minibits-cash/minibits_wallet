@@ -309,7 +309,9 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
       }
 
       // Subscribe to the 'sendCompleted' event
-      EventEmitter.on(`ev_${TOPUP_TASK}_result`, handleTopupTaskResult)
+      if(isTopupTaskSentToQueue) {
+        EventEmitter.on(`ev_${TOPUP_TASK}_result`, handleTopupTaskResult)
+      }
 
       // Unsubscribe from the 'sendCompleted' event on component unmount
       return () => {
@@ -351,10 +353,12 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
         }
       }
 
-      EventEmitter.on(
-        `ev_${HANDLE_PENDING_TOPUP_TASK}_result`,
-        handlePendingTopupTaskResult,
-      )
+      if(transactionId) {
+        EventEmitter.on(
+          `ev_${HANDLE_PENDING_TOPUP_TASK}_result`,
+          handlePendingTopupTaskResult,
+        )
+      }
 
       return () => {
         EventEmitter.off(
@@ -372,6 +376,13 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
       setIsResultModalVisible(previousState => !previousState)
 
     const onAmountEndEditing = function () {
+      log.trace("[onAmountEndEditing] called")
+      
+      if(isTopupTaskSentToQueue) {
+        log.trace('[onAmountEndEditing] Topup task already sent to queue, ignoring further edits')
+        return 
+      }
+
       try {
         const precision = getCurrency(unit).precision
         const mantissa = getCurrency(unit).mantissa
@@ -794,7 +805,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
                   gotoContacts={gotoContacts}
                 />
               </>
-            )}
+          )}
           {transaction && transactionStatus === TransactionStatus.COMPLETED && (
             <Card
               style={{padding: spacing.medium}}

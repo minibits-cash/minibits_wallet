@@ -4,6 +4,7 @@ import type {
   Token, 
   Proof as CashuProof,
   PaymentRequest as CashuPaymentRequest,
+  PaymentRequestPayload,
 } from '@cashu/cashu-ts'
 import AppError, {Err} from '../../utils/AppError'
 import { getDecodedToken } from '@cashu/cashu-ts'
@@ -28,7 +29,7 @@ const CASHU_TOKEN_PREFIXES = [
   'cashuB'
 ]
 
-const CASHU_REQUEST_PREFIXES = [
+const CASHU_PAYMENT_REQUEST_PREFIXES = [
   'creqA',  
 ]
 
@@ -41,9 +42,29 @@ const findEncodedCashuToken = function (content: string) {
 
 const findEncodedCashuPaymentRequest = function (content: string) {
   const words = content.split(/\s+|\n+/) // Split text into words
-  const maybeRequest = words.find(word => CASHU_REQUEST_PREFIXES.some(pref => word.includes(pref)))
+  const maybeRequest = words.find(word => CASHU_PAYMENT_REQUEST_PREFIXES.some(pref => word.includes(pref)))
   return maybeRequest || null
 }
+
+
+const findEncodedCashuPaymentRequestPayload = function (content: string) {
+  try {
+    const decoded = JSON.parse(content)
+      
+    if(decoded && 
+      decoded.mint && 
+      decoded.unit &&         
+      Array.isArray(decoded.proofs) &&
+      decoded.proofs.length > 0) {
+      return decoded as PaymentRequestPayload
+    }
+
+    return null
+    
+  } catch (e: any) {
+    return null
+  }
+} 
 
 
 const extractEncodedCashuToken = function (maybeToken: string): string {
@@ -84,7 +105,7 @@ const extractEncodedCashuPaymentRequest = function (maybeRequest: string): strin
   let encodedRequest: string | undefined = undefined
   let decoded: CashuPaymentRequest | undefined = undefined
   
-  if (maybeRequest && CASHU_REQUEST_PREFIXES.some(pref => maybeRequest.startsWith(pref))) {
+  if (maybeRequest && CASHU_PAYMENT_REQUEST_PREFIXES.some(pref => maybeRequest.startsWith(pref))) {
       decoded = decodePaymentRequest(maybeRequest) // throws
       return maybeRequest
   }
@@ -322,6 +343,7 @@ const isTokenP2PKLocked = function (token: Token) {
 export const CashuUtils = {
     findEncodedCashuToken,
     findEncodedCashuPaymentRequest,
+    findEncodedCashuPaymentRequestPayload,
     extractEncodedCashuToken,
     extractEncodedCashuPaymentRequest,
     getProofsAmount,    

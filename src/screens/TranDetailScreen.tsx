@@ -216,7 +216,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
         if (!transaction) { return '' }
 
         switch (transaction?.type) {
-            case TransactionType.RECEIVE || TransactionType.RECEIVE_OFFLINE:
+            case TransactionType.RECEIVE || TransactionType.RECEIVE_OFFLINE || TransactionType.RECEIVE_BY_PAYMENT_REQUEST:
             return `+${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
             case TransactionType.SEND:
             return `-${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
@@ -298,7 +298,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                     </View>
                 }
               />
-              {transaction.type === TransactionType.RECEIVE && (
+              {(transaction.type === TransactionType.RECEIVE || transaction.type === TransactionType.RECEIVE_BY_PAYMENT_REQUEST) && (
                 <ReceiveInfoBlock
                   transaction={transaction}
                   isDataParsable={isDataParsable}

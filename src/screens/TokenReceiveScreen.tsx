@@ -99,6 +99,15 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
     }
 
 
+    const gotoCashuPaymentRequest = async function () {    
+        //@ts-ignore
+        navigation.navigate('CashuPaymentRequest', {
+            mintUrl: mint?.mintUrl, 
+            unit
+        })
+    }
+
+
     /* const gotoContacts = function () {
         //@ts-ignore
         navigation.navigate('ContactsNavigator', {
@@ -182,25 +191,25 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
                     }
                     ContentComponent={
                         <>
-                        <Text 
-                            size='xs' 
-                            style={{color: hintText, padding: spacing.extraSmall}} 
-                            tx="pasteEcashTokenDesc"
-                        />
-                        <View style={{alignItems: 'center', marginTop: spacing.small}}>
-                            <TextInput
-                                ref={tokenInputRef}
-                                onChangeText={data => setEncodedToken(data)}
-                                value={encodedToken}
-                                autoCapitalize='none'
-                                keyboardType='default'
-                                maxLength={5000}
-                                numberOfLines={4}
-                                multiline={true}                                                    
-                                selectTextOnFocus={true}
-                                style={[$addressInput, {backgroundColor: inputBg, color: inputText}]}                        
+                            <Text 
+                                size='xs' 
+                                style={{color: hintText, padding: spacing.extraSmall}} 
+                                tx="pasteEcashTokenDesc"
                             />
-                        </View>                        
+                            <View style={{alignItems: 'center', marginTop: spacing.small}}>
+                                <TextInput
+                                    ref={tokenInputRef}
+                                    onChangeText={data => setEncodedToken(data)}
+                                    value={encodedToken}
+                                    autoCapitalize='none'
+                                    keyboardType='default'
+                                    maxLength={5000}
+                                    numberOfLines={3}
+                                    multiline={true}                                                    
+                                    selectTextOnFocus={true}
+                                    style={[$addressInput, {backgroundColor: inputBg, color: inputText}]}                        
+                                />
+                            </View>                        
                             {!!encodedToken && encodedToken?.length > 1 ? (
                                 <View style={$buttonContainer}>
                                     <Button
@@ -241,6 +250,25 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
                                 </View>
                             )}                        
                         </>
+                    }
+                />
+                <Card
+                    style={{marginTop: spacing.medium}}                 
+                    ContentComponent={
+                        <ListItem
+                            leftIcon='faQrcode'
+                            leftIconColor={colors.palette.iconYellow300}
+                            tx="common.createCashuPaymentRequest"
+                            RightComponent={
+                                <Button
+                                    preset='secondary'                                    
+                                    //LeftAccessory={() => <Icon color={contactIcon} containerStyle={{paddingVertical: 0}} icon='faAddressBook' />}
+                                    onPress={gotoCashuPaymentRequest}
+                                    tx='common.create'
+                                    // textStyle={{fontSize: 12, color: contactIcon}}
+                                />
+                            }
+                        />
                     }
                 />
                 <Button
@@ -299,7 +327,7 @@ const $addressInput: TextStyle = {
     borderRadius: spacing.extraSmall,
     padding: spacing.extraSmall,        
     alignSelf: 'stretch',
-    height: 120,
+    height: verticalScale(70),
 }
 
 const $bottomContainer: ViewStyle = {

@@ -110,7 +110,36 @@ import {
               }
   
               return transaction
-          },        
+          },
+          findByPaymentId(id: string) {            
+            let transaction = self.transactionsMap.get(id)
+
+            // Search the db and add if tx is not in the state
+            // Search always to retrieve full tokens in tx detail screen
+            if(!transaction) {
+                const dbTransaction = Database.getTransactionByPaymentId(id)
+
+                if(dbTransaction) {
+                    const createdAt = new Date(dbTransaction.createdAt)                    
+                    const inStoreTransaction = {...dbTransaction, createdAt}
+                    const {id} = dbTransaction
+                                        
+                    // Shorten for performance reasons
+                    if(inStoreTransaction.inputToken && inStoreTransaction.inputToken.length > 0) {
+                        inStoreTransaction.inputToken = inStoreTransaction.inputToken?.slice(0, 40)
+                    }
+
+                    if(inStoreTransaction.outputToken && inStoreTransaction.outputToken.length > 0) {
+                        inStoreTransaction.outputToken = inStoreTransaction.outputToken?.slice(0, 40)
+                    }
+                                        
+                    self.transactionsMap.set(id, inStoreTransaction)
+                    transaction = self.transactionsMap.get(id)                    
+                }
+            }
+
+            return transaction
+        },      
           pruneRecentByUnit(unit: MintUnit) {
               const unitCount = self.countRecentByUnit(unit)
               

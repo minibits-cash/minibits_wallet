@@ -36,6 +36,7 @@ import {
   OwnKeysScreen,
   TokenReceiveScreen,
   NwcScreen,
+  CashuPaymentRequestScreen
 } from "../screens"
 import { colors, spacing, typography } from "../theme"
 
@@ -56,7 +57,7 @@ const $tabBarLabel: TextStyle = {
   flex: 1,
 }
 
-
+// @ts-ignore
 const WalletStack = createNativeStackNavigator({  
   screenOptions: {
     headerShown: false,    
@@ -70,7 +71,8 @@ const WalletStack = createNativeStackNavigator({
     LightningPay: LightningPayScreen,
     PaymentRequests: PaymentRequestsScreen,
     Transfer: TransferScreen,
-    Topup: TopupScreen,    
+    Topup: TopupScreen,
+    CashuPaymentRequest: CashuPaymentRequestScreen,    
   }
 })
 
@@ -81,7 +83,7 @@ declare global {
   }
 }
 
-
+// @ts-ignore
 const TransactionsStack = createNativeStackNavigator({  
   screenOptions: {
     headerShown: false,    
@@ -100,6 +102,7 @@ declare global {
   }
 }
 
+// @ts-ignore
 const ContactsStack = createNativeStackNavigator({  
   screenOptions: {
     headerShown: false,    
@@ -121,6 +124,7 @@ declare global {
   }
 } 
 
+// @ts-ignore
 const SettingsStack = createNativeStackNavigator({  
   screenOptions: {
     headerShown: false,    

@@ -14,6 +14,7 @@ import { NostrClient } from './nostrService'
 export enum IncomingDataType {
     CASHU = 'CASHU',
     CASHU_PAYMENT_REQUEST = 'CASHU_PAYMENT_REQUEST',
+    CASHU_PAYMENT_REQUEST_PAYLOAD = 'CASHU_PAYMENT_REQUEST_PAYLOAD',
     INVOICE = 'INVOICE',
     LNURL = 'LNURL',
     LNURL_ADDRESS = 'LNURL_ADDRESS',
@@ -40,6 +41,12 @@ const findAndExtract = function (
                 }
             case IncomingDataType.CASHU_PAYMENT_REQUEST:
                 encoded = CashuUtils.extractEncodedCashuPaymentRequest(incomingData)                
+                return {
+                    type: expectedType,
+                    encoded
+                }
+            case IncomingDataType.CASHU_PAYMENT_REQUEST_PAYLOAD:
+                encoded = incomingData // stringified JSON payload           
                 return {
                     type: expectedType,
                     encoded
@@ -111,6 +118,19 @@ const findAndExtract = function (
 
         return {
             type: IncomingDataType.CASHU_PAYMENT_REQUEST,
+            encoded
+        }
+    }
+
+    const maybeCashuPaymentRequestPayload = CashuUtils.findEncodedCashuPaymentRequestPayload(incomingData)
+
+    if(maybeCashuPaymentRequestPayload) {
+        log.trace('Got maybeCashuPaymentRequestPayload', maybeCashuPaymentRequestPayload, 'findAndExtract')
+
+        const encoded = incomingData // to be aligned with other cases we pass encoded (stringified) JSON payload
+
+        return {
+            type: IncomingDataType.CASHU_PAYMENT_REQUEST_PAYLOAD,
             encoded
         }
     }

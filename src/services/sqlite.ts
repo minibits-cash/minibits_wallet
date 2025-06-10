@@ -15,7 +15,7 @@ import {BackupProof} from '../models/Proof'
 
 let _db: QuickSQLiteConnection
 
-const _dbVersion = 19 // Update this if db changes require migrations
+const _dbVersion = 20 // Update this if db changes require migrations
 
 const getInstance = function () {
   if (!_db) {
@@ -47,6 +47,7 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
     [
         `CREATE TABLE IF NOT EXISTS transactions (
         id INTEGER PRIMARY KEY NOT NULL,
+        paymentId TEXT,
         type TEXT,
         amount INTEGER,
         unit TEXT,
@@ -131,6 +132,15 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
       ])
 
       log.info(`Prepared database migrations from ${currentVersion} -> 19`)
+    }
+
+    if (currentVersion < 20) {
+      migrationQueries.push([
+        `ALTER TABLE transactions
+         ADD COLUMN paymentId TEXT`,   
+      ])
+
+      log.info(`Prepared database migrations from ${currentVersion} -> 20`)
     }
 
     // Update db version as a part of migration sqls
@@ -370,6 +380,25 @@ const getTransactionById = function (id: number) {
   }
 }
 
+
+const getTransactionByPaymentId = function (id: string) {
+  try {
+    const query = `
+      SELECT * FROM transactions WHERE paymentId = ?
+    `
+
+    const params = [id]
+
+    const db = getInstance()
+    const {rows} = db.execute(query, params)
+
+    return rows?.item(0) as TransactionRecord
+  } catch (e: any) {
+    throw new AppError(Err.DATABASE_ERROR, 'Transaction not found', e.message)
+  }
+}
+
+
 const addTransactionAsync = async function (tx: Transaction): Promise<TransactionRecord> {
   try {
     const {type, amount, fee, unit, data, memo, mint, status} = tx
@@ -516,6 +545,33 @@ const updateBalanceAfter = function (
     throw new AppError(
       Err.DATABASE_ERROR,
       'Could not update transaction balanceAfter in database',
+      e.message,
+    )
+  }
+}
+
+
+const updatePaymentId = function (id: number, paymentId: string) {
+  try {
+    const query = `
+      UPDATE transactions
+      SET paymentId = ?
+      WHERE id = ?      
+    `
+    const params = [paymentId, id]
+
+    const db = getInstance()
+    db.execute(query, params)
+
+    log.debug('[updatePaymentId]', 'Transaction paymentId updated in the database', {id, paymentId})
+
+    const updatedTx = getTransactionById(id as number)
+
+    return updatedTx as TransactionRecord
+  } catch (e: any) {
+    throw new AppError(
+      Err.DATABASE_ERROR,
+      'Could not update transaction paymentId in the database',
       e.message,
     )
   }
@@ -1132,6 +1188,7 @@ export const Database = {
   cleanAll,
   getTransactionsCount,
   getTransactionById,
+  getTransactionByPaymentId,
   getRecentTransactionsByUnit,
   getTransactions,
   addTransactionAsync,  
@@ -1140,6 +1197,7 @@ export const Database = {
   updateStatusesAsync,
   updateBalanceAfter,
   updateFee,
+  updatePaymentId,
   updateReceivedAmount,
   updateNote,
   updateSentFrom,

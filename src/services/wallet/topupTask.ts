@@ -133,10 +133,12 @@ export const topupTask = async function (
             createdAt: new Date()
         })
 
-       transaction.setStatus(            
+        transaction.setStatus(            
             TransactionStatus.PENDING,
             JSON.stringify(transactionData),
         )
+
+        transaction.setPaymentId(payment_hash)     
 
         if(!nwcEvent) {
             const wsMint = new CashuMint(mintUrl)
