@@ -41,7 +41,7 @@ Receive ecash
 - [x] Receive ecash from another wallet over NOSTR message sent to minibits.cash address
 - [x] Receive ecash in person while being offline, redeem later (MVP version)
 - [x] Realtime and encrypted push notifications on receive to minibits.cash lightning address
-- [ ] Display or send cashu payment requests
+- [x] Display or send cashu payment requests [✨ New!]
 
 Send ecash
 - [x] Share ecash token to send through another app
@@ -143,7 +143,7 @@ Minibits wallet is in early beta and available as of now only for Android device
 - [x] Download it from Google Play
 - [x] Join testing program on Google Play to get early releases to test (Submit your email to get an invite on [Minibits.cash](https://www.minibits.cash))
 - [x] Download .apk file from Releases page and install it on your phone
-- [ ] Try on Testflight
+- [x] Try on Testflight
 - [ ] Download from AppStore
 
 
