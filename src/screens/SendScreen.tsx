@@ -419,7 +419,7 @@ const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
     
     // Offline send
     useEffect(() => {        
-        if(isInternetReachable) return
+        //if(isInternetReachable) return
         log.trace('[Offline send]')
 
         // if offline we set all non-zero mint balances as available to allow ecash selection
@@ -436,7 +436,7 @@ const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
         setAvailableMintBalances(availableBalances)
         setMintBalanceToSendFrom(availableBalances[0])        
         setIsMintSelectorVisible(true)      
-    }, [isInternetReachable])
+    }, [])
 
 
     useEffect(() => {
@@ -1427,6 +1427,7 @@ const SelectProofsBlock = observer(function (props: {
 
     const {proofsStore} = useStores()
     const hintColor = useThemeColor('textDim')
+    const statusColor = useThemeColor('header')
 
     
     const onCancel = function () {        
@@ -1436,13 +1437,48 @@ const SelectProofsBlock = observer(function (props: {
     
     return (
         <View style={$bottomModal}>
+            <View
+                style={[
+                    {
+                    alignSelf: 'center',
+                    marginTop: spacing.tiny,
+                    paddingHorizontal: spacing.tiny,
+                    borderRadius: spacing.tiny,
+                    backgroundColor: colors.palette.primary200,
+                    },
+                ]}>
+                <Text
+                    text={'OFFLINE MODE'}
+                    style={[
+                    {
+                        color: statusColor,
+                        fontSize: 10,
+                        fontFamily: typography.primary?.light,
+                        padding: 0,
+                        lineHeight: 16,
+                    }
+                    ]}
+                />
+            </View>
             <Text text='Select ecash to send' style={{marginTop: spacing.large}}/>
             <Text
                 text='You can only send exact ecash denominations while you are offline.'
                 style={{color: hintColor, paddingHorizontal: spacing.small, textAlign: 'center'}}
                 size='xs'
+            />               
+            <CurrencyAmount 
+                amount={CashuUtils.getProofsAmount(props.selectedProofs)} 
+                mintUnit={props.unit}       
+                size='extraLarge'
+                containerStyle={{marginTop: spacing.large, marginBottom: spacing.small, alignItems: 'center'}}       
             />
-            <View style={{maxHeight: spacing.screenHeight * 0.4}}>
+            <View style={{
+                maxHeight: spacing.screenHeight * 0.45,
+                borderWidth: 1, 
+                borderColor: hintColor, 
+                borderRadius: spacing.medium, 
+                marginTop: spacing.small
+            }}>
                 <FlatList<Proof>
                     data={proofsStore.getByMint(props.mintBalanceToSendFrom.mintUrl, {isPending: false, unit: props.unit})}
                     renderItem={({ item }) => {
@@ -1464,21 +1500,6 @@ const SelectProofsBlock = observer(function (props: {
                 />
             </View>
             <View style={[$bottomContainer, {marginTop: spacing.extraLarge}]}>
-                <View style={[$buttonContainer, {marginBottom: spacing.medium}]}>
-                    <CurrencyAmount 
-                            amount={CashuUtils.getProofsAmount(props.selectedProofs)} 
-                            mintUnit={props.unit}
-                            
-                            size='large'            
-                    />
-                    <Button
-                        preset={'tertiary'}
-                        onPress={() => props.toggleIsLockedToPubkey()}
-                        LeftAccessory={() => <Icon icon={props.isLockedToPubkey ? 'faLock' : 'faLock'}/>}
-                        text={props.isLockedToPubkey ? 'Locked' : 'Lock'}
-                        style={{minWidth: 80}}
-                    />
-                </View>
                 <View style={[$buttonContainer]}>
                     <Button
                         text="Create token"

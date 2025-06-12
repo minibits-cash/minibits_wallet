@@ -11,6 +11,7 @@ import { WalletUtils } from './utils'
 import {isBefore} from 'date-fns'
 import { MintUnit, formatCurrency, getCurrency } from './currency'
 import { NostrEvent } from '../nostrService'
+import { LightningUtils } from '../lightning/lightningUtils'
 
 const {
     transactionsStore,
@@ -77,6 +78,8 @@ export const transferTask = async function (
         // store tx in db and in the model
         transaction = await transactionsStore.addTransaction(newTransaction)
         const transactionId = transaction.id
+        const paymentHash = LightningUtils.getInvoiceData(LightningUtils.decodeInvoice(encodedInvoice)).payment_hash
+        transaction.setPaymentId(paymentHash)
         
         if (amountToTransfer + meltQuote.fee_reserve > mintBalanceToTransferFrom.balances[unit]!) {
             throw new AppError(
@@ -263,7 +266,7 @@ export const transferTask = async function (
             )
     
             const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
-            transaction.setBalanceAfter(balanceAfter)       
+            transaction.setBalanceAfter(balanceAfter)        
     
             return {
                 taskFunction: TRANSFER_TASK,

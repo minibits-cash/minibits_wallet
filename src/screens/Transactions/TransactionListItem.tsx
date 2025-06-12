@@ -62,6 +62,14 @@ export const TransactionListItem = observer(function (props: TransactionListProp
         } else {
           return tx.memo ? tx.memo : translate('transactionCommon.youReceived')
         }
+      case TransactionType.RECEIVE_BY_PAYMENT_REQUEST:
+        if (tx.sentFrom) {
+          if (!tx.memo || tx.memo.includes('Sent from Minibits')) {
+            return translate('transactionCommon.from', {sender: getProfileName(tx.sentFrom)})
+          }
+        } else {
+          return tx.memo ? tx.memo : translate('transactionCommon.youReceived')
+        }
       case TransactionType.RECEIVE_OFFLINE:
         if (tx.sentFrom) {
           if (!tx.memo || tx.memo.includes('Sent from Minibits')) {

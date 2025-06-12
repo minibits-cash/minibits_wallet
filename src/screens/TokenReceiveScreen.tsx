@@ -4,6 +4,7 @@ import {
     View,
     TextStyle,
     TextInput,
+    TouchableOpacity,
 } from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {log} from '../services/logService'
@@ -32,6 +33,13 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
     const tokenInputRef = useRef<TextInput>(null)
     const {mintsStore} = useStores()
 
+    // New: controls visibility of token input
+    const [showTokenInput, setShowTokenInput] = useState(false)
+    const [encodedToken, setEncodedToken] = useState<string | undefined>(undefined)
+    const [unit, setUnit] = useState<MintUnit>('sat')
+    const [mint, setMint] = useState<Mint | undefined>(undefined)    
+    const [error, setError] = useState<AppError | undefined>()
+
     async function autoPaste(setter: (text: string) => void, sideEffect: () => void) {
         const clipboard = (await Clipboard.getString()).trim();
         if (clipboard.length === 0) return
@@ -40,6 +48,8 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
             const resultFromClipboard = IncomingParser.findAndExtract(clipboard, IncomingDataType.CASHU)
             setter(resultFromClipboard.encoded)
             sideEffect()
+            // Show input if autopaste sets encodedToken
+            setShowTokenInput(true)
         } catch (e: any) {
             return
         }      
@@ -70,12 +80,12 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
         return () => {}
     }, [])
 
-    
-    const [encodedToken, setEncodedToken] = useState<string | undefined>(undefined)
-    const [unit, setUnit] = useState<MintUnit>('sat')
-    const [mint, setMint] = useState<Mint | undefined>(undefined)    
-    const [error, setError] = useState<AppError | undefined>()
-
+    // If encodedToken is set (by autopaste), show input
+    useEffect(() => {
+        if (encodedToken && encodedToken.length > 0) {
+            setShowTokenInput(true)
+        }
+    }, [encodedToken])
 
     const onPaste = async function() {        
         const clipboard = await Clipboard.getString()
@@ -86,8 +96,8 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
 
         setEncodedToken(clipboard)
         tokenInputRef.current?.blur()
+        setShowTokenInput(true)
     }
-
 
     const gotoScan = async function () {
         tokenInputRef.current?.blur()
@@ -98,7 +108,6 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
         })
     }
 
-
     const gotoCashuPaymentRequest = async function () {    
         //@ts-ignore
         navigation.navigate('CashuPaymentRequest', {
@@ -106,18 +115,6 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
             unit
         })
     }
-
-
-    /* const gotoContacts = function () {
-        //@ts-ignore
-        navigation.navigate('ContactsNavigator', {
-            screen: 'Contacts', 
-            params: {
-                paymentOption: SendOption.LNURL_ADDRESS
-            }
-        })
-    } */
-
 
     const onConfirm = async function() {
         if(!encodedToken) {
@@ -135,7 +132,6 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
         }
     }
 
-
     const gotoTopup = async function () {
         //@ts-ignore
         navigation.navigate('Topup', {
@@ -144,7 +140,6 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
         })
     }
     
-
     const handleError = function(e: AppError): void {
         setError(e)
     }
@@ -155,7 +150,8 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
     const inputText = useThemeColor('text')
     const contactIcon = useThemeColor('button')
     const headerBg = useThemeColor('header')
-    const headerTitle = useThemeColor('headerTitle')    
+    const headerTitle = useThemeColor('headerTitle')
+    const mainButtonColor = useThemeColor('card') 
 
     return (
         <Screen preset="fixed" contentContainerStyle={$screen}>
@@ -171,105 +167,72 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
                 />                
             </View> 
             <View style={$contentContainer}>            
-                <Card                    
-                    HeadingComponent={
-                        <ListItem
-                            leftIcon='faMoneyBill1'
-                            leftIconColor={colors.palette.iconViolet300}
-                            tx="common.pasteEcashToken"
-                            bottomSeparator={true}
-                            /* RightComponent={
-                                <Button
-                                    preset='tertiary'                                    
-                                    LeftAccessory={() => <Icon color={contactIcon} containerStyle={{paddingVertical: 0}} icon='faAddressBook' />}
-                                    onPress={gotoContacts}
-                                    text='Contacts'
-                                    textStyle={{fontSize: 12, color: contactIcon}}
-                                />
-                            }*/
-                        />
-                    }
+                <Card
                     ContentComponent={
                         <>
-                            <Text 
-                                size='xs' 
-                                style={{color: hintText, padding: spacing.extraSmall}} 
-                                tx="pasteEcashTokenDesc"
+                            <ListItem
+                                leftIcon='faMoneyBill1'
+                                tx="common.pasteEcashToken"
+                                bottomSeparator={showTokenInput}
+                                onPress={() => setShowTokenInput((v) => !v)}
                             />
-                            <View style={{alignItems: 'center', marginTop: spacing.small}}>
-                                <TextInput
-                                    ref={tokenInputRef}
-                                    onChangeText={data => setEncodedToken(data)}
-                                    value={encodedToken}
-                                    autoCapitalize='none'
-                                    keyboardType='default'
-                                    maxLength={5000}
-                                    numberOfLines={3}
-                                    multiline={true}                                                    
-                                    selectTextOnFocus={true}
-                                    style={[$addressInput, {backgroundColor: inputBg, color: inputText}]}                        
-                                />
-                            </View>                        
-                            {!!encodedToken && encodedToken?.length > 1 ? (
-                                <View style={$buttonContainer}>
-                                    <Button
-                                        preset='default'
-                                        tx='common.confirm'
-                                        onPress={onConfirm}
-                                        style={{marginLeft: spacing.small}}
-                                        LeftAccessory={() => <Icon icon='faCheckCircle' color='white'/>}
+                            {/* Token Input */}
+                            {showTokenInput && (
+                                <View style={{paddingVertical: spacing.extraSmall}}>
+                                    <Text 
+                                        size='xs' 
+                                        style={{color: hintText, padding: spacing.extraSmall}} 
+                                        tx="pasteEcashTokenDesc"
                                     />
+                                    <View style={{alignItems: 'center', marginTop: spacing.small}}>
+                                        <TextInput
+                                            ref={tokenInputRef}
+                                            onChangeText={data => setEncodedToken(data)}
+                                            value={encodedToken}
+                                            autoCapitalize='none'
+                                            keyboardType='default'
+                                            maxLength={5000}
+                                            numberOfLines={3}
+                                            multiline={true}                                                    
+                                            selectTextOnFocus={true}
+                                            style={[$addressInput, {backgroundColor: inputBg, color: inputText}]}                        
+                                        />
+                                    </View>                        
+                                    {!!encodedToken && encodedToken?.length > 1 ? (
+                                        <View style={[$buttonContainer, {marginTop: spacing.small}]}>
+                                            <Button
+                                                preset='default'
+                                                tx='common.confirm'
+                                                onPress={onConfirm}
+                                                // style={{marginLeft: spacing.small}}
+                                                LeftAccessory={() => <Icon icon='faCheckCircle' color='white'/>}
+                                            />
+                                        </View>
+                                    ) : (
+                                        <View style={[$buttonContainer, {marginTop: spacing.small}]}>
+                                            <Button
+                                                preset='secondary'
+                                                tx={'common.paste'}       
+                                                onPress={onPaste}
+                                                LeftAccessory={() => (
+                                                    <Icon icon='faPaste'/>
+                                                )}
+                                            />
+                                        </View>
+                                    )}  
                                 </View>
-                            ) : (
-                                <View style={$buttonContainer}>
-                                    <Button
-                                        preset='secondary'
-                                        tx={'common.paste'}       
-                                        onPress={onPaste}
-                                        LeftAccessory={() => (
-                                            <Icon icon='faPaste'/>
-                                        )}
-                                    />
-                                    <Button
-                                        preset='secondary'
-                                        tx='common.scan'
-                                        onPress={gotoScan}
-                                        style={{marginLeft: spacing.small}}
-                                        LeftAccessory={() => {
-                                            return(
-                                                <SvgXml 
-                                                    width={spacing.medium} 
-                                                    height={spacing.medium} 
-                                                    xml={ScanIcon}
-                                                    fill={scanIcon}
-                                                    style={{marginHorizontal: spacing.extraSmall}}
-                                                />
-                                            )
-                                        }}
-                                    />
-                                </View>
-                            )}                        
+                            )}
+                            {/* Create Payment Request */}
+                            <ListItem
+                                leftIcon='faQrcode'
+                                tx="common.createCashuPaymentRequest"
+                                onPress={gotoCashuPaymentRequest}
+                                topSeparator={true}
+                            />
                         </>
                     }
-                />
-                <Card
-                    style={{marginTop: spacing.medium}}                 
-                    ContentComponent={
-                        <ListItem
-                            leftIcon='faQrcode'
-                            leftIconColor={colors.palette.iconYellow300}
-                            tx="common.createCashuPaymentRequest"
-                            RightComponent={
-                                <Button
-                                    preset='secondary'                                    
-                                    //LeftAccessory={() => <Icon color={contactIcon} containerStyle={{paddingVertical: 0}} icon='faAddressBook' />}
-                                    onPress={gotoCashuPaymentRequest}
-                                    tx='common.create'
-                                    // textStyle={{fontSize: 12, color: contactIcon}}
-                                />
-                            }
-                        />
-                    }
+                    style={$card}
+                    //style={{marginBottom: spacing.medium}}
                 />
                 <Button
                     tx="tokenReceiveScreen.topupWithLightning"
@@ -291,8 +254,27 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
                         marginTop: spacing.medium
                     }}                    
                 />
-                
+ 
             </View>
+            <View style={$bottomContainer}>
+                <View style={$buttonContainer}>
+                    <Button
+                        preset='tertiary'                                    
+                        LeftAccessory={() => (
+                            <SvgXml 
+                                width={spacing.medium} 
+                                height={spacing.medium} 
+                                xml={ScanIcon}
+                                fill={scanIcon}
+                                style={{marginHorizontal: spacing.extraSmall}}
+                            />
+                        )}
+                        onPress={gotoScan}
+                        style={{backgroundColor: mainButtonColor}}
+                        text='Scan'
+                    />      
+                </View>
+                </View> 
             {error && <ErrorModal error={error} />}
         </Screen>    
     )
@@ -303,10 +285,9 @@ const $screen: ViewStyle = {
 }
 
 const $contentContainer: ViewStyle = {
-    // flex: 1,
     marginTop: -spacing.extraLarge * 2,
     padding: spacing.extraSmall,
-    // alignItems: 'center',
+    flex: 1
 }
 
 const $headerContainer: TextStyle = {
@@ -316,11 +297,10 @@ const $headerContainer: TextStyle = {
 }
 
 const $buttonContainer: ViewStyle = {
-    marginTop: spacing.large,
+    //marginTop: spacing.large,
     flexDirection: 'row',
     alignSelf: 'center',
 }
-
 
 const $addressInput: TextStyle = {     
     textAlignVertical: 'top' ,
@@ -330,15 +310,21 @@ const $addressInput: TextStyle = {
     height: verticalScale(70),
 }
 
+
+const $card: ViewStyle = {
+  marginBottom: 0,
+}
+
 const $bottomContainer: ViewStyle = {
-    position: 'absolute',
+    /*position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     flex: 1,
     justifyContent: 'flex-end',
-    marginBottom: spacing.medium,
-    alignSelf: 'stretch',
+    marginBottom: spacing.medium,*/
+    alignSelf: 'center',
     // opacity: 0,
-}
+  }
+  
 

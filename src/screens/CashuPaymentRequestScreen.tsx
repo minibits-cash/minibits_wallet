@@ -8,7 +8,7 @@ import { useStores } from "../models"
 import { MintBalanceSelector } from "./Mints/MintBalanceSelector"
 import { CurrencyAmount } from "./Wallet/CurrencyAmount"
 import EventEmitter from '../utils/eventEmitter'
-import { getCurrency, MintUnit, CurrencyCode } from "../services/wallet/currency"
+import { getCurrency, MintUnit, CurrencyCode, convertToFromSats } from "../services/wallet/currency"
 import { round, toNumber } from "../utils/number"
 import { translate } from "../i18n"
 import AppError, { Err } from "../utils/AppError"
@@ -25,7 +25,6 @@ import {
   Text,
 } from "../components"
 import useIsInternetReachable from "../utils/useIsInternetReachable"
-import { PaymentRequest} from "@cashu/cashu-ts"
 import {HANDLE_RECEIVED_EVENT_TASK, log, TransactionTaskResult, WalletTask } from "../services"
 import { QRCodeBlock } from "./Wallet/QRCode"
 import { TranItem } from "./TranDetailScreen"
@@ -33,6 +32,7 @@ import { Transaction, TransactionStatus } from "../models/Transaction"
 import { CASHU_PAYMENT_REQUEST_TASK } from "../services/wallet/cashuPaymentRequestTask"
 import { ResultModalInfo } from "./Wallet/ResultModalInfo"
 import { MintHeader } from "./Mints/MintHeader"
+import { verticalScale } from "@gocodingnow/rn-size-matters"
 
 type Props = StaticScreenProps<{
   unit: MintUnit,
@@ -327,32 +327,30 @@ const headerBg = useThemeColor("header")
 const placeholderTextColor = useThemeColor("textDim")
 const amountInputColor = useThemeColor("amountInput")
 const inputText = useThemeColor("text")
-const convertedAmountColor = useThemeColor("headerSubTitle")
+    const convertedAmountColor = useThemeColor('headerSubTitle')    
 
-const getConvertedAmount = () => {
-  if (!walletStore.exchangeRate) return undefined
-  const precision = getCurrency(unit).precision
-  return (
-    round(toNumber(amountToRequest) * precision, 0) &&
-    walletStore.exchangeRate &&
-    walletStore.exchangeRate[getCurrency(unit).code]
-      ? round(
-          (toNumber(amountToRequest) * precision * walletStore.exchangeRate[userSettingsStore.exchangeCurrency]) /
-            walletStore.exchangeRate[getCurrency(unit).code],
-          2,
+    const getConvertedAmount = function () {
+        if (!walletStore.exchangeRate) {
+          return undefined
+        }
+
+        const precision = getCurrency(unit).precision
+        return convertToFromSats(
+            round(toNumber(amountToRequest) * precision, 0) || 0, 
+            getCurrency(unit).code,
+            walletStore.exchangeRate
         )
-      : undefined
-  )
-}
+    }
 
-const isConvertedAmountVisible = () => {
-  return (
-    walletStore.exchangeRate &&
-    (userSettingsStore.exchangeCurrency === getCurrency(unit).code ||
-      unit === "sat") &&
-    getConvertedAmount() !== undefined
-  )
-}
+    const isConvertedAmountVisible = function () {
+      return (
+        walletStore.exchangeRate &&
+        (userSettingsStore.exchangeCurrency === getCurrency(unit).code ||
+          unit === 'sat') &&
+        getConvertedAmount() !== undefined
+      )
+    }
+
 
 return (
   <Screen preset="fixed" contentContainerStyle={$screen}>
@@ -380,26 +378,15 @@ return (
           selectTextOnFocus={true}
           returnKeyType={"done"}
         />
-        {isConvertedAmountVisible() && (
-          <CurrencyAmount
-            amount={getConvertedAmount() ?? 0}
-            currencyCode={
-              unit === "sat"
-                ? userSettingsStore.exchangeCurrency
-                : CurrencyCode.SAT
-            }
-            symbolStyle={{
-              color: convertedAmountColor,
-              marginTop: spacing.tiny,
-              fontSize: 10,
-            }}
-            amountStyle={{
-              color: convertedAmountColor,
-              lineHeight: spacing.small,
-            }}
-            size="small"
-            containerStyle={{ justifyContent: "center" }}
-          />
+        {isConvertedAmountVisible() && ( 
+            <CurrencyAmount
+                amount={getConvertedAmount() ?? 0}
+                currencyCode={unit === 'sat' ? userSettingsStore.exchangeCurrency : CurrencyCode.SAT}
+                symbolStyle={{color: convertedAmountColor, marginTop: spacing.tiny, fontSize: verticalScale(10)}}
+                amountStyle={{color: convertedAmountColor, lineHeight: spacing.small}}                        
+                size='small'
+                containerStyle={{justifyContent: 'center'}}
+            />
         )}
         <Text
           size="xs"

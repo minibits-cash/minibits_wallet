@@ -78,7 +78,7 @@ export const cashuPaymentRequestTask = async function (
           },
         ] as PaymentRequestTransport[]
     
-        const cashuPrId = QuickCrypto.randomBytes(16).toString("hex")
+        const cashuPrId = QuickCrypto.randomBytes(4).toString("hex")
         const cashuPaymentRequest = new CashuPaymentRequest(
           transport,
           cashuPrId,

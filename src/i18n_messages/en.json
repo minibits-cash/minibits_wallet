@@ -487,11 +487,12 @@
 	},
 	"tranDetailScreen": {
 		"amount": "Amount",
+		"paymentId": "Payment ID",
 		"balanceAfter": "Balance after this transaction",
 		"claim": "Claim",
 		"createdAt": "Created at",
 		"expiresAt": "Expires at",
-		"id": "ID",
+		"id": "Transaction ID",
 		"invoice": "Lightning invoice to pay",
 		"isOffline": "Redeem online",
 		"lightningFee": "Lightning network fee",
