@@ -419,7 +419,7 @@ const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
     
     // Offline send
     useEffect(() => {        
-        //if(isInternetReachable) return
+        if(isInternetReachable) return
         log.trace('[Offline send]')
 
         // if offline we set all non-zero mint balances as available to allow ecash selection
@@ -436,7 +436,7 @@ const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
         setAvailableMintBalances(availableBalances)
         setMintBalanceToSendFrom(availableBalances[0])        
         setIsMintSelectorVisible(true)      
-    }, [])
+    }, [isInternetReachable])
 
 
     useEffect(() => {
