@@ -20,7 +20,7 @@
     "clean": "npx react-native-clean-project"
   },
   "dependencies": {
-    "@cashu/cashu-ts": "minibits-cash/cashu-ts#ec5ff88db34d47911e2fa3b97109243b60eee646",
+    "@cashu/cashu-ts": "minibits-cash/cashu-ts#b3ba36757d84ec03f1064029db02308eb3a09cc4",
     "@fortawesome/fontawesome-svg-core": "^6.7.2",
     "@fortawesome/free-brands-svg-icons": "^6.7.2",
     "@fortawesome/free-regular-svg-icons": "^6.7.2",
