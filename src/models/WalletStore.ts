@@ -866,6 +866,81 @@ export const WalletStoreModel = types
                 )
             }
         }),
+        checkLightningMeltQuote: flow(function* checkLightningMeltQuote(  
+          mintUrl: string,
+          quote: string,  
+        ) {
+          try {
+            const cashuMint: CashuMint = yield self.getMint(mintUrl)
+            const quoteResponse: MeltQuoteResponse = yield cashuMint.checkMeltQuote(      
+                quote
+            )
+        
+            log.info('[checkLightningMeltQuote]', {quoteResponse})
+        
+            return quoteResponse
+
+          } catch (e: any) {
+            let message = 'The mint could not return the state of a melt quote.'
+            if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
+            throw new AppError(
+                Err.MINT_ERROR, 
+                message, 
+                {
+                    message: e.message,
+                    caller: 'checkLightningMeltQuote', 
+                    mintUrl,            
+                }
+            )
+          }
+        }),
+        recoverMeltQuoteChange: flow(function* recoverMeltQuoteChange(
+          mintUrl: string,    
+          meltQuote: MeltQuoteResponse,          
+        ) {
+          try {
+            const mintInstance = self.getMintModelInstance(mintUrl)
+            
+            if(!mintInstance) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing mint instance', {mintUrl})
+            }
+
+            const cashuWallet = yield self.getWallet(
+              mintUrl, 
+              'sat', 
+              {
+                  withSeed: true,         
+              }
+            )
+
+            const currentCounter = mintInstance.getProofsCounterByKeysetId!(cashuWallet.keysetId)
+
+            const {change}: MeltProofsResponse = yield cashuWallet.recoverMeltQuoteChange(      
+              meltQuote,
+              {                    
+                keysetId: cashuWallet.keysetId,                    
+                counter: currentCounter.counter                       
+              }
+            )
+        
+            log.info('[recoverMeltQuoteChange]', {change})
+        
+            return change
+
+          } catch (e: any) {
+            let message = 'The mint could not return change from a melt quote.'
+            if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
+            throw new AppError(
+                Err.MINT_ERROR, 
+                message, 
+                {
+                    message: e.message,
+                    caller: 'recoverMeltQuoteChange', 
+                    mintUrl,            
+                }
+            )
+          }
+        }),
         restore: flow(function* restore(  
             mintUrl: string,    
             seed: Uint8Array,

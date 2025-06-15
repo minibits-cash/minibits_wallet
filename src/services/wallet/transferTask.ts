@@ -200,8 +200,6 @@ export const transferTask = async function (
                 throw e
             }
         }
-
-
         
         if (meltResponse.quote.state === MeltQuoteState.PAID) {
             
@@ -222,7 +220,8 @@ export const transferTask = async function (
             let meltFeePaid = meltFeeReserve
             let returnedAmount = CashuUtils.getProofsAmount(meltResponse.change)
 
-            if(meltResponse.change.length > 0) {            
+            if(meltResponse.change.length > 0) {
+
                 WalletUtils.addCashuProofs(
                     mintUrl, 
                     meltResponse.change, 
@@ -243,7 +242,7 @@ export const transferTask = async function (
                 
                 totalFeePaid = totalFeePaid - returnedAmount
                 lightningFeePaid = totalFeePaid - meltFeeReserve
-            }           
+            }         
     
             // Save final fee in db
             if(totalFeePaid !== transaction.fee) {

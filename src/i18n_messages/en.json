@@ -545,7 +545,8 @@
 			"prepared": "Prepared",
 			"reverted": "Reverted",
 			"spent": "Spent",
-			"unspent": "Unspent"
+			"unspent": "Unspent",
+			"recovered": "Recovered"
 		},
 		"tapToRedeem": "Tap to redeem",
 		"unknown": "Unknown transaction",

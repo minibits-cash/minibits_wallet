@@ -124,6 +124,8 @@ export const TransactionListItem = observer(function (props: TransactionListProp
             return translate('transactionCommon.status.completed')
           }
         }
+      case TransactionStatus.RECOVERED:
+        return timeAgo + translate('transactionCommon.status.recovered')
       case TransactionStatus.DRAFT:
         return timeAgo + translate('transactionCommon.status.draft')
       case TransactionStatus.ERROR:
@@ -243,7 +245,7 @@ export const TransactionListItem = observer(function (props: TransactionListProp
           <View style={$txContainer}>
             {([TransactionType.RECEIVE, TransactionType.RECEIVE_OFFLINE, TransactionType.RECEIVE_BY_PAYMENT_REQUEST].includes(tx.type)) && (
                 <>
-                {[TransactionStatus.COMPLETED].includes(tx.status) && (
+                {[TransactionStatus.COMPLETED, TransactionStatus.RECOVERED].includes(tx.status) && (
                     <CurrencyAmount 
                           amount={tx.amount}
                           mintUnit={tx.unit}
