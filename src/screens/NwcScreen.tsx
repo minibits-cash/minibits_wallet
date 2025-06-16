@@ -32,27 +32,14 @@ export const NwcScreen = observer(function NwcScreen(_props) {
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState(false)
-    const [isRemoteDataPushEnabled, setIsRemoteDataPushEnabled] = useState<boolean>(false)
+    const [isRemoteDataPushEnabled, setIsRemoteDataPushEnabled] = useState<boolean>(walletProfileStore.device ? true : false)
 
     useHeader({
         leftIcon: 'faArrowLeft',
         onLeftPress: () => navigation.goBack(),
         rightIcon: isRemoteDataPushEnabled ? 'faRotate' : undefined,
         onRightPress: () => isRemoteDataPushEnabled ? onConnect() : false
-    })
-    
-    useEffect(() => {
-        const getNotificationPermission = async () => {
-            try {                
-                const remoteEnabled = walletProfileStore.device ? true : false
-                setIsRemoteDataPushEnabled(remoteEnabled)              
-            } catch (e: any) {
-                log.warn(e.name, e.message)
-                return false // silent
-            }
-        } 
-        getNotificationPermission()
-    }, [])
+    }) 
 
 
     useEffect(() => {

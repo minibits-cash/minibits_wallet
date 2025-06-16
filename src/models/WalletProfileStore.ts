@@ -97,12 +97,12 @@ export const WalletProfileStoreModel = types
         hydrate: flow(function* hydrate(profileRecord: WalletProfileRecord) {
             const {name, nip05, lud16, avatar, pubkey, walletId} = profileRecord
             
-            self.pubkey = pubkey                
-            self.walletId = walletId
             self.name = name // default name is set on server side, equals walletId
             self.nip05 = nip05 // default is name@minibits.cash set on server side
             self.lud16 = lud16 // equals to nip05 for all @minibits.cash addresses, set on server side
             self.picture = avatar // default picture is set on server side              
+            self.pubkey = pubkey                
+            self.walletId = walletId
 
             yield self.publishToRelays()
         })
@@ -123,7 +123,7 @@ export const WalletProfileStoreModel = types
                 return self 
             } catch (e: any) {
                 // Unlikely we might hit the same walletId so we retry with another one
-                if(e.name === Err.ALREADY_EXISTS_ERROR) {
+                if(e.name.includes(Err.ALREADY_EXISTS_ERROR)) {
                     // recreate walletId + default name
                     const name = getRandomUsername()
                     // attempt to create new unique profile again                    
