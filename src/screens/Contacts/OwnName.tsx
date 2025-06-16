@@ -351,17 +351,16 @@ export const OwnName = observer(function (props: {pubkey: string}) {
                                             text='Minibits'
                                             style={{fontFamily: 'Gluten-Regular', fontSize: 18}}
                                         />{' '}
-                                        kindly asks you for a small donation for your new wallet address.
+                                        <Text text='kindly asks you for a small donation for your new wallet address.' />
                                     </RNText>                                    
                                     <CurrencyAmount
-                                        amount={DEFAULT_DONATION_AMOUNT}
+                                        amount={donationAmount}
                                         currencyCode={CurrencyCode.SAT}
                                         size='extraLarge'
                                         containerStyle={{alignSelf: 'center', marginTop: spacing.medium}}
                                     />                                    
-                                    <RNText style={$supportText}>
-                                        Ready to donate more?
-                                    </RNText>
+                                    <Text style={$supportText} text='Ready to donate more?' />
+                                    
                                     <View style={$buttonContainer}>
                                         <Button
                                             preset="secondary"
