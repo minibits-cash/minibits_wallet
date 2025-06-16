@@ -135,7 +135,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
             }            
         } catch (e: any) {
           // Profile with provided seed hash does not exists
-          if(e.name === Err.NOTFOUND_ERROR) {
+          if(e.name.includes(Err.NOTFOUND_ERROR)) {
             setIsNewProfileNeeded(true)
           } else {
             handleError(e)

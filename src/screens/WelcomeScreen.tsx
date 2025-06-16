@@ -86,7 +86,8 @@ export const WelcomeScreen = function ({ route }: Props) {
     const {
       userSettingsStore, 
       relaysStore, 
-      walletProfileStore,       
+      walletProfileStore,
+      walletStore,       
       mintsStore
     } = useStores()
 
@@ -121,6 +122,7 @@ export const WelcomeScreen = function ({ route }: Props) {
             
             // save keys after successful profile creation
             await KeyChain.saveWalletKeys(keys)
+            walletStore.cleanCachedWalletKeys()
           }
 
           if(!mintsStore.mintExists(MINIBITS_MINT_URL)) {
