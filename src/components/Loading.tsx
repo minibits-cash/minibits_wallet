@@ -5,11 +5,11 @@ import { Text } from './Text'
 import { spacing } from '../theme'
 
 export function Loading(props: ViewProps & { statusMessage?: string, textStyle?: TextStyle, shiftedUp?: boolean }) {
-  const statusBarOnModalOpen = useThemeColor('statusBarOnLoading')
+  //const statusBarOnModalOpen = useThemeColor('statusBarOnLoading')
   const loadingIndicator = useThemeColor('loadingIndicator')
   return (
     <View style={[StyleSheet.absoluteFillObject, $loading(props?.shiftedUp ?? false), props.style]}>
-      <StatusBar backgroundColor={props.style &&  props.style.backgroundColor ? props.style.backgroundColor  : statusBarOnModalOpen } />
+      {/*<StatusBar backgroundColor={props.style &&  props.style.backgroundColor ? props.style.backgroundColor  : statusBarOnModalOpen } />*/}
       <ActivityIndicator color={loadingIndicator} animating size="large" />
       {props.statusMessage && (<Text style={[{opacity: 1}, props.textStyle]} text={props.statusMessage}/>)}
     </View>

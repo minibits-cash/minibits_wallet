@@ -13,7 +13,7 @@ import { CashuUtils, CashuProof } from "../../services/cashu/cashuUtils"
 import { log } from "../../services"
 import { Token, getDecodedToken, getEncodedToken } from '@cashu/cashu-ts';
 
-export type QRCodeBlockTypes = 'EncodedV3Token' | 'EncodedV4Token' | 'Bolt11Invoice' | 'URL' | 'NWC' | 'PUBKEY'
+export type QRCodeBlockTypes = 'EncodedV3Token' | 'EncodedV4Token' | 'Bolt11Invoice' | 'URL' | 'NWC' | 'PUBKEY' | 'PaymentRequest'
 
 const ANIMATED_QR_FRAGMENT_LENGTH = 150
 const ANIMATED_QR_INTERVAL = 250

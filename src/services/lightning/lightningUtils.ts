@@ -57,7 +57,13 @@ const extractEncodedLightningInvoice = function (maybeInvoice: string) {
         return encodedInvoice        
     }
 
-    if (maybeInvoice && maybeInvoice.toLowerCase().startsWith('bitcoin:' || 'http')) {        
+    if (
+        maybeInvoice &&
+        (
+            maybeInvoice.toLowerCase().startsWith('bitcoin:') ||
+            maybeInvoice.toLowerCase().startsWith('http')
+        )
+    ) {        
         const url = new URL(maybeInvoice.toLowerCase())
         // Use URLSearchParams to get the value of the "lightning" parameter
         encodedInvoice = url.searchParams.get("lightning") as string

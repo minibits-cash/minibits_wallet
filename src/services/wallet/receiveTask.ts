@@ -13,7 +13,7 @@ import { DEFAULT_DENOMINATION_TARGET, TransactionTaskResult } from '../walletSer
 import { WalletUtils } from './utils'
 import { MintUnit, formatCurrency, getCurrency } from './currency'
 import { MintProofsCounter } from '../../models/Mint'
-import { Token, getDecodedToken } from '@cashu/cashu-ts'
+import { PaymentRequestPayload, Token, getDecodedToken } from '@cashu/cashu-ts'
 import { getEncodedToken, getKeepAmounts } from '@cashu/cashu-ts/src/utils'
 
 const {
@@ -27,6 +27,7 @@ const {
 export const RECEIVE_TASK = 'receiveTask'
 export const RECEIVE_OFFLINE_PREPARE_TASK = 'receiveOfflinePrepareTask'
 export const RECEIVE_OFFLINE_COMPLETE_TASK = 'receiveOfflineCompleteTask'
+export const RECEIVE_BY_CASHU_PAYMENT_REQUEST_TASK = 'receiveByCashuPaymentRequestTask'
 
 export const receiveTask = async function (
     token: Token,
@@ -274,6 +275,9 @@ export const receiveOfflinePrepareTask = async function (
 }
 
 
+
+
+
 export const receiveOfflineCompleteTask = async function (        
     transactionId: number
 ) {
@@ -390,9 +394,152 @@ export const receiveOfflineCompleteTask = async function (
 }
 
 
+
+export const receiveByCashuPaymentRequestTask = async function (
+    paymentRequestPayload: PaymentRequestPayload,    
+): Promise<TransactionTaskResult> {
+
+  const transactionData: TransactionData[] = []  
+  let transaction: Transaction | undefined = undefined
+  const unit = paymentRequestPayload.unit as MintUnit
+  const mintToReceive = paymentRequestPayload.mint
+  const proofsToReceive = paymentRequestPayload.proofs
+  const paymentRequestId = paymentRequestPayload.id
+
+  try {        
+        if (!mintToReceive || !unit || !Array.isArray(proofsToReceive) || proofsToReceive.length === 0) {
+            throw new AppError(
+                Err.VALIDATION_ERROR,
+                'Payment request payload is invalid.',
+                {paymentRequestPayload}
+            )
+        }                
+
+        // Let's find transaction with related payment request
+        const transaction = transactionsStore.findByPaymentId(paymentRequestId)
+
+        if(!transaction) {
+            throw new AppError(
+                Err.VALIDATION_ERROR,
+                'Related Payment request could not be found in the wallet.',
+                {paymentRequestPayload}
+            )            
+        }
+
+        const amountToReceive = CashuUtils.getProofsAmount(proofsToReceive)        
+        const memo = paymentRequestPayload.memo || 'PR ' + paymentRequestId
+
+        if(transaction.unit !== unit || transaction.amount !== amountToReceive) {
+            throw new AppError(
+                Err.VALIDATION_ERROR,
+                'Related Payment request has different amount or unit than the incoming payment.',
+                {paymentRequestPayload, expctedUnit: transaction.unit, expectedAmount: transaction.amount}
+            ) 
+        }
+        
+        // Handle blocked mint
+        const isBlocked = mintsStore.isBlocked(mintToReceive)
+
+        if (isBlocked) {
+            transactionData.push({
+                status: TransactionStatus.BLOCKED,
+                message: 'Mint is blocked in your Settings, ecash has not been received.',
+            })
+
+            transaction.setStatus(                
+                TransactionStatus.BLOCKED,
+                JSON.stringify(transactionData),
+            )
+
+            return {
+                taskFunction: RECEIVE_BY_CASHU_PAYMENT_REQUEST_TASK,
+                transaction,
+                message: `The mint ${mintToReceive} is blocked. You can unblock it in Settings.`,
+            } as TransactionTaskResult
+        }
+
+        // TODO rework to PR payload
+        const {            
+            receivedAmount,
+            receivedProofs, 
+            outputToken,            
+            swapFeePaid,             
+        } = await receiveSync(
+            mintToReceive,
+            paymentRequestPayload,
+            memo,
+            transaction.id
+        )
+        
+ 
+        // Update tx amount if full amount was not received
+        if (receivedAmount !== amountToReceive) {      
+            transaction.setReceivedAmount(receivedAmount)
+        }
+
+        // Finally, update completed transaction
+        transactionData.push({
+            status: TransactionStatus.COMPLETED,
+            swapFeePaid,         
+            receivedAmount,
+            unit,                      
+            createdAt: new Date(),
+        })
+
+        transaction.setStatus(            
+            TransactionStatus.COMPLETED,
+            JSON.stringify(transactionData),
+        )
+
+        transaction.setOutputToken(outputToken)
+
+        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
+        transaction.setBalanceAfter(balanceAfter)
+
+        if(swapFeePaid > 0) {
+            transaction.setFee(swapFeePaid)
+        }
+
+        return {
+            taskFunction: RECEIVE_BY_CASHU_PAYMENT_REQUEST_TASK,
+            mintUrl: mintToReceive,
+            transaction,
+            message: `Payment request ${paymentRequestId} with amount of ${formatCurrency(receivedAmount, getCurrency(unit).code)} ${getCurrency(unit).code} has been paid.`,
+            receivedAmount,
+            receivedProofsCount: receivedProofs.length
+        } as TransactionTaskResult
+        
+    } catch (e: any) {
+        if (transaction) {            
+
+            transactionData.push({
+                status: TransactionStatus.ERROR,
+                error: WalletUtils.formatError(e),
+                errorToken: e.params?.errorToken || undefined
+            })
+
+            transaction.setStatus(                
+                TransactionStatus.ERROR,
+                JSON.stringify(transactionData),
+            )
+        }
+
+        log.error(e.name, e.message)
+
+        return {
+            taskFunction: RECEIVE_BY_CASHU_PAYMENT_REQUEST_TASK,
+            mintUrl: mintToReceive,
+            transaction,
+            message: e.message,
+            error: WalletUtils.formatError(e),
+        } as TransactionTaskResult
+    }
+}
+
+
 export const receiveSync = async function (
     mintToReceive: string,
-    token: Token,    
+    token: Token | PaymentRequestPayload,    
     memo: string,    
     transactionId: number
 ) {

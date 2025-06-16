@@ -28,7 +28,7 @@ export const PaymentRequestModel = types
         status: types.frozen<PaymentRequestStatus>(),
         mint: types.maybe(types.string),
         mintQuote: types.maybe(types.string),
-        mintUnit: types.maybe(types.frozen<MintUnit>()), // TODO migration to set default unit for existing PRs
+        mintUnit: types.maybe(types.frozen<MintUnit>()),
         mintMethod: types.optional(types.frozen<MintMethod>(), MintMethod.BOLT11), 
         amountToTopup: types.maybe(types.number),  
         encodedInvoice: types.string,

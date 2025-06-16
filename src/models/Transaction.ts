@@ -6,6 +6,7 @@ import { Database } from '../services'
 
 export interface TransactionRecord {
     id: number
+    paymentId?: string | null
     type: TransactionType
     amount: number
     fee: number
@@ -37,6 +38,7 @@ export enum TransactionType {
     RECEIVE = 'RECEIVE',
     RECEIVE_OFFLINE = 'RECEIVE_OFFLINE',
     RECEIVE_NOSTR = 'RECEIVE_NOSTR', // not used
+    RECEIVE_BY_PAYMENT_REQUEST = 'RECEIVE_BY_PAYMENT_REQUEST',
     TOPUP = 'TOPUP',
     TRANSFER = 'TRANSFER',
     NWC_TRANSFER = 'NWC_TRANSFER',
@@ -58,6 +60,7 @@ export enum TransactionStatus {
 export const TransactionModel = types
     .model('Transaction', {        
         id: types.identifierNumber,
+        paymentId: types.maybe(types.maybeNull(types.string)),
         type: types.frozen<TransactionType>(),
         amount: types.integer,
         fee: types.optional(types.integer, 0),
@@ -107,6 +110,11 @@ export const TransactionModel = types
             Database.updateFee(self.id!, fee)            
             self.fee = fee
             log.trace('[setFee]', 'Transaction fee updated', {id: self.id, fee})
+        },
+        setPaymentId(paymentId: string) {            
+            Database.updatePaymentId(self.id!, paymentId)            
+            self.paymentId = paymentId
+            log.trace('[setPaymentId]', 'Transaction paymentId updated', {id: self.id, paymentId})
         },
         setReceivedAmount(amount: number) {            
             Database.updateReceivedAmount(self.id!, amount)

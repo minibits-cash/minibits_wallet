@@ -62,6 +62,14 @@ export const TransactionListItem = observer(function (props: TransactionListProp
         } else {
           return tx.memo ? tx.memo : translate('transactionCommon.youReceived')
         }
+      case TransactionType.RECEIVE_BY_PAYMENT_REQUEST:
+        if (tx.sentFrom) {
+          if (!tx.memo || tx.memo.includes('Sent from Minibits')) {
+            return translate('transactionCommon.from', {sender: getProfileName(tx.sentFrom)})
+          }
+        } else {
+          return tx.memo ? tx.memo : translate('transactionCommon.youReceived')
+        }
       case TransactionType.RECEIVE_OFFLINE:
         if (tx.sentFrom) {
           if (!tx.memo || tx.memo.includes('Sent from Minibits')) {
@@ -116,6 +124,8 @@ export const TransactionListItem = observer(function (props: TransactionListProp
             return translate('transactionCommon.status.completed')
           }
         }
+      case TransactionStatus.RECOVERED:
+        return timeAgo + translate('transactionCommon.status.recovered')
       case TransactionStatus.DRAFT:
         return timeAgo + translate('transactionCommon.status.draft')
       case TransactionStatus.ERROR:
@@ -155,7 +165,7 @@ export const TransactionListItem = observer(function (props: TransactionListProp
         return (<Icon containerStyle={$txIconContainer} icon="faClock" size={spacing.medium} color={txErrorColor}/>)
       }
   
-      if([TransactionType.RECEIVE, TransactionType.TOPUP].includes(tx.type)) {
+      if([TransactionType.RECEIVE, TransactionType.TOPUP, TransactionType.RECEIVE_BY_PAYMENT_REQUEST].includes(tx.type)) {
         if(tx.profile) {
           const profilePicture = getProfilePicture(tx.profile)
           if(profilePicture) {
@@ -167,6 +177,15 @@ export const TransactionListItem = observer(function (props: TransactionListProp
 
       if([TransactionType.RECEIVE_OFFLINE].includes(tx.type)) {
           return (<Icon containerStyle={$txIconContainer} icon="faArrowTurnDown" size={spacing.medium} color={txPendingColor}/>)        
+      }
+
+      if([TransactionType.SEND, TransactionType.TRANSFER].includes(tx.type)) {
+        if(tx.profile) {
+          const profilePicture = getProfilePicture(tx.profile)
+          if(profilePicture) {
+            return profilePicture
+          }
+        }
       }
 
       return (<Icon containerStyle={$txIconContainer} icon="faArrowTurnUp" size={spacing.medium} color={txSendColor}/>)
@@ -224,9 +243,9 @@ export const TransactionListItem = observer(function (props: TransactionListProp
         LeftComponent={getLeftIcon(tx)}  
         RightComponent={
           <View style={$txContainer}>
-            {([TransactionType.RECEIVE, TransactionType.RECEIVE_OFFLINE].includes(tx.type)) && (
+            {([TransactionType.RECEIVE, TransactionType.RECEIVE_OFFLINE, TransactionType.RECEIVE_BY_PAYMENT_REQUEST].includes(tx.type)) && (
                 <>
-                {[TransactionStatus.COMPLETED].includes(tx.status) && (
+                {[TransactionStatus.COMPLETED, TransactionStatus.RECOVERED].includes(tx.status) && (
                     <CurrencyAmount 
                           amount={tx.amount}
                           mintUnit={tx.unit}

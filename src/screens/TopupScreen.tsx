@@ -50,10 +50,13 @@ import {LnurlClient, LnurlWithdrawResult} from '../services/lnurlService'
 import {
   verticalScale,
 } from '@gocodingnow/rn-size-matters'
+
+import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import {
   CurrencyCode,
   MintUnit,  
   getCurrency,
+  convertToFromSats
 } from '../services/wallet/currency'
 import {MintHeader} from './Mints/MintHeader'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
@@ -83,6 +86,8 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
       walletProfileStore,
       transactionsStore,
       relaysStore,
+      walletStore,
+      userSettingsStore
     } = useStores()
     const amountInputRef = useRef<TextInput>(null)
     const memoInputRef = useRef<TextInput>(null)
@@ -304,7 +309,9 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
       }
 
       // Subscribe to the 'sendCompleted' event
-      EventEmitter.on(`ev_${TOPUP_TASK}_result`, handleTopupTaskResult)
+      if(isTopupTaskSentToQueue) {
+        EventEmitter.on(`ev_${TOPUP_TASK}_result`, handleTopupTaskResult)
+      }
 
       // Unsubscribe from the 'sendCompleted' event on component unmount
       return () => {
@@ -346,10 +353,12 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
         }
       }
 
-      EventEmitter.on(
-        `ev_${HANDLE_PENDING_TOPUP_TASK}_result`,
-        handlePendingTopupTaskResult,
-      )
+      if(transactionId) {
+        EventEmitter.on(
+          `ev_${HANDLE_PENDING_TOPUP_TASK}_result`,
+          handlePendingTopupTaskResult,
+        )
+      }
 
       return () => {
         EventEmitter.off(
@@ -367,6 +376,13 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
       setIsResultModalVisible(previousState => !previousState)
 
     const onAmountEndEditing = function () {
+      log.trace("[onAmountEndEditing] called")
+      
+      if(isTopupTaskSentToQueue) {
+        log.trace('[onAmountEndEditing] Topup task already sent to queue, ignoring further edits')
+        return 
+      }
+
       try {
         const precision = getCurrency(unit).precision
         const mantissa = getCurrency(unit).mantissa
@@ -648,6 +664,30 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
     const placeholderTextColor = useThemeColor('textDim')
     const inputText = useThemeColor('text')
     const amountInputColor = useThemeColor('amountInput')
+    const convertedAmountColor = useThemeColor('headerSubTitle')    
+
+    const getConvertedAmount = function () {
+        if (!walletStore.exchangeRate) {
+          return undefined
+        }
+
+        const precision = getCurrency(unit).precision
+        return convertToFromSats(
+            round(toNumber(amountToTopup) * precision, 0) || 0, 
+            getCurrency(unit).code,
+            walletStore.exchangeRate
+        )
+    }
+
+    const isConvertedAmountVisible = function () {
+      return (
+        walletStore.exchangeRate &&
+        (userSettingsStore.exchangeCurrency === getCurrency(unit).code ||
+          unit === 'sat') &&
+        getConvertedAmount() !== undefined
+      )
+    }
+    
 
     return (
       <Screen preset="fixed" contentContainerStyle={$screen}>
@@ -674,11 +714,25 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
                 transactionStatus === TransactionStatus.PENDING ? false : true
               }
               returnKeyType={'done'}
-            />
+            />              
+            {isConvertedAmountVisible() && ( 
+                <CurrencyAmount
+                    amount={getConvertedAmount() ?? 0}
+                    currencyCode={unit === 'sat' ? userSettingsStore.exchangeCurrency : CurrencyCode.SAT}
+                    symbolStyle={{color: convertedAmountColor, marginTop: spacing.tiny, fontSize: verticalScale(10)}}
+                    amountStyle={{color: convertedAmountColor, lineHeight: spacing.small}}                        
+                    size='small'
+                    containerStyle={{justifyContent: 'center'}}
+                />
+            )}
             <Text
-              size="sm"
+              size="xs"
               text={getAmountTitle()}
-              style={{color: amountInputColor, textAlign: 'center'}}
+              style={{
+                color: amountInputColor, 
+                textAlign: 'center', 
+                marginTop: isConvertedAmountVisible() ? -spacing.extraSmall : undefined
+              }}
             />
           </View>
         </View>
@@ -751,7 +805,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
                   gotoContacts={gotoContacts}
                 />
               </>
-            )}
+          )}
           {transaction && transactionStatus === TransactionStatus.COMPLETED && (
             <Card
               style={{padding: spacing.medium}}

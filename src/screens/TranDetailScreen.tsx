@@ -216,7 +216,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
         if (!transaction) { return '' }
 
         switch (transaction?.type) {
-            case TransactionType.RECEIVE || TransactionType.RECEIVE_OFFLINE:
+            case TransactionType.RECEIVE || TransactionType.RECEIVE_OFFLINE || TransactionType.RECEIVE_BY_PAYMENT_REQUEST:
             return `+${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
             case TransactionType.SEND:
             return `-${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
@@ -232,6 +232,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
     const colorScheme = useColorScheme()
     const headerTitle = useThemeColor('headerTitle')
     const inputText = useThemeColor('text')
+    const statusColor = useThemeColor('header')
 
   return (
       <Screen contentContainerStyle={$screen} preset="fixed">        
@@ -253,7 +254,32 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                   preset="heading"
                   text={getFormattedAmount()}
                   style={[$tranAmount, {color: headerTitle}]}
-              />              
+              />
+              {transaction.status !== TransactionStatus.COMPLETED && (
+                  <View
+                    style={[
+                      {
+                        alignSelf: 'center',
+                        marginTop: spacing.tiny,
+                        paddingHorizontal: spacing.tiny,
+                        borderRadius: spacing.tiny,
+                        backgroundColor: colors.palette.primary200,
+                      },
+                    ]}>
+                    <Text
+                      text={transaction.status as string}
+                      style={[
+                        {
+                          color: statusColor,
+                          fontSize: 10,
+                          fontFamily: typography.primary?.light,
+                          padding: 0,
+                          lineHeight: 16,
+                        }
+                      ]}
+                    />
+                  </View>
+              )}           
             </View>
             <ScrollView style={$contentContainer}>
               <Card
@@ -298,7 +324,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                     </View>
                 }
               />
-              {transaction.type === TransactionType.RECEIVE && (
+              {(transaction.type === TransactionType.RECEIVE || transaction.type === TransactionType.RECEIVE_BY_PAYMENT_REQUEST) && (
                 <ReceiveInfoBlock
                   transaction={transaction}
                   isDataParsable={isDataParsable}
@@ -405,7 +431,8 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                 ].includes(transaction.status)
               ) && (
                 <Card
-                  label='Token tracking'   
+                  label='Token tracking'
+                  style={$dataCard}   
                   ContentComponent={
                     <>
                     <ListItem
@@ -722,10 +749,12 @@ const ReceiveInfoBlock = function (props: {
                         isCurrency={true}
                         isFirst={true}
                     />
+                    {transaction.memo && (
                     <TranItem
                         label="tranDetailScreen.memoFromSender"
                         value={transaction.memo as string}
                     />
+                    )}
                     {transaction.sentFrom && (
                       <>
                       {profilePicture ? (
@@ -823,6 +852,12 @@ const ReceiveInfoBlock = function (props: {
                         label="tranDetailScreen.createdAt"
                         value={(transaction.createdAt as Date).toLocaleString()}
                     />
+                    {transaction.paymentId && (
+                      <TranItem
+                          label="tranDetailScreen.paymentId"
+                          value={transaction.paymentId as string}
+                      />
+                    )}
                     <TranItem label="tranDetailScreen.id" value={`${transaction.id}`} />
                 </>
             }
@@ -1037,6 +1072,12 @@ const ReceiveOfflineInfoBlock = function (props: {
                         label="tranDetailScreen.createdAt"
                         value={(transaction.createdAt as Date).toLocaleString()}
                     />
+                    {transaction.paymentId && (
+                      <TranItem
+                          label="tranDetailScreen.paymentId"
+                          value={transaction.paymentId as string}
+                      />
+                    )}
                     <TranItem label="tranDetailScreen.id" value={`${transaction.id}`} />
                 </>
             }
@@ -1503,7 +1544,13 @@ const TopupInfoBlock = function (props: {
                         label="tranDetailScreen.expiresAt"
                         value={(new Date(paymentRequest.expiresAt!)).toLocaleString()}
                       />
-                    )}                    
+                    )}
+                    {transaction.paymentId && (
+                      <TranItem
+                          label="tranDetailScreen.paymentId"
+                          value={transaction.paymentId as string}
+                      />
+                    )}                
                     <TranItem label="tranDetailScreen.id" value={`${transaction.id}`} />            
                 </>
             }
@@ -1748,6 +1795,12 @@ const TransferInfoBlock = function (props: {
               label="tranDetailScreen.createdAt"
               value={(transaction.createdAt as Date).toLocaleString()}
             />
+            {transaction.paymentId && (
+              <TranItem
+                  label="tranDetailScreen.paymentId"
+                  value={transaction.paymentId as string}
+              />
+            )}
             <TranItem label="tranDetailScreen.id" value={`${transaction.id}`} />
           </>
         }
@@ -2003,7 +2056,7 @@ const $contentContainer: TextStyle = {
 const $tranAmount: TextStyle = {
     fontSize: verticalScale(48),
     lineHeight: verticalScale(48),    
-    marginLeft: -20,    
+    //marginLeft: -20,    
 }
 
 const $actionCard: ViewStyle = {

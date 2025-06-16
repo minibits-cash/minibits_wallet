@@ -37,6 +37,10 @@ import { MINIBITS_NIP05_DOMAIN } from '@env'
                 const c = self.contacts.find(c => c.npub === npub)
                 return c ? c : undefined
             },
+            findByLud16: (lud16: string) => {
+                const c = self.contacts.find(c => c.lud16 === lud16)
+                return c ? c : undefined
+            },
             alreadyExists(pubkey: string) {
                 return self.contacts.some(m => m.pubkey === pubkey) ? true : false
             },

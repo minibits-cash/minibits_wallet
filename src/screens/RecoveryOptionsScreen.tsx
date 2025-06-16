@@ -49,14 +49,20 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<AppError | undefined>()
     const [info, setInfo] = useState('')    
-    const [mintBalanceToMintFrom, setMintBalanceToMintFrom] = useState<MintBalance>(mintBalancesRef.current[0])
+    const [mintBalanceToRecoverFrom, setMintBalanceToRecoverFrom] = useState<MintBalance>(mintBalancesRef.current[0])
     const [mintQuote, setMintQuote] = useState<string>('')
+    const [meltQuote, setMeltQuote] = useState<string>('')
     const [mintedAmount, setMintedAmount] = useState<number>(0)
+    const [meltChangeAmount, setMeltChangeAmount] = useState<number>(0)
     const [isSyncStateSentToQueue, setIsSyncStateSentToQueue] = useState<boolean>(false)
-    const [isNotificationModalVisible, setIsNotificationModalVisible] = useState(false) 
+    const [isNotificationModalVisible, setIsNotificationModalVisible] = useState(false)
+    const [isMintQuoteRecoveryStarted, setIsMintQuoteRecoveryStarted] = useState(false)
+    const [isMeltQuoteRecoveryStarted, setIsMeltQuoteRecoveryStarted] = useState(false)
     const [isMintSelectorModalVisible, setIsMintSelectorModalVisible] = useState(false)
-    const [isMintQuoteModalVisible, setIsMintQuoteModalVisible] = useState(false) 
-    const [isMintQuoteResultModalVisible, setIsMintQuoteResultModalVisible] = useState(false) 
+    const [isMintQuoteModalVisible, setIsMintQuoteModalVisible] = useState(false)
+    const [isMeltQuoteModalVisible, setIsMeltQuoteModalVisible] = useState(false) 
+    const [isMintQuoteResultModalVisible, setIsMintQuoteResultModalVisible] = useState(false)
+    const [isMeltQuoteResultModalVisible, setIsMeltQuoteResultModalVisible] = useState(false) 
 
 
     useEffect(() => {
@@ -100,9 +106,15 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
       setIsMintQuoteModalVisible(previousState => !previousState)
 
 
+    const toggleMeltQuoteModal = () =>
+      setIsMeltQuoteModalVisible(previousState => !previousState)
+
+
     const toggleMintQuoteResultModal = () =>
       setIsMintQuoteResultModalVisible(previousState => !previousState)
 
+    const toggleMeltQuoteResultModal = () =>
+      setIsMeltQuoteResultModalVisible(previousState => !previousState)
 
     const gotoSeedRecovery = function () {
       //@ts-ignore
@@ -156,19 +168,30 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
     }
 
     const onMintBalanceSelect = function (balance: MintBalance) {
-      setMintBalanceToMintFrom(balance)
+      setMintBalanceToRecoverFrom(balance)
     }
 
     const onMintBalanceConfirm = function () {      
       toggleMintSelectorModal()
 
-      if(mintBalanceToMintFrom) {
+      if(setMintBalanceToRecoverFrom) {
         if(Platform.OS === 'ios') {
           setTimeout(() => {
-            toggleMintQuoteModal()
+            if(isMeltQuoteRecoveryStarted) {
+              toggleMeltQuoteModal()
+            }
+            if(isMintQuoteRecoveryStarted) {
+              toggleMintQuoteModal()
+            }
+            
           }, 500)
         } else {
-          toggleMintQuoteModal()
+          if(isMeltQuoteRecoveryStarted) {
+            toggleMeltQuoteModal()
+          }
+          if(isMintQuoteRecoveryStarted) {
+            toggleMintQuoteModal()
+          }
         }
       }      
     }
@@ -177,20 +200,29 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
       toggleMintSelectorModal()      
     }
 
-    const onPasteQuote = async function () {
+    const onPasteMintQuote = async function () {
       const quote = await Clipboard.getString()
       if (!quote || quote.length !== 40) {
           setInfo('Invalid mint quote')
           return
       }  
       setMintQuote(quote)      
-  }
+    }
+
+    const onPasteMeltQuote = async function () {
+      const quote = await Clipboard.getString()
+      if (!quote || quote.length !== 40) {
+          setInfo('Invalid melt quote')
+          return
+      }  
+      setMeltQuote(quote)      
+    }
 
     const onMintEcashFromQuote = async function () {
       setIsLoading(true)
       toggleMintQuoteModal()
       try {
-        if(!mintBalanceToMintFrom) {
+        if(!mintBalanceToRecoverFrom) {
           throw new AppError(Err.VALIDATION_ERROR, 'Mint is not selected.')
         }
 
@@ -199,7 +231,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
         }
 
         const result = await WalletTask.recoverMintQuote({
-          mintUrl: mintBalanceToMintFrom.mintUrl,
+          mintUrl: mintBalanceToRecoverFrom.mintUrl,
           mintQuote
         })
 
@@ -208,6 +240,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
         if(result.recoveredAmount > 0) {
           setMintedAmount(result.recoveredAmount)
           toggleMintQuoteResultModal()
+          resetState()
         } else {
           throw new AppError(Err.MINT_ERROR, 'Could not mint ecash from provided mint quote.')
         }
@@ -216,17 +249,74 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
       }
     }
 
+    const onRecoverChangeFromQuote = async function () {
+      setIsLoading(true)
+      toggleMeltQuoteModal()
+      try {
+        if(!mintBalanceToRecoverFrom) {
+          throw new AppError(Err.VALIDATION_ERROR, 'Mint is not selected.')
+        }
+
+        if(meltQuote.length !== 40) {
+          throw new AppError(Err.VALIDATION_ERROR, 'Melt quote must have 40 characters.')
+        }
+
+        const result = await WalletTask.recoverMeltQuoteChange({
+          mintUrl: mintBalanceToRecoverFrom.mintUrl,
+          meltQuote
+        })
+
+        setIsLoading(false)
+
+        if(result.recoveredAmount > 0) {
+          setMeltChangeAmount(result.recoveredAmount)
+          toggleMeltQuoteResultModal()
+          resetState()
+        } else {
+          throw new AppError(Err.MINT_ERROR, 'Could not recover any change from provided melt quote.')
+        }
+      } catch (e: any) {
+        handleError(e)
+      }
+    }
+
     const handleError = function (e: AppError): void {
       log.error(e.name, e.message)
-      setIsLoading(false)
+      resetState()
       setError(e)
+    }
+
+    const startMeltQuoteRecovery = function(): void {
+      setIsMeltQuoteRecoveryStarted(true)
+      toggleMintSelectorModal()
+      
+    }
+  
+    const startMintQuoteRecovery = function(): void {
+      setIsMintQuoteRecoveryStarted(true)
+      toggleMintSelectorModal()
+    }
+
+    const resetState = function () {
+      setIsLoading(false)
+      setError(undefined)
+      setInfo('')
+      setMintedAmount(0)
+      setMeltChangeAmount(0)
+      setMintQuote('')
+      setMeltQuote('')
+      setIsSyncStateSentToQueue(false)
+      setIsMintQuoteRecoveryStarted(false)
+      setIsMeltQuoteRecoveryStarted(false)
+      setMintBalanceToRecoverFrom(mintBalancesRef.current[0])
     }
 
     const headerBg = useThemeColor('header')
     const inputBg = useThemeColor('background')
     const mintsModalBg = useThemeColor('background')
     const inputText = useThemeColor('text')
-    
+  
+
     return (
       <Screen preset="fixed" contentContainerStyle={$screen}>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
@@ -326,10 +416,11 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
                   }
               />
               <Card
-                  style={$card}
-                  HeadingComponent={
-                  <>                
-                      <ListItem
+                label='Experimental tools'
+                style={[$card, {marginBottom: spacing.huge * 2}]}
+                HeadingComponent={
+                <>         
+                    <ListItem
                           text="Recover mint quote"
                           subText="Retry to mint ecash from an already paid mint quote."
                           leftIcon='faCoins'
@@ -338,18 +429,36 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
                           RightComponent={
                               <View style={$rightContainer}>
                                   <Button
-                                      onPress={toggleMintSelectorModal}
+                                      onPress={startMintQuoteRecovery}
                                       text='Start'
                                       preset='secondary'                                           
                                   /> 
                               </View>                           
                           } 
                           style={$item}                        
-                      />
-                  </>
-                  }
+                    />       
+                    <ListItem
+                        text="Recover melt quote change"
+                        subText="Retry to receive back unspent ecash from a completed Lightning payment."
+                        leftIcon='faArrowTurnDown'
+                        leftIconColor={colors.palette.iconGreyBlue400}
+                        leftIconInverse={true}
+                        topSeparator={true}
+                        RightComponent={
+                            <View style={$rightContainer}>
+                                <Button
+                                    onPress={startMeltQuoteRecovery}
+                                    text='Start'
+                                    preset='secondary'                                           
+                                /> 
+                            </View>                           
+                        } 
+                        style={$item}                        
+                    />
+                </>
+                }
               />
-              </>
+            </>
             )} 
           {isLoading && <Loading />}        
           {error && <ErrorModal error={error} />}
@@ -389,7 +498,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
                 confirmTitle={'Confirm'}
                 collapsible={false}                
                 onMintBalanceSelect={onMintBalanceSelect}
-                selectedMintBalance={mintBalanceToMintFrom}
+                selectedMintBalance={mintBalanceToRecoverFrom}
                 onCancel={onMintBalanceCancel}              
                 onMintBalanceConfirm={onMintBalanceConfirm}
               />
@@ -418,7 +527,38 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
                         tx={'common.paste'}
                         preset='secondary'
                         style={$pasteButton}
-                        onPress={onPasteQuote}
+                        onPress={onPasteMintQuote}
+                    />                    
+                </View>
+                <View style={[$buttonContainer, {marginTop: spacing.medium}]}> 
+                    <Button onPress={onMintEcashFromQuote} text='Mint ecash' />
+                </View>                
+            </View>
+          }
+          onBackButtonPress={toggleMintQuoteModal}
+          onBackdropPress={toggleMintQuoteModal}
+        />
+        <BottomModal
+          isVisible={isMintQuoteModalVisible ? true : false}          
+          ContentComponent={
+            <View style={$quoteContainer}>
+                <Text text='Enter mint quote' />
+                <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
+                    <TextInput
+                        ref={mintQuoteInputRef}
+                        onChangeText={(quote) => setMintQuote(quote)}
+                        value={mintQuote}
+                        autoCapitalize='none'
+                        keyboardType='default'
+                        maxLength={40}                        
+                        selectTextOnFocus={true}
+                        style={[$quoteInput, {backgroundColor: inputBg, color: inputText}]}
+                    />
+                    <Button
+                        tx={'common.paste'}
+                        preset='secondary'
+                        style={$pasteButton}
+                        onPress={onPasteMintQuote}
                     />                    
                 </View>
                 <View style={[$buttonContainer, {marginTop: spacing.medium}]}> 
@@ -451,13 +591,66 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
           onBackButtonPress={toggleMintQuoteResultModal}
           onBackdropPress={toggleMintQuoteResultModal}
         />
+        <BottomModal
+          isVisible={isMeltQuoteModalVisible ? true : false}          
+          ContentComponent={
+            <View style={$quoteContainer}>
+                <Text text='Enter melt quote' />
+                <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
+                    <TextInput
+                        ref={mintQuoteInputRef}
+                        onChangeText={(quote) => setMeltQuote(quote)}
+                        value={meltQuote}
+                        autoCapitalize='none'
+                        keyboardType='default'
+                        maxLength={40}                        
+                        selectTextOnFocus={true}
+                        style={[$quoteInput, {backgroundColor: inputBg, color: inputText}]}
+                    />
+                    <Button
+                        tx={'common.paste'}
+                        preset='secondary'
+                        style={$pasteButton}
+                        onPress={onPasteMeltQuote}
+                    />                    
+                </View>
+                <View style={[$buttonContainer, {marginTop: spacing.medium}]}> 
+                    <Button onPress={onRecoverChangeFromQuote} text='Recover change' />
+                </View>                
+            </View>
+          }
+          onBackButtonPress={toggleMintQuoteModal}
+          onBackdropPress={toggleMintQuoteModal}
+        />
+        <BottomModal
+          isVisible={isMeltQuoteResultModalVisible ? true : false}          
+          ContentComponent={
+            <>
+              <ResultModalInfo
+                icon="faCheckCircle"
+                iconColor={colors.palette.success200}
+                title="Success!"
+                message={`Successfully recovered ${meltChangeAmount} SAT from the provided melt quote.`}
+              />
+              <View style={$buttonContainer}>
+                <Button
+                    preset="secondary"
+                    tx={'common.close'}
+                    onPress={toggleMeltQuoteResultModal}
+                />                      
+              </View>
+            </>
+          }
+          onBackButtonPress={toggleMeltQuoteResultModal}
+          onBackdropPress={toggleMeltQuoteResultModal}
+        />
       </Screen>
     )
   },
 )
 
 const $screen: ViewStyle = {
-  flex: 1,
+  //flex: 1,
 }
 
 const $headerContainer: TextStyle = {
@@ -467,7 +660,7 @@ const $headerContainer: TextStyle = {
 }
 
 const $contentContainer: TextStyle = {
-  flex: 1,
+  //flex: 1,
   marginTop: -spacing.extraLarge * 2,
   padding: spacing.extraSmall,
   // alignItems: 'center',

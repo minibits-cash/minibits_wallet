@@ -15,7 +15,7 @@ import {CashuProof, CashuUtils} from './cashu/cashuUtils'
 import {LightningUtils} from './lightning/lightningUtils'
 import AppError, {Err} from '../utils/AppError'
 import {MintBalance, MintStatus} from '../models/Mint'
-import {MeltQuoteResponse, MintQuoteState, Token, getDecodedToken, getEncodedToken} from '@cashu/cashu-ts'
+import {MeltQuoteResponse, MeltQuoteState, MintQuoteState, PaymentRequestPayload, Token, getDecodedToken, getEncodedToken} from '@cashu/cashu-ts'
 import {Mint} from '../models/Mint'
 import {pollerExists, stopPolling} from '../utils/poller'
 import { NostrClient, NostrEvent, NostrProfile } from './nostrService'
@@ -24,7 +24,12 @@ import { PaymentRequest, PaymentRequestStatus, PaymentRequestType } from '../mod
 import { IncomingDataType, IncomingParser } from './incomingParser'
 import { Contact } from '../models/Contact'
 import { SyncQueue } from './syncQueueService'
-import { receiveTask, receiveOfflinePrepareTask, receiveOfflineCompleteTask} from './wallet/receiveTask'
+import { 
+    receiveTask, 
+    receiveOfflinePrepareTask, 
+    receiveOfflineCompleteTask, 
+    receiveByCashuPaymentRequestTask
+} from './wallet/receiveTask'
 import { sendTask } from './wallet/sendTask'
 import { topupTask } from './wallet/topupTask'
 import { transferTask } from './wallet/transferTask'
@@ -33,9 +38,10 @@ import { WalletUtils } from './wallet/utils'
 import { NotificationService } from './notificationService'
 import { CurrencyCode, MintUnit, formatCurrency, getCurrency } from './wallet/currency'
 import { MinibitsClient } from './minibitsService'
-import { KeyChain } from './keyChain'
 import { UnsignedEvent } from 'nostr-tools'
 import { Platform } from 'react-native'
+import { cashuPaymentRequestTask } from './wallet/cashuPaymentRequestTask'
+import { sumBlindSignatures } from '@cashu/cashu-ts/src/utils'
 
 /**
  * The default number of proofs per denomination to keep in a wallet.
@@ -127,6 +133,12 @@ type WalletTaskService = {
         contactToSendTo?: Contact,
         nwcEvent?: NostrEvent
     ) => Promise<void>
+    cashuPaymentRequestQueue: (
+        mintBalanceToReceiveTo: MintBalance,
+        amountToRequest: number,
+        unit: MintUnit,
+        memo: string,
+    ) => Promise<void>
     revertQueue: (
         transaction: Transaction
     ) => Promise<void>
@@ -134,6 +146,10 @@ type WalletTaskService = {
     recoverMintQuote: (params: {
         mintUrl: string, 
         mintQuote: string
+    }) => Promise<{recoveredAmount: number}>
+    recoverMeltQuoteChange: (params: {
+        mintUrl: string, 
+        meltQuote: string
     }) => Promise<{recoveredAmount: number}>
 }
 
@@ -536,6 +552,26 @@ const topupQueue = async function (
             memo,
             contactToSendTo,
             nwcEvent
+        )
+    )
+    return
+}
+
+
+const cashuPaymentRequestQueue = async function (
+    mintBalanceToReceiveTo: MintBalance,
+    amountToRequest: number,
+    unit: MintUnit,
+    memo: string,
+): Promise<void> {
+    const now = new Date().getTime()
+    SyncQueue.addPrioritizedTask(
+        `cashuPaymentRequestTask-${now}`,            
+        async () => await cashuPaymentRequestTask(
+            mintBalanceToReceiveTo,
+            amountToRequest,
+            unit,
+            memo,
         )
     )
     return
@@ -1719,7 +1755,7 @@ const recoverMintQuote = async function (params: {mintUrl: string, mintQuote: st
 
     switch (state) {            
         case MintQuoteState.UNPAID:
-            log.trace('[handlePendingTopupTask] Quote not paid', {mintUrl, mintQuote})                
+            log.trace('[recoverMintQuote] Quote not paid', {mintUrl, mintQuote})                
             throw new AppError(Err.VALIDATION_ERROR, `Quote ${mintQuote} is not paid`)                
         case MintQuoteState.PAID:
             const invoice = LightningUtils.decodeInvoice(encodedInvoice)
@@ -1761,7 +1797,7 @@ const recoverMintQuote = async function (params: {mintUrl: string, mintQuote: st
             } catch (e: any) {
                 if(e.message.includes('outputs have already been signed before')) {
                     
-                    log.error('[handlePendingTopupTask] Increasing proofsCounter outdated values and repeating mintProofs.')                        
+                    log.error('[recoverMintQuote] Increasing proofsCounter outdated values and repeating mintProofs.')                        
     
                     proofs = (await walletStore.mintProofs(
                         mintUrl as string,
@@ -1795,14 +1831,14 @@ const recoverMintQuote = async function (params: {mintUrl: string, mintQuote: st
     
             // update related tx
             const transactionDataUpdate = {
-                status: TransactionStatus.COMPLETED,
+                status: TransactionStatus.RECOVERED,
                 createdAt: new Date(),
             }
     
             // await for final status
             await transactionsStore.updateStatuses(
                 [transactionId],
-                TransactionStatus.COMPLETED,
+                TransactionStatus.RECOVERED,
                 JSON.stringify(transactionDataUpdate),
             )
             
@@ -1816,15 +1852,172 @@ const recoverMintQuote = async function (params: {mintUrl: string, mintQuote: st
             * ISSUED 
             */
         case MintQuoteState.ISSUED:
-            log.trace('[handlePendingTopupTask] Quote already issued', {mintUrl, mintQuote})            
+            log.trace('[recoverMintQuote] Quote already issued', {mintUrl, mintQuote})            
 
             throw new AppError(Err.VALIDATION_ERROR, `Quote ${mintQuote} already issued.`) 
         /* 
             * UNKNOWN 
             */
         default:
-            log.error(`[handlePendingTopupTask] Unknown MintQuoteState`, {state})
+            log.error(`[recoverMintQuote] Unknown MintQuoteState`, {state})
             throw new AppError(Err.VALIDATION_ERROR, `Quote ${mintQuote} has unknown state ${state}`)        
+    }   
+
+}
+
+
+const recoverMeltQuoteChange = async function (params: {mintUrl: string, meltQuote: string}): Promise<{recoveredAmount: number}> {
+    const {mintUrl, meltQuote} = params
+    const mintInstance = mintsStore.findByUrl(mintUrl as string)
+    const unit = 'sat'    
+    
+    if(!mintInstance || !meltQuote) {
+        throw new AppError(Err.VALIDATION_ERROR, 'Missing mint or melt quote', {mintUrl})
+    }
+    
+    // check is quote has been paid
+    const meltQuoteResponse: MeltQuoteResponse = await walletStore.checkLightningMeltQuote(mintUrl, meltQuote)
+    const {quote, state} = meltQuoteResponse
+    const amountToRecover = sumBlindSignatures(meltQuoteResponse.change)
+
+    if (quote !== meltQuote) {
+        throw new AppError(Err.VALIDATION_ERROR, 'Returned quote is different then the one requested', {mintUrl, meltQuoteResponse, meltQuote})
+    }
+
+    switch (state) {
+        /* 
+        * UNPAID 
+        */          
+        case MeltQuoteState.UNPAID:
+            log.trace('[recoverMeltQuoteChange] Quote not paid', {mintUrl, meltQuote})                
+            throw new AppError(Err.VALIDATION_ERROR, `Quote ${meltQuote} is not paid`) 
+        /* 
+        * PENDING 
+        */
+        case MeltQuoteState.PENDING:
+            log.trace('[recoverMeltQuoteChange] Quote is pending', {mintUrl, meltQuote})            
+
+            throw new AppError(Err.VALIDATION_ERROR, `Quote ${meltQuote} is still pending.`)   
+        /* 
+        * PAID 
+        */             
+        case MeltQuoteState.PAID:
+
+            if(!meltQuoteResponse.change || meltQuoteResponse.change.length === 0) {
+                throw new AppError(Err.VALIDATION_ERROR, `Quote ${meltQuote} has not any change to recover.`) 
+            }
+
+            // Not sure how to find related transfer transaction, so create new one
+            // TODO extent transaction model to store melt quote so we can search by it
+            const transactionData: TransactionData[] = [
+                {
+                    status: TransactionStatus.DRAFT,
+                    amountToRecover,
+                    unit,
+                    meltQuoteToRecover: quote,
+                    createdAt: new Date(),
+                }
+            ]
+
+            const newTransaction = {
+                type: TransactionType.RECEIVE,
+                amount: amountToRecover,
+                fee: 0,
+                unit,
+                data: JSON.stringify(transactionData),
+                memo: 'Melt quote change recovery',
+                mint: mintUrl,
+                status: TransactionStatus.DRAFT,
+            }
+            // store tx in db and in the model
+            const transaction = await transactionsStore.addTransaction(newTransaction)
+            const transactionId = transaction.id
+
+            try {
+
+                const change = await walletStore.recoverMeltQuoteChange(
+                    mintUrl as string,
+                    meltQuoteResponse
+                )
+                
+                // Force swap with the mint to make sure that change proofs are valid
+                const {proofsToSend, returnedProofs} = await walletStore.send(
+                    mintUrl as string,
+                    0,
+                    unit,
+                    change as Proof[],
+                    transactionId,
+                    {
+                        increaseCounterBy: change.length, //if we missed to receive the change before, counter might be outdated
+                        p2pk: undefined,
+                    }
+                )
+
+                log.debug('[recoverMeltQuoteChange] Swapped proofs', {proofsToSend, returnedProofs})
+
+                
+                if (!returnedProofs || returnedProofs.length === 0) {        
+                    throw new AppError(Err.VALIDATION_ERROR, 'Mint did not return any proofs.')
+                }
+        
+                const {addedAmount: recoveredAmount} = WalletUtils.addCashuProofs(
+                    mintUrl as string,
+                    returnedProofs,
+                    {
+                        unit,
+                        transactionId,
+                        isPending: false               
+                    }
+                )
+                
+                if(amountToRecover !== recoveredAmount) {
+                    transaction.setReceivedAmount(recoveredAmount)
+                }
+        
+                // update related tx
+                const transactionDataUpdate = {
+                    status: TransactionStatus.RECOVERED,
+                    recoveredAmount,
+                    createdAt: new Date(),
+                }
+        
+                // await for final status
+                await transactionsStore.updateStatuses(
+                    [transactionId],
+                    TransactionStatus.RECOVERED,
+                    JSON.stringify(transactionDataUpdate),
+                )
+                
+                // Update tx with current total balance of topup unit/currency
+                const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!            
+                const outputToken = getEncodedToken({
+                    mint: mintUrl,
+                    proofs: returnedProofs,
+                    unit,
+                })
+                transaction.setBalanceAfter(balanceAfter)
+                transaction.setOutputToken(outputToken)          
+                                
+                return { recoveredAmount }
+
+            } catch (e: any) {
+                transactionData.push({
+                    status: TransactionStatus.ERROR,
+                    error: WalletUtils.formatError(e),
+                    createdAt: new Date()
+                })
+    
+                transaction.setStatus(                
+                    TransactionStatus.ERROR,
+                    JSON.stringify(transactionData),
+                )
+            }
+        /* 
+        * UNKNOWN 
+        */
+        default:
+            log.error(`[recoverMeltQuoteChange] Unknown MeltQuoteState`, {state: meltQuoteResponse.state})
+            throw new AppError(Err.VALIDATION_ERROR, `Quote ${meltQuote} has unknown state ${meltQuoteResponse.state}`)        
     }   
 
 }
@@ -2089,7 +2282,7 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
         // this is not valid for events sent from LNURL bridge, that are sent and signed by a minibits server key
         // and *** do not contain sentFrom *** // LEGACY, replaced by claim api
         let sentFromPubkey = directMessageEvent.pubkey
-        let sentFrom = NostrClient.getFirstTagValue(directMessageEvent.tags, 'from')
+        let sentFrom = NostrClient.getFirstTagValue(directMessageEvent.tags, 'from') as string
         let sentFromNpub = NostrClient.getNpubkey(sentFromPubkey)
         let contactFrom: Contact | undefined = undefined
         let zapSenderProfile: NostrProfile | undefined = undefined 
@@ -2195,12 +2388,7 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
                 message: 'Incoming ecash token has been received.',
                 proofsCount: decoded.proofs.length,
                 proofsAmount: receivedAmount,
-                notificationInputs: {
-                    event: directMessageEvent,
-                    decrypted: decryptedMessage,
-                    transaction,
-                    receivedAmount
-                } // not used`
+                transaction
             } as WalletTaskResult                  
         }
 
@@ -2259,13 +2447,46 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
                 paymentRequest            
             } as WalletTaskResult
         }
-        else if(incoming.type === IncomingDataType.CASHU_PAYMENT_REQUEST) {
-            throw new AppError(Err.NOTFOUND_ERROR, 'CASHU_PAYMENT_REQUEST support is not yet implemented.', {caller: HANDLE_RECEIVED_EVENT_TASK})
+
+        else if(incoming.type === IncomingDataType.CASHU_PAYMENT_REQUEST_PAYLOAD) {
+            const decoded: PaymentRequestPayload = JSON.parse(incoming.encoded)
+            log.trace('[handleReceivedEventTask]', 'Decoded payment request payload', {decoded})
+
+            const {transaction, receivedAmount, message} = await receiveByCashuPaymentRequestTask(
+                decoded
+            )
+
+            // store contact or zapseder in tx details
+            if(transaction && sentFrom) {
+                if (contactFrom) {
+                    transaction.setProfile(JSON.stringify(contactFrom))
+                    transaction.setSentFrom(sentFrom)
+                }
+    
+                // We do it defensively only after cash is received
+                // and asynchronously so we speed up queue
+                _sendReceiveNotification(
+                    receivedAmount,
+                    transaction.unit,
+                    false,
+                    sentFrom,
+                    sentFromPicture                
+                ) // TODO move to task result handler
+            }
+
+            return {
+                mintUrl: decoded.mint,
+                taskFunction: HANDLE_RECEIVED_EVENT_TASK,
+                message,
+                proofsCount: decoded.proofs.length,
+                proofsAmount: receivedAmount,
+                transaction,
+            } as WalletTaskResult   
         }            
         else if (incoming.type === IncomingDataType.LNURL) {
             throw new AppError(Err.NOTFOUND_ERROR, 'LNURL support is not yet implemented.', {caller: HANDLE_RECEIVED_EVENT_TASK})
         } else {
-            throw new AppError(Err.NOTFOUND_ERROR, 'Received unknown message', incoming)
+            throw new AppError(Err.NOTFOUND_ERROR, 'Received unknown event message', {caller: HANDLE_RECEIVED_EVENT_TASK,incoming})
         }
     } catch (e: any) {
         log.error('[handleReceivedEventTask]', e.name, e.message)
@@ -2364,7 +2585,9 @@ export const WalletTask: WalletTaskService = {
     swapAllQueue,
     transferQueue,      
     topupQueue,
+    cashuPaymentRequestQueue,
     revertQueue,
     testQueue,
-    recoverMintQuote
+    recoverMintQuote,
+    recoverMeltQuoteChange
 }

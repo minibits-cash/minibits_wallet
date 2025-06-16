@@ -10,7 +10,8 @@
 	"amount": {
 		"requested": "Requested amount",
 		"topup": "Topup amount",
-		"withdraw": "Withdraw amount"
+		"withdraw": "Withdraw amount",
+		"send": "Amount to send"
 	},
 	"attention": "Attention!",
 	"backupScreen": {
@@ -65,6 +66,7 @@
 		"paste": "Paste",
 		"pasteEcash": "Paste ecash",
 		"pasteEcashToken": "Paste ecash token",
+		"createCashuPaymentRequest": "Create payment request",
 		"qr": "QR Code",
 		"reconnect": "Reconnect",
 		"reset": "Reset",
@@ -243,7 +245,7 @@
 	"nsecPrivatePublicKeyMismatchError": "Provided private key does not match your new profile public key.",
 	"numberOfBackedupProofs": "Number of stored proofs",
 	"onDeviceInfo": "On-device information",
-	"pasteEcashTokenDesc": "Paste ecash token you want to receive.",
+	"pasteEcashTokenDesc": "Ecash token you want to receive.",
 	"payCommon": {
 		"amountToPayLabel": "Amount to pay",
 		"amountZeroOrNegative": "Amount should be positive number.",
@@ -269,6 +271,7 @@
 		"requestPayment": "Request payment",
 		"send": "Send",
 		"withdraw": "Withdraw"
+		
 	},
 	"payerMemo": "Memo for the payer",
 	"paymentRequestScreen": {
@@ -478,13 +481,18 @@
 		"sendRequest": "Send request",
 		"invoiceCreatedDescParam": "Your selected mint balance to top up is %{mintUrl}"
 	},
+	"cashuPaymentRequest": {
+		"to": "Receive to",
+		"create": "Create request"
+	},
 	"tranDetailScreen": {
 		"amount": "Amount",
+		"paymentId": "Payment ID",
 		"balanceAfter": "Balance after this transaction",
 		"claim": "Claim",
 		"createdAt": "Created at",
 		"expiresAt": "Expires at",
-		"id": "ID",
+		"id": "Transaction ID",
 		"invoice": "Lightning invoice to pay",
 		"isOffline": "Redeem online",
 		"lightningFee": "Lightning network fee",
@@ -537,7 +545,8 @@
 			"prepared": "Prepared",
 			"reverted": "Reverted",
 			"spent": "Spent",
-			"unspent": "Unspent"
+			"unspent": "Unspent",
+			"recovered": "Recovered"
 		},
 		"tapToRedeem": "Tap to redeem",
 		"unknown": "Unknown transaction",

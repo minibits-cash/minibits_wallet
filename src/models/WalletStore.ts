@@ -470,7 +470,9 @@ export const WalletStoreModel = types
                 return {proofs, swapFeePaid}
 
             } catch (e: any) {
-                if(!e.message.toLowerCase().includes('timeout')) {
+                if(!e.message.toLowerCase().includes('timeout') &&
+                   !e.message.toLowerCase().includes('network request failed')) {
+                  // remove in-flight request only if it was not a timeout or network error
                   currentCounter.removeInFlightRequest(transactionId)
                 }                
                 throw new AppError(
@@ -555,9 +557,11 @@ export const WalletStoreModel = types
                 }
 
             } catch (e: any) {
-                if(!e.message.toLowerCase().includes('timeout')) {
-                  currentCounter.removeInFlightRequest(transactionId)
-                }      
+              if(!e.message.toLowerCase().includes('timeout') &&
+                 !e.message.toLowerCase().includes('network request failed')) {
+                // remove in-flight request only if it was not a timeout or network error
+                currentCounter.removeInFlightRequest(transactionId)
+              }  
 
                 let message = 'Swap to prepare ecash to send has failed.'
                 if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
@@ -732,9 +736,11 @@ export const WalletStoreModel = types
                 return proofs
         
             } catch (e: any) {
-                if(!e.message.toLowerCase().includes('timeout')) {
+                if(!e.message.toLowerCase().includes('timeout') &&
+                   !e.message.toLowerCase().includes('network request failed')) {
+                  // remove in-flight request only if it was not a timeout or network error
                   currentCounter.removeInFlightRequest(transactionId)
-                }      
+                }       
                 
                 let message = 'Error on request to mint new ecash.'
                 if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
@@ -841,7 +847,9 @@ export const WalletStoreModel = types
                 return meltResponse
 
             } catch (e: any) {
-                if(!e.message.toLowerCase().includes('timeout')) {
+                if(!e.message.toLowerCase().includes('timeout') &&
+                   !e.message.toLowerCase().includes('network request failed')) {
+                  // remove in-flight request only if it was not a timeout or network error
                   currentCounter.removeInFlightRequest(transactionId)
                 }      
 
@@ -857,6 +865,81 @@ export const WalletStoreModel = types
                     }
                 )
             }
+        }),
+        checkLightningMeltQuote: flow(function* checkLightningMeltQuote(  
+          mintUrl: string,
+          quote: string,  
+        ) {
+          try {
+            const cashuMint: CashuMint = yield self.getMint(mintUrl)
+            const quoteResponse: MeltQuoteResponse = yield cashuMint.checkMeltQuote(      
+                quote
+            )
+        
+            log.info('[checkLightningMeltQuote]', {quoteResponse})
+        
+            return quoteResponse
+
+          } catch (e: any) {
+            let message = 'The mint could not return the state of a melt quote.'
+            if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
+            throw new AppError(
+                Err.MINT_ERROR, 
+                message, 
+                {
+                    message: e.message,
+                    caller: 'checkLightningMeltQuote', 
+                    mintUrl,            
+                }
+            )
+          }
+        }),
+        recoverMeltQuoteChange: flow(function* recoverMeltQuoteChange(
+          mintUrl: string,    
+          meltQuote: MeltQuoteResponse,          
+        ) {
+          try {
+            const mintInstance = self.getMintModelInstance(mintUrl)
+            
+            if(!mintInstance) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing mint instance', {mintUrl})
+            }
+
+            const cashuWallet = yield self.getWallet(
+              mintUrl, 
+              'sat', 
+              {
+                  withSeed: true,         
+              }
+            )
+
+            const currentCounter = mintInstance.getProofsCounterByKeysetId!(cashuWallet.keysetId)
+
+            const {change}: MeltProofsResponse = yield cashuWallet.recoverMeltQuoteChange(      
+              meltQuote,
+              {                    
+                keysetId: cashuWallet.keysetId,                    
+                counter: currentCounter.counter                       
+              }
+            )
+        
+            log.info('[recoverMeltQuoteChange]', {change})
+        
+            return change
+
+          } catch (e: any) {
+            let message = 'The mint could not return change from a melt quote.'
+            if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
+            throw new AppError(
+                Err.MINT_ERROR, 
+                message, 
+                {
+                    message: e.message,
+                    caller: 'recoverMeltQuoteChange', 
+                    mintUrl,            
+                }
+            )
+          }
         }),
         restore: flow(function* restore(  
             mintUrl: string,    

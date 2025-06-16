@@ -28,7 +28,7 @@ import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {MintListItem} from './Mints/MintListItem'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
-import { CurrencyCode, MintUnit, getCurrency } from "../services/wallet/currency"
+import { CurrencyCode, MintUnit, convertToFromSats, getCurrency } from "../services/wallet/currency"
 import { MintHeader } from './Mints/MintHeader'
 import { round, toNumber } from '../utils/number'
 import numbro from 'numbro'
@@ -36,6 +36,7 @@ import { TranItem } from './TranDetailScreen'
 import { translate } from '../i18n'
 import { Token, getDecodedToken } from '@cashu/cashu-ts'
 import { RECEIVE_OFFLINE_PREPARE_TASK, RECEIVE_TASK } from '../services/wallet/receiveTask'
+import { CurrencyAmount } from './Wallet/CurrencyAmount'
 
 export enum ReceiveOption {  
   SEND_PAYMENT_REQUEST = 'SEND_PAYMENT_REQUEST',
@@ -51,7 +52,7 @@ type Props = StaticScreenProps<{
 export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
     const navigation = useNavigation()
     const isInternetReachable = useIsInternetReachable()
-    const {mintsStore, walletStore} = useStores()
+    const {mintsStore, walletStore, userSettingsStore} = useStores()
 
     const [token, setToken] = useState<Token | undefined>()
     const [encodedToken, setEncodedToken] = useState<string | undefined>()
@@ -177,6 +178,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
 
     const onEncodedToken = async function (encoded: string) {
       try {
+        //@ts-ignore
         navigation.setParams({encodedToken: undefined})
         
         const decoded = getDecodedToken(encoded)
@@ -291,6 +293,30 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
     const iconColor = useThemeColor('textDim')
     const amountInputColor = useThemeColor('amountInput')
 
+    const convertedAmountColor = useThemeColor('headerSubTitle')    
+
+    const getConvertedAmount = function () {
+        if (!walletStore.exchangeRate) {
+          return undefined
+        }
+
+        const precision = getCurrency(unit).precision
+        return convertToFromSats(
+            round(toNumber(amountToReceive) * precision, 0) || 0, 
+            getCurrency(unit).code,
+            walletStore.exchangeRate
+        )
+    }
+
+    const isConvertedAmountVisible = function () {
+      return (
+        walletStore.exchangeRate &&
+        (userSettingsStore.exchangeCurrency === getCurrency(unit).code ||
+          unit === 'sat') &&
+        getConvertedAmount() !== undefined
+      )
+    }
+
     return (
       <Screen preset="auto" contentContainerStyle={$screen}>
             <MintHeader 
@@ -306,8 +332,22 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
                     editable={false}
                 />
             </View>
+            {isConvertedAmountVisible() && ( 
+                <CurrencyAmount
+                    amount={getConvertedAmount() ?? 0}
+                    currencyCode={unit === 'sat' ? userSettingsStore.exchangeCurrency : CurrencyCode.SAT}
+                    symbolStyle={{color: convertedAmountColor, marginTop: spacing.tiny, fontSize: verticalScale(10)}}
+                    amountStyle={{color: convertedAmountColor, lineHeight: spacing.small}}                        
+                    size='small'
+                    containerStyle={{justifyContent: 'center'}}
+                />
+            )}
             {isP2PKLocked ? (
-              <View style={{flexDirection: 'row', alignItems: 'center'}}>
+              <View style={{
+                flexDirection: 'row', 
+                alignItems: 'center',
+                marginTop: isConvertedAmountVisible() ? -spacing.extraSmall : undefined
+              }}>
                 <Icon
                   containerStyle={$iconLockContainer}
                   icon={toNumber(receivedAmount) > 0 ? "faLockOpen" : "faLock"}
@@ -316,13 +356,13 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
                 />
                 {isP2PKLockedToWallet ? (
                   <Text
-                      size='sm'
+                      size='xs'
                       tx={toNumber(receivedAmount) > 0 ? "receiveScreen.received" : "receiveScreen.lockedToWalletPK"}
                       style={{color: amountInputColor, textAlign: 'center'}}
                   />
                 ) : (
                   <Text
-                      size='sm'
+                      size='xs'
                       tx={toNumber(receivedAmount) > 0 ? "receiveScreen.received" : "receiveScreen.lockedToUnknownPK"}
                       style={{color: amountInputColor, textAlign: 'center'}}
                   />
@@ -330,9 +370,13 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
               </View>
             ) : (
               <Text
-                  size='sm'
+                  size='xs'
                   tx={toNumber(receivedAmount) > 0 ? "receiveScreen.received" : "receiveScreen.toReceive"}
-                  style={{color: amountInputColor, textAlign: 'center'}}
+                  style={{
+                    color: amountInputColor, 
+                    textAlign: 'center',
+                    marginTop: isConvertedAmountVisible() ? -spacing.extraSmall : undefined
+                  }}
               />
             )}
 
