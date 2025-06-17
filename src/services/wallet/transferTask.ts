@@ -299,7 +299,7 @@ export const transferTask = async function (
         } else {
             // throw so that proper state of proofs is synced inside the catch block
             throw new AppError(Err.MINT_ERROR, 'Lightning payment has not been paid.', {
-                metResponseQuote: meltResponse.quote,
+                meltResponseQuote: meltResponse.quote,
                 transactionId
             })
         }
@@ -316,10 +316,9 @@ export const transferTask = async function (
 
         if (transaction) { 
             
-            if (proofsToMeltFrom.length > 0) {
-               
-                const walletInstance = await walletStore.getWallet(mintUrl, unit, {withSeed: true})
-                const refreshedMeltQuote = await walletInstance.checkMeltQuote(meltQuote.quote)
+            if (proofsToMeltFrom.length > 0) {               
+                
+                const refreshedMeltQuote = await walletStore.checkLightningMeltQuote(mintUrl, meltQuote.quote)
                 taskResult.meltQuote = refreshedMeltQuote                
                 
                 if(refreshedMeltQuote.state === MeltQuoteState.PAID) {
