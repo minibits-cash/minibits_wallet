@@ -864,6 +864,13 @@ const syncStateWithMintTask = async function (
 
                         completedTransactionIds.push(Number(tId))
 
+                        // If we complete a ligthning payment that got stuck pending for some time,
+                        // we need to collect the change back to balance, otherwise it would get lost
+                        if(tx.type === TransactionType.TRANSFER) {
+                            // TODO extend transaction model by quote
+                            // and adapt recoverMintQuote method to fit
+                        }
+
                         return {
                             tId: Number(tId),
                             amount: tx.amount,

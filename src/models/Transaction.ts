@@ -41,7 +41,6 @@ export enum TransactionType {
     RECEIVE_BY_PAYMENT_REQUEST = 'RECEIVE_BY_PAYMENT_REQUEST',
     TOPUP = 'TOPUP',
     TRANSFER = 'TRANSFER',
-    NWC_TRANSFER = 'NWC_TRANSFER',
 }
 
 export enum TransactionStatus {

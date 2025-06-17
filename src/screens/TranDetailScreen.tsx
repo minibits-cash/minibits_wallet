@@ -222,7 +222,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
             return `-${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
             case TransactionType.TOPUP:
             return `+${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
-            case TransactionType.TRANSFER || TransactionType.NWC_TRANSFER:
+            case TransactionType.TRANSFER:
             return `-${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
             default:
             return `${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
@@ -360,14 +360,6 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                 />
               )}
               {transaction.type === TransactionType.TRANSFER && (
-                <TransferInfoBlock
-                  transaction={transaction}
-                  isDataParsable={isDataParsable}
-                  mint={mint}
-                  colorScheme={colorScheme}
-                />
-              )}
-              {transaction.type === TransactionType.NWC_TRANSFER && (
                 <TransferInfoBlock
                   transaction={transaction}
                   isDataParsable={isDataParsable}
