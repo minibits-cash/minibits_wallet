@@ -433,7 +433,13 @@ export const receiveByCashuPaymentRequestTask = async function (
             throw new AppError(
                 Err.VALIDATION_ERROR,
                 'Related Payment request has different amount or unit than the incoming payment.',
-                {paymentRequestPayload, expctedUnit: transaction.unit, expectedAmount: transaction.amount}
+                {
+                    expectedUnit: transaction.unit, 
+                    expectedAmount: transaction.amount, 
+                    amountToReceive, unit, 
+                    paymentRequestId, 
+                    caller: 'receiveByCashuPaymentRequestTask'
+                }
             ) 
         }
         
