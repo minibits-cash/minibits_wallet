@@ -178,6 +178,8 @@ export interface TransactionStateUpdate {
     spentByMintAmount?: number
     pendingByMintAmount?: number
     movedToSpendableAmount?: number,
+    meltQuoteToRecover?: string,
+    recoveredChangeAmount?: number,
     message?: string 
     updatedStatus: TransactionStatus,      
 }
@@ -864,17 +866,11 @@ const syncStateWithMintTask = async function (
 
                         completedTransactionIds.push(Number(tId))
 
-                        // If we complete a ligthning payment that got stuck pending for some time,
-                        // we need to collect the change back to balance, otherwise it would get lost
-                        if(tx.type === TransactionType.TRANSFER) {
-                            // TODO extend transaction model by quote
-                            // and adapt recoverMintQuote method to fit
-                        }
-
                         return {
                             tId: Number(tId),
                             amount: tx.amount,
                             spentByMintAmount: spentByMintTxAmount as number,
+                            meltQuoteToRecover: tx.type === TransactionType.TRANSFER && tx.quote.length > 0 ? tx.quote : null,
                             updatedStatus: TransactionStatus.COMPLETED
                         } as TransactionStateUpdate
                     }
@@ -891,6 +887,18 @@ const syncStateWithMintTask = async function (
 
             transactionStateUpdates.push(...spentStateUpdates)
 
+            // Recover melt quote change for long pending, now completed transactions
+            for (const update of spentStateUpdates) {
+                if(update.meltQuoteToRecover) {
+                    
+                    const {recoveredAmount} = await recoverMeltQuoteChange({
+                        mintUrl,
+                        meltQuote: update.meltQuoteToRecover
+                    })
+                    update.recoveredChangeAmount = recoveredAmount
+                }
+            }
+            
             // Update related transactions statuses
             log.debug('[syncStateWithMintTask]', 'Transaction id(s) to complete', completedTransactionIds.toString())
 
@@ -1914,31 +1922,39 @@ const recoverMeltQuoteChange = async function (params: {mintUrl: string, meltQuo
                 throw new AppError(Err.VALIDATION_ERROR, `Quote ${meltQuote} has not any change to recover.`) 
             }
 
-            // Not sure how to find related transfer transaction, so create new one
-            // TODO extent transaction model to store melt quote so we can search by it
-            const transactionData: TransactionData[] = [
-                {
-                    status: TransactionStatus.DRAFT,
-                    amountToRecover,
-                    unit,
-                    meltQuoteToRecover: quote,
-                    createdAt: new Date(),
-                }
-            ]
+            let transaction: Transaction | undefined = undefined
+            let transactionId: number | undefined = undefined
 
-            const newTransaction = {
-                type: TransactionType.RECEIVE,
-                amount: amountToRecover,
-                fee: 0,
-                unit,
-                data: JSON.stringify(transactionData),
-                memo: 'Melt quote change recovery',
-                mint: mintUrl,
-                status: TransactionStatus.DRAFT,
+            transaction = transactionsStore.findByQuote(meltQuote)
+            transactionId = transaction?.id
+
+            // Older transactions might not have quote set
+            if(!transaction) {
+                const transactionData: TransactionData[] = [
+                    {
+                        status: TransactionStatus.DRAFT,
+                        amountToRecover,
+                        unit,
+                        meltQuoteToRecover: quote,
+                        createdAt: new Date(),
+                    }
+                ]
+
+                const newTransaction = {
+                    type: TransactionType.RECEIVE,
+                    amount: amountToRecover,
+                    fee: 0,
+                    unit,
+                    data: JSON.stringify(transactionData),
+                    memo: 'Melt quote change recovery',
+                    mint: mintUrl,
+                    status: TransactionStatus.DRAFT,
+                }
+                // store tx in db and in the model
+                const transaction = await transactionsStore.addTransaction(newTransaction)
+                transaction.setQuote(meltQuote)
+                transactionId = transaction.id
             }
-            // store tx in db and in the model
-            const transaction = await transactionsStore.addTransaction(newTransaction)
-            const transactionId = transaction.id
 
             try {
 
@@ -2008,6 +2024,8 @@ const recoverMeltQuoteChange = async function (params: {mintUrl: string, meltQuo
                 return { recoveredAmount }
 
             } catch (e: any) {
+                const transactionData: TransactionData[] = JSON.parse(transaction?.data || '[]')
+                
                 transactionData.push({
                     status: TransactionStatus.ERROR,
                     error: WalletUtils.formatError(e),

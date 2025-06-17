@@ -111,35 +111,56 @@ import {
   
               return transaction
           },
-          findByPaymentId(id: string) {            
-            let transaction = self.transactionsMap.get(id)
+          findByPaymentId(paymentId: string) {            
 
-            // Search the db and add if tx is not in the state
-            // Search always to retrieve full tokens in tx detail screen
-            if(!transaction) {
-                const dbTransaction = Database.getTransactionByPaymentId(id)
+            const dbTransaction = Database.getTransactionByPaymentId(paymentId)
 
-                if(dbTransaction) {
-                    const createdAt = new Date(dbTransaction.createdAt)                    
-                    const inStoreTransaction = {...dbTransaction, createdAt}
-                    const {id} = dbTransaction
-                                        
-                    // Shorten for performance reasons
-                    if(inStoreTransaction.inputToken && inStoreTransaction.inputToken.length > 0) {
-                        inStoreTransaction.inputToken = inStoreTransaction.inputToken?.slice(0, 40)
-                    }
-
-                    if(inStoreTransaction.outputToken && inStoreTransaction.outputToken.length > 0) {
-                        inStoreTransaction.outputToken = inStoreTransaction.outputToken?.slice(0, 40)
-                    }
-                                        
-                    self.transactionsMap.set(id, inStoreTransaction)
-                    transaction = self.transactionsMap.get(id)                    
+            if(dbTransaction) {
+                const createdAt = new Date(dbTransaction.createdAt)                    
+                const inStoreTransaction = {...dbTransaction, createdAt}
+                const {id} = dbTransaction
+                                    
+                // Shorten for performance reasons
+                if(inStoreTransaction.inputToken && inStoreTransaction.inputToken.length > 0) {
+                    inStoreTransaction.inputToken = inStoreTransaction.inputToken?.slice(0, 40)
                 }
-            }
 
-            return transaction
-        },      
+                if(inStoreTransaction.outputToken && inStoreTransaction.outputToken.length > 0) {
+                    inStoreTransaction.outputToken = inStoreTransaction.outputToken?.slice(0, 40)
+                }
+                                    
+                self.transactionsMap.set(id, inStoreTransaction)
+                return self.transactionsMap.get(id)                    
+            } else {
+                log.warn('[findByPaymentId]', `Transaction with paymentId ${paymentId} not found in database`)
+                return undefined
+            }  
+          },  
+          findByQuote(quote: string) {            
+
+            const dbTransaction = Database.getTransactionByQuote(quote)
+
+            if(dbTransaction) {
+                const createdAt = new Date(dbTransaction.createdAt)                    
+                const inStoreTransaction = {...dbTransaction, createdAt}
+                const {id} = dbTransaction
+                                    
+                // Shorten for performance reasons
+                if(inStoreTransaction.inputToken && inStoreTransaction.inputToken.length > 0) {
+                    inStoreTransaction.inputToken = inStoreTransaction.inputToken?.slice(0, 40)
+                }
+
+                if(inStoreTransaction.outputToken && inStoreTransaction.outputToken.length > 0) {
+                    inStoreTransaction.outputToken = inStoreTransaction.outputToken?.slice(0, 40)
+                }
+                                    
+                self.transactionsMap.set(id, inStoreTransaction)
+                return self.transactionsMap.get(id)                    
+            } else {
+                log.warn('[findByQuote]', `Transaction with quote ${quote} not found in database`)
+                return undefined
+            }  
+          },   
           pruneRecentByUnit(unit: MintUnit) {
               const unitCount = self.countRecentByUnit(unit)
               

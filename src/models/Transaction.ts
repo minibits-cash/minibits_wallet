@@ -6,7 +6,6 @@ import { Database } from '../services'
 
 export interface TransactionRecord {
     id: number
-    paymentId?: string | null
     type: TransactionType
     amount: number
     fee: number
@@ -16,6 +15,8 @@ export interface TransactionRecord {
     sentTo?: string | null
     profile?: string | null
     memo?: string | null
+    paymentId?: string | null
+    quote?: string | null
     zapRequest?: string | null
     inputToken?: string | null
     outputToken?: string | null
@@ -59,7 +60,6 @@ export enum TransactionStatus {
 export const TransactionModel = types
     .model('Transaction', {        
         id: types.identifierNumber,
-        paymentId: types.maybe(types.maybeNull(types.string)),
         type: types.frozen<TransactionType>(),
         amount: types.integer,
         fee: types.optional(types.integer, 0),
@@ -68,6 +68,8 @@ export const TransactionModel = types
         sentFrom: types.maybe(types.maybeNull(types.string)),
         sentTo: types.maybe(types.maybeNull(types.string)),
         profile: types.maybe(types.maybeNull(types.string)),
+        paymentId: types.maybe(types.maybeNull(types.string)),
+        quote: types.maybe(types.maybeNull(types.string)),
         memo: types.maybe(types.maybeNull(types.string)),
         mint: types.string,
         zapRequest: types.maybe(types.maybeNull(types.string)),
@@ -114,6 +116,11 @@ export const TransactionModel = types
             Database.updatePaymentId(self.id!, paymentId)            
             self.paymentId = paymentId
             log.trace('[setPaymentId]', 'Transaction paymentId updated', {id: self.id, paymentId})
+        },
+        setQuote(quote: string) {            
+            Database.updateQuote(self.id!, quote)            
+            self.quote = quote
+            log.trace('[setQuote]', 'Transaction quote updated', {id: self.id, quote})
         },
         setReceivedAmount(amount: number) {            
             Database.updateReceivedAmount(self.id!, amount)
