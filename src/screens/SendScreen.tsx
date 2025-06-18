@@ -341,7 +341,7 @@ const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
                         }
 
                         if (availableBalances.length === 0) {
-                            throw new AppError(Err.NOTFOUND_ERROR, 'Wallet has not any of requested mint.', {mints: pr.mints})
+                            throw new AppError(Err.NOTFOUND_ERROR, 'Wallet does not have any of the mints requested to pay from.', {mints: pr.mints})
                         }
                         
                         const withEnoughBalance = availableBalances.filter(balance => {
@@ -453,6 +453,12 @@ const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
     
             if (result.encodedTokenToSend) {
                 setEncodedTokenToSend(result.encodedTokenToSend)
+            }
+
+            // update here, for now I do not expand the sendTask params
+            // TODO make objects at least from optional wallet tasks params
+            if(decodedCashuPaymentRequest && decodedCashuPaymentRequest.id) {
+                transaction.setPaymentId(decodedCashuPaymentRequest.id)
             }
 
             if (result.error) {

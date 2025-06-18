@@ -73,6 +73,8 @@ export const topupTask = async function (
             memo
         )
 
+        
+
         const decodedInvoice = LightningUtils.decodeInvoice(encodedInvoice)
         const {
             amount, 
@@ -80,6 +82,9 @@ export const topupTask = async function (
             expiry, 
             timestamp
         } = LightningUtils.getInvoiceData(decodedInvoice)
+
+        transaction.setQuote(mintQuote)
+        transaction.setPaymentId(payment_hash)
 
         log.trace('[topupTask] invoice', {amount, payment_hash, expiry, timestamp})
 
@@ -136,9 +141,7 @@ export const topupTask = async function (
         transaction.setStatus(            
             TransactionStatus.PENDING,
             JSON.stringify(transactionData),
-        )
-
-        transaction.setPaymentId(payment_hash)     
+        )        
 
         if(!nwcEvent) {
             const wsMint = new CashuMint(mintUrl)

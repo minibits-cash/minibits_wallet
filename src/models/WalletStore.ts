@@ -612,22 +612,19 @@ export const WalletStoreModel = types
             description?: string,
         ) {
             try {
-            const cashuMint = yield self.getMint(mintUrl)
-            const {
-                request: encodedInvoice, 
-                quote: mintQuote,      
-            } = yield cashuMint.createMintQuote({
-                unit, 
-                amount,
-                description
-            })
-        
-            log.info('[createLightningMintQuote]', {encodedInvoice, mintQuote})
-        
-            return {
-                encodedInvoice,
-                mintQuote,
-            }
+              const cashuMint = yield self.getMint(mintUrl)
+              const mintQuoteResponse: MintQuoteResponse = yield cashuMint.createMintQuote({
+                  unit, 
+                  amount,
+                  description
+              })
+          
+              log.info('[createLightningMintQuote]', {mintQuoteResponse})
+          
+              return {
+                  encodedInvoice: mintQuoteResponse.request,
+                  mintQuote: mintQuoteResponse.quote,
+              }
             } catch (e: any) {
               let message = 'The mint could not return a mint quote.'
               if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;

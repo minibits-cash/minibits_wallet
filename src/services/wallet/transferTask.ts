@@ -80,6 +80,7 @@ export const transferTask = async function (
         const transactionId = transaction.id
         const paymentHash = LightningUtils.getInvoiceData(LightningUtils.decodeInvoice(encodedInvoice)).payment_hash
         transaction.setPaymentId(paymentHash)
+        transaction.setQuote(meltQuote.quote)
         
         if (amountToTransfer + meltQuote.fee_reserve > mintBalanceToTransferFrom.balances[unit]!) {
             throw new AppError(

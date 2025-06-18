@@ -732,7 +732,7 @@ const syncStateWithMintQueue = async function (
  *  
  *  @mintUrl URL of the mint to check for spent and pending proofs
  *  @isPending whether the proofs come from spendable or pending state by the wallet
- *  @proofsToSync optional proofs to check the spent / pending status, otherwise all mint proofs are synced
+ *  @proofsToSync proofs to check the spent / pending status
  *  @returns WalletTaskResult
  */
 
