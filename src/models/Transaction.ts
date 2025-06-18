@@ -17,6 +17,7 @@ export interface TransactionRecord {
     memo?: string | null
     paymentId?: string | null
     quote?: string | null
+    paymentRequest?: string | null
     zapRequest?: string | null
     inputToken?: string | null
     outputToken?: string | null
@@ -25,7 +26,8 @@ export interface TransactionRecord {
     balanceAfter?: number | null
     noteToSelf?: string | null
     tags?: Array<string> | null
-    status: TransactionStatus 
+    status: TransactionStatus
+    expiresAt?: Date | null 
     createdAt: Date   
 }
 
@@ -72,6 +74,7 @@ export const TransactionModel = types
         quote: types.maybe(types.maybeNull(types.string)),
         memo: types.maybe(types.maybeNull(types.string)),
         mint: types.string,
+        paymentRequest: types.maybe(types.maybeNull(types.string)),
         zapRequest: types.maybe(types.maybeNull(types.string)),
         inputToken: types.maybe(types.maybeNull(types.string)),
         outputToken: types.maybe(types.maybeNull(types.string)),
@@ -80,6 +83,7 @@ export const TransactionModel = types
         noteToSelf: types.maybe(types.maybeNull(types.string)),
         tags: types.maybe(types.maybeNull(types.array(types.string))),
         status: types.frozen<TransactionStatus>(),
+        expiresAt: types.maybe(types.maybeNull(types.Date)),
         createdAt: types.optional(types.Date, new Date()),
     })
     .views(self => ({        
@@ -137,6 +141,16 @@ export const TransactionModel = types
             self.zapRequest = zapRequest
             log.trace('[setZapRequest]', 'Transaction zapRequest updated', {id: self.id, zapRequest})
         }, 
+        setPaymentRequest(paymentRequest: string) {
+            Database.updatePaymentRequest(self.id!, paymentRequest)            
+            self.paymentRequest = paymentRequest
+            log.trace('[setZapRequest]', 'Transaction paymentRequest updated', {id: self.id, paymentRequest})
+        },
+        setExpiresAt(expiresAt: Date) {
+            Database.updateExpiresAt(self.id!, expiresAt)            
+            self.expiresAt = expiresAt
+            log.trace('[setExpiresAt]', 'Transaction expiresAt updated', {id: self.id, expiresAt})
+        },  
         setSentFrom(sentFrom: string) {
             Database.updateSentFrom(self.id!, sentFrom)            
             self.sentFrom = sentFrom

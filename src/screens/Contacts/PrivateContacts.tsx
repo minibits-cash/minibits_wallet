@@ -19,11 +19,12 @@ import { IncomingDataType, IncomingParser } from '../../services/incomingParser'
 import { translate } from '../../i18n'
 import { RouteProp, useNavigation } from '@react-navigation/native'
 import { toJS } from 'mobx'
+import { TransferOption } from '../TransferScreen'
 
 
 
 export const PrivateContacts = observer(function (props: {    
-    paymentOption: ReceiveOption | SendOption | undefined},    
+    paymentOption: ReceiveOption | SendOption | TransferOption | undefined},    
 ) { 
     const {contactsStore, relaysStore, userSettingsStore} = useStores()
     const navigation = useNavigation()
@@ -48,7 +49,7 @@ export const PrivateContacts = observer(function (props: {
             // infoMessage('Select contact to send your ecash to.')
         }
 
-        if (paymentOption && paymentOption === SendOption.LNURL_ADDRESS) {
+        if (paymentOption && paymentOption === TransferOption.LNURL_ADDRESS) {
             // infoMessage('Select contact to send Lightning payment to.')
         }
     }, [])
@@ -208,7 +209,7 @@ export const PrivateContacts = observer(function (props: {
             }
 
 
-            if(paymentOption && paymentOption === SendOption.LNURL_ADDRESS) {
+            if(paymentOption && paymentOption === TransferOption.LNURL_ADDRESS) {
                 if(!contact.lud16) {
                     setInfo(translate("contactHasNoLightningAddrUseEcash"))
                     return

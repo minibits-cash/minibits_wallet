@@ -19,6 +19,7 @@ import { translate } from '../../i18n'
 import { useNavigation } from '@react-navigation/native'
 import { toJS } from 'mobx'
 import FastImage from 'react-native-fast-image'
+import { TransferOption } from '../TransferScreen'
 
 
 // const defaultPublicNpub = 'npub14n7frsyufzqsxlvkx8vje22cjah3pcwnnyqncxkuj2243jvt9kmqsdgs52'
@@ -26,7 +27,7 @@ const defaultPublicNpub = 'npub1kvaln6tm0re4d99q9e4ma788wpvnw0jzkz595cljtfgwhldd
 const maxContactsToLoad = 20
 
 export const PublicContacts = observer(function (props: {
-    paymentOption: ReceiveOption | SendOption | undefined}
+    paymentOption: ReceiveOption | SendOption | TransferOption | undefined}
 ) {
     const {contactsStore, relaysStore, userSettingsStore} = useStores()
     const navigation = useNavigation()
@@ -382,10 +383,11 @@ export const PublicContacts = observer(function (props: {
         }
 
 
-        if(paymentOption && paymentOption === SendOption.LNURL_ADDRESS) {
+        if(paymentOption && paymentOption === TransferOption.LNURL_ADDRESS) {
             if(!contact.lud16) {
                 setInfo(translate('contactHasNoLightningAddrUseEcash'))
                 //reset
+                //@ts-ignore
                 navigation.setParams({
                     paymentOption: undefined,
                 })
@@ -400,6 +402,7 @@ export const PublicContacts = observer(function (props: {
             setIsLoading(false)
 
             //reset
+            //@ts-ignore
             navigation.setParams({
                 paymentOption: undefined,
             })
@@ -408,7 +411,7 @@ export const PublicContacts = observer(function (props: {
         }
 
         log.trace('[gotoContactDetail]', contact)
-
+        //@ts-ignore
         navigation.navigate('ContactDetail', {contact: toJS(contact)})
     }
 

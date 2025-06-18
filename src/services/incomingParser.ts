@@ -1,5 +1,5 @@
 import { StackNavigationProp } from '@react-navigation/stack'
-import { ReceiveOption, SendOption } from '../screens'
+import { ReceiveOption, SendOption, TransferOption } from '../screens'
 import AppError, { Err } from '../utils/AppError'
 import { log } from './logService'
 import { CashuUtils } from './cashu/cashuUtils'
@@ -7,7 +7,6 @@ import { LightningUtils } from './lightning/lightningUtils'
 import { LnurlUtils } from './lnurl/lnurlUtils'
 import { LNURLPayParams, LnurlClient } from './lnurlService'
 import { MintUnit } from './wallet/currency'
-import { RootNavigation } from '../navigation'
 import { NavigationProp } from '@react-navigation/native'
 import { NostrClient } from './nostrService'
 
@@ -220,7 +219,7 @@ const navigateWithIncomingData = async function (
                 screen: 'Send', 
                 params: {
                     encodedCashuPaymentRequest: incoming.encoded,
-                    paymentOption: SendOption.PAY_PAYMENT_REQUEST,
+                    paymentOption: SendOption.PAY_CASHU_PAYMENT_REQUEST,
                     unit,
                     mintUrl
                 }
@@ -232,7 +231,7 @@ const navigateWithIncomingData = async function (
                 screen: 'Transfer', 
                 params: {
                     encodedInvoice: incoming.encoded,
-                    paymentOption: SendOption.PASTE_OR_SCAN_INVOICE,
+                    paymentOption: TransferOption.PASTE_OR_SCAN_INVOICE,
                     unit,
                     mintUrl
                 }
@@ -262,7 +261,7 @@ const navigateWithIncomingData = async function (
                         screen: 'Transfer',
                         params: {
                             lnurlParams,                    
-                            paymentOption: SendOption.LNURL_PAY,
+                            paymentOption: TransferOption.LNURL_PAY,
                             unit,
                             mintUrl
                         }                        
@@ -285,7 +284,7 @@ const navigateWithIncomingData = async function (
                     screen: 'Transfer', 
                     params: {
                         lnurlParams: addressParamsResult.lnurlParams as LNURLPayParams,                
-                        paymentOption: SendOption.LNURL_PAY,                                     
+                        paymentOption: TransferOption.LNURL_PAY,                                     
                         unit,
                         mintUrl
                     }

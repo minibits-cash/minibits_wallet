@@ -11,7 +11,6 @@ import { TransactionStatus } from '../../models/Transaction'
 import { poller, stopPolling } from '../../utils/poller'
 import { ResultModalInfo } from '../Wallet/ResultModalInfo'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
-import { SendOption } from '../SendScreen'
 import { translate } from '../../i18n'
 import { CurrencyAmount } from '../Wallet/CurrencyAmount'
 import { CurrencyCode } from '../../services/wallet/currency'
@@ -21,6 +20,7 @@ import Clipboard from '@react-native-clipboard/clipboard'
 import { roundUp } from '../../utils/number'
 import { LNURLPayParams, LnurlClient } from '../../services/lnurlService'
 import { useNavigation } from '@react-navigation/native'
+import { TransferOption } from '../TransferScreen'
 
 const DEFAULT_DONATION_AMOUNT = 500
 const DONATION_LNURL_ADDRESS = 'minibits@minibits.cash'
@@ -196,7 +196,7 @@ export const OwnName = observer(function (props: {pubkey: string}) {
                     screen: 'Transfer', 
                     params: { 
                         lnurlParams: addressParamsResult.lnurlParams as LNURLPayParams,                
-                        paymentOption: SendOption.LNURL_PAY,
+                        paymentOption: TransferOption.LNURL_PAY,
                         fixedAmount: donationAmount,
                         unit: 'sat',
                         comment,

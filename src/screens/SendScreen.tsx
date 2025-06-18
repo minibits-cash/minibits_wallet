@@ -68,11 +68,11 @@ import { getUnixTime } from 'date-fns'
 
 export enum SendOption {
     SEND_TOKEN = 'SEND_TOKEN',
-    PASTE_OR_SCAN_INVOICE = 'PASTE_OR_SCAN_INVOICE',
+    // PASTE_OR_SCAN_INVOICE = 'PASTE_OR_SCAN_INVOICE',
     SHOW_TOKEN = 'SHOW_TOKEN',
-    PAY_PAYMENT_REQUEST = 'PAY_PAYMENT_REQUEST',
-    LNURL_PAY = 'LNURL_PAY',
-    LNURL_ADDRESS = 'LNURL_ADDRESS',
+    PAY_CASHU_PAYMENT_REQUEST = 'PAY_CASHU_PAYMENT_REQUEST',
+    // LNURL_PAY = 'LNURL_PAY',
+    // LNURL_ADDRESS = 'LNURL_ADDRESS',
     // DONATION = 'DONATION',
 }
 
@@ -241,7 +241,7 @@ const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
             
             const handlePaymentRequest = async () => {
                 try {
-                    setPaymentOption(SendOption.PAY_PAYMENT_REQUEST)
+                    setPaymentOption(SendOption.PAY_CASHU_PAYMENT_REQUEST)
                     setContactToSendFrom(getContactFrom())                   
 
                     const {encodedCashuPaymentRequest} = route.params
@@ -393,7 +393,7 @@ const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
                 prepareSendToContact()
             }
 
-            if(paymentOption && paymentOption === SendOption.PAY_PAYMENT_REQUEST) {   
+            if(paymentOption && paymentOption === SendOption.PAY_CASHU_PAYMENT_REQUEST) {   
                 handlePaymentRequest()
             }
             
@@ -477,7 +477,7 @@ const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
                 toggleNostrDMModal()
             }
             
-            if (paymentOption === SendOption.PAY_PAYMENT_REQUEST) {
+            if (paymentOption === SendOption.PAY_CASHU_PAYMENT_REQUEST) {
                 toggleNostrDMModal()
             }
         }
@@ -793,7 +793,7 @@ const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
                 messageContent = message + ' \n' + encodedTokenToSend
             }
 
-            if(paymentOption === SendOption.PAY_PAYMENT_REQUEST) {   
+            if(paymentOption === SendOption.PAY_CASHU_PAYMENT_REQUEST) {   
                 if(!decodedCashuPaymentRequest) {
                     throw new AppError(Err.VALIDATION_ERROR, 'Missing payment request to pay.')
                 }

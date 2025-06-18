@@ -15,7 +15,7 @@ import {BackupProof} from '../models/Proof'
 
 let _db: QuickSQLiteConnection
 
-const _dbVersion = 21 // Update this if db changes require migrations
+const _dbVersion = 22 // Update this if db changes require migrations
 
 const getInstance = function () {
   if (!_db) {
@@ -59,6 +59,7 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
         memo TEXT,
         mint TEXT,
         quote TEXT,
+        paymentRequest TEXT,
         zapRequest TEXT,
         inputToken TEXT,
         outputToken TEXT,
@@ -67,6 +68,7 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
         noteToSelf TEXT,
         tags TEXT,
         status TEXT,
+        expiresAt TEXT,
         createdAt TEXT
     )`,
     ],    
@@ -151,6 +153,20 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
       ])
 
       log.info(`Prepared database migrations from ${currentVersion} -> 21`)
+    }
+
+    if (currentVersion < 22) {
+      migrationQueries.push([
+        `ALTER TABLE transactions
+         ADD COLUMN paymentRequest TEXT` 
+      ])
+
+      migrationQueries.push([
+        `ALTER TABLE transactions
+         ADD COLUMN expiresAt TEXT` 
+      ])
+
+      log.info(`Prepared database migrations from ${currentVersion} -> 22`)
     }
 
     // Update db version as a part of migration sqls
@@ -275,6 +291,35 @@ const getTransactions = function (limit: number, offset: number, onlyPending: bo
       )
   }
 }
+
+
+const getPendingTopups = function () {
+  let query: string = ''
+  try {
+      query = `
+        SELECT *
+        FROM transactions
+        WHERE status = 'PENDING'
+        AND type = 'TOPUP'
+        ORDER BY id DESC        
+        `      
+
+      const db = getInstance()
+      const {rows} = db.execute(query)
+
+      log.trace(`[getPendingTopups], Returned ${rows?.length} rows`)
+      
+      return rows?._array
+
+  } catch (e: any) {
+      throw new AppError(
+      Err.DATABASE_ERROR,
+      'Transactions could not be retrieved from the database',
+      e.message,
+      )
+  }
+}
+
 
 const getTransactionsCount = function (status?: TransactionStatus) {
   let query: string
@@ -875,6 +920,60 @@ const updateProof = function (id: number, proof: string) {
 }
 
 
+const updatePaymentRequest = function (id: number, paymentRequest: string) {
+  try {
+    const query = `
+      UPDATE transactions
+      SET paymentRequest = ?
+      WHERE id = ?      
+    `
+    const params = [paymentRequest, id]
+
+    const db = getInstance()
+    db.execute(query, params)
+    
+    log.trace('[updatePaymentRequest]', 'Transaction paymentRequest updated in the database', {id, paymentRequest})
+
+    const updatedTx = getTransactionById(id as number)
+
+    return updatedTx as TransactionRecord
+  } catch (e: any) {
+    throw new AppError(
+      Err.DATABASE_ERROR,
+      'Could not update transaction paymentRequest in database',
+      e.message,
+    )
+  }
+}
+
+
+const updateExpiresAt = function (id: number, expiresAt: Date) {
+  try {
+    const query = `
+      UPDATE transactions
+      SET expiresAt = ?
+      WHERE id = ?      
+    `
+    const params = [expiresAt.toISOString(), id]
+
+    const db = getInstance()
+    db.execute(query, params)
+    
+    log.trace('[updatePaymentRequest]', 'Transaction expiresAt updated in the database', {id, expiresAt})
+
+    const updatedTx = getTransactionById(id as number)
+
+    return updatedTx as TransactionRecord
+  } catch (e: any) {
+    throw new AppError(
+      Err.DATABASE_ERROR,
+      'Could not update transaction expiresAt in database',
+      e.message,
+    )
+  }
+}
+
+
 const updateZapRequest = function (id: number, zapRequest: string) {
   try {
     const query = `
@@ -887,7 +986,7 @@ const updateZapRequest = function (id: number, zapRequest: string) {
     const db = getInstance()
     db.execute(query, params)
     
-    log.trace('[updateProof]', 'Transaction zapRequest updated in the database', {id, zapRequest})
+    log.trace('[updateZapRequest]', 'Transaction zapRequest updated in the database', {id, zapRequest})
 
     const updatedTx = getTransactionById(id as number)
 
@@ -1247,6 +1346,7 @@ export const Database = {
   getTransactionByQuote,
   getRecentTransactionsByUnit,
   getTransactions,
+  getPendingTopups,
   addTransactionAsync,  
   updateStatus,
   expireAllAfterRecovery,
@@ -1260,6 +1360,8 @@ export const Database = {
   updateSentFrom,
   updateSentTo,
   updateProfile,
+  updatePaymentRequest,
+  updateExpiresAt,
   updateZapRequest,
   updateInputToken,
   updateOutputToken,

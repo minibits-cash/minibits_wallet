@@ -13,7 +13,6 @@ import { Button, Card, ErrorModal, Icon, InfoModal, ListItem, ScanIcon, Screen, 
 import { infoMessage } from '../utils/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { SvgXml } from 'react-native-svg'
-import { SendOption } from './SendScreen'
 import { MintUnit } from '../services/wallet/currency'
 import { useStores } from '../models'
 import { Mint } from '../models/Mint'
@@ -22,6 +21,7 @@ import { verticalScale } from '@gocodingnow/rn-size-matters'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { translate } from '../i18n'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+import { TransferOption } from './TransferScreen'
 
 type Props = StaticScreenProps<{
     unit: MintUnit    
@@ -110,7 +110,7 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
         navigation.navigate('ContactsNavigator', {
             screen: 'Contacts',
             params: {
-                paymentOption: SendOption.LNURL_ADDRESS
+                paymentOption: TransferOption.LNURL_ADDRESS
             }            
         })
     }

@@ -21,7 +21,6 @@ import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { translate } from '../i18n'
 import { MintUnit } from '../services/wallet/currency'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
-import { SendOption } from './SendScreen'
 
 type Props = StaticScreenProps<{
     unit: MintUnit    

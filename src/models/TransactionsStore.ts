@@ -75,6 +75,29 @@ import {
                   .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
                   .filter(t => t.unit === unit)           
           },
+          getPendingTopups() {
+            const dbTopups: TransactionRecord[] = Database.getPendingTopups()
+
+            if(dbTopups.length > 0) {
+
+                const pendingTopups: Transaction[] = []
+
+                for(const topup of dbTopups) {
+                    const createdAt = new Date(topup.createdAt)
+                    const expiresAt = topup.expiresAt ? new Date(topup.expiresAt) : null                    
+                    const inStoreTransaction = {...topup, createdAt, expiresAt}
+                    
+                    const topupInstance = TransactionModel.create(inStoreTransaction)
+                    pendingTopups.push(topupInstance)
+                }
+
+                return pendingTopups
+
+            }
+
+            return []
+          
+          },
           countRecentByUnit(unit: MintUnit) {
              return this.getRecentByUnit(unit).length
           }
@@ -89,7 +112,8 @@ import {
                   const dbTransaction = Database.getTransactionById(id)
   
                   if(dbTransaction) {
-                      const createdAt = new Date(dbTransaction.createdAt)                    
+                      const createdAt = new Date(dbTransaction.createdAt) 
+                      const expiresAt = dbTransaction.expiresAt ? new Date(dbTransaction.expiresAt) : null
                       const inStoreTransaction = {...dbTransaction, createdAt}
                       const {id} = dbTransaction
                       
@@ -116,8 +140,9 @@ import {
             const dbTransaction = Database.getTransactionByPaymentId(paymentId)
 
             if(dbTransaction) {
-                const createdAt = new Date(dbTransaction.createdAt)                    
-                const inStoreTransaction = {...dbTransaction, createdAt}
+                const createdAt = new Date(dbTransaction.createdAt)
+                const expiresAt = dbTransaction.expiresAt ? new Date(dbTransaction.expiresAt) : null                    
+                const inStoreTransaction = {...dbTransaction, createdAt, expiresAt}
                 const {id} = dbTransaction
                                     
                 // Shorten for performance reasons
@@ -142,7 +167,8 @@ import {
 
             if(dbTransaction) {
                 const createdAt = new Date(dbTransaction.createdAt)                    
-                const inStoreTransaction = {...dbTransaction, createdAt}
+                const expiresAt = dbTransaction.expiresAt ? new Date(dbTransaction.expiresAt) : null                    
+                const inStoreTransaction = {...dbTransaction, createdAt, expiresAt}
                 const {id} = dbTransaction
                                     
                 // Shorten for performance reasons
@@ -224,8 +250,8 @@ import {
               const dbTransaction: TransactionRecord = yield Database.addTransactionAsync(newTransaction)            
   
               // Add the new transaction to the transactions store
-              const createdAt = new Date(dbTransaction.createdAt)            
-              const inStoreTransaction = {...dbTransaction, createdAt}            
+              const createdAt = new Date(dbTransaction.createdAt)                               
+              const inStoreTransaction = {...dbTransaction, createdAt}          
               const {id} = dbTransaction
   
               if (!self.transactionsMap.has(id)) {                        
@@ -252,7 +278,8 @@ import {
               if (result && result.length > 0) {
                   for (const dbTransaction of result._array) {
                       const createdAt = new Date(dbTransaction.createdAt)                    
-                      const inStoreTransaction = {...dbTransaction, createdAt}
+                      const expiresAt = dbTransaction.expiresAt ? new Date(dbTransaction.expiresAt) : null                    
+                      const inStoreTransaction = {...dbTransaction, createdAt, expiresAt}
   
                       // Shorten for performance reasons
                       if(inStoreTransaction.inputToken && inStoreTransaction.inputToken.length > 0) {
@@ -286,7 +313,8 @@ import {
               if (dbTransactions && dbTransactions.length > 0) {
                   for (const dbTransaction of dbTransactions) {
                       const createdAt = new Date(dbTransaction.createdAt)                    
-                      const inStoreTransaction = {...dbTransaction, createdAt} as Transaction
+                      const expiresAt = dbTransaction.expiresAt ? new Date(dbTransaction.expiresAt) : null                    
+                      const inStoreTransaction = {...dbTransaction, createdAt, expiresAt}
   
                       // Shorten for performance reasons
                       if(inStoreTransaction.inputToken && inStoreTransaction.inputToken.length > 0) {

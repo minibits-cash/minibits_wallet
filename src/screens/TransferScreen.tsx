@@ -35,7 +35,6 @@ import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {addSeconds} from 'date-fns'
 import { PaymentRequest, PaymentRequestStatus } from '../models/PaymentRequest'
 import { DecodedLightningInvoice, LightningUtils } from '../services/lightning/lightningUtils'
-import { SendOption } from './SendScreen'
 import { round, roundDown, roundUp, toNumber } from '../utils/number'
 import { LnurlClient, LNURLPayParams } from '../services/lnurlService'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
@@ -55,15 +54,21 @@ import { CurrencyAmount } from './Wallet/CurrencyAmount'
 type Props = StaticScreenProps<{
   unit: MintUnit,
   encodedInvoice?: string,
-  paymentRequest?: PaymentRequest, 
+  //paymentRequest?: PaymentRequest, 
   lnurlParams?: LNURLPayParams,
   fixedAmount?: number, 
   comment?: string      
-  paymentOption?: SendOption,
+  paymentOption?: TransferOption,
   mintUrl?: string,
   isDonation?: boolean,
   donationForName?: string
 }>
+
+export enum TransferOption {  
+  PASTE_OR_SCAN_INVOICE = 'PASTE_OR_SCAN_INVOICE',    
+  LNURL_PAY = 'LNURL_PAY',
+  LNURL_ADDRESS = 'LNURL_ADDRESS',  
+}
 
 export const TransferScreen = observer(function TransferScreen({ route }: Props) {
     const navigation = useNavigation()
@@ -114,7 +119,7 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
 
   useEffect(() => {
     const focus = () => {
-      if (route.params?.paymentOption === SendOption.LNURL_PAY) {
+      if (route.params?.paymentOption === TransferOption.LNURL_PAY) {
         amountInputRef && amountInputRef.current
           ? amountInputRef.current.focus()
           : false
@@ -175,7 +180,7 @@ useFocusEffect(
             }                
         }
 
-        const handlePaymentRequest = () => {
+        /* const handlePaymentRequest = () => {
             try {
                 const {paymentRequest} = route.params
 
@@ -192,7 +197,7 @@ useFocusEffect(
             } catch (e: any) {
                 handleError(e)
             }                
-        }
+        } */
 
         const handleLnurlPay = async () => {
             try {
@@ -284,15 +289,15 @@ useFocusEffect(
         }
 
 
-        if(paymentOption && paymentOption === SendOption.PASTE_OR_SCAN_INVOICE) {   
+        if(paymentOption && paymentOption === TransferOption.PASTE_OR_SCAN_INVOICE) {   
             handleInvoice()
         }
 
-        if(paymentOption && paymentOption === SendOption.PAY_PAYMENT_REQUEST) {   
+        /* if(paymentOption && paymentOption === SendOption.PAY_PAYMENT_REQUEST) {   
             handlePaymentRequest()
-        }
+        } */
 
-        if(paymentOption && paymentOption === SendOption.LNURL_PAY) {   
+        if(paymentOption && paymentOption === TransferOption.LNURL_PAY) {   
             handleLnurlPay()
         }
 

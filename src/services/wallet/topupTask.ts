@@ -13,6 +13,7 @@ import { MintUnit } from './currency'
 import { NostrEvent } from '../nostrService'
 import { Err } from '../../utils/AppError'
 import { CashuMint, CashuWallet, MintQuoteResponse } from '@cashu/cashu-ts'
+import { addSeconds } from 'date-fns/addSeconds'
 
 const {
     transactionsStore,
@@ -71,22 +72,15 @@ export const topupTask = async function (
             unit, 
             amountToTopup,
             memo
-        )
-
-        
+        )    
 
         const decodedInvoice = LightningUtils.decodeInvoice(encodedInvoice)
         const {
             amount, 
-            payment_hash, 
+            payment_hash: paymentHash, 
             expiry, 
             timestamp
         } = LightningUtils.getInvoiceData(decodedInvoice)
-
-        transaction.setQuote(mintQuote)
-        transaction.setPaymentId(payment_hash)
-
-        log.trace('[topupTask] invoice', {amount, payment_hash, expiry, timestamp})
 
         // sender is current wallet profile
         const {
@@ -106,11 +100,22 @@ export const topupTask = async function (
         }
 
         // Private contacts are stored in model, public ones are plain objects
+        // contactToSendTo is to whom to send the request
         const contactTo = isStateTreeNode(contactToSendTo) ? getSnapshot(contactToSendTo) : contactToSendTo
 
-        log.trace('[topupTask]', 'contactTo', contactTo)
+        // TODO make single insert    
+        transaction.setQuote(mintQuote)                
+        transaction.setPaymentId(paymentHash)
+        transaction.setPaymentRequest(encodedInvoice)
+        transaction.setExpiresAt(addSeconds(new Date(timestamp * 1000), expiry))
+        
+        // SATS flow in reverse compared with payment request
+        transaction.setSentFrom(contactTo.nip05 || contactTo.name)
+        transaction.setSentTo(walletProfileStore.nip05)
 
-        const newPaymentRequest: PaymentRequest = {
+        log.trace('[topupTask] invoice', {amount, paymentHash, expiry, timestamp})
+
+        /* const newPaymentRequest: PaymentRequest = {
             type: PaymentRequestType.OUTGOING,
             status: PaymentRequestStatus.ACTIVE,
             mint: mintUrl,
@@ -130,11 +135,10 @@ export const topupTask = async function (
         }        
 
         // This calculates and sets expiresAt
-        const paymentRequest = paymentRequestsStore.addPaymentRequest(newPaymentRequest)
+        const paymentRequest = paymentRequestsStore.addPaymentRequest(newPaymentRequest)*/
 
         transactionData.push({
-            status: TransactionStatus.PENDING,            
-            paymentRequest,
+            status: TransactionStatus.PENDING,                        
             createdAt: new Date()
         })
 
@@ -152,7 +156,7 @@ export const topupTask = async function (
                     mintQuote,
                     async (m: MintQuoteResponse) => {
                         log.trace(`Websocket: mint quote PAID: ${m.quote}`)
-                        WalletTask.handlePendingTopupQueue({paymentRequest})
+                        WalletTask.handlePendingTopupQueue({transaction})
                         unsub()                        
                     },
                     async (error: any) => {
@@ -166,14 +170,14 @@ export const topupTask = async function (
                 )
 
                 poller(
-                    `handlePendingTopupPoller-${paymentRequest.paymentHash}`, 
+                    `handlePendingTopupPoller-${paymentHash}`, 
                     WalletTask.handlePendingTopupQueue,
                     {
                         interval: 10 * 1000,
                         maxPolls: 6,
                         maxErrors: 2
                     },        
-                    {paymentRequest})   
+                    {transaction})   
                 .then(() => log.trace('Polling completed', [], `handlePendingTopupPoller`))
             }
             
@@ -184,8 +188,7 @@ export const topupTask = async function (
             mintUrl,
             transaction,
             message: '',
-            encodedInvoice,
-            paymentRequest,
+            encodedInvoice,            
             nwcEvent
         } as TransactionTaskResult
 
