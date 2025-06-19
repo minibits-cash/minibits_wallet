@@ -19,6 +19,7 @@ import {
     NostrKeyPair, 
     NostrUnsignedEvent, 
     SyncQueue, 
+    TransactionTaskResult, 
     WalletTaskResult
 } from '../services'
 import AppError, { Err } from '../utils/AppError'
@@ -31,14 +32,13 @@ import { Proofs } from './ProofsStore'
 import { isSameDay } from 'date-fns/isSameDay'
 import { NotificationService } from '../services/notificationService'
 import { roundUp } from '../utils/number'
-import { PaymentRequest } from './PaymentRequest'
-import { PaymentRequests } from './PaymentRequestsStore'
 import { MINIBITS_MINT_URL } from '@env'
 import { MintBalance } from './Mint'
 import { transferTask } from '../services/wallet/transferTask'
 import { topupTask } from '../services/wallet/topupTask'
 import { WalletProfileStore } from './WalletProfileStore'
 import { Platform } from 'react-native'
+import { TransactionsStore } from './TransactionsStore'
 
 type NwcError = {
     result_type: string,
@@ -121,10 +121,10 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         const {proofsStore} = rootStore
         return proofsStore
     },
-    getPaymentRequestsStore (): PaymentRequests {  
+    getTransactionsStore (): TransactionsStore {  
         const rootStore = getRootStore(self)
-        const {paymentRequestsStore} = rootStore
-        return paymentRequestsStore
+        const {transactionsStore} = rootStore
+        return transactionsStore
     },
     setRemainingDailyLimit(limit: number) {
         self.remainingDailyLimit = limit
@@ -423,7 +423,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             } as NwcError
         }
 
-        const result = yield topupTask(
+        const result: TransactionTaskResult = yield topupTask(
             mintBalance,
             roundUp(amontMsat / 1000, 0),
             'sat',
@@ -440,20 +440,19 @@ export const NwcConnectionModel = types.model('NwcConnection', {
 
         let nwcResponse: NwcResponse | NwcError
 
-        if(result.paymentRequest) {
-            const pr: PaymentRequest = result.paymentRequest
-
+        if(result.transaction) {
+            const {transaction} = result
             nwcResponse = {
                 result_type: 'make_invoice',
                 result: {
                     type: 'incoming',
-                    invoice: pr.encodedInvoice,
-                    description: pr.description,                                    
-                    payment_hash: pr.paymentHash,
-                    amount: pr.invoicedAmount * 1000,
+                    invoice: transaction.paymentRequest,
+                    description: transaction.memo,                                    
+                    payment_hash: transaction.paymentId,
+                    amount: transaction.amount * 1000,
                     fees_paid: 0,
-                    created_at: Math.floor(pr.createdAt!.getTime() / 1000),
-                    expires_at: Math.floor(pr.expiresAt!.getTime() / 1000),                    
+                    created_at: Math.floor(transaction.createdAt!.getTime() / 1000),
+                    expires_at: Math.floor(transaction.expiresAt!.getTime() / 1000),                    
                     preimage: null,
                     settled_at: null
                 } as NwcTransaction
@@ -461,7 +460,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
 
             yield NotificationService.createLocalNotification(
                 Platform.OS === 'android' ? `<b>${self.name}</b> - Nostr Wallet Connect` : `${self.name} - Nostr Wallet Connect`,
-                `Invoice for ${result.paymentRequest.invoicedAmount} SATS has been created.`,
+                `Invoice for ${transaction.amount} SATS has been created.`,
                 nwcPngUrl
             )
 
@@ -475,18 +474,18 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         return nwcResponse
     }),
     handleLookupInvoice(nwcRequest: NwcRequest) {
-        const paymentRequestsStore = self.getPaymentRequestsStore()
-        let pr: PaymentRequest | undefined = undefined
+        let transaction: Transaction | undefined = undefined
+        let transactionsStore = self.getTransactionsStore()
 
         if(nwcRequest.params.payment_hash) {
-            pr = paymentRequestsStore.findByPaymentHash(nwcRequest.params.payment_hash)
+            transaction = transactionsStore.findByPaymentId(nwcRequest.params.payment_hash)
         }
 
         if(nwcRequest.params.invoice) {
-            pr = paymentRequestsStore.findByEncodedInvoice(nwcRequest.params.invoice)
+            transaction = transactionsStore.findByPaymentRequest(nwcRequest.params.invoice)
         }
 
-        if(!pr) {
+        if(!transaction) {
             return {
                 result_type: nwcRequest.method,
                 error: { code: 'INTERNAL', message: 'Could not find requested invoice'}
@@ -497,13 +496,13 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             result_type: nwcRequest.method,
             result: {
                 type: 'incoming',
-                invoice: pr.encodedInvoice,
-                description: pr.description,                                    
-                payment_hash: pr.paymentHash,
-                amount: pr.invoicedAmount * 1000,
+                invoice: transaction.paymentRequest,
+                description: transaction.memo,                                    
+                payment_hash: transaction.paymentId,
+                amount: transaction.amount * 1000,
                 fees_paid: 0,
-                created_at: Math.floor(pr.createdAt!.getTime() / 1000),
-                expires_at: Math.floor(pr.expiresAt!.getTime() / 1000),                    
+                created_at: Math.floor(transaction.createdAt!.getTime() / 1000),
+                expires_at: Math.floor(transaction.expiresAt!.getTime() / 1000),                    
                 preimage: null,
                 settled_at: null
             } as NwcTransaction

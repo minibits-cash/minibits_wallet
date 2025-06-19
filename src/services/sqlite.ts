@@ -292,7 +292,6 @@ const getTransactions = function (limit: number, offset: number, onlyPending: bo
   }
 }
 
-
 const getPendingTopups = function () {
   let query: string = ''
   try {
@@ -310,6 +309,34 @@ const getPendingTopups = function () {
       log.trace(`[getPendingTopups], Returned ${rows?.length} rows`)
       
       return rows?._array
+
+  } catch (e: any) {
+      throw new AppError(
+      Err.DATABASE_ERROR,
+      'Transactions could not be retrieved from the database',
+      e.message,
+      )
+  }
+}
+
+
+const getPendingTopupsCount = function () {
+  let query: string = ''
+  try {
+      query = `
+        SELECT COUNT(*)
+        AS total
+        FROM transactions
+        WHERE status = 'PENDING'
+        AND type = 'TOPUP'             
+      `
+      
+      const db = getInstance()
+      const {rows} = db.execute(query)
+
+      log.trace(`[getPendingTopupsCount], Returned ${rows?.item(0)}`)
+      
+      return rows?.item(0)['total'] as number
 
   } catch (e: any) {
       throw new AppError(
@@ -461,6 +488,24 @@ const getTransactionByQuote = function (quote: string) {
     `
 
     const params = [quote]
+
+    const db = getInstance()
+    const {rows} = db.execute(query, params)
+
+    return rows?.item(0) as TransactionRecord
+  } catch (e: any) {
+    throw new AppError(Err.DATABASE_ERROR, 'Transaction not found', e.message)
+  }
+}
+
+
+const getTransactionByPaymentRequest = function (pr: string) {
+  try {
+    const query = `
+      SELECT * FROM transactions WHERE paymentRequest = ?
+    `
+
+    const params = [pr]
 
     const db = getInstance()
     const {rows} = db.execute(query, params)
@@ -1344,9 +1389,11 @@ export const Database = {
   getTransactionById,
   getTransactionByPaymentId,
   getTransactionByQuote,
+  getTransactionByPaymentRequest,
   getRecentTransactionsByUnit,
   getTransactions,
   getPendingTopups,
+  getPendingTopupsCount,
   addTransactionAsync,  
   updateStatus,
   expireAllAfterRecovery,

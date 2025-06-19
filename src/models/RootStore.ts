@@ -4,15 +4,12 @@ import {ContactsStoreModel} from './ContactsStore'
 import {TransactionsStoreModel} from './TransactionsStore'
 import {UserSettingsStoreModel} from './UserSettingsStore'
 import {WalletProfileStoreModel} from './WalletProfileStore'
-import {PaymentRequestsStoreModel} from './PaymentRequestsStore'
 import {ProofsStoreModel} from './ProofsStore'
 import {RelaysStoreModel} from './RelaysStore'
 import {WalletStoreModel} from './WalletStore'
 import {NwcStoreModel} from './NwcStore'
 
-
 export const rootStoreModelVersion = 30 // Update this if model changes require migrations defined in setupRootStore.ts
-
 /**
  * A RootStore model.
  */
@@ -23,8 +20,7 @@ export const RootStoreModel = types
         contactsStore: types.optional(ContactsStoreModel, {}),
         transactionsStore: types.optional(TransactionsStoreModel, {}),
         userSettingsStore: types.optional(UserSettingsStoreModel, {}),
-        walletProfileStore: types.optional(WalletProfileStoreModel, {}),
-        paymentRequestsStore: types.optional(PaymentRequestsStoreModel, {}),
+        walletProfileStore: types.optional(WalletProfileStoreModel, {}),        
         proofsStore: types.optional(ProofsStoreModel, {}),
         relaysStore: types.optional(RelaysStoreModel, {}),        
         walletStore: types.optional(WalletStoreModel, {}),   // not persisted   

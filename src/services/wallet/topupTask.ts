@@ -2,12 +2,11 @@ import {rootStoreInstance} from '../../models'
 import { TransactionTaskResult, WalletTask } from '../walletService'
 import { MintBalance } from '../../models/Mint'
 import { poller } from '../../utils/poller'
-import { Transaction, TransactionData, TransactionRecord, TransactionStatus, TransactionType } from '../../models/Transaction'
+import { Transaction, TransactionData, TransactionStatus, TransactionType } from '../../models/Transaction'
 import { log } from '../logService'
 import { Contact } from '../../models/Contact'
 import { LightningUtils } from '../lightning/lightningUtils'
 import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
-import { PaymentRequest, PaymentRequestStatus, PaymentRequestType } from '../../models/PaymentRequest'
 import { WalletUtils } from './utils'
 import { MintUnit } from './currency'
 import { NostrEvent } from '../nostrService'
@@ -17,8 +16,7 @@ import { addSeconds } from 'date-fns/addSeconds'
 
 const {
     transactionsStore,
-    walletProfileStore,
-    paymentRequestsStore,    
+    walletProfileStore,    
     walletStore
 } = rootStoreInstance
 
@@ -114,28 +112,6 @@ export const topupTask = async function (
         transaction.setSentTo(walletProfileStore.nip05)
 
         log.trace('[topupTask] invoice', {amount, paymentHash, expiry, timestamp})
-
-        /* const newPaymentRequest: PaymentRequest = {
-            type: PaymentRequestType.OUTGOING,
-            status: PaymentRequestStatus.ACTIVE,
-            mint: mintUrl,
-            mintQuote,
-            mintUnit: unit,
-            amountToTopup,
-            encodedInvoice,
-            invoicedAmount: amount,
-            invoicedUnit: 'sat',
-            description: memo ? memo : contactTo ? `Pay to ${walletProfileStore.nip05}` : '',
-            paymentHash: payment_hash,
-            contactFrom,
-            contactTo: contactTo || undefined,
-            expiry: expiry || 600,
-            transactionId: transaction.id!,
-            createdAt: timestamp ? new Date(timestamp * 1000) : new Date()
-        }        
-
-        // This calculates and sets expiresAt
-        const paymentRequest = paymentRequestsStore.addPaymentRequest(newPaymentRequest)*/
 
         transactionData.push({
             status: TransactionStatus.PENDING,                        

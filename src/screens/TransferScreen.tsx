@@ -33,7 +33,6 @@ import AppError, {Err} from '../utils/AppError'
 import {MintBalance} from '../models/Mint'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {addSeconds} from 'date-fns'
-import { PaymentRequest, PaymentRequestStatus } from '../models/PaymentRequest'
 import { DecodedLightningInvoice, LightningUtils } from '../services/lightning/lightningUtils'
 import { round, roundDown, roundUp, toNumber } from '../utils/number'
 import { LnurlClient, LNURLPayParams } from '../services/lnurlService'
@@ -80,8 +79,7 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
 
     const {
       proofsStore, 
-      mintsStore, 
-      paymentRequestsStore, 
+      mintsStore,      
       walletStore, 
       walletProfileStore, 
       contactsStore,
@@ -188,25 +186,6 @@ useFocusEffect(
                 handleError(e)
             }                
         }
-
-        /* const handlePaymentRequest = () => {
-            try {
-                const {paymentRequest} = route.params
-
-                if (!paymentRequest) {                    
-                    throw new AppError(Err.VALIDATION_ERROR, 'Missing paymentRequest.')
-                }
-
-                log.trace('[handlePaymentRequest] Payment request', {paymentRequest})
-        
-                const {encodedInvoice, description, paymentHash} = paymentRequest       
-        
-                setPaymentHash(paymentHash)
-                onEncodedInvoice(encodedInvoice, description)
-            } catch (e: any) {
-                handleError(e)
-            }                
-        } */
 
         const handleLnurlPay = async () => {
             try {
@@ -441,16 +420,6 @@ useEffect(() => {
                 message,
               })
             }
-            
-            // update related paymentRequest status if exists
-            if(paymentHash) {
-                const pr = paymentRequestsStore.findByPaymentHash(paymentHash)
-    
-                if(pr) {
-                    pr.setStatus(PaymentRequestStatus.PAID)
-                    pr.transactionId = transaction?.id
-                }
-            }
         }
     
         if (finalFee) {
@@ -606,16 +575,14 @@ const ensureCommentNotTooLong = async function () {
 }
 
 
-const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: string = '') {
-    // Need to retrieve from params as they might not be set in state yet
-    // TODO fix this so that we kick this off only when state is set    
+const onEncodedInvoice = async function (encoded: string) {
+ 
     log.trace("[onEncodedInvoice] start", {mintUrl: mintUrlRef.current, unit: unitRef.current})
     
     try {
         //@ts-ignore
         navigation.setParams({
-          encodedInvoice: undefined,
-          paymentRequest: undefined,
+          encodedInvoice: undefined,          
           lnurlParams: undefined,
           paymentOption: undefined,
           fixedAmount: undefined,
@@ -645,10 +612,6 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
         if(description) {
           setMemo(description)
         }
-        
-        if (paymentRequestDesc) {
-          setMemo(paymentRequestDesc)
-        }  
         
         if (lnurlPayComment) {
           setMemo(lnurlPayComment)

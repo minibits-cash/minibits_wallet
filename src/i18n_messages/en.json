@@ -259,8 +259,7 @@
 		"pay": "Pay",
 		"payFrom": "Pay from",
 		"payFromWallet": "Pay from wallet",
-		"payMe": "Pay me",
-		"paymentRequests": "Payment requests",
+		"payMe": "Pay me",		
 		"payNow": "Pay now",
 		"payToAddress": "Pay to this address",
 		"payWithLightning": "Pay with Lightning",
@@ -274,20 +273,6 @@
 		
 	},
 	"payerMemo": "Memo for the payer",
-	"paymentRequestScreen": {
-		"incoming": {
-			"noRequests": "There are no incoming payment requests to be paid or they have already expired."
-		},
-		"listItem": {
-			"expired": "Expired",
-			"expires": "Expires",
-			"requestPaymentSuccess": "Request has been paid"
-		},
-		"outgoing": {
-			"noRequests": "There are no outgoing payment requests to be paid or they have already expired.",
-			"scanAndPay": "Scan and pay to top-up"
-		}
-	},
 	"payWithLightningDesc": "Enter or paste Lightning address, invoice or LNURL pay code you want to pay to.",
 	"pictureRetrieveFail": "Could not retrieve pictures from the server, try again later.",
 	"privacyScreen": {

@@ -5,23 +5,18 @@ import {
   TextStyle,
   ViewStyle,
   View,
-  Text as RNText,
   AppState,
-  Image,  
-  Animated,
   FlatList,
   Pressable,
   Linking,
   LayoutAnimation,
   AppStateStatus,
   Platform,
-  Alert,  
 } from 'react-native'
-// import codePush, { RemotePackage } from 'react-native-code-push'
 import {moderateScale, verticalScale} from '@gocodingnow/rn-size-matters'
 import { SvgXml } from 'react-native-svg'
-import { NavigationState, Route, TabBar, TabBarItemProps, TabBarProps, TabView } from 'react-native-tab-view'
-import {useThemeColor, spacing, colors, typography} from '../theme'
+import { NavigationState, Route, TabBar, TabView } from 'react-native-tab-view'
+import {useThemeColor, spacing, colors} from '../theme'
 import {
   Button,
   Icon,
@@ -41,8 +36,7 @@ import EventEmitter from '../utils/eventEmitter'
 import {useStores} from '../models'
 import {Mint, UnitBalance} from '../models/Mint'
 import {MintsByUnit} from '../models/MintsStore'
-import {HANDLE_CLAIM_TASK, HANDLE_RECEIVED_EVENT_TASK, KeyChain, log, NostrClient, WalletTaskResult} from '../services'
-import {Env} from '../utils/envtypes'
+import {HANDLE_CLAIM_TASK, HANDLE_RECEIVED_EVENT_TASK, log, NostrClient, WalletTaskResult} from '../services'
 import {Transaction} from '../models/Transaction'
 import {TransactionListItem} from './Transactions/TransactionListItem'
 import {WalletTask} from '../services'
@@ -74,8 +68,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     const {        
         mintsStore, 
         proofsStore, 
-        transactionsStore, 
-        paymentRequestsStore, 
+        transactionsStore,          
         userSettingsStore, 
         nwcStore,
         walletProfileStore,
@@ -99,6 +92,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
 
     const [info, setInfo] = useState<string>('')
     const [defaultMintUrl, setDefaultMintUrl] = useState<string>(MINIBITS_MINT_URL)
+    const [pendingTopupsCount, setPendingTopupsCount] = useState<number>(0)
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState<boolean>(false)
     const [isMintsModalVisible, setIsMintsModalVisible] = useState<boolean>(false)
@@ -156,13 +150,6 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         
     }, []) 
 
-    
-    /* const handleBinaryVersionMismatchCallback = function(update: RemotePackage) {
-        log.info('[handleBinaryVersionMismatchCallback] triggered', ANDROID_VERSION_NAME, update)
-        setIsNativeUpdateAvailable(true)
-        toggleUpdateModal()
-    }*/
-    
     // On app start
     useEffect(() => {        
         const getInitialData  = async () => {
@@ -183,6 +170,14 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             if(groupedMints.length === 0) {
                 await addMint()
             }
+
+            /* 
+            TODO rethink
+            const pending = transactionsStore.getPendingTopupsCount()
+
+            if(pending > 0) {
+                setPendingTopupsCount(pending)
+            } */
 
             // const nostrKeyPair = await KeyChain.loadNostrKeyPair()
             // log.trace('[getInitialData] KEYS CHECK', {keychainPubkey: nostrKeyPair?.publicKey, profilePubkey: walletProfileStore.pubkey})
@@ -404,9 +399,9 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         navigation.navigate('TokenReceive', {unit: currentUnit})
     }
 
-    const gotoPaymentRequests = function () {
+    const gotoPendingTopups = function () {
         // @ts-ignore
-        navigation.navigate('PaymentRequests')
+        navigation.navigate('Transactions')
     }
 
     const gotoProfile = function () {
@@ -637,15 +632,17 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                 TitleActionComponent={headerTitle.length > 0 ? <HeaderTitle /> : undefined}               
                 RightActionComponent={
                 <>
-                    {paymentRequestsStore.countNotExpired > 0 && (
+                    {/* TODO this should be unpaid payment requests
+
+                        pendingTopupsCount > 0 && (
                         <Pressable 
                             style={{flexDirection: 'row', alignItems:'center', marginRight: spacing.medium}}
-                            onPress={() => gotoPaymentRequests()}
+                            onPress={() => gotoPendingTopups()}
                         >
                             <Icon icon='faPaperPlane' color={headerTitleColor}/>
-                            <Text text={`${paymentRequestsStore.countNotExpired}`} style={{color: headerTitleColor}} />
+                            <Text text={`${pendingTopupsCount}`} style={{color: headerTitleColor}} />
                         </Pressable>
-                    )}
+                    )*/ }
                 </>
                 }                
             />

@@ -23,9 +23,7 @@ import QuickCrypto from 'react-native-quick-crypto'
 
 const {
     transactionsStore,
-    walletProfileStore,
-    paymentRequestsStore,    
-    walletStore,
+    walletProfileStore,    
     relaysStore
 } = rootStoreInstance
 

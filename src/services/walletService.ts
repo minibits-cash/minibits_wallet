@@ -20,7 +20,6 @@ import {Mint} from '../models/Mint'
 import {pollerExists, stopPolling} from '../utils/poller'
 import { NostrClient, NostrEvent, NostrProfile } from './nostrService'
 import { MINIBITS_NIP05_DOMAIN, MINIBITS_SERVER_API_HOST, MINIBIT_SERVER_NOSTR_PUBKEY } from '@env'
-import { PaymentRequest, PaymentRequestStatus, PaymentRequestType } from '../models/PaymentRequest'
 import { IncomingDataType, IncomingParser } from './incomingParser'
 import { Contact } from '../models/Contact'
 import { SyncQueue } from './syncQueueService'
@@ -42,8 +41,6 @@ import { UnsignedEvent } from 'nostr-tools'
 import { Platform } from 'react-native'
 import { cashuPaymentRequestTask } from './wallet/cashuPaymentRequestTask'
 import { decodePaymentRequest, sumBlindSignatures } from '@cashu/cashu-ts/src/utils'
-import { Database } from './sqlite'
-import { decode } from 'nostr-tools/nip19'
 
 /**
  * The default number of proofs per denomination to keep in a wallet.
@@ -194,16 +191,6 @@ export interface SyncStateTaskResult extends WalletTaskResult {
     revertedTransactionIds: number[]
 }
 
-export type ReceivedEventResult = {
-    status: TransactionStatus | PaymentRequestStatus, 
-    title: string,     
-    message: string, 
-    memo?: string, 
-    picture?: string
-    paymentRequest?: PaymentRequest
-    token?: Token
-}
-
 
 const {
     userSettingsStore,
@@ -211,7 +198,6 @@ const {
     mintsStore,
     proofsStore,
     transactionsStore,    
-    paymentRequestsStore,
     contactsStore,
     relaysStore,    
     walletStore,
@@ -1363,8 +1349,6 @@ const handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTask
                                   inFlightRequest: inFlight
                                 }                            
                             )
-    
-                            // const pr = paymentRequestsStore.findByTransactionId(transaction.id)
                             
                             const {addedAmount: mintedAmount} = WalletUtils.addCashuProofs(
                                 mintUrl as string,
@@ -1531,7 +1515,7 @@ const handlePendingTopupsQueue = async function (): Promise<void> {
     for (const topup of pendingTopups) {
         // skip pr if active poller exists
         if(pollerExists(`handlePendingTopupPoller-${topup.paymentId}`)) {
-            log.trace('[handlePendingTopupsQueue] Skipping check of paymentRequest, poller exists', {paymentHash: topup.paymentId})
+            log.trace('[handlePendingTopupsQueue] Skipping check of pendingTopup, poller exists', {paymentHash: topup.paymentId})
             continue
         }
 

@@ -245,8 +245,7 @@
 		"pay": "Zaplať",
 		"payFrom": "zaplať z",
 		"payFromWallet": "Zaplať z peňaženky",
-		"payMe": "Zaplať mi",
-		"paymentRequests": "Požiadavky na platbu",
+		"payMe": "Zaplať mi",		
 		"payNow": "Zaplať teraz",
 		"payToAddress": "Zaplať na adresu",
 		"payWithLightning": "Zaplať cez Lightning",
@@ -259,20 +258,6 @@
 		"withdraw": "Vyber"
 	},
 	"payerMemo": "Poznámka pre príjemcu",
-	"paymentRequestScreen": {
-		"incoming": {
-			"noRequests": "Žiadne prichádzajúce požiadavky na platbu na zaplatenie, alebo už expirovali."
-		},
-		"listItem": {
-			"expired": "Expirované",
-			"expires": "Expiruje",
-			"requestPaymentSuccess": "Požiadavka je zaplatená"
-		},
-		"outgoing": {
-			"noRequests": "Žiadne odchádzajúce požiadavky na platbu, alebo už expirovali.",
-			"scanAndPay": "Skenuj a zaplať na navýšenie"
-		}
-	},
 	"payWithLightningDesc": "Zadaj Lightning adresu, invoice alebo LNURL kód ktorý chceš zaplatiť.",
 	"pictureRetrieveFail": "Nejde načítať obrázky zo servera, skús neskôr.",
 	"privacyScreen": {

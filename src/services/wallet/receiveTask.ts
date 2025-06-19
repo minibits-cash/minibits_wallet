@@ -1,18 +1,16 @@
 import {log} from '../logService'
 import {
   Transaction,
-  TransactionData,
-  TransactionRecord,
+  TransactionData,  
   TransactionStatus,
   TransactionType,
 } from '../../models/Transaction'
 import {rootStoreInstance} from '../../models'
-import {CashuUtils, CashuProof} from '../cashu/cashuUtils'
+import {CashuUtils} from '../cashu/cashuUtils'
 import AppError, {Err} from '../../utils/AppError'
-import { DEFAULT_DENOMINATION_TARGET, TransactionTaskResult } from '../walletService'
+import { TransactionTaskResult } from '../walletService'
 import { WalletUtils } from './utils'
 import { MintUnit, formatCurrency, getCurrency } from './currency'
-import { MintProofsCounter } from '../../models/Mint'
 import { PaymentRequestPayload, Token, getDecodedToken } from '@cashu/cashu-ts'
 import { getEncodedToken, getKeepAmounts } from '@cashu/cashu-ts/src/utils'
 

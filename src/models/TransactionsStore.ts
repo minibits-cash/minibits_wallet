@@ -98,6 +98,9 @@ import {
             return []
           
           },
+          getPendingTopupsCount() {
+            return Database.getPendingTopupsCount()
+          },
           countRecentByUnit(unit: MintUnit) {
              return this.getRecentByUnit(unit).length
           }
@@ -186,7 +189,33 @@ import {
                 log.warn('[findByQuote]', `Transaction with quote ${quote} not found in database`)
                 return undefined
             }  
-          },   
+          },
+          findByPaymentRequest(pr: string) {            
+
+            const dbTransaction = Database.getTransactionByPaymentRequest(pr)
+
+            if(dbTransaction) {
+                const createdAt = new Date(dbTransaction.createdAt)                    
+                const expiresAt = dbTransaction.expiresAt ? new Date(dbTransaction.expiresAt) : null                    
+                const inStoreTransaction = {...dbTransaction, createdAt, expiresAt}
+                const {id} = dbTransaction
+                                    
+                // Shorten for performance reasons
+                if(inStoreTransaction.inputToken && inStoreTransaction.inputToken.length > 0) {
+                    inStoreTransaction.inputToken = inStoreTransaction.inputToken?.slice(0, 40)
+                }
+
+                if(inStoreTransaction.outputToken && inStoreTransaction.outputToken.length > 0) {
+                    inStoreTransaction.outputToken = inStoreTransaction.outputToken?.slice(0, 40)
+                }
+                                    
+                self.transactionsMap.set(id, inStoreTransaction)
+                return self.transactionsMap.get(id)                    
+            } else {
+                log.warn('[findByQuote]', `Transaction with paymentRequest ${pr} not found in database`)
+                return undefined
+            }  
+          }, 
           pruneRecentByUnit(unit: MintUnit) {
               const unitCount = self.countRecentByUnit(unit)
               
