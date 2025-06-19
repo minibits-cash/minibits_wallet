@@ -61,6 +61,7 @@ import { RECEIVE_OFFLINE_COMPLETE_TASK, RECEIVE_TASK } from '../services/wallet/
 import { REVERT_TASK } from '../services/wallet/revertTask'
 import FastImage from 'react-native-fast-image'
 import { MintHeader } from './Mints/MintHeader'
+import { TransferOption } from './TransferScreen'
 
 type ProofsByStatus = {
   isSpent: Proof[]
@@ -1374,9 +1375,8 @@ const TopupInfoBlock = function (props: {
 }) {
   const {transaction, navigation, mint} = props
   const {mintsStore, walletStore} = useStores()
-  const isInternetReachable = useIsInternetReachable()  
-
-  const [paymentRequest, setPaymentRequest] = useState<PaymentRequest | undefined>(undefined)
+  const isInternetReachable = useIsInternetReachable()
+  const [isPendingTopupRetriable, setIsPendingTopupRetriable] = useState<boolean>(false)
   const [isPendingTopupTaskSentToQueue, setIsPendingTopupTaskSentToQueue] = useState<boolean>(false)
   const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
   const [resultModalInfo, setResultModalInfo] = useState<
@@ -1384,14 +1384,14 @@ const TopupInfoBlock = function (props: {
   >()
   const [isLoading, setIsLoading] = useState(false)
   
-  useFocusEffect(useCallback(() => {
-      // retrieve pr from NOT COMPLETED transaction as it might have been expired and removed from storage
-      log.trace('[TopupInfoBlock] useFocusEffect start')
-      const pr = getPaymentRequestToRetry(transaction)
-      if(pr) {
-        log.trace('[TopupInfoBlock] found payment request')
-        setPaymentRequest(pr)
-      }      
+  useFocusEffect(useCallback(() => {      
+    log.trace('[TopupInfoBlock] useFocusEffect start')
+
+    if (transaction.status === TransactionStatus.ERROR || 
+      transaction.status === TransactionStatus.PENDING ||
+      transaction.status === TransactionStatus.EXPIRED) {
+      setIsPendingTopupRetriable(true)
+    }     
   }, []))
 
   useFocusEffect(useCallback(() => {
@@ -1434,15 +1434,16 @@ const TopupInfoBlock = function (props: {
 
 
   const onRetryToHandlePendingTopup = async function () {                
-      if(!isInternetReachable || !paymentRequest) {
+      if(!isInternetReachable) {
           return
-      }    
+      }
+
       setIsLoading(true)
 
       if(resultModalInfo && resultModalInfo.message.includes('outputs have already been signed before')) {
         const walletInstance = await walletStore.getWallet(
           mint.mintUrl as string, 
-          paymentRequest.mintUnit, 
+          transaction.unit, 
           {withSeed: true}
         )
         const mintInstance = mintsStore.findByUrl(mint.mintUrl as string)
@@ -1452,7 +1453,7 @@ const TopupInfoBlock = function (props: {
 
       setIsPendingTopupTaskSentToQueue(true)
       WalletTask.handlePendingTopupQueue(
-          {paymentRequest}
+          {transaction}
       )
 
   }
@@ -1499,7 +1500,7 @@ const TopupInfoBlock = function (props: {
                       unit={transaction.unit}
                       isCurrency={true}
                     />
-                    {paymentRequest && isInternetReachable ? (
+                    {isPendingTopupRetriable && isInternetReachable ? (
                         <View
                         style={{flexDirection: 'row', justifyContent: 'space-between'}}>
                         <TranItem
@@ -1531,10 +1532,10 @@ const TopupInfoBlock = function (props: {
                         label="tranDetailScreen.createdAt"
                         value={(transaction.createdAt as Date).toLocaleString()}
                     />
-                    {paymentRequest && (
+                    {transaction.expiresAt && (
                       <TranItem
                         label="tranDetailScreen.expiresAt"
-                        value={(new Date(paymentRequest.expiresAt!)).toLocaleString()}
+                        value={(new Date(transaction.expiresAt!)).toLocaleString()}
                       />
                     )}
                     {transaction.paymentId && (
@@ -1547,10 +1548,10 @@ const TopupInfoBlock = function (props: {
                 </>
             }
         />
-        {transaction.status === TransactionStatus.PENDING && paymentRequest && (
+        {transaction.status === TransactionStatus.PENDING && transaction.paymentRequest && (
           <View style={{marginBottom: spacing.small}}>
             <QRCodeBlock 
-              qrCodeData={paymentRequest.encodedInvoice}
+              qrCodeData={transaction.paymentRequest}
               title={translate("tranDetailScreen.invoice")}
               type='Bolt11Invoice'
               size={spacing.screenWidth * 0.8}
@@ -1661,6 +1662,7 @@ const TransferInfoBlock = function (props: {
 }) {
   const {transaction, mint} = props
   const {proofsStore, transactionsStore} = useStores()
+  const navigation = useNavigation()
 
   
   const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
@@ -1672,6 +1674,29 @@ const TransferInfoBlock = function (props: {
     setIsResultModalVisible(previousState => !previousState)
 
 
+  // Pay invoice received over Nostr
+  const onPayDraftTransfer = async function () {
+
+    if(!transaction.paymentRequest || !transaction.unit || transaction.mint) {
+      setResultModalInfo({
+        status: TransactionStatus.ERROR,
+        message: 'This transaction is missing data needed to be paid.'
+      })
+      return
+    }
+
+    //@ts-ignore
+    return navigation.navigate('WalletNavigator', {
+      screen: 'Transfer', 
+      params: {
+          encodedInvoice: transaction.paymentRequest,
+          paymentOption: TransferOption.PASTE_OR_SCAN_INVOICE,
+          unit: transaction.unit,
+          mintUrl: transaction.mint,
+          draftTransactionId: transaction.id
+      }
+    })    
+  }
 
   const onRevertPreparedTransfer = async function () {
     try {
@@ -1722,13 +1747,33 @@ const TransferInfoBlock = function (props: {
         style={$dataCard}
         ContentComponent={
           <>
-            <TranItem
-              label="tranDetailScreen.amount"
-              value={transaction.amount}
-              unit={transaction.unit}
-              isCurrency={true}
-              isFirst={true}
-            />
+            {transaction.status === TransactionStatus.DRAFT ? (
+              <View
+                style={{flexDirection: 'row', justifyContent: 'space-between'}}
+              >
+                <TranItem
+                  label="tranDetailScreen.amount"
+                  value={transaction.amount}
+                  unit={transaction.unit}
+                  isCurrency={true}
+                  isFirst={true}
+                />
+                <Button
+                    style={{marginTop: spacing.medium}}
+                    preset="secondary"
+                    text="Pay"
+                    onPress={onPayDraftTransfer}
+                />
+              </View>
+            ):(
+              <TranItem
+                label="tranDetailScreen.amount"
+                value={transaction.amount}
+                unit={transaction.unit}
+                isCurrency={true}
+                isFirst={true}
+              />
+            )}
             {transaction.memo && (
             <TranItem
               label="tranDetailScreen.memoFromInvoice"
@@ -1959,76 +2004,6 @@ const getAuditTrail = function (transaction: Transaction) {
     }
 }
 
-/* const getEncodedTokenToSend = (
-  transaction: Transaction,
-): string | undefined => {
-    try {
-        const data = JSON.parse(transaction.data)
-        const pendingRecord = data.find(
-            (record: any) => record.status === 'PENDING',
-        )
-
-        if (pendingRecord) {
-            return pendingRecord.encodedTokenToSend
-        }
-
-        return undefined // No pending record found
-    } catch (e) {
-        // silent
-        return undefined
-    }
-} */
-
-const getPaymentRequestToRetry = (
-    transaction: Transaction,
-  ): PaymentRequest | undefined => {
-    try {
-      log.trace('[getPaymentRequestToRetry] start')
-        if(transaction.type !== (TransactionType.TOPUP)) {
-            return undefined
-        }
-
-        if (transaction.status !== TransactionStatus.ERROR && 
-            transaction.status !== TransactionStatus.PENDING &&
-            transaction.status !== TransactionStatus.EXPIRED) {
-            return undefined
-        }
-
-
-        /* const {mintsStore} = useStores()
-
-        // skip if mint is still offline
-        const {mint} = transaction
-        const mintInstance = mintsStore.findByUrl(mint)
-
-        log.trace('[getPaymentRequestToRetry] mint', {mint: mintInstance})
-
-        if(!mintInstance || mintInstance.status === MintStatus.OFFLINE) {
-            return undefined
-        }*/
-
-        
-
-        const data = JSON.parse(transaction.data)
-        const pendingRecord = data.find(
-            (record: any) => record.status === 'PENDING',
-        )
-
-        const paymentRequest: PaymentRequest = pendingRecord.paymentRequest
-
-        log.trace('[getPaymentRequestToRetry]', {paymentRequest})
-
-        if(!paymentRequest) {return undefined}
-        if(pollerExists(`handlePendingTopupPoller-${paymentRequest.paymentHash}`)) {return undefined}
-
-        // return paymentRequest to retry if wallet somehow failed to retreive proofs for paid invoice        
-        return paymentRequest
-       
-    } catch (e) {
-        // silent
-        return undefined
-    }
-}
 
 const $screen: ViewStyle = {}
 

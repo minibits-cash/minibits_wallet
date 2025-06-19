@@ -1,12 +1,9 @@
 import {observer} from 'mobx-react-lite'
-import {getSnapshot} from 'mobx-state-tree'
-import React, {
-  FC,
+import React, {  
   useEffect,
   useState,
   useCallback,
-  useRef,
-  useMemo,
+  useRef,  
 } from 'react'
 import {StackActions, StaticScreenProps, useFocusEffect, useNavigation} from '@react-navigation/native'
 import {
@@ -17,8 +14,7 @@ import {
   LayoutAnimation,
   ScrollView,
   FlatList,
-  ImageStyle,
-  Image,
+  ImageStyle,  
   Pressable,
 } from 'react-native'
 import {spacing, typography, useThemeColor, colors} from '../theme'
@@ -31,8 +27,7 @@ import {
   InfoModal,
   ErrorModal,
   BottomModal,
-  Text,
-  ListItem,
+  Text,  
 } from '../components'
 import {TransactionStatus, Transaction} from '../models/Transaction'
 import {useStores} from '../models'
@@ -67,19 +62,16 @@ import Clipboard from '@react-native-clipboard/clipboard'
 import { getUnixTime } from 'date-fns'
 
 export enum SendOption {
-    SEND_TOKEN = 'SEND_TOKEN',
-    // PASTE_OR_SCAN_INVOICE = 'PASTE_OR_SCAN_INVOICE',
+    SEND_TOKEN = 'SEND_TOKEN',    
     SHOW_TOKEN = 'SHOW_TOKEN',
     PAY_CASHU_PAYMENT_REQUEST = 'PAY_CASHU_PAYMENT_REQUEST',
-    // LNURL_PAY = 'LNURL_PAY',
-    // LNURL_ADDRESS = 'LNURL_ADDRESS',
-    // DONATION = 'DONATION',
 }
 
 type Props = StaticScreenProps<{
     unit: MintUnit,
     paymentOption?: SendOption,
     encodedCashuPaymentRequest?: string,
+    draftTransactionId?: number,
     contact?: Contact,
     mintUrl?: string,
     scannedPubkey?: string 
@@ -102,11 +94,13 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
     const amountInputRef = useRef<TextInput>(null)
     const memoInputRef = useRef<TextInput>(null)
-const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
+    const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
     const unitRef = useRef<MintUnit>('sat')
+    const draftTransactionIdRef = useRef<number>(null)
     
     const [paymentOption, setPaymentOption] = useState<SendOption>(SendOption.SHOW_TOKEN)
     const [encodedTokenToSend, setEncodedTokenToSend] = useState<string | undefined>()
+    const [encodedCashuPaymentRequest, setEncodedCashuPaymentRequest] = useState<string | undefined>()
     const [decodedCashuPaymentRequest, setDecodedCashuPaymentRequest] = useState<CashuPaymentRequest | undefined>()
     const [amountToSend, setAmountToSend] = useState<string>('0')
     //const [unit, setUnit] = useState<MintUnit>('sat')
@@ -180,6 +174,7 @@ const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
         return () => {}
     }, [])
 
+
     const getContactFrom = () => {
         const {
             pubkey,
@@ -244,14 +239,21 @@ const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
                     setPaymentOption(SendOption.PAY_CASHU_PAYMENT_REQUEST)
                     setContactToSendFrom(getContactFrom())                   
 
-                    const {encodedCashuPaymentRequest} = route.params
+                    const {encodedCashuPaymentRequest, draftTransactionId} = route.params
+
+                    if(draftTransactionId) {
+                        draftTransactionIdRef.current = draftTransactionId
+                    }
 
                     if (!encodedCashuPaymentRequest) {                    
                         throw new AppError(Err.VALIDATION_ERROR, 'Missing encodedCashuPaymentRequest.')
                     }
             
-                    const pr: CashuPaymentRequest = decodePaymentRequest(encodedCashuPaymentRequest)                    
+                    const pr: CashuPaymentRequest = decodePaymentRequest(encodedCashuPaymentRequest)
+
                     setDecodedCashuPaymentRequest(pr)
+                    setEncodedCashuPaymentRequest(encodedCashuPaymentRequest)
+
                     const transports: PaymentRequestTransport[] = pr.transport
                     
                     for (const transport of transports) {
@@ -341,7 +343,7 @@ const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
                         }
 
                         if (availableBalances.length === 0) {
-                            throw new AppError(Err.NOTFOUND_ERROR, 'Wallet does not have any of the mints requested to pay from.', {mints: pr.mints})
+                            throw new AppError(Err.NOTFOUND_ERROR, 'Wallet does not have any of the mints accepted by Cashu payment request.', {mints: pr.mints})
                         }
                         
                         const withEnoughBalance = availableBalances.filter(balance => {
@@ -455,10 +457,16 @@ const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
                 setEncodedTokenToSend(result.encodedTokenToSend)
             }
 
-            // update here, for now I do not expand the sendTask params
-            // TODO make objects at least from optional wallet tasks params
-            if(decodedCashuPaymentRequest && decodedCashuPaymentRequest.id) {
-                transaction.setPaymentId(decodedCashuPaymentRequest.id)
+            if(paymentOption === SendOption.PAY_CASHU_PAYMENT_REQUEST) {  
+                if(decodedCashuPaymentRequest && decodedCashuPaymentRequest.id) {
+
+                    // TODO make a single request
+                    transaction.setPaymentId(decodedCashuPaymentRequest.id)
+                    transaction.setPaymentRequest(encodedCashuPaymentRequest)            
+                    transaction.setProfile(JSON.stringify(contactToSendFrom))
+                    transaction.setSentTo(contactToSendTo.nip05 || contactToSendTo.name)        // payee
+                    transaction.setSentFrom(contactToSendFrom.nip05 || contactToSendFrom.name)  // payer
+                }
             }
 
             if (result.error) {
@@ -712,7 +720,9 @@ const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
                 p2pk.locktime = getUnixTime(new Date(Date.now() + lockTime * 24 * 60 * 60))
                 log.trace('[onMintBalanceConfirm] Locktime', {pubkey: p2pk.pubkey, locktime: p2pk.locktime})
             }
-        }   
+        }
+        
+        
 
         setIsSendTaskSentToQueue(true)
 
@@ -722,7 +732,8 @@ const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
             unitRef.current,
             memo,
             selectedProofs,
-            p2pk
+            p2pk,
+            draftTransactionIdRef.current
         )
     }
 

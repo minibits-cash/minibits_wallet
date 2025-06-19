@@ -529,7 +529,7 @@ export const WalletStoreModel = types
                 }
             }                
             
-            if(cashuWallet.mintInfo.nuts['19']) {
+            if(cashuWallet.mintInfo.nuts['19'] && !options?.inFlightRequest) {
                 currentCounter.addInFlightRequest(transactionId, sendParams)
             }
 
@@ -714,7 +714,7 @@ export const WalletStoreModel = types
                 }
             }                
             
-            if(cashuWallet.mintInfo.nuts['19']) {
+            if(cashuWallet.mintInfo.nuts['19'] && !options?.inFlightRequest) {
                 currentCounter.addInFlightRequest(transactionId, mintParams)
             }
             
@@ -825,7 +825,7 @@ export const WalletStoreModel = types
                 }
             }                
             
-            if(cashuWallet.mintInfo.nuts['19']) {
+            if(cashuWallet.mintInfo.nuts['19'] && !options?.inFlightRequest) {
                 currentCounter.addInFlightRequest(transactionId, meltParams)
             }            
             

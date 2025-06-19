@@ -278,7 +278,8 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                 description || '',
                 invoiceExpiry as Date,
                 encodedInvoice,
-                requestEvent
+                requestEvent,
+                undefined
             )
 
             if(result.meltQuote?.quote === self.lastMeltQuoteId) {

@@ -54,7 +54,7 @@ import { CurrencyAmount } from './Wallet/CurrencyAmount'
 type Props = StaticScreenProps<{
   unit: MintUnit,
   encodedInvoice?: string,
-  //paymentRequest?: PaymentRequest, 
+  draftTransactionId?: number, 
   lnurlParams?: LNURLPayParams,
   fixedAmount?: number, 
   comment?: string      
@@ -74,6 +74,9 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
     const navigation = useNavigation()
     const amountInputRef = useRef<TextInput>(null)
     const lnurlCommentInputRef = useRef<TextInput>(null)
+    const unitRef = useRef<MintUnit>('sat')
+    const mintUrlRef = useRef<string>('')
+    const draftTransactionIdRef = useRef<number>(null)
 
     const {
       proofsStore, 
@@ -90,8 +93,7 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
 
     const [encodedInvoice, setEncodedInvoice] = useState<string>('')
     const [invoice, setInvoice] = useState<DecodedLightningInvoice | undefined>()
-    const [amountToTransfer, setAmountToTransfer] = useState<string>('0')
-    const [unit, setUnit] = useState<MintUnit>('sat')
+    const [amountToTransfer, setAmountToTransfer] = useState<string>('0')    
     const [invoiceExpiry, setInvoiceExpiry] = useState<Date | undefined>()
     const [paymentHash, setPaymentHash] = useState<string | undefined>()
     const [lnurlPayParams, setLnurlPayParams] = useState<LNURLPayParams & {address?: string} | undefined>()
@@ -103,7 +105,7 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
     const [lnurlPayComment, setLnurlPayComment] = useState('')
     const [donationForName, setDonationForName] = useState<string | undefined>()
     const [availableMintBalances, setAvailableMintBalances] = useState<MintBalance[]>([])
-    const [mintBalanceToTransferFrom, setMintBalanceToTransferFrom] = useState<MintBalance | undefined>()
+    const [mintBalanceToTransferFrom, setMintBalanceToTransferFrom] = useState<MintBalance | undefined>()    
     const [transactionStatus, setTransactionStatus] = useState<TransactionStatus | undefined>()
     const [transaction, setTransaction] = useState<Transaction | undefined>()
     const [info, setInfo] = useState('')
@@ -143,10 +145,11 @@ useEffect(() => {
                 throw new AppError(Err.VALIDATION_ERROR, translate('missingMintUnitRouteParamsError'))
             }
 
-            setUnit(unit)
+            unitRef.current = unit            
 
             if(mintUrl) {
-                const mintBalance = proofsStore.getMintBalance(mintUrl)    
+                const mintBalance = proofsStore.getMintBalance(mintUrl)
+                mintUrlRef.current = mintUrl  
                 setMintBalanceToTransferFrom(mintBalance)
             }
         } catch (e: any) {
@@ -166,10 +169,16 @@ useFocusEffect(
 
         const handleInvoice = () => {
             try {
-                const {encodedInvoice} = route.params
+                const {encodedInvoice, draftTransactionId} = route.params
 
                 if (!encodedInvoice) {                    
                     throw new AppError(Err.VALIDATION_ERROR, 'Missing invoice.')
+                }
+
+                // This is a transfer initiated from invoice receivd over Nostr event,
+                // so DRAFT transaction exisits
+                if(draftTransactionId) {
+                  draftTransactionIdRef.current = draftTransactionId
                 }
 
                 log.trace('[handleInvoice] Invoice', {encodedInvoice})        
@@ -323,26 +332,26 @@ useEffect(() => {
             setIsLoading(true)
             const quote = await walletStore.createLightningMeltQuote(
                 mintBalanceToTransferFrom.mintUrl,
-                unit,
+                unitRef.current,
                 encodedInvoice,
             )
             
             setIsLoading(false)
             setMeltQuote(quote)
-            setAmountToTransfer(`${numbro(quote.amount / getCurrency(unit).precision)
+            setAmountToTransfer(`${numbro(quote.amount / getCurrency(unitRef.current).precision)
               .format({
                 thousandSeparated: true, 
-                mantissa: getCurrency(unit).mantissa
+                mantissa: getCurrency(unitRef.current).mantissa
               })}`
             )
     
             const totalAmount = quote.amount + quote.fee_reserve
     
-            let availableBalances = proofsStore.getMintBalancesWithEnoughBalance(totalAmount, unit)
+            let availableBalances = proofsStore.getMintBalancesWithEnoughBalance(totalAmount, unitRef.current)
     
             if (availableBalances.length === 0) {
                 setInfo(translate("transferScreen.insufficientFunds", {
-                  currency: getCurrency(unit).code,
+                  currency: getCurrency(unitRef.current).code,
                   amount: amountToTransfer
                 }))
                 setIsNotEnoughFunds(true)
@@ -510,6 +519,7 @@ const resetState = function () {
 const toggleResultModal = () => setIsResultModalVisible(previousState => !previousState)
 
 const onMintBalanceSelect = function (balance: MintBalance) {
+    mintUrlRef.current = balance.mintUrl
     setMintBalanceToTransferFrom(balance) // this triggers effect to get melt quote
 }
 
@@ -518,16 +528,16 @@ const onAmountEndEditing = function () {
   setAmountToTransfer(
     `${numbro(amountToTransfer).format({
       thousandSeparated: true,
-      mantissa: getCurrency(unit).mantissa
+      mantissa: getCurrency(unitRef.current).mantissa
     })}`
   )
 }
 
 // Amount is editable only in case of LNURL Pay, while invoice is not yet retrieved
 const onRequestLnurlInvoice = async function () {
-  log.trace('[onRequestLnurlInvoice] start', {amountToTransfer, unit})
+  log.trace('[onRequestLnurlInvoice] start', {amountToTransfer, unit: unitRef.current})
   try {
-    const {precision, code: currencyCode} = getCurrency(unit)
+    const {precision, code: currencyCode} = getCurrency(unitRef.current)
        
     const amountUnit = round(toNumber(amountToTransfer) * precision, 0)
 
@@ -542,7 +552,7 @@ const onRequestLnurlInvoice = async function () {
 
     let amountSats = 0
 
-    if(unit !== 'sat') {
+    if(unitRef.current !== 'sat') {
       const rate = await walletStore.getExchangeRate(currencyCode)
       amountSats = roundUp(convertToFromSats(amountUnit, currencyCode, rate), 0)
 
@@ -598,25 +608,23 @@ const ensureCommentNotTooLong = async function () {
 
 const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: string = '') {
     // Need to retrieve from params as they might not be set in state yet
-    // TODO fix this so that we kick this off only when state is set
-    const { mintUrl, unit } = route.params
-    log.trace("[onEncodedInvoice] start", {mintUrl, unit})
+    // TODO fix this so that we kick this off only when state is set    
+    log.trace("[onEncodedInvoice] start", {mintUrl: mintUrlRef.current, unit: unitRef.current})
     
     try {
         //@ts-ignore
-        navigation.setParams({encodedInvoice: undefined})
-        //@ts-ignore
-        navigation.setParams({paymentRequest: undefined})
-        //@ts-ignore
-        navigation.setParams({lnurlParams: undefined})
-        //@ts-ignore
-        navigation.setParams({paymentOption: undefined})
-        //@ts-ignore
-        navigation.setParams({fixedAmount: undefined})
-        //@ts-ignore
-        navigation.setParams({isDonation: undefined})
-        //@ts-ignore
-        navigation.setParams({donationForName: undefined})
+        navigation.setParams({
+          encodedInvoice: undefined,
+          paymentRequest: undefined,
+          lnurlParams: undefined,
+          paymentOption: undefined,
+          fixedAmount: undefined,
+          isDonation: undefined,
+          donationForName: undefined,
+          draftTransactionIdRef: undefined,
+          unit: undefined,
+          mintUrl: undefined
+        })
 
         const invoice = LightningUtils.decodeInvoice(encoded)
         const {amount, expiry, description, timestamp} = LightningUtils.getInvoiceData(invoice)
@@ -647,15 +655,15 @@ const onEncodedInvoice = async function (encoded: string, paymentRequestDesc: st
         }
         
         // We need to retrieve the quote first to know how much is needed to settle invoice in selected currency unit        
-        const balanceToTransferFrom  = mintUrl ? 
-            proofsStore.getMintBalance(mintUrl) : 
-            proofsStore.getMintBalancesWithUnit(unit)[0]
+        const balanceToTransferFrom  = mintUrlRef.current ? 
+            proofsStore.getMintBalance(mintUrlRef.current) :
+            proofsStore.getMintBalancesWithUnit(unitRef.current)[0]
 
         log.trace('[onEncodedInvoice]', {balanceToTransferFrom})
 
         if (!balanceToTransferFrom) {
           log.warn('Not enough balance')
-          setInfo(translate("transferScreen.noMintWithBalance", { unit }))
+          setInfo(translate("transferScreen.noMintWithBalance", { unit: unitRef.current }))
           setIsNotEnoughFunds(true)
           return
         }
@@ -685,16 +693,18 @@ const transfer = async function () {
 
     log.trace('[transfer]', {isInvoiceDonation})
 
-    const amountToTransferInt = round(toNumber(amountToTransfer) * getCurrency(unit).precision, 0)
+    const amountToTransferInt = round(toNumber(amountToTransfer) * getCurrency(unitRef.current).precision, 0)
 
     WalletTask.transferQueue(
         mintBalanceToTransferFrom,
         amountToTransferInt,
-        unit,
+        unitRef.current,
         meltQuote,        
         memo,
         invoiceExpiry as Date,
         encodedInvoice,
+        undefined,
+        draftTransactionIdRef.current
     )
   } catch (e: any) {
     handleError(e)
@@ -705,8 +715,8 @@ const increaseProofsCounterAndRetry = async function () {
   try {
     const walletInstance = await walletStore.getWallet(
       mintBalanceToTransferFrom?.mintUrl as string, 
-        unit, 
-        {withSeed: true}
+      unitRef.current, 
+      {withSeed: true}
     )
     const mintInstance = mintsStore.findByUrl(mintBalanceToTransferFrom?.mintUrl as string)
     const counter = mintInstance!.getProofsCounterByKeysetId!(walletInstance.keysetId)
@@ -750,10 +760,10 @@ const amountInputColor = useThemeColor('amountInput')
         return undefined
       }
 
-      const precision = getCurrency(unit).precision
+      const precision = getCurrency(unitRef.current).precision
       return convertToFromSats(
           round(toNumber(amountToTransfer) * precision, 0) || 0, 
-          getCurrency(unit).code,
+          getCurrency(unitRef.current).code,
           walletStore.exchangeRate
       )
   }
@@ -761,8 +771,8 @@ const amountInputColor = useThemeColor('amountInput')
   const isConvertedAmountVisible = function () {
     return (
       walletStore.exchangeRate &&
-      (userSettingsStore.exchangeCurrency === getCurrency(unit).code ||
-        unit === 'sat') &&
+      (userSettingsStore.exchangeCurrency === getCurrency(unitRef.current).code ||
+      unitRef.current === 'sat') &&
       getConvertedAmount() !== undefined
     )
   }
@@ -776,7 +786,7 @@ const amountInputColor = useThemeColor('amountInput')
               ? mintsStore.findByUrl(mintBalanceToTransferFrom?.mintUrl)
               : undefined
           }
-          unit={unit}          
+          unit={unitRef.current}          
         />
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <View style={$amountContainer}>
@@ -795,7 +805,7 @@ const amountInputColor = useThemeColor('amountInput')
 
             {encodedInvoice && (meltQuote?.fee_reserve || finalFee) ? (
               <FeeBadge
-                currencyCode={getCurrency(unit).code}
+                currencyCode={getCurrency(unitRef.current).code}
                 estimatedFee={meltQuote?.fee_reserve || 0}
                 finalFee={finalFee}
               />
@@ -804,7 +814,7 @@ const amountInputColor = useThemeColor('amountInput')
                 {isConvertedAmountVisible() && ( 
                     <CurrencyAmount
                         amount={getConvertedAmount() ?? 0}
-                        currencyCode={unit === 'sat' ? userSettingsStore.exchangeCurrency : CurrencyCode.SAT}
+                        currencyCode={unitRef.current === 'sat' ? userSettingsStore.exchangeCurrency : CurrencyCode.SAT}
                         symbolStyle={{color: convertedAmountColor, marginTop: spacing.tiny, fontSize: verticalScale(10)}}
                         amountStyle={{color: convertedAmountColor, lineHeight: spacing.small}}                        
                         size='small'
@@ -903,7 +913,7 @@ const amountInputColor = useThemeColor('amountInput')
               <MintBalanceSelector
                 mintBalances={availableMintBalances}
                 selectedMintBalance={mintBalanceToTransferFrom}
-                unit={unit}
+                unit={unitRef.current}
                 title={translate('payCommon.payFrom')}
                 confirmTitle={translate('payCommon.payNow')}
                 onMintBalanceSelect={onMintBalanceSelect}
@@ -933,7 +943,7 @@ const amountInputColor = useThemeColor('amountInput')
                   <TranItem
                     label="transactionCommon.feePaid"
                     value={transaction.fee || 0}
-                    unit={unit}
+                    unit={unitRef.current}
                     isCurrency={true}
                   />
                   <TranItem

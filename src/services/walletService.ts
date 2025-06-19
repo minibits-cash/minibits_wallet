@@ -41,8 +41,9 @@ import { MinibitsClient } from './minibitsService'
 import { UnsignedEvent } from 'nostr-tools'
 import { Platform } from 'react-native'
 import { cashuPaymentRequestTask } from './wallet/cashuPaymentRequestTask'
-import { sumBlindSignatures } from '@cashu/cashu-ts/src/utils'
+import { decodePaymentRequest, sumBlindSignatures } from '@cashu/cashu-ts/src/utils'
 import { Database } from './sqlite'
+import { decode } from 'nostr-tools/nip19'
 
 /**
  * The default number of proofs per denomination to keep in a wallet.
@@ -100,7 +101,8 @@ type WalletTaskService = {
         memo: string,
         invoiceExpiry: Date,
         encodedInvoice: string,
-        nwcEvent?: NostrEvent
+        nwcEvent?: NostrEvent,
+        draftTransactionId?: number
     ) => Promise<void>
     receiveQueue: (
         token: Token,
@@ -225,7 +227,8 @@ const transferQueue = async function (
     memo: string,
     invoiceExpiry: Date,    
     encodedInvoice: string,
-    nwcEvent?: NostrEvent
+    nwcEvent?: NostrEvent,
+    draftTransactionId?: number
 ): Promise<void> {
     const now = new Date().getTime()
     SyncQueue.addPrioritizedTask(
@@ -238,7 +241,8 @@ const transferQueue = async function (
             memo,
             invoiceExpiry,
             encodedInvoice,
-            nwcEvent
+            nwcEvent,
+            draftTransactionId
         )
     )
     return
@@ -395,7 +399,8 @@ const sendQueue = async function (
     unit: MintUnit,
     memo: string,
     selectedProofs: Proof[],
-    p2pk?: { pubkey: string; locktime?: number; refundKeys?: Array<string> }
+    p2pk?: { pubkey: string; locktime?: number; refundKeys?: Array<string> },
+    draftTransactionId?: number
 ): Promise<void> {
     const now = new Date().getTime()
     SyncQueue.addPrioritizedTask(
@@ -406,7 +411,8 @@ const sendQueue = async function (
             unit,
             memo,
             selectedProofs,
-            p2pk     
+            p2pk,
+            draftTransactionId  
         )
     )
     return
@@ -1358,7 +1364,7 @@ const handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTask
                                 }                            
                             )
     
-                            const pr = paymentRequestsStore.findByTransactionId(transaction.id)
+                            // const pr = paymentRequestsStore.findByTransactionId(transaction.id)
                             
                             const {addedAmount: mintedAmount} = WalletUtils.addCashuProofs(
                                 mintUrl as string,
@@ -1380,7 +1386,7 @@ const handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTask
                                 )
                             }
     
-                            stopPolling(`handlePendingTopupPoller-${pr?.paymentHash}`)                        
+                            stopPolling(`handlePendingTopupPoller-${transaction.paymentId}`)                        
     
                             await transactionsStore.updateStatuses(
                                 [transaction.id],
@@ -1698,7 +1704,7 @@ const handlePendingTopupTask = async function (params: {transaction: Transaction
              * ISSUED 
              */
             case MintQuoteState.ISSUED:
-                log.trace('[handlePendingTopupTask] Quote already issued', {mintUrl, mintQuote})                           
+                log.trace('[handlePendingTopupTask] Quote already issued', {mintUrl, mintQuote})
                 
                 return {
                     taskFunction: HANDLE_PENDING_TOPUP_TASK,
@@ -2410,7 +2416,7 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
         // Receive bolt11 invoice start
         //
         else if (incoming.type === IncomingDataType.INVOICE) {
-            // receiver is current wallet profile
+            // payer is current wallet profile
             const {
                 pubkey,
                 npub,
@@ -2418,12 +2424,13 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
                 picture,
             } = walletProfileStore
 
+            
             const contactTo: Contact = {
                 pubkey,
                 npub,
                 name,
                 picture
-            }                    
+            }              
             
             const decoded = LightningUtils.decodeInvoice(incoming.encoded)
             const {
@@ -2436,22 +2443,8 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
             
             const maybeMemo = NostrClient.findMemo(decryptedMessage)
             
-            /*const paymentRequest = paymentRequestsStore.addPaymentRequest({
-                type: PaymentRequestType.INCOMING,
-                status: PaymentRequestStatus.ACTIVE,                            
-                encodedInvoice: incoming.encoded,
-                invoicedUnit: 'sat', // bolt11
-                invoicedAmount: amount || 0,            
-                description: maybeMemo ? maybeMemo : description,                            
-                paymentHash,
-                contactFrom: contactFrom || {pubkey: sentFromPubkey, npub: sentFromNpub},
-                contactTo,                        
-                expiry,
-                createdAt: timestamp ? new Date(timestamp * 1000) : new Date()
-            })*/
-            
             // create draft transaction
-            const defaultMintBalance: MintBalance= proofsStore.getMintBalanceWithMaxBalance('sat')[0]
+            const defaultMintBalance: MintBalance= proofsStore.getMintBalanceWithMaxBalance('sat')
             const transactionData: TransactionData[] = [
                 {
                     status: TransactionStatus.DRAFT,
@@ -2469,29 +2462,122 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
                 fee: 0,
                 unit: 'sat',
                 data: JSON.stringify(transactionData),
-                memo: maybeMemo,
+                memo: maybeMemo || description,
                 mint: defaultMintBalance.mintUrl,
                 status: TransactionStatus.DRAFT,
             }
 
-            const transaction = await transactionsStore.addTransaction(newTransaction)
-            const transactionId = transaction.id
-            // TODO make single insert            
+            const transaction = await transactionsStore.addTransaction(newTransaction)            
+            // TODO make single insert
             transaction.setPaymentId(paymentHash)
             transaction.setPaymentRequest(incoming.encoded)
             transaction.setExpiresAt(addSeconds(new Date(timestamp * 1000), expiry))
+            transaction.setProfile(JSON.stringify(contactFrom))
+            transaction.setSentTo(contactFrom.nip05 || contactFrom.name)    // payee
+            transaction.setSentFrom(contactTo.nip05 || contactTo.name)      // payer
 
             _sendIncomingInvoiceNotification(amount, 'sat', contactFrom)
             
             return {
                 mintUrl: '',
                 taskFunction: HANDLE_RECEIVED_EVENT_TASK,
-                message: 'Incoming payment request been received.',
+                message: 'Incoming Lightning payment request been received.',
+                proofsCount: 0,
+                proofsAmount: amount                     
+            } as WalletTaskResult
+        }
+        //
+        // Receive cashu payment requet to pay
+        //
+        else if (incoming.type === IncomingDataType.CASHU_PAYMENT_REQUEST) {
+            // receiver is current wallet profile
+            const {
+                pubkey,
+                npub,
+                name,
+                picture,
+            } = walletProfileStore
+
+            const contactTo: Contact = {
+                pubkey,
+                npub,
+                name,
+                picture
+            }                    
+            
+            const decoded = decodePaymentRequest(incoming.encoded)
+
+            
+            // do not create draft transaction for amount-less pr
+            if(!decoded.amount || !decoded.unit) {
+                let message = 'Cashu payment request is missing amount or unit.'
+                throw new AppError(Err.VALIDATION_ERROR, message, {decoded})  
+            }
+            
+            // create draft transaction
+            const {amount, unit, description, id, mints} = decoded
+            
+            const availableBalances: MintBalance[] = []
+
+            if (mints && mints.length > 0) {                        
+
+                for (const mint of mints) {
+                    if (mintsStore.mintExists(mint)) {
+                        const mintBalance = proofsStore.getMintBalance(mint)   
+                        availableBalances.push(mintBalance)
+                    }
+                }
+
+            } else {
+                availableBalances.push(proofsStore.getMintBalanceWithMaxBalance(unit as MintUnit))
+            }
+
+            if(availableBalances.length === 0) {
+                let message = 'Wallet does not have any of the mints accepted by Cashu payment request.'
+                throw new AppError(Err.VALIDATION_ERROR, message, {decoded})  
+            }
+
+            const transactionData: TransactionData[] = [{
+                    status: TransactionStatus.DRAFT,
+                    mintBalanceToSendFrom: availableBalances[0],
+                    amountToSend: amount,
+                    unit,                       
+                    createdAt: new Date(),
+            }]
+
+            const newTransaction = {
+                type: TransactionType.SEND,
+                amount,
+                fee: 0,
+                unit,
+                data: JSON.stringify(transactionData),
+                memo: description,
+                mint: availableBalances[0].mintUrl,
+                status: TransactionStatus.DRAFT,
+            }
+
+            const transaction = await transactionsStore.addTransaction(newTransaction)            
+            // TODO make single insert
+            transaction.setPaymentId(id)
+            transaction.setPaymentRequest(incoming.encoded)            
+            transaction.setProfile(JSON.stringify(contactFrom))
+            transaction.setSentTo(contactFrom.nip05 || contactFrom.name)    // payee
+            transaction.setSentFrom(contactTo.nip05 || contactTo.name)      // payer
+
+            _sendIncomingInvoiceNotification(amount, unit as MintUnit, contactFrom)
+            
+            return {
+                mintUrl: '',
+                taskFunction: HANDLE_RECEIVED_EVENT_TASK,
+                message: 'Incoming Cashu payment request been received.',
                 proofsCount: 0,
                 proofsAmount: amount                     
             } as WalletTaskResult
         }
 
+        //
+        // Receive ecash from paid cashu payment requet
+        //
         else if(incoming.type === IncomingDataType.CASHU_PAYMENT_REQUEST_PAYLOAD) {
             const decoded: PaymentRequestPayload = JSON.parse(incoming.encoded)
             log.trace('[handleReceivedEventTask]', 'Decoded payment request payload', {decoded})
@@ -2533,8 +2619,6 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
             throw new AppError(Err.NOTFOUND_ERROR, 'Received unknown event message', {caller: HANDLE_RECEIVED_EVENT_TASK,incoming})
         }
     } catch (e: any) {
-        log.error('[handleReceivedEventTask]', e.name, e.message)
-
         return {            
             taskFunction: HANDLE_RECEIVED_EVENT_TASK,
             message: e.message,
@@ -2588,7 +2672,7 @@ const _sendReceiveNotification = async function (
 const _sendIncomingInvoiceNotification = async function (amount: number, unit: MintUnit, from: Contact) {    
     await NotificationService.createLocalNotification(
         Platform.OS === 'android' ? `⚡ Please pay <b>${formatCurrency(amount, getCurrency(unit).code)} ${getCurrency(unit).code}</b>!` : `⚡ Please pay ${formatCurrency(amount, getCurrency(unit).code)} ${getCurrency(unit).code}!`,
-        `${from.nip05 || 'Unknown'} has sent you a request to pay an invoice.`,
+        `${from.nip05 || 'Unknown'} has sent you a request to pay.`,
         from.picture,
     )
 }

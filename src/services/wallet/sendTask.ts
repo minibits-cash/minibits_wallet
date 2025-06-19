@@ -39,7 +39,8 @@ export const sendTask = async function (
     unit: MintUnit,
     memo: string,
     selectedProofs: Proof[],
-    p2pk?: { pubkey: string; locktime?: number; refundKeys?: Array<string> }
+    p2pk?: { pubkey: string; locktime?: number; refundKeys?: Array<string> },
+    draftTransactionId?: number
 ) : Promise<TransactionTaskResult> {
 
     const mintUrl = mintBalanceToSendFrom.mintUrl
@@ -51,31 +52,35 @@ export const sendTask = async function (
         throw new AppError(Err.VALIDATION_ERROR, 'Amount to send must be above zero.')
     }
 
-    // create draft transaction
-    const transactionData: TransactionData[] = [
-        {
-            status: TransactionStatus.DRAFT,
-            mintBalanceToSendFrom,
-            createdAt: new Date(),
-        }
-    ]
-    
     let transaction: Transaction | undefined = undefined
+    let transactionData: TransactionData[] = []
 
     try {
-        const newTransaction = {
-            type: TransactionType.SEND,
-            amount: amountToSend,
-            fee: 0,
-            unit,
-            data: JSON.stringify(transactionData),
-            memo,
-            mint: mintUrl,
-            status: TransactionStatus.DRAFT,
-        }
+        if(draftTransactionId && draftTransactionId > 0) {
+            transaction = transactionsStore.findById(draftTransactionId)
+        } else {
+            // create draft transaction
+            transactionData.push({
+                status: TransactionStatus.DRAFT,
+                mintBalanceToSendFrom,
+                createdAt: new Date(),
+            })
+            
+            const newTransaction = {
+                type: TransactionType.SEND,
+                amount: amountToSend,
+                fee: 0,
+                unit,
+                data: JSON.stringify(transactionData),
+                memo,
+                mint: mintUrl,
+                status: TransactionStatus.DRAFT,
+            }
 
-        // store tx in db and in the model
-        transaction = await transactionsStore.addTransaction(newTransaction)
+            // store tx in db and in the model
+            transaction = await transactionsStore.addTransaction(newTransaction)
+        }   
+
 
         // get proofs to send
         const {

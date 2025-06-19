@@ -32,7 +32,8 @@ export const transferTask = async function (
     memo: string,
     invoiceExpiry: Date,    
     encodedInvoice: string,
-    nwcEvent?: NostrEvent
+    nwcEvent?: NostrEvent,
+    draftTransactionId?: number
 )  : Promise<TransactionTaskResult> {
     
     const mintUrl = mintBalanceToTransferFrom.mintUrl
@@ -43,40 +44,45 @@ export const transferTask = async function (
     log.debug('[transfer]', 'amountToTransfer', {amountToTransfer})
     log.debug('[transfer]', 'meltQuote', {meltQuote})
 
-    // create draft transaction
-    const transactionData: TransactionData[] = [
-        {
-            status: TransactionStatus.DRAFT,
-            mintBalanceToTransferFrom,
-            amountToTransfer,
-            unit,
-            meltQuote,
-            encodedInvoice,
-            isNwc: nwcEvent ? true : false,           
-            createdAt: new Date(),
-        }
-    ]
 
     let transaction: Transaction | undefined = undefined
+    let transactionData: TransactionData[] = []    
     let proofsToMeltFrom: Proof[] = []
     let proofsToMeltFromAmount: number = 0
     let meltFeeReserve: number = 0
     let meltResponse: MeltProofsResponse    
 
     try {
-        const newTransaction = {
-            type: TransactionType.TRANSFER,
-            amount: amountToTransfer,
-            fee: meltQuote.fee_reserve,
-            unit,
-            data: JSON.stringify(transactionData),
-            memo,
-            mint: mintBalanceToTransferFrom.mintUrl,
-            status: TransactionStatus.DRAFT,
+
+        if(draftTransactionId && draftTransactionId > 0) {
+            transaction = transactionsStore.findById(draftTransactionId)
+        } else {
+            // create draft transaction
+            transactionData.push({
+                status: TransactionStatus.DRAFT,
+                mintBalanceToTransferFrom,
+                amountToTransfer,
+                unit,
+                meltQuote,
+                encodedInvoice,
+                isNwc: nwcEvent ? true : false,           
+                createdAt: new Date(),
+            })
+            const newTransaction = {
+                type: TransactionType.TRANSFER,
+                amount: amountToTransfer,
+                fee: meltQuote.fee_reserve,
+                unit,
+                data: JSON.stringify(transactionData),
+                memo,
+                mint: mintBalanceToTransferFrom.mintUrl,
+                status: TransactionStatus.DRAFT,
+            }
+
+            // store tx in db and in the model
+            transaction = await transactionsStore.addTransaction(newTransaction)
         }
 
-        // store tx in db and in the model
-        transaction = await transactionsStore.addTransaction(newTransaction)
         const transactionId = transaction.id
         const paymentHash = LightningUtils.getInvoiceData(LightningUtils.decodeInvoice(encodedInvoice)).payment_hash
         transaction.setPaymentId(paymentHash)
