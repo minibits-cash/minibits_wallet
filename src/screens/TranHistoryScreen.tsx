@@ -1,22 +1,17 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useState, useEffect, useRef, useMemo} from 'react'
+import React, {useState, useEffect, useCallback} from 'react'
 import {  
   TextStyle,
   ViewStyle,
   View,
-  FlatList,
   SectionList,
-  Platform,
-  UIManager,
-  LayoutAnimation,
 } from 'react-native'
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
     withTiming,
 } from 'react-native-reanimated'
-import {formatDistance, toDate} from 'date-fns'
-import {useThemeColor, spacing, colors, typography} from '../theme'
+import {useThemeColor, spacing, typography} from '../theme'
 import {
   Button,
   Icon,
@@ -37,12 +32,14 @@ import {TransactionListItem} from './Transactions/TransactionListItem'
 import { Transaction, TransactionStatus } from '../models/Transaction'
 import { translate } from '../i18n'
 import { maxTransactionsInHistory } from '../models/TransactionsStore'
-import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+import { StaticScreenProps, useFocusEffect, useNavigation } from '@react-navigation/native'
 
 // Number of transactions held in TransactionsStore model
 const limit = maxTransactionsInHistory
 
-type Props = StaticScreenProps<undefined>
+type Props = StaticScreenProps<{
+    showPending?: boolean
+}>
 
 export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: Props) {
     const navigation = useNavigation()
@@ -98,11 +95,6 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
                 log.trace('[init] setAll true')          
                 setIsAll(true)
             }
-
-            /* if (countByStatus[TransactionStatus.PENDING] <= limit) {  
-                log.trace('setPendingAll true')          
-                setPendingIsAll(true)
-            }*/
         }
 
         init()
@@ -118,6 +110,21 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
             transactionsStore.pruneRecentWithoutCurrentMint()
         }
     }, [])
+
+
+    const initFilter = useCallback(() => {
+        log.trace('[initFilter] start')
+            if(route.params && route.params.showPending) {
+                log.trace('[initFilter] toggleShowPendingOnly ')
+                toggleShowPendingOnly()
+                //@ts-ignore
+                /* navigation.setParams({
+                    showPending: undefined,    
+                })*/
+            }
+    }, [])
+               
+    useFocusEffect(initFilter)
 
     const toggleDeleteModal = () => {
         setIsDeleteModalVisible(previousState => !previousState)

@@ -1,20 +1,12 @@
 import {rootStoreInstance} from '../../models'
-import { TransactionTaskResult, WalletTask } from '../walletService'
+import { TransactionTaskResult } from '../walletService'
 import { MintBalance } from '../../models/Mint'
-import { poller } from '../../utils/poller'
-import { Transaction, TransactionData, TransactionRecord, TransactionStatus, TransactionType } from '../../models/Transaction'
+import { Transaction, TransactionData, TransactionStatus, TransactionType } from '../../models/Transaction'
 import { log } from '../logService'
-import { Contact } from '../../models/Contact'
-import { LightningUtils } from '../lightning/lightningUtils'
-import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
 import { WalletUtils } from './utils'
 import { MintUnit } from './currency'
-import { NostrClient, NostrEvent } from '../nostrService'
-import { Err } from '../../utils/AppError'
+import { NostrClient } from '../nostrService'
 import { 
-  CashuMint, 
-  CashuWallet, 
-  MintQuoteResponse, 
   PaymentRequest as CashuPaymentRequest, 
   PaymentRequestTransport, 
   PaymentRequestTransportType 

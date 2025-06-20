@@ -6,12 +6,23 @@ import {
 import {Proof} from '../models/Proof'
 import {
   Transaction,
-  TransactionRecord,
   TransactionStatus,
 } from '../models/Transaction'
 import AppError, {Err} from '../utils/AppError'
 import {log} from './logService'
-import {BackupProof} from '../models/Proof'
+import {ProofRecord} from '../models/Proof'
+import { isDate } from 'date-fns'
+
+// Helper functions to normalize transaction records with Date objects
+const normalizeTransactionRecord = function (r: any) {
+  if (r.createdAt) r.createdAt = new Date(r.createdAt);
+  if (r.expiresAt) r.expiresAt = r.expiresAt ? new Date(r.expiresAt) : null;
+  return r as Transaction;
+}
+
+const normalizeTransactionRows = function(rows: any) {
+  return rows?._array.map(normalizeTransactionRecord) as Transaction[];
+}
 
 let _db: QuickSQLiteConnection
 
@@ -255,43 +266,57 @@ const getDatabaseVersion = function (db: QuickSQLiteConnection): {version: numbe
  */
 
 
-const updateTransaction = function (id: number, fields: {[key:string]: any}): TransactionRecord {
+const updateTransaction = function (id: number, fields: Partial<Transaction>): Transaction {
 
   const allowedColumns = ['amount','fee','unit','data','sentFrom','sentTo','profile','memo','paymentId','quote','paymentRequest','zapRequest','inputToken','outputToken','proof','balanceAfter','noteToSelf','tags','status','expiresAt'];
   
   try {
-    // Filter keys against allowed columns to prevent SQL injection
-    const validKeys = Object.keys(fields).filter(key => allowedColumns.includes(key));
+    // Normalize data types for sqlite
+    for (const key in fields) {
+      const value = fields[key]
+    
+      if (value === '') {
+        fields[key] = null
+      }
+    
+      if (isDate(value)) {
+        fields[key] = value.toISOString()
+      }
+    }
+
+    // Filter keys against allowed columns
+    const validKeys = Object.keys(fields).filter(key => allowedColumns.includes(key))        
     
     if (validKeys.length === 0) {
       // No valid keys to update, return existing transaction
-      return getTransactionById(id);
+      return getTransactionById(id)
     }
 
     // Build SET clauses and parameters
-    const setClauses = validKeys.map(key => `${key} = ?`);
-    const params = validKeys.map(key => fields[key]);
-    params.push(id); // Add id at the end for WHERE clause
+    const setClauses = validKeys.map(key => `${key} = ?`)
+    const params = validKeys.map(key => fields[key])
+    params.push(id) // Add id at the end for WHERE clause
 
     const query = `
       UPDATE transactions
       SET ${setClauses.join(', ')}
       WHERE id = ?
-    `;
+    `
 
-    const db = getInstance();
-    db.execute(query, params);
+    const db = getInstance()
+    const result = db.execute(query, params)
 
-    log.debug('[updateTransaction]', `Transaction updated in the database`, {id, fields: validKeys});
+    const updated = getTransactionById(id) // already normalized
 
-    const updatedTx = getTransactionById(id);
-    return updatedTx as TransactionRecord;
+    log.trace('[updateTransaction] Transaction updated in the database', {id: updated.id})
+
+    return updated as Transaction
   } catch (e: any) {
     throw new AppError(
       Err.DATABASE_ERROR,
       'Could not update transaction in database',
       e.message,
-    );
+    )
   }
 }
 
@@ -324,7 +349,9 @@ const getTransactions = function (limit: number, offset: number, onlyPending: bo
       const {rows} = db.execute(query, params)
 
       log.trace(`[getTransactions], Returned ${rows?.length} rows`)
-      return rows
+
+      return normalizeTransactionRows(rows)
+
   } catch (e: any) {
       throw new AppError(
       Err.DATABASE_ERROR,
@@ -335,9 +362,8 @@ const getTransactions = function (limit: number, offset: number, onlyPending: bo
 }
 
 const getPendingTopups = function () {
-  let query: string = ''
   try {
-      query = `
+      const query = `
         SELECT *
         FROM transactions
         WHERE status = 'PENDING'
@@ -350,7 +376,34 @@ const getPendingTopups = function () {
 
       log.trace(`[getPendingTopups], Returned ${rows?.length} rows`)
       
-      return rows?._array
+      return normalizeTransactionRows(rows)
+
+  } catch (e: any) {
+      throw new AppError(
+      Err.DATABASE_ERROR,
+      'Transactions could not be retrieved from the database',
+      e.message,
+      )
+  }
+}
+
+
+const getPendingTransfers = function () {
+  try {
+      const query = `
+        SELECT *
+        FROM transactions
+        WHERE status = 'PENDING'
+        AND type = 'TRANSFER'
+        ORDER BY id DESC        
+        `      
+
+      const db = getInstance()
+      const {rows} = db.execute(query)
+
+      log.trace(`[getPendingTransfers], Returned ${rows?.length} rows`)
+      
+      return normalizeTransactionRows(rows)
 
   } catch (e: any) {
       throw new AppError(
@@ -377,6 +430,34 @@ const getPendingTopupsCount = function () {
       const {rows} = db.execute(query)
 
       log.trace(`[getPendingTopupsCount], Returned ${rows?.item(0)}`)
+      
+      return rows?.item(0)['total'] as number
+
+  } catch (e: any) {
+      throw new AppError(
+      Err.DATABASE_ERROR,
+      'Transactions could not be retrieved from the database',
+      e.message,
+      )
+  }
+}
+
+
+const getPendingTransfersCount = function () {
+  let query: string = ''
+  try {
+      query = `
+        SELECT COUNT(*)
+        AS total
+        FROM transactions
+        WHERE status = 'PENDING'
+        AND type = 'TRANSFER'             
+      `
+      
+      const db = getInstance()
+      const {rows} = db.execute(query)
+
+      log.trace(`[getPendingTransfersCount], Returned ${rows?.item(0)}`)
       
       return rows?.item(0)['total'] as number
 
@@ -458,7 +539,7 @@ const getRecentTransactionsByUnit = (countRecent: number) => {
       const db = getInstance()
       const { rows } = db.execute(query, params)     
       
-      return rows?._array
+      return normalizeTransactionRows(rows)
       
   } catch (e: any) {
       throw new AppError(Err.DATABASE_ERROR, 'Error retrieving last 3 transactions by unit', e.message)
@@ -498,7 +579,7 @@ const getTransactionById = function (id: number) {
     const db = getInstance()
     const {rows} = db.execute(query, params)
 
-    return rows?.item(0) as TransactionRecord
+    return normalizeTransactionRecord(rows?.item(0))
   } catch (e: any) {
     throw new AppError(Err.DATABASE_ERROR, 'Transaction not found', e.message)
   }
@@ -516,7 +597,7 @@ const getTransactionByPaymentId = function (id: string) {
     const db = getInstance()
     const {rows} = db.execute(query, params)
 
-    return rows?.item(0) as TransactionRecord
+    return normalizeTransactionRecord(rows?.item(0))
   } catch (e: any) {
     throw new AppError(Err.DATABASE_ERROR, 'Transaction not found', e.message)
   }
@@ -534,7 +615,7 @@ const getTransactionByQuote = function (quote: string) {
     const db = getInstance()
     const {rows} = db.execute(query, params)
 
-    return rows?.item(0) as TransactionRecord
+    return normalizeTransactionRecord(rows?.item(0))
   } catch (e: any) {
     throw new AppError(Err.DATABASE_ERROR, 'Transaction not found', e.message)
   }
@@ -552,14 +633,14 @@ const getTransactionByPaymentRequest = function (pr: string) {
     const db = getInstance()
     const {rows} = db.execute(query, params)
 
-    return rows?.item(0) as TransactionRecord
+    return normalizeTransactionRecord(rows?.item(0))
   } catch (e: any) {
     throw new AppError(Err.DATABASE_ERROR, 'Transaction not found', e.message)
   }
 }
 
 
-const addTransactionAsync = async function (tx: Transaction): Promise<TransactionRecord> {
+const addTransactionAsync = async function (tx: Transaction): Promise<Transaction> {
   try {
     const {type, amount, fee, unit, data, memo, mint, status} = tx
     const now = new Date()
@@ -575,9 +656,8 @@ const addTransactionAsync = async function (tx: Transaction): Promise<Transactio
 
     log.info('[addTransactionAsync]', 'New transaction added to the database', {id: result.insertId, type, mint, status})
 
-    const newTx = getTransactionById(result.insertId as number)
+    return getTransactionById(result.insertId as number) // already normalized
 
-    return newTx as TransactionRecord
   } catch (e: any) {
     throw new AppError(
       Err.DATABASE_ERROR,
@@ -653,55 +733,6 @@ const expireAllAfterRecovery = async function () {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/* const cleanTransactionData = async function (transactionIds: number[]) {
-  try {
-
-    const transactionIdsString = transactionIds.join(',')
-
-    const query = `
-      UPDATE transactions
-      SET data = ?
-      WHERE id IN (${transactionIdsString})
-    `
-    const params = ['[]']
-
-    const _db = getInstance()
-    const result = await _db.executeAsync(query, params)
-
-    log.info('cleanTransactionData executed in the database')
-
-  } catch (e: any) {
-    throw new AppError(Err.DATABASE_ERROR, 'Could not cleanTransactionData  in database', e.message)
-  }
-} */
-
-
 const deleteTransactionsByStatus = function (status: TransactionStatus) {
     try {
       const query = `
@@ -720,10 +751,35 @@ const deleteTransactionsByStatus = function (status: TransactionStatus) {
     } catch (e: any) {
       throw new AppError(
         Err.DATABASE_ERROR,
-        'Could not delete transactions',
+        'Could not delete transactions.',
         e.message,
       )
     }
+}
+
+
+const deleteTransactionById = function (id: number) {
+  try {
+    const query = `
+      DELETE FROM transactions
+      WHERE id = ?  
+    `
+    const params = [id]
+
+    const db = getInstance()
+    const {rows} = db.execute(query, params)
+
+    log.debug('[deleteTransactionById]', 'Transaction has been deleted', {id})
+
+    return rows
+
+  } catch (e: any) {
+    throw new AppError(
+      Err.DATABASE_ERROR,
+      'Could not delete transaction.',
+      e.message,
+    )
+  }
 }
 
 /*
@@ -762,7 +818,7 @@ const addOrUpdateProof = function (
 
     const newProof = getProofById(result.insertId as number)
 
-    return newProof as BackupProof
+    return newProof as ProofRecord
   } catch (e: any) {
     throw new AppError(
       Err.DATABASE_ERROR,
@@ -907,7 +963,7 @@ const getProofById = function (id: number) {
     const db = getInstance()
     const {rows} = db.execute(query, params)
 
-    return rows?.item(0) as BackupProof
+    return rows?.item(0) as ProofRecord
   } catch (e: any) {
     throw new AppError(Err.DATABASE_ERROR, 'proof not found', e.message)
   }
@@ -917,7 +973,7 @@ const getProofs = async function (
   isUnspent: boolean,
   isPending: boolean,
   isSpent: boolean,
-): Promise<BackupProof[]> {
+): Promise<ProofRecord[]> {
   let query: string = ''
 
   try {
@@ -961,7 +1017,7 @@ const getProofs = async function (
     const db = getInstance()
     const {rows} = await db.executeAsync(query)
     
-    return rows?._array as BackupProof[]
+    return rows?._array as ProofRecord[]
 
   } catch (e: any) {
     throw new AppError(
@@ -972,7 +1028,7 @@ const getProofs = async function (
   }
 }
 
-const getProofsByTransaction = function (transactionId: number): BackupProof[] {
+const getProofsByTransaction = function (transactionId: number): ProofRecord[] {
   try {
     const query = `
       SELECT *
@@ -984,7 +1040,7 @@ const getProofsByTransaction = function (transactionId: number): BackupProof[] {
     const db = getInstance()
     const {rows} = db.execute(query, params)
 
-    return rows?._array as BackupProof[]
+    return rows?._array as ProofRecord[]
   } catch (e: any) {
     throw new AppError(
       Err.DATABASE_ERROR,
@@ -1028,11 +1084,14 @@ export const Database = {
   getTransactions,
   getPendingTopups,
   getPendingTopupsCount,
+  getPendingTransfers,
+  getPendingTransfersCount,
   addTransactionAsync,  
   updateTransaction,
   expireAllAfterRecovery,
   updateStatusesAsync,
   deleteTransactionsByStatus,
+  deleteTransactionById,
   getPendingAmount,
   addOrUpdateProof,
   addOrUpdateProofs,

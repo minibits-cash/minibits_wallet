@@ -102,7 +102,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
     useFocusEffect(useCallback(() => {
       try {        
         const tx = transactionsStore.findById(id, true) // load full tokens
-        log.trace('Transaction loaded', {id: tx?.id, unit: tx?.unit, note: tx?.noteToSelf, inputToken: tx?.inputToken, outputToken: tx?.inputToken})
+        log.trace('Transaction loaded', {tx})
 
       if (!tx) {
           throw new AppError(
@@ -1385,10 +1385,12 @@ const TopupInfoBlock = function (props: {
   useFocusEffect(useCallback(() => {      
     log.trace('[TopupInfoBlock] useFocusEffect start')
 
-    if (transaction.status === TransactionStatus.ERROR || 
-      transaction.status === TransactionStatus.PENDING ||
-      transaction.status === TransactionStatus.EXPIRED) {
-      setIsPendingTopupRetriable(true)
+    if ([
+        TransactionStatus.ERROR, 
+        TransactionStatus.PENDING,
+        TransactionStatus.EXPIRED
+      ].includes(transaction.status)) {
+        setIsPendingTopupRetriable(true)
     }     
   }, []))
 
@@ -1530,7 +1532,7 @@ const TopupInfoBlock = function (props: {
                         label="tranDetailScreen.createdAt"
                         value={(transaction.createdAt as Date).toLocaleString()}
                     />
-                    {transaction.expiresAt && (
+                    {transaction.expiresAt && transaction.status !== TransactionStatus.COMPLETED && (
                       <TranItem
                         label="tranDetailScreen.expiresAt"
                         value={(new Date(transaction.expiresAt!)).toLocaleString()}
@@ -1675,11 +1677,19 @@ const TransferInfoBlock = function (props: {
   // Pay invoice received over Nostr
   const onPayDraftTransfer = async function () {
 
-    if(!transaction.paymentRequest || !transaction.unit || transaction.mint) {
+    log.trace('[onPayDraftTransfer] start', {tId: transaction.id})
+
+    const {paymentRequest, unit, mint} = transaction
+
+    if(!paymentRequest || !unit || !mint) {
+      log.error('[onPayDraftTransfer] Missing params', {paymentRequest, unit, mint})
+      
       setResultModalInfo({
         status: TransactionStatus.ERROR,
         message: 'This transaction is missing data needed to be paid.'
       })
+
+      toggleResultModal()
       return
     }
 
@@ -1758,8 +1768,7 @@ const TransferInfoBlock = function (props: {
                 />
                 <Button
                     style={{marginTop: spacing.medium}}
-                    preset="secondary"
-                    text="Pay"
+                    tx="transactionCommon.payNow"
                     onPress={onPayDraftTransfer}
                 />
               </View>
@@ -1817,7 +1826,7 @@ const TransferInfoBlock = function (props: {
                 value={transaction.status as string}
               />
             )}
-            {transaction.status !== TransactionStatus.ERROR && (
+            {transaction.status === TransactionStatus.COMPLETED && (
                 <TranItem
                     label="tranDetailScreen.balanceAfter"
                     value={transaction.balanceAfter || 0}
@@ -1825,11 +1834,16 @@ const TransferInfoBlock = function (props: {
                     isCurrency={true}
                 />
             )}
-
             <TranItem
               label="tranDetailScreen.createdAt"
               value={(transaction.createdAt as Date).toLocaleString()}
             />
+            {transaction.expiresAt && transaction.status !== TransactionStatus.COMPLETED && (
+              <TranItem
+                label="tranDetailScreen.expiresAt"
+                value={(new Date(transaction.expiresAt!)).toLocaleString()}
+              />
+            )}
             {transaction.paymentId && (
               <TranItem
                   label="tranDetailScreen.paymentId"

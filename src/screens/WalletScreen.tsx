@@ -36,8 +36,8 @@ import EventEmitter from '../utils/eventEmitter'
 import {useStores} from '../models'
 import {Mint, UnitBalance} from '../models/Mint'
 import {MintsByUnit} from '../models/MintsStore'
-import {HANDLE_CLAIM_TASK, HANDLE_RECEIVED_EVENT_TASK, log, NostrClient, WalletTaskResult} from '../services'
-import {Transaction} from '../models/Transaction'
+import {Database, HANDLE_CLAIM_TASK, HANDLE_RECEIVED_EVENT_TASK, log, NostrClient, WalletTaskResult} from '../services'
+import {Transaction, TransactionStatus} from '../models/Transaction'
 import {TransactionListItem} from './Transactions/TransactionListItem'
 import {WalletTask} from '../services'
 import {translate} from '../i18n'
@@ -92,7 +92,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
 
     const [info, setInfo] = useState<string>('')
     const [defaultMintUrl, setDefaultMintUrl] = useState<string>(MINIBITS_MINT_URL)
-    const [pendingTopupsCount, setPendingTopupsCount] = useState<number>(0)
+    const [pendingCount, setPendingCount] = useState<number>(0)
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState<boolean>(false)
     const [isMintsModalVisible, setIsMintsModalVisible] = useState<boolean>(false)
@@ -170,17 +170,6 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             if(groupedMints.length === 0) {
                 await addMint()
             }
-
-            /* 
-            TODO rethink
-            const pending = transactionsStore.getPendingTopupsCount()
-
-            if(pending > 0) {
-                setPendingTopupsCount(pending)
-            } */
-
-            // const nostrKeyPair = await KeyChain.loadNostrKeyPair()
-            // log.trace('[getInitialData] KEYS CHECK', {keychainPubkey: nostrKeyPair?.publicKey, profilePubkey: walletProfileStore.pubkey})
 
             // Only once on startup - Create websocket subscriptions to receive tokens or payment requests by NOSTR DMs                    
             WalletTask.receiveEventsFromRelaysQueue()           
@@ -299,10 +288,16 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             WalletTask.handleInFlightQueue()
             WalletTask.handleClaimQueue().catch(e => setInfo(e.message))
             WalletTask.syncStateWithAllMintsQueue({isPending: true})
-            WalletTask.handlePendingTopupsQueue()
+            WalletTask.handlePendingQueue()
 
             if(userSettingsStore.exchangeCurrency) {
                 walletStore.refreshExchangeRate(userSettingsStore.exchangeCurrency)
+            }
+            
+            // TODO rethink
+            const countByStatus = Database.getTransactionsCount()
+            if(countByStatus[TransactionStatus.PENDING] && countByStatus[TransactionStatus.PENDING] > 0) {
+                setPendingCount(countByStatus[TransactionStatus.PENDING] || 0)
             }
         } else {
             log.trace('[performChecks] Skipping mint server checks...')
@@ -399,9 +394,14 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         navigation.navigate('TokenReceive', {unit: currentUnit})
     }
 
-    const gotoPendingTopups = function () {
+    const gotoPendingTransactions = function () {
         // @ts-ignore
-        navigation.navigate('Transactions')
+        navigation.navigate('TransactionsNavigator', {
+            screen: 'TranHistory',
+            params: {
+                showPending: true
+            }
+        }) 
     }
 
     const gotoProfile = function () {
@@ -632,17 +632,15 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                 TitleActionComponent={headerTitle.length > 0 ? <HeaderTitle /> : undefined}               
                 RightActionComponent={
                 <>
-                    {/* TODO this should be unpaid payment requests
-
-                        pendingTopupsCount > 0 && (
+                    {pendingCount > 0 && (
                         <Pressable 
                             style={{flexDirection: 'row', alignItems:'center', marginRight: spacing.medium}}
-                            onPress={() => gotoPendingTopups()}
+                            onPress={gotoPendingTransactions}
                         >
-                            <Icon icon='faPaperPlane' color={headerTitleColor}/>
-                            <Text text={`${pendingTopupsCount}`} style={{color: headerTitleColor}} />
+                            <Icon icon='faClock' color={headerTitleColor}/>
+                            <Text text={`${pendingCount}`} style={{color: headerTitleColor}} />
                         </Pressable>
-                    )*/ }
+                    )}
                 </>
                 }                
             />

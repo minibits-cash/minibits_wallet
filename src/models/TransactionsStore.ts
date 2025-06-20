@@ -3,14 +3,12 @@ import {
     SnapshotOut,
     types,
     flow,
-    detach,
   } from 'mobx-state-tree'
   import {withSetPropAction} from './helpers/withSetPropAction'
   import {
     TransactionModel,
     Transaction,
     TransactionStatus,
-    TransactionRecord,
   } from './Transaction'
   import {Database} from '../services'
   import {log} from '../services/logService'
@@ -76,16 +74,14 @@ import {
                   .filter(t => t.unit === unit)           
           },
           getPendingTopups() {
-            const dbTopups: TransactionRecord[] = Database.getPendingTopups()
+            const dbTopups: Transaction[] = Database.getPendingTopups()
 
             if(dbTopups.length > 0) {
 
                 const pendingTopups: Transaction[] = []
 
                 for(const topup of dbTopups) {
-                    const createdAt = new Date(topup.createdAt)
-                    const expiresAt = topup.expiresAt ? new Date(topup.expiresAt) : null                    
-                    const inStoreTransaction = {...topup, createdAt, expiresAt}
+                    const inStoreTransaction = {...topup}
                     
                     const topupInstance = TransactionModel.create(inStoreTransaction)
                     pendingTopups.push(topupInstance)
@@ -98,8 +94,26 @@ import {
             return []
           
           },
-          getPendingTopupsCount() {
-            return Database.getPendingTopupsCount()
+          getPendingTransfers() {
+            const dbTransfers: Transaction[] = Database.getPendingTopups()
+
+            if(dbTransfers.length > 0) {
+
+                const pendingTransfers: Transaction[] = []
+
+                for(const transfer of dbTransfers) {
+                    const inStoreTransaction = {...transfer}
+                    
+                    const transferInstance = TransactionModel.create(inStoreTransaction)
+                    pendingTransfers.push(transferInstance)
+                }
+
+                return pendingTransfers
+
+            }
+
+            return []
+          
           },
           countRecentByUnit(unit: MintUnit) {
              return this.getRecentByUnit(unit).length
@@ -115,9 +129,7 @@ import {
                   const dbTransaction = Database.getTransactionById(id)
   
                   if(dbTransaction) {
-                      const createdAt = new Date(dbTransaction.createdAt) 
-                      const expiresAt = dbTransaction.expiresAt ? new Date(dbTransaction.expiresAt) : null
-                      const inStoreTransaction = {...dbTransaction, createdAt}
+                      const inStoreTransaction = {...dbTransaction}
                       const {id} = dbTransaction
                       
                       if(!loadTokens) {
@@ -143,9 +155,7 @@ import {
             const dbTransaction = Database.getTransactionByPaymentId(paymentId)
 
             if(dbTransaction) {
-                const createdAt = new Date(dbTransaction.createdAt)
-                const expiresAt = dbTransaction.expiresAt ? new Date(dbTransaction.expiresAt) : null                    
-                const inStoreTransaction = {...dbTransaction, createdAt, expiresAt}
+                const inStoreTransaction = {...dbTransaction}
                 const {id} = dbTransaction
                                     
                 // Shorten for performance reasons
@@ -169,9 +179,7 @@ import {
             const dbTransaction = Database.getTransactionByQuote(quote)
 
             if(dbTransaction) {
-                const createdAt = new Date(dbTransaction.createdAt)                    
-                const expiresAt = dbTransaction.expiresAt ? new Date(dbTransaction.expiresAt) : null                    
-                const inStoreTransaction = {...dbTransaction, createdAt, expiresAt}
+                const inStoreTransaction = {...dbTransaction}
                 const {id} = dbTransaction
                                     
                 // Shorten for performance reasons
@@ -195,9 +203,7 @@ import {
             const dbTransaction = Database.getTransactionByPaymentRequest(pr)
 
             if(dbTransaction) {
-                const createdAt = new Date(dbTransaction.createdAt)                    
-                const expiresAt = dbTransaction.expiresAt ? new Date(dbTransaction.expiresAt) : null                    
-                const inStoreTransaction = {...dbTransaction, createdAt, expiresAt}
+                const inStoreTransaction = {...dbTransaction}
                 const {id} = dbTransaction
                                     
                 // Shorten for performance reasons
@@ -276,11 +282,10 @@ import {
       .actions(self => ({
           addTransaction: flow(function* addTransaction(newTransaction){
               // First let's store the transaction into the database
-              const dbTransaction: TransactionRecord = yield Database.addTransactionAsync(newTransaction)            
+              const dbTransaction: Transaction = yield Database.addTransactionAsync(newTransaction)            
   
               // Add the new transaction to the transactions store
-              const createdAt = new Date(dbTransaction.createdAt)                               
-              const inStoreTransaction = {...dbTransaction, createdAt}          
+              const inStoreTransaction = {...dbTransaction}          
               const {id} = dbTransaction
   
               if (!self.transactionsMap.has(id)) {                        
@@ -301,14 +306,12 @@ import {
           }),
           addToHistory(limit: number, offset: number, onlyPending: boolean){
               // Appends transaction to the map and adds reference to history from database.
-              const result = Database.getTransactions(limit, offset, onlyPending)
-              log.trace('[addToHistory] dbResult ids', {ids: result?._array.map(t => t.id)})            
+              const transactions = Database.getTransactions(limit, offset, onlyPending)
+              log.trace('[addToHistory] transactions ids', {ids: transactions ? transactions.map(t => t.id) : []})            
   
-              if (result && result.length > 0) {
-                  for (const dbTransaction of result._array) {
-                      const createdAt = new Date(dbTransaction.createdAt)                    
-                      const expiresAt = dbTransaction.expiresAt ? new Date(dbTransaction.expiresAt) : null                    
-                      const inStoreTransaction = {...dbTransaction, createdAt, expiresAt}
+              if (transactions && transactions.length > 0) {
+                  for (const dbTransaction of transactions) {
+                      const inStoreTransaction = {...dbTransaction}
   
                       // Shorten for performance reasons
                       if(inStoreTransaction.inputToken && inStoreTransaction.inputToken.length > 0) {
@@ -337,13 +340,11 @@ import {
           },
           addRecentByUnit() {
               // Rehydrates recent from database.
-              const dbTransactions = Database.getRecentTransactionsByUnit(maxTransactionsByUnit)
+              const transactions = Database.getRecentTransactionsByUnit(maxTransactionsByUnit)
               
-              if (dbTransactions && dbTransactions.length > 0) {
-                  for (const dbTransaction of dbTransactions) {
-                      const createdAt = new Date(dbTransaction.createdAt)                    
-                      const expiresAt = dbTransaction.expiresAt ? new Date(dbTransaction.expiresAt) : null                    
-                      const inStoreTransaction = {...dbTransaction, createdAt, expiresAt}
+              if (transactions && transactions.length > 0) {
+                  for (const dbTransaction of transactions) {
+                      const inStoreTransaction = {...dbTransaction}
   
                       // Shorten for performance reasons
                       if(inStoreTransaction.inputToken && inStoreTransaction.inputToken.length > 0) {
@@ -431,14 +432,7 @@ import {
   
           return prunedSnapshot
       })
-  
-      const getHostname = function (mintUrl: string) {
-          try {
-              return new URL(mintUrl).hostname
-          } catch (e) {
-              return false
-          }
-      }
+
   
   // refresh
   export interface TransactionsStore

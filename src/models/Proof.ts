@@ -3,10 +3,10 @@ import {withSetPropAction} from './helpers/withSetPropAction'
 import { MintUnit } from '../services/wallet/currency'
 
 /**
- * Proof type saved in database backup
+ * Proof db record
  */
 
-export type BackupProof = Proof & {
+export type ProofRecord = Proof & {
     isPending: boolean
     isSpent: boolean
     updatedAt: Date

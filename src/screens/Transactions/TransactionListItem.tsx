@@ -94,7 +94,9 @@ export const TransactionListItem = observer(function (props: TransactionListProp
         return (tx.memo && tx.memo !== 'LNbits'
           ? tx.memo
           : tx.sentTo
-          ? translate('transactionCommon.paidTo', {receiver: getProfileName(tx.sentTo)})
+          ? tx.status === TransactionStatus.COMPLETED ? 
+            translate('transactionCommon.paidTo', {receiver: getProfileName(tx.sentTo)})
+          : translate('transactionCommon.payTo', {receiver: getProfileName(tx.sentTo)})
           : translate('transactionCommon.youPaid'))        
       default:
         return translate('transactionCommon.unknown')

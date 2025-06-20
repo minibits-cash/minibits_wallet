@@ -3,37 +3,6 @@ import { log } from '../services/logService'
 import { MintUnit } from '../services/wallet/currency'
 import { Database } from '../services'
 
-/**
- * Transaction model with MST actions for database updates.
- * Note: Individual setter actions (setStatus, setFee, etc.) are deprecated.
- * Use the generic update() action instead for all mutations.
- */
-export interface TransactionRecord {
-    id: number
-    type: TransactionType
-    amount: number
-    fee: number
-    unit: MintUnit
-    data: string
-    sentFrom?: string | null
-    sentTo?: string | null
-    profile?: string | null
-    memo?: string | null
-    paymentId?: string | null
-    quote?: string | null
-    paymentRequest?: string | null
-    zapRequest?: string | null
-    inputToken?: string | null
-    outputToken?: string | null
-    proof?: string | null
-    mint: string
-    balanceAfter?: number | null
-    noteToSelf?: string | null
-    tags?: Array<string> | null
-    status: TransactionStatus
-    expiresAt?: Date | null
-    createdAt: Date
-}
 
 export type TransactionData = {
     status: TransactionStatus
@@ -100,16 +69,16 @@ export const TransactionModel = types
             self.outputToken = outputToken.slice(0, 40)
             log.trace('[pruneOutputToken]', 'Transaction outputToken pruned in store', { id: self.id })
         },
-        update(fields: Partial<TransactionRecord>) {
+        update(fields: Partial<Transaction>) {
             // Update multiple fields in database with a single query
-            Database.updateTransaction(self.id!, fields)
+            const updatedTransaction = Database.updateTransaction(self.id, fields)
 
             // Update the model to keep store in sync
-            Object.keys(fields).forEach(key => {
-                ;(self as any)[key] = (fields as any)[key]
+            Object.keys(updatedTransaction).forEach(key => {
+                ;(self as any)[key] = (updatedTransaction as any)[key]
             })
 
-            log.trace('[update]', 'Transaction updated', { id: self.id, fields: Object.keys(fields) })
+            log.trace('[update]', 'Transaction updated', { id: self.id, updatedData: fields})
         },
     }))
 

@@ -7,7 +7,7 @@ import {
     flow,
 } from 'mobx-state-tree'
 import {withSetPropAction} from './helpers/withSetPropAction'
-import {ProofModel, Proof, BackupProof} from './Proof'
+import {ProofModel, Proof, ProofRecord} from './Proof'
 import {log} from '../services/logService'
 import {getRootStore} from './helpers/getRootStore'
 import AppError, {Err} from '../utils/AppError'
@@ -110,7 +110,7 @@ export const ProofsStoreModel = types
             
             // Group into isUnspent and isPending
             const groupedProofs = unspentAndPendingProofs.reduce(
-                (acc: {isPending: BackupProof[], isUnspent: BackupProof[]}, proof: BackupProof) => {
+                (acc: {isPending: ProofRecord[], isUnspent: ProofRecord[]}, proof: ProofRecord) => {
                 if (proof.isPending) {
                     acc.isPending.push(proof);
                 } else {
@@ -121,7 +121,7 @@ export const ProofsStoreModel = types
                 { isUnspent: [], isPending: [] } // Initialize the groups
             )
 
-            const cleanProofs = (proofs: BackupProof[]) => {
+            const cleanProofs = (proofs: ProofRecord[]) => {
                 return proofs.map(p => {
                     // Destructure the unwanted properties and collect the rest in `cleaned`
                     const { isPending, isSpent, updatedAt, ...cleaned } = p            
@@ -165,7 +165,7 @@ export const ProofsStoreModel = types
                     throw new AppError(Err.STORAGE_ERROR, 'Could not find mint', {mintUrl: newProofs[0].mintUrl})
                 }
 
-                for (const [keysetId, keysetProofs] of proofsByKeysetId.entries()) {                    
+                for (const [keysetId, keysetProofs] of Array.from(proofsByKeysetId.entries())) {                    
 
                     for (const proof of keysetProofs) { 
                         if(self.alreadyExists(proof)) {

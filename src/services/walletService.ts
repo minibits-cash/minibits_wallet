@@ -41,6 +41,7 @@ import { UnsignedEvent } from 'nostr-tools'
 import { Platform } from 'react-native'
 import { cashuPaymentRequestTask } from './wallet/cashuPaymentRequestTask'
 import { decodePaymentRequest, sumBlindSignatures } from '@cashu/cashu-ts/src/utils'
+import { Database } from './sqlite'
 
 /**
  * The default number of proofs per denomination to keep in a wallet.
@@ -81,7 +82,7 @@ type WalletTaskService = {
         }        
     ) => Promise<SyncStateTaskResult | void>
     handleInFlightQueue: ()        => Promise<void>    
-    handlePendingTopupsQueue: ()   => Promise<void>
+    handlePendingQueue: ()   => Promise<void>
     handlePendingTopupQueue: (params: {
         transaction: Transaction
     })   => Promise<void>
@@ -1504,20 +1505,42 @@ const handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTask
 
 
 
-const handlePendingTopupsQueue = async function (): Promise<void> {    
+const handlePendingQueue = async function (): Promise<void> {    
     const pendingTopups: Transaction[] = transactionsStore.getPendingTopups()
+    const pendingTransfers: Transaction[] = transactionsStore.getPendingTransfers()
 
-    log.trace('[handlePendingTopupsQueue] start', {pendingTopups})
+    log.trace('[handlePendingQueue] start', {pendingTopups, pendingTransfers})
+
+    // we just expire expired transfers, no ecash ops so no need of queue
+    if(pendingTransfers.length > 0) {
+        for (const transfer of pendingTransfers) {
+            if (isBefore(transfer.expiresAt as Date, new Date())) {
+                log.debug('[handlePendingQueue]', `Transfer invoice expired: ${transfer.paymentId} ${transfer.quote}`)
+    
+                const transactionData = JSON.parse(transfer.data)
+                transactionData.push({
+                    status: TransactionStatus.EXPIRED,
+                    message: 'Invoice expired',                        
+                    createdAt: new Date(),
+                })
+    
+                transfer.update({
+                    status: TransactionStatus.EXPIRED,
+                    data: JSON.stringify(transactionData)
+                })    
+            }
+        }
+    }
 
     if (pendingTopups.length === 0) {
-        log.trace('[handlePendingTopupsQueue]', 'No pending topups - skipping task send to the queue...')
+        log.trace('[handlePendingQueue]', 'No pending topups - skipping task send to the queue...')
         return
     }
 
     for (const topup of pendingTopups) {
         // skip pr if active poller exists
         if(pollerExists(`handlePendingTopupPoller-${topup.paymentId}`)) {
-            log.trace('[handlePendingTopupsQueue] Skipping check of pendingTopup, poller exists', {paymentHash: topup.paymentId})
+            log.trace('[handlePendingQueue] Skipping check of pendingTopup, poller exists', {paymentHash: topup.paymentId})
             continue
         }
 
@@ -1558,12 +1581,15 @@ const handlePendingTopupTask = async function (params: {transaction: Transaction
         expiresAt
     } = transaction
 
+    log.trace('[handlePendingTopupTask] start', transaction)
+
     const transactionData = JSON.parse(transaction.data)
     const mintInstance = mintsStore.findByUrl(mintUrl as string)     
 
     try {
         if(!mintInstance || !mintQuote || !unit || !amount) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Missing mint, mint quote, unit, amount', {transactionId})
+            // Database.deleteTransactionById(transactionId)
+            throw new AppError(Err.VALIDATION_ERROR, 'Missing mint, mint quote, unit, amount', {transactionId, caller: 'handlePendingTopupTask'})
         }
       
         // check is quote has been paid
@@ -1576,19 +1602,17 @@ const handlePendingTopupTask = async function (params: {transaction: Transaction
         if (isBefore(expiresAt as Date, new Date())) {
             log.debug('[handlePendingTopupTask]', `Invoice expired, removing: ${paymentHash} ${mintQuote}`)
 
-            // expire related tx - but only if it has not been completed before this check
-            if(transaction.status !== TransactionStatus.COMPLETED) {
-                transactionData.push({
-                    status: TransactionStatus.EXPIRED,
-                    message: 'Invoice expired',                        
-                    createdAt: new Date(),
-                })
+            transactionData.push({
+                status: TransactionStatus.EXPIRED,
+                message: 'Invoice expired',                        
+                createdAt: new Date(),
+            })
 
-                transaction.update({
-                    status: TransactionStatus.EXPIRED,
-                    data: JSON.stringify(transactionData)
-                })
-            }
+            transaction.update({
+                status: TransactionStatus.EXPIRED,
+                data: JSON.stringify(transactionData)
+            })
+            
 
             stopPolling(`handlePendingTopupPoller-${paymentHash}`)
         }
@@ -2678,7 +2702,7 @@ export const WalletTask: WalletTaskService = {
     syncStateWithMintQueue,
     syncStateWithMintTask,
     handleInFlightQueue,    
-    handlePendingTopupsQueue,
+    handlePendingQueue,
     handlePendingTopupQueue,
     handleClaimQueue,
     handleNwcRequestQueue,

@@ -513,6 +513,8 @@
 		"from": "From %{sender}",
 		"paidFrom": "Paid from",
 		"paidTo": "Paid to %{receiver}",
+		"payTo": "Pay to %{receiver}",
+		"payNow": "Pay now",
 		"receivedFrom": "Received from %{sender}",
 		"receivedTo": "Received to",
 		"receiveFailed": "Receive failed",

@@ -105,16 +105,19 @@ export const topupTask = async function (
         const expiresAtDate = addSeconds(new Date(timestamp * 1000), expiry)
         const sentFromValue = contactTo?.nip05 || contactTo?.name || ''
         const sentToValue = walletProfileStore.nip05 || ''
+
+        log.trace('[topupTask]', expiresAtDate)
+
         transaction.update({
             quote: mintQuote,
             paymentId: paymentHash,
             paymentRequest: encodedInvoice,
-            expiresAt: expiresAtDate,
+            expiresAt: new Date(expiresAtDate),
             sentFrom: sentFromValue,
             sentTo: sentToValue
         })
 
-        log.trace('[topupTask] invoice', {amount, paymentHash, expiry, timestamp})
+        log.trace('[topupTask] invoice', {amount, paymentHash, expiry, timestamp, expiresAtDate})
 
         transactionData.push({
             status: TransactionStatus.PENDING,                        
