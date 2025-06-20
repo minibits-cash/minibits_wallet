@@ -101,15 +101,18 @@ export const topupTask = async function (
         // contactToSendTo is to whom to send the request
         const contactTo = isStateTreeNode(contactToSendTo) ? getSnapshot(contactToSendTo) : contactToSendTo
 
-        // TODO make single insert    
-        transaction.setQuote(mintQuote)                
-        transaction.setPaymentId(paymentHash)
-        transaction.setPaymentRequest(encodedInvoice)
-        transaction.setExpiresAt(addSeconds(new Date(timestamp * 1000), expiry))
-        
-        // SATS flow in reverse compared with payment request
-        transaction.setSentFrom(contactTo.nip05 || contactTo.name)
-        transaction.setSentTo(walletProfileStore.nip05)
+        // Bulk update quote, paymentId, paymentRequest, expiresAt, sentFrom, sentTo
+        const expiresAtDate = addSeconds(new Date(timestamp * 1000), expiry)
+        const sentFromValue = contactTo?.nip05 || contactTo?.name || ''
+        const sentToValue = walletProfileStore.nip05 || ''
+        transaction.update({
+            quote: mintQuote,
+            paymentId: paymentHash,
+            paymentRequest: encodedInvoice,
+            expiresAt: expiresAtDate,
+            sentFrom: sentFromValue,
+            sentTo: sentToValue
+        })
 
         log.trace('[topupTask] invoice', {amount, paymentHash, expiry, timestamp})
 
@@ -118,10 +121,11 @@ export const topupTask = async function (
             createdAt: new Date()
         })
 
-        transaction.setStatus(            
-            TransactionStatus.PENDING,
-            JSON.stringify(transactionData),
-        )        
+        // Update status and data in one call
+        transaction.update({
+            status: TransactionStatus.PENDING,
+            data: JSON.stringify(transactionData)
+        })
 
         if(!nwcEvent) {
             const wsMint = new CashuMint(mintUrl)
@@ -177,10 +181,11 @@ export const topupTask = async function (
                 createdAt: new Date()
             })
 
-            transaction.setStatus(                
-                TransactionStatus.ERROR,
-                JSON.stringify(transactionData),
-            )
+            // Update status and data on error
+            transaction.update({
+                status: TransactionStatus.ERROR,
+                data: JSON.stringify(transactionData)
+            })
         }
 
         log.error(e.name, e.message)

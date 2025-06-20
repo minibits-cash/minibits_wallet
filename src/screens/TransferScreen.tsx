@@ -383,10 +383,14 @@ useEffect(() => {
             const profile = contactsStore.findByLud16(lnurlPayParams.address)
             
             if (profile) {
-              transaction.setSentTo(profile.nip05 || profile.name)  
-              transaction.setProfile(JSON.stringify(profile))
+              transaction.update({
+                sentTo: profile.nip05 || profile.name,
+                profile: JSON.stringify(profile)
+              })
             } else {
-              transaction.setSentTo(lnurlPayParams.address) 
+              transaction.update({
+                sentTo: lnurlPayParams.address
+              })
             }
         }
     

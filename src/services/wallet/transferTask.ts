@@ -85,8 +85,8 @@ export const transferTask = async function (
 
         const transactionId = transaction.id
         const paymentHash = LightningUtils.getInvoiceData(LightningUtils.decodeInvoice(encodedInvoice)).payment_hash
-        transaction.setPaymentId(paymentHash)
-        transaction.setQuote(meltQuote.quote)
+        // Replace individual setters with a single update
+        transaction.update({ paymentId: paymentHash, quote: meltQuote.quote })
         
         if (amountToTransfer + meltQuote.fee_reserve > mintBalanceToTransferFrom.balances[unit]!) {
             throw new AppError(
@@ -162,7 +162,7 @@ export const transferTask = async function (
             unit, 
         })
 
-        // Update transaction status
+        // Update transaction status and inputToken in one call
         transactionData.push({
             status: TransactionStatus.PREPARED,
             proofsToMeltFromAmount,
@@ -171,18 +171,17 @@ export const transferTask = async function (
             createdAt: new Date(),
         })
 
-        transaction.setStatus(            
-            TransactionStatus.PREPARED,
-            JSON.stringify(transactionData),
-        )
-
         const inputToken = getEncodedToken({
             mint: mintUrl,
             proofs: proofsToMeltFrom,
             unit         
         })
 
-        transaction.setInputToken(inputToken)
+        transaction.update({
+            status: TransactionStatus.PREPARED,
+            data: JSON.stringify(transactionData),
+            inputToken,
+        })
         
         try {
             meltResponse = await walletStore.payLightningMelt(
@@ -217,15 +216,17 @@ export const transferTask = async function (
             // Spend pending proofs that were used to settle the lightning invoice
             proofsStore.removeProofs(proofsToMeltFrom as Proof[], true, false)
 
-            // Save preimage asap
-            if(meltResponse.quote.payment_preimage) {
-                transaction.setProof(meltResponse.quote.payment_preimage)
-            }
-            
+            // compute fees and change
             let totalFeePaid = proofsToMeltFromAmount - amountToTransfer
             let lightningFeePaid = totalFeePaid - meltFeeReserve
             let meltFeePaid = meltFeeReserve
             let returnedAmount = CashuUtils.getProofsAmount(meltResponse.change)
+
+            let outputToken: string | undefined
+
+            if(meltResponse.quote.payment_preimage) {
+                // include proof in update payload
+            }
 
             if(meltResponse.change.length > 0) {
 
@@ -239,40 +240,43 @@ export const transferTask = async function (
                     }                
                 )
         
-                const outputToken = getEncodedToken({
+                outputToken = getEncodedToken({
                     mint: mintUrl,
                     proofs: meltResponse.change,
                     unit,            
                 })
     
-                transaction.setOutputToken(outputToken)    
-                
                 totalFeePaid = totalFeePaid - returnedAmount
                 lightningFeePaid = totalFeePaid - meltFeeReserve
             }         
     
-            // Save final fee in db
-            if(totalFeePaid !== transaction.fee) {
-                transaction.setFee(totalFeePaid)
-            }        
+            const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
     
-            // Update transaction status
-            transactionData.push({
+            // build consolidated update payload
+            const completedDataItem: TransactionData = {
                 status: TransactionStatus.COMPLETED,                
                 lightningFeePaid,
                 meltFeePaid,
                 returnedAmount,       
                 preimage: meltResponse.quote.payment_preimage,                
                 createdAt: new Date(),
-            })    
-            
-            transaction.setStatus(            
-                TransactionStatus.COMPLETED,
-                JSON.stringify(transactionData),
-            )
+            }
+            transactionData.push(completedDataItem)
     
-            const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
-            transaction.setBalanceAfter(balanceAfter)        
+            const updatePayload: any = {
+                status: TransactionStatus.COMPLETED,
+                data: JSON.stringify(transactionData),
+                fee: totalFeePaid,
+                balanceAfter,
+            }
+            if (outputToken) {
+                updatePayload.outputToken = outputToken
+            }
+            if (meltResponse.quote.payment_preimage) {
+                updatePayload.proof = meltResponse.quote.payment_preimage
+            }
+    
+            transaction.update(updatePayload)
     
             return {
                 taskFunction: TRANSFER_TASK,
@@ -405,10 +409,10 @@ export const transferTask = async function (
                 createdAt: new Date()
             })
 
-            transaction.setStatus(                
-                TransactionStatus.ERROR,
-                JSON.stringify(transactionData),
-            )
+            transaction.update({
+                status: TransactionStatus.ERROR,
+                data: JSON.stringify(transactionData),
+            })
         }
 
         return taskResult

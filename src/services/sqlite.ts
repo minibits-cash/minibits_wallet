@@ -254,6 +254,48 @@ const getDatabaseVersion = function (db: QuickSQLiteConnection): {version: numbe
  * Transactions
  */
 
+
+const updateTransaction = function (id: number, fields: {[key:string]: any}): TransactionRecord {
+
+  const allowedColumns = ['amount','fee','unit','data','sentFrom','sentTo','profile','memo','paymentId','quote','paymentRequest','zapRequest','inputToken','outputToken','proof','balanceAfter','noteToSelf','tags','status','expiresAt'];
+  
+  try {
+    // Filter keys against allowed columns to prevent SQL injection
+    const validKeys = Object.keys(fields).filter(key => allowedColumns.includes(key));
+    
+    if (validKeys.length === 0) {
+      // No valid keys to update, return existing transaction
+      return getTransactionById(id);
+    }
+
+    // Build SET clauses and parameters
+    const setClauses = validKeys.map(key => `${key} = ?`);
+    const params = validKeys.map(key => fields[key]);
+    params.push(id); // Add id at the end for WHERE clause
+
+    const query = `
+      UPDATE transactions
+      SET ${setClauses.join(', ')}
+      WHERE id = ?
+    `;
+
+    const db = getInstance();
+    db.execute(query, params);
+
+    log.debug('[updateTransaction]', `Transaction updated in the database`, {id, fields: validKeys});
+
+    const updatedTx = getTransactionById(id);
+    return updatedTx as TransactionRecord;
+  } catch (e: any) {
+    throw new AppError(
+      Err.DATABASE_ERROR,
+      'Could not update transaction in database',
+      e.message,
+    );
+  }
+}
+
+
 const getTransactions = function (limit: number, offset: number, onlyPending: boolean = false) {
   let query: string = ''
   try {
@@ -545,35 +587,6 @@ const addTransactionAsync = async function (tx: Transaction): Promise<Transactio
   }
 }
 
-const updateStatus = function (
-  id: number,
-  status: TransactionStatus,
-  data: string,
-) {
-  try {
-    const query = `
-      UPDATE transactions
-      SET status = ?, data = ?
-      WHERE id = ?      
-    `
-    const params = [status, data, id]
-
-    const db = getInstance()
-    db.execute(query, params)
-
-    log.info('[updateStatus]', `Transaction status updated in the database`, {id, status})
-
-    const updatedTx = getTransactionById(id as number)
-
-    return updatedTx as TransactionRecord
-  } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not update transaction status in database',
-      e.message,
-    )
-  }
-}
 
 // This updates status and appends data to the existing transaction data
 const updateStatusesAsync = async function (
@@ -639,411 +652,32 @@ const expireAllAfterRecovery = async function () {
     return result
 }
 
-const updateBalanceAfter = function (
-  id: number,
-  balanceAfter: number,
-) {
-  try {
-    const query = `
-      UPDATE transactions
-      SET balanceAfter = ?
-      WHERE id = ?      
-    `
-    const params = [balanceAfter, id]
-
-    const db = getInstance()
-    db.execute(query, params)    
-    
-    log.debug('[updateBalanceAfter]', 'Transaction balanceAfter updated', {id, balanceAfter})
-
-    const updatedTx = getTransactionById(id as number)
-
-    return updatedTx as TransactionRecord
-  } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not update transaction balanceAfter in database',
-      e.message,
-    )
-  }
-}
-
-
-const updatePaymentId = function (id: number, paymentId: string) {
-  try {
-    const query = `
-      UPDATE transactions
-      SET paymentId = ?
-      WHERE id = ?      
-    `
-    const params = [paymentId, id]
-
-    const db = getInstance()
-    db.execute(query, params)
-
-    log.debug('[updatePaymentId]', 'Transaction paymentId updated in the database', {id, paymentId})
-
-    const updatedTx = getTransactionById(id as number)
-
-    return updatedTx as TransactionRecord
-  } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not update transaction paymentId in the database',
-      e.message,
-    )
-  }
-}
-
-
-const updateQuote = function (id: number, quote: string) {
-  try {
-    const query = `
-      UPDATE transactions
-      SET quote = ?
-      WHERE id = ?      
-    `
-    const params = [quote, id]
-
-    const db = getInstance()
-    db.execute(query, params)
-
-    log.debug('[updatePaymentId]', 'Transaction quote updated in the database', {id, quote})
-
-    const updatedTx = getTransactionById(id as number)
-
-    return updatedTx as TransactionRecord
-  } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not update transaction quote in the database',
-      e.message,
-    )
-  }
-}
-
-
-const updateFee = function (id: number, fee: number) {
-  try {
-    const query = `
-      UPDATE transactions
-      SET fee = ?
-      WHERE id = ?      
-    `
-    const params = [fee, id]
-
-    const db = getInstance()
-    db.execute(query, params)
-
-    log.debug('[updateFee]', 'Transaction fee updated in the database', {id, fee})
-
-    const updatedTx = getTransactionById(id as number)
-
-    return updatedTx as TransactionRecord
-  } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not update transaction fee in the database',
-      e.message,
-    )
-  }
-}
-
-
-const updateReceivedAmount = function (id: number, amount: number) {
-  try {
-    const query = `
-      UPDATE transactions
-      SET amount = ?
-      WHERE id = ?      
-    `
-    const params = [amount, id]
-
-    const db = getInstance()
-    db.execute(query, params)
-
-    log.debug('[updateReceivedAmountAsync]', 'Transaction received amount updated in the database', {id, amount})
-
-    const updatedTx = getTransactionById(id as number)
-
-    return updatedTx as TransactionRecord
-  } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not update transaction received amount in database',
-      e.message,
-    )
-  }
-}
-
-const updateNote = function (id: number, note: string) {
-  try {
-    const query = `
-      UPDATE transactions
-      SET noteToSelf = ?
-      WHERE id = ?      
-    `
-    const params = [note, id]
-
-    const db = getInstance()
-    db.executeAsync(query, params)
-    // DO NOT log to Sentry
-    log.trace('[updateNote]', 'Transaction note updated in the database', {id, note})
-
-    const updatedTx = getTransactionById(id as number)
-
-    return updatedTx as TransactionRecord
-  } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not update transaction note in database',
-      e.message,
-    )
-  }
-}
-
-
-const updateSentFrom = function (id: number, sentFrom: string) {
-    try {
-      const query = `
-        UPDATE transactions
-        SET sentFrom = ?
-        WHERE id = ?      
-      `
-      const params = [sentFrom, id]
-  
-      const db = getInstance()
-      db.executeAsync(query, params)
-
-      log.trace('[updateSentFrom]', 'Transaction sentFrom updated in the database', {id, sentFrom})
-  
-      const updatedTx = getTransactionById(id as number)
-  
-      return updatedTx as TransactionRecord
-    } catch (e: any) {
-      throw new AppError(
-        Err.DATABASE_ERROR,
-        'Could not update transaction sentFrom in database',
-        e.message,
-      )
-    }
-}
-
-
-const updateSentTo = function (id: number, sentTo: string) {
-    try {
-      const query = `
-        UPDATE transactions
-        SET sentTo = ?
-        WHERE id = ?      
-      `
-      const params = [sentTo, id]
-  
-      const db = getInstance()
-      db.execute(query, params)
-      
-      log.trace('[updateSentToAsync]', 'Transaction sentTo updated in the database', {id, sentTo})
-  
-      const updatedTx = getTransactionById(id as number)
-  
-      return updatedTx as TransactionRecord
-    } catch (e: any) {
-      throw new AppError(
-        Err.DATABASE_ERROR,
-        'Could not update transaction sentTo in database',
-        e.message,
-      )
-    }
-}
-
-
-const updateProfile = function (id: number, profile: string) {
-  try {
-    const query = `
-      UPDATE transactions
-      SET profile = ?
-      WHERE id = ?      
-    `
-    const params = [profile, id]
-
-    const db = getInstance()
-    db.execute(query, params)
-    
-    log.trace('[updateProfile]', 'Transaction sentTo updated in the database', {id, profile})
-
-    const updatedTx = getTransactionById(id as number)
-
-    return updatedTx as TransactionRecord
-  } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not update transaction profile in database',
-      e.message,
-    )
-  }
-}
-
-
-const updateInputToken = function (id: number, inputToken: string) {
-  try {
-    const query = `
-      UPDATE transactions
-      SET inputToken = ?
-      WHERE id = ?      
-    `
-    const params = [inputToken, id]
-
-    const db = getInstance()
-    db.execute(query, params)
-    
-    log.debug('[updateInputToken]', 'Transaction inputToken updated in the database', {id})
-
-    const updatedTx = getTransactionById(id as number)
-
-    return updatedTx as TransactionRecord
-  } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not update transaction inputToken in database',
-      e.message,
-    )
-  }
-}
-
-
-const updateOutputToken = function (id: number, outputToken: string) {
-  try {
-    const query = `
-      UPDATE transactions
-      SET outputToken = ?
-      WHERE id = ?      
-    `
-    const params = [outputToken, id]
-
-    const db = getInstance()
-    db.execute(query, params)
-    
-    log.debug('[updateOutputToken]', 'Transaction outputToken updated in the database', {id, outputToken})
-
-    const updatedTx = getTransactionById(id as number)
-
-    return updatedTx as TransactionRecord
-  } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not update transaction outputToken in database',
-      e.message,
-    )
-  }
-}
-
-// proof of payment, e.g. preimage
-const updateProof = function (id: number, proof: string) {
-  try {
-    const query = `
-      UPDATE transactions
-      SET proof = ?
-      WHERE id = ?      
-    `
-    const params = [proof, id]
-
-    const db = getInstance()
-    db.execute(query, params)
-    
-    log.debug('[updateProof]', 'Transaction proof updated in the database', {id, proof})
-
-    const updatedTx = getTransactionById(id as number)
-
-    return updatedTx as TransactionRecord
-  } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not update transaction proof in database',
-      e.message,
-    )
-  }
-}
-
-
-const updatePaymentRequest = function (id: number, paymentRequest: string) {
-  try {
-    const query = `
-      UPDATE transactions
-      SET paymentRequest = ?
-      WHERE id = ?      
-    `
-    const params = [paymentRequest, id]
-
-    const db = getInstance()
-    db.execute(query, params)
-    
-    log.trace('[updatePaymentRequest]', 'Transaction paymentRequest updated in the database', {id, paymentRequest})
-
-    const updatedTx = getTransactionById(id as number)
-
-    return updatedTx as TransactionRecord
-  } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not update transaction paymentRequest in database',
-      e.message,
-    )
-  }
-}
-
-
-const updateExpiresAt = function (id: number, expiresAt: Date) {
-  try {
-    const query = `
-      UPDATE transactions
-      SET expiresAt = ?
-      WHERE id = ?      
-    `
-    const params = [expiresAt.toISOString(), id]
-
-    const db = getInstance()
-    db.execute(query, params)
-    
-    log.trace('[updatePaymentRequest]', 'Transaction expiresAt updated in the database', {id, expiresAt})
-
-    const updatedTx = getTransactionById(id as number)
-
-    return updatedTx as TransactionRecord
-  } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not update transaction expiresAt in database',
-      e.message,
-    )
-  }
-}
-
-
-const updateZapRequest = function (id: number, zapRequest: string) {
-  try {
-    const query = `
-      UPDATE transactions
-      SET zapRequest = ?
-      WHERE id = ?      
-    `
-    const params = [zapRequest, id]
-
-    const db = getInstance()
-    db.execute(query, params)
-    
-    log.trace('[updateZapRequest]', 'Transaction zapRequest updated in the database', {id, zapRequest})
-
-    const updatedTx = getTransactionById(id as number)
-
-    return updatedTx as TransactionRecord
-  } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not update transaction zapRequest in database',
-      e.message,
-    )
-  }
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /* const cleanTransactionData = async function (transactionIds: number[]) {
   try {
@@ -1395,24 +1029,9 @@ export const Database = {
   getPendingTopups,
   getPendingTopupsCount,
   addTransactionAsync,  
-  updateStatus,
+  updateTransaction,
   expireAllAfterRecovery,
   updateStatusesAsync,
-  updateBalanceAfter,
-  updateFee,
-  updatePaymentId,
-  updateQuote,
-  updateReceivedAmount,
-  updateNote,
-  updateSentFrom,
-  updateSentTo,
-  updateProfile,
-  updatePaymentRequest,
-  updateExpiresAt,
-  updateZapRequest,
-  updateInputToken,
-  updateOutputToken,
-  updateProof,  
   deleteTransactionsByStatus,
   getPendingAmount,
   addOrUpdateProof,

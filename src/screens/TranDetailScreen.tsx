@@ -135,7 +135,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
 
     const onNoteSave = async function () {
       try {        
-        transaction!.setNote(note)
+        transaction.update({noteToSelf: note})
         setIsNoteEditing(false)        
       } catch (e: any) {
         handleError(e)
@@ -1658,7 +1658,7 @@ const TransferInfoBlock = function (props: {
   mint?: Mint  
   colorScheme: 'dark' | 'light'
 }) {
-  const {transaction, mint} = props
+  const {transaction, mint, isDataParsable} = props
   const {proofsStore, transactionsStore} = useStores()
   const navigation = useNavigation()
 
@@ -1701,6 +1701,7 @@ const TransferInfoBlock = function (props: {
       log.trace('[onRevertPreparedTransfer]', {tId: transaction.id})
       
       const pendingProofs = proofsStore.getByTransactionId(transaction.id!, true) // PREPARED should always pending
+      const transactionData = isDataParsable ? JSON.parse(transaction.data) : []
 
       if(pendingProofs.length > 0) {
         // remove it from pending proofs in the wallet
@@ -1711,17 +1712,16 @@ const TransferInfoBlock = function (props: {
       
       const message = 'Ecash has been returned to spendable balance.'
 
-      const transactionDataUpdate = {
+      transactionData.push({
         status: TransactionStatus.REVERTED,      
         message,
         createdAt: new Date(),
-      }
+      })
 
-      await transactionsStore.updateStatuses(
-          [transaction.id!],
-          TransactionStatus.REVERTED,
-          JSON.stringify(transactionDataUpdate),
-      )
+      transaction.update({
+        status: TransactionStatus.REVERTED,
+        data: JSON.stringify(transactionData)
+      })
 
       setResultModalInfo({status: TransactionStatus.REVERTED, message})
       toggleResultModal()

@@ -87,18 +87,15 @@ try {
           createdAt: new Date(),
       })
 
-      transaction.setStatus(            
-          TransactionStatus.REVERTED,
-          JSON.stringify(transactionData),
-      )
-
-      transaction.setOutputToken(outputToken)
       const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
-      transaction.setBalanceAfter(balanceAfter)
-
-      if(mintFeePaid > 0) {
-          transaction.setFee(mintFeePaid)
-      }
+      
+      transaction.update({
+          status: TransactionStatus.REVERTED,
+          data: JSON.stringify(transactionData),
+          outputToken,
+          balanceAfter,
+          ...(mintFeePaid > 0 && {fee: mintFeePaid})
+      })
 
       return {
           taskFunction: REVERT_TASK,
@@ -116,10 +113,10 @@ try {
               errorToken: e.params?.errorToken || undefined
           })
 
-          transaction.setStatus(                
-              TransactionStatus.ERROR,
-              JSON.stringify(transactionData),
-          )
+          transaction.update({
+              status: TransactionStatus.ERROR,
+              data: JSON.stringify(transactionData)
+          })
       }
 
       log.error(e.name, e.message)

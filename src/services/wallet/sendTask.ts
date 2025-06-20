@@ -106,11 +106,6 @@ export const sendTask = async function (
             createdAt: new Date(),
         })
 
-        transaction.setStatus(        
-            TransactionStatus.PREPARED,
-            JSON.stringify(transactionData),
-        )
-
         // Create sendable encoded token
         if (!memo || memo === '') {
             memo = 'Sent from Minibits'
@@ -123,24 +118,25 @@ export const sendTask = async function (
             memo,
         })
 
-        transaction.setOutputToken(outputToken)
+        transaction.update({
+            status: TransactionStatus.PREPARED,
+            data: JSON.stringify(transactionData),
+            outputToken
+        })
         
         transactionData.push({
             status: TransactionStatus.PENDING,                      
             createdAt: new Date(),
         })
 
-        transaction.setStatus(            
-            TransactionStatus.PENDING,
-            JSON.stringify(transactionData),
-        )
-
         const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
-        transaction.setBalanceAfter(balanceAfter)
         
-        if(swapFeePaid > 0) {
-            transaction.setFee(swapFeePaid)
-        }
+        transaction.update({
+            status: TransactionStatus.PENDING,
+            data: JSON.stringify(transactionData),
+            balanceAfter,
+            ...(swapFeePaid > 0 && {fee: swapFeePaid})
+        })
 
         log.trace('[send] totalBalance after', balanceAfter)
 
@@ -204,10 +200,10 @@ export const sendTask = async function (
                 createdAt: new Date()
             })
 
-            transaction.setStatus(                
-                TransactionStatus.ERROR,
-                JSON.stringify(transactionData),
-            )
+            transaction.update({
+                status: TransactionStatus.ERROR,
+                data: JSON.stringify(transactionData)
+            })
         }        
 
         return {

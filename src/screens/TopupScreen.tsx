@@ -544,10 +544,10 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
             updated[1].sentToRelays = relaysToShareTo
 
             // status does not change, just add event and relay info to tx.data
-            transaction.setStatus(                            
-              TransactionStatus.PENDING,
-              JSON.stringify(updated),
-            )
+            transaction.update({
+              status: TransactionStatus.PENDING,
+              data: JSON.stringify(updated),
+            })
           }
         } else {
           setInfo(translate('topup.relayMissingSentEvent'))
@@ -600,10 +600,10 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
           error: result,
         })
 
-        transaction.setStatus(          
-          TransactionStatus.ERROR,
-          JSON.stringify(updated),
-        )
+        transaction.update({
+          status: TransactionStatus.ERROR,
+          data: JSON.stringify(updated),
+        })
 
         setResultModalInfo({
           status: TransactionStatus.ERROR,

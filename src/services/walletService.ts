@@ -1172,6 +1172,7 @@ const handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTask
             for(const inFlight of counter.inFlightRequests) {
                 
                 const transaction = transactionsStore.findById(inFlight.transactionId)
+                const transactionData = JSON.parse(transaction.data)
     
                 if(!transaction) {
                     counter.removeInFlightRequest(inFlight.transactionId)
@@ -1222,28 +1223,27 @@ const handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTask
     
                             // Update tx amount if full amount was not received
                             if (receivedAmount !== transaction.amount) {      
-                                transaction.setReceivedAmount(receivedAmount)
+                                transaction.update({amount: receivedAmount})
                             }
                             
-                            await transactionsStore.updateStatuses(
-                                [transaction.id],
-                                TransactionStatus.COMPLETED,
-                                JSON.stringify({
-                                    status: TransactionStatus.COMPLETED,  
-                                    receivedAmount,
-                                    swapFeePaid,
-                                    unit,                     
-                                    createdAt: new Date(),
-                                }),
-                            )
-    
-                            transaction.setOutputToken(outputToken)
+                            transactionData.push({
+                                status: TransactionStatus.COMPLETED,  
+                                receivedAmount,
+                                swapFeePaid,
+                                unit,                     
+                                createdAt: new Date(),
+                            })
+
+                            transaction.update({                                
+                                status: TransactionStatus.COMPLETED,
+                                data: JSON.stringify(transactionData),
+                            })
     
                             const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
-                            transaction.setBalanceAfter(balanceAfter)
+                            transaction.update({balanceAfter, outputToken})
     
                             if(swapFeePaid > 0) {
-                                transaction.setFee(swapFeePaid)
+                                transaction.update({fee: swapFeePaid})
                             }
                             break                 
     
@@ -1310,24 +1310,23 @@ const handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTask
                                 proofs: proofsToSend,
                                 unit,
                             })
-                    
-                            transaction.setOutputToken(outputToken)
-                            
-                            // Finally, update completed transaction
-                            await transactionsStore.updateStatuses(
-                                [transaction.id],
-                                TransactionStatus.PENDING,
-                                JSON.stringify({
-                                    status: TransactionStatus.PENDING,                      
-                                    createdAt: new Date(),
-                                })
-                            )
-                    
+
                             const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
-                            transaction.setBalanceAfter(balanceAfter)
+
+                            transactionData.push({
+                                status: TransactionStatus.PENDING,                      
+                                createdAt: new Date(),
+                            })
+
+                            transaction.update({                                
+                                status: TransactionStatus.PENDING,                                
+                                data: JSON.stringify(transactionData),
+                                outputToken,
+                                balanceAfter
+                            })
                             
                             if(swapFeePaid > 0) {
-                                transaction.setFee(swapFeePaid)
+                                transaction.update({fee: swapFeePaid})
                             }
                             break                  
     
@@ -1370,20 +1369,21 @@ const handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTask
                                 )
                             }
     
-                            stopPolling(`handlePendingTopupPoller-${transaction.paymentId}`)                        
-    
-                            await transactionsStore.updateStatuses(
-                                [transaction.id],
-                                TransactionStatus.COMPLETED,
-                                JSON.stringify({
-                                    status: TransactionStatus.COMPLETED,
-                                    createdAt: new Date(),
-                                })
-                            )
-                            
-                            // Update tx with current total balance of topup unit/currency
+                            stopPolling(`handlePendingTopupPoller-${transaction.paymentId}`)
+
                             const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
-                            transaction.setBalanceAfter(balanceAfter)
+                            
+                            transactionData.push({
+                                status: TransactionStatus.COMPLETED,                      
+                                createdAt: new Date(),
+                            })
+
+                            transaction.update({                                
+                                status: TransactionStatus.COMPLETED,                                
+                                data: JSON.stringify(transactionData),                                
+                                balanceAfter
+                            })   
+
                             break   
     
                         } catch(e: any) {
@@ -1412,7 +1412,7 @@ const handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTask
                 
                             // Save preimage asap
                             if(quote.payment_preimage) {
-                                transaction.setProof(quote.payment_preimage)
+                                transaction.update({proof: quote.payment_preimage})
                             }
     
                             const proofsToMeltFromAmount = CashuUtils.getProofsAmount(inFlight.request.proofsToSend)
@@ -1447,29 +1447,31 @@ const handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTask
                                     unit,            
                                 })
                     
-                                transaction.setOutputToken(outputToken)    
+                                transaction.update({outputToken})    
                                 
                                 totalFeePaid = totalFeePaid - returnedAmount                            
                             }           
                     
                             // Save final fee in db
                             if(totalFeePaid !== transaction.fee) {
-                                transaction.setFee(totalFeePaid)
-                            }        
-    
-                            await transactionsStore.updateStatuses(
-                                [transaction.id],
-                                TransactionStatus.COMPLETED,
-                                JSON.stringify({
-                                    status: TransactionStatus.COMPLETED,                
-                                    returnedAmount,       
-                                    preimage: quote.payment_preimage,                
-                                    createdAt: new Date(),
-                                })
-                            )
-                    
+                                transaction.update({fee: totalFeePaid})
+                            }
+
                             const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
-                            transaction.setBalanceAfter(balanceAfter)
+                            
+                            transactionData.push({
+                                status: TransactionStatus.COMPLETED,                
+                                returnedAmount,       
+                                preimage: quote.payment_preimage,                
+                                createdAt: new Date(),
+                            })
+
+                            transaction.update({                                
+                                status: TransactionStatus.COMPLETED,                                
+                                data: JSON.stringify(transactionData),                                
+                                balanceAfter
+                            }) 
+
                             break      
     
                         } catch(e: any) {
@@ -1556,6 +1558,7 @@ const handlePendingTopupTask = async function (params: {transaction: Transaction
         expiresAt
     } = transaction
 
+    const transactionData = JSON.parse(transaction.data)
     const mintInstance = mintsStore.findByUrl(mintUrl as string)     
 
     try {
@@ -1575,17 +1578,16 @@ const handlePendingTopupTask = async function (params: {transaction: Transaction
 
             // expire related tx - but only if it has not been completed before this check
             if(transaction.status !== TransactionStatus.COMPLETED) {
-                const transactionDataUpdate = {
+                transactionData.push({
                     status: TransactionStatus.EXPIRED,
                     message: 'Invoice expired',                        
                     createdAt: new Date(),
-                }                        
+                })
 
-                await transactionsStore.updateStatuses(
-                    [transactionId],
-                    TransactionStatus.EXPIRED,
-                    JSON.stringify(transactionDataUpdate),
-                ) 
+                transaction.update({
+                    status: TransactionStatus.EXPIRED,
+                    data: JSON.stringify(transactionData)
+                })
             }
 
             stopPolling(`handlePendingTopupPoller-${paymentHash}`)
@@ -1654,24 +1656,21 @@ const handlePendingTopupTask = async function (params: {transaction: Transaction
                 )                
                 
                 stopPolling(`handlePendingTopupPoller-${paymentHash}`)
+
                 const currencyCode = getCurrency(unit).code  
+                const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
         
                 // update related tx
-                const transactionDataUpdate = {
-                    status: TransactionStatus.COMPLETED,
+                transactionData.push({
+                    status: TransactionStatus.COMPLETED,                                         
                     createdAt: new Date(),
-                }
-        
-                // await for final status
-                await transactionsStore.updateStatuses(
-                    [transactionId],
-                    TransactionStatus.COMPLETED,
-                    JSON.stringify(transactionDataUpdate),
-                )
-                
-                // Update tx with current total balance of topup unit/currency
-                const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
-                transaction.setBalanceAfter(balanceAfter)     
+                })
+
+                transaction.update({
+                    status: TransactionStatus.COMPLETED,
+                    balanceAfter,
+                    data: JSON.stringify(transactionData)
+                })    
             
                 _sendTopupNotification(amount, unit)
                                        
@@ -1776,7 +1775,8 @@ const recoverMintQuote = async function (params: {mintUrl: string, mintQuote: st
             }
             // store tx in db and in the model
             const transaction = await transactionsStore.addTransaction(newTransaction)
-            const transactionId = transaction.id                 
+            const transactionId = transaction.id
+            const transactioData = JSON.parse(transaction.data)                 
     
             let proofs: CashuProof[] = []
     
@@ -1821,25 +1821,18 @@ const recoverMintQuote = async function (params: {mintUrl: string, mintQuote: st
                 }
             )                
             
-            const currencyCode = getCurrency(unit).code  
-    
-            // update related tx
-            const transactionDataUpdate = {
-                status: TransactionStatus.RECOVERED,
-                createdAt: new Date(),
-            }
-    
-            // await for final status
-            await transactionsStore.updateStatuses(
-                [transactionId],
-                TransactionStatus.RECOVERED,
-                JSON.stringify(transactionDataUpdate),
-            )
-            
-            // Update tx with current total balance of topup unit/currency
             const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
-            transaction.setBalanceAfter(balanceAfter)            
-                    
+
+            transactionData.push({
+                status: TransactionStatus.RECOVERED,                                         
+                createdAt: new Date(),
+            })
+
+            transaction.update({
+                status: TransactionStatus.RECOVERED,
+                balanceAfter,
+                data: JSON.stringify(transactionData)
+            })      
             
             return { recoveredAmount }
         /* 
@@ -1906,18 +1899,17 @@ const recoverMeltQuoteChange = async function (params: {mintUrl: string, meltQuo
 
             transaction = transactionsStore.findByQuote(meltQuote)
             transactionId = transaction?.id
+            const transactionData: TransactionData[] = transaction ? JSON.parse(transaction.data) : []
 
             // Older transactions might not have quote set
             if(!transaction) {
-                const transactionData: TransactionData[] = [
-                    {
+                transactionData.push({
                         status: TransactionStatus.DRAFT,
                         amountToRecover,
                         unit,
                         meltQuoteToRecover: quote,
                         createdAt: new Date(),
-                    }
-                ]
+                })
 
                 const newTransaction = {
                     type: TransactionType.RECEIVE,
@@ -1931,7 +1923,7 @@ const recoverMeltQuoteChange = async function (params: {mintUrl: string, meltQuo
                 }
                 // store tx in db and in the model
                 const transaction = await transactionsStore.addTransaction(newTransaction)
-                transaction.setQuote(meltQuote)
+                transaction.update({quote: meltQuote})
                 transactionId = transaction.id
             }
 
@@ -1973,32 +1965,28 @@ const recoverMeltQuoteChange = async function (params: {mintUrl: string, meltQuo
                 )
                 
                 if(amountToRecover !== recoveredAmount) {
-                    transaction.setReceivedAmount(recoveredAmount)
+                    transaction.update({amount: recoveredAmount})
                 }
-        
-                // update related tx
-                const transactionDataUpdate = {
-                    status: TransactionStatus.RECOVERED,
-                    recoveredAmount,
-                    createdAt: new Date(),
-                }
-        
-                // await for final status
-                await transactionsStore.updateStatuses(
-                    [transactionId],
-                    TransactionStatus.RECOVERED,
-                    JSON.stringify(transactionDataUpdate),
-                )
-                
-                // Update tx with current total balance of topup unit/currency
-                const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!            
+
+                const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
                 const outputToken = getEncodedToken({
                     mint: mintUrl,
                     proofs: returnedProofs,
                     unit,
                 })
-                transaction.setBalanceAfter(balanceAfter)
-                transaction.setOutputToken(outputToken)          
+
+                transactionData.push({
+                    status: TransactionStatus.RECOVERED, 
+                    recoveredAmount,                                        
+                    createdAt: new Date(),
+                })
+    
+                transaction.update({
+                    status: TransactionStatus.RECOVERED,
+                    balanceAfter,
+                    outputToken,
+                    data: JSON.stringify(transactionData)
+                })               
                                 
                 return { recoveredAmount }
 
@@ -2011,10 +1999,10 @@ const recoverMeltQuoteChange = async function (params: {mintUrl: string, meltQuo
                     createdAt: new Date()
                 })
     
-                transaction.setStatus(                
-                    TransactionStatus.ERROR,
-                    JSON.stringify(transactionData),
-                )
+                transaction.update({
+                    status: TransactionStatus.ERROR,
+                    data: JSON.stringify(transactionData)
+                })
             }
         /* 
         * UNKNOWN 
@@ -2107,15 +2095,17 @@ const handleClaimTask = async function (params: {
 
             if(transaction) {
                 if (zapSenderProfile) {
-                    transaction.setProfile(zapSenderProfile as string)
+                    let sentFrom: string = ''
                     try {
                         const profile: NostrProfile = JSON.parse(zapSenderProfile)
-                        transaction.setSentFrom(profile.nip05 ?? profile.name)
+                        sentFrom = profile.nip05 ?? profile.name
                     } catch(e: any) {}
+                    
+                    transaction.update({profile: zapSenderProfile, sentFrom})
                 }
 
                 if (zapRequest) {
-                    transaction.setZapRequest(zapRequest as string)
+                    transaction.update({zapRequest})
                 }
             }
         }
@@ -2363,14 +2353,12 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
 
             // store contact or zapseder in tx details
             if(transaction && sentFrom) {
-                if (contactFrom) {
-                    transaction.setProfile(JSON.stringify(contactFrom))
-                    transaction.setSentFrom(sentFrom)
+                if (contactFrom) {                    
+                    transaction.update({profile: JSON.stringify(contactFrom), sentFrom})                    
                 }
         
                 if (zapSenderProfile) {
-                    transaction.setProfile(JSON.stringify(zapSenderProfile))
-                    transaction.setSentFrom(sentFrom)
+                    transaction.update({profile: JSON.stringify(zapSenderProfile), sentFrom})                    
                 }
 
                 const isZap = zapSenderProfile ? true : false
@@ -2452,13 +2440,15 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
             }
 
             const transaction = await transactionsStore.addTransaction(newTransaction)            
-            // TODO make single insert
-            transaction.setPaymentId(paymentHash)
-            transaction.setPaymentRequest(incoming.encoded)
-            transaction.setExpiresAt(addSeconds(new Date(timestamp * 1000), expiry))
-            transaction.setProfile(JSON.stringify(contactFrom))
-            transaction.setSentTo(contactFrom.nip05 || contactFrom.name)    // payee
-            transaction.setSentFrom(contactTo.nip05 || contactTo.name)      // payer
+
+            transaction.update({
+                paymentId: paymentHash,
+                paymentRequest: incoming.encoded,
+                expiresAt: addSeconds(new Date(timestamp * 1000), expiry),
+                profile: JSON.stringify(contactFrom),
+                sentTo: contactFrom.nip05 ?? contactFrom.name, // payee
+                sentFrom: contactTo.nip05 ?? contactTo.name // payer
+            })   
 
             _sendIncomingInvoiceNotification(amount, 'sat', contactFrom)
             
@@ -2542,11 +2532,13 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
 
             const transaction = await transactionsStore.addTransaction(newTransaction)            
             // TODO make single insert
-            transaction.setPaymentId(id)
-            transaction.setPaymentRequest(incoming.encoded)            
-            transaction.setProfile(JSON.stringify(contactFrom))
-            transaction.setSentTo(contactFrom.nip05 || contactFrom.name)    // payee
-            transaction.setSentFrom(contactTo.nip05 || contactTo.name)      // payer
+            transaction.update({
+                paymentId: id,
+                paymentRequest: incoming.encoded,                
+                profile: JSON.stringify(contactFrom),
+                sentTo: contactFrom.nip05 ?? contactFrom.name, // payee
+                sentFrom: contactTo.nip05 ?? contactTo.name // payer
+            })  
 
             _sendIncomingInvoiceNotification(amount, unit as MintUnit, contactFrom)
             
@@ -2573,9 +2565,10 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
             // store contact or zapseder in tx details
             if(transaction && sentFrom) {
                 if (contactFrom) {
-                    transaction.setProfile(JSON.stringify(contactFrom))
-                    transaction.setSentFrom(sentFrom)
+                    transaction.update({profile: JSON.stringify(contactFrom), sentFrom})
                 }
+
+                transaction.update({paymentId: decoded.id})
     
                 // We do it defensively only after cash is received
                 // and asynchronously so we speed up queue

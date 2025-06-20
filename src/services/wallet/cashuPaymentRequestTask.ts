@@ -96,12 +96,11 @@ export const cashuPaymentRequestTask = async function (
             createdAt: new Date()
         })
 
-        transaction.setStatus(            
-            TransactionStatus.PENDING,
-            JSON.stringify(transactionData),
-        )
-
-        transaction.setPaymentId(cashuPrId)
+        transaction.update({
+            status: TransactionStatus.PENDING,
+            data: JSON.stringify(transactionData),
+            paymentId: cashuPrId
+        })
        
         return {
             taskFunction: CASHU_PAYMENT_REQUEST_TASK,
@@ -121,10 +120,10 @@ export const cashuPaymentRequestTask = async function (
                 createdAt: new Date()
             })
 
-            transaction.setStatus(                
-                TransactionStatus.ERROR,
-                JSON.stringify(transactionData),
-            )
+            transaction.update({
+                status: TransactionStatus.ERROR,
+                data: JSON.stringify(transactionData)
+            })
         }
 
         log.error(e.name, e.message)

@@ -460,12 +460,13 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             if(paymentOption === SendOption.PAY_CASHU_PAYMENT_REQUEST) {  
                 if(decodedCashuPaymentRequest && decodedCashuPaymentRequest.id) {
 
-                    // TODO make a single request
-                    transaction.setPaymentId(decodedCashuPaymentRequest.id)
-                    transaction.setPaymentRequest(encodedCashuPaymentRequest)            
-                    transaction.setProfile(JSON.stringify(contactToSendFrom))
-                    transaction.setSentTo(contactToSendTo.nip05 || contactToSendTo.name)        // payee
-                    transaction.setSentFrom(contactToSendFrom.nip05 || contactToSendFrom.name)  // payer
+                    transaction.update({
+                        paymentId: decodedCashuPaymentRequest.id,
+                        paymentRequest: encodedCashuPaymentRequest,
+                        profile: JSON.stringify(contactToSendFrom),
+                        sentTo: contactToSendTo.nip05 || contactToSendTo.name,        // payee
+                        sentFrom: contactToSendFrom.nip05 || contactToSendFrom.name   // payer
+                    })
                 }
             }
 
@@ -846,20 +847,18 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     updated[2].sentToRelays = relaysToShareTo
                     updated[2].sentEvent = sentEvent
                     
-                    transaction.setStatus( // status does not change, just add event and relay info to tx.data                    
-                        TransactionStatus.PENDING,
-                        JSON.stringify(updated)
-                    )
+                    // status does not change, just add event and relay info to tx.data 
+                    transaction.update({                    
+                        status: TransactionStatus.PENDING,
+                        data: JSON.stringify(updated)
+                    })
                 }
 
                 if(contactToSendTo) {
-                    transaction.setProfile(
-                        JSON.stringify(contactToSendTo)
-                    )
-
-                    transaction.setSentTo(
-                        contactToSendTo.nip05handle ?? contactToSendTo.name!
-                    )
+                    transaction.update({
+                        profile: JSON.stringify(contactToSendTo),
+                        sentTo: contactToSendTo.nip05handle ?? contactToSendTo.name!
+                    })
                 }
 
             } else {
