@@ -102,7 +102,13 @@ export const topupTask = async function (
         const contactTo = isStateTreeNode(contactToSendTo) ? getSnapshot(contactToSendTo) : contactToSendTo
 
         // Bulk update quote, paymentId, paymentRequest, expiresAt, sentFrom, sentTo
-        const expiresAtDate = addSeconds(new Date(timestamp * 1000), expiry)
+        let expiresAtDate: Date | undefined = undefined
+        if(expiry && expiry > 0) {
+            expiresAtDate = addSeconds(new Date(timestamp * 1000), expiry)
+        } else {
+            expiresAtDate = addSeconds(new Date(timestamp * 1000), 86400)
+        }
+        
         const sentFromValue = contactTo?.nip05 || contactTo?.name || ''
         const sentToValue = walletProfileStore.nip05 || ''
 
@@ -112,7 +118,7 @@ export const topupTask = async function (
             quote: mintQuote,
             paymentId: paymentHash,
             paymentRequest: encodedInvoice,
-            expiresAt: new Date(expiresAtDate),
+            expiresAt: expiresAtDate,
             sentFrom: sentFromValue,
             sentTo: sentToValue
         })
