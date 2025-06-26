@@ -6,9 +6,8 @@ import {
   ViewProps,
   View,
   ViewStyle,
-  ColorValue,
-  StatusBar,
-  BackHandler,  
+  KeyboardAvoidingView,
+  Platform, 
 } from "react-native"
 import { colors, useThemeColor, spacing } from "../theme"
 import { Text, TextProps } from "./Text"
@@ -172,12 +171,17 @@ export function BottomModal(props: ModalProps) {
       onBackdropPress={onBackdropPress}
       onBackButtonPress={onBackButtonPress}
       backdropOpacity={backdropOpacity}
-      style={[$outerContainerBase]}
-      // coverScreen={true}      
+      style={[$outerContainerBase]}    
       {...otherProps}
     >
       {/*<StatusBar backgroundColor={isVisible ? statusBarOnModalOpen : undefined} />*/}
-      <View style={[$innerContainerBase, $innerContainerStyle]}>        
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        // style={{ flex: 1 }}
+        style={[$innerContainerBase, $innerContainerStyle]}
+        keyboardVerticalOffset={Platform.OS === 'android' ? 40 : 0} // adjust based on header height if needed
+      >
+       
           {HeadingComponent ||
             (isHeadingPresent && (
               <Text
@@ -215,7 +219,9 @@ export function BottomModal(props: ModalProps) {
               style={$footerStyle}
             />
           ))}
-      </View>      
+   
+      </KeyboardAvoidingView>
+      
     </Modal>
     </View>    
   )
