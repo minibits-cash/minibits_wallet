@@ -566,7 +566,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     const toggleNostrDMModal = () => setIsNostrDMModalVisible(previousState => !previousState)
     const toggleProofSelectorModal = () => setIsProofSelectorModalVisible(previousState => !previousState)
     const toggleResultModal = () => setIsResultModalVisible(previousState => !previousState)
-    const toggleIsLockedToPubkey = () => setIsLockedToPubkey(previousState => !previousState)
+    // const toggleIsLockedToPubkey = () => setIsLockedToPubkey(previousState => !previousState)
     const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previousState => !previousState)
 
     const onAmountEndEditing = function () {
@@ -646,7 +646,8 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     }
 
     const onLockPubkeySelect = function () {
-        if(!lockedPubkey) {
+        if(!lockedPubkey || lockedPubkey.length === 0) {
+            onLockPubkeyCancel()
             return
         }
 
@@ -704,7 +705,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
         log.trace('[onMintBalanceConfirm] lockedPubkey', {lockedPubkey})
 
-        if(lockedPubkey) {
+        if(lockedPubkey && lockedPubkey.length > 0) {
             if(lockedPubkey.startsWith('npub')) {
                 p2pk.pubkey = '02' + NostrClient.getHexkey(lockedPubkey)
             } else {
@@ -722,8 +723,6 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 log.trace('[onMintBalanceConfirm] Locktime', {pubkey: p2pk.pubkey, locktime: p2pk.locktime})
             }
         }
-        
-        
 
         setIsSendTaskSentToQueue(true)
 
@@ -1161,8 +1160,8 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 mintBalanceToSendFrom={mintBalanceToSendFrom as MintBalance}
                 unit={unitRef.current}
                 selectedProofs={selectedProofs}
-                isLockedToPubkey={isLockedToPubkey}          
-                toggleIsLockedToPubkey={toggleIsLockedToPubkey}    
+                // isLockedToPubkey={isLockedToPubkey}          
+                // toggleIsLockedToPubkey={toggleIsLockedToPubkey}    
                 toggleProofSelectorModal={toggleProofSelectorModal}
                 toggleSelectedProof={toggleSelectedProof} 
                 resetSelectedProofs={resetSelectedProofs}           
@@ -1433,10 +1432,10 @@ const SelectProofsBlock = observer(function (props: {
     mintBalanceToSendFrom: MintBalance
     unit: MintUnit
     selectedProofs: Proof[]
-    isLockedToPubkey: boolean
+    // isLockedToPubkey: boolean
     toggleProofSelectorModal: any                    
     toggleSelectedProof: any
-    toggleIsLockedToPubkey: any
+    // toggleIsLockedToPubkey: any
     resetSelectedProofs: any
     onOfflineSendConfirm: any
   }) {

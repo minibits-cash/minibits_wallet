@@ -123,7 +123,8 @@ type WalletTaskService = {
         unit: MintUnit,
         memo: string,
         selectedProofs: Proof[],
-        p2pk?: { pubkey: string; locktime?: number; refundKeys?: Array<string> }
+        p2pk?: { pubkey: string; locktime?: number; refundKeys?: Array<string> },
+        draftTransactionId?: number
     ) => Promise<void>
     swapAllQueue: () => Promise<void>
     topupQueue: (
