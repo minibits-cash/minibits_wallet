@@ -7,13 +7,16 @@ import {
   View,
   ViewStyle,
   KeyboardAvoidingView,
-  Platform, 
+  Platform,
+  StatusBar, 
 } from "react-native"
 import { colors, useThemeColor, spacing } from "../theme"
 import { Text, TextProps } from "./Text"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Header } from "@react-navigation/stack"
 import { moderateVerticalScale } from "@gocodingnow/rn-size-matters"
+import { KeyboardState, useAnimatedKeyboard } from "react-native-reanimated"
+import { log } from "../services"
 
 
 interface ModalProps extends ViewProps {
@@ -136,7 +139,7 @@ export function BottomModal(props: ModalProps) {
   const insets = useSafeAreaInsets()
 
   const $innerContainerStyle = [    
-    $innerContainerBase, { backgroundColor: useThemeColor('card'), paddingBottom: insets.bottom + moderateVerticalScale(40) }, $containerStyleOverride   
+    $innerContainerBase, { backgroundColor: useThemeColor('card'), paddingBottom: insets.bottom + 20 }, $containerStyleOverride   
   ]
   
   const isHeadingPresent = !!(HeadingComponent || heading || headingTx)
@@ -161,27 +164,33 @@ export function BottomModal(props: ModalProps) {
   ]
 
   // const statusBarOnModalOpen = useThemeColor('statusBarOnModalOpen')
+  const keyboard = useAnimatedKeyboard()
+  log.trace({keyboard})
 
   return (
     <View>
+      {/*<StatusBar backgroundColor={isVisible ? statusBarOnModalOpen : undefined} />*/}
     <Modal      
       isVisible={isVisible}
-      statusBarTranslucent={true}
+      statusBarTranslucent={true}     
       avoidKeyboard={true}     
       onBackdropPress={onBackdropPress}
       onBackButtonPress={onBackButtonPress}
       backdropOpacity={backdropOpacity}
-      style={[$outerContainerBase]}    
+      style={[$outerContainerBase, $containerStyleOverride]}    
       {...otherProps}
     >
-      {/*<StatusBar backgroundColor={isVisible ? statusBarOnModalOpen : undefined} />*/}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        // style={{ flex: 1 }}
-        style={[$innerContainerBase, $innerContainerStyle]}
-        keyboardVerticalOffset={Platform.OS === 'android' ? 40 : 0} // adjust based on header height if needed
+      
+      <View        
+        style={[
+          $innerContainerBase, 
+          $innerContainerStyle, 
+          keyboard.state.value === KeyboardState.OPEN ? 
+          { marginBottom: keyboard.height.value } : 
+          {}
+        ]}      
       >
-       
+
           {HeadingComponent ||
             (isHeadingPresent && (
               <Text
@@ -219,9 +228,7 @@ export function BottomModal(props: ModalProps) {
               style={$footerStyle}
             />
           ))}
-   
-      </KeyboardAvoidingView>
-      
+      </View>
     </Modal>
     </View>    
   )
