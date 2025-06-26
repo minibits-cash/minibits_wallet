@@ -302,7 +302,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                         }
 
                         if (transport.type == PaymentRequestTransportType.POST) {
-                            // TODO
+                            throw new AppError(Err.VALIDATION_ERROR, 'Payment requests with POST transport are not supported yet.')
                         }                        
                     }
 
@@ -1697,7 +1697,7 @@ const ContactItem = function (props: {
             style={[{flexDirection: 'column', alignItems: 'center'}, props.containerStyle]}
             onPress={props.onPress}
         >
-            {props.contact.picture ? (
+            {props.contact && props.contact.picture ? (
                 <View style={{borderRadius: 20, overflow: 'hidden'}}>
                     <FastImage style={[
                         $profileIcon, {
