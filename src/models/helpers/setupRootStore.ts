@@ -14,7 +14,6 @@ import {
   IDisposer,
   onSnapshot,
 } from 'mobx-state-tree'
-import { debounce } from "lodash"
 import * as Sentry from '@sentry/react-native'
 import type {RootStore} from '../RootStore'
 import {KeyChain, MMKVStorage} from '../../services'
@@ -35,9 +34,10 @@ export const ROOT_STORAGE_KEY = 'minibits-root-storage'
 /**
  * Setup the root state.
  */
-let _disposer: IDisposer
+
 export async function setupRootStore(rootStore: RootStore) {
     let restoredState: any
+    let _disposer: IDisposer
     // let latestSnapshot: any
 
     try {
@@ -75,17 +75,9 @@ export async function setupRootStore(rootStore: RootStore) {
     // stop tracking state changes if we've already setup
     if (_disposer) {
         _disposer()
-    }
+    }  
 
-    // track changes & save snapshot to the storage not more then once per second
-    /* const saveSnapshot = debounce((snapshot) => {        
-        MMKVStorage.save(ROOT_STORAGE_KEY, snapshot)
-    }, 1000)*/    
-
-    _disposer = onSnapshot(rootStore, snapshot => {
-        // log.trace('[setupRootStore] onSnapshot *** MMKV SHOULD SAVE ***')        
-        // saveSnapshot(snapshot)
-        // log.trace('[setupRootStore] saved', {walletStore: snapshot.walletStore})        
+    _disposer = onSnapshot(rootStore, snapshot => {       
         MMKVStorage.save(ROOT_STORAGE_KEY, snapshot)        
     })
 

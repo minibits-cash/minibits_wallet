@@ -299,7 +299,7 @@ export const ProofsStoreModel = types
         },
     }))
     .views(self => ({
-        getBalances() {
+        get balances() {
             const mintBalancesMap: Map<string, MintBalance> = new Map()
             const unitBalancesMap: Map<MintUnit, number> = new Map()
             const mintPendingBalancesMap: Map<string, MintBalance> = new Map()
@@ -393,7 +393,7 @@ export const ProofsStoreModel = types
     }))
     .views(self => ({ // Move to MintsStore?
         getMintBalance: (mintUrl: string) => {
-            const balances = self.getBalances().mintBalances
+            const balances = self.balances.mintBalances
 
             const mintBalance = balances
                 .find((balance: MintBalance) => balance.mintUrl === mintUrl)                
@@ -401,7 +401,7 @@ export const ProofsStoreModel = types
             return mintBalance
         },
         getMintBalancesWithEnoughBalance: (amount: number, unit: MintUnit) => {
-            const balances = self.getBalances().mintBalances
+            const balances = self.balances.mintBalances
 
             const filteredMintBalances = balances                
                 .filter((balance: MintBalance) => {                    
@@ -416,7 +416,7 @@ export const ProofsStoreModel = types
             return filteredMintBalances
         },
         getMintBalancesWithUnit: (unit: MintUnit) => {
-            const balances = self.getBalances().mintBalances
+            const balances = self.balances.mintBalances
 
             const filteredMintBalances = balances                
                 .filter((balance: MintBalance) => {                                            
@@ -431,7 +431,7 @@ export const ProofsStoreModel = types
             return filteredMintBalances
         },
         getMintBalanceWithMaxBalance: (unit: MintUnit) => {
-            const balances = self.getBalances().mintBalances
+            const balances = self.balances.mintBalances
             let maxBalance = undefined;
             let maxAmount = -Infinity;
           
@@ -447,7 +447,7 @@ export const ProofsStoreModel = types
             return maxBalance;
         },
         getUnitBalance: (unit: MintUnit) => {
-            const balances = self.getBalances().unitBalances
+            const balances = self.balances.unitBalances
 
             const unitBalance = balances
                 .find((balance: UnitBalance) => balance.unit === unit)                
@@ -455,7 +455,9 @@ export const ProofsStoreModel = types
             return unitBalance
         },        
         getProofsSubset: (proofs: Proof[], proofsToRemove: Proof[]) => {
-            return proofs.filter(proof => !proofsToRemove.includes(proof))
+            // return proofs.filter(proof => !proofsToRemove.includes(proof))
+            const secrets = new Set(proofsToRemove.map(p => p.secret));
+            return proofs.filter(p => !secrets.has(p.secret));
         },
     })).postProcessSnapshot((snapshot) => {   // NOT persisted to storage except last pendingByMintSecrets!  
         return {

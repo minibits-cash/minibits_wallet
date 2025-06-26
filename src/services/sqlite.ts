@@ -586,49 +586,28 @@ const getTransactionById = function (id: number) {
 }
 
 
-const getTransactionByPaymentId = function (id: string) {
+const getTransactionBy = function (criteria: { paymentId?: string; quote?: string; paymentRequest?: string }) {
   try {
-    const query = `
-      SELECT * FROM transactions WHERE paymentId = ?
-    `
+    // Input validation: ensure exactly one search criterion is provided
+    const providedCriteria = [criteria.paymentId != null, criteria.quote != null, criteria.paymentRequest != null].filter(Boolean).length
+    if (providedCriteria !== 1) {
+      throw new AppError(Err.DATABASE_ERROR, 'Exactly one search criterion must be provided to getTransactionBy', 'Invalid criteria object')
+    }
 
-    const params = [id]
+    // Dynamic query building based on the provided criterion
+    let query: string
+    let params: string[]
 
-    const db = getInstance()
-    const {rows} = db.execute(query, params)
-
-    return normalizeTransactionRecord(rows?.item(0))
-  } catch (e: any) {
-    throw new AppError(Err.DATABASE_ERROR, 'Transaction not found', e.message)
-  }
-}
-
-
-const getTransactionByQuote = function (quote: string) {
-  try {
-    const query = `
-      SELECT * FROM transactions WHERE quote = ?
-    `
-
-    const params = [quote]
-
-    const db = getInstance()
-    const {rows} = db.execute(query, params)
-
-    return normalizeTransactionRecord(rows?.item(0))
-  } catch (e: any) {
-    throw new AppError(Err.DATABASE_ERROR, 'Transaction not found', e.message)
-  }
-}
-
-
-const getTransactionByPaymentRequest = function (pr: string) {
-  try {
-    const query = `
-      SELECT * FROM transactions WHERE paymentRequest = ?
-    `
-
-    const params = [pr]
+    if (criteria.paymentId != null) {
+      query = `SELECT * FROM transactions WHERE paymentId = ?`
+      params = [criteria.paymentId]
+    } else if (criteria.quote != null) {
+      query = `SELECT * FROM transactions WHERE quote = ?`
+      params = [criteria.quote]
+    } else {
+      query = `SELECT * FROM transactions WHERE paymentRequest = ?`
+      params = [criteria.paymentRequest!]
+    }
 
     const db = getInstance()
     const {rows} = db.execute(query, params)
@@ -762,7 +741,8 @@ const deleteTransactionById = function (id: number) {
   try {
     const query = `
       DELETE FROM transactions
-      WHERE id = ?  
+      WHERE id = ? 
+      LIMIT 1 
     `
     const params = [id]
 
@@ -1077,9 +1057,7 @@ export const Database = {
   cleanAll,
   getTransactionsCount,
   getTransactionById,
-  getTransactionByPaymentId,
-  getTransactionByQuote,
-  getTransactionByPaymentRequest,
+  getTransactionBy,
   getRecentTransactionsByUnit,
   getTransactions,
   getPendingTopups,

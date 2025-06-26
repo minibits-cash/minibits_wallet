@@ -612,7 +612,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     }
     
     const headerBg = useThemeColor('header')    
-    const balances = proofsStore.getBalances()
+    const balances = proofsStore.balances
     const screenBg = useThemeColor('background')
     const mainButtonIcon = useThemeColor('mainButtonIcon')
     const mainButtonColor = useThemeColor('card')
