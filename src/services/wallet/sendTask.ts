@@ -341,7 +341,7 @@ export const sendFromMintSync = async function (
         let returnedProofs: CashuProof[] = []
         let isSwapNeeded: boolean = false
 
-        if(p2pk || proofsToSendFromAmount - amountToSend > 0) {
+        if((p2pk && p2pk.pubkey) || proofsToSendFromAmount - amountToSend > 0) {
             isSwapNeeded = true
         }      
 
@@ -393,7 +393,7 @@ export const sendFromMintSync = async function (
                     unit,            
                     proofsToSendFrom,
                     transactionId,
-                    {p2pk}
+                    {p2pk: p2pk && p2pk.pubkey ? p2pk : undefined}
                 )
             } catch (e: any) {                
                 if(e.params && e.params.message.includes('outputs have already been signed before')) {          
@@ -404,7 +404,7 @@ export const sendFromMintSync = async function (
                         unit,            
                         proofsToSendFrom,
                         transactionId,
-                        {p2pk, increaseCounterBy: 10}
+                        {p2pk: p2pk && p2pk.pubkey ? p2pk : undefined, increaseCounterBy: 10}
                     )
                 } else {
                     throw e

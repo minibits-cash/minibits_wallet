@@ -102,8 +102,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     const [encodedTokenToSend, setEncodedTokenToSend] = useState<string | undefined>()
     const [encodedCashuPaymentRequest, setEncodedCashuPaymentRequest] = useState<string | undefined>()
     const [decodedCashuPaymentRequest, setDecodedCashuPaymentRequest] = useState<CashuPaymentRequest | undefined>()
-    const [amountToSend, setAmountToSend] = useState<string>('0')
-    //const [unit, setUnit] = useState<MintUnit>('sat')
+    const [amountToSend, setAmountToSend] = useState<string>('0')    
     const [contactToSendFrom, setContactToSendFrom] = useState<Contact| undefined>()    
     const [contactToSendTo, setContactToSendTo] = useState<Contact| undefined>()        
     const [relaysToShareTo, setRelaysToShareTo] = useState<string[]>([])
@@ -115,11 +114,8 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     const [transaction, setTransaction] = useState<Transaction | undefined>()
     const [transactionId, setTransactionId] = useState<number | undefined>()
     const [info, setInfo] = useState('')
-    const [error, setError] = useState<AppError | undefined>()
-    const [isAmountEndEditing, setIsAmountEndEditing] = useState<boolean>(false)
-    const [isSharedAsNostrDirectMessage, setIsSharedAsNostrDirectMessage] = useState<boolean>(false)
-    const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus, title?: string, message: string} | undefined>()
-    const [isMemoEndEditing, setIsMemoEndEditing] = useState<boolean>(false)
+    const [error, setError] = useState<AppError | undefined>()        
+    const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus, title?: string, message: string} | undefined>()    
     const [isLoading, setIsLoading] = useState(false)
 
     const [isMintSelectorVisible, setIsMintSelectorVisible] = useState(false)
@@ -132,7 +128,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)
     const [isNostrDMSending, setIsNostrDMSending] = useState(false)
     const [isNostrDMSuccess, setIsNostrDMSuccess] = useState(false)
-    const [isLockedToPubkey, setIsLockedToPubkey] = useState(false)
+    
     const [isPubkeySelectorModalVisible, setIsPubkeySelectorModalVisible] = useState(false)
     const [lockedPubkey, setLockedPubkey] = useState<string | undefined>() // Added lockedPubkey state
     const [lockTime, setLockTime] = useState<number | undefined>(1)
@@ -596,8 +592,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             setAvailableMintBalances(availableBalances)
 
             // Default mint if not set from route params is with the one with highest balance
-            if(!mintBalanceToSendFrom) {setMintBalanceToSendFrom(availableBalances[0])}
-            setIsAmountEndEditing(true)
+            if(!mintBalanceToSendFrom) {setMintBalanceToSendFrom(availableBalances[0])}            
             // We do not make memo focus mandatory            
             // Show mint selector        
             setIsMintSelectorVisible(true)
@@ -614,8 +609,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         // Show mint selector
         if (availableMintBalances.length > 0) {
             setIsMintSelectorVisible(true)
-        }
-        setIsMemoEndEditing(true)        
+        }               
     }
 
 
@@ -676,8 +670,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             setContactToSendTo(contact)                
             setRelaysToShareTo(relays)
         }
-
-        setIsLockedToPubkey(true)
+        
         togglePubkeySelectorModal()
     }
 
@@ -701,7 +694,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             pubkey: string; 
             locktime?: number; 
             refundKeys?: Array<string> 
-        } = {}
+        } | undefined = undefined
 
         log.trace('[onMintBalanceConfirm] lockedPubkey', {lockedPubkey})
 
@@ -732,7 +725,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             unitRef.current,
             memo,
             selectedProofs,
-            p2pk,
+            p2pk.pubkey ? p2pk : undefined,
             draftTransactionIdRef.current
         )
     }
@@ -929,20 +922,16 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     const resetState = function () {
         // reset state so it does not interfere next payment
         setAmountToSend('')
-        setMemo('')
-        setIsAmountEndEditing(false)
-        setIsMemoEndEditing(false)
+        setMemo('')                
         setIsMintSelectorVisible(false)
-        setIsNostrDMModalVisible(false)
-        setIsSharedAsNostrDirectMessage(false)
+        setIsNostrDMModalVisible(false)        
         setIsNostrDMSending(false)
         setIsNostrDMModalVisible(false)
         setIsProofSelectorModalVisible(false)
         setIsLoading(false)
         setResultModalInfo(undefined)
         setIsResultModalVisible(false)
-        setLockTime(undefined)
-        setIsLockedToPubkey(false)
+        setLockTime(undefined)        
         setLockedPubkey(undefined)
     }
 

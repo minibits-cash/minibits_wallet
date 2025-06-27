@@ -491,7 +491,7 @@ export const WalletStoreModel = types
             options?: {
               increaseCounterBy?: number,             
               inFlightRequest?: InFlightRequest<SendParams>
-              p2pk: { pubkey: string; locktime?: number; refundKeys?: Array<string> }      
+              p2pk?: { pubkey: string; locktime?: number; refundKeys?: Array<string> }      
             }
         ) {
 
@@ -517,15 +517,16 @@ export const WalletStoreModel = types
             }
         
             log.debug('[WalletStore.send] counter', currentCounter.counter)
+            const {p2pk} = options
             
             const sendParams: SendParams = options?.inFlightRequest?.request || {
                 amount: amountToSend,              
                 proofs: proofsToSendFrom,
                 options: {
                     keysetId: cashuWallet.keysetId,                   
-                    counter: options?.p2pk ? undefined : currentCounter.counter, // p2pk is not deterministic
+                    counter: p2pk && p2pk.pubkey  ? undefined : currentCounter.counter, // p2pk is not deterministic
                     includeFees: false, // fee reserve needs to be already in proofsToSendFrom
-                    p2pk: options?.p2pk
+                    p2pk
                 }
             }                
             

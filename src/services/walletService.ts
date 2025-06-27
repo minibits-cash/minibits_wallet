@@ -1931,7 +1931,7 @@ const recoverMeltQuoteChange = async function (params: {mintUrl: string, meltQuo
             let transaction: Transaction | undefined = undefined
             let transactionId: number | undefined = undefined
 
-            transaction = transactionsStore.findByQuote(meltQuote)
+            transaction = transactionsStore.findBy({quote: meltQuote})
             transactionId = transaction?.id
             const transactionData: TransactionData[] = transaction ? JSON.parse(transaction.data) : []
 
