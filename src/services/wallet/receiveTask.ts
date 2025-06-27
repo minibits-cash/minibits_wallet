@@ -375,7 +375,7 @@ export const receiveOfflineCompleteTask = async function (
             try {
                 transactionData = JSON.parse(transaction.data)
             } catch (e) {}
-            
+
             transactionData.push({
                 status: TransactionStatus.ERROR,
                 error: WalletUtils.formatError(e),
@@ -420,7 +420,7 @@ export const receiveByCashuPaymentRequestTask = async function (
         }                
 
         // Let's find transaction with related payment request
-        const transaction = transactionsStore.findByPaymentId(paymentRequestId)
+        const transaction = transactionsStore.findBy({paymentRequest: paymentRequestId})
 
         if(!transaction) {
             throw new AppError(
