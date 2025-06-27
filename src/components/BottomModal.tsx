@@ -113,7 +113,7 @@ export function BottomModal(props: ModalProps) {
     isVisible = true,    
     onBackdropPress,
     onBackButtonPress,
-    backdropOpacity = 0.4, // if changed, statusBarOnModalOpen theme needs to be adjusted  
+    backdropOpacity = 0, // if changed, statusBarOnModalOpen theme needs to be adjusted  
     content,
     contentTx,
     contentTxOptions,
@@ -164,30 +164,31 @@ export function BottomModal(props: ModalProps) {
   ]
 
   // const statusBarOnModalOpen = useThemeColor('statusBarOnModalOpen')
-  const keyboard = useAnimatedKeyboard()
-  log.trace({keyboard})
+  // const keyboard = useAnimatedKeyboard()
+  //log.trace({keyboard})
 
   return (
-    <View>
-      {/*<StatusBar backgroundColor={isVisible ? statusBarOnModalOpen : undefined} />*/}
-    <Modal      
-      isVisible={isVisible}
-      statusBarTranslucent={true}     
-      avoidKeyboard={true}     
-      onBackdropPress={onBackdropPress}
-      onBackButtonPress={onBackButtonPress}
-      backdropOpacity={backdropOpacity}
-      style={[$outerContainerBase, $containerStyleOverride]}    
-      {...otherProps}
-    >
+    <View>   
+      <Modal      
+        isVisible={isVisible}
+        // statusBarTranslucent={true}  // makes the modal hide behind the keyboard if open
+        
+        avoidKeyboard={true}     
+        onBackdropPress={onBackdropPress}
+        onBackButtonPress={onBackButtonPress}
+        backdropOpacity={backdropOpacity}
+        
+        style={[$outerContainerBase, $containerStyleOverride]}
+        {...otherProps}
+      >
       
       <View        
         style={[
           $innerContainerBase, 
           $innerContainerStyle, 
-          keyboard.state.value === KeyboardState.OPEN ? 
-          { marginBottom: keyboard.height.value } : 
-          {}
+          // keyboard.state.value === KeyboardState.OPEN ? // does not work
+          // { marginBottom: keyboard.height.value } : 
+          //{}
         ]}      
       >
 

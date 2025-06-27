@@ -158,7 +158,7 @@ interface HeaderActionProps {
 function FocusAwareStatusBar(props: StatusBarProps) {
   const isFocused = useIsFocused();
 
-  return isFocused ? <StatusBar {...props} /> : null;
+  return isFocused ? <StatusBar translucent={true} {...props} /> : null;
 }
 
 /**
@@ -205,9 +205,7 @@ export function Header(props: HeaderProps) {
 
   return (
     <View style={[$container, $containerInsets, { backgroundColor }, $containerStyleOverride]}>
-      <FocusAwareStatusBar
-        backgroundColor={backgroundColor}
-        // barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'}        
+      <FocusAwareStatusBar            
         barStyle = 'light-content'
         {...StatusBarProps}         
       />
