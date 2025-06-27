@@ -725,7 +725,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             unitRef.current,
             memo,
             selectedProofs,
-            p2pk.pubkey ? p2pk : undefined,
+            p2pk,
             draftTransactionIdRef.current
         )
     }
