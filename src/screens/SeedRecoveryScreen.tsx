@@ -182,6 +182,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
 
 
     const onAddMints = function (): void {
+        //@ts-ignore
         return navigation.navigate('Mints', {})
     }
 
@@ -329,7 +330,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                     )                 
 
                     if (amountToAdd !== addedAmount) {
-                        transaction.setReceivedAmount(addedAmount)
+                        transaction.update({amount: addedAmount})
                         recoveredAmount = addedAmount
                     }
 
@@ -340,13 +341,13 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                         createdAt: new Date(),
                     })
 
-                    transaction.setStatus(                        
-                        TransactionStatus.COMPLETED,
-                        JSON.stringify(transactionData),
-                    )
+                    transaction.update({
+                        status: TransactionStatus.COMPLETED,
+                        data: JSON.stringify(transactionData)
+                    })
 
                     const balanceAfter = proofsStore.getUnitBalance(selectedKeyset.unit as MintUnit)?.unitBalance
-                    transaction.setBalanceAfter(balanceAfter || 0)
+                    transaction.update({balanceAfter})
                 }
             
                 if(proofStates.PENDING.length > 0) {
@@ -387,7 +388,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                     )
 
                     if (amountToAdd !== addedAmount) {
-                        pendingTransaction.setReceivedAmount(addedAmount)
+                        pendingTransaction.update({amount: addedAmount})
                     }
 
                     // Finally, update pending transaction
@@ -396,10 +397,10 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                         createdAt: new Date(),
                     })
 
-                    pendingTransaction.setStatus(                        
-                        TransactionStatus.PENDING,
-                        JSON.stringify(pendingTransactionData),
-                    )
+                    pendingTransaction.update({
+                        status: TransactionStatus.PENDING,
+                        data: JSON.stringify(pendingTransactionData)
+                    })
                 }
             }
 
@@ -419,10 +420,10 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                     createdAt: new Date(),
                 })
 
-                transaction.setStatus(                    
-                    TransactionStatus.ERROR,
-                    JSON.stringify(transactionData),
-                )
+                transaction.update({
+                    status: TransactionStatus.ERROR,
+                    data: JSON.stringify(transactionData)
+                })
             }
 
             if (pendingTransaction) {
@@ -432,10 +433,10 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                     createdAt: new Date(),
                 })
 
-                pendingTransaction.setStatus(                    
-                    TransactionStatus.ERROR,
-                    JSON.stringify(pendingTransactionData),
-                )
+                pendingTransaction.update({
+                    status: TransactionStatus.ERROR,
+                    data: JSON.stringify(pendingTransactionData)
+                })
             }
             setStatusMessage(undefined)                
         }
@@ -535,6 +536,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
             setStatusMessage(translate('recovery.completed'))
                         
             // go directly to the wallet (profile hase been rehydrated from the one with the seed)
+            //@ts-ignore
             navigation.navigate('Tabs')
             await delay(1000)
             setStatusMessage('')
