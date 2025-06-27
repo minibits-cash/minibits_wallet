@@ -594,17 +594,17 @@ const ReceiveInfoBlock = function (props: {
 
         // In case of error status, allow the retry for specific error messages
         if(transaction.status === TransactionStatus.ERROR) {
-          const auditTrail = JSON.parse(transaction.data)
+          let auditTrail = getAuditTrail(transaction)
+          
           const errorRecord = auditTrail.find(
             (record: any) => record.status === 'ERROR',
           )              
-          
-          const {error} = errorRecord
+                    
         
-          if(error && error.message) {
-              if(error.message.toLowerCase().includes('network') || 
-                error.message.toLowerCase().includes('gateway') || 
-                error.message.toLowerCase().includes('outputs')) {                    
+          if(errorRecord) {
+              const {error} = errorRecord
+              
+              if(error.message && ['network', 'gateway', 'outputs'].some(word => error.message.toLowerCase().includes(word))) {                    
                   setIsRetriable(true)
                   
                   if(error.message.toLowerCase().includes('outputs')) {
@@ -1711,7 +1711,7 @@ const TransferInfoBlock = function (props: {
       log.trace('[onRevertPreparedTransfer]', {tId: transaction.id})
       
       const pendingProofs = proofsStore.getByTransactionId(transaction.id!, true) // PREPARED should always pending
-      const transactionData = isDataParsable ? JSON.parse(transaction.data) : []
+      const transactionData = getAuditTrail(transaction)
 
       if(pendingProofs.length > 0) {
         // remove it from pending proofs in the wallet
@@ -1998,22 +1998,12 @@ export const TranItem = function (props: {
 
 
 const getAuditTrail = function (transaction: Transaction) {
+    let data = []
     try {        
-        const data = JSON.parse(transaction.data)
+        data = JSON.parse(transaction.data)
+    } catch (e) {}
 
-        if (data && isArray(data)) {
-            return data
-            /* for (const item of data) {
-            if(item.status === TransactionStatus.ERROR) {
-                return item
-            }
-            }*/
-        }
-        return false
-    } catch (e) {
-        // silent
-        return false
-    }
+    return data
 }
 
 

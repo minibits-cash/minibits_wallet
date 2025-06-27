@@ -538,7 +538,11 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
             return
           }
 
-          const updated = JSON.parse(transaction.data)
+          let updated = []
+
+          try {
+              updated = JSON.parse(transaction.data)
+          } catch (e) {}
 
           if (updated.length > 1) {
             updated[1].sentToRelays = relaysToShareTo
@@ -593,7 +597,11 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
           )
         }
 
-        const updated = JSON.parse(transaction.data)
+        let updated = []
+
+        try {
+            updated = JSON.parse(transaction.data)
+        } catch (e) {}
 
         updated.push({
           status: TransactionStatus.ERROR,

@@ -839,8 +839,12 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 if(!transaction || !transaction.data) {
                     return
                 }
-                
-                const updated = JSON.parse(transaction.data)
+
+                let updated = []
+
+                try {
+                    updated = JSON.parse(transaction.data)
+                } catch (e) {}                               
 
                 if(updated.length > 2) {
                     updated[2].sentToRelays = relaysToShareTo

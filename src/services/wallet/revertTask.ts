@@ -24,7 +24,12 @@ export const revertTask = async function (
 ): Promise<TransactionTaskResult> {    
 
 
-const transactionData = JSON.parse(transaction.data)
+let transactionData = []
+
+try {
+    transactionData = JSON.parse(transaction.data)
+} catch (e) {}
+
 const unit = transaction.unit as MintUnit
 
 try {

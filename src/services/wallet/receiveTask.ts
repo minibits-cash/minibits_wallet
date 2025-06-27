@@ -286,7 +286,11 @@ export const receiveOfflineCompleteTask = async function (
             throw new AppError(Err.VALIDATION_ERROR, 'Could not retrieve transaction.', {transactionId})
         }   
 
-        const transactionData = JSON.parse(transaction.data)
+        let transactionData = []
+
+        try {
+            transactionData = JSON.parse(transaction.data)
+        } catch (e) {}
 
         if (!transaction.inputToken) {
             throw new AppError(Err.VALIDATION_ERROR, 'Could not find ecash token to redeem', {caller: 'receiveOfflineComplete'})
@@ -366,7 +370,12 @@ export const receiveOfflineCompleteTask = async function (
         // release lock
         if(transaction) {
                 
-            const transactionData = JSON.parse(transaction.data)
+            let transactionData = []
+
+            try {
+                transactionData = JSON.parse(transaction.data)
+            } catch (e) {}
+            
             transactionData.push({
                 status: TransactionStatus.ERROR,
                 error: WalletUtils.formatError(e),

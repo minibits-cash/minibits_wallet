@@ -1174,12 +1174,17 @@ const handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTask
             for(const inFlight of counter.inFlightRequests) {
                 
                 const transaction = transactionsStore.findById(inFlight.transactionId)
-                const transactionData = JSON.parse(transaction.data)
     
                 if(!transaction) {
                     counter.removeInFlightRequest(inFlight.transactionId)
                     continue
                 }
+
+                let transactionData = []
+
+                try {
+                    transactionData = JSON.parse(transaction.data)
+                } catch (e) {}
                 
                 const {mint, unit} = transaction
     
@@ -1583,8 +1588,13 @@ const handlePendingTopupTask = async function (params: {transaction: Transaction
     } = transaction
 
     log.trace('[handlePendingTopupTask] start', transaction)
+    
+    let transactionData = []
 
-    const transactionData = JSON.parse(transaction.data)
+    try {
+        transactionData = JSON.parse(transaction.data)
+    } catch (e) {}
+
     const mintInstance = mintsStore.findByUrl(mintUrl as string)     
 
     try {
@@ -1800,8 +1810,7 @@ const recoverMintQuote = async function (params: {mintUrl: string, mintQuote: st
             }
             // store tx in db and in the model
             const transaction = await transactionsStore.addTransaction(newTransaction)
-            const transactionId = transaction.id
-            const transactioData = JSON.parse(transaction.data)                 
+            const transactionId = transaction.id                         
     
             let proofs: CashuProof[] = []
     
