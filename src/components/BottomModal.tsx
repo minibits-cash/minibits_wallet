@@ -113,7 +113,7 @@ export function BottomModal(props: ModalProps) {
     isVisible = true,    
     onBackdropPress,
     onBackButtonPress,
-    backdropOpacity = 0, // if changed, statusBarOnModalOpen theme needs to be adjusted  
+    backdropOpacity = Platform.OS === 'ios' ? 0.25 : 0, 
     content,
     contentTx,
     contentTxOptions,
