@@ -1255,7 +1255,7 @@ const handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTask
                             break                 
     
                         } catch (e: any) {
-                            log.error('[handleInFlightByMintTask] Receive', e.name, e.message)
+                            log.error('[handleInFlightByMintTask] RECEIVE', e.name, e.message)
                             errors.push(e.message)
                             break                    
                         }
@@ -1338,7 +1338,7 @@ const handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTask
                             break                  
     
                         } catch (e: any) {
-                            log.error('[handleInFlightByMintTask] Send', e.name, e.message)
+                            log.error('[handleInFlightByMintTask] SEND', e.name, e.message)
                             errors.push(e.message)
                             break 
                         }
@@ -1394,7 +1394,7 @@ const handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTask
                             break   
     
                         } catch(e: any) {
-                            log.error('[handleInFlightByMintTask] Topup', e.name, e.message)
+                            log.error('[handleInFlightByMintTask] TOPUP', e.name, e.message)
                             errors.push(e.message)
                             break 
                         }
@@ -1482,12 +1482,12 @@ const handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTask
                             break      
     
                         } catch(e: any) {
-                            log.error('[handleInFlightByMintTask] Topup', e.name, e.message)
+                            log.error('[handleInFlightByMintTask] TRANSFER', e.name, e.message)
                             errors.push(e.message)
                             break
                         }
                     default:
-                        log.error('[handleInFlightByMintTask] Unknown transaction type', {type: transaction.type})
+                        log.error('[handleInFlightByMintTask] UNKNOWN transaction type', {type: transaction.type})
                 }
             }
         }
