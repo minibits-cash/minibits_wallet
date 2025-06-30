@@ -243,7 +243,7 @@ export const PrivateContacts = observer(function (props: {
 
     const gotoProfile = function () { 
         //@ts-ignore      
-        navigation.navigate('Profile')
+        navigation.navigate('Profile', {prevScreen: 'Contacts'})
     }
 
     const handleError = function (e: AppError): void {
