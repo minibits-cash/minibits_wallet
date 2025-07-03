@@ -739,21 +739,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             {info && <InfoModal message={info} />}
             {error && <ErrorModal error={error} />}
             {isLoading && <Loading />}
-        <BottomModal
-            isVisible={isMintsModalVisible ? true : false}
-            style={{alignItems: 'stretch', padding: spacing.medium}}
-            ContentComponent={        
-                <MintsByUnitList                                    
-                    mintsByUnit={groupedMints}
-                    currentUnit={currentUnit}
-                    onTopup={gotoTopup}
-                    onLightningPay={gotoLightningPay}                    
-                    onMintInfo={gotoMintInfo}
-                />
-            }
-            onBackButtonPress={toggleMintsModal}
-            onBackdropPress={toggleMintsModal}
-        />
+
         <BottomModal
             isVisible={isUpdateModalVisible ? true : false}
             style={{alignItems: 'stretch'}}
@@ -774,6 +760,21 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             }
             onBackButtonPress={toggleUpdateModal}
             onBackdropPress={toggleUpdateModal}
+        />
+        <BottomModal
+            isVisible={isMintsModalVisible ? true : false}
+            style={{alignItems: 'stretch'}}
+            ContentComponent={        
+                <MintsByUnitList                                    
+                    mintsByUnit={groupedMints}
+                    currentUnit={currentUnit}
+                    onTopup={gotoTopup}
+                    onLightningPay={gotoLightningPay}                    
+                    onMintInfo={gotoMintInfo}
+                />
+            }
+            onBackButtonPress={toggleMintsModal}
+            onBackdropPress={toggleMintsModal}
         />
         <BottomModal
           isVisible={isSendModalVisible ? true : false}

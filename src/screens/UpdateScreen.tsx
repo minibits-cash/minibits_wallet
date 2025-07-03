@@ -227,7 +227,7 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
         </ScrollView>
         <BottomModal
             isVisible={isUpdateModalVisible ? true : false}
-            style={{alignItems: 'stretch', padding: spacing.small}}
+            style={{alignItems: 'stretch'}}
             ContentComponent={  
                 <ResultModalInfo 
                     icon='faDownload'

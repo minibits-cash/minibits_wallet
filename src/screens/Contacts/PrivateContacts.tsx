@@ -404,7 +404,7 @@ export const PrivateContacts = observer(function (props: {
 
 
 const $screen: ViewStyle = {
-    flex: 1,
+    // flex: 1,
 }
 
 const $contentContainer: TextStyle = {
