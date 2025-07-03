@@ -24,6 +24,7 @@ import {
   ListItem,
   BottomModal,
   Text,
+  AmountInput,
 } from '../components'
 import {TransactionStatus, Transaction} from '../models/Transaction'
 import {useStores} from '../models'
@@ -91,13 +92,13 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
     } = useStores()
     const amountInputRef = useRef<TextInput>(null)
     const memoInputRef = useRef<TextInput>(null)
+    const unitRef = useRef<MintUnit>('sat')
     // const tokenInputRef = useRef<TextInput>(null)
 
     const [paymentOption, setPaymentOption] = useState<ReceiveOption>(
       ReceiveOption.SHOW_INVOICE,
     )
-    const [amountToTopup, setAmountToTopup] = useState<string>('0')
-    const [unit, setUnit] = useState<MintUnit>('sat')
+    const [amountToTopup, setAmountToTopup] = useState<string>('0')    
     const [contactToSendFrom, setContactToSendFrom] = useState<
       Contact | undefined
     >()
@@ -127,9 +128,6 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
 
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
-    const [isAmountEndEditing, setIsAmountEndEditing] = useState<boolean>(false)
-    const [isMemoEndEditing, setIsMemoEndEditing] = useState<boolean>(false)
-
     const [resultModalInfo, setResultModalInfo] = useState<
       {status: TransactionStatus; title?: string; message: string} | undefined
     >()
@@ -172,7 +170,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
             )
           }
 
-          setUnit(unit)
+          unitRef.current = unit
 
           if (mintUrl) {
             const mintBalance = proofsStore.getMintBalance(mintUrl)
@@ -384,11 +382,11 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
       }
 
       try {
-        const precision = getCurrency(unit).precision
-        const mantissa = getCurrency(unit).mantissa
+        const precision = getCurrency(unitRef.current).precision
+        const mantissa = getCurrency(unitRef.current).mantissa
         const amount = round(toNumber(amountToTopup) * precision, 0)
 
-        log.trace('[onAmountEndEditing]', {amount, unit})
+        log.trace('[onAmountEndEditing]', {amount, unit: unitRef.current})
 
         if (!isInternetReachable) {
           setInfo(translate('common.offlinePretty'))
@@ -412,7 +410,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
           return
         }
 
-        const availableBalances = proofsStore.getMintBalancesWithUnit(unit)
+        const availableBalances = proofsStore.getMintBalancesWithUnit(unitRef.current)
 
         if (availableBalances.length === 0) {
           infoMessage(
@@ -421,23 +419,15 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
           )
           return
         }
-
-        setAmountToTopup(
-          `${numbro(amountToTopup).format({
-            thousandSeparated: true,
-            mantissa,
-          })}`
-        ) // round amount based on currency format
+        
         setAvailableMintBalances(availableBalances)
 
         // Default mint if not set from route params is the one with the highest balance to topup
         if (!mintBalanceToTopup) {
           setMintBalanceToTopup(availableBalances[0])
         }
-        setIsAmountEndEditing(true)
-        // We do not make memo focus mandatory
-        LayoutAnimation.easeInEaseOut()
-        // Show mint selector
+
+        LayoutAnimation.easeInEaseOut()        
         setIsMintSelectorVisible(true)
       } catch (e: any) {
         handleError(e)
@@ -451,7 +441,6 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
       if (availableMintBalances.length > 0) {
         setIsMintSelectorVisible(true)
       }
-      setIsMemoEndEditing(true)
     }
 
     const onMemoDone = function () {
@@ -483,14 +472,14 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
       setIsTopupTaskSentToQueue(true)
 
       const amountToTopupInt = round(
-        toNumber(amountToTopup) * getCurrency(unit).precision,
+        toNumber(amountToTopup) * getCurrency(unitRef.current).precision,
         0,
       )
 
       WalletTask.topupQueue(
         mintBalanceToTopup as MintBalance,
         amountToTopupInt,
-        unit,
+        unitRef.current,
         memo,
         contactToSendTo,
       )
@@ -510,7 +499,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
         const message = translate('topup.nostrDMreceived', {
           npub: walletProfileStore.npub,
           amount: amountToTopup,
-          currency: getCurrency(unit).code
+          currency: getCurrency(unitRef.current).code
         })
         // invoice
         let content = message + ' \n' + invoiceToPay + ' \n'
@@ -638,8 +627,6 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
       // reset state so it does not interfere next payment
       setAmountToTopup('')
       setMemo('')
-      setIsAmountEndEditing(false)
-      setIsMemoEndEditing(false)
       setIsMintSelectorVisible(false)
       setIsNostrDMModalVisible(false)
       setIsWithdrawModalVisible(false)
@@ -679,10 +666,10 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
           return undefined
         }
 
-        const precision = getCurrency(unit).precision
+        const precision = getCurrency(unitRef.current).precision
         return convertToFromSats(
             round(toNumber(amountToTopup) * precision, 0) || 0, 
-            getCurrency(unit).code,
+            getCurrency(unitRef.current).code,
             walletStore.exchangeRate
         )
     }
@@ -690,8 +677,8 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
     const isConvertedAmountVisible = function () {
       return (
         walletStore.exchangeRate &&
-        (userSettingsStore.exchangeCurrency === getCurrency(unit).code ||
-          unit === 'sat') &&
+        (userSettingsStore.exchangeCurrency === getCurrency(unitRef.current).code ||
+        unitRef.current === 'sat') &&
         getConvertedAmount() !== undefined
       )
     }
@@ -705,28 +692,25 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
               ? mintsStore.findByUrl(mintBalanceToTopup?.mintUrl)
               : undefined
           }
-          unit={unit}          
+          unit={unitRef.current}          
         />
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <View style={$amountContainer}>
-            <TextInput
-              ref={amountInputRef}
-              onChangeText={amount => setAmountToTopup(amount)}
-              onEndEditing={onAmountEndEditing}
-              value={amountToTopup}
-              style={[$amountInput, {color: amountInputColor}]}
-              maxLength={9}
-              keyboardType="numeric"
-              selectTextOnFocus={true}
-              editable={
-                transactionStatus === TransactionStatus.PENDING ? false : true
-              }
-              returnKeyType={'done'}
-            />              
+            <AmountInput
+                ref={amountInputRef}
+                value={amountToTopup}
+                onChangeText={amount => setAmountToTopup(amount)}
+                unit={unitRef.current}
+                onEndEditing={onAmountEndEditing}
+                editable={
+                  transactionStatus === TransactionStatus.PENDING ? false : true
+                }
+                style={{color: amountInputColor}}
+            />             
             {isConvertedAmountVisible() && ( 
                 <CurrencyAmount
                     amount={getConvertedAmount() ?? 0}
-                    currencyCode={unit === 'sat' ? userSettingsStore.exchangeCurrency : CurrencyCode.SAT}
+                    currencyCode={unitRef.current === 'sat' ? userSettingsStore.exchangeCurrency : CurrencyCode.SAT}
                     symbolStyle={{color: convertedAmountColor, marginTop: spacing.tiny, fontSize: verticalScale(10)}}
                     amountStyle={{color: convertedAmountColor, lineHeight: spacing.small}}                        
                     size='small'
@@ -787,7 +771,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
             <MintBalanceSelector
               mintBalances={availableMintBalances}
               selectedMintBalance={mintBalanceToTopup as MintBalance}
-              unit={unit}
+              unit={unitRef.current}
               title={translate("topup.mint")}
               confirmTitle={translate("common.confirmCreateInvoice")}
               onMintBalanceSelect={onMintBalanceSelect}
@@ -836,7 +820,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
                   <TranItem
                     label="transactionCommon.feePaid"
                     value={transaction.fee || 0}
-                    unit={unit}
+                    unit={unitRef.current}
                     isCurrency={true}
                   />
                   <TranItem
@@ -878,7 +862,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
                 contactToSendTo={contactToSendTo as Contact}
                 relaysToShareTo={relaysToShareTo}
                 amountToTopup={amountToTopup}
-                unit={unit}
+                unit={unitRef.current}
                 sendAsNostrDM={sendAsNostrDM}
                 isNostrDMSending={isNostrDMSending}
               />

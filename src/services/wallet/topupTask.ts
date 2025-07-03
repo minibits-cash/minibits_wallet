@@ -126,7 +126,8 @@ export const topupTask = async function (
         log.trace('[topupTask] invoice', {amount, paymentHash, expiry, timestamp, expiresAtDate})
 
         transactionData.push({
-            status: TransactionStatus.PENDING,                        
+            status: TransactionStatus.PENDING,
+            quote: mintQuote,                        
             createdAt: new Date()
         })
 

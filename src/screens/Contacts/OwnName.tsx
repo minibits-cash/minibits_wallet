@@ -22,7 +22,7 @@ import { LNURLPayParams, LnurlClient } from '../../services/lnurlService'
 import { useNavigation } from '@react-navigation/native'
 import { TransferOption } from '../TransferScreen'
 
-const DEFAULT_DONATION_AMOUNT = 500
+const DEFAULT_DONATION_AMOUNT = 10
 const DONATION_LNURL_ADDRESS = 'minibits@minibits.cash'
 
 export const OwnName = observer(function (props: {pubkey: string}) { 
@@ -273,9 +273,9 @@ export const OwnName = observer(function (props: {pubkey: string}) {
     const currentNameColor = colors.palette.primary200
     const inputBg = useThemeColor('background')
     const inputText = useThemeColor('text')
-    const small = 1000
-    const medium = 1500
-    const large = 2000
+    const small = DEFAULT_DONATION_AMOUNT * 2
+    const medium = DEFAULT_DONATION_AMOUNT * 3
+    const large = DEFAULT_DONATION_AMOUNT * 4
     const invoiceBg = useThemeColor('background')
     const invoiceTextColor = useThemeColor('textDim')
     const domainText = useThemeColor('textDim')
@@ -366,28 +366,28 @@ export const OwnName = observer(function (props: {pubkey: string}) {
                                             preset="secondary"
                                             style={{marginRight: spacing.small}}
                                             text={`${small.toLocaleString()}`}
-                                            onPress={() => setDonationAmount(1000)}                            
+                                            onPress={() => setDonationAmount(DEFAULT_DONATION_AMOUNT * 2)}                            
                                         />
                                         <Button
                                             preset="secondary"
                                             style={{marginRight: spacing.small}}
                                             text={`${medium.toLocaleString()}`}
-                                            onPress={() => setDonationAmount(1500)}                            
+                                            onPress={() => setDonationAmount(DEFAULT_DONATION_AMOUNT * 3)}                            
                                         />
                                         <Button
                                             preset="secondary"                            
                                             text={`${large.toLocaleString()}`}
-                                            onPress={() => setDonationAmount(2000)}                            
+                                            onPress={() => setDonationAmount(DEFAULT_DONATION_AMOUNT * 4)}                            
                                         />   
                                     </View>
                                     <View style={$buttonContainer}>
-                                        {(donationAmount === 1000) && (                        
+                                        {(donationAmount === DEFAULT_DONATION_AMOUNT * 2) && (                        
                                             <Text text={`♥`}  size='lg' />
                                         )}
-                                        {(donationAmount === 1500) && (                        
+                                        {(donationAmount === DEFAULT_DONATION_AMOUNT * 3) && (                        
                                             <Text text={`♥ ♥`}  size='lg' />
                                         )}
-                                        {(donationAmount === 2000) && (                        
+                                        {(donationAmount === DEFAULT_DONATION_AMOUNT * 4) && (                        
                                             <Text text={`♥ ♥ ♥`}  size='lg' />
                                         )}
                                     </View>

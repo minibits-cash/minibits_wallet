@@ -27,7 +27,8 @@ import {
   InfoModal,
   ErrorModal,
   BottomModal,
-  Text,  
+  Text,
+  AmountInput,  
 } from '../components'
 import {TransactionStatus, Transaction} from '../models/Transaction'
 import {useStores} from '../models'
@@ -567,10 +568,8 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
     const onAmountEndEditing = function () {
         try {        
-            const precision = getCurrency(unitRef.current).precision
-            const mantissa = getCurrency(unitRef.current).mantissa
-            const amount = round(toNumber(amountToSend) * precision, 0)
-            //const amount = parseInt(amountToSend)
+            const precision = getCurrency(unitRef.current).precision            
+            const amount = round(toNumber(amountToSend) * precision, 0)            
 
             log.trace('[onAmountEndEditing]', amount)
 
@@ -586,15 +585,16 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 return
             }
 
-            LayoutAnimation.easeInEaseOut()
+            LayoutAnimation.easeInEaseOut()            
             
-            setAmountToSend(`${numbro(amountToSend).format({thousandSeparated: true, mantissa: getCurrency(unitRef.current).mantissa})}`)
             setAvailableMintBalances(availableBalances)
 
-            // Default mint if not set from route params is with the one with highest balance
-            if(!mintBalanceToSendFrom) {setMintBalanceToSendFrom(availableBalances[0])}            
-            // We do not make memo focus mandatory            
-            // Show mint selector        
+            // Default mint if not set from route params is the one with the highest balance
+            if(!mintBalanceToSendFrom) {
+                setMintBalanceToSendFrom(availableBalances[0])
+            }            
+            
+            LayoutAnimation.easeInEaseOut()        
             setIsMintSelectorVisible(true)
 
         } catch (e: any) {
@@ -1005,21 +1005,17 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         />
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>        
             <View style={$amountContainer}>
-                <TextInput
+                <AmountInput
                     ref={amountInputRef}
-                    onChangeText={amount => setAmountToSend(amount)}                
-                    onEndEditing={onAmountEndEditing}
                     value={amountToSend}
-                    style={[$amountInput, {color: amountInputColor}]}
-                    maxLength={9}
-                    keyboardType="numeric"
-                    selectTextOnFocus={true}
-                    editable={
-                        (transactionStatus === TransactionStatus.PENDING || isOfflineSend || isCashuPrWithAmount)
-                            ? false 
-                            : true
+                    onChangeText={amount => setAmountToSend(amount)}
+                    unit={unitRef.current}
+                    onEndEditing={onAmountEndEditing}
+                    editable={(transactionStatus === TransactionStatus.PENDING || isOfflineSend || isCashuPrWithAmount)
+                        ? false 
+                        : true
                     }
-                    returnKeyType={'done'}
+                    style={{color: amountInputColor}}
                 />
                 {isConvertedAmountVisible() && ( 
                     <CurrencyAmount

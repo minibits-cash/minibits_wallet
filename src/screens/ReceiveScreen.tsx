@@ -14,6 +14,7 @@ import {
   ListItem,
   BottomModal,
   Text,
+  AmountInput,
 } from '../components'
 import {Mint} from '../models/Mint'
 import {Transaction, TransactionStatus} from '../models/Transaction'
@@ -325,10 +326,10 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
             />
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>    
             <View style={$amountContainer}>
-                <TextInput                                        
+                <AmountInput                                        
                     value={toNumber(receivedAmount) > 0 ? receivedAmount : amountToReceive}                    
-                    style={[$amountInput, {color: amountInputColor}]}
-                    maxLength={9}                    
+                    onChangeText={() => {}}
+                    unit={unit}
                     editable={false}
                 />
             </View>

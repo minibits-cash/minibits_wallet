@@ -22,7 +22,8 @@ import {
   ErrorModal,
   ListItem,
   BottomModal,
-  Text,  
+  Text,
+  AmountInput,
 } from '../components'
 import {Transaction, TransactionStatus} from '../models/Transaction'
 import {useStores} from '../models'
@@ -94,7 +95,7 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
     const [amountToTransfer, setAmountToTransfer] = useState<string>('0')    
     const [invoiceExpiry, setInvoiceExpiry] = useState<Date | undefined>()
     const [paymentHash, setPaymentHash] = useState<string | undefined>()
-    const [lnurlPayParams, setLnurlPayParams] = useState<LNURLPayParams & {address?: string} | undefined>()
+    const [lnurlPayParams, setLnurlPayParams] = useState<LNURLPayParams & {address?: string} | undefined>()    
     const [meltQuote, setMeltQuote] = useState<MeltQuoteResponse | undefined>()
     const [finalFee, setFinalFee] = useState<number>(0)
     const [memo, setMemo] = useState('')
@@ -496,15 +497,6 @@ const onMintBalanceSelect = function (balance: MintBalance) {
     setMintBalanceToTransferFrom(balance) // this triggers effect to get melt quote
 }
 
-const onAmountEndEditing = function () {
-
-  setAmountToTransfer(
-    `${numbro(amountToTransfer).format({
-      thousandSeparated: true,
-      mantissa: getCurrency(unitRef.current).mantissa
-    })}`
-  )
-}
 
 // Amount is editable only in case of LNURL Pay, while invoice is not yet retrieved
 const onRequestLnurlInvoice = async function () {
@@ -635,7 +627,7 @@ const onEncodedInvoice = async function (encoded: string) {
           return
         }
 
-        setMintBalanceToTransferFrom(balanceToTransferFrom)
+        setMintBalanceToTransferFrom({...balanceToTransferFrom}) // force to trigger effect to create melt quote
         // continues in hook that handles other mint selection by user
             
     } catch (e: any) {      
@@ -757,17 +749,13 @@ const amountInputColor = useThemeColor('amountInput')
         />
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <View style={$amountContainer}>
-            <TextInput
+            <AmountInput
               ref={amountInputRef}
-              onChangeText={amount => setAmountToTransfer(amount)}
-              onEndEditing={onAmountEndEditing}
               value={amountToTransfer}
-              style={[$amountInput, {color: amountInputColor}]}
-              maxLength={9}
-              keyboardType="numeric"
-              selectTextOnFocus={true}
-              editable={isAmountEditable ? true : false}
-              returnKeyType={'done'}
+              onChangeText={amount => setAmountToTransfer(amount)}
+              unit={unitRef.current}
+              editable={isAmountEditable}
+              style={{color: amountInputColor}}
             />
 
             {encodedInvoice && (meltQuote?.fee_reserve || finalFee) ? (
