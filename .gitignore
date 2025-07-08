@@ -81,3 +81,9 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+# other dev tooling
+repomix-output.*
+repomix*
+mise.toml
+mise.yaml
