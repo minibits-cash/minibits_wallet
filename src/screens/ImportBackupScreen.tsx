@@ -346,7 +346,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
       return (
         <Screen contentContainerStyle={$screen} preset="fixed">
             <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
-                <Text preset="heading" text="Wallet recovery" style={{color: headerTitle, zIndex: 10}} />
+                <Text preset="heading" tx="importBackupWalletRecovery" style={{color: headerTitle, zIndex: 10}} />
             </View>
             <ScrollView style={$contentContainer}>                
                 <Card
@@ -398,7 +398,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
                     style={$card}
                     ContentComponent={
                         <ListItem
-                            text="Insert wallet backup"
+                            tx="importBackupInsertWalletBackup"
                             subText={'Paste the backup exported from previous wallet.'}
                             LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='2'/></View>}                  
                             style={$item}                            
@@ -470,7 +470,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
                 ContentComponent={
                     <ListItem
                         text={'Wallet address not found'}
-                        subText="Wallet profile linked to the provided seed not found, new one will be created for you."
+                        subTx="importBackupWalletProfileNotFound"
                         LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text={'3'}/></View>}
                         style={$item}                            
                     /> 

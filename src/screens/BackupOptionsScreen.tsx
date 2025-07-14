@@ -49,7 +49,7 @@ export const BackupOptionsScreen = observer(function () {
             onLeftPress={() => navigation.goBack()}                            
         /> 
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text preset="heading" text="Backup" style={{color: headerTitle}} />
+          <Text preset="heading" tx="backupOptionsTitle" style={{color: headerTitle}} />
         </View>
         <ScrollView style={$contentContainer}>
             <Card
@@ -73,8 +73,8 @@ export const BackupOptionsScreen = observer(function () {
                 HeadingComponent={
                 <>
                   <ListItem
-                      text='Wallet backup'
-                      subText='Export wallet backup so that you can import it into a new device.'                        
+                      tx="backupWalletBackupTitle"
+                      subTx="backupWalletBackupDescription"                        
                       leftIcon='faUpload'
                       leftIconColor={colors.palette.focus300}
                       leftIconInverse={true}

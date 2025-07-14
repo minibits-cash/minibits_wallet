@@ -301,8 +301,8 @@ Sentry id: ${walletProfileStore.walletId}
                   onPress={() => userSettingsStore.setIsOnboarded(false)}
                 /> 
                 <ListItem
-                  text="Resync transactions"
-                  subText="Refresh recent transactions history from database."
+                  tx="developerScreen_resyncTransactions"
+                  subTx="developerScreen_resyncTransactionsDescription"
                   leftIcon='faRotate'
                   leftIconColor={colors.palette.blue200}
                   leftIconInverse={true}                  
@@ -319,8 +319,8 @@ Sentry id: ${walletProfileStore.walletId}
             HeadingComponent={
               <>
                 <ListItem
-                  text="Force move pending"
-                  subText="Move pending ecash back to spendable balance."
+                  tx="developerScreen_forceMovePending"
+                  subTx="developerScreen_forceMovePendingDescription"
                   leftIcon='faArrowUp'
                   leftIconColor={colors.palette.accent200}
                   leftIconInverse={true}
@@ -329,8 +329,8 @@ Sentry id: ${walletProfileStore.walletId}
                   onPress={movePendingToSpendable}
                 />
                 <ListItem
-                  text="Force delete pending"
-                  subText="Removes ecash from pending state and deletes all pending transactions."
+                  tx="developerScreen_forceDeletePending"
+                  subTx="developerScreen_forceDeletePendingDescription"
                   leftIcon='faClock'
                   leftIconColor={colors.palette.accent400}
                   leftIconInverse={true}

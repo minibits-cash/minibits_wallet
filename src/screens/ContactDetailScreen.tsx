@@ -245,7 +245,7 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
                                 <Button
                                     preset="secondary"
                                     style={$noteButton}
-                                    text="Save"
+                                    tx="commonSave"
                                     onPress={onNoteSave}
                                     
                                 />
@@ -253,7 +253,7 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
                                 <Button
                                     preset="secondary"
                                     style={$noteButton}
-                                    text="Edit"
+                                    tx="commonEdit"
                                     onPress={onNoteEdit}
                                     
                                 />

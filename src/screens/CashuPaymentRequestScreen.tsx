@@ -422,7 +422,7 @@ return (
               <Button
                 preset="secondary"
                 style={$memoButton}
-                text="Done"
+                tx="commonCompleted"
                 onPress={onMemoDone}
               />
             </View>
@@ -434,7 +434,7 @@ return (
           mintBalances={availableMintBalances}
           selectedMintBalance={mintBalanceToReceiveTo}
           unit={unit}
-          title={'Mint to receive'}
+          title={translate('cashuPaymentRequestTitle')}
           confirmTitle={translate("cashuPaymentRequest_create")}
           onMintBalanceSelect={onMintBalanceSelect}
           onCancel={onMintBalanceCancel}
@@ -446,7 +446,7 @@ return (
           <>
             <QRCodeBlock
               qrCodeData={encodedPaymentRequest}
-              title='Cashu Payment request'
+              titleTx='cashuPaymentRequestQRTitle'
               type='PaymentRequest'     
               size={270}
             />
