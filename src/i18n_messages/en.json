@@ -643,5 +643,22 @@
 	"recovery_recoverAddress": "Recover address",
 	"recovery_addressLinkedToSeed": "This is the wallet address linked to the provided seed.",
 	"recovery_doNotLoseEcashTitle": "Do not lose your ecash!",
-	"recovery_doNotLoseEcashDesc": "Your current wallet seed phrase will NOT be changed. Keep it in a safe place!"
+	"recovery_doNotLoseEcashDesc": "Your current wallet seed phrase will NOT be changed. Keep it in a safe place!",
+	"recoveryInvalidMintQuote": "Invalid mint quote",
+	"recoveryInvalidMeltQuote": "Invalid melt quote",
+	"relaysSetYourRelay": "Set your own relay",
+	"securityScreenTitle": "Security",
+	"seedRecoveryScreenTitle": "Wallet recovery",
+	"seedRecoveryStep2": "2",
+	"seedRecoveryMints": "Mints",
+	"sendLocked": "Locked",
+	"sendLockEcash": "Lock ecash",
+	"sendLockEcashDesc": "Lock ecash token to one of your contacts or to a public key. Only the receiver will be able to unlock it.",
+	"sendLockFor": "Lock for",
+	"sendLock": "Lock",
+	"sendSelectEcashToSend": "Select ecash to send",
+	"sendOfflineExactDenoms": "You can only send exact ecash denominations while you are offline.",
+	"sendCreateToken": "Create token",
+	"sendToContact": "Send to contact",
+	"commonSend": "Send"
 }

@@ -559,5 +559,22 @@
 	"recovery_recoverAddress": "Obnoviť adresu",
 	"recovery_addressLinkedToSeed": "Toto je adresa peňaženky prepojená s poskytnutým seedom.",
 	"recovery_doNotLoseEcashTitle": "Nestráť svoj ecash!",
-	"recovery_doNotLoseEcashDesc": "Tvoja súčasná mnemonická veta peňaženky sa NEZMENÍ. Uchovaj ju na bezpečnom mieste!"
+	"recovery_doNotLoseEcashDesc": "Tvoja súčasná mnemonická veta peňaženky sa NEZMENÍ. Uchovaj ju na bezpečnom mieste!",
+	"recoveryInvalidMintQuote": "Neplatný mint quote",
+	"recoveryInvalidMeltQuote": "Neplatný melt quote",
+	"relaysSetYourRelay": "Nastav svoj vlastný relay",
+	"securityScreenTitle": "Bezpečnosť",
+	"seedRecoveryScreenTitle": "Obnova peňaženky",
+	"seedRecoveryStep2": "2",
+	"seedRecoveryMints": "Minty",
+	"sendLocked": "Zamknuté",
+	"sendLockEcash": "Zamknúť ecash",
+	"sendLockEcashDesc": "Zamkni ecash token pre jeden z tvojich kontaktov alebo na verejný kľúč. Iba príjemca ho bude môcť odomknúť.",
+	"sendLockFor": "Zamknúť pre",
+	"sendLock": "Zamknúť",
+	"sendSelectEcashToSend": "Vyber ecash na odoslanie",
+	"sendOfflineExactDenoms": "Offline môžeš poslať len presné denominácie ecash.",
+	"sendCreateToken": "Vytvoriť token",
+	"sendToContact": "Poslať kontaktu",
+	"commonSend": "Poslať"
 }

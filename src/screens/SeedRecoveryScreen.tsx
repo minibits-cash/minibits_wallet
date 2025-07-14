@@ -567,7 +567,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                     onLeftPress={() => navigation.goBack()}                            
                 /> 
                 <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
-                    <Text preset="heading" text="Wallet recovery" style={{color: headerTitle, zIndex: 10}} />
+                    <Text preset="heading" tx="seedRecoveryScreenTitle" style={{color: headerTitle, zIndex: 10}} />
                 </View>
                 <ScrollView style={$contentContainer}>                
                     <Card
@@ -607,7 +607,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                 /> 
               )}
               <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
-                  <Text preset="heading" text="Wallet recovery" style={{color: headerTitle, zIndex: 10}} />
+                  <Text preset="heading" tx="seedRecoveryScreenTitle" style={{color: headerTitle, zIndex: 10}} />
               </View>
               <ScrollView style={$contentContainer}>                              
                   <MnemonicInput   
@@ -628,12 +628,12 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                               <ListItem
                                   tx="recoveryFromMints"
                                   subTx={mintsStore.mintCount > 0 ? undefined : "recoveryFromMintsDesc"}
-                                  LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='2'/></View>} 
+                                  LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text tx='seedRecoveryStep2'/></View>} 
                                   RightComponent={mintsStore.mintCount > 0 ? (
                                       <View style={$rightContainer}>
                                           <Button
                                               onPress={onAddMints}
-                                              text='Mints'
+                                              tx='seedRecoveryMints'
                                               preset='secondary'                                           
                                           /> 
                                       </View>

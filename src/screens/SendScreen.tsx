@@ -1043,7 +1043,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                         />
                         <Text
                             size='xs'
-                            text="Locked"
+                            tx="sendLocked"
                             style={{color: amountInputColor, marginLeft: spacing.tiny}}
                         />
 
@@ -1164,11 +1164,11 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             isVisible={isPubkeySelectorModalVisible}
             ContentComponent={
                 <View style={$bottomModal}>
-                <Text text="Lock ecash" preset="subheading" />
+                <Text tx="sendLockEcash" preset="subheading" />
                 <Text
                     size="xxs"
                     style={{color: hintColor}}
-                    text="Lock ecash token to one of your contacts or to a public key. Only the receiver will be able to unlock it."
+                    tx="sendLockEcashDesc"
                 />
                 <View
                     style={{
@@ -1252,7 +1252,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 <Text
                     size="xxs"
                     style={{color: hintColor, marginTop: spacing.small}}
-                    text="Lock for" 
+                    tx="sendLockFor" 
                 />
                 <View
                     style={[
@@ -1303,7 +1303,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 </View>
                 <View style={[$buttonContainer, {marginTop: spacing.medium}]}>
                     <Button
-                        text="Lock"
+                        tx="sendLock"
                         LeftAccessory={() => (<Icon icon="faLock" color="white" size={spacing.medium}/>)}
                         onPress={onLockPubkeySelect}
                         style={{marginRight: spacing.medium}}
@@ -1464,9 +1464,9 @@ const SelectProofsBlock = observer(function (props: {
                     ]}
                 />
             </View>
-            <Text text='Select ecash to send' style={{marginTop: spacing.large}}/>
+            <Text tx='sendSelectEcashToSend' style={{marginTop: spacing.large}}/>
             <Text
-                text='You can only send exact ecash denominations while you are offline.'
+                tx='sendOfflineExactDenoms'
                 style={{color: hintColor, paddingHorizontal: spacing.small, textAlign: 'center'}}
                 size='xs'
             />               
@@ -1506,13 +1506,13 @@ const SelectProofsBlock = observer(function (props: {
             <View style={[$bottomContainer, {marginTop: spacing.extraLarge}]}>
                 <View style={[$buttonContainer]}>
                     <Button
-                        text="Create token"
+                        tx="sendCreateToken"
                         onPress={props.onOfflineSendConfirm}
                         style={{marginRight: spacing.medium}}          
                     />
                     <Button 
                         preset="secondary" 
-                        text="Cancel" 
+                        tx="commonCancel" 
                         onPress={onCancel} 
                     />        
                 </View>
@@ -1552,7 +1552,7 @@ const SelectProofsBlock = observer(function (props: {
                     />
                   ) : (
                     <Button
-                        text='Send to contact'
+                        tx='sendToContact'
                         preset='secondary'
                         onPress={props.gotoContacts}                        
                         style={{
@@ -1617,7 +1617,7 @@ const SendAsNostrDMBlock = observer(function (props: {
         ) : (
             <View style={$buttonContainer}>            
                 <Button
-                    text="Send"
+                    tx="commonSend"
                     onPress={props.sendAsNostrDM}
                     style={{marginRight: spacing.medium}}
                     LeftAccessory={() => (
@@ -1631,7 +1631,7 @@ const SendAsNostrDMBlock = observer(function (props: {
                 />          
                 <Button
                     preset="tertiary"
-                    text="Close"
+                    tx="commonClose"
                     onPress={props.toggleNostrDMModal}
                 />           
             </View>

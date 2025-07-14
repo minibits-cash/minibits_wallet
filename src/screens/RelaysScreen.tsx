@@ -251,7 +251,7 @@ export const RelaysScreen = observer(function RelaysScreen({ route }: Props) {
           isVisible={isAddRelayModalVisible ? true : false}          
           ContentComponent={
             <View style={$newContainer}>
-                <Text text='Set your own relay' preset="subheading" />
+                <Text tx='relaysSetYourRelay' preset="subheading" />
                 <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
                     <TextInput
                         ref={newRelayInputRef}

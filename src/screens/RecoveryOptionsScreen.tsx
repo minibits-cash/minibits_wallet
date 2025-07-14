@@ -203,7 +203,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
     const onPasteMintQuote = async function () {
       const quote = await Clipboard.getString()
       if (!quote || quote.length !== 40) {
-          setInfo('Invalid mint quote')
+          setInfo(translate('recoveryInvalidMintQuote'))
           return
       }  
       setMintQuote(quote)      
@@ -212,7 +212,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
     const onPasteMeltQuote = async function () {
       const quote = await Clipboard.getString()
       if (!quote || quote.length !== 40) {
-          setInfo('Invalid melt quote')
+          setInfo(translate('recoveryInvalidMeltQuote'))
           return
       }  
       setMeltQuote(quote)      

@@ -102,7 +102,7 @@ export const SecurityScreen = observer(function SecurityScreen({ route }: Props)
     return (
       <Screen preset='fixed' contentContainerStyle={$screen}>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text preset="heading" text="Security" style={{color: headerTitle}} />
+          <Text preset="heading" tx="securityScreenTitle" style={{color: headerTitle}} />
         </View>
         <ScrollView style={$contentContainer}>
             <Card
