@@ -373,7 +373,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                   ContentComponent={
                     <>
                       <ListItem
-                        text='Detailed record of your transaction'
+                        tx='tranDetailScreen_auditTrailDesc'
                         RightComponent={
                           <View style={$rightContainer}>
                             <Button
@@ -422,12 +422,12 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                 ].includes(transaction.status)
               ) && (
                 <Card
-                  label='Token tracking'
+                  labelTx='tranDetailScreen_tokenTracking'
                   style={$dataCard}   
                   ContentComponent={
                     <>
                     <ListItem
-                        text='Logged ecash tokens for debugging purposes'
+                        tx='tranDetailScreen_tokenTrackingDesc'
                         RightComponent={
                           <View style={$rightContainer}>
                             <Button
@@ -442,7 +442,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                       <>
                         {transaction.inputToken && (
                           <ListItem
-                            text='Inputs'
+                            tx='tranDetailScreen_inputs'
                             subText={transaction.inputToken}
                             subTextEllipsizeMode='middle'
                             subTextStyle={{fontFamily: typography.code?.normal}}
@@ -459,7 +459,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                         )}
                         {transaction.outputToken && (
                           <ListItem
-                            text='Outputs'
+                            tx='tranDetailScreen_outputs'
                             subText={transaction.outputToken}
                             subTextEllipsizeMode='middle'
                             subTextStyle={{fontFamily: typography.code?.normal}}
@@ -1816,7 +1816,7 @@ const TransferInfoBlock = function (props: {
                 <Button
                     style={{marginTop: spacing.medium}}
                     preset="secondary"
-                    text="Revert"
+                    tx="tranDetailScreen_revert"
                     onPress={onRevertPreparedTransfer}
                 />
               </View>

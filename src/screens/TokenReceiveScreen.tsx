@@ -270,7 +270,7 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
                         )}
                         onPress={gotoScan}
                         style={{backgroundColor: mainButtonColor}}
-                        text='Scan'
+                        tx='tokenReceiveScreen_scan'
                     />      
                 </View>
                 </View> 

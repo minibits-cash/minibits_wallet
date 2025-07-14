@@ -245,7 +245,7 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
     return (
       <Screen contentContainerStyle={$screen}>        
         <Animated.View style={[animatedHeader, $headerContainer, {backgroundColor: headerBg}]}>
-            <Text preset="heading" text="History" style={{color: headerTitle}} />
+            <Text preset="heading" tx="tranHistoryScreen_title" style={{color: headerTitle}} />
         </Animated.View>
             
         <View style={$contentContainer}>

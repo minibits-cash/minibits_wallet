@@ -278,7 +278,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
       try {        
         userSettingsStore.setNextTheme(theme)
         setCurrentTheme(theme)
-        setInfo('Restart the wallet to apply the new theme.')
+        setInfo(translate('settingsScreen_restartTheme'))
       } catch (e: any) {
         log.warn('[onSelectTheme]', e.message)
       }
@@ -353,7 +353,8 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                     RightComponent={
                       <View style={$rightContainer}>
                       <Text                          
-                          text={userSettingsStore.exchangeCurrency ?? 'None'}
+                          tx={userSettingsStore.exchangeCurrency ? undefined : 'settingsScreen_currencyNone'}
+                          text={userSettingsStore.exchangeCurrency ?? undefined}
                           style={$itemRight}
                       />
                       </View>
@@ -402,10 +403,10 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                    }
                     bottomSeparator={true}
                     onPress={openNotificationSettings}
-                />
-                <ListItem
-                    text='Nostr Wallet Connect'
-                    subText={`${nwcStore.all.length} allowed app${nwcStore.all.length > 1 ? 's' : ''}`}                 
+                  />
+                  <ListItem
+                    tx='settingsScreen_nwcTitle'
+                    subText={translate('settingsScreen_nwcSubtext', {count: nwcStore.all.length})}
                     LeftComponent={
                     <View style={{
                       borderRadius: spacing.small,
@@ -438,7 +439,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                         <View style={$rightContainer}>
                         <Text
                             style={$itemRight}                         
-                            text={`${relaysStore.allRelays.length} relays`}
+                            text={translate('settingsScreen_relaysCount', {count: relaysStore.allRelays.length})}
                         />
                         </View>
                     }
@@ -453,7 +454,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
             ContentComponent={
               <>
                 <ListItem
-                    text='Backup'
+                    tx='settingsScreen_backup'
                     leftIcon='faCloudArrowUp'
                     leftIconColor={colors.palette.success300}
                     leftIconInverse={true}
@@ -462,7 +463,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                     onPress={gotoBackupOptions}
                 />
                 <ListItem
-                    text='Recovery'
+                    tx='settingsScreen_recovery'
                     leftIcon='faHeartPulse'
                     leftIconColor={colors.palette.angry300}
                     leftIconInverse={true}
@@ -503,7 +504,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                         <View style={$rightContainer}>
                         <Text
                             style={$itemRight}                         
-                            text={(isUpdateAvailable || isNativeUpdateAvailable) ? '1 update' : ''}
+                            tx={(isUpdateAvailable || isNativeUpdateAvailable) ? 'settingsScreen_updateAvailable' : undefined}
                         />
                         </View>
                     }
@@ -544,7 +545,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
             )}
               <ListItem   
                   leftIcon='faXmark'           
-                  text={'Do not load exchange rates'}
+                  tx='settingsScreen_doNotLoadRates'
                   onPress={onResetCurrency}
                   bottomSeparator={true}
               />

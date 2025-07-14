@@ -754,7 +754,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
                   <Button
                     preset="secondary"
                     style={$memoButton}
-                    text="Done"
+                    tx="topupScreen_done"
                     onPress={onMemoDone}
                     disabled={
                       transactionStatus === TransactionStatus.PENDING
@@ -785,7 +785,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
               <>
                 <QRCodeBlock
                   qrCodeData={invoiceToPay as string}
-                  title='Invoice to pay'
+                  titleTx='topupScreen_invoiceToPay'
                   type='Bolt11Invoice'     
                   size={270}
                 />
