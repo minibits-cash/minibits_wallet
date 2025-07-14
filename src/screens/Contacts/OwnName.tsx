@@ -307,7 +307,7 @@ export const OwnName = observer(function (props: {pubkey: string}) {
                             <Button
                                 preset="default"
                                 style={$ownNameButton}
-                                text="Check"
+                                tx="buttonCheck"
                                 onPress={onOwnNameCheck}
                                 // disabled={!isNameInputEnabled}
                             />                    
@@ -359,7 +359,7 @@ export const OwnName = observer(function (props: {pubkey: string}) {
                                         size='extraLarge'
                                         containerStyle={{alignSelf: 'center', marginTop: spacing.medium}}
                                     />                                    
-                                    <Text style={$supportText} text='Ready to donate more?' />
+                                    <Text style={$supportText} tx='readyToDonateMore' />
                                     
                                     <View style={$buttonContainer}>
                                         <Button

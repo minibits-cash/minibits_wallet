@@ -191,7 +191,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
         if (!selectedMint) {return}
 
         if(mintsStore.allMints.length === 1) {
-          setInfo('You need to keep at least 1 mint.')
+          setInfo(translate('mintsScreen_keepAtLeastOneMint'))
           return
         }
 
@@ -407,7 +407,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
               <ListItem
                 leftIcon='faGlobe'
                 onPress={updateMintUrlStart}
-                text="Update mint URL"
+                tx="mintsScreen_updateMintUrl"
                 bottomSeparator={true}
                 style={{paddingHorizontal: spacing.medium}}
               />

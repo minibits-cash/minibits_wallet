@@ -382,7 +382,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
                         <View style={$rightContainer}>
                             <Button
                               onPress={checkSpent}
-                              text='Remove'
+                              tx='recoveryScreen_remove'
                               preset='secondary'                                           
                             /> 
                         </View>                           
@@ -405,7 +405,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
                               <View style={$rightContainer}>
                                   <Button
                                       onPress={increaseCounters}
-                                      text='Increase'
+                                      tx='recoveryScreen_increase'
                                       preset='secondary'                                           
                                   /> 
                               </View>                           
@@ -416,13 +416,13 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
                   }
               />
               <Card
-                label='Experimental tools'
+                labelTx='recoveryScreen_experimentalTools'
                 style={[$card, {marginBottom: spacing.huge * 2}]}
                 HeadingComponent={
                 <>         
                     <ListItem
-                          text="Recover mint quote"
-                          subText="Retry to mint ecash from an already paid mint quote."
+                          tx="recoveryScreen_recoverMintQuote"
+                          subTx="recoveryScreen_recoverMintQuoteDesc"
                           leftIcon='faCoins'
                           leftIconColor={colors.palette.orange400}
                           leftIconInverse={true}
@@ -430,7 +430,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
                               <View style={$rightContainer}>
                                   <Button
                                       onPress={startMintQuoteRecovery}
-                                      text='Start'
+                                      tx='recoveryScreen_start'
                                       preset='secondary'                                           
                                   /> 
                               </View>                           
@@ -438,8 +438,8 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
                           style={$item}                        
                     />       
                     <ListItem
-                        text="Recover melt quote change"
-                        subText="Retry to receive back unspent ecash from a completed Lightning payment."
+                        tx="recoveryScreen_recoverMeltQuoteChange"
+                        subTx="recoveryScreen_recoverMeltQuoteChangeDesc"
                         leftIcon='faArrowTurnDown'
                         leftIconColor={colors.palette.iconGreyBlue400}
                         leftIconInverse={true}
@@ -448,7 +448,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
                             <View style={$rightContainer}>
                                 <Button
                                     onPress={startMeltQuoteRecovery}
-                                    text='Start'
+                                    tx='recoveryScreen_start'
                                     preset='secondary'                                           
                                 /> 
                             </View>                           
@@ -471,13 +471,13 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
               <ResultModalInfo
                 icon="faTriangleExclamation"
                 iconColor={colors.palette.accent300}
-                title={"Permission needed"}
-                message={"Minibits needs a permission to display notification while this task will be running."}
+                title={translate("recoveryPermissionNeededTitle")}
+                message={translate("recoveryPermissionNeededDesc")}
               />
               <View style={$buttonContainer}>
                 <Button
                     preset="secondary"
-                    text={'Open settings'}
+                    tx={'recoveryOpenSettingsButton'}
                     onPress={openNotificationSettings}
                 />                      
               </View>
@@ -494,8 +494,8 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
               <MintBalanceSelector
                 mintBalances={mintBalancesRef.current}              
                 unit={unitRef.current}
-                title='Select mint to recover from'
-                confirmTitle={'Confirm'}
+                title={translate('recoveryScreen_selectMintToRecoverFrom')}
+                confirmTitle={translate('recoveryScreen_confirm')}
                 collapsible={false}                
                 onMintBalanceSelect={onMintBalanceSelect}
                 selectedMintBalance={mintBalanceToRecoverFrom}
@@ -511,7 +511,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
           isVisible={isMintQuoteModalVisible ? true : false}          
           ContentComponent={
             <View style={$quoteContainer}>
-                <Text text='Enter mint quote' />
+                <Text tx='recoveryEnterMintQuote' />
                 <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
                     <TextInput
                         ref={mintQuoteInputRef}
@@ -524,25 +524,26 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
                         style={[$quoteInput, {backgroundColor: inputBg, color: inputText}]}
                     />
                     <Button
-                        tx={'commonPaste'}
+                        tx='commonPaste'
                         preset='secondary'
                         style={$pasteButton}
                         onPress={onPasteMintQuote}
                     />                    
                 </View>
                 <View style={[$buttonContainer, {marginTop: spacing.medium}]}> 
-                    <Button onPress={onMintEcashFromQuote} text='Mint ecash' />
+                    <Button onPress={onMintEcashFromQuote} tx="recoveryMintEcashButton" />
                 </View>                
             </View>
           }
           onBackButtonPress={toggleMintQuoteModal}
           onBackdropPress={toggleMintQuoteModal}
         />
+        {/* it looks like this modal is a duplicate of the one above? for now not removing, but worth checking later */}
         <BottomModal
           isVisible={isMintQuoteModalVisible ? true : false}          
           ContentComponent={
             <View style={$quoteContainer}>
-                <Text text='Enter mint quote' />
+                <Text tx='recoveryEnterMintQuote' />
                 <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
                     <TextInput
                         ref={mintQuoteInputRef}
@@ -555,14 +556,14 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
                         style={[$quoteInput, {backgroundColor: inputBg, color: inputText}]}
                     />
                     <Button
-                        tx={'commonPaste'}
+                        tx='commonPaste'
                         preset='secondary'
                         style={$pasteButton}
                         onPress={onPasteMintQuote}
                     />                    
                 </View>
                 <View style={[$buttonContainer, {marginTop: spacing.medium}]}> 
-                    <Button onPress={onMintEcashFromQuote} text='Mint ecash' />
+                    <Button onPress={onMintEcashFromQuote} tx='recoveryMintEcashButton' />
                 </View>                
             </View>
           }
@@ -576,8 +577,8 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
               <ResultModalInfo
                 icon="faCheckCircle"
                 iconColor={colors.palette.success200}
-                title="Success!"
-                message={`Successfully minted ${mintedAmount} SAT from the provided mint quote.`}
+                title={translate("recoverySuccessTitle")}
+                message={translate("recoveryMintSuccessMessage", {amount: mintedAmount})}
               />
               <View style={$buttonContainer}>
                 <Button
@@ -595,7 +596,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
           isVisible={isMeltQuoteModalVisible ? true : false}          
           ContentComponent={
             <View style={$quoteContainer}>
-                <Text text='Enter melt quote' />
+                <Text tx='recoveryEnterMeltQuote' />
                 <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
                     <TextInput
                         ref={mintQuoteInputRef}
@@ -615,7 +616,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
                     />                    
                 </View>
                 <View style={[$buttonContainer, {marginTop: spacing.medium}]}> 
-                    <Button onPress={onRecoverChangeFromQuote} text='Recover change' />
+                    <Button onPress={onRecoverChangeFromQuote} tx='recoveryRecoverChangeButton' />
                 </View>                
             </View>
           }
@@ -629,8 +630,8 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
               <ResultModalInfo
                 icon="faCheckCircle"
                 iconColor={colors.palette.success200}
-                title="Success!"
-                message={`Successfully recovered ${meltChangeAmount} SAT from the provided melt quote.`}
+                title={translate("recoverySuccessTitle")}
+                message={translate("recoveryMeltSuccessMessage", {amount: meltChangeAmount})}
               />
               <View style={$buttonContainer}>
                 <Button

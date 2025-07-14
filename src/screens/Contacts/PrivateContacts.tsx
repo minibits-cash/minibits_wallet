@@ -322,7 +322,7 @@ export const PrivateContacts = observer(function (props: {
                     onPress={gotoNew}                        
                     style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonNew]}
                     preset='tertiary'
-                    text='Add'
+                    tx='buttonAdd'
                 />            
             </View>
         </View>       

@@ -114,9 +114,9 @@ export const TransactionListItem = observer(function (props: TransactionListProp
       case TransactionStatus.COMPLETED:
         if(tx.fee && tx.fee > 0) {
           if(isTimeAgoVisible) {
-            return timeAgo + 'Fee ' + tx.fee
+            return timeAgo + translate('transactionCommon_fee') + ' ' + tx.fee
           } else {
-            return 'Fee ' + tx.fee
+            return translate('transactionCommon_fee') + ' ' + tx.fee
           }
             
         } else {
