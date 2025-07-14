@@ -9,6 +9,7 @@ import {OwnName} from './Contacts/OwnName'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+import {translate} from '../i18n'
 
 type Props = StaticScreenProps<undefined>
 
@@ -35,8 +36,8 @@ export const WalletNameScreen = observer(function WalletNameScreen({ route }: Pr
     
     const [index, setIndex] = useState(0)
     const [routes] = useState([
-        { key: 'first', title: 'Own name' },
-        { key: 'second', title: 'Random name' },
+        { key: 'first', title: translate('walletNameScreen_ownNameTab') },
+        { key: 'second', title: translate('walletNameScreen_randomNameTab') },
     ])
 
     const headerBg = useThemeColor('header')

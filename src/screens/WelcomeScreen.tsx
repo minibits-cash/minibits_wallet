@@ -101,18 +101,18 @@ export const WelcomeScreen = function ({ route }: Props) {
     const gotoWallet = async function () {
       try {
           if(!isInternetReachable) { 
-            setInfo('Please make sure you are online to set up the new wallet.')
+            setInfo(translate('welcomeScreen_offlineWarning'))
             return
           }         
           
           setIsLoading(true)          
 
           if(!await KeyChain.hasWalletKeys()) {
-            setStatusMessage('Creating wallet keys...')
+            setStatusMessage(translate('welcomeScreen_creatingKeys'))
 
             const keys = KeyChain.generateWalletKeys()            
 
-            setStatusMessage('Creating wallet profile...')                        
+            setStatusMessage(translate('welcomeScreen_creatingProfile'))                        
             
             await walletProfileStore.create(
               keys.NOSTR.publicKey, 

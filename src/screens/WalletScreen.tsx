@@ -527,7 +527,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                                 <ListItem 
                                     leftIcon='faArrowTurnDown'
                                     leftIconColor={colors.palette.green400}
-                                    text='Start by funding your wallet'
+                                    tx='walletScreen_startByFunding'
                                     textStyle={{fontSize: moderateScale(14)}}
                                     RightComponent={
                                         <View style={$rightContainer}>
@@ -665,7 +665,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                                     HeadingComponent={<Text text={item.name} size='xs'/>}                                        
                                     ContentComponent={
                                         <>
-                                        <Text text='Spent today' size='xxs' preset='formHelper' style={{color: label, overflow: 'hidden'}}/>
+                                        <Text tx='walletScreen_spentToday' size='xxs' preset='formHelper' style={{color: label, overflow: 'hidden'}}/>
                                         <CurrencyAmount 
                                             amount={item.dailyLimit - item.remainingDailyLimit}
                                             currencyCode={CurrencyCode.SAT}
@@ -898,7 +898,7 @@ const MintsByUnitSummary = observer(function (props: {
     }, [])
     
     const {mintsByUnit} = props
-    const mintsCountText = `and ${mintsByUnit.mints.length - 1} other${mintsByUnit.mints.length - 1 > 1 ? 's' : ''}`
+    const mintsCountText = translate('walletScreen_andOtherMints', {count: mintsByUnit.mints.length - 1})
 
     return (
         <View style={{flexDirection: 'row', alignItems: 'center'}}>
