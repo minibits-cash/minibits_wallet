@@ -210,7 +210,7 @@ export const MintInfoScreen = observer(function MintInfoScreen({ route }: Props)
         {mintInfo?.motd && mintInfo?.motd !== 'Message to users' && <MOTDCard info={mintInfo} />}
         {mintInfo && <DescriptionCard info={mintInfo} />}
         <Card
-          label={"Mint URL"}          
+          labelTx={"mintInfo_mintUrlHeading"}          
           HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
           content={mint?.mintUrl}
           RightComponent={
@@ -338,8 +338,8 @@ function MintLimitsCard(props: { info: GetInfoResponse, limitInfo: ReturnType<ty
     // HeadingTextProps={{ style: [$sizeStyles.sm, { color: textDim }] }}
     ContentComponent={<>
       <View style={$limitItemWrapper}>
-        <Text text="Deposit (Mint)" style={{ width: '50%' }} />
-        <Text text="Withdraw (Melt)" style={{ width: '50%' }} />
+        <Text tx="mintInfo_depositMint" style={{ width: '50%' }} />
+        <Text tx="mintInfo_withdrawMelt" style={{ width: '50%' }} />
       </View>
       <View style={$limitItemWrapper}>
         <LimitItem m={props.limitInfo.mintSats as MethodLimit} type="mint" />

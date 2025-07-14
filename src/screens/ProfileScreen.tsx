@@ -252,7 +252,7 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
                     ContentComponent={
                     <>
                         <ListItem
-                            text='Batch receive'                            
+                            tx='profileScreen_batchReceive'                            
                             leftIcon='faCubes'                            
                             style={$item}                        
                             RightComponent={
@@ -266,7 +266,7 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
                             BottomComponent={
                                 <CollapsibleText
                                     collapsed={true}                                
-                                    text={'Recommended for heavy zap collectors. If there are more payments or zaps received to your lightning address, batch them into a single one.'}
+                                    text={translate('profileScreen_batchReceiveDesc')}
                                     textProps={{style: $subText}}
                                 />}
                             bottomSeparator={false}                            

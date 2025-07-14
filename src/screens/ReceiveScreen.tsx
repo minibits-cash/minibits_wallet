@@ -390,7 +390,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
                   style={$memoCard}
                   ContentComponent={
                     <ListItem
-                      text={memo || 'No description'}
+                      text={memo || translate('commonNoDescPlaceholder')}
                       LeftComponent={
                         <Icon
                           containerStyle={$iconContainer}
@@ -568,7 +568,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
                       {resultModalInfo.message.includes('outputs have already been signed before') ? (
                           <Button
                               preset="secondary"
-                              text={"Try again"}
+                              tx="commonTryAgain"
                               onPress={increaseProofsCounterAndRetry}
                           />
                       ) : (

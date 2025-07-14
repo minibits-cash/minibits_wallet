@@ -110,7 +110,7 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
     return (
       <Screen style={$screen} preset='fixed'>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text preset="heading" text="Privacy" style={{color: headerTitle}} />
+          <Text preset="heading" tx="privacyScreen_title" style={{color: headerTitle}} />
         </View>
         <ScrollView style={$contentContainer}>
             {/*<Card

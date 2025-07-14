@@ -148,7 +148,7 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
       <View style={[$headerContainer, { backgroundColor: headerBg }]}>
         <Text
           preset="heading"
-          text="Recover address"
+          tx="recovery_recoverAddress"
           style={{ color: headerTitle, textAlign: 'center' }}
         />
       </View>
@@ -169,14 +169,14 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
               <>
               <ListItem
                 text={profileToRecover.nip05}
-                subText="This is the wallet address linked to the provided seed."
+                subTx="recovery_addressLinkedToSeed"
                 LeftComponent={<View style={[$numIcon, { backgroundColor: numIconColor }]}><Text text='2' /></View>}
                 style={$item}
                 bottomSeparator
               />
               <ListItem
-                text={'Do not lose your ecash!'}
-                subText="Your current wallet seed phrase will NOT be changed. Keep it in a safe place!"
+                tx="recovery_doNotLoseEcashTitle"
+                subTx="recovery_doNotLoseEcashDesc"
                 LeftComponent={<View style={[$numIcon, { backgroundColor: numIconColor }]}><Text text='3' /></View>}
                 style={$item}
               />
