@@ -4,7 +4,7 @@
 		"fromBackup": "Recover from backup",
 		"fromBackupDescription": "Import backup exported from another Minibits wallet. Easy option if you move to a new device.",
 		"fromSeed": "Recover from seed",
-		"fromSeedDescription": "Use 12 word seed phrase to re-create your lost ecash with assistance of mints. Use in case of device loss."		
+		"fromSeedDescription": "Use 12 word seed phrase to re-create your lost ecash with assistance of mints. Use in case of device loss."
 	},
 	"addMints": "Add mints",
 	"amount": {
@@ -82,8 +82,7 @@
 		"copySuccessParam": "Copied %{param}",
 		"hide": "Hide",
 		"show": "Show",
-		"update": "Update",
-		"none": ""
+		"update": "Update"
 	},
 	"confirmBackupRecovery": "Do you really want to recover ecash from the backup?",
 	"confirmMintRemoval": "Do you really want to remove %{hostname} - %{shortname} from the wallet?",
@@ -103,7 +102,9 @@
 			"insufficient": "Your wallet balance is not enough to pay this invoice amount but you can still pay it from another wallet.",
 			"payToGetOwnName": "Pay the following lightning invoice and get your %{name} wallet name.",
 			"profileExists": "This wallet name is already in use, choose another one.",
-			"tooShort": "Please use at least 2 characters for your name"
+			"tooShort": "Please use at least 2 characters for your name",
+			"lightningInvoiceToPayQR": "Lightning invoice to pay",
+			"donationSubtext": "kindly asks you for a small donation for your new wallet address."
 		},
 		"privateContacts": {
 			"bottomModal": "Private contacts are unique identifiers of other Minibits wallets. You can use them to send or request ecash and you can safely share your own with others.",
@@ -259,7 +260,7 @@
 		"pay": "Pay",
 		"payFrom": "Pay from",
 		"payFromWallet": "Pay from wallet",
-		"payMe": "Pay me",		
+		"payMe": "Pay me",
 		"payNow": "Pay now",
 		"payToAddress": "Pay to this address",
 		"payWithLightning": "Pay with Lightning",
@@ -270,7 +271,6 @@
 		"requestPayment": "Request payment",
 		"send": "Send",
 		"withdraw": "Withdraw"
-		
 	},
 	"payerMemo": "Memo for the payer",
 	"payWithLightningDesc": "Enter or paste Lightning address, invoice or LNURL pay code you want to pay to.",
@@ -613,7 +613,7 @@
 			"go": "Let's go!",
 			"heading": "Don't forget",
 			"intro": "Both the Cashu protocol and the Minibits wallet are experimental. By using them, you accept known and unknown risks."
-		},	
+		},
 		"lastPageConfirmButton": "Got it, take me to the wallet",
 		"lastPageRecoverLostWalletButton": "Recover lost wallet",
 		"generatingWalletSeedStatusMessage": "Creating wallet seed, this takes a while..."

@@ -339,7 +339,7 @@ export const OwnName = observer(function (props: {pubkey: string}) {
                                                                      
                                     <QRCodeBlock 
                                         qrCodeData={donationInvoice.payment_request}
-                                        title='Lightning invoice to pay'
+                                        titleTx="contactsScreen.ownName.lightningInvoiceToPayQR"
                                         type='Bolt11Invoice'
                                         size={270}
                                     />                                
@@ -351,7 +351,7 @@ export const OwnName = observer(function (props: {pubkey: string}) {
                                             text='Minibits'
                                             style={{fontFamily: 'Gluten-Regular', fontSize: 18}}
                                         />{' '}
-                                        <Text text='kindly asks you for a small donation for your new wallet address.' />
+                                        <Text tx="contactsScreen.ownName.donationSubtext" />
                                     </RNText>                                    
                                     <CurrencyAmount
                                         amount={donationAmount}

@@ -12,7 +12,6 @@
 		"localBackup": "Lokálna záloha",
 		"missingMnemonicError": "Chýba mnemonická veta.",
 		"missingMnemonicOrSeedError": "Chýba mnemonická veta alebo seed kľúč.",
-		"mnemonicDesc": "týchto 12 slov reprezentuje tvoj seed kľúč a umožňuje obnoviť tvoj ecash ak stratíš svoj mobil. Ulož na bezpečné miesto.",
 		"mnemonicTitle": "Tvoja mnemonická veta",
 		"recoveryTool": "Exportuj ecash",
 		"recoveryToolDescription": "Exportuj ecash z lokálnej databázy zoskupený podľa setov kľúčov.",
@@ -22,7 +21,8 @@
 		"result": "Minuté ecash bankovky boli odstránené z peňaženky.",
 		"seedBackup": "Záloha seed kľúča",
 		"success": "Tvoje Minibits bankovky boli zálohované do lokálnej databázy. Nové bankovky budú zálohované automaticky.",
-		"remoteBackup": "Záloha seed kľúča"
+		"remoteBackup": "Záloha seed kľúča",
+		"mnemonicDesc": "týchto 12 slov reprezentuje tvoj seed kľúč a umožňuje obnoviť tvoj ecash ak stratíš svoj mobil. Ulož na bezpečné miesto."
 	},
 	"backupWillOverwriteBalanceWarning": "Tvoja peňaženka má nenulový zostatok. Ak budeš pokračovať, existujúci ecash bude zmazaný a nahradený zálohou.",
 	"checkAndSync": "Skontroluj a synchronizuj",
@@ -245,7 +245,7 @@
 		"pay": "Zaplať",
 		"payFrom": "zaplať z",
 		"payFromWallet": "Zaplať z peňaženky",
-		"payMe": "Zaplať mi",		
+		"payMe": "Zaplať mi",
 		"payNow": "Zaplať teraz",
 		"payToAddress": "Zaplať na adresu",
 		"payWithLightning": "Zaplať cez Lightning",
@@ -312,7 +312,6 @@
 		"title": "Prijať",
 		"toReceive": "Suma na príjem"
 	},
-	"exportEcash": "Exportuj ecash",
 	"relayExists": "Relay už existuje",
 	"relays": "Relays",
 	"relayurlPasteError": "Skopíruj relay URL, potom vlož.",
@@ -553,5 +552,6 @@
 		"nutsHeading": "Podporované NUTs",
 		"mintMeltHeading": "Limity",
 		"keyValueInfoCardHeading": "Viac info"
-	}
+	},
+	"exportEcash": "Exportuj ecash"
 }
