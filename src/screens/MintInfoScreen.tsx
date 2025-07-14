@@ -228,7 +228,7 @@ export const MintInfoScreen = observer(function MintInfoScreen({ route }: Props)
           <>
             <ContactCard info={mintInfo} popupMessage={setInfo} />
             <Card
-              labelTx={"mintInfo.keyValueInfoCardHeading"}            
+              labelTx={"mintInfo_keyValueInfoCardHeading"}            
               ContentComponent={
                 <>
                   {mintInfo && <MintInfoDetails info={mintInfo} popupMessage={setInfo} />}
@@ -247,7 +247,7 @@ export const MintInfoScreen = observer(function MintInfoScreen({ route }: Props)
                   <View style={$rightContainer}>
                     <Button
                       onPress={toggleLocalInfo}
-                      text={isLocalInfoVisible ? translate("common.hide") : translate("common.show")}
+                      text={isLocalInfoVisible ? translate("commonHide") : translate("commonShow")}
                       preset="secondary"
                     />
                   </View>
@@ -274,8 +274,8 @@ export const MintInfoScreen = observer(function MintInfoScreen({ route }: Props)
         )}        
         <QRShareModal
             data={route.params.mintUrl}
-            shareModalTx='mintsScreen.share'
-            subHeading={mintInfo?.name ?? translate('mintInfo.loadingNamePlaceholder')}
+            shareModalTx='mintsScreen_share'
+            subHeading={mintInfo?.name ?? translate('mintInfo_loadingNamePlaceholder')}
             type='URL'
             isVisible={isShareModalVisible}
             onClose={toggleShareModal}
@@ -334,7 +334,7 @@ function MintLimitsCard(props: { info: GetInfoResponse, limitInfo: ReturnType<ty
   const textDim = useThemeColor('textDim')
 
   return (<Card
-    labelTx="mintInfo.mintMeltHeading"
+    labelTx="mintInfo_mintMeltHeading"
     // HeadingTextProps={{ style: [$sizeStyles.sm, { color: textDim }] }}
     ContentComponent={<>
       <View style={$limitItemWrapper}>
@@ -352,8 +352,8 @@ function MintLimitsCard(props: { info: GetInfoResponse, limitInfo: ReturnType<ty
 function DescriptionCard(props: {info: GetInfoResponse}) {
   const textDim = useThemeColor('textDim')
   return (<Card
-    // labelTx="mintInfo.descriptionHeading"
-    //headingTx="mintInfo.descriptionHeading"
+    // labelTx="mintInfo_descriptionHeading"
+    //headingTx="mintInfo_descriptionHeading"
     // HeadingTextProps={{ style: [$sizeStyles.sm, { color: textDim }] }}
     ContentComponent={
       props.info && props.info.description ? (
@@ -368,8 +368,8 @@ function DescriptionCard(props: {info: GetInfoResponse}) {
       ) : (
         <Text
           style={{fontStyle: 'italic'}}
-          text={translate('mintInfo.emptyValueParam', {
-            param: translate('mintInfo.descriptionHeading'),
+          text={translate('mintInfo_emptyValueParam', {
+            param: translate('mintInfo_descriptionHeading'),
           })}
         />
       )
@@ -438,7 +438,7 @@ function NutsCard(props: {info: GetInfoResponse}) {
   const smallNutCols = 4
   return (
     <Card
-      labelTx="mintInfo.nutsHeading"
+      labelTx="mintInfo_nutsHeading"
       style={{marginBottom: spacing.small}}
       // HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
       ContentComponent={
@@ -480,13 +480,13 @@ function ContactCard(props: { info: GetInfoResponse, popupMessage: (msg: string)
 
   return (
     <Card
-      labelTx="mintInfo.contactsHeading"
+      labelTx="mintInfo_contactsHeading"
       //HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
       ContentComponent={
         contacts.length === 0 ? (
           <Text
             style={{fontStyle: 'italic'}}
-            text={translate('mintInfo.emptyValueParam', { param: translate('mintInfo.contactsHeading') })}
+            text={translate('mintInfo_emptyValueParam', { param: translate('mintInfo_contactsHeading') })}
           />
         ) : (
           <>
@@ -501,7 +501,7 @@ function ContactCard(props: { info: GetInfoResponse, popupMessage: (msg: string)
                 topSeparator={index !== 0}
                 onLongPress={() => {
                   Clipboard.setString(info)
-                  props.popupMessage(translate('common.copySuccessParam', { param: info }))
+                  props.popupMessage(translate('commonCopySuccessParam', { param: info }))
                 }}
               />
             ))}
@@ -526,7 +526,7 @@ function MintInfoDetails(props: { info: GetInfoResponse, popupMessage: (msg: str
         style={{fontStyle: 'italic'}}
         size="xs"
         key={key}
-        text={translate('mintInfo.emptyValueParam', { param: key })}
+        text={translate('mintInfo_emptyValueParam', { param: key })}
       />
       
       let stringValue = isObj(value) ? JSON.stringify(value) : value.toString() ?? ''
@@ -537,7 +537,7 @@ function MintInfoDetails(props: { info: GetInfoResponse, popupMessage: (msg: str
       const handleLongPress = () => {
         if (stringValue.trim() === '') return;
         Clipboard.setString(stringValue)
-        props.popupMessage(translate('common.copySuccessParam', { param: stringValue }))
+        props.popupMessage(translate('commonCopySuccessParam', { param: stringValue }))
       }
 
       // @ts-ignore no-implicit-any

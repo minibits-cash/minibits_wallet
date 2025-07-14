@@ -103,7 +103,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
     const onConfirmMnemonic = async function () {
         try {
             if(!mnemonic) {
-                throw new AppError(Err.VALIDATION_ERROR, translate('backupScreen.missingMnemonicError'))
+                throw new AppError(Err.VALIDATION_ERROR, translate('backupMissingMnemonicError'))
             }
 
             LayoutAnimation.easeInEaseOut()            
@@ -130,7 +130,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
             if(profile.nip05.includes(MINIBITS_NIP05_DOMAIN)) {                                    
                 setProfileToRecover(profile)
             } else {
-                setInfo(translate("recovery.ownKeysImportAgain", { addr: profile.nip05 }))
+                setInfo(translate("recovery_ownKeysImportAgain", { addr: profile.nip05 }))
                 setIsNewProfileNeeded(true)              
             }            
         } catch (e: any) {
@@ -216,7 +216,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
           throw new AppError(Err.VALIDATION_ERROR, 'Missing wallet spnapshot decoded from backup.')
         }
 
-        setStatusMessage(translate("recovery.starting"))
+        setStatusMessage(translate("recovery_starting"))
         setIsLoading(true)        
       
         // import wallet snapshot into the state        
@@ -270,12 +270,12 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
     const onCompleteAddress = async () => {
         try {
             if(!seedHashRef.current || !seedRef.current) {
-              throw new AppError(Err.VALIDATION_ERROR, translate('backupScreen.missingMnemonicOrSeedError'))
+              throw new AppError(Err.VALIDATION_ERROR, translate('backupMissingMnemonicOrSeedError'))
             }
             // create a new walletId and Nostr key pair after a new install or factory reset
             // and keep provided seed
             setIsLoading(true)
-            setStatusMessage(translate("recovery.recoveringAddress"))
+            setStatusMessage(translate("recovery_recoveringAddress"))
 
             const keys = KeyChain.generateWalletKeys()
             // Set seed to the provided one
@@ -315,7 +315,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
                 await mintsStore.addMint(MINIBITS_MINT_URL)            
             }
 
-            setStatusMessage(translate('recovery.completed'))
+            setStatusMessage(translate('recovery_completed'))
                         
             // go directly to the wallet (profile hase been rehydrated from the one with the seed)
             // @ts-ignore
@@ -353,8 +353,8 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
                     style={$card}
                     ContentComponent={
                         <ListItem
-                            tx="recovery.mnemonicCollision"
-                            subTx="recovery.mnemonicCollisionDesc"
+                            tx="recovery_mnemonicCollision"
+                            subTx="recovery_mnemonicCollisionDesc"
                             leftIcon='faTriangleExclamation'
                             // leftIconColor='red'                  
                             style={$item}                    
@@ -365,7 +365,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
                         <View style={$buttonContainer}>               
                             <Button
                                 onPress={onBack}
-                                tx='common.back'
+                                tx='commonBack'
                                 preset='secondary'                      
                             />                        
                         </View>                    
@@ -423,12 +423,12 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
                             {backup ? (
                                 <Button
                                     onPress={onConfirmBackup}
-                                    tx='common.confirm'                        
+                                    tx='commonConfirm'                        
                                 />
                             ) : (
                                 <Button
                                     onPress={onPasteBackup}
-                                    tx='common.paste'                        
+                                    tx='commonPaste'                        
                                 />
                             )
                         }                    

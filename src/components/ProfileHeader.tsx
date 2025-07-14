@@ -16,7 +16,7 @@ export const ProfileHeader = observer(function (props: ProfileHeaderProps) {
   const { picture, nip05 } = walletProfileStore
 
   return ( <AvatarHeader
-    text={nip05 || translate("common.notCreated")}
+    text={nip05 || translate("commonNotCreated")}
     textStyle={props.headerTextStyle}
     picture={picture}
     fallbackIcon="faCircleUser"

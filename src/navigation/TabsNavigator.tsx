@@ -174,28 +174,28 @@ export const TabsNavigator = createBottomTabNavigator({
     WalletNavigator: {
       screen: WalletStack,
       options: {
-        tabBarLabel: translate("tabNavigator.walletLabel"),
+        tabBarLabel: translate("tabNavigator_walletLabel"),
         tabBarIcon: ({ focused, color }) => <Icon icon="faWallet" color={color} size={spacing.large} />,                       
       }
     },
     TransactionsNavigator: {
       screen: TransactionsStack,
       options: {
-        tabBarLabel: translate("tabNavigator.transactionsLabel"),
+        tabBarLabel: translate("tabNavigator_transactionsLabel"),
         tabBarIcon: ({ focused, color }) => <Icon icon="faListUl" color={color} size={spacing.large} />,        
       }
     },
     ContactsNavigator: {
       screen: ContactsStack,
       options: {
-        tabBarLabel: translate("tabNavigator.contactsLabel"),
+        tabBarLabel: translate("tabNavigator_contactsLabel"),
         tabBarIcon: ({ focused, color }) => <Icon icon="faAddressBook" color={color} size={spacing.large} />,        
       }
     },
     SettingsNavigator: {
       screen: SettingsStack,
       options: {
-        tabBarLabel: translate("tabNavigator.settingsLabel"),
+        tabBarLabel: translate("tabNavigator_settingsLabel"),
         tabBarIcon: ({ focused, color }) => <Icon icon="faGears" color={color} size={spacing.large} />,        
       }
     },

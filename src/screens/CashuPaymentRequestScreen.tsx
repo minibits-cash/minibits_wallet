@@ -217,15 +217,15 @@ const onAmountEndEditing = () => {
     const amountNum = round(toNumber(amountToRequest) * precision, 0)
 
     if (!amountNum || amountNum <= 0) {
-      infoMessage(translate("payCommon.amountZeroOrNegative"))
+      infoMessage(translate("payCommon_amountZeroOrNegative"))
       return
     }
 
     const balances = proofsStore.getMintBalancesWithUnit(unit)
     if (balances.length === 0) {
       infoMessage(
-        translate("topup.missingMintAddFirst"),
-        translate("topup.missingMintAddFirstDesc"),
+        translate("topup_missingMintAddFirst"),
+        translate("topup_missingMintAddFirstDesc"),
       )
       return
     }
@@ -390,7 +390,7 @@ return (
         )}
         <Text
           size="xs"
-          text={translate("amount.requested")}
+          text={translate("amountRequested")}
           style={{
             color: amountInputColor,
             textAlign: "center",
@@ -435,7 +435,7 @@ return (
           selectedMintBalance={mintBalanceToReceiveTo}
           unit={unit}
           title={'Mint to receive'}
-          confirmTitle={translate("cashuPaymentRequest.create")}
+          confirmTitle={translate("cashuPaymentRequest_create")}
           onMintBalanceSelect={onMintBalanceSelect}
           onCancel={onMintBalanceCancel}
           onMintBalanceConfirm={onMintBalanceConfirm}
@@ -459,7 +459,7 @@ return (
             ContentComponent={
               <>
                 <TranItem
-                  label="cashuPaymentRequest.to"
+                  label="cashuPaymentRequest_to"
                   isFirst={true}
                   value={
                     mintsStore.findByUrl(transaction.mint)
@@ -473,13 +473,13 @@ return (
                   />
                 )}
                 <TranItem
-                  label="transactionCommon.feePaid"
+                  label="transactionCommon_feePaid"
                   value={transaction.fee || 0}
                   unit={unit}
                   isCurrency={true}
                 />
                 <TranItem
-                  label="tranDetailScreen.status"
+                  label="tranDetailScreen_status"
                   value={transaction.status as string}
                 />
               </>
@@ -489,7 +489,7 @@ return (
             <View style={$buttonContainer}>
               <Button
                 preset="secondary"
-                tx='common.close'
+                tx='commonClose'
                 onPress={gotoWallet}
               />
             </View>
@@ -507,13 +507,13 @@ return (
                 <ResultModalInfo
                   icon="faCheckCircle"
                   iconColor={colors.palette.success200}
-                  title={translate('common.success')}
+                  title={translate('commonSuccess')}
                   message={resultModalInfo?.message}
                 />
                 <View style={$buttonContainer}>
                   <Button
                     preset="secondary"
-                    tx='common.close'
+                    tx='commonClose'
                     onPress={gotoWallet}
                   />
                 </View>
@@ -525,13 +525,13 @@ return (
                 <ResultModalInfo
                   icon="faTriangleExclamation"
                   iconColor={colors.palette.angry500}
-                  title={resultModalInfo?.title || translate('topup.failed')}
+                  title={resultModalInfo?.title || translate('topup_failed')}
                   message={resultModalInfo?.message}
                 />
                 <View style={$buttonContainer}>
                   <Button
                     preset="secondary"
-                    tx='common.close'
+                    tx='commonClose'
                     onPress={toggleResultModal}
                   />
                 </View>

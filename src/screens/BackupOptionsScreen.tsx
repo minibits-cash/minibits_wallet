@@ -57,8 +57,8 @@ export const BackupOptionsScreen = observer(function () {
                 HeadingComponent={
                 <>                
                   <ListItem
-                    tx="backupScreen.mnemonicTitle"
-                    subTx="backupScreen.mnemonicDescription"
+                    tx="backupMnemonicTitle"
+                    subTx="backupMnemonicDescription"
                     leftIcon='faSeedling'
                     leftIconColor={colors.palette.orange400}
                     leftIconInverse={true}

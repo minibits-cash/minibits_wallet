@@ -353,7 +353,7 @@ export const NwcScreen = observer(function NwcScreen(_props) {
                 </View>
                 <View style={[$buttonContainer, {marginTop: spacing.medium}]}> 
                     <Button
-                        tx={'common.save'}
+                        tx={'commonSave'}
                         style={$saveButton}
                         onPress={onSaveConnection}
                     />

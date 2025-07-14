@@ -174,12 +174,12 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
       'Do you want to swap your wallet ecash for proofs with optimal denominations? The size of your backup will decrease.',
       [
         {
-          text: translate('common.cancel'),
+          text: translate('commonCancel'),
           style: 'cancel',
           onPress: () => { /* Action canceled */ },
         },
         {
-          text: translate('common.confirm'),
+          text: translate('commonConfirm'),
           onPress: async () => {
             // Moves all wallet proofs to pending in transactions 
             // split by mints and by units and in offline mode.
@@ -530,13 +530,13 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
                 <ResultModalInfo
                   icon={'faCheckCircle'}
                   iconColor={colors.palette.success200}
-                  title={resultModalInfo.title || translate('common.success')}
+                  title={resultModalInfo.title || translate('commonSuccess')}
                   message={resultModalInfo?.message}
                 />
                 <View style={$buttonContainer}>
                   <Button
                     preset="secondary"
-                    tx='common.close'
+                    tx='commonClose'
                     onPress={toggleResultModal}
                   />
                 </View>
@@ -548,13 +548,13 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
                 <ResultModalInfo
                   icon="faTriangleExclamation"
                   iconColor={colors.palette.focus300}
-                  title={resultModalInfo?.title as string || translate('transactionCommon.receiveFailed')}
+                  title={resultModalInfo?.title as string || translate('transactionCommon_receiveFailed')}
                   message={resultModalInfo?.message as string}
                 />
                 <View style={$buttonContainer}>
                   <Button
                       preset="secondary"
-                      tx={'common.close'}
+                      tx={'commonClose'}
                       onPress={toggleResultModal}
                   />                      
                 </View>

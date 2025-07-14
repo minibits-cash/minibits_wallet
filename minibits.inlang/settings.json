@@ -26,6 +26,8 @@
     "recognizedJSXAttributes": [
       "tx",
       "subTx",
+	  "labelTx",
+	  "titleTx",
       "contentTx",
 	  "footerTx"
     ]

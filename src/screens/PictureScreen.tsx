@@ -100,12 +100,12 @@ export const PictureScreen = (function PictureScreen({ route }: Props) {
                 <View style={$buttonContainer}>
                     <Button
                         preset="default"
-                        tx='common.confirm'
+                        tx='commonConfirm'
                         onPress={onPictureConfirm}
                     />
                     <Button
                         preset="secondary"
-                        tx='common.cancel'
+                        tx='commonCancel'
                         onPress={() => setSelectedPicture('')}
                     />
                 </View>

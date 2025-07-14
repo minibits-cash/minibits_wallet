@@ -56,7 +56,7 @@ export const MnemonicScreen = observer(function MnemonicScreen({ route }: Props)
                 if (!validateMnemonic(mnemonic, wordlist)) {
                   throw new AppError(
                     Err.VALIDATION_ERROR, 
-                    translate("backupScreen.invalidMnemonicError")
+                    translate("backupInvalidMnemonicError")
                   )
                 }
 
@@ -79,10 +79,10 @@ export const MnemonicScreen = observer(function MnemonicScreen({ route }: Props)
             }
             throw new AppError(
               Err.VALIDATION_ERROR, 
-              translate("backupScreen.missingMnemonicError")
+              translate("backupMissingMnemonicError")
             )          
         } catch (e: any) {
-          setInfo(translate('common.copyFailParam', { param: e.message }))
+          setInfo(translate('commonCopyFailParam', { param: e.message }))
         }
     }
 
@@ -97,15 +97,15 @@ export const MnemonicScreen = observer(function MnemonicScreen({ route }: Props)
     return (
       <Screen contentContainerStyle={$screen} preset='fixed'>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text preset="heading" tx='backupScreen.seedBackup' style={{color: headerTitle}} />
+          <Text preset="heading" tx='backupSeedBackup' style={{color: headerTitle}} />
         </View>
         <View style={$contentContainer}>
           <Card
             style={$card}
             ContentComponent={
                 <ListItem
-                    tx="backupScreen.mnemonicTitle"
-                    subTx="backupScreen.mnemonicDescription"
+                    tx="backupMnemonicTitle"
+                    subTx="backupMnemonicDescription"
                     leftIcon='faInfoCircle'
                     leftIconColor={colors.palette.iconYellow300}
                     leftIconInverse={true}                  
@@ -144,7 +144,7 @@ export const MnemonicScreen = observer(function MnemonicScreen({ route }: Props)
                     <Button
                         preset="default"
                         style={{margin: spacing.small}}
-                        tx='common.copy'
+                        tx='commonCopy'
                         onPress={onCopy}                            
                     />       
                 </View>

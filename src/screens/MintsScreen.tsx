@@ -79,7 +79,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
         new URL(url)
         setMintUrl(url)
       } catch (e) {
-        setInfo(translate('mintsScreen.invalidUrl'))
+        setInfo(translate('mintsScreen_invalidUrl'))
       }
     }
 
@@ -106,7 +106,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
         setIsAddMintVisible(false)
 
         if (mintsStore.alreadyExists(mintUrl)) {
-          const msg = translate('mintsScreen.mintExists')
+          const msg = translate('mintsScreen_mintExists')
           log.trace(msg)
           setInfo(msg)
           return
@@ -116,7 +116,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
             toggleAddMintModal() // close
             setIsLoading(true)
             await mintsStore.addMint(mintUrl)
-            setInfo(translate('mintsScreen.mintAdded'))
+            setInfo(translate('mintsScreen_mintAdded'))
         } catch (e: any) {
             setMintUrl('')
             handleError(e)
@@ -209,14 +209,14 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
         message,
             [
             {
-                text: translate('common.cancel'),
+                text: translate('commonCancel'),
                 style: 'cancel',
                 onPress: () => {
                 // Action canceled
                 },
             },
             {
-                text: translate('common.confirm'),
+                text: translate('commonConfirm'),
                 onPress: () => {
                 try {
                     onMintUnselect()
@@ -228,7 +228,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
                     if (pendingProofsByMint && pendingProofsByMint.length > 0) {
                         proofsStore.removeProofs(pendingProofsByMint, true)           
                     }
-                    setInfo(translate('mintsScreen.mintRemoved'))
+                    setInfo(translate('mintsScreen_mintRemoved'))
                 } catch (e: any) {
                     handleError(e)
                 }
@@ -242,7 +242,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
       if (!selectedMint) return
       try {
         mintsStore.blockMint(selectedMint as Mint)
-        setInfo(translate('mintsScreen.mintBlocked'))
+        setInfo(translate('mintsScreen_mintBlocked'))
       } catch (e: any) {
         handleError(e)
       } finally {
@@ -254,7 +254,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
       if (!selectedMint) return
       try {
         mintsStore.unblockMint(selectedMint as Mint)
-        setInfo(translate('mintsScreen.mintUnblocked'))
+        setInfo(translate('mintsScreen_mintUnblocked'))
       } catch (e: any) {
         handleError(e)
       } finally {
@@ -308,7 +308,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
                 ContentComponent={
                     <>
                     <ListItem
-                        tx='mintsScreen.addMint'
+                        tx='mintsScreen_addMint'
                         LeftComponent={<Icon
                             containerStyle={$iconContainer}
                             icon="faPlus"
@@ -321,7 +321,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
                     />
                     {!mintsStore.alreadyExists(defaultMintUrl) && (
                     <ListItem
-                        tx="mintsScreen.addMintMinibits"
+                        tx="mintsScreen_addMintMinibits"
                         LeftComponent={<SvgXml 
                             width={spacing.medium} 
                             height={spacing.medium} 
@@ -369,21 +369,21 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
               <ListItem
                 leftIcon="faInfoCircle"
                 onPress={gotoInfo}
-                tx='mintsScreen.mintInfo'
+                tx='mintsScreen_mintInfo'
                 bottomSeparator={true}
                 style={{paddingHorizontal: spacing.medium}}
               />
               <ListItem
                 leftIcon="faQrcode"
                 onPress={onShare}
-                tx="mintsScreen.share"
+                tx="mintsScreen_share"
                 bottomSeparator={true}
                 style={{paddingHorizontal: spacing.medium}}
               />
               <ListItem
                 leftIcon='faRotate'
                 onPress={updateMint}
-                tx="mintsScreen.refreshMintSettings"
+                tx="mintsScreen_refreshMintSettings"
                 bottomSeparator={true}
                 style={{paddingHorizontal: spacing.medium}}
               />
@@ -391,7 +391,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
                 <ListItem
                   leftIcon="faShieldHalved"
                   onPress={unblockMint}
-                  tx='mintsScreen.unblockMint'
+                  tx='mintsScreen_unblockMint'
                   bottomSeparator={true}
                   style={{paddingHorizontal: spacing.medium}}
                 />
@@ -399,7 +399,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
                 <ListItem
                   leftIcon="faShieldHalved"
                   onPress={blockMint}
-                  tx='mintsScreen.blockMint'
+                  tx='mintsScreen_blockMint'
                   bottomSeparator={true}
                   style={{paddingHorizontal: spacing.medium}}
                 />
@@ -414,7 +414,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
               <ListItem
                 leftIcon="faXmark"
                 onPress={removeMint}
-                tx='mintsScreen.removeMint'
+                tx='mintsScreen_removeMint'
                 bottomSeparator={true}
                 style={{paddingHorizontal: spacing.medium}}
               />              
@@ -429,7 +429,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
             <View style={$bottomModal}>            
                 <Text
                     preset="subheading"
-                    tx={selectedMint ? 'mintsScreen.updateMintUrl' : 'mintsScreen.addMintUrl'}
+                    tx={selectedMint ? 'mintsScreen_updateMintUrl' : 'mintsScreen_addMintUrl'}
                     // style={{marginBottom: spacing.medium, textAlign: 'center'}}
                 />
                 <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
@@ -447,7 +447,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
                         />
                         <Button
                             preset='secondary'
-                            tx='common.paste'
+                            tx='commonPaste'
                             style={{
                                 borderRadius: 0,                                
                                 marginLeft: -spacing.small,
@@ -458,7 +458,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
                         />
                         <Button
                             preset='secondary'
-                            tx="common.scan"
+                            tx="commonScan"
                             style={{
                                 borderTopLeftRadius: 0,
                                 borderBottomLeftRadius: 0,  
@@ -470,7 +470,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
                 <View style={$buttonContainer}>
                   {selectedMint ? (
                       <Button
-                        tx='common.update'
+                        tx='commonUpdate'
                         style={{
                             // borderTopLeftRadius: 0,
                             // borderBottomLeftRadius: 0,                                
@@ -481,7 +481,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
                       />  
                   ) : (
                       <Button
-                        tx='common.save'
+                        tx='commonSave'
                         style={{
                             // borderTopLeftRadius: 0,
                             // borderBottomLeftRadius: 0,                                
@@ -493,7 +493,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
                   )}
                     
                     <Button
-                        tx='common.cancel'
+                        tx='commonCancel'
                         onPress={toggleAddMintModal}
                         preset="secondary"
                     />
@@ -506,7 +506,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
         {selectedMint && (
           <QRShareModal
               data={selectedMint.mintUrl}
-              shareModalTx='mintsScreen.share'
+              shareModalTx='mintsScreen_share'
               subHeading={selectedMint?.shortname}
               type='URL'
               isVisible={isShareModalVisible}

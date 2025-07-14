@@ -106,16 +106,16 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
 
     const deletePending = async function () {
       Alert.alert(
-        translate("common.confirmAlertTitle"),
+        translate("commonConfirmAlertTitle"),
         "This action can not be undone. Use only in development or testing.",
         [
           {
-            text: translate('common.cancel'),
+            text: translate('commonCancel'),
             style: 'cancel',
             onPress: () => { /* Action canceled */ },
           },
           {
-            text: translate('common.confirm'),
+            text: translate('commonConfirm'),
             onPress: async () => {
               try {
                 setIsLoading(true)
@@ -146,16 +146,16 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
 
     const movePendingToSpendable = async function () {
       Alert.alert(
-        translate("common.confirmAlertTitle"),
+        translate("commonConfirmAlertTitle"),
         "This action may cause transactions failure. Use only as a recovery path agreed with support.",
         [
           {
-            text: translate('common.cancel'),
+            text: translate('commonCancel'),
             style: 'cancel',
             onPress: () => { /* Action canceled */ },
           },
           {
-            text: translate('common.confirm'),
+            text: translate('commonConfirm'),
             onPress: async () => {
               try {
                 setIsLoading(true)
@@ -199,16 +199,16 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
 
     const factoryReset = async function () {
       Alert.alert(
-        translate("common.confirmAlertTitle"),
+        translate("commonConfirmAlertTitle"),
         translate("factoryResetUserConfirmDesc"),
         [
           {
-            text: translate('common.cancel'),
+            text: translate('commonCancel'),
             style: 'cancel',
             onPress: () => { /* Action canceled */ },
           },
           {
-            text: translate('common.confirm'),
+            text: translate('commonConfirm'),
             onPress: async () => {
                 setIsLoading(true)
                 try {
@@ -250,7 +250,7 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text
             preset="heading"
-            tx="developerScreen.title"
+            tx="developerScreen_title"
             style={{color: headerTitle}}
           />
         </View>
@@ -259,7 +259,7 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
             style={[$card]}
             HeadingComponent={
                 <ListItem
-                  tx="developerScreen.info"
+                  tx="developerScreen_info"
                   subText={`Environment: ${APP_ENV}
 JS Bundle version: ${JS_BUNDLE_VERSION}
 Commit: ${COMMIT}
@@ -281,7 +281,7 @@ Sentry id: ${walletProfileStore.walletId}
             HeadingComponent={
               <>
                 <ListItem
-                  tx="developerScreen.logLevel"
+                  tx="developerScreen_logLevel"
                   subText={userSettingsStore.logLevel.toUpperCase()}
                   leftIcon='faListUl'
                   leftIconColor={colors.palette.iconMagenta200}
@@ -340,8 +340,8 @@ Sentry id: ${walletProfileStore.walletId}
                   topSeparator
                 />
                 <ListItem
-                  tx="developerScreen.reset"
-                  subTx="developerScreen.resetDescription"
+                  tx="developerScreen_reset"
+                  subTx="developerScreen_resetDescription"
                   leftIcon='faXmark'
                   leftIconColor={colors.palette.angry500}
                   leftIconInverse={true}
@@ -389,7 +389,7 @@ Sentry id: ${walletProfileStore.walletId}
                 <View style={$buttonContainer}>
                     <Button
                         preset="secondary"
-                        tx='common.close'
+                        tx='commonClose'
                         onPress={toggleLogLevelSelector}
                     />
                 </View>

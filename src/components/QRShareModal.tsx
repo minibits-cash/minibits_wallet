@@ -78,7 +78,7 @@ export const QRShareModal = (props: QRShareModalProps) => {
             <View style={$buttonContainer}>
               <Button 
                 onPress={props.onClose}
-                tx='common.close'
+                tx='commonClose'
                 preset='tertiary'
               />
             </View>
