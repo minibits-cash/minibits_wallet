@@ -470,7 +470,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
                 ContentComponent={
                     <ListItem
                         text={'Wallet address not found'}
-                        subTx="importBackupWalletProfileNotFound"
+                        subText="Wallet profile linked to the provided seed not found, new one will be created for you."
                         LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text={'3'}/></View>}
                         style={$item}                            
                     /> 
