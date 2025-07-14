@@ -28,6 +28,7 @@
       "subTx",
 	  "labelTx",
 	  "titleTx",
+	  "headingTx",
       "contentTx",
 	  "footerTx"
     ]

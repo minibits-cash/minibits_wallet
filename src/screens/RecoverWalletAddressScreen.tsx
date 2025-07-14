@@ -45,7 +45,7 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
   const onConfirmMnemonic = async function () {
     try {
       if (!mnemonic) {
-        throw new AppError(Err.VALIDATION_ERROR, translate('backupScreen.missingMnemonicError'))
+        throw new AppError(Err.VALIDATION_ERROR, translate('backupMissingMnemonicError'))
       }
 
       LayoutAnimation.easeInEaseOut()
@@ -74,7 +74,7 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
         throw new AppError(Err.VALIDATION_ERROR, 'Could not get seed')
       }
 
-      setStatusMessage(translate('recovery.recoveringAddress'))
+      setStatusMessage(translate('recovery_recoveringAddress'))
       setIsLoading(true)
 
       const seedHash = QuickCrypto.createHash('sha256')
@@ -88,7 +88,7 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
       if (profile.nip05.includes(MINIBITS_NIP05_DOMAIN)) {
         setProfileToRecover(profile)
       } else {
-        setStatusMessage(translate("recovery.ownKeysImportAgain", { addr: profile.nip05 }))
+        setStatusMessage(translate("recovery_ownKeysImportAgain", { addr: profile.nip05 }))
         await delay(4000)
       }
 
@@ -102,11 +102,11 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
   const onCompleteAddress = async () => {
     try {
       if(!seedHashRef.current || !seedRef.current || !profileToRecover) {
-        throw new AppError(Err.VALIDATION_ERROR, translate("recovery.missingMnemonicSeedProfileError"))
+        throw new AppError(Err.VALIDATION_ERROR, translate("recovery_missingMnemonicSeedProfileError"))
       }
 
       setIsLoading(true)
-      setStatusMessage(translate("recovery.recoveringAddress"))      
+      setStatusMessage(translate("recovery_recoveringAddress"))      
 
       const keys = await walletStore.getCachedWalletKeys()
 
@@ -120,7 +120,7 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
 
       userSettingsStore.setIsOnboarded(true)
 
-      setStatusMessage(translate('recovery.completed'))
+      setStatusMessage(translate('recovery_completed'))
       await delay(1000)
       setStatusMessage('')
       setIsLoading(false)
@@ -191,7 +191,7 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
           <View style={$buttonContainer}>
             {profileToRecover ? (
               <Button
-                tx="recovery.completeCTA"
+                tx="recovery_completeCTA"
                 style={{ marginRight: spacing.small }}
                 LeftAccessory={() => (
                   <Icon
@@ -204,7 +204,7 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
               />
             ) : (
               <Button
-                tx="recovery.findAddressCTA"
+                tx="recovery_findAddressCTA"
                 style={{ marginRight: spacing.small }}
                 LeftAccessory={() => (
                   <Icon

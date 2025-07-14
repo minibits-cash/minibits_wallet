@@ -39,36 +39,36 @@ const AnimatedPagerView = Animated.createAnimatedComponent(PagerView)
 const PAGES = [
     {
         key: 1,
-        heading: 'welcomeScreen.page1.heading',
-        intro: 'welcomeScreen.page1.intro',
+        heading: 'welcomeScreen_page1_heading',
+        intro: 'welcomeScreen_page1_intro',
         bullets: [
-            {id: '1', tx: 'welcomeScreen.page1.bullet1'},
-            {id: '2', tx: 'welcomeScreen.page1.bullet2'},
-            {id: '3', tx: 'welcomeScreen.page1.bullet3'},            
+            {id: '1', tx: 'welcomeScreen_page1_bullet1'},
+            {id: '2', tx: 'welcomeScreen_page1_bullet2'},
+            {id: '3', tx: 'welcomeScreen_page1_bullet3'},            
         ],
-        final: 'welcomeScreen.page1.final'
+        final: 'welcomeScreen_page1_final'
     },
     {
         key: 2,
-        heading: 'welcomeScreen.page2.heading',
-        intro: 'welcomeScreen.page2.intro',
+        heading: 'welcomeScreen_page2_heading',
+        intro: 'welcomeScreen_page2_intro',
         bullets: [
-            {id: '1', tx: 'welcomeScreen.page2.bullet1'},
-            {id: '2', tx: 'welcomeScreen.page2.bullet2'},
-            {id: '3', tx: 'welcomeScreen.page2.bullet3'},            
+            {id: '1', tx: 'welcomeScreen_page2_bullet1'},
+            {id: '2', tx: 'welcomeScreen_page2_bullet2'},
+            {id: '3', tx: 'welcomeScreen_page2_bullet3'},            
         ],
-        final: 'welcomeScreen.page2.final'
+        final: 'welcomeScreen_page2_final'
     },
     {
         key: 3,
-        heading: 'welcomeScreen.page3.heading',
-        intro: 'welcomeScreen.page3.intro',
+        heading: 'welcomeScreen_page3_heading',
+        intro: 'welcomeScreen_page3_intro',
         bullets: [
-            {id: '1', tx: 'welcomeScreen.page3.bullet1'},
-            {id: '2', tx: 'welcomeScreen.page3.bullet2'},
-            {id: '3', tx: 'welcomeScreen.page3.bullet3'},            
+            {id: '1', tx: 'welcomeScreen_page3_bullet1'},
+            {id: '2', tx: 'welcomeScreen_page3_bullet2'},
+            {id: '3', tx: 'welcomeScreen_page3_bullet3'},            
         ],
-        final: 'welcomeScreen.page3.final'
+        final: 'welcomeScreen_page3_final'
     }       
 ]
 
@@ -251,12 +251,12 @@ export const WelcomeScreen = function ({ route }: Props) {
                             <Button 
                                 onPress={gotoWallet}
                                 preset='secondary'
-                                tx="welcomeScreen.lastPageConfirmButton"
+                                tx="welcomeScreen_lastPageConfirmButton"
                             />
                             <Button 
                                 onPress={gotoRecovery}
                                 preset='tertiary'
-                                tx="welcomeScreen.lastPageRecoverLostWalletButton"
+                                tx="welcomeScreen_lastPageRecoverLostWalletButton"
                                 LeftAccessory={() => {return<Icon icon='faHeartPulse'/>}}
                                 style={{marginTop: spacing.medium}}
                             />

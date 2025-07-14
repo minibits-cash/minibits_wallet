@@ -260,7 +260,7 @@ export const ScanScreen = function ScanScreen({ route }: Props) {
     const onPaste = async function() {        
         const clipboard = await Clipboard.getString()
         if (clipboard.length === 0) {
-            infoMessage(translate("scanScreen.onPasteEmptyClipboard"))
+            infoMessage(translate("scanScreen_onPasteEmptyClipboard"))
             return
         }
 
@@ -300,7 +300,7 @@ export const ScanScreen = function ScanScreen({ route }: Props) {
                             LeftAccessory={() => (
                                 <Icon icon='faPaste'/>
                             )}
-                            tx='common.paste'
+                            tx='commonPaste'
                             preset='secondary'
                             style={{marginTop: spacing.medium, minWidth: 120}}                        
                         />

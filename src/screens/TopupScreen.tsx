@@ -206,7 +206,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
             }
 
             if (!relays) {
-              throw new AppError(Err.VALIDATION_ERROR, translate("nostr.missingRelaysError"))
+              throw new AppError(Err.VALIDATION_ERROR, translate("nostr_missingRelaysError"))
             }
 
             const {pubkey, npub, name, picture} = walletProfileStore
@@ -288,7 +288,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
             status: result.transaction?.status as TransactionStatus,
             title: result.error.params?.message
               ? result.error.message
-              : translate("topup.failed"),
+              : translate("topup_failed"),
             message: result.error.params?.message || result.error.message,
           })
           setIsResultModalVisible(true)
@@ -389,11 +389,11 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
         log.trace('[onAmountEndEditing]', {amount, unit: unitRef.current})
 
         if (!isInternetReachable) {
-          setInfo(translate('common.offlinePretty'))
+          setInfo(translate('commonOfflinePretty'))
         }
 
         if (!amount || amount === 0) {
-          infoMessage(translate('payCommon.amountZeroOrNegative'))
+          infoMessage(translate('payCommon_amountZeroOrNegative'))
           return
         }
 
@@ -402,7 +402,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
           amount < roundUp(lnurlWithdrawParams?.minWithdrawable / 1000, 0)
         ) {
           infoMessage(
-            translate('payCommon.minimumWithdraw', {
+            translate('payCommon_minimumWithdraw', {
               amount: roundUp(lnurlWithdrawParams?.minWithdrawable / 1000, 0),
               currency: CurrencyCode.SAT,
             }),
@@ -414,8 +414,8 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
 
         if (availableBalances.length === 0) {
           infoMessage(
-            translate("topup.missingMintAddFirst"),
-            translate("topup.missingMintAddFirstDesc"),
+            translate("topup_missingMintAddFirst"),
+            translate("topup_missingMintAddFirstDesc"),
           )
           return
         }
@@ -496,7 +496,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
         const receiverPubkey = contactToSendTo?.pubkey
 
         // redable message
-        const message = translate('topup.nostrDMreceived', {
+        const message = translate('topup_nostrDMreceived', {
           npub: walletProfileStore.npub,
           amount: amountToTopup,
           currency: getCurrency(unitRef.current).code
@@ -543,7 +543,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
             })
           }
         } else {
-          setInfo(translate('topup.relayMissingSentEvent'))
+          setInfo(translate('topup_relayMissingSentEvent'))
         }
       } catch (e: any) {
         handleError(e)
@@ -647,11 +647,11 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
     const getAmountTitle = function () {
       switch (paymentOption) {
         case ReceiveOption.SEND_PAYMENT_REQUEST:
-          return translate("amount.requested")
+          return translate("amountRequested")
         case ReceiveOption.LNURL_WITHDRAW:
-          return translate("amount.withdraw")
+          return translate("amountWithdraw")
         default:
-          return translate("amount.topup")
+          return translate("amountTopup")
       }
     }
     
@@ -772,8 +772,8 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
               mintBalances={availableMintBalances}
               selectedMintBalance={mintBalanceToTopup as MintBalance}
               unit={unitRef.current}
-              title={translate("topup.mint")}
-              confirmTitle={translate("common.confirmCreateInvoice")}
+              title={translate("topup_mint")}
+              confirmTitle={translate("commonConfirmCreateInvoice")}
               onMintBalanceSelect={onMintBalanceSelect}
               onCancel={onMintBalanceCancel}
               onMintBalanceConfirm={onMintBalanceConfirm}
@@ -804,7 +804,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
               ContentComponent={
                 <>
                   <TranItem
-                    label="topup.to"
+                    label="topup_to"
                     isFirst={true}
                     value={
                       mintsStore.findByUrl(transaction.mint)
@@ -818,13 +818,13 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
                     />
                   )}
                   <TranItem
-                    label="transactionCommon.feePaid"
+                    label="transactionCommon_feePaid"
                     value={transaction.fee || 0}
                     unit={unitRef.current}
                     isCurrency={true}
                   />
                   <TranItem
-                    label="tranDetailScreen.status"
+                    label="tranDetailScreen_status"
                     value={transaction.status as string}
                   />
                 </>
@@ -836,7 +836,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
               <View style={$buttonContainer}>
                 <Button
                   preset="secondary"
-                  tx='common.close'
+                  tx='commonClose'
                   onPress={gotoWallet}
                 />
               </View>
@@ -908,13 +908,13 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
                     <ResultModalInfo
                       icon="faCheckCircle"
                       iconColor={colors.palette.success200}
-                      title={translate('common.success')}
+                      title={translate('commonSuccess')}
                       message={resultModalInfo?.message}
                     />
                     <View style={$buttonContainer}>
                       <Button
                         preset="secondary"
-                        tx='common.close'
+                        tx='commonClose'
                         onPress={gotoWallet}
                       />
                     </View>
@@ -926,13 +926,13 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
                     <ResultModalInfo
                       icon="faTriangleExclamation"
                       iconColor={colors.palette.angry500}
-                      title={resultModalInfo?.title || translate('topup.failed')}
+                      title={resultModalInfo?.title || translate('topup_failed')}
                       message={resultModalInfo?.message}
                     />
                     <View style={$buttonContainer}>
                       <Button
                         preset="secondary"
-                        tx='common.close'
+                        tx='commonClose'
                         onPress={toggleResultModal}
                       />
                     </View>
@@ -964,7 +964,7 @@ const InvoiceOptionsBlock = observer(function (props: {
         <View style={$buttonContainer}>
           {props.contactToSendTo ? (
             <Button
-              text={translate("topup.sendToNip", { 
+              text={translate("topup_sendToNip", { 
                 sendToNip05: props.contactToSendTo.nip05
               })}
               preset="secondary"
@@ -980,7 +980,7 @@ const InvoiceOptionsBlock = observer(function (props: {
             />
           ) : (
             <Button
-              tx="topup.sendToContact"
+              tx="topup_sendToContact"
               preset="secondary"
               onPress={props.gotoContacts}
               style={{maxHeight: 50}}
@@ -995,7 +995,7 @@ const InvoiceOptionsBlock = observer(function (props: {
           )}
           {props.paymentOption === ReceiveOption.LNURL_WITHDRAW && (
             <Button
-              tx="topup.withdraw"
+              tx="topup_withdraw"
               preset="secondary"
               onPress={props.toggleWithdrawModal}
               style={{marginLeft: spacing.medium}}
@@ -1055,7 +1055,7 @@ const SendAsNostrDMBlock = observer(function (props: {
       ) : (
         <View style={$buttonContainer}>
           <Button
-            tx="topup.sendRequest"
+            tx="topup_sendRequest"
             onPress={props.sendAsNostrDM}
             style={{marginRight: spacing.medium}}
             LeftAccessory={() => (
@@ -1069,7 +1069,7 @@ const SendAsNostrDMBlock = observer(function (props: {
           />
           <Button
             preset="tertiary"
-            tx="common.close"
+            tx="commonClose"
             onPress={props.toggleNostrDMModal}
           />
         </View>
@@ -1095,13 +1095,13 @@ const NostrDMSuccessBlock = observer(function (props: {
       <ResultModalInfo
         icon="faCheckCircle"
         iconColor={colors.palette.success200}
-        title={translate('common.success')}
-        message={translate("walletScreen.paymentSentSuccess")}
+        title={translate('commonSuccess')}
+        message={translate("walletScreen_paymentSentSuccess")}
       />
       <View style={$buttonContainer}>
         <Button
           preset="secondary"
-          tx={'common.close'}
+          tx={'commonClose'}
           onPress={props.onClose}
         />
       </View>
@@ -1227,8 +1227,8 @@ const LnurlWithdrawBlock = observer(function (props: {
       <ListItem
         leftIcon="faCheckCircle"
         leftIconColor={colors.palette.success200}
-        tx="topup.withdrawalAvailable"
-        subText={translate("topup.withdrawAvailableDesc", {
+        tx="topup_withdrawalAvailable"
+        subText={translate("topup_withdrawAvailableDesc", {
           amount: roundDown( props.lnurlWithdrawParams.maxWithdrawable / 1000, 0),
           code: CurrencyCode.SAT
         })}
@@ -1237,11 +1237,11 @@ const LnurlWithdrawBlock = observer(function (props: {
       <ListItem
         leftIcon="faCheckCircle"
         leftIconColor={colors.palette.success200}
-        text={translate("topup.invoiceCreatedParam", {
+        text={translate("topup_invoiceCreatedParam", {
           amount: props.amountToTopup,
           code: CurrencyCode.SAT
         })}
-        subText={translate("topup.invoiceCreatedDescParam", {
+        subText={translate("topup_invoiceCreatedDescParam", {
           mintUrl: props.mintBalanceToTopup.mintUrl
         })}
         bottomSeparator={true}
@@ -1253,7 +1253,7 @@ const LnurlWithdrawBlock = observer(function (props: {
       ) : (
         <View style={[$buttonContainer, {marginTop: spacing.medium}]}>
           <Button
-            tx="topup.withdraw"
+            tx="topup_withdraw"
             onPress={props.onLnurlWithdraw}
             style={{marginRight: spacing.medium}}
             LeftAccessory={() => (
@@ -1267,7 +1267,7 @@ const LnurlWithdrawBlock = observer(function (props: {
           />
           <Button
             preset="tertiary"
-            tx='common.cancel'
+            tx='commonCancel'
             onPress={props.toggleWithdrawModal}
           />
         </View>
@@ -1288,13 +1288,13 @@ const LnurlWithdrawSuccessBlock = observer(function (props: {
       <ResultModalInfo
         icon="faCheckCircle"
         iconColor={colors.palette.success200}
-        title={translate("common.success")}
+        title={translate("commonSuccess")}
         message={`Withdrawal request has been received by ${props.lnurlWithdrawParams.domain}.`}
       />
       <View style={$buttonContainer}>
         <Button
           preset="secondary"
-          tx='common.close'
+          tx='commonClose'
           onPress={props.onClose}
         />
       </View>

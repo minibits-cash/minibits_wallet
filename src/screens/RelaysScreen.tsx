@@ -231,7 +231,7 @@ export const RelaysScreen = observer(function RelaysScreen({ route }: Props) {
                     <ListItem
                         leftIcon="faCloudArrowUp"
                         onPress={onConnect}
-                        tx="common.reconnect"
+                        tx="commonReconnect"
                         bottomSeparator={true}
                         style={{paddingHorizontal: spacing.medium}}
                     />    
@@ -266,19 +266,19 @@ export const RelaysScreen = observer(function RelaysScreen({ route }: Props) {
                         style={[$relayInput, {backgroundColor: inputBg, color: inputText}]}
                     />
                     <Button
-                        tx={'common.paste'}
+                        tx={'commonPaste'}
                         preset='secondary'
                         style={$pasteButton}
                         onPress={onPastePublicRelay}
                     />
                     <Button
-                        tx={'common.save'}
+                        tx={'commonSave'}
                         style={$saveButton}
                         onPress={onSavePublicRelay}
                     />
                 </View>
                 <View style={[$buttonContainer, {marginTop: spacing.medium}]}> 
-                    <Button preset='tertiary' onPress={resetDefaultRelays} tx='common.resetDefault' />
+                    <Button preset='tertiary' onPress={resetDefaultRelays} tx='commonResetDefault' />
                     <Button preset='tertiary' onPress={toggleAddRelayModal} style={{marginLeft: spacing.small}} text='Cancel'/>
                 </View>                
             </View>

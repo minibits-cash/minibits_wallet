@@ -322,7 +322,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
             <Text
               preset="heading"
-              tx="recoveryOptions.title"
+              tx="recoveryOptionsTitle"
               style={{color: 'white'}}
             />
         </View>
@@ -333,8 +333,8 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
                 ContentComponent={
                     <>
                     <ListItem
-                        tx="recoveryOptions.fromBackup"
-                        subTx="recoveryOptions.fromBackupDescription"
+                        tx="recoveryOptionsFromBackup"
+                        subTx="recoveryOptionsFromBackupDescription"
                         leftIcon='faDownload'
                         leftIconColor={colors.palette.focus300}
                         leftIconInverse={true}
@@ -343,8 +343,8 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
                         onPress={gotoImportBackup}
                     />                 
                     <ListItem
-                        tx="recoveryOptions.fromSeed"
-                        subTx="recoveryOptions.fromSeedDescription"
+                        tx="recoveryOptionsFromSeed"
+                        subTx="recoveryOptionsFromSeedDescription"
                         leftIcon='faSeedling'
                         leftIconColor={colors.palette.orange400}
                         leftIconInverse={true}                        
@@ -373,8 +373,8 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
               <Card
                 style={$card}                HeadingComponent={                               
                   <ListItem
-                      tx="backupScreen.removeSpentCoins"
-                      subTx="backupScreen.removeSpentCoinsDescription"
+                      tx="backupRemoveSpentCoins"
+                      subTx="backupRemoveSpentCoinsDescription"
                       leftIcon='faRecycle'
                       leftIconColor={colors.palette.secondary300}
                       leftIconInverse={true}
@@ -524,7 +524,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
                         style={[$quoteInput, {backgroundColor: inputBg, color: inputText}]}
                     />
                     <Button
-                        tx={'common.paste'}
+                        tx={'commonPaste'}
                         preset='secondary'
                         style={$pasteButton}
                         onPress={onPasteMintQuote}
@@ -555,7 +555,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
                         style={[$quoteInput, {backgroundColor: inputBg, color: inputText}]}
                     />
                     <Button
-                        tx={'common.paste'}
+                        tx={'commonPaste'}
                         preset='secondary'
                         style={$pasteButton}
                         onPress={onPasteMintQuote}
@@ -582,7 +582,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
               <View style={$buttonContainer}>
                 <Button
                     preset="secondary"
-                    tx={'common.close'}
+                    tx={'commonClose'}
                     onPress={toggleMintQuoteResultModal}
                 />                      
               </View>
@@ -608,7 +608,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
                         style={[$quoteInput, {backgroundColor: inputBg, color: inputText}]}
                     />
                     <Button
-                        tx={'common.paste'}
+                        tx={'commonPaste'}
                         preset='secondary'
                         style={$pasteButton}
                         onPress={onPasteMeltQuote}
@@ -635,7 +635,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
               <View style={$buttonContainer}>
                 <Button
                     preset="secondary"
-                    tx={'common.close'}
+                    tx={'commonClose'}
                     onPress={toggleMeltQuoteResultModal}
                 />                      
               </View>

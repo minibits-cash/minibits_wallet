@@ -32,8 +32,8 @@ export const FeeBadge = function (props: {
       <Text
         text={
           props.finalFee
-            ? translate('walletScreen.feeBadge.final', {fee: formatCurrency(props.finalFee, props.currencyCode), code: props.currencyCode})
-            : translate('walletScreen.feeBadge.upto', {fee: formatCurrency(props.estimatedFee, props.currencyCode), code: props.currencyCode})
+            ? translate('walletScreen_feeBadge_final', {fee: formatCurrency(props.finalFee, props.currencyCode), code: props.currencyCode})
+            : translate('walletScreen_feeBadge_upto', {fee: formatCurrency(props.estimatedFee, props.currencyCode), code: props.currencyCode})
         }
         style={[
           {

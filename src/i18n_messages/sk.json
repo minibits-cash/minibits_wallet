@@ -300,8 +300,10 @@
 	"settingsScreen_backupRecovery": "Zálohovanie a obnova",
 	"settingsScreen_devOptions": "Vývojárske nastavenia",
 	"settingsScreen_go": "Poďme na to!",
-	"settingsScreen_mintsCount_one": "{{count}} mint",
-	"settingsScreen_mintsCount_other": "{{count}} minty",
+	"settingsScreen_mintsCount": {
+		"one": "{{count}} mint",
+		"other": "{{count}} minty"
+	},
 	"settingsScreen_preferredUnit": "Preferovaná mena",
 	"settingsScreen_exchangeCurrency": "Zobraziť zostatok v mene",
 	"settingsScreen_theme": "Téma",

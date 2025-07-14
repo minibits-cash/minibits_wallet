@@ -109,7 +109,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
             if (error) {
                 setResultModalInfo({
                   status,
-                  title: error.params?.message ? error.message : translate("transactionCommon.receiveFailed"),
+                  title: error.params?.message ? error.message : translate("transactionCommon_receiveFailed"),
                   message: error.params?.message || error.message,
                 })
             } else {
@@ -358,13 +358,13 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
                 {isP2PKLockedToWallet ? (
                   <Text
                       size='xs'
-                      tx={toNumber(receivedAmount) > 0 ? "receiveScreen.received" : "receiveScreen.lockedToWalletPK"}
+                      tx={toNumber(receivedAmount) > 0 ? "receiveScreen_received" : "receiveScreen_lockedToWalletPK"}
                       style={{color: amountInputColor, textAlign: 'center'}}
                   />
                 ) : (
                   <Text
                       size='xs'
-                      tx={toNumber(receivedAmount) > 0 ? "receiveScreen.received" : "receiveScreen.lockedToUnknownPK"}
+                      tx={toNumber(receivedAmount) > 0 ? "receiveScreen_received" : "receiveScreen_lockedToUnknownPK"}
                       style={{color: amountInputColor, textAlign: 'center'}}
                   />
                 )}
@@ -372,7 +372,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
             ) : (
               <Text
                   size='xs'
-                  tx={toNumber(receivedAmount) > 0 ? "receiveScreen.received" : "receiveScreen.toReceive"}
+                  tx={toNumber(receivedAmount) > 0 ? "receiveScreen_received" : "receiveScreen_toReceive"}
                   style={{
                     color: amountInputColor, 
                     textAlign: 'center',
@@ -442,24 +442,24 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
                     ContentComponent={
                     <>
                         <TranItem 
-                            label="transactionCommon.receivedTo"
+                            label="transactionCommon_receivedTo"
                             isFirst={true}
                             value={mintsStore.findByUrl(transaction.mint)?.shortname as string}
                         />
                         {transaction?.memo && (
                         <TranItem
-                            label="receiveScreen.memoFromSender"
+                            label="receiveScreen_memoFromSender"
                             value={transaction.memo as string}
                         />
                         )}
                         <TranItem
-                          label="transactionCommon.feePaid"
+                          label="transactionCommon_feePaid"
                           value={transaction.fee || 0}
                           unit={unit}
                           isCurrency={true}
                         />
                         <TranItem
-                            label="receiveScreen.status"
+                            label="receiveScreen_status"
                             value={transaction.status as string}
                         />
                     </>
@@ -471,7 +471,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
                     <View style={$buttonContainer}>
                     <Button
                         preset="secondary"
-                        tx={'common.close'}
+                        tx={'commonClose'}
                         onPress={gotoWallet}
                     />
                     </View>
@@ -481,7 +481,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
                     <View style={$buttonContainer}>
                         {isInternetReachable ? (
                             <Button
-                                tx='payCommon.receive'
+                                tx='payCommon_receive'
                                 onPress={receiveToken}
                                 style={{marginRight: spacing.medium}}
                                 LeftAccessory={() => (
@@ -494,7 +494,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
                             />
                         ) : (
                             <Button
-                                tx='payCommon.receiveOffline'
+                                tx='payCommon_receiveOffline'
                                 onPress={receiveOfflineToken}
                                 style={{marginRight: spacing.medium}}
                                 LeftAccessory={() => (
@@ -508,7 +508,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
                         )}                  
                     <Button
                         preset="secondary"
-                        tx='common.cancel'
+                        tx='commonCancel'
                         onPress={gotoWallet}
                     />
                     </View>
@@ -526,13 +526,13 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
                   <ResultModalInfo
                     icon={'faCheckCircle'}
                     iconColor={colors.palette.success200}
-                    title={translate('common.success')}
+                    title={translate('commonSuccess')}
                     message={resultModalInfo?.message}
                   />
                   <View style={$buttonContainer}>
                     <Button
                       preset="secondary"
-                      tx='common.close'
+                      tx='commonClose'
                       onPress={gotoWallet}
                     />
                   </View>
@@ -549,7 +549,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
                   <View style={$buttonContainer}>
                     <Button
                       preset="secondary"
-                      tx='common.close'
+                      tx='commonClose'
                       onPress={gotoWallet}
                     />
                   </View>
@@ -561,7 +561,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
                   <ResultModalInfo
                     icon="faTriangleExclamation"
                     iconColor={colors.palette.angry500}
-                    title={resultModalInfo?.title as string || translate('transactionCommon.receiveFailed')}
+                    title={resultModalInfo?.title as string || translate('transactionCommon_receiveFailed')}
                     message={resultModalInfo?.message as string}
                   />
                   <View style={$buttonContainer}>
@@ -574,7 +574,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
                       ) : (
                           <Button
                               preset="secondary"
-                              tx={'common.close'}
+                              tx={'commonClose'}
                               onPress={toggleResultModal}
                           />
                       )}

@@ -110,8 +110,8 @@ export const SecurityScreen = observer(function SecurityScreen({ route }: Props)
                 ContentComponent={
                 <>
                     <ListItem
-                        tx="securityScreen.biometricAuth"
-                        subTx="securityScreen.biometricAuthDescription"
+                        tx="securityScreen_biometricAuth"
+                        subTx="securityScreen_biometricAuthDescription"
                         leftIcon={isBiometricAuthOn ? 'faLock' : 'faLockOpen'}
                         leftIconColor={
                             isBiometricAuthOn
@@ -131,8 +131,8 @@ export const SecurityScreen = observer(function SecurityScreen({ route }: Props)
                     />
                     {/*isBiometricAuthOn && (
                         <ListItem
-                            tx="securityScreen.biometry"
-                            subTx={biometryType ? 'securityScreen.biometryAvailable' : 'securityScreen.biometryNone'}
+                            tx="securityScreen_biometry"
+                            subTx={biometryType ? 'securityScreen_biometryAvailable' : 'securityScreen_biometryNone'}
                             leftIcon='faFingerprint'
                             leftIconColor={colors.palette.iconGreyBlue400}
                             leftIconInverse={true}

@@ -357,8 +357,10 @@
 	"settingsScreen_backupRecovery": "Backup and recovery",
 	"settingsScreen_devOptions": "Developer options",
 	"settingsScreen_go": "Let's go!",
-	"settingsScreen_mintsCount_one": "%{count} mint",
-	"settingsScreen_mintsCount_other": "%{count} mints",
+	"settingsScreen_mintsCount": {
+		"one": "%{count} mint",
+		"other": "%{count} mints"
+	},
 	"settingsScreen_preferredUnit": "Preferred unit",
 	"settingsScreen_exchangeCurrency": "Balance conversion",
 	"settingsScreen_theme": "Theme",

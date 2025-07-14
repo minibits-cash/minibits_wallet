@@ -116,7 +116,7 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
         try {
           Clipboard.setString(nip05)
         } catch (e: any) {
-          setInfo(translate('common.copyFailParam', { param: e.message }))
+          setInfo(translate('commonCopyFailParam', { param: e.message }))
         }
     }
 
@@ -208,21 +208,21 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
                         <>
                             {walletProfileStore.isOwnProfile ? (
                                 <ListItem
-                                    tx="profileOnboarding.ownAddrTitle"
-                                    subTx="profileOnboarding.ownAddrDesc"
+                                    tx="profileOnboarding_ownAddrTitle"
+                                    subTx="profileOnboarding_ownAddrDesc"
                                     leftIcon='faCircleUser'
                                     bottomSeparator={true}
                                     style={{paddingRight: spacing.small}}
                                 />
                             ) : (
                                 <ListItem
-                                    tx="profileOnboarding.minibitsTitle"
-                                    //subTx="profileOnboarding.minibitsDesc"
+                                    tx="profileOnboarding_minibitsTitle"
+                                    //subTx="profileOnboarding_minibitsDesc"
                                     leftIcon='faCircleUser'
                                     BottomComponent={
                                         <CollapsibleText
                                             collapsed={true}                                
-                                            text={translate('profileOnboarding.minibitsDesc')}
+                                            text={translate('profileOnboarding_minibitsDesc')}
                                             textProps={{style: $subText}}
                                         />}
                                     bottomSeparator={true}
@@ -232,13 +232,13 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
                             <View style={$buttonContainer}>                            
                                 <Button
                                     preset='secondary'                                
-                                    tx='common.share'
+                                    tx='commonShare'
                                     LeftAccessory={() => <Icon icon='faShareNodes'/>}
                                     onPress={toggleShareModal}
                                 />
                                 <Button
                                     preset='secondary'                                
-                                    tx="common.change"
+                                    tx="commonChange"
                                     style={{marginLeft: spacing.small}}
                                     LeftAccessory={() => <Icon icon='faRotate'/>}
                                     onPress={toggleUpdateModal}
@@ -362,15 +362,15 @@ const WalletProfileActionsBlock = function (props: {
 return (
     <>
         <ListItem
-            tx='profileScreen.changeAvatar'
-            subTx='profileScreen.changeAvatarSubtext'
+            tx='profileScreen_changeAvatar'
+            subTx='profileScreen_changeAvatarSubtext'
             leftIcon='faCircleUser'            
             onPress={props.gotoAvatar}
             bottomSeparator={true}            
         />
         <ListItem
-            tx='profileScreen.changeWalletaddress'
-            subTx='profileScreen.changeWalletaddressSubtext'
+            tx='profileScreen_changeWalletaddress'
+            subTx='profileScreen_changeWalletaddressSubtext'
             leftIcon='faPencil'
             onPress={props.gotoWalletName}
             // bottomSeparator={true}            

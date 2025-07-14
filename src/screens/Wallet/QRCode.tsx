@@ -114,7 +114,7 @@ export const QRCodeBlock = function (props: {
             500,
           )
         } else if (result.action === Share.dismissedAction) {
-            infoMessage(translate('share.cancelled'))          
+            infoMessage(translate('share_cancelled'))          
         }
       } catch (e: any) {
         handleQrError(e)
@@ -181,7 +181,7 @@ export const QRCodeBlock = function (props: {
         style={{backgroundColor: 'white', paddingBottom: spacing.small}}
         ContentComponent={qrError ? (
           <ListItem 
-              text={translate("qr.fail")}
+              text={translate("qr_fail")}
               subText={qrError ? qrError.message : ''}
               leftIcon='faTriangleExclamation'
               containerStyle={{marginVertical: spacing.large}}

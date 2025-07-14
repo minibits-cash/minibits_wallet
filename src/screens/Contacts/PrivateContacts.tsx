@@ -83,7 +83,7 @@ export const PrivateContacts = observer(function (props: {
         log.trace('Start', newContactName, 'saveNewContact')
         
         if(!newContactName) {
-            setInfo(translate("contactsScreen.privateContacts.saveNewFormat"))
+            setInfo(translate("contactsScreen_privateContacts_saveNewFormat"))
             return
         }
 
@@ -119,7 +119,7 @@ export const PrivateContacts = observer(function (props: {
                 const profileRecord = await MinibitsClient.getWalletProfileByNip05(newContactName + MINIBITS_NIP05_DOMAIN)
 
                 if(!profileRecord) {
-                    warningMessage(translate("contactsScreen.privateContacts.profileNotFound", { 
+                    warningMessage(translate("contactsScreen_privateContacts_profileNotFound", { 
                       name: newContactName + MINIBITS_NIP05_DOMAIN 
                     }))
                     setIsLoading(false)
@@ -289,16 +289,16 @@ export const PrivateContacts = observer(function (props: {
                     leftIcon="faComment"
                     leftIconInverse={true}
                     leftIconColor={colors.palette.iconGreen200}
-                    tx='contactsScreen.privateContacts.explainerText'
-                    subTx="contactsScreen.privateContacts.explainerSubText"
+                    tx='contactsScreen_privateContacts_explainerText'
+                    subTx="contactsScreen_privateContacts_explainerSubText"
                     onPress={gotoNew}
                   />
                   <ListItem
                     leftIcon="faCircleUser"
                     leftIconInverse={true}
                     leftIconColor={colors.palette.iconMagenta200}
-                    tx="contactsScreen.privateContacts.switchName"
-                    subTx='contactsScreen.privateContacts.switchNameSubText'
+                    tx="contactsScreen_privateContacts_switchName"
+                    subTx='contactsScreen_privateContacts_switchNameSubText'
                     onPress={gotoProfile}
                     topSeparator={true}
                   />
@@ -330,11 +330,11 @@ export const PrivateContacts = observer(function (props: {
           isVisible={isNewContactModalVisible ? true : false}
           ContentComponent={
             <View style={$newContainer}>
-              <Text tx="contactsScreen.newTitle" preset="subheading" />
+              <Text tx="contactsScreen_newTitle" preset="subheading" />
               <Text
                 size="xxs"
                 style={{color: domainText}}
-                tx="contactsScreen.privateContacts.bottomModal"
+                tx="contactsScreen_privateContacts_bottomModal"
               />
               <View
                 style={{
@@ -372,7 +372,7 @@ export const PrivateContacts = observer(function (props: {
                   </View>
                 )}
                 <Button
-                  tx={'common.save'}
+                  tx={'commonSave'}
                   style={{
                     borderRadius: spacing.small,
                     marginRight: spacing.small,
@@ -384,8 +384,8 @@ export const PrivateContacts = observer(function (props: {
                 preset="tertiary"
                 tx={
                   isExternalDomain
-                    ? 'contactsScreen.privateContacts.domainMinibits'
-                    : 'contactsScreen.privateContacts.domainExternal'
+                    ? 'contactsScreen_privateContacts_domainMinibits'
+                    : 'contactsScreen_privateContacts_domainExternal'
                 }
                 onPress={toggleExternalDomain}
                 style={{alignSelf: 'flex-start', minHeight: verticalScale(30)}}

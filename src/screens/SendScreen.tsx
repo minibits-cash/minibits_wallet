@@ -574,14 +574,14 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             log.trace('[onAmountEndEditing]', amount)
 
             if (!amount || amount === 0) {
-                infoMessage(translate('payCommon.amountZeroOrNegative'))
+                infoMessage(translate('payCommon_amountZeroOrNegative'))
                 return
             }
             
             const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(amount, unitRef.current)
 
             if (availableBalances.length === 0) {
-                infoMessage(translate('payCommon.insufficientFunds'))
+                infoMessage(translate('payCommon_insufficientFunds'))
                 return
             }
 
@@ -1051,7 +1051,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 ) : (
                     <Text
                         size='xs'
-                        tx='amount.send'
+                        tx='amountSend'
                         style={{
                             color: amountInputColor,
                             textAlign: 'center',
@@ -1106,7 +1106,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     ContentComponent={
                     <>
                         <TranItem 
-                            label="tranDetailScreen.sentTo"
+                            label="tranDetailScreen_sentTo"
                             isFirst={true}
                             value={mintsStore.findByUrl(transaction.mint)?.shortname as string}
                         />
@@ -1117,13 +1117,13 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                         />
                         )}
                         <TranItem
-                        label="transactionCommon.feePaid"
+                        label="transactionCommon_feePaid"
                         value={transaction.fee || 0}
                         unit={unitRef.current}
                         isCurrency={true}
                         />
                         <TranItem
-                            label="tranDetailScreen.status"
+                            label="tranDetailScreen_status"
                             value={transaction.status as string}
                         />
                     </>
@@ -1135,7 +1135,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     <View style={$buttonContainer}>
                         <Button
                             preset="secondary"
-                            tx={'common.close'}
+                            tx={'commonClose'}
                             onPress={gotoWallet}
                         />
                     </View>
@@ -1193,7 +1193,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     />
                     <Button
                         preset='secondary'
-                        tx='common.paste'
+                        tx='commonPaste'
                         style={{
                             borderRadius: 0,
                             marginLeft: -spacing.small,
@@ -1204,7 +1204,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     />
                     <Button
                         preset='secondary'
-                        tx="common.scan"
+                        tx="commonScan"
                         style={{
                             borderTopLeftRadius: 0,
                             borderBottomLeftRadius: 0,  
@@ -1311,7 +1311,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     <Button
                         style={{marginRight: spacing.medium}}
                         preset="tertiary"
-                        tx="common.cancel"
+                        tx="commonCancel"
                         onPress={onLockPubkeyCancel}
                     />
                 </View>
@@ -1365,7 +1365,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     <View style={$buttonContainer}>
                       <Button
                         preset="secondary"
-                        tx={'common.close'}
+                        tx={'commonClose'}
                         onPress={gotoWallet}
                       />
                     </View>
@@ -1396,7 +1396,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                         ) : (
                             <Button
                                 preset="secondary"
-                                tx={'common.close'}
+                                tx={'commonClose'}
                                 onPress={toggleResultModal}
                             />
                         )}
@@ -1665,7 +1665,7 @@ const SendAsNostrDMBlock = observer(function (props: {
         <View style={$buttonContainer}>
             <Button
             preset="secondary"
-            tx={'common.close'}
+            tx={'commonClose'}
             onPress={props.onClose}
             />
         </View>
