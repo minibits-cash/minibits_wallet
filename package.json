@@ -17,7 +17,8 @@
     "adb:unreverse": "adb devices && adb reverse --remove-all",
     "adb:inspect": "adb shell input keyevent 82",
     "postinstall": "patch-package --exclude 'nothing'",
-    "clean": "npx react-native-clean-project"
+    "clean": "npx react-native-clean-project",
+	"machine-translate": "npx @inlang/cli machine translate --project minibits.inlang"
   },
   "dependencies": {
     "@cashu/cashu-ts": "minibits-cash/cashu-ts#b3ba36757d84ec03f1064029db02308eb3a09cc4",

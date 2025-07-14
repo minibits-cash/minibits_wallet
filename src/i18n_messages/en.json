@@ -143,6 +143,13 @@
 	"developerScreen_title": "Developer options",
 	"developerScreen_transactions": "Sync recent transactions",
 	"developerScreen_transactionsDescription": "There are %{count} recent transactions cached in the app's fast storage. Resetting will reload them from the app's database. Do only during development or testing.",
+	"emptyStateComponent": {
+		"generic": {
+			"button": "Try again",
+			"content": "There is nothing to display at the moment.",
+			"heading": "No data available"
+		}
+	},
 	"errorScreen_friendlySubtitle": "Unfortunately, the Minibits app encountered an unexpected error. Please contact us at support@minibits.cash or raise an issue on Github.",
 	"errorScreen_reset": "RESET APP",
 	"errorScreen_title": "Something went wrong!",
@@ -684,12 +691,5 @@
 	"welcomeScreen_page3_final": "Now, let's move some ecash!",
 	"welcomeScreen_page3_go": "Let's go!",
 	"welcomeScreen_page3_heading": "Don't forget",
-	"welcomeScreen_page3_intro": "Both the Cashu protocol and the Minibits wallet are experimental. By using them, you accept known and unknown risks.",
-	"emptyStateComponent": {
-		"generic": {
-			"heading": "No data available",
-			"content": "There is nothing to display at the moment.",
-			"button": "Try again"
-		}
-	}
+	"welcomeScreen_page3_intro": "Both the Cashu protocol and the Minibits wallet are experimental. By using them, you accept known and unknown risks."
 }
