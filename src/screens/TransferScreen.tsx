@@ -416,7 +416,7 @@ useEffect(() => {
 
               setResultModalInfo({
                 status,
-                message: `Donation for ${donationForName} has been successfully paid and your wallet address has been updated. Thank you!`,
+                message: translate('transferScreen_donationSuccessMessage', {donationForName}),
               })
 
             } else {

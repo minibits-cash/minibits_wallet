@@ -21,7 +21,6 @@
 	"backupRemoveSpentCoins": "Odstráň minutý ecash",
 	"backupRemoveSpentCoinsDescription": "V prípade SEND a TRANSFER chyby, minutý ecash môže ostať v tvojej peňaženke. Toto zablokuje ďalšie transakcie s mintom. Tento nástroj odstráni minutý ecash z peňaženky.",
 	"backupResult": "Minuté ecash bankovky boli odstránené z peňaženky.",
-	"backupScreen_mnemonicDesc": "týchto 12 slov reprezentuje tvoj seed kľúč a umožňuje obnoviť tvoj ecash ak stratíš svoj mobil. Ulož na bezpečné miesto.",
 	"backupSeedBackup": "Záloha seed kľúča",
 	"backupSuccess": "Tvoje Minibits bankovky boli zálohované do lokálnej databázy. Nové bankovky budú zálohované automaticky.",
 	"backupWalletBackupDescription": "Exportovať zálohu peňaženky, aby ste ju mohli importovať do nového zariadenia.",
@@ -160,7 +159,6 @@
 	"exportBackupEcashProofs": "Ecash dôkazy",
 	"exportBackupMints": "Minty",
 	"exportBackupWalletTitle": "Záloha peňaženky",
-	"exportEcash": "Exportuj ecash",
 	"factoryResetSuccess": "Factory reset ukončený, ihneď reštartuj aplikáciu.",
 	"factoryResetUserConfirmDesc": "Všetky dáta aplikácie budú vymazané. Si si istý, že chceš pokračovať?",
 	"importBackupInsertWalletBackup": "Vložiť zálohu peňaženky",
@@ -630,6 +628,7 @@
 	"transactionCommon_youPaid": "Zaplatil si",
 	"transactionCommon_youReceived": "Prijal si",
 	"transactionCommon_youSent": "Poslal si",
+	"transferScreen_donationSuccessMessage": "Dar pre %{donationForName} bol úspešne zaplatený a vaša adresa peňaženky bola aktualizovaná. Ďakujeme!",
 	"transferScreen_insufficientFunds": "Nie je dostatočný zostatok %{currency} na zaplatenie sumy invoice a poplatku: %{amount} %{currency}",
 	"transferScreen_LUD18unsupported": "Minibits ešte nepodporuje zadanie údajov platiteľa (LUD1á)",
 	"transferScreen_noMintWithBalance": "Neexistuje žiaden mint so zostatkom %{unit} z ktorého je možné uskutočniť platbu.",
@@ -639,6 +638,7 @@
 	"updateModal_desc": "Aktualizácie poskytujú nové funkčnosti a dôležité opravy. Pozri si detaily v správcovi aktualizácií.",
 	"updateModal_title": "Nová Minibits verzia je k dispozícii",
 	"updateScreen_apkOnGithub": "APK na Github",
+	"updateScreen_couldNotRetrieveUpdate": "Nepodarilo sa získať informácie o aktualizácii",
 	"updateScreen_defaultUpdateDesc": "Vylepšenia výkonu a UX",
 	"updateScreen_downloading": "Sťahujem aktualizáciu...",
 	"updateScreen_gotoPlayStore": "Prejdi do Play Store",
@@ -646,6 +646,7 @@
 	"updateScreen_nativeUpdateAvailableDesc": "Nová natívna verzia Minibits peňaženky je na Google Play Store.",
 	"updateScreen_updateAvailable": "Aktulizácia je k dispozícii",
 	"updateScreen_updateAvailableDesc": "Máme novú Minibits aktualizáciu pripravenú na stiahnutie a inštaláciu.",
+	"updateScreen_updateInProgress": "Prebieha aktualizácia...",
 	"updateScreen_updateManagerTitle": "Správca aktualizácií",
 	"updateScreen_updateNew": "Čo je nové?",
 	"updateScreen_updateNotAvailable": "Žiadna aktualizácia nie je k dispozícii",
@@ -693,5 +694,7 @@
 	"welcomeScreen_page3_final": "Teraz, poďme presunúť nejaké peniaze v hotovosti!",
 	"welcomeScreen_page3_go": "Poďme!",
 	"welcomeScreen_page3_heading": "Nezabudnite",
-	"welcomeScreen_page3_intro": "Protokol Cashu aj peňaženka Minibits sú experimentálne. Ich používaním akceptujete známe aj neznáme riziká."
+	"welcomeScreen_page3_intro": "Protokol Cashu aj peňaženka Minibits sú experimentálne. Ich používaním akceptujete známe aj neznáme riziká.",
+	"backupScreen_mnemonicDesc": "týchto 12 slov reprezentuje tvoj seed kľúč a umožňuje obnoviť tvoj ecash ak stratíš svoj mobil. Ulož na bezpečné miesto.",
+	"exportEcash": "Exportuj ecash"
 }

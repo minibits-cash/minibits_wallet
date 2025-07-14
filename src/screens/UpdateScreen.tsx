@@ -97,7 +97,7 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
             })
 
             if (!updateInfo) {
-                throw new AppError(Err.NETWORK_ERROR, 'Could not retrieve update information')
+                throw new AppError(Err.NETWORK_ERROR, translate('updateScreen_couldNotRetrieveUpdate'))
             }
 
             await HotUpdater.updateBundle(updateInfo.id, updateInfo.fileUrl)
@@ -233,7 +233,7 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
                     icon='faDownload'
                     iconColor={colors.palette.accent400}
                     title={`${Math.round(progress * 100)}%`}
-                    message='Update is in progress...'
+                    message={translate('updateScreen_updateInProgress')}
                 />     
             }
             onBackButtonPress={toggleUpdateModal}
