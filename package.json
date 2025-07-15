@@ -12,7 +12,7 @@
     "lint": "eslint .",
     "start": "react-native start",
     "test": "jest",
-    "test:i18n": "node __tests__/missingTranslations.js && node __tests__/incorrectTranslationPlaceholders.js",
+    "test:i18n": "node __tests__/missingTranslations.js && node __tests__/incorrectTranslationPlaceholders.js && node __tests__/missingTranslationKeys.js",
     "adb": "adb devices && adb reverse tcp:9090 tcp:9090 && adb reverse tcp:3000 tcp:3000 && adb reverse tcp:9001 tcp:9001 && adb reverse tcp:8081 tcp:8081",
     "adb:unreverse": "adb devices && adb reverse --remove-all",
     "adb:inspect": "adb shell input keyevent 82",
