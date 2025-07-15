@@ -8,7 +8,7 @@
   "modules": [
     "https://cdn.jsdelivr.net/npm/@inlang/message-lint-rule-empty-pattern@latest/dist/index.js",
     "https://cdn.jsdelivr.net/npm/@inlang/message-lint-rule-without-source@latest/dist/index.js",
-    "https://cdn.jsdelivr.net/gh/KraXen72/inlang-t-function-jsx-hybrid-matcher@main/dist/index.js",
+    "https://cdn.jsdelivr.net/gh/KraXen72/inlang-t-function-jsx-hybrid-matcher@pre-sdk-migration/dist/index.js",
     "https://cdn.jsdelivr.net/npm/@inlang/plugin-json@latest/dist/index.js"
   ],
   "plugin.inlang.json": {
