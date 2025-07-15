@@ -57,49 +57,49 @@ export const TransactionListItem = observer(function (props: TransactionListProp
       case TransactionType.RECEIVE:
         if (tx.sentFrom) {
           if (!tx.memo || tx.memo.includes('Sent from Minibits')) {
-            return translate('transactionCommon.from', {sender: getProfileName(tx.sentFrom)})
+            return translate('transactionCommon_from', {sender: getProfileName(tx.sentFrom)})
           }
         } else {
-          return tx.memo ? tx.memo : translate('transactionCommon.youReceived')
+          return tx.memo ? tx.memo : translate('transactionCommon_youReceived')
         }
       case TransactionType.RECEIVE_BY_PAYMENT_REQUEST:
         if (tx.sentFrom) {
           if (!tx.memo || tx.memo.includes('Sent from Minibits')) {
-            return translate('transactionCommon.from', {sender: getProfileName(tx.sentFrom)})
+            return translate('transactionCommon_from', {sender: getProfileName(tx.sentFrom)})
           }
         } else {
-          return tx.memo ? tx.memo : translate('transactionCommon.youReceived')
+          return tx.memo ? tx.memo : translate('transactionCommon_youReceived')
         }
       case TransactionType.RECEIVE_OFFLINE:
         if (tx.sentFrom) {
           if (!tx.memo || tx.memo.includes('Sent from Minibits')) {
-            return translate('transactionCommon.from', {sender: getProfileName(tx.sentFrom)})
+            return translate('transactionCommon_from', {sender: getProfileName(tx.sentFrom)})
           }
         } else {
-          return tx.memo ? tx.memo : translate('transactionCommon.youReceived')
+          return tx.memo ? tx.memo : translate('transactionCommon_youReceived')
         }
       case TransactionType.SEND:
         return (tx.memo
           ? tx.memo
           : tx.sentTo
-          ? translate('transactionCommon.sentTo', {receiver: getProfileName(tx.sentTo)})
-          : translate('transactionCommon.youSent'))
+          ? translate('transactionCommon_sentTo', {receiver: getProfileName(tx.sentTo)})
+          : translate('transactionCommon_youSent'))
       case TransactionType.TOPUP:
         return (tx.memo
           ? tx.memo
           : tx.sentFrom
-          ? translate('transactionCommon.receivedFrom', {sender: getProfileName(tx.sentFrom)})
-          : translate('transactionCommon.youReceived'))
+          ? translate('transactionCommon_receivedFrom', {sender: getProfileName(tx.sentFrom)})
+          : translate('transactionCommon_youReceived'))
       case TransactionType.TRANSFER:
         return (tx.memo && tx.memo !== 'LNbits'
           ? tx.memo
           : tx.sentTo
           ? tx.status === TransactionStatus.COMPLETED ? 
-            translate('transactionCommon.paidTo', {receiver: getProfileName(tx.sentTo)})
-          : translate('transactionCommon.payTo', {receiver: getProfileName(tx.sentTo)})
-          : translate('transactionCommon.youPaid'))        
+            translate('transactionCommon_paidTo', {receiver: getProfileName(tx.sentTo)})
+          : translate('transactionCommon_payTo', {receiver: getProfileName(tx.sentTo)})
+          : translate('transactionCommon_youPaid'))        
       default:
-        return translate('transactionCommon.unknown')
+        return translate('transactionCommon_unknown')
     }
   }
 
@@ -114,40 +114,40 @@ export const TransactionListItem = observer(function (props: TransactionListProp
       case TransactionStatus.COMPLETED:
         if(tx.fee && tx.fee > 0) {
           if(isTimeAgoVisible) {
-            return timeAgo + 'Fee ' + tx.fee
+            return timeAgo + translate('transactionCommon_fee') + ' ' + tx.fee
           } else {
-            return 'Fee ' + tx.fee
+            return translate('transactionCommon_fee') + ' ' + tx.fee
           }
             
         } else {
           if(isTimeAgoVisible) {
             return distance
           } else {
-            return translate('transactionCommon.status.completed')
+            return translate('transactionCommon_status_completed')
           }
         }
       case TransactionStatus.RECOVERED:
-        return timeAgo + translate('transactionCommon.status.recovered')
+        return timeAgo + translate('transactionCommon_status_recovered')
       case TransactionStatus.DRAFT:
-        return timeAgo + translate('transactionCommon.status.draft')
+        return timeAgo + translate('transactionCommon_status_draft')
       case TransactionStatus.ERROR:
-        return timeAgo + translate('transactionCommon.status.error')
+        return timeAgo + translate('transactionCommon_status_error')
       case TransactionStatus.PENDING:
-        return timeAgo + translate('transactionCommon.status.pending')
+        return timeAgo + translate('transactionCommon_status_pending')
       case TransactionStatus.PREPARED:
-        return timeAgo + translate('transactionCommon.status.prepared')
+        return timeAgo + translate('transactionCommon_status_prepared')
       case TransactionStatus.PREPARED_OFFLINE:
         if (isInternetReachable) {
-          return timeAgo + translate('transactionCommon.tapToRedeem')
+          return timeAgo + translate('transactionCommon_tapToRedeem')
         } else {
-          return timeAgo + translate('transactionCommon.redeemOnline')
+          return timeAgo + translate('transactionCommon_redeemOnline')
         }
       case TransactionStatus.REVERTED:
-        return timeAgo + translate('transactionCommon.status.reverted')
+        return timeAgo + translate('transactionCommon_status_reverted')
       case TransactionStatus.BLOCKED:
-        return timeAgo + translate('transactionCommon.status.blocked')
+        return timeAgo + translate('transactionCommon_status_blocked')
       case TransactionStatus.EXPIRED:
-        return timeAgo + translate('transactionCommon.status.expired')
+        return timeAgo + translate('transactionCommon_status_expired')
       default:
         return timeAgo
     }

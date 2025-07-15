@@ -42,7 +42,7 @@ export const MemoInputCard = forwardRef<TextInput, MemoInputProps>((props, memoI
             maxLength={maxLength}
             keyboardType="default"
             selectTextOnFocus={true}
-            placeholder={translate('sendScreen.memo')}
+            placeholder={translate('sendScreen_memo')}
             placeholderTextColor={placeholderTextColor}
             editable={!disabled}
           />

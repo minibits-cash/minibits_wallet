@@ -574,14 +574,14 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             log.trace('[onAmountEndEditing]', amount)
 
             if (!amount || amount === 0) {
-                infoMessage(translate('payCommon.amountZeroOrNegative'))
+                infoMessage(translate('payCommon_amountZeroOrNegative'))
                 return
             }
             
             const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(amount, unitRef.current)
 
             if (availableBalances.length === 0) {
-                infoMessage(translate('payCommon.insufficientFunds'))
+                infoMessage(translate('payCommon_insufficientFunds'))
                 return
             }
 
@@ -1043,7 +1043,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                         />
                         <Text
                             size='xs'
-                            text="Locked"
+                            tx="sendLocked"
                             style={{color: amountInputColor, marginLeft: spacing.tiny}}
                         />
 
@@ -1051,7 +1051,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 ) : (
                     <Text
                         size='xs'
-                        tx='amount.send'
+                        tx='amountSend'
                         style={{
                             color: amountInputColor,
                             textAlign: 'center',
@@ -1106,7 +1106,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     ContentComponent={
                     <>
                         <TranItem 
-                            label="tranDetailScreen.sentTo"
+                            label="tranDetailScreen_sentTo"
                             isFirst={true}
                             value={mintsStore.findByUrl(transaction.mint)?.shortname as string}
                         />
@@ -1117,13 +1117,13 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                         />
                         )}
                         <TranItem
-                        label="transactionCommon.feePaid"
+                        label="transactionCommon_feePaid"
                         value={transaction.fee || 0}
                         unit={unitRef.current}
                         isCurrency={true}
                         />
                         <TranItem
-                            label="tranDetailScreen.status"
+                            label="tranDetailScreen_status"
                             value={transaction.status as string}
                         />
                     </>
@@ -1135,7 +1135,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     <View style={$buttonContainer}>
                         <Button
                             preset="secondary"
-                            tx={'common.close'}
+                            tx={'commonClose'}
                             onPress={gotoWallet}
                         />
                     </View>
@@ -1164,11 +1164,11 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             isVisible={isPubkeySelectorModalVisible}
             ContentComponent={
                 <View style={$bottomModal}>
-                <Text text="Lock ecash" preset="subheading" />
+                <Text tx="sendLockEcash" preset="subheading" />
                 <Text
                     size="xxs"
                     style={{color: hintColor}}
-                    text="Lock ecash token to one of your contacts or to a public key. Only the receiver will be able to unlock it."
+                    tx="sendLockEcashDesc"
                 />
                 <View
                     style={{
@@ -1193,7 +1193,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     />
                     <Button
                         preset='secondary'
-                        tx='common.paste'
+                        tx='commonPaste'
                         style={{
                             borderRadius: 0,
                             marginLeft: -spacing.small,
@@ -1204,7 +1204,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     />
                     <Button
                         preset='secondary'
-                        tx="common.scan"
+                        tx="commonScan"
                         style={{
                             borderTopLeftRadius: 0,
                             borderBottomLeftRadius: 0,  
@@ -1252,7 +1252,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 <Text
                     size="xxs"
                     style={{color: hintColor, marginTop: spacing.small}}
-                    text="Lock for" 
+                    tx="sendLockFor" 
                 />
                 <View
                     style={[
@@ -1303,7 +1303,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 </View>
                 <View style={[$buttonContainer, {marginTop: spacing.medium}]}>
                     <Button
-                        text="Lock"
+                        tx="sendLock"
                         LeftAccessory={() => (<Icon icon="faLock" color="white" size={spacing.medium}/>)}
                         onPress={onLockPubkeySelect}
                         style={{marginRight: spacing.medium}}
@@ -1311,7 +1311,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     <Button
                         style={{marginRight: spacing.medium}}
                         preset="tertiary"
-                        tx="common.cancel"
+                        tx="commonCancel"
                         onPress={onLockPubkeyCancel}
                     />
                 </View>
@@ -1365,7 +1365,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     <View style={$buttonContainer}>
                       <Button
                         preset="secondary"
-                        tx={'common.close'}
+                        tx={'commonClose'}
                         onPress={gotoWallet}
                       />
                     </View>
@@ -1396,7 +1396,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                         ) : (
                             <Button
                                 preset="secondary"
-                                tx={'common.close'}
+                                tx={'commonClose'}
                                 onPress={toggleResultModal}
                             />
                         )}
@@ -1464,9 +1464,9 @@ const SelectProofsBlock = observer(function (props: {
                     ]}
                 />
             </View>
-            <Text text='Select ecash to send' style={{marginTop: spacing.large}}/>
+            <Text tx='sendSelectEcashToSend' style={{marginTop: spacing.large}}/>
             <Text
-                text='You can only send exact ecash denominations while you are offline.'
+                tx='sendOfflineExactDenoms'
                 style={{color: hintColor, paddingHorizontal: spacing.small, textAlign: 'center'}}
                 size='xs'
             />               
@@ -1506,13 +1506,13 @@ const SelectProofsBlock = observer(function (props: {
             <View style={[$bottomContainer, {marginTop: spacing.extraLarge}]}>
                 <View style={[$buttonContainer]}>
                     <Button
-                        text="Create token"
+                        tx="sendCreateToken"
                         onPress={props.onOfflineSendConfirm}
                         style={{marginRight: spacing.medium}}          
                     />
                     <Button 
                         preset="secondary" 
-                        text="Cancel" 
+                        tx="commonCancel" 
                         onPress={onCancel} 
                     />        
                 </View>
@@ -1552,7 +1552,7 @@ const SelectProofsBlock = observer(function (props: {
                     />
                   ) : (
                     <Button
-                        text='Send to contact'
+                        tx='sendToContact'
                         preset='secondary'
                         onPress={props.gotoContacts}                        
                         style={{
@@ -1617,7 +1617,7 @@ const SendAsNostrDMBlock = observer(function (props: {
         ) : (
             <View style={$buttonContainer}>            
                 <Button
-                    text="Send"
+                    tx="commonSend"
                     onPress={props.sendAsNostrDM}
                     style={{marginRight: spacing.medium}}
                     LeftAccessory={() => (
@@ -1631,7 +1631,7 @@ const SendAsNostrDMBlock = observer(function (props: {
                 />          
                 <Button
                     preset="tertiary"
-                    text="Close"
+                    tx="commonClose"
                     onPress={props.toggleNostrDMModal}
                 />           
             </View>
@@ -1665,7 +1665,7 @@ const SendAsNostrDMBlock = observer(function (props: {
         <View style={$buttonContainer}>
             <Button
             preset="secondary"
-            tx={'common.close'}
+            tx={'commonClose'}
             onPress={props.onClose}
             />
         </View>

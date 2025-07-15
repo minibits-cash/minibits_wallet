@@ -110,7 +110,7 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
     return (
       <Screen style={$screen} preset='fixed'>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text preset="heading" text="Privacy" style={{color: headerTitle}} />
+          <Text preset="heading" tx="privacyScreen_title" style={{color: headerTitle}} />
         </View>
         <ScrollView style={$contentContainer}>
             {/*<Card
@@ -118,8 +118,8 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
                 ContentComponent={
                 <>
                     <ListItem
-                        tx="privacyScreen.torDaemon"
-                        subTx="privacyScreen.torDaemonDescription"
+                        tx="privacyScreen_torDaemon"
+                        subTx="privacyScreen_torDaemonDescription"
                         leftIcon={'faBullseye'}
                         leftIconColor={
                             isTorDaemonOn
@@ -139,7 +139,7 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
                     />
                     {isTorDaemonOn && (
                         <ListItem
-                            tx="privacyScreen.torStatus"
+                            tx="privacyScreen_torStatus"
                             subText={`${torStatus}`}
                             leftIcon={torStatus === TorStatus.NOTINIT ? (
                                 'faBan'
@@ -190,10 +190,10 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
                 ContentComponent={
                 <>                    
                     <ListItem
-                        tx="nostr.useOwnProfile.title"
+                        tx="nostr_useOwnProfile_title"
                         subText={walletProfileStore.isOwnProfile 
                           ? walletProfileStore.nip05 
-                          : translate("nostr.useOwnProfile.desc")
+                          : translate("nostr_useOwnProfile_desc")
                         }
                         leftIcon={'faShareNodes'}
                         leftIconColor={
@@ -208,14 +208,14 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
                                 <Button
                                     style={{maxHeight: 10, marginTop: spacing.medium}}
                                     preset="secondary"
-                                    tx="common.reset"
+                                    tx="commonReset"
                                     onPress={resetProfile}
                                 />
                             ) : (
                                 <Button
                                     style={{maxHeight: 10, marginTop: spacing.medium}}
                                     preset="secondary"
-                                    tx="common.import"
+                                    tx="commonImport"
                                     onPress={gotoOwnKeys}
                                 />
                             )}
@@ -231,8 +231,8 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
                 ContentComponent={
                 <>                    
                     <ListItem
-                        tx="privacyScreen.logger"
-                        subTx="privacyScreen.loggerDescription"
+                        tx="privacyScreen_logger"
+                        subTx="privacyScreen_loggerDescription"
                         leftIcon={'faBug'}
                         leftIconColor={
                             isLoggerOn

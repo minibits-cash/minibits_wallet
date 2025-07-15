@@ -367,7 +367,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         log.trace('newMintUrl', newMintUrl)
         
         if (mintsStore.alreadyExists(newMintUrl)) {
-            const msg = translate('walletScreen.mintExists')
+            const msg = translate('walletScreen_mintExists')
             log.info(msg)
             setInfo(msg)
             return
@@ -527,7 +527,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                                 <ListItem 
                                     leftIcon='faArrowTurnDown'
                                     leftIconColor={colors.palette.green400}
-                                    text='Start by funding your wallet'
+                                    tx='walletScreen_startByFunding'
                                     textStyle={{fontSize: moderateScale(14)}}
                                     RightComponent={
                                         <View style={$rightContainer}>
@@ -583,7 +583,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         if (!isInternetReachable) {
             return (
                 <Text
-                    tx="common.offline"
+                    tx="commonOffline"
                     style={$warning}
                     size="xxs"
                 />
@@ -665,7 +665,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                                     HeadingComponent={<Text text={item.name} size='xs'/>}                                        
                                     ContentComponent={
                                         <>
-                                        <Text text='Spent today' size='xxs' preset='formHelper' style={{color: label, overflow: 'hidden'}}/>
+                                        <Text tx='walletScreen_spentToday' size='xxs' preset='formHelper' style={{color: label, overflow: 'hidden'}}/>
                                         <CurrencyAmount 
                                             amount={item.dailyLimit - item.remainingDailyLimit}
                                             currencyCode={CurrencyCode.SAT}
@@ -703,7 +703,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                         style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonSend]}
                         textStyle={{marginRight: spacing.tiny}}
                         preset='secondary'
-                        tx='payCommon.send'
+                        tx='payCommon_send'
                     />             
                     <Button
                         RightAccessory={() => (
@@ -729,7 +729,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                             />
                         )}
                         onPress={toggleReceiveModal}
-                        tx='payCommon.receive'
+                        tx='payCommon_receive'
                         style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonReceive]}
                         textStyle={{marginLeft: spacing.tiny}}
                         preset='secondary'
@@ -753,8 +753,8 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                         />
                     </View>
                 }
-                tx="updateModal.title"
-                subTx="updateModal.desc"
+                tx="updateModal_title"
+                subTx="updateModal_desc"
                 onPress={gotoUpdate}
             />
             }
@@ -783,15 +783,15 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             <>
             <ListItem   
                 leftIcon='faMoneyBill1'                          
-                tx="walletScreen.sendEcash"
-                subTx="walletScreen.sendEcashDesc"
+                tx="walletScreen_sendEcash"
+                subTx="walletScreen_sendEcashDesc"
                 onPress={gotoSend}
                 bottomSeparator={true}
             />
             <ListItem   
                 leftIcon='faBolt'             
-                tx="walletScreen.payWithLightning"
-                subTx="walletScreen.payWithLightningDesc"
+                tx="walletScreen_payWithLightning"
+                subTx="walletScreen_payWithLightningDesc"
                 onPress={() => gotoLightningPay()}
             />
             </>      
@@ -806,15 +806,15 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             <>
             <ListItem   
                 leftIcon='faMoneyBill1'             
-                tx="walletScreen.receiveEcash"
-                subTx="walletScreen.receiveEcashDesc"
+                tx="walletScreen_receiveEcash"
+                subTx="walletScreen_receiveEcashDesc"
                 onPress={gotoTokenReceive}
                 bottomSeparator={true}
             />
             <ListItem      
                 leftIcon='faBolt'          
-                tx='walletScreen.topupWithLightning'
-                subTx="walletScreen.topupWithLightningDesc"
+                tx='walletScreen_topupWithLightning'
+                subTx="walletScreen_topupWithLightningDesc"
                 onPress={() => gotoTopup()}
             />
             </>      
@@ -898,7 +898,7 @@ const MintsByUnitSummary = observer(function (props: {
     }, [])
     
     const {mintsByUnit} = props
-    const mintsCountText = `and ${mintsByUnit.mints.length - 1} other${mintsByUnit.mints.length - 1 > 1 ? 's' : ''}`
+    const mintsCountText = translate('walletScreen_andOtherMints', {count: mintsByUnit.mints.length - 1})
 
     return (
         <View style={{flexDirection: 'row', alignItems: 'center'}}>
@@ -994,7 +994,7 @@ const MintsByUnitList = observer(function (props: {
                 {selectedMintUrl === mint.mintUrl &&  (
                     <View style={{flexDirection: 'row', marginBottom: spacing.small, justifyContent: 'flex-start'}}>
                         <Button
-                            tx="walletScreen.topup"
+                            tx="walletScreen_topup"
                             LeftAccessory={() => (
                                 <Icon
                                 icon='faPlus'
@@ -1012,7 +1012,7 @@ const MintsByUnitList = observer(function (props: {
                             }}                    
                         />
                         <Button
-                            tx="walletScreen.pay"
+                            tx="walletScreen_pay"
                             LeftAccessory={() => (
                                 <Icon
                                 icon='faBolt'
@@ -1030,7 +1030,7 @@ const MintsByUnitList = observer(function (props: {
                             }}                    
                         />
                         <Button
-                            tx="wallerScreen.mintButton"
+                            tx="wallerScreen_mintButton"
                             LeftAccessory={() => (
                                 <View style={{marginHorizontal: spacing.extraSmall}}>
                                     <SvgXml 

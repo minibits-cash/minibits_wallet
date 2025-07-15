@@ -89,7 +89,7 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
     const onPaste = async function() {        
         const clipboard = await Clipboard.getString()
         if (clipboard.length === 0) {
-            infoMessage(translate('tokenReceiveScreen.onPasteEmptyClipboard'))
+            infoMessage(translate('tokenReceiveScreen_onPasteEmptyClipboard'))
             return
         }
 
@@ -161,7 +161,7 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
             <View style={[$headerContainer, {backgroundColor: headerBg}]}>                
                 <Text
                     preset="heading"
-                    tx="payCommon.receiveEcash"
+                    tx="payCommon_receiveEcash"
                     style={{color: headerTitle}}                    
                 />                
             </View> 
@@ -171,7 +171,7 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
                         <>
                             <ListItem
                                 leftIcon='faMoneyBill1'
-                                tx="common.pasteEcashToken"
+                                tx="commonPasteEcashToken"
                                 bottomSeparator={showTokenInput}
                                 onPress={() => setShowTokenInput((v) => !v)}
                             />
@@ -201,7 +201,7 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
                                         <View style={[$buttonContainer, {marginTop: spacing.small}]}>
                                             <Button
                                                 preset='default'
-                                                tx='common.confirm'
+                                                tx='commonConfirm'
                                                 onPress={onConfirm}
                                                 // style={{marginLeft: spacing.small}}
                                                 LeftAccessory={() => <Icon icon='faCheckCircle' color='white'/>}
@@ -211,7 +211,7 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
                                         <View style={[$buttonContainer, {marginTop: spacing.small}]}>
                                             <Button
                                                 preset='secondary'
-                                                tx={'common.paste'}       
+                                                tx={'commonPaste'}       
                                                 onPress={onPaste}
                                                 LeftAccessory={() => (
                                                     <Icon icon='faPaste'/>
@@ -224,7 +224,7 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
                             {/* Create Payment Request */}
                             <ListItem
                                 leftIcon='faQrcode'
-                                tx="common.createCashuPaymentRequest"
+                                tx="commonCreateCashuPaymentRequest"
                                 onPress={gotoCashuPaymentRequest}
                                 topSeparator={true}
                             />
@@ -234,7 +234,7 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
                     //style={{marginBottom: spacing.medium}}
                 />
                 <Button
-                    tx="tokenReceiveScreen.topupWithLightning"
+                    tx="tokenReceiveScreen_topupWithLightning"
                     LeftAccessory={() => (
                         <Icon
                         icon='faBolt'
@@ -270,7 +270,7 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
                         )}
                         onPress={gotoScan}
                         style={{backgroundColor: mainButtonColor}}
-                        text='Scan'
+                        tx='tokenReceiveScreen_scan'
                     />      
                 </View>
                 </View> 

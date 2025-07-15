@@ -278,7 +278,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
       try {        
         userSettingsStore.setNextTheme(theme)
         setCurrentTheme(theme)
-        setInfo('Restart the wallet to apply the new theme.')
+        setInfo(translate('settingsScreen_restartTheme'))
       } catch (e: any) {
         log.warn('[onSelectTheme]', e.message)
       }
@@ -316,7 +316,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
           <View style={[isHeaderVisible ? $headerContainer : $headerCollapsed, {backgroundColor: headerBg}]}>
            <Text
             preset='heading'
-            tx='settingsScreen.title'
+            tx='settingsScreen_title'
             style={{color: headerTitle}}
           />
         </View>
@@ -336,7 +336,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                         <View style={$rightContainer}>
                         <Text 
                             style={$itemRight}
-                            text={translate('settingsScreen.mintsCount', {count: mintsStore.mintCount})}
+                            text={translate('settingsScreen_mintsCount', {count: mintsStore.mintCount})}
                         />
                         </View>
                     }
@@ -345,7 +345,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                     onPress={gotoMints}
                 />
                 <ListItem
-                    tx='settingsScreen.exchangeCurrency'
+                    tx='settingsScreen_exchangeCurrency'
                     leftIcon='faMoneyBill1'
                     leftIconColor={getRateColor() as string}
                     leftIconInverse={true}
@@ -353,7 +353,8 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                     RightComponent={
                       <View style={$rightContainer}>
                       <Text                          
-                          text={userSettingsStore.exchangeCurrency ?? 'None'}
+                          tx={userSettingsStore.exchangeCurrency ? undefined : 'settingsScreen_currencyNone'}
+                          text={userSettingsStore.exchangeCurrency ?? undefined}
                           style={$itemRight}
                       />
                       </View>
@@ -362,7 +363,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                     onPress={toggleCurrencyModal}
                 />
                 <ListItem
-                    tx='settingsScreen.theme'
+                    tx='settingsScreen_theme'
                     leftIcon='faPaintbrush'
                     leftIconColor={currentTheme === ThemeCode.DEFAULT ? defaultThemeColor as string : Themes[currentTheme as ThemeCode]?.color as string}
                     leftIconInverse={true}
@@ -396,16 +397,16 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                       <View style={$rightContainer}>
                       <Text 
                           style={$itemRight}
-                          tx={areNotificationsEnabled ? 'common.enabled' : 'common.disabled'}
+                          tx={areNotificationsEnabled ? 'commonEnabled' : 'commonDisabled'}
                       />
                       </View>
                    }
                     bottomSeparator={true}
                     onPress={openNotificationSettings}
-                />
-                <ListItem
-                    text='Nostr Wallet Connect'
-                    subText={`${nwcStore.all.length} allowed app${nwcStore.all.length > 1 ? 's' : ''}`}                 
+                  />
+                  <ListItem
+                    tx='settingsScreen_nwcTitle'
+                    subText={translate('settingsScreen_nwcSubtext', {count: nwcStore.all.length})}
                     LeftComponent={
                     <View style={{
                       borderRadius: spacing.small,
@@ -429,8 +430,8 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                     onPress={gotoNwc}
                 />
                 <ListItem
-                    tx="nostr.relaysTitle"
-                    subText={translate("common.connectedParam", { param: relaysStore.connectedCount })}
+                    tx="nostr_relaysTitle"
+                    subText={translate("commonConnectedParam", { param: relaysStore.connectedCount })}
                     leftIcon='faCircleNodes'
                     leftIconColor={colors.palette.iconViolet200}
                     leftIconInverse={true}
@@ -438,7 +439,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                         <View style={$rightContainer}>
                         <Text
                             style={$itemRight}                         
-                            text={`${relaysStore.allRelays.length} relays`}
+                            text={translate('settingsScreen_relaysCount', {count: relaysStore.allRelays.length})}
                         />
                         </View>
                     }
@@ -453,7 +454,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
             ContentComponent={
               <>
                 <ListItem
-                    text='Backup'
+                    tx='settingsScreen_backup'
                     leftIcon='faCloudArrowUp'
                     leftIconColor={colors.palette.success300}
                     leftIconInverse={true}
@@ -462,7 +463,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                     onPress={gotoBackupOptions}
                 />
                 <ListItem
-                    text='Recovery'
+                    tx='settingsScreen_recovery'
                     leftIcon='faHeartPulse'
                     leftIconColor={colors.palette.angry300}
                     leftIconInverse={true}
@@ -477,7 +478,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
             ContentComponent={
               <>
                 <ListItem
-                    tx='settingsScreen.security'
+                    tx='settingsScreen_security'
                     leftIcon='faShieldHalved'
                     leftIconColor={colors.palette.iconGreyBlue400}
                     leftIconInverse={true}
@@ -486,7 +487,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                     onPress={gotoSecurity}
                 />
                 <ListItem
-                    tx='settingsScreen.privacy'
+                    tx='settingsScreen_privacy'
                     leftIcon='faEyeSlash'
                     leftIconColor={colors.palette.blue200}
                     leftIconInverse={true}
@@ -495,7 +496,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                     onPress={gotoPrivacy}
                 />
                 <ListItem
-                    tx='settingsScreen.update'     
+                    tx='settingsScreen_update'     
                     leftIcon='faWandMagicSparkles'
                     leftIconColor={(isUpdateAvailable || isNativeUpdateAvailable) ? colors.palette.iconMagenta200 : colors.palette.neutral400}
                     leftIconInverse={true}
@@ -503,7 +504,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                         <View style={$rightContainer}>
                         <Text
                             style={$itemRight}                         
-                            text={(isUpdateAvailable || isNativeUpdateAvailable) ? '1 update' : ''}
+                            tx={(isUpdateAvailable || isNativeUpdateAvailable) ? 'settingsScreen_updateAvailable' : undefined}
                         />
                         </View>
                     }
@@ -512,7 +513,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                     onPress={gotoUpdate}
                 />
                 <ListItem
-                    tx='settingsScreen.devOptions'
+                    tx='settingsScreen_devOptions'
                     leftIcon='faCode'
                     leftIconColor={colors.palette.neutral600}
                     leftIconInverse={true}
@@ -544,7 +545,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
             )}
               <ListItem   
                   leftIcon='faXmark'           
-                  text={'Do not load exchange rates'}
+                  tx='settingsScreen_doNotLoadRates'
                   onPress={onResetCurrency}
                   bottomSeparator={true}
               />

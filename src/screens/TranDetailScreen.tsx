@@ -156,7 +156,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
       try {        
         if(transaction) Clipboard.setString(JSON.stringify(getAuditTrail(transaction)))
       } catch (e: any) {
-        setInfo(translate("common.copyFailParam", { param: e.message }))
+        setInfo(translate("commonCopyFailParam", { param: e.message }))
       }
     }
 
@@ -164,7 +164,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
       try {        
         if(transaction && transaction.inputToken) Clipboard.setString(transaction.inputToken)
       } catch (e: any) {
-        setInfo(translate("common.copyFailParam", { param: e.message }))
+        setInfo(translate("commonCopyFailParam", { param: e.message }))
       }
     }
 
@@ -172,7 +172,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
       try {        
         if(transaction && transaction.outputToken) Clipboard.setString(transaction.outputToken)
       } catch (e: any) {
-        setInfo(translate("common.copyFailParam", { param: e.message }))
+        setInfo(translate("commonCopyFailParam", { param: e.message }))
       }
     }
 
@@ -306,7 +306,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                             <Button
                                 preset="secondary"
                                 style={$noteButton}
-                                tx="common.save"
+                                tx="commonSave"
                                 onPress={onNoteSave}
                                 
                             />
@@ -314,7 +314,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                             <Button
                                 preset="secondary"
                                 style={$noteButton}
-                                tx="common.edit"
+                                tx="commonEdit"
                                 onPress={onNoteEdit}
                                 
                             />
@@ -368,17 +368,17 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
               )}
               {isDataParsable && (
                 <Card
-                  labelTx='tranDetailScreen.auditTrail'
+                  labelTx='tranDetailScreen_auditTrail'
                   style={$dataCard}   
                   ContentComponent={
                     <>
                       <ListItem
-                        text='Detailed record of your transaction'
+                        tx='tranDetailScreen_auditTrailDesc'
                         RightComponent={
                           <View style={$rightContainer}>
                             <Button
                               onPress={toggleAuditTrail}
-                              text={isAuditTrailVisible ? translate("common.hide") : translate("common.show")}
+                              text={isAuditTrailVisible ? translate("commonHide") : translate("commonShow")}
                               preset="secondary"
                             />
                           </View>
@@ -398,7 +398,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                           <Button
                             preset="tertiary"
                             onPress={copyAuditTrail}
-                            tx="common.copy"
+                            tx="commonCopy"
                             style={{
                               minHeight: 50,
                               paddingVertical: spacing.extraSmall,
@@ -422,17 +422,17 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                 ].includes(transaction.status)
               ) && (
                 <Card
-                  label='Token tracking'
+                  labelTx='tranDetailScreen_tokenTracking'
                   style={$dataCard}   
                   ContentComponent={
                     <>
                     <ListItem
-                        text='Logged ecash tokens for debugging purposes'
+                        tx='tranDetailScreen_tokenTrackingDesc'
                         RightComponent={
                           <View style={$rightContainer}>
                             <Button
                               onPress={toggleTokenTracking}
-                              text={isTokenTrackingVisible ? translate("common.hide") : translate("common.show")}
+                              text={isTokenTrackingVisible ? translate("commonHide") : translate("commonShow")}
                               preset="secondary"
                             />
                           </View>
@@ -442,7 +442,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                       <>
                         {transaction.inputToken && (
                           <ListItem
-                            text='Inputs'
+                            tx='tranDetailScreen_inputs'
                             subText={transaction.inputToken}
                             subTextEllipsizeMode='middle'
                             subTextStyle={{fontFamily: typography.code?.normal}}
@@ -450,7 +450,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                               <View style={$rightContainer}>
                                 <Button
                                   onPress={copyInputToken}
-                                  text={translate("common.copy")}
+                                  text={translate("commonCopy")}
                                   preset="secondary"
                                 />
                               </View>
@@ -459,7 +459,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                         )}
                         {transaction.outputToken && (
                           <ListItem
-                            text='Outputs'
+                            tx='tranDetailScreen_outputs'
                             subText={transaction.outputToken}
                             subTextEllipsizeMode='middle'
                             subTextStyle={{fontFamily: typography.code?.normal}}
@@ -467,7 +467,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                               <View style={$rightContainer}>
                                 <Button
                                   onPress={copyOutputToken}
-                                  text={translate("common.copy")}
+                                  text={translate("commonCopy")}
                                   preset="secondary"
                                 />
                               </View>
@@ -637,7 +637,7 @@ const ReceiveInfoBlock = function (props: {
 
                 const transactionDataUpdate = {
                     status: TransactionStatus.EXPIRED,                    
-                    message: translate("tranDetailScreen.successRetrieveEcashAfterRetry"),
+                    message: translate("tranDetailScreen_successRetrieveEcashAfterRetry"),
                     createdAt: new Date(),
                 }
         
@@ -734,7 +734,7 @@ const ReceiveInfoBlock = function (props: {
             ContentComponent={
                 <>
                     <TranItem
-                        label="tranDetailScreen.amount"
+                        label="tranDetailScreen_amount"
                         value={transaction.amount}
                         unit={transaction.unit}
                         isCurrency={true}
@@ -742,7 +742,7 @@ const ReceiveInfoBlock = function (props: {
                     />
                     {transaction.memo && (
                     <TranItem
-                        label="tranDetailScreen.memoFromSender"
+                        label="tranDetailScreen_memoFromSender"
                         value={transaction.memo as string}
                     />
                     )}
@@ -753,7 +753,7 @@ const ReceiveInfoBlock = function (props: {
                           style={{flexDirection: 'row', justifyContent: 'space-between'}}
                         >
                           <TranItem
-                              label="tranDetailScreen.sentFrom"
+                              label="tranDetailScreen_sentFrom"
                               value={transaction.sentFrom}
                               url={sentFromUrl}
                           />
@@ -786,7 +786,7 @@ const ReceiveInfoBlock = function (props: {
                         </View>
                       ) : (
                         <TranItem
-                            label="tranDetailScreen.sentFrom"
+                            label="tranDetailScreen_sentFrom"
                             value={transaction.sentFrom}
                             url={sentFromUrl}
                         />
@@ -796,17 +796,17 @@ const ReceiveInfoBlock = function (props: {
                     )} 
                     {eventUrl && (
                         <TranItem
-                            label="tranDetailScreen.eventUrl"
+                            label="tranDetailScreen_eventUrl"
                             value={`${eventUrl.substring(0,30)}...`}
                             url={eventUrl}
                         />
                     )}                   
                     <TranItem
-                        label="tranDetailScreen.type"
+                        label="tranDetailScreen_type"
                         value={transaction.type as string}
                     />
                     <TranItem
-                      label="tranDetailScreen.fee"
+                      label="tranDetailScreen_fee"
                       value={transaction.fee}
                       unit={transaction.unit}
                       isCurrency={true}
@@ -815,46 +815,46 @@ const ReceiveInfoBlock = function (props: {
                         <View
                         style={{flexDirection: 'row', justifyContent: 'space-between'}}>
                         <TranItem
-                            label="tranDetailScreen.status"
+                            label="tranDetailScreen_status"
                             value={transaction.status as string}
                         />
                         <Button
                             style={{marginTop: spacing.medium}}
                             // preset="secondary"
-                            tx="tranDetailScreen.retryToReceive"
+                            tx="tranDetailScreen_retryToReceive"
                             onPress={onRetryToReceive}
                         />
                         </View>
                     ) : (
                         <TranItem
-                            label="tranDetailScreen.status"
+                            label="tranDetailScreen_status"
                             value={transaction.status as string}
                         />
                     )}
                     {transaction.status === TransactionStatus.COMPLETED && (
                       <TranItem
-                          label="tranDetailScreen.balanceAfter"
+                          label="tranDetailScreen_balanceAfter"
                           value={transaction.balanceAfter || 0}
                           unit={transaction.unit}
                           isCurrency={true}
                       />
                     )}
                     <TranItem
-                        label="tranDetailScreen.createdAt"
+                        label="tranDetailScreen_createdAt"
                         value={(transaction.createdAt as Date).toLocaleString()}
                     />
                     {transaction.paymentId && (
                       <TranItem
-                          label="tranDetailScreen.paymentId"
+                          label="tranDetailScreen_paymentId"
                           value={transaction.paymentId as string}
                       />
                     )}
-                    <TranItem label="tranDetailScreen.id" value={`${transaction.id}`} />
+                    <TranItem label="tranDetailScreen_id" value={`${transaction.id}`} />
                 </>
             }
         />
         <Card
-            labelTx='transactionCommon.receivedTo'
+            labelTx='transactionCommon_receivedTo'
             style={$dataCard}
             ContentComponent={
               mint ? (
@@ -877,13 +877,13 @@ const ReceiveInfoBlock = function (props: {
                   <ResultModalInfo
                     icon="faCheckCircle"
                     iconColor={colors.palette.success200}
-                    title={translate("tranDetailScreen.modalSuccess")}
+                    title={translate("tranDetailScreen_modalSuccess")}
                     message={resultModalInfo?.message}
                   />
                   <View style={$buttonContainer}>
                     <Button
                       preset="secondary"
-                      tx={'common.close'}
+                      tx={'commonClose'}
                       onPress={onGoBack}
                     />
                   </View>
@@ -895,13 +895,13 @@ const ReceiveInfoBlock = function (props: {
                   <ResultModalInfo
                     icon="faTriangleExclamation"
                     iconColor={colors.palette.angry500}
-                    title={translate('transactionCommon.receiveFailed')}
+                    title={translate('transactionCommon_receiveFailed')}
                     message={resultModalInfo?.message as string}
                   />
                   <View style={$buttonContainer}>
                     <Button
                       preset="secondary"
-                      tx='common.close'
+                      tx='commonClose'
                       onPress={toggleResultModal}
                     />
                   </View>
@@ -999,7 +999,7 @@ const ReceiveOfflineInfoBlock = function (props: {
                         <View
                         style={{flexDirection: 'row', justifyContent: 'space-between'}}>
                         <TranItem
-                            label="tranDetailScreen.amount"
+                            label="tranDetailScreen_amount"
                             value={transaction.amount}
                             unit={transaction.unit}
                             isCurrency={true}
@@ -1009,72 +1009,72 @@ const ReceiveOfflineInfoBlock = function (props: {
                             <Button
                                 style={{maxHeight: 10, marginTop: spacing.medium}}
                                 preset="default"
-                                tx="tranDetailScreen.receiveOfflineComplete"
+                                tx="tranDetailScreen_receiveOfflineComplete"
                                 onPress={receiveOfflineComplete}
                             />
                         ) : (
                             <Button
                                 style={{maxHeight: 10, marginTop: spacing.medium}}
                                 preset="secondary"
-                                tx="tranDetailScreen.isOffline"                                
+                                tx="tranDetailScreen_isOffline"                                
                             />
                         )}
                         </View>
                     ) : (
                         <TranItem
-                            label="tranDetailScreen.amount"
+                            label="tranDetailScreen_amount"
                             value={transaction.amount}
                             isFirst={true}
                         />
                     )}                    
                     <TranItem
-                        label="tranDetailScreen.memoFromSender"
+                        label="tranDetailScreen_memoFromSender"
                         value={transaction.memo as string}
                     />
                     {transaction.sentFrom && (
                         <TranItem
-                            label="tranDetailScreen.sentFrom"
+                            label="tranDetailScreen_sentFrom"
                             value={transaction.sentFrom}
                         />
                     )} 
                     <TranItem
-                        label="tranDetailScreen.type"
+                        label="tranDetailScreen_type"
                         value={transaction.type as string}
                     />
                     <TranItem
-                      label="tranDetailScreen.fee"
+                      label="tranDetailScreen_fee"
                       value={transaction.fee}
                       unit={transaction.unit}
                       isCurrency={true}
                     />
                     <TranItem
-                        label="tranDetailScreen.status"
+                        label="tranDetailScreen_status"
                         value={transaction.status as string}
                     />
                     {transaction.status === TransactionStatus.COMPLETED && (
                         <TranItem
-                            label="tranDetailScreen.balanceAfter"
+                            label="tranDetailScreen_balanceAfter"
                             value={transaction.balanceAfter || 0}
                             unit={transaction.unit}
                             isCurrency={true}
                         />
                     )}
                     <TranItem
-                        label="tranDetailScreen.createdAt"
+                        label="tranDetailScreen_createdAt"
                         value={(transaction.createdAt as Date).toLocaleString()}
                     />
                     {transaction.paymentId && (
                       <TranItem
-                          label="tranDetailScreen.paymentId"
+                          label="tranDetailScreen_paymentId"
                           value={transaction.paymentId as string}
                       />
                     )}
-                    <TranItem label="tranDetailScreen.id" value={`${transaction.id}`} />
+                    <TranItem label="tranDetailScreen_id" value={`${transaction.id}`} />
                 </>
             }
         />
         <Card
-            labelTx='transactionCommon.receivedTo'
+            labelTx='transactionCommon_receivedTo'
             style={$dataCard}
             ContentComponent={
               mint ? (
@@ -1098,13 +1098,13 @@ const ReceiveOfflineInfoBlock = function (props: {
                   <ResultModalInfo
                     icon="faCheckCircle"
                     iconColor={colors.palette.success200}
-                    title={translate('common.success')}
+                    title={translate('commonSuccess')}
                     message={resultModalInfo?.message}
                   />
                   <View style={$buttonContainer}>
                     <Button
                       preset="secondary"
-                      tx='common.close'
+                      tx='commonClose'
                       onPress={onGoBack}
                     />
                   </View>
@@ -1116,13 +1116,13 @@ const ReceiveOfflineInfoBlock = function (props: {
                   <ResultModalInfo
                     icon="faTriangleExclamation"
                     iconColor={colors.palette.angry500}
-                    title={translate('transactionCommon.receiveFailed')}
+                    title={translate('transactionCommon_receiveFailed')}
                     message={resultModalInfo?.message as string}
                   />
                   <View style={$buttonContainer}>
                     <Button
                       preset="secondary"
-                      tx='common.close'
+                      tx='commonClose'
                       onPress={onGoBack}
                     />
                   </View>
@@ -1236,7 +1236,7 @@ const SendInfoBlock = function (props: {
                 ContentComponent={
                     <>
                         <TranItem
-                            label="tranDetailScreen.amount"
+                            label="tranDetailScreen_amount"
                             value={transaction.amount}
                             unit={transaction.unit}
                             isCurrency={true}
@@ -1250,16 +1250,16 @@ const SendInfoBlock = function (props: {
                         )}
                         {transaction.sentTo && (
                             <TranItem
-                                label="tranDetailScreen.sentTo"
+                                label="tranDetailScreen_sentTo"
                                 value={transaction.sentTo}
                             />
                         )}
                         <TranItem
-                            label="tranDetailScreen.type"
+                            label="tranDetailScreen_type"
                             value={transaction.type as string}
                         />
                         <TranItem
-                          label="tranDetailScreen.fee"
+                          label="tranDetailScreen_fee"
                           value={transaction.fee}
                           unit={transaction.unit}
                           isCurrency={true}
@@ -1268,40 +1268,40 @@ const SendInfoBlock = function (props: {
                             <View
                             style={{flexDirection: 'row', justifyContent: 'space-between'}}>
                             <TranItem
-                                label="tranDetailScreen.status"
+                                label="tranDetailScreen_status"
                                 value={transaction.status as string}
                             />
                             <Button
                                 style={{marginVertical: spacing.small}}
                                 preset="secondary"
-                                tx="tranDetailScreen.revert"
+                                tx="tranDetailScreen_revert"
                                 onPress={onRevertPendingSend}
                             />
                             </View>
                         ) : (
                             <TranItem
-                              label="tranDetailScreen.status"
+                              label="tranDetailScreen_status"
                               value={transaction.status as string}
                             />
                         )}
                         {transaction.status !== TransactionStatus.ERROR && (
                             <TranItem
-                              label="tranDetailScreen.balanceAfter"
+                              label="tranDetailScreen_balanceAfter"
                               value={transaction.balanceAfter || 0}
                               unit={transaction.unit}
                               isCurrency={true}
                             />
                         )}
                         <TranItem
-                            label="tranDetailScreen.createdAt"
+                            label="tranDetailScreen_createdAt"
                             value={(transaction.createdAt as Date).toLocaleString()}
                         />
-                        <TranItem label="tranDetailScreen.id" value={`${transaction.id}`} />
+                        <TranItem label="tranDetailScreen_id" value={`${transaction.id}`} />
                     </>
                 }
             />
             <Card
-                labelTx='tranDetailScreen.sentFrom'
+                labelTx='tranDetailScreen_sentFrom'
                 style={$dataCard}
                 ContentComponent={
                   mint ? (
@@ -1330,7 +1330,7 @@ const SendInfoBlock = function (props: {
                     <View style={$buttonContainer}>
                       <Button
                         preset="secondary"
-                        tx={'common.close'}
+                        tx={'commonClose'}
                         onPress={toggleResultModal}
                       />
                     </View>
@@ -1347,7 +1347,7 @@ const SendInfoBlock = function (props: {
                     <View style={$buttonContainer}>
                       <Button
                         preset="secondary"
-                        tx='common.close'
+                        tx='commonClose'
                         onPress={toggleResultModal}
                       />
                     </View>
@@ -1472,7 +1472,7 @@ const TopupInfoBlock = function (props: {
             ContentComponent={
                 <>
                     <TranItem
-                        label="tranDetailScreen.amount"
+                        label="tranDetailScreen_amount"
                         value={transaction.amount}
                         unit={transaction.unit}
                         isCurrency={true}
@@ -1486,16 +1486,16 @@ const TopupInfoBlock = function (props: {
                     )}
                     {transaction.sentFrom && (
                         <TranItem
-                            label="tranDetailScreen.sentFrom"
+                            label="tranDetailScreen_sentFrom"
                             value={transaction.sentFrom}
                         />
                     )}                    
                     <TranItem
-                        label="tranDetailScreen.type"
+                        label="tranDetailScreen_type"
                         value={transaction.type as string}
                     />
                     <TranItem
-                      label="tranDetailScreen.fee"
+                      label="tranDetailScreen_fee"
                       value={transaction.fee}
                       unit={transaction.unit}
                       isCurrency={true}
@@ -1504,47 +1504,47 @@ const TopupInfoBlock = function (props: {
                         <View
                         style={{flexDirection: 'row', justifyContent: 'space-between'}}>
                         <TranItem
-                            label="tranDetailScreen.status"
+                            label="tranDetailScreen_status"
                             value={transaction.status as string}
                         />
                         <Button
                             style={{marginTop: spacing.medium}}
                             preset="secondary"
-                            tx="tranDetailScreen.retryToComplete"
+                            tx="tranDetailScreen_retryToComplete"
                             onPress={onRetryToHandlePendingTopup}
                         />
                         </View>
                     ) : (
                         <TranItem
-                            label="tranDetailScreen.status"
+                            label="tranDetailScreen_status"
                             value={transaction.status as string}
                         />
                     )}
                     {transaction.status === TransactionStatus.COMPLETED && (
                         <TranItem
-                            label="tranDetailScreen.balanceAfter"
+                            label="tranDetailScreen_balanceAfter"
                             value={transaction.balanceAfter || 0}
                             unit={transaction.unit}
                             isCurrency={true}
                         />
                     )}
                     <TranItem
-                        label="tranDetailScreen.createdAt"
+                        label="tranDetailScreen_createdAt"
                         value={(transaction.createdAt as Date).toLocaleString()}
                     />
                     {transaction.expiresAt && transaction.status !== TransactionStatus.COMPLETED && (
                       <TranItem
-                        label="tranDetailScreen.expiresAt"
+                        label="tranDetailScreen_expiresAt"
                         value={(new Date(transaction.expiresAt!)).toLocaleString()}
                       />
                     )}
                     {transaction.paymentId && (
                       <TranItem
-                          label="tranDetailScreen.paymentId"
+                          label="tranDetailScreen_paymentId"
                           value={transaction.paymentId as string}
                       />
                     )}                
-                    <TranItem label="tranDetailScreen.id" value={`${transaction.id}`} />            
+                    <TranItem label="tranDetailScreen_id" value={`${transaction.id}`} />            
                 </>
             }
         />
@@ -1552,14 +1552,14 @@ const TopupInfoBlock = function (props: {
           <View style={{marginBottom: spacing.small}}>
             <QRCodeBlock 
               qrCodeData={transaction.paymentRequest}
-              title={translate("tranDetailScreen.invoice")}
+              title={translate("tranDetailScreen_invoice")}
               type='Bolt11Invoice'
               size={spacing.screenWidth * 0.8}
             />
           </View>
         )}
         <Card
-            labelTx='tranDetailScreen.topupTo'
+            labelTx='tranDetailScreen_topupTo'
             style={$dataCard}
             ContentComponent={
               mint ? (
@@ -1582,13 +1582,13 @@ const TopupInfoBlock = function (props: {
                   <ResultModalInfo
                     icon="faCheckCircle"
                     iconColor={colors.palette.success200}
-                    title={translate("tranDetailScreen.modalSuccess")}
+                    title={translate("tranDetailScreen_modalSuccess")}
                     message={resultModalInfo?.message}
                   />
                   <View style={$buttonContainer}>
                     <Button
                       preset="secondary"
-                      tx='common.close'
+                      tx='commonClose'
                       onPress={onGoBack}
                     />
                   </View>
@@ -1599,13 +1599,13 @@ const TopupInfoBlock = function (props: {
                   <ResultModalInfo
                     icon="faTriangleExclamation"
                     iconColor={colors.palette.accent400}
-                    title={translate("tranDetailScreen.invoiceNotPaid")}
+                    title={translate("tranDetailScreen_invoiceNotPaid")}
                     message={resultModalInfo?.message}
                   />
                   <View style={$buttonContainer}>
                     <Button
                       preset="secondary"
-                      tx={'common.close'}
+                      tx={'commonClose'}
                       onPress={toggleResultModal}
                     />
                   </View>
@@ -1616,13 +1616,13 @@ const TopupInfoBlock = function (props: {
                   <ResultModalInfo
                     icon="faTriangleExclamation"
                     iconColor={colors.palette.accent400}
-                    title={translate("tranDetailScreen.invoiceExpired")}
+                    title={translate("tranDetailScreen_invoiceExpired")}
                     message={resultModalInfo?.message}
                   />
                   <View style={$buttonContainer}>
                     <Button
                       preset="secondary"
-                      tx='common.close'
+                      tx='commonClose'
                       onPress={toggleResultModal}
                     />
                   </View>
@@ -1633,13 +1633,13 @@ const TopupInfoBlock = function (props: {
                   <ResultModalInfo
                     icon="faTriangleExclamation"
                     iconColor={colors.palette.angry500}
-                    title={translate("tranDetailScreen.topupError")}
+                    title={translate("tranDetailScreen_topupError")}
                     message={resultModalInfo?.message}
                   />
                   <View style={$buttonContainer}>
                     <Button
                       preset="secondary"
-                      tx='common.close'
+                      tx='commonClose'
                       onPress={toggleResultModal}
                     />
                   </View>
@@ -1760,7 +1760,7 @@ const TransferInfoBlock = function (props: {
                 style={{flexDirection: 'row', justifyContent: 'space-between'}}
               >
                 <TranItem
-                  label="tranDetailScreen.amount"
+                  label="tranDetailScreen_amount"
                   value={transaction.amount}
                   unit={transaction.unit}
                   isCurrency={true}
@@ -1768,13 +1768,13 @@ const TransferInfoBlock = function (props: {
                 />
                 <Button
                     style={{marginTop: spacing.medium}}
-                    tx="transactionCommon.payNow"
+                    tx="transactionCommon_payNow"
                     onPress={onPayDraftTransfer}
                 />
               </View>
             ):(
               <TranItem
-                label="tranDetailScreen.amount"
+                label="tranDetailScreen_amount"
                 value={transaction.amount}
                 unit={transaction.unit}
                 isCurrency={true}
@@ -1783,23 +1783,23 @@ const TransferInfoBlock = function (props: {
             )}
             {transaction.memo && (
             <TranItem
-              label="tranDetailScreen.memoFromInvoice"
+              label="tranDetailScreen_memoFromInvoice"
               value={transaction.memo as string}
             />
             )}
             {transaction.sentTo && (
                 <TranItem
-                    label="tranDetailScreen.sentTo"
+                    label="tranDetailScreen_sentTo"
                     value={transaction.sentTo}
                 />
             )}
             <TranItem
-              label="tranDetailScreen.type"
+              label="tranDetailScreen_type"
               value={transaction.type as string}
             />
             {transaction.status === TransactionStatus.COMPLETED && (
               <TranItem
-                label="tranDetailScreen.fee"
+                label="tranDetailScreen_fee"
                 value={transaction.fee}
                 unit={transaction.unit}
                 isCurrency={true}
@@ -1810,52 +1810,52 @@ const TransferInfoBlock = function (props: {
                 style={{flexDirection: 'row', justifyContent: 'space-between'}}
               >
                 <TranItem
-                    label="tranDetailScreen.status"
+                    label="tranDetailScreen_status"
                     value={transaction.status as string}
                 />
                 <Button
                     style={{marginTop: spacing.medium}}
                     preset="secondary"
-                    text="Revert"
+                    tx="tranDetailScreen_revert"
                     onPress={onRevertPreparedTransfer}
                 />
               </View>
             ):(
               <TranItem
-                label="tranDetailScreen.status"
+                label="tranDetailScreen_status"
                 value={transaction.status as string}
               />
             )}
             {transaction.status === TransactionStatus.COMPLETED && (
                 <TranItem
-                    label="tranDetailScreen.balanceAfter"
+                    label="tranDetailScreen_balanceAfter"
                     value={transaction.balanceAfter || 0}
                     unit={transaction.unit}
                     isCurrency={true}
                 />
             )}
             <TranItem
-              label="tranDetailScreen.createdAt"
+              label="tranDetailScreen_createdAt"
               value={(transaction.createdAt as Date).toLocaleString()}
             />
             {transaction.expiresAt && transaction.status !== TransactionStatus.COMPLETED && (
               <TranItem
-                label="tranDetailScreen.expiresAt"
+                label="tranDetailScreen_expiresAt"
                 value={(new Date(transaction.expiresAt!)).toLocaleString()}
               />
             )}
             {transaction.paymentId && (
               <TranItem
-                  label="tranDetailScreen.paymentId"
+                  label="tranDetailScreen_paymentId"
                   value={transaction.paymentId as string}
               />
             )}
-            <TranItem label="tranDetailScreen.id" value={`${transaction.id}`} />
+            <TranItem label="tranDetailScreen_id" value={`${transaction.id}`} />
           </>
         }
         />
         <Card
-            labelTx='transactionCommon.paidFrom'
+            labelTx='transactionCommon_paidFrom'
             style={$dataCard}
             ContentComponent={
               mint ? (
@@ -1871,7 +1871,7 @@ const TransferInfoBlock = function (props: {
         />
         {transaction.proof && (
           <Card
-              labelTx='tranDetailScreen.proof'
+              labelTx='tranDetailScreen_proof'
               style={$dataCard}
               ContentComponent={
                 <ListItem
@@ -1881,7 +1881,7 @@ const TransferInfoBlock = function (props: {
                     <View style={$rightContainer}>
                       <Button
                         onPress={copyProof}
-                        text={translate("common.copy")}
+                        text={translate("commonCopy")}
                         preset="secondary"                        
                       />
                     </View>
@@ -1905,7 +1905,7 @@ const TransferInfoBlock = function (props: {
                   <View style={$buttonContainer}>
                     <Button
                       preset="secondary"
-                      tx={'common.close'}
+                      tx={'commonClose'}
                       onPress={toggleResultModal}
                     />
                   </View>
@@ -1922,7 +1922,7 @@ const TransferInfoBlock = function (props: {
                   <View style={$buttonContainer}>
                     <Button
                       preset="secondary"
-                      tx='common.close'
+                      tx='commonClose'
                       onPress={toggleResultModal}
                     />
                   </View>

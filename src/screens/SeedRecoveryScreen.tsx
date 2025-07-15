@@ -121,7 +121,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
             const maybeMnemonic = await Clipboard.getString()
 
             if(!maybeMnemonic) {
-              throw new AppError(Err.VALIDATION_ERROR, translate('backupScreen.missingMnemonicError'))
+              throw new AppError(Err.VALIDATION_ERROR, translate('backupMissingMnemonicError'))
             }
 
             const cleanedMnemonic = maybeMnemonic.replace(/\s+/g, ' ').trim()
@@ -136,7 +136,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
     const onConfirmMnemonic = async function () {
         try {
             if(!mnemonic) {
-                throw new AppError(Err.VALIDATION_ERROR, translate('backupScreen.missingMnemonicError'))
+                throw new AppError(Err.VALIDATION_ERROR, translate('backupMissingMnemonicError'))
             }
 
             LayoutAnimation.easeInEaseOut()            
@@ -163,7 +163,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
             if(profile.nip05.includes(MINIBITS_NIP05_DOMAIN)) {                                    
                 setProfileToRecover(profile)
             } else {
-                setInfo(translate("recovery.ownKeysImportAgain", { addr: profile.nip05 }))
+                setInfo(translate("recovery_ownKeysImportAgain", { addr: profile.nip05 }))
                 setIsNewProfileNeeded(true)              
             }            
         } catch (e: any) {
@@ -221,12 +221,12 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
     
     const startRecovery = async function () {
         if(!selectedMintUrl) {
-          setInfo(translate("recovery.selectMintFrom"))
+          setInfo(translate("recovery_selectMintFrom"))
           return
         }
 
         setIsRecoveryStarted(true)
-        setStatusMessage(translate("recovery.starting"))
+        setStatusMessage(translate("recovery_starting"))
         setIsLoading(true)        
         setTimeout(() => doRecovery(), 100)        
     }
@@ -249,16 +249,16 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
             }
 
             if(!recoveredMint) {                
-              setInfo(translate("recovery.noMintSelected"))
+              setInfo(translate("recovery_noMintSelected"))
               return
             }
 
             if(!selectedKeyset) {                
-              setInfo(translate("recovery.noKeysetSelected"))
+              setInfo(translate("recovery_noKeysetSelected"))
               return
             }
             
-            setStatusMessage(translate("recovery.restoringFromParam", { hostname: recoveredMint.hostname }))
+            setStatusMessage(translate("recovery_restoringFromParam", { hostname: recoveredMint.hostname }))
             log.info('[restore]', `Restoring from ${recoveredMint.hostname}...`)
             
             const { proofs } = await walletStore.restore(
@@ -272,7 +272,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
             )
 
             //log.debug('[restore]', `Restored proofs`, proofs.length)                
-            setStatusMessage(translate("recovery.foundProofsAmount", { amount: proofs.length }))
+            setStatusMessage(translate("recovery_foundProofsAmount", { amount: proofs.length }))
             
             if (proofs.length > 0) {
                 // need to move counter by whole interval to avoid duplicate _B!!!
@@ -287,14 +287,14 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
 
                 log.debug('[restore]', `Spent and pending proofs`, {spent: proofStates.SPENT.length, pending: proofStates.PENDING.length})
 
-                setStatusMessage(translate("recovery.spentProofsAmount", { amount: proofStates.SPENT.length }))
+                setStatusMessage(translate("recovery_spentProofsAmount", { amount: proofStates.SPENT.length }))
 
                 const spentAmount = CashuUtils.getProofsAmount(proofStates.SPENT as Proof[])
                 alreadySpentAmount += spentAmount
                                 
                 if(proofStates.UNSPENT.length > 0) {
                     
-                    setStatusMessage(translate("recovery.completing"))
+                    setStatusMessage(translate("recovery_completing"))
 
                     const amount = CashuUtils.getProofsAmount(proofStates.UNSPENT)
                     recoveredAmount = amount                 
@@ -354,7 +354,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
 
                     const pendingAmount = CashuUtils.getProofsAmount(proofStates.PENDING as Proof[])
                     
-                    setStatusMessage(translate("recovery.foundPendingProofsAmount", { pendingAmount }))
+                    setStatusMessage(translate("recovery_foundPendingProofsAmount", { pendingAmount }))
                     log.debug(`Found pending ecash with ${recoveredMint.hostname}...`)
                                         
                     // Let's create new draft receive transaction in database
@@ -453,7 +453,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
             const currency = getCurrency(selectedKeyset?.unit as MintUnit)
             setResultModalInfo({
                 status: TransactionStatus.COMPLETED, 
-                message: translate("recovery.recoveredResult", { 
+                message: translate("recovery_recoveredResult", { 
                   formattedCurrency: formatCurrency(recoveredAmount, currency.code),
                   code: currency.code
                 })
@@ -462,19 +462,19 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
             if(errors.length > 0) {
                 setResultModalInfo({
                     status: TransactionStatus.ERROR, 
-                    message: translate("recovery.resultErrors")
+                    message: translate("recovery_resultErrors")
                 })            
                 setRecoveryErrors(errors)
             } else {
                 if(alreadySpentAmount > 0) {
                     setResultModalInfo({
                         status: TransactionStatus.EXPIRED, 
-                        message: translate("recovery.resultSpent")
+                        message: translate("recovery_resultSpent")
                     }) 
                 } else {
                     setResultModalInfo({
                         status: TransactionStatus.EXPIRED, 
-                        message: translate("recovery.resultExpired")
+                        message: translate("recovery_resultExpired")
                     }) 
                 }
 
@@ -488,12 +488,12 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
     const onCompleteAddress = async () => {
         try {
             if(!seedHashRef.current || !seedRef.current) {
-              throw new AppError(Err.VALIDATION_ERROR, translate('backupScreen.missingMnemonicOrSeedError'))
+              throw new AppError(Err.VALIDATION_ERROR, translate('backupMissingMnemonicOrSeedError'))
             }
             // create a new walletId and Nostr key pair after a new install or factory reset
             // and keep provided seed
             setIsLoading(true)
-            setStatusMessage(translate("recovery.recoveringAddress"))
+            setStatusMessage(translate("recovery_recoveringAddress"))
 
             const keys = KeyChain.generateWalletKeys()
             // Set seed to the provided one
@@ -533,7 +533,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                 await mintsStore.addMint(MINIBITS_MINT_URL)            
             }
 
-            setStatusMessage(translate('recovery.completed'))
+            setStatusMessage(translate('recovery_completed'))
                         
             // go directly to the wallet (profile hase been rehydrated from the one with the seed)
             //@ts-ignore
@@ -567,15 +567,15 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                     onLeftPress={() => navigation.goBack()}                            
                 /> 
                 <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
-                    <Text preset="heading" text="Wallet recovery" style={{color: headerTitle, zIndex: 10}} />
+                    <Text preset="heading" tx="seedRecoveryScreenTitle" style={{color: headerTitle, zIndex: 10}} />
                 </View>
                 <ScrollView style={$contentContainer}>                
                     <Card
                         style={$card}
                         ContentComponent={
                             <ListItem
-                                tx="recovery.mnemonicCollision"
-                                subTx="recovery.mnemonicCollisionDesc"
+                                tx="recovery_mnemonicCollision"
+                                subTx="recovery_mnemonicCollisionDesc"
                                 leftIcon='faTriangleExclamation'
                                 // leftIconColor='red'                  
                                 style={$item}                    
@@ -586,7 +586,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                             <View style={$buttonContainer}>               
                                 <Button
                                     onPress={onBack}
-                                    tx='common.back'
+                                    tx='commonBack'
                                     preset='secondary'                      
                                 />                        
                             </View>                    
@@ -607,7 +607,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                 /> 
               )}
               <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
-                  <Text preset="heading" text="Wallet recovery" style={{color: headerTitle, zIndex: 10}} />
+                  <Text preset="heading" tx="seedRecoveryScreenTitle" style={{color: headerTitle, zIndex: 10}} />
               </View>
               <ScrollView style={$contentContainer}>                              
                   <MnemonicInput   
@@ -628,12 +628,12 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                               <ListItem
                                   tx="recoveryFromMints"
                                   subTx={mintsStore.mintCount > 0 ? undefined : "recoveryFromMintsDesc"}
-                                  LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='2'/></View>} 
+                                  LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text tx='seedRecoveryStep2'/></View>} 
                                   RightComponent={mintsStore.mintCount > 0 ? (
                                       <View style={$rightContainer}>
                                           <Button
                                               onPress={onAddMints}
-                                              text='Mints'
+                                              tx='seedRecoveryMints'
                                               preset='secondary'                                           
                                           /> 
                                       </View>
@@ -682,7 +682,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                                           {(startIndex > 0 || totalRecoveredAmount > 0) && (
                                               <Button
                                                   onPress={onCompleteAddress}
-                                                  tx="common.completed"                                                        
+                                                  tx="commonCompleted"                                                        
                                                   preset='secondary'                                        
                                               />
                                           )} 
@@ -690,7 +690,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
       
                                       <View style={[$buttonContainer,{marginTop: 0}]}>
                                         <Text 
-                                            text={translate("recovery.intervalParam", { 
+                                            text={translate("recovery_intervalParam", { 
                                                 startIndex: startIndex,
                                                 endIndex: endIndex
                                             })} 
@@ -699,7 +699,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                                         />
                                         <Pressable onPress={toggleIndexModal}>
                                             <Text 
-                                                tx="recovery.setManually"
+                                                tx="recovery_setManually"
                                                 size='xxs' 
                                                 style={{color: textHint, alignSelf: 'center', marginTop: spacing.small}}
                                             />  
@@ -707,7 +707,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                                         </View>
                                       <View style={[$buttonContainer,{marginTop: 0}]}>
                                       <Text 
-                                          text={translate("recovery.keysetID", { 
+                                          text={translate("recovery_keysetID", { 
                                               id: selectedKeyset?.id,
                                               unit: selectedKeyset?.unit  
                                           })}
@@ -717,7 +717,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                                       {selectedMintKeysets.length > 1 && (
                                           <Pressable onPress={toggleKeysetModal}>
                                               <Text 
-                                                  tx="recovery.selectAnotherKeyset"
+                                                  tx="recovery_selectAnotherKeyset"
                                                   size='xxs' 
                                                   style={{color: textHint, alignSelf: 'center', marginTop: spacing.extraSmall}}
                                               />  
@@ -728,7 +728,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                                   )}
                                   {mintsStore.mintCount > 0 && !selectedMintUrl && (
                                       <Text 
-                                          tx='recovery.selectMintFrom'
+                                          tx='recovery_selectMintFrom'
                                           size='xxs' 
                                           style={{color: textHint, alignSelf: 'center', margin: spacing.large}}
                                       />
@@ -756,12 +756,12 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                               textAlign='right'
                           />
                           <Button
-                              tx='common.save'
+                              tx='commonSave'
                               onPress={onResetStartIndex}
                           />
                       </View>
                       <Text 
-                          tx="recovery.startIndexDesc"
+                          tx="recovery_startIndexDesc"
                           size='xxs' 
                           style={{color: textHint, margin: spacing.small}}
                       />
@@ -773,7 +773,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
               <BottomModal
                 isVisible={isKeysetModalVisible}
                 // style={{alignItems: 'stretch'}} 
-                HeadingComponent={<Text tx="recovery.selectKeyset" style={{textAlign: 'center', margin: spacing.small}}/>}
+                HeadingComponent={<Text tx="recovery_selectKeyset" style={{textAlign: 'center', margin: spacing.small}}/>}
                 ContentComponent={
                   <FlatList
                       data={selectedMintKeysets}
@@ -802,7 +802,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                   <Button                
                       preset={'secondary'}
                       onPress={toggleKeysetModal}
-                      tx='common.close'
+                      tx='commonClose'
                       style={{marginTop: spacing.small}}
                   />}
                 onBackButtonPress={toggleKeysetModal}
@@ -840,13 +840,13 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                           <ResultModalInfo
                             icon="faCheckCircle"
                             iconColor={colors.palette.success200}
-                            title={translate("recovery.success")}
+                            title={translate("recovery_success")}
                             message={resultModalInfo?.message}
                           />
                           <View style={$buttonContainer}>
                             <Button
                               preset="secondary"
-                              tx='common.close'
+                              tx='commonClose'
                               onPress={toggleResultModal}
                             />
                           </View>
@@ -858,7 +858,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                           <ResultModalInfo
                             icon="faTriangleExclamation"
                             iconColor={colors.palette.angry500}
-                            title={translate("recovery.failed")}
+                            title={translate("recovery_failed")}
                             message={resultModalInfo?.message}
                           />
                           <View style={$buttonContainer}>
@@ -882,7 +882,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                           <View style={$buttonContainer}>
                             <Button
                               preset="secondary"
-                              tx='common.close'
+                              tx='commonClose'
                               onPress={toggleResultModal}
                             />
                           </View>

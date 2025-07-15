@@ -66,7 +66,7 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
                   setMint(mint)
                 }
 
-              if (!isInternetReachable) setInfo(translate('common.offlinePretty'))
+              if (!isInternetReachable) setInfo(translate('commonOfflinePretty'))
             } catch (e: any) {
                 handleError(e)
             }
@@ -88,7 +88,7 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
     const onPaste = async function() {        
         const clipboard = await Clipboard.getString()
         if (clipboard.length === 0) {
-          infoMessage(translate('lightningPayScreen.onPasteEmptyClipboard'))
+          infoMessage(translate('lightningPayScreen_onPasteEmptyClipboard'))
           return
         }
         setLightningData(clipboard)
@@ -178,7 +178,7 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
             <View style={[$headerContainer, {backgroundColor: headerBg}]}>                
                 <Text
                     preset="heading"
-                    tx="lightningPayScreen.payHeading"
+                    tx="lightningPayScreen_payHeading"
                     style={{color: headerTitle}}
                 />                
             </View> 
@@ -188,7 +188,7 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
                         <ListItem
                             leftIcon='faBolt'
                             leftIconColor={colors.palette.orange400}
-                            tx="payCommon.payWithLightning"
+                            tx="payCommon_payWithLightning"
                             bottomSeparator={true}
                             RightComponent={
                                 <Button
@@ -226,7 +226,7 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
                                 <View style={$buttonContainer}>
                                     <Button
                                         preset='default'
-                                        tx='common.confirm'
+                                        tx='commonConfirm'
                                         onPress={onConfirm}
                                         style={{marginLeft: spacing.small}}
                                         LeftAccessory={() => <Icon icon='faCheckCircle' color='white'/>}
@@ -236,13 +236,13 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
                                 <View style={$buttonContainer}>
                                     <Button
                                         preset='secondary'
-                                        tx='common.paste'
+                                        tx='commonPaste'
                                         onPress={onPaste}
                                         LeftAccessory={() => <Icon icon='faPaste'/> }
                                     />
                                     <Button
                                         preset='secondary'
-                                        tx={'common.scan'}
+                                        tx={'commonScan'}
                                         onPress={gotoScan}
                                         style={{marginLeft: spacing.small}}
                                         LeftAccessory={() => {
@@ -263,7 +263,7 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
                     }
                 />
                 <Button
-                    tx="common.sendAsEcash"
+                    tx="commonSendAsEcash"
                     LeftAccessory={() => (
                         <Icon
                         icon='faMoneyBill1'

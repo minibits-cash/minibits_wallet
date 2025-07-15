@@ -216,7 +216,7 @@ export const PublicContacts = observer(function (props: {
     const onPastePublicPubkey = async function () {
         const key = await Clipboard.getString()
         if (!key) {
-          setInfo(translate("contactsScreen.publicContacts.npubPasteError"))
+          setInfo(translate("contactsScreen_publicContacts_npubPasteError"))
           return
         }  
         setNewPublicPubkey(key.trim())        
@@ -447,8 +447,8 @@ export const PublicContacts = observer(function (props: {
                         leftIcon='faComment'
                         leftIconInverse={true}
                         leftIconColor={colors.palette.iconViolet200}
-                        tx="nostr.tip"
-                        subTx='nostr.tipSubText'
+                        tx="nostr_tip"
+                        subTx='nostr_tipSubText'
                         onPress={toggleNpubModal}
                     />                
                 }
@@ -530,22 +530,22 @@ export const PublicContacts = observer(function (props: {
             <>
                 <ListItem
                     leftIcon='faKey'
-                    tx="nostr.setPublicKey"
-                    subTx='nostr.setPublicKeySubText'
+                    tx="nostr_setPublicKey"
+                    subTx='nostr_setPublicKeySubText'
                     onPress={toggleNpubModal}
                     bottomSeparator={true}
                 />
                 <ListItem
                     leftIcon='faCircleNodes'
-                    tx='nostr.setRelay'
-                    subTx='nostr.setRelaySubText'
+                    tx='nostr_setRelay'
+                    subTx='nostr_setRelaySubText'
                     onPress={toggleRelayModal}
                     bottomSeparator={true}
                 />
                 <ListItem
                     leftIcon='faBan'
-                    tx="nostr.removePub"
-                    subTx="nostr.removePubSubText"
+                    tx="nostr_removePub"
+                    subTx="nostr_removePubSubText"
                     onPress={onRemovePublicPubKey}
                 /> 
             </>
@@ -557,7 +557,7 @@ export const PublicContacts = observer(function (props: {
           isVisible={isNpubModalVisible}          
           ContentComponent={
             <View style={$newContainer}>
-                <Text tx="contactsScreen.publicContacts.addNpub" preset="subheading" />
+                <Text tx="contactsScreen_publicContacts_addNpub" preset="subheading" />
                 <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
                     <TextInput
                         ref={npubInputRef}
@@ -572,20 +572,20 @@ export const PublicContacts = observer(function (props: {
                         style={[$npubInput, {backgroundColor: inputBg, color: inputText},]}                        
                     />
                     <Button
-                        tx={'common.paste'}
+                        tx={'commonPaste'}
                         preset='secondary'
                         style={$pasteButton}
                         onPress={onPastePublicPubkey}
                     />
                     <Button
-                        tx={'common.save'}
+                        tx={'commonSave'}
                         style={$saveButton}
                         onPress={onSavePublicPubkey}
                     />
                 </View>
                 <View style={[$buttonContainer, {marginTop: spacing.medium}]}>
-                    <Button preset='tertiary' onPress={() => setNewPublicPubkey(defaultPublicNpub)} tx="contactsScreen.publicContacts.pasteDemoKey"/>
-                    <Button preset='tertiary' onPress={toggleNpubModal} tx="common.cancel"/>                    
+                    <Button preset='tertiary' onPress={() => setNewPublicPubkey(defaultPublicNpub)} tx="contactsScreen_publicContacts_pasteDemoKey"/>
+                    <Button preset='tertiary' onPress={toggleNpubModal} tx="commonCancel"/>                    
                 </View>                
             </View>
           }
@@ -596,7 +596,7 @@ export const PublicContacts = observer(function (props: {
           isVisible={isRelayModalVisible ? true : false}          
           ContentComponent={
             <View style={$newContainer}>
-                <Text tx="contactsScreen.publicContacts.setOwnRelay" preset="subheading" />
+                <Text tx="contactsScreen_publicContacts_setOwnRelay" preset="subheading" />
                 <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
                     <TextInput
                         ref={relayInputRef}
@@ -605,28 +605,28 @@ export const PublicContacts = observer(function (props: {
                         autoCapitalize='none'
                         keyboardType='default'
                         maxLength={64}
-                        placeholder='wss://...'
+                        placeholder={translate('placeholderRelay')}
                         placeholderTextColor={placeholderTextColor}
                         selectTextOnFocus={true}
                         style={[$npubInput, {backgroundColor: inputBg, color: inputText},]}                        
                     />
                     <Button
-                        tx={'common.paste'}
+                        tx={'commonPaste'}
                         preset='secondary'
                         style={$pasteButton}
                         onPress={onPastePublicRelay}
                     />
                     <Button
-                        tx={'common.save'}
+                        tx={'commonSave'}
                         style={$saveButton}
                         onPress={onSavePublicRelay}
                     />
                 </View>
                 <View style={[$buttonContainer, {marginTop: spacing.medium}]}> 
                     {newPublicRelay && (                   
-                        <Button preset='tertiary' onPress={onRemovePublicRelay} tx="common.resetDefault"/>                    
+                        <Button preset='tertiary' onPress={onRemovePublicRelay} tx="commonResetDefault"/>                    
                     )}
-                    <Button preset='tertiary' onPress={toggleRelayModal} tx="common.cancel"/>                    
+                    <Button preset='tertiary' onPress={toggleRelayModal} tx="commonCancel"/>                    
                 </View>                
             </View>
           }

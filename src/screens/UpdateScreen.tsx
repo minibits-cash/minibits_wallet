@@ -97,7 +97,7 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
             })
 
             if (!updateInfo) {
-                throw new AppError(Err.NETWORK_ERROR, 'Could not retrieve update information')
+                throw new AppError(Err.NETWORK_ERROR, translate('updateScreen_couldNotRetrieveUpdate'))
             }
 
             await HotUpdater.updateBundle(updateInfo.id, updateInfo.fileUrl)
@@ -141,7 +141,7 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
     return (
       <Screen contentContainerStyle={$screen} preset='fixed'>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text preset="heading" tx="updateScreen.updateManagerTitle" style={{color: headerTitle}} />
+          <Text preset="heading" tx="updateScreen_updateManagerTitle" style={{color: headerTitle}} />
         </View>
         <ScrollView style={$contentContainer}>
           <Card
@@ -151,23 +151,23 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
                 {isUpdateAvailable && (
                     <>
                     <ListItem
-                        tx='updateScreen.updateAvailable'
-                        subTx='updateScreen.updateAvailableDesc'
+                        tx='updateScreen_updateAvailable'
+                        subTx='updateScreen_updateAvailableDesc'
                         leftIcon='faWandMagicSparkles'
                         leftIconColor={colors.palette.iconMagenta200}
                         leftIconInverse={true}                  
                         style={$item}
                     />                    
                     <ListItem
-                        tx='updateScreen.updateNew'
-                        subText={updateDescription || translate("updateScreen.defaultUpdateDesc")}
+                        tx='updateScreen_updateNew'
+                        subText={updateDescription || translate("updateScreen_defaultUpdateDesc")}
                         leftIcon='faInfoCircle'
                         leftIconColor={colors.palette.neutral500}
                         topSeparator={true}                   
                         style={$item}
                     />                    
                     {/*<ListItem
-                        tx='updateScreen.updateSize'
+                        tx='updateScreen_updateSize'
                         subText={updateSize || '1.0MB'}
                         leftIcon='faDownload'
                         leftIconColor={colors.palette.neutral500}                         
@@ -178,8 +178,8 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
                 )}
                 {isNativeUpdateAvailable && (
                 <ListItem
-                    tx='updateScreen.updateAvailable'
-                    subTx={'updateScreen.nativeUpdateAvailableDesc'}
+                    tx='updateScreen_updateAvailable'
+                    subTx={'updateScreen_nativeUpdateAvailableDesc'}
                     leftIcon='faWandMagicSparkles'
                     leftIconColor={colors.palette.iconMagenta200}
                     leftIconInverse={true}                    
@@ -187,8 +187,8 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
                 />)}
                 {(!isUpdateAvailable && !isNativeUpdateAvailable) && (
                     <ListItem
-                        tx='updateScreen.updateNotAvailable'
-                        subTx={'updateScreen.updateNotAvailableDesc'}                                       
+                        tx='updateScreen_updateNotAvailable'
+                        subTx={'updateScreen_updateNotAvailableDesc'}                                       
                         leftIcon='faInfoCircle'
                         leftIconColor={colors.palette.neutral500}
                         style={$item}
@@ -201,7 +201,7 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
                 {isUpdateAvailable && (
                     <Button
                     onPress={handleUpdate}                        
-                    tx='updateScreen.updateNow'
+                    tx='updateScreen_updateNow'
                     style={{alignSelf: 'center', marginTop: spacing.medium}}
                 />
                 )}
@@ -209,12 +209,12 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
                     <View style={$buttonContainer}>
                     <Button
                         onPress={gotoPlayStore}
-                        tx='updateScreen.gotoPlayStore'
+                        tx='updateScreen_gotoPlayStore'
                         style={{marginTop: spacing.medium, marginRight: spacing.small}}
                     />
                     <Button
                         onPress={gotoGithub}
-                        tx="updateScreen.apkOnGithub"
+                        tx="updateScreen_apkOnGithub"
                         preset='secondary'
                         style={{marginTop: spacing.medium}}
                     />
@@ -233,7 +233,7 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
                     icon='faDownload'
                     iconColor={colors.palette.accent400}
                     title={`${Math.round(progress * 100)}%`}
-                    message='Update is in progress...'
+                    message={translate('updateScreen_updateInProgress')}
                 />     
             }
             onBackButtonPress={toggleUpdateModal}

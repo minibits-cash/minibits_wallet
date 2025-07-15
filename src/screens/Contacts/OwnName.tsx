@@ -108,7 +108,7 @@ export const OwnName = observer(function (props: {pubkey: string}) {
         stopPolling(`checkDonationPaidPoller-${donationInvoice.payment_hash}`)
         setResultModalInfo({
           status: TransactionStatus.COMPLETED,
-          message: translate("contactsScreen.ownName.donationSuccess", { receiver: ownName + MINIBITS_NIP05_DOMAIN })
+          message: translate("contactsScreen_ownName_donationSuccess", { receiver: ownName + MINIBITS_NIP05_DOMAIN })
         })
         toggleResultModal()
         //resetState()     
@@ -150,12 +150,12 @@ export const OwnName = observer(function (props: {pubkey: string}) {
     
     const onOwnNameCheck = async function () {
         if(!ownName || ownName.length < 2) {
-            setInfo(translate('contactsScreen.ownName.tooShort'))
+            setInfo(translate('contactsScreen_ownName_tooShort'))
             return
         }
 
         if(!isValidName(ownName)) {
-            setInfo(translate('contactsScreen.ownName.illegalChar'))
+            setInfo(translate('contactsScreen_ownName_illegalChar'))
             return
         }
 
@@ -163,7 +163,7 @@ export const OwnName = observer(function (props: {pubkey: string}) {
             const profileExists = await MinibitsClient.getWalletProfileByNip05(ownName + MINIBITS_NIP05_DOMAIN)
 
             if(profileExists) {
-                setInfo(translate("contactsScreen.ownName.profileExists"))
+                setInfo(translate("contactsScreen_ownName_profileExists"))
                 return
             }
 
@@ -286,7 +286,7 @@ export const OwnName = observer(function (props: {pubkey: string}) {
             {!isChecked ? (
                 <Card
                     style={[$card, {marginTop: spacing.small}]}
-                                    headingTx='contactsScreen.ownName.chooseOwnName'
+                                    headingTx='contactsScreen_ownName_chooseOwnName'
                     headingStyle={{textAlign: 'center'}}
                     ContentComponent={                                
                         <View style={$ownNameContainer}>
@@ -307,13 +307,13 @@ export const OwnName = observer(function (props: {pubkey: string}) {
                             <Button
                                 preset="default"
                                 style={$ownNameButton}
-                                text="Check"
+                                tx="buttonCheck"
                                 onPress={onOwnNameCheck}
                                 // disabled={!isNameInputEnabled}
                             />                    
                         </View>                
                     }
-                    footerTx='contactsScreen.ownName.chooseOwnNameFooter'
+                    footerTx='contactsScreen_ownName_chooseOwnNameFooter'
                     footerStyle={{color: hint, textAlign: 'center'}}                
                 />
             ) : (
@@ -323,7 +323,7 @@ export const OwnName = observer(function (props: {pubkey: string}) {
                         <View style={$iconContainer}>
                             <Icon icon='faCheckCircle' size={50} color={colors.palette.success200} />
                             <Text
-                                text={translate('contactsScreen.ownName.available',{ name: ownName })}
+                                text={translate('contactsScreen_ownName_available',{ name: ownName })}
                                 style={{fontSize: 18}}   
                             />
                         </View>
@@ -333,13 +333,13 @@ export const OwnName = observer(function (props: {pubkey: string}) {
                             {donationInvoice ? (
                                 <>
                                     <Text 
-                                        text={translate("contactsScreen.ownName.payToGetOwnName", { name: ownName+MINIBITS_NIP05_DOMAIN })}
+                                        text={translate("contactsScreen_ownName_payToGetOwnName", { name: ownName+MINIBITS_NIP05_DOMAIN })}
                                         style={[$supportText, {color: hint}]} 
                                     />
                                                                      
                                     <QRCodeBlock 
                                         qrCodeData={donationInvoice.payment_request}
-                                        title='Lightning invoice to pay'
+                                        titleTx="contactsScreen_ownName_lightningInvoiceToPayQR"
                                         type='Bolt11Invoice'
                                         size={270}
                                     />                                
@@ -351,7 +351,7 @@ export const OwnName = observer(function (props: {pubkey: string}) {
                                             text='Minibits'
                                             style={{fontFamily: 'Gluten-Regular', fontSize: 18}}
                                         />{' '}
-                                        <Text text='kindly asks you for a small donation for your new wallet address.' />
+                                        <Text tx="contactsScreen_ownName_donationSubtext" />
                                     </RNText>                                    
                                     <CurrencyAmount
                                         amount={donationAmount}
@@ -359,7 +359,7 @@ export const OwnName = observer(function (props: {pubkey: string}) {
                                         size='extraLarge'
                                         containerStyle={{alignSelf: 'center', marginTop: spacing.medium}}
                                     />                                    
-                                    <Text style={$supportText} text='Ready to donate more?' />
+                                    <Text style={$supportText} tx='readyToDonateMore' />
                                     
                                     <View style={$buttonContainer}>
                                         <Button
@@ -395,19 +395,19 @@ export const OwnName = observer(function (props: {pubkey: string}) {
                                         <Button
                                             preset="default"
                                             style={{marginRight: spacing.small}}
-                                            tx='contactsScreen.getInvoice'
+                                            tx='contactsScreen_getInvoice'
                                             onPress={onCreateDonation}                            
                                         /> 
                                         <Button
                                             preset="secondary"                            
-                                            tx='common.cancel'
+                                            tx='commonCancel'
                                             onPress={resetState}                            
                                         />   
                                     </View>
                                     <ListItem
                                         textStyle={{fontSize: 12, color: hint}}
                                         leftIcon='faInfoCircle'
-                                        tx='contactsScreen.ownName.betaWarning'
+                                        tx='contactsScreen_ownName_betaWarning'
                                     />
                                 </>
                             )}
@@ -424,13 +424,13 @@ export const OwnName = observer(function (props: {pubkey: string}) {
                 <ResultModalInfo
                     icon="faCheckCircle"
                     iconColor={colors.palette.success200}
-                    title={translate("common.success")}
+                    title={translate("commonSuccess")}
                     message={resultModalInfo?.message as string}
                 />
                 <View style={$payButtonContainer}>
                 <Button
                     preset="secondary"
-                    tx={'common.close'}
+                    tx={'commonClose'}
                     onPress={onResultModalClose}
                 />
                 </View>

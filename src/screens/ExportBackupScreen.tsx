@@ -174,12 +174,12 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
       'Do you want to swap your wallet ecash for proofs with optimal denominations? The size of your backup will decrease.',
       [
         {
-          text: translate('common.cancel'),
+          text: translate('commonCancel'),
           style: 'cancel',
           onPress: () => { /* Action canceled */ },
         },
         {
-          text: translate('common.confirm'),
+          text: translate('commonConfirm'),
           onPress: async () => {
             // Moves all wallet proofs to pending in transactions 
             // split by mints and by units and in offline mode.
@@ -404,7 +404,7 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
       <View style={[$headerContainer, {backgroundColor: headerBg}]}>
         <Text
           preset="heading"
-          text="Wallet backup"
+          tx="exportBackupWalletTitle"
           style={{color: headerTitle}}
         />
       </View>
@@ -414,7 +414,7 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
               <>
               {totalProofsCount > 0 && (
                   <ListItem
-                    text="Ecash proofs"
+                    tx="exportBackupEcashProofs"
                     subText={`Number of proofs: ${proofsStore.proofsCount}`}
                     RightComponent={
                       <View style={$rightContainer}>
@@ -437,7 +437,7 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
               )}
               {mintsStore.mintCount > 0 && (
                   <ListItem
-                    text="Mints"
+                    tx="exportBackupMints"
                     subText={`Number of mints: ${mintsStore.mintCount}`}
                     RightComponent={
                       <View style={$rightContainer}>
@@ -452,7 +452,7 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
               )}  
               {contactsStore.count > 0 && (
                   <ListItem
-                    text="Contacts"
+                    tx="contacts"
                     subText={`Number of contacts: ${contactsStore.count}`}
                     RightComponent={
                         <View style={$rightContainer}>
@@ -490,7 +490,7 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
           <View style={$buttonContainer}>              
               <Button                  
                   onPress={copyBackup}
-                  text="Copy backup"
+                  tx="exportBackupCopyBackup"
                   style={{                  
                       marginRight: spacing.small                           
                   }}                  
@@ -514,7 +514,7 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
                   <Button
                       preset="tertiary"
                       onPress={copyOrphanedProofs}
-                      text="Copy orphaned proofs"                  
+                      tx="exportBackupCopyOrphanedProofs"                  
                       textStyle={{fontSize: 14, marginLeft: spacing.small}}
                   />
                 )}
@@ -530,13 +530,13 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
                 <ResultModalInfo
                   icon={'faCheckCircle'}
                   iconColor={colors.palette.success200}
-                  title={resultModalInfo.title || translate('common.success')}
+                  title={resultModalInfo.title || translate('commonSuccess')}
                   message={resultModalInfo?.message}
                 />
                 <View style={$buttonContainer}>
                   <Button
                     preset="secondary"
-                    tx='common.close'
+                    tx='commonClose'
                     onPress={toggleResultModal}
                   />
                 </View>
@@ -548,13 +548,13 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
                 <ResultModalInfo
                   icon="faTriangleExclamation"
                   iconColor={colors.palette.focus300}
-                  title={resultModalInfo?.title as string || translate('transactionCommon.receiveFailed')}
+                  title={resultModalInfo?.title as string || translate('transactionCommon_receiveFailed')}
                   message={resultModalInfo?.message as string}
                 />
                 <View style={$buttonContainer}>
                   <Button
                       preset="secondary"
-                      tx={'common.close'}
+                      tx={'commonClose'}
                       onPress={toggleResultModal}
                   />                      
                 </View>

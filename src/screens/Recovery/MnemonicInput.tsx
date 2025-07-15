@@ -30,7 +30,7 @@ export const MnemonicInput = forwardRef<TextInput, MnemonicInputProps>((props, m
             const maybeMnemonic = await Clipboard.getString()
 
             if(!maybeMnemonic) {
-            throw new AppError(Err.VALIDATION_ERROR, translate('backupScreen.missingMnemonicError'))
+            throw new AppError(Err.VALIDATION_ERROR, translate('backupMissingMnemonicError'))
             }
 
             const cleaned = maybeMnemonic.replace(/\s+/g, ' ').trim()
@@ -54,7 +54,7 @@ export const MnemonicInput = forwardRef<TextInput, MnemonicInputProps>((props, m
             style={$card}
             ContentComponent={
                 <ListItem
-                    tx='backupScreen.mnemonicTitle'
+                    tx='backupMnemonicTitle'
                     subText={mnemonic}
                     subTextStyle={{fontFamily: typography.code?.normal}}
                     LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='1'/></View>}                  
@@ -93,12 +93,12 @@ export const MnemonicInput = forwardRef<TextInput, MnemonicInputProps>((props, m
                 {mnemonic ? (
                     <Button
                         onPress={onConfirm}
-                        tx='common.confirm'                        
+                        tx='commonConfirm'                        
                     />
                 ) : (
                     <Button
                         onPress={onPaste}
-                        tx='common.paste'                        
+                        tx='commonPaste'                        
                     />
                 )
             }                    

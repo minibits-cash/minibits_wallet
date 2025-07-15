@@ -245,7 +245,7 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
     return (
       <Screen contentContainerStyle={$screen}>        
         <Animated.View style={[animatedHeader, $headerContainer, {backgroundColor: headerBg}]}>
-            <Text preset="heading" text="History" style={{color: headerTitle}} />
+            <Text preset="heading" tx="tranHistoryScreen_title" style={{color: headerTitle}} />
         </Animated.View>
             
         <View style={$contentContainer}>
@@ -255,11 +255,11 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
                     <>
                         <ListItem
                             text={showPendingOnly 
-                              ? translate("tranHistory.showingPaginationPending", {
+                              ? translate("tranHistory_showingPaginationPending", {
                                 amount: transactionsStore.pendingHistoryCount,
                                 total: pendingDbCount
                               }) 
-                              : translate("tranHistory.showingPaginationTotal", {
+                              : translate("tranHistory_showingPaginationTotal", {
                                 amount: transactionsStore.historyCount,
                                 total: totalDbCount
                               })
@@ -277,7 +277,7 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
                             onPress={() => false}
                         />
                         <ListItem
-                        text={translate("tranHistory.pendingParam", {
+                        text={translate("tranHistory_pendingParam", {
                           param: pendingDbCount
                         })}
                         LeftComponent={
@@ -323,12 +323,12 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
                     {sections.length > 0 && (
                         <View style={{alignItems: 'center'}}>
                             {!showPendingOnly && isAll || showPendingOnly && pendingIsAll ? (
-                                <Text tx="tranHistory.listIsComplete" size="xs" />
+                                <Text tx="tranHistory_listIsComplete" size="xs" />
                             ) : (
                                 <Button
                                     preset="secondary"
                                     onPress={addTransactionsToList}
-                                    tx="tranHistory.viewMore"
+                                    tx="tranHistory_viewMore"
                                     style={{minHeight: 25, paddingVertical: spacing.tiny}}
                                     textStyle={{fontSize: 14}}
                                 />
@@ -346,7 +346,7 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
                         ContentComponent={
                             <ListItem
                               leftIcon='faBan'
-                              tx={"tranHistory.noTransToShow"}
+                              tx={"tranHistory_noTransToShow"}
                             />
                         }
                         style={$card}                
@@ -362,8 +362,8 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
           ContentComponent={
             <>
                 <ListItem
-                    tx="tranHistory.deleteExpired"
-                    subText={translate("tranHistory.deleteExpiredDesc", {
+                    tx="tranHistory_deleteExpired"
+                    subText={translate("tranHistory_deleteExpiredDesc", {
                       count: expiredDbCount
                     })}
                     leftIcon='faRotate'
@@ -371,8 +371,8 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
                     bottomSeparator={true}
                 /> 
                 <ListItem
-                    tx="tranHistory.deleteErrored"
-                    subText={translate("tranHistory.deleteErroredDesc", {
+                    tx="tranHistory_deleteErrored"
+                    subText={translate("tranHistory_deleteErroredDesc", {
                       count: erroredDbCount
                     })}
                     leftIcon='faBug'                            
@@ -380,8 +380,8 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
                     bottomSeparator={true}                                    
                 />
                 <ListItem
-                    tx="tranHistory.deleteReverted"
-                    subText={translate("tranHistory.deleteRevertedDesc", {
+                    tx="tranHistory_deleteReverted"
+                    subText={translate("tranHistory_deleteRevertedDesc", {
                       count: revertedDbCount
                     })}
                     leftIcon='faBan'                            

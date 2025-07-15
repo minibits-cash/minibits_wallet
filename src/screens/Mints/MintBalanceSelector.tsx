@@ -109,7 +109,7 @@ export const MintBalanceSelector = observer(function (props: {
                   ListFooterComponent={props.mintBalances.length > 1 && collapsible ? (
                     <View style={{alignItems: 'center'}}>
                       <Button 
-                        tx={allVisible ? 'common.hideMore' : 'common.showMore'}
+                        tx={allVisible ? 'commonHideMore' : 'commonShowMore'}
                         onPress={toggleAllVisible}
                         preset='tertiary'
                         textStyle={{fontSize: 14}}
@@ -153,7 +153,7 @@ export const MintBalanceSelector = observer(function (props: {
                     <Icon icon={props.cancelIcon} color={secondaryIconColor} size={spacing.medium}/>
                   ))
                 }
-                tx={'common.cancel'}
+                tx={'commonCancel'}
                 onPress={props.onCancel}
               />
           </View>

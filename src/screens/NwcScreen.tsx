@@ -8,6 +8,7 @@ import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import AppError, { Err } from '../utils/AppError'
 import { log } from '../services'
+import { translate } from '../i18n'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { NwcConnection } from '../models/NwcStore'
 import { QRCodeBlock } from './Wallet/QRCode'
@@ -94,7 +95,7 @@ export const NwcScreen = observer(function NwcScreen(_props) {
         if(!isRemoteDataPushEnabled) {
             setSelectedConnection(undefined)        
             nwcStore.receiveNwcEventsQueue()   
-            setInfo(`Your device can not receive background push messages. This is essential to recieve NWC commands. As a fallback, Minibits subscribed to Nostr relays to receive the commands. However, this will stop working when app is in the background or off.`)
+            setInfo(translate('nwcScreen_pushNotificationWarning'))
         }
     }
 
@@ -111,17 +112,17 @@ export const NwcScreen = observer(function NwcScreen(_props) {
         try {
 
             if(!newConnectionName || !newConnectionDailyLimit) {
-                setInfo('Insert name or daily limit')
+                setInfo(translate('nwcScreen_missingNameOrLimit'))
                 return
             }
 
             if(parseInt(newConnectionDailyLimit) === 0) {
-                setInfo('Daily limit must be above zero')
+                setInfo(translate('nwcScreen_limitMustBePositive'))
                 return
             }
 
             if(nwcStore.alreadyExists(newConnectionName)) {
-                setInfo('Connection with this name already exists.')
+                setInfo(translate('nwcScreen_connectionExists'))
                 return
             }
 
@@ -173,8 +174,8 @@ export const NwcScreen = observer(function NwcScreen(_props) {
                         BottomComponent={                            
                             <CollapsibleText
                                 collapsed={true}
-                                summary='NWC lets you control your wallet from another application, such as your favourite Nostr app.'                                
-                                text={'NWC lets you control your wallet from another application, such as your favourite Nostr app. Allow access only to the apps you trust. Your device must have push notifications enabled and stay online.'}
+                                summary={translate('nwcScreen_nwcSummary')}                                
+                                text={translate('nwcScreen_nwcDescription')}
                                 textProps={{style: $subText}}
                             />
                         }
@@ -214,11 +215,11 @@ export const NwcScreen = observer(function NwcScreen(_props) {
                                         BottomComponent={
                                         <View style={{flexDirection: 'column'}}>
                                             <Text 
-                                                text={`Daily limit ${item.dailyLimit} SAT`} 
+                                                text={translate("nwcScreen_dailyLimit", {limit: item.dailyLimit, currency: 'SAT'})}
                                                 style={$subText}
                                             />
                                             <Text 
-                                                text={`Remaining ${item.remainingDailyLimit} SAT`} 
+                                                text={translate("nwcScreen_remainingLimit", {remaining: item.remainingDailyLimit, currency: 'SAT'})}
                                                 style={$subText}
                                             />
                                         </View>}
@@ -248,7 +249,7 @@ export const NwcScreen = observer(function NwcScreen(_props) {
                     onPress={gotoAdd}                        
                     style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonNew]}
                     preset='tertiary'
-                    text='Add connection'
+                    tx='nwcScreen_addConnection'
                 />
             </View>
         </View>
@@ -261,7 +262,7 @@ export const NwcScreen = observer(function NwcScreen(_props) {
                 <ListItem
                     leftIcon="faXmark"
                     onPress={removeConnection}
-                    text="Remove connection"
+                    tx="nwcScreen_removeConnection"
                     style={{paddingHorizontal: spacing.medium}}
                 />
             </View>
@@ -277,13 +278,13 @@ export const NwcScreen = observer(function NwcScreen(_props) {
             <View style={$newContainer}>                
                 <QRCodeBlock
                     qrCodeData={selectedConnection?.connectionString as string}
-                    title='Share NWC connection'
+                    titleTx='nwcScreen_shareNwcConnection'
                     type='NWC'
                 />
                 <Text
                     size="xxs"
                     style={{color: labelText, marginTop: spacing.medium, alignSelf: 'center'}}
-                    text="Scan or copy this connection string to another application to allow it to connect to your wallet. Use only with apps you trust."
+                    tx="nwcScreen_shareDescription"
                 />
             </View>
             </>
@@ -295,12 +296,12 @@ export const NwcScreen = observer(function NwcScreen(_props) {
           isVisible={isAddConnectionModalVisible ? true : false}          
           ContentComponent={
             <>
-            <Text text='Create NWC connection' preset="subheading" style={{alignSelf: 'center'}} />
+            <Text tx='nwcScreen_createNwcConnection' preset="subheading" style={{alignSelf: 'center'}} />
             <View style={$newContainer}>                
                 <Text
                     size="xxs"
                     style={{color: labelText, marginTop: spacing.medium}}
-                    text="Name your connection by the app you will use it with"
+                    tx="nwcScreen_nameConnectionHint"
                 />              
                 <View style={{                  
                     flexDirection: 'row',                    
@@ -313,7 +314,7 @@ export const NwcScreen = observer(function NwcScreen(_props) {
                         autoCapitalize='sentences'
                         keyboardType='default'
                         maxLength={64}
-                        placeholder='My NWC application'
+                        placeholder={translate('nwcScreen_appNamePlaceholder')}
                         placeholderTextColor={placeholderTextColor}
                         selectTextOnFocus={true}
                         style={[$connInput, {backgroundColor: inputBg, color: inputText}]}
@@ -322,7 +323,7 @@ export const NwcScreen = observer(function NwcScreen(_props) {
                 <Text
                     size="xxs"
                     style={{color: labelText, marginTop: spacing.medium}}
-                    text="Set maximal daily limit to spend"
+                    tx="nwcScreen_dailyLimitHint"
                 />  
                 <View style={{                    
                     flexDirection: 'row',
@@ -334,7 +335,7 @@ export const NwcScreen = observer(function NwcScreen(_props) {
                         value={newConnectionDailyLimit}                        
                         keyboardType='numeric'
                         maxLength={8}
-                        placeholder='Enter daily limit in SAT'
+                        placeholder={translate('nwcScreen_dailyLimitPlaceholder')}
                         placeholderTextColor={placeholderTextColor}
                         selectTextOnFocus={true}
                         style={[$connInput, {backgroundColor: inputBg, color: inputText}]}
@@ -353,11 +354,11 @@ export const NwcScreen = observer(function NwcScreen(_props) {
                 </View>
                 <View style={[$buttonContainer, {marginTop: spacing.medium}]}> 
                     <Button
-                        tx={'common.save'}
+                        tx={'commonSave'}
                         style={$saveButton}
                         onPress={onSaveConnection}
                     />
-                    <Button preset='tertiary' onPress={toggleAddConnectionModal} style={{marginLeft: spacing.small}} text='Cancel'/>
+                    <Button preset='tertiary' onPress={toggleAddConnectionModal} style={{marginLeft: spacing.small}} tx='commonCancel'/>
                 </View>                
             </View>
             </>

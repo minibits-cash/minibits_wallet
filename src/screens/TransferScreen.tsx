@@ -330,7 +330,7 @@ useEffect(() => {
             let availableBalances = proofsStore.getMintBalancesWithEnoughBalance(totalAmount, unitRef.current)
     
             if (availableBalances.length === 0) {
-                setInfo(translate("transferScreen.insufficientFunds", {
+                setInfo(translate("transferScreen_insufficientFunds", {
                   currency: getCurrency(unitRef.current).code,
                   amount: amountToTransfer
                 }))
@@ -404,7 +404,7 @@ useEffect(() => {
             } else {
                 setResultModalInfo({
                     status,
-                    title: error.params?.message ? error.message : translate('payCommon.failed'),
+                    title: error.params?.message ? error.message : translate('payCommon_failed'),
                     message: error.params?.message || error.message,
                 })
             }        
@@ -416,7 +416,7 @@ useEffect(() => {
 
               setResultModalInfo({
                 status,
-                message: `Donation for ${donationForName} has been successfully paid and your wallet address has been updated. Thank you!`,
+                message: translate('transferScreen_donationSuccessMessage', {donationForName}),
               })
 
             } else {
@@ -507,7 +507,7 @@ const onRequestLnurlInvoice = async function () {
     const amountUnit = round(toNumber(amountToTransfer) * precision, 0)
 
     if (!amountUnit || amountUnit === 0) {
-      setInfo(translate('payCommon.amountZeroOrNegative'))          
+      setInfo(translate('payCommon_amountZeroOrNegative'))          
       return
     }
 
@@ -527,7 +527,7 @@ const onRequestLnurlInvoice = async function () {
     }   
 
     if (lnurlPayParams.minSendable && amountSats < lnurlPayParams.minSendable / 1000) {
-      setInfo(translate('payCommon.minimumPay', { 
+      setInfo(translate('payCommon_minimumPay', { 
         amount: roundUp(lnurlPayParams.minSendable / 1000, 0), 
         currency: CurrencyCode.SAT 
       }))        
@@ -535,7 +535,7 @@ const onRequestLnurlInvoice = async function () {
     }
 
     if (lnurlPayParams.maxSendable && amountSats > lnurlPayParams.maxSendable / 1000) {       
-      setInfo(translate("payCommon.maximumPay", { 
+      setInfo(translate("payCommon_maximumPay", { 
         amount: roundDown(lnurlPayParams.maxSendable / 1000, 0),
         currency: CurrencyCode.SAT
       }))          
@@ -543,7 +543,7 @@ const onRequestLnurlInvoice = async function () {
     }
 
     if (lnurlPayParams.payerData) {
-      setInfo(translate("transferScreen.LUD18unsupported"))
+      setInfo(translate("transferScreen_LUD18unsupported"))
     }
 
     setIsLoading(true)
@@ -594,11 +594,11 @@ const onEncodedInvoice = async function (encoded: string) {
         const expiresAt = addSeconds(new Date(timestamp as number * 1000), expiry as number)
 
         if (!amount || amount === 0) {
-          setInfo(translate('payCommon.amountZeroOrNegative'))            
+          setInfo(translate('payCommon_amountZeroOrNegative'))            
           return;
         }
 
-        if(!isInternetReachable) setInfo(translate('common.offlinePretty'));
+        if(!isInternetReachable) setInfo(translate('commonOfflinePretty'));
         
         setIsAmountEditable(false)
         setEncodedInvoice(encoded)
@@ -622,7 +622,7 @@ const onEncodedInvoice = async function (encoded: string) {
 
         if (!balanceToTransferFrom) {
           log.warn('Not enough balance')
-          setInfo(translate("transferScreen.noMintWithBalance", { unit: unitRef.current }))
+          setInfo(translate("transferScreen_noMintWithBalance", { unit: unitRef.current }))
           setIsNotEnoughFunds(true)
           return
         }
@@ -643,7 +643,7 @@ const transfer = async function () {
     }
 
     if (!mintBalanceToTransferFrom) {
-      setInfo(translate("transferScreen.selectMintFrom"))
+      setInfo(translate("transferScreen_selectMintFrom"))
       return;
     }
 
@@ -778,7 +778,7 @@ const amountInputColor = useThemeColor('amountInput')
                 )}
                 <Text
                   size="xs"
-                  tx="payCommon.amountToPayLabel"
+                  tx="payCommon_amountToPayLabel"
                   style={{
                     color: amountInputColor, 
                     textAlign: 'center',
@@ -800,7 +800,7 @@ const amountInputColor = useThemeColor('amountInput')
                     lnurlPayParams?.address ||
                     memo ||
                     lnurlPayParams?.domain ||
-                    translate('common.noDescPlaceholder')
+                    translate('commonNoDescPlaceholder')
                   }
                   subText={lnurlDescription}
                   LeftComponent={
@@ -846,7 +846,7 @@ const amountInputColor = useThemeColor('amountInput')
             <View style={$bottomContainer}>
               <View style={$buttonContainer}>
                 <Button                    
-                  tx="transferScreen.requestInvoice"
+                  tx="transferScreen_requestInvoice"
                   onPress={onRequestLnurlInvoice}
                 />
               </View>
@@ -856,7 +856,7 @@ const amountInputColor = useThemeColor('amountInput')
             <View style={$bottomContainer}>
               <View style={$buttonContainer}>
                 <Button                    
-                  tx="common.close"
+                  tx="commonClose"
                   onPress={gotoWallet}
                   preset="secondary"
                 />
@@ -869,8 +869,8 @@ const amountInputColor = useThemeColor('amountInput')
                 mintBalances={availableMintBalances}
                 selectedMintBalance={mintBalanceToTransferFrom}
                 unit={unitRef.current}
-                title={translate('payCommon.payFrom')}
-                confirmTitle={translate('payCommon.payNow')}
+                title={translate('payCommon_payFrom')}
+                confirmTitle={translate('payCommon_payNow')}
                 onMintBalanceSelect={onMintBalanceSelect}
                 onCancel={gotoWallet}
                 onMintBalanceConfirm={transfer}
@@ -882,7 +882,7 @@ const amountInputColor = useThemeColor('amountInput')
               ContentComponent={
                 <>
                   <TranItem
-                    label="tranDetailScreen.trasferredTo"
+                    label="tranDetailScreen_trasferredTo"
                     isFirst={true}
                     value={
                       mintsStore.findByUrl(transaction.mint)
@@ -891,18 +891,18 @@ const amountInputColor = useThemeColor('amountInput')
                   />
                   {transaction?.memo && (
                     <TranItem
-                      label="tranDetailScreen.memoFromInvoice"
+                      label="tranDetailScreen_memoFromInvoice"
                       value={transaction.memo as string}
                     />
                   )}
                   <TranItem
-                    label="transactionCommon.feePaid"
+                    label="transactionCommon_feePaid"
                     value={transaction.fee || 0}
                     unit={unitRef.current}
                     isCurrency={true}
                   />
                   <TranItem
-                    label="tranDetailScreen.status"
+                    label="tranDetailScreen_status"
                     value={transaction.status as string}
                   />
                 </>
@@ -914,7 +914,7 @@ const amountInputColor = useThemeColor('amountInput')
               <View style={$buttonContainer}>
                 <Button
                   preset="secondary"
-                  tx={'common.close'}
+                  tx={'commonClose'}
                   onPress={gotoWallet}
                 />
               </View>
@@ -931,13 +931,13 @@ const amountInputColor = useThemeColor('amountInput')
                     <ResultModalInfo
                       icon="faCheckCircle"
                       iconColor={colors.palette.success200}
-                      title={translate('payCommon.completed')}
+                      title={translate('payCommon_completed')}
                       message={resultModalInfo?.message}
                     />
                     <View style={$buttonContainer}>
                       <Button
                         preset="secondary"
-                        tx={'common.close'}
+                        tx={'commonClose'}
                         onPress={() => {
                           if (isInvoiceDonation) {
                             gotoContacts()
@@ -955,13 +955,13 @@ const amountInputColor = useThemeColor('amountInput')
                     <ResultModalInfo
                       icon="faRotate"
                       iconColor={colors.palette.accent300}
-                      title={translate('transactionCommon.reverted')}
+                      title={translate('transactionCommon_reverted')}
                       message={resultModalInfo?.message}
                     />
                     <View style={$buttonContainer}>
                       <Button
                         preset="secondary"
-                        tx={'common.close'}
+                        tx={'commonClose'}
                         onPress={toggleResultModal}
                       />
                     </View>
@@ -974,7 +974,7 @@ const amountInputColor = useThemeColor('amountInput')
                       icon="faTriangleExclamation"
                       iconColor={colors.palette.angry500}
                       title={
-                        resultModalInfo?.title || translate('payCommon.failed')
+                        resultModalInfo?.title || translate('payCommon_failed')
                       }
                       message={resultModalInfo?.message}
                     />
@@ -994,7 +994,7 @@ const amountInputColor = useThemeColor('amountInput')
                         ) : (
                             <Button
                                 preset="secondary"
-                                tx={'common.close'}
+                                tx={'commonClose'}
                                 onPress={toggleResultModal}
                             />
                         )}
@@ -1007,13 +1007,13 @@ const amountInputColor = useThemeColor('amountInput')
                     <ResultModalInfo
                       icon="faTriangleExclamation"
                       iconColor={colors.palette.iconYellow300}
-                      title={translate('payCommon.isPending')}
+                      title={translate('payCommon_isPending')}
                       message={resultModalInfo?.message}
                     />
                     <View style={$buttonContainer}>
                       <Button
                         preset="secondary"
-                        tx={'common.close'}
+                        tx={'commonClose'}
                         onPress={gotoWallet}
                       />
                     </View>

@@ -62,7 +62,7 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
     const onPasteOwnNip05 = async function () {
         const nip = await Clipboard.getString()
         if (!nip) {
-          setInfo(translate("nostr.pasteError"))
+          setInfo(translate("nostr_pasteError"))
           return
         }  
         setOwnNip05(nip.trim())        
@@ -75,11 +75,11 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
             const nip05Domain = NostrClient.getDomainFromNip05(ownNip05)
 
             if(!nip05Name || !nip05Domain) {
-              setInfo(translate("nostr.invalidAddressFormat"))
+              setInfo(translate("nostr_invalidAddressFormat"))
             }
 
             if(MINIBITS_NIP05_DOMAIN.includes(nip05Domain as string)) {
-              setInfo(translate("nostr.minibitsNameKeyReuseError", { domain: MINIBITS_NIP05_DOMAIN }))
+              setInfo(translate("nostr_minibitsNameKeyReuseError", { domain: MINIBITS_NIP05_DOMAIN }))
               return
             }
 
@@ -120,7 +120,7 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
                 } else {
                   throw new AppError(
                     Err.VALIDATION_ERROR, 
-                    translate("nostr.profileRelayMismatchedIdentifierError"), 
+                    translate("nostr_profileRelayMismatchedIdentifierError"), 
                     { ownNip05, profile }
                   )
                 }
@@ -129,7 +129,7 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
             if(profile.nip05 !== ownNip05) {
               throw new AppError(
                 Err.VALIDATION_ERROR, 
-                translate("nostr.profileRelayMismatchedIdentifierError"), 
+                translate("nostr_profileRelayMismatchedIdentifierError"), 
                 { ownNip05, profile }
               )
             }
@@ -252,8 +252,8 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
                         <View style={$nip05Container}>                    
                             <ListItem
                               LeftComponent={<View style={[$numIcon, {backgroundColor: iconNip05}]}><Text text='1'/></View>}
-                              tx="nostr.enterAddress"
-                              subTx="nostr.enterAddressDesc"
+                              tx="nostr_enterAddress"
+                              subTx="nostr_enterAddressDesc"
                               bottomSeparator={true}
                               style={{}}
                             />                    
@@ -275,13 +275,13 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
                                   style={[$nip05Input, {backgroundColor: inputBg, color: inputText}]}                                                   
                                 />
                                 <Button
-                                  tx='common.paste'
+                                  tx='commonPaste'
                                   preset='secondary'
                                   style={$pasteButton}                                
                                   onPress={onPasteOwnNip05}
                                 />
                                 <Button
-                                  tx='common.confirm'
+                                  tx='commonConfirm'
                                   style={$saveButton}
                                   onPress={onConfirmOwnNip05}                                
                                 />                        
@@ -354,13 +354,13 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
                                 style={[$nip05Input, {backgroundColor: inputBg, color: inputText}]}                                                
                             />
                             <Button
-                                tx='common.paste'
+                                tx='commonPaste'
                                 preset='secondary'
                                 style={$pasteButton}                            
                                 onPress={onPasteOwnNsec}
                             />
                             <Button
-                                tx='common.confirm'
+                                tx='commonConfirm'
                                 style={$saveButton}
                                 onPress={onConfirmOwnNsec}                            
                             />                        
@@ -378,14 +378,14 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
                     <>
                         <ListItem
                             leftIcon='faTriangleExclamation'
-                            tx="nostr.lastStandDialog.title"
-                            subTx="nostr.lastStandDialog.desc"
+                            tx="nostr_lastStandDialog_title"
+                            subTx="nostr_lastStandDialog_desc"
                         />
                         <ListItem
                             leftIcon='faCheckCircle'
                             leftIconColor={colors.palette.success200}
-                            tx="nostr.lastStandDialog.readyTitle"
-                            subText="nostr.lastStandDialog.readyDesc"
+                            tx="nostr_lastStandDialog_readyTitle"
+                            subText="nostr_lastStandDialog_readyDesc"
                             style={{}}
                         />
                     </>
@@ -394,12 +394,12 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
                     <View style={$buttonContainer}>
                         <Button
                             preset="default"
-                            tx='nostr.lastStandDialog.confirm'
+                            tx='nostr_lastStandDialog_confirm'
                             onPress={onConfirmChange}
                         />
                         <Button
                             preset="secondary"
-                            tx='nostr.lastStandDialog.cancel'
+                            tx='nostr_lastStandDialog_cancel'
                             onPress={onCancelChange}
                         />
                     </View>
@@ -415,12 +415,12 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
                     <ProfileHeader headerBg='transparent' headerTextStyle={{color: textResult}}/>
                     <Text 
                         style={{color: textResult, textAlign: 'center', marginTop: spacing.small}} 
-                        tx="nostr.lastStandDialog.complete"
+                        tx="nostr_lastStandDialog_complete"
                     />
                     <View style={$buttonContainer}>
                     <Button
                         preset="secondary"
-                        tx='common.close'
+                        tx='commonClose'
                         onPress={onProfileChangeClose}
                     />
                     </View>             

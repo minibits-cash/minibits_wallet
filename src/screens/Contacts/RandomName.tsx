@@ -57,7 +57,7 @@ export const RandomName = observer(function (props: {pubkey: string}) {
 
   const confirmSelectedName = async function () {
     if (!selectedName) {
-      setInfo(translate('contactsScreen.randomName.selectOneOfUsernames'))
+      setInfo(translate('contactsScreen_randomName_selectOneOfUsernames'))
       return
     }
 
@@ -108,7 +108,7 @@ export const RandomName = observer(function (props: {pubkey: string}) {
         <View style={$buttonContainer}>
           <Button
             onPress={() => confirmSelectedName()}
-            tx="common.confirm"
+            tx="commonConfirm"
             style={{marginTop: spacing.medium, minWidth: 120}}
           />
         </View>

@@ -114,7 +114,7 @@ export const QRCodeBlock = function (props: {
             500,
           )
         } else if (result.action === Share.dismissedAction) {
-            infoMessage(translate('share.cancelled'))          
+            infoMessage(translate('share_cancelled'))          
         }
       } catch (e: any) {
         handleQrError(e)
@@ -181,7 +181,7 @@ export const QRCodeBlock = function (props: {
         style={{backgroundColor: 'white', paddingBottom: spacing.small}}
         ContentComponent={qrError ? (
           <ListItem 
-              text={translate("qr.fail")}
+              text={translate("qr_fail")}
               subText={qrError ? qrError.message : ''}
               leftIcon='faTriangleExclamation'
               containerStyle={{marginVertical: spacing.large}}
@@ -220,7 +220,7 @@ export const QRCodeBlock = function (props: {
         FooterComponent={
           <View style={$buttonContainer}>
             <Button
-                text="Share"
+                tx="commonShare"
                 preset="tertiary" 
                 onPress={onShareToApp}
                 LeftAccessory={() => <Icon icon='faShareNodes' size={spacing.small} color={colors.light.text} />}
@@ -233,7 +233,7 @@ export const QRCodeBlock = function (props: {
             />
             <Button 
                 preset="tertiary" 
-                text="Copy" 
+                tx="commonCopy" 
                 onPress={onCopy}
                 LeftAccessory={() => <Icon icon='faCopy' size={spacing.small} color={colors.light.text} />}
                 textStyle={{color: colors.light.text, fontSize: 14}}
@@ -246,7 +246,7 @@ export const QRCodeBlock = function (props: {
             {type === 'EncodedV4Token' && keysetFormat === 'hex' && !isAnimating && (
               <Button
                   preset="tertiary" 
-                  text={`${encodedV3Token ? 'New' : 'Old'}`}
+                  tx={encodedV3Token ? "qrCodeNewFormatButton" : "qrCodeOldFormatButton"}
                   onPress={switchTokenEncoding}
                   LeftAccessory={() => <Icon icon='faMoneyBill1' size={spacing.small} color={colors.light.text}/>}
                   textStyle={{color: colors.light.text, fontSize: 14}}
@@ -260,7 +260,7 @@ export const QRCodeBlock = function (props: {
             {type === 'EncodedV4Token' && !isQRCodeError && (
               <Button
                   preset="tertiary" 
-                  text={`${isAnimating ? 'Static' : 'Animate'}`}
+                  tx={isAnimating ? "qrCodeStaticButton" : "qrCodeAnimateButton"}
                   onPress={toggleQRcodeAnimation}
                   LeftAccessory={() => <Icon icon='faQrcode' size={spacing.small} color={colors.light.text} />}
                   textStyle={{color: colors.light.text, fontSize: 14}}

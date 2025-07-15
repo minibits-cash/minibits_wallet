@@ -100,7 +100,7 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
           contactsStore.saveNote(contact.pubkey, note || '')
           setIsNoteEditing(false)           
         } catch (e: any) {
-          setInfo(translate('common.saveFailParam', { param: e.message }))
+          setInfo(translate('commonSaveFailParam', { param: e.message }))
         }
     }
 
@@ -119,7 +119,7 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
         try {
           Clipboard.setString(contact.npub)
         } catch (e: any) {
-          setInfo(translate('common.copyFailParam', { param: e.message }))
+          setInfo(translate('commonCopyFailParam', { param: e.message }))
         }
     }
 
@@ -245,7 +245,7 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
                                 <Button
                                     preset="secondary"
                                     style={$noteButton}
-                                    text="Save"
+                                    tx="commonSave"
                                     onPress={onNoteSave}
                                     
                                 />
@@ -253,7 +253,7 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
                                 <Button
                                     preset="secondary"
                                     style={$noteButton}
-                                    text="Edit"
+                                    tx="commonEdit"
                                     onPress={onNoteEdit}
                                     
                                 />
@@ -278,7 +278,7 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
                         <ListItem                                                                
                             LeftComponent={
                                 <Button
-                                    tx="payCommon.requestPayment"
+                                    tx="payCommon_requestPayment"
                                     style={{marginLeft: spacing.small, alignSelf: 'center', minHeight: verticalScale(20)}}
                                     textStyle={{fontSize: verticalScale(14), lineHeight: verticalScale(16)}}
                                     onPress={gotoTopup}
@@ -287,7 +287,7 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
                             }
                             RightComponent={
                                 <Button
-                                    tx="payCommon.payToAddress"
+                                    tx="payCommon_payToAddress"
                                     style={{marginLeft: spacing.small, alignSelf: 'center', minHeight: verticalScale(20)}}
                                     textStyle={{fontSize: verticalScale(14), lineHeight: verticalScale(16)}}
                                     onPress={gotoTransfer}
@@ -342,7 +342,7 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
           ContentComponent={
             <>
             <ListItem
-                tx="share.contactAddress"
+                tx="share_contactAddress"
                 subText={nip05}
                 leftIcon='faShareNodes'
                 onPress={onShareContact}

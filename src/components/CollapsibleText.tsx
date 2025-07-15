@@ -46,7 +46,7 @@ export const CollapsibleText = (props: CollapsibleProps) => {
             {...props.textProps}
           />
           <View style={{ flexDirection: "row" }}>
-            <Text tx={collapsed ? 'common.showMore' : 'common.hideMore'} style={{ color: textDim }} size="xs" />
+            <Text tx={collapsed ? 'commonShowMore' : 'commonHideMore'} style={{ color: textDim }} size="xs" />
             <Icon icon={collapsed ? 'faChevronDown' : 'faChevronUp'} color={textDim} size={12} />
           </View>
         </Pressable>
