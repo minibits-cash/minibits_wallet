@@ -9,7 +9,6 @@ try {
 	// Read settings.json to get language configuration
 	const settingsPath = path.join(__dirname, '..', 'minibits.inlang', 'settings.json');
 	const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-
 	const defaultLanguage = settings.sourceLanguageTag;
 	const allLanguages = settings.languageTags;
 
@@ -84,3 +83,6 @@ try {
 }
 
 console.log('\n' + '=' + '='.repeat(50));
+  // Read settings.json to get language configuration
+  const settingsPath = path.join(__dirname, '..', 'minibits.inlang', 'settings.json');
+  const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
