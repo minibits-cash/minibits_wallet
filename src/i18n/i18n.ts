@@ -7,6 +7,7 @@ import { getLocales } from "react-native-localize"
 import en from "../i18n_messages/en.json"
 import sk from "../i18n_messages/sk.json"
 import es from "../i18n_messages/es.json"
+import pt from "../i18n_messages/pt.json"
 
 type Translations = typeof en;
 export const i18n = new I18n()
@@ -19,7 +20,8 @@ export const i18n = new I18n()
 i18n.translations = { 
   en, "en-US": en, 
   sk, "sk-SK": sk,
-  es, "es-ES": es, "es-MX": es
+  es, "es-ES": es, "es-MX": es,
+  pt, "pt-PT": pt, "pt-BR": pt
 }
 
 // important!

@@ -4,7 +4,8 @@
   "languageTags": [
     "en",
     "sk",
-	"es"
+	"es",
+	"pt"
   ],
   "modules": [
     "https://cdn.jsdelivr.net/npm/@inlang/message-lint-rule-empty-pattern@latest/dist/index.js",
