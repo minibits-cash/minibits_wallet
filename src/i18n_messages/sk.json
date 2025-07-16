@@ -440,7 +440,7 @@
 	"relaysSetYourRelay": "Nastav svoj vlastný relay",
 	"relayurlPasteError": "Skopíruj relay URL, potom vlož.",
 	"removeRelay": "Odstráň relay",
-	"removingMintLostBalanceWarning": "Tvoja peňaženka má od tejto mint ecahs a nenulovým zostatkom. Ak ju odstrániš, ecash bude vymazaný.",
+	"removingMintLostBalanceWarning": "Tvoja peňaženka má od tejto mint ecash s nenulovým zostatkom. Ak ju odstrániš, ecash bude vymazaný.",
 	"resetAborted": "Reset prerušený, transakcie v databáze nie sú.",
 	"resetCompletedDetail": "Reset ukončený. %{transCount} nedávnych transakcií bolo načítaných z databázy.",
 	"resetOwnProfile": "Resetovať vlastný profil",
