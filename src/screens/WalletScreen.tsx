@@ -629,7 +629,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                     gotoProfile={gotoProfile}
                     isAvatarVisible={false}
                 />}                
-                TitleActionComponent={headerTitle.length > 0 ? <HeaderTitle /> : undefined}               
+                TitleActionComponent={<HeaderTitle />}               
                 RightActionComponent={
                 <>
                     {pendingCount > 0 && (
@@ -1181,6 +1181,8 @@ const $headerTitle: TextStyle = {
 
 const $warning: TextStyle = {
     backgroundColor: colors.palette.orange400,
+    borderRadius: spacing.extraSmall,
+    paddingHorizontal: spacing.tiny,
 }
 
 const $error: TextStyle = {
