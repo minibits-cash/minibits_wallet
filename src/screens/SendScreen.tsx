@@ -1435,16 +1435,22 @@ const SelectProofsBlock = observer(function (props: {
   const amountInputColor = useThemeColor('amountInput')
 
   const [requestedAmount, setRequestedAmount] = useState<string>('0');
+  const [isNotEnoughErrVisible, setIsNotEnoughErrVisible] = useState(false);
+  const [isUserEditing, setIsUserEditing] = useState(false);
 
+  // Update requestedAmount when selectedProofs changes, but only if user isn't manually editing
+  useEffect(() => {
+    if (isUserEditing) return;
+    const totalAmount = CashuUtils.getProofsAmount(props.selectedProofs);
+    setRequestedAmount(String(totalAmount));
+  }, [props.selectedProofs, isUserEditing]);
 
-  const onCancel = function () {
-    props.resetSelectedProofs()
-    props.toggleProofSelectorModal()
-  }
-
-  function onAmountEndEditing() {
+  const calculateClosestAmount = () => {
+    setIsNotEnoughErrVisible(false);
     try {
-      if (requestedAmount.trim() === "") return;
+      if (requestedAmount.trim() === "") {
+        setRequestedAmount("0");
+      }
       const precision = getCurrency(props.unit).precision
       const requestedAmountInt = round(toNumber(requestedAmount) * precision, 0)
 
@@ -1452,32 +1458,32 @@ const SelectProofsBlock = observer(function (props: {
         return;
       }
 
-      const availableProofs = proofsStore.getByMint(
-        props.mintBalanceToSendFrom.mintUrl,
-        { isPending: false, unit: props.unit }
-      )
-
-      // First try to find exact match
+      const availableProofs = proofsStore.getByMint(props.mintBalanceToSendFrom.mintUrl, { isPending: false, unit: props.unit })
       const exactMatch = CashuUtils.findExactMatch(requestedAmountInt, availableProofs)
 
       if (exactMatch) {
-        // Clear current selection and set the exact match
         props.resetSelectedProofs()
         exactMatch.forEach(proof => props.toggleSelectedProof(proof))
       } else {
         // If no exact match, use findMinExcess as fallback
         const minExcessMatch = CashuUtils.findMinExcess(requestedAmountInt, availableProofs, 'SMALL')
-
         if (minExcessMatch && minExcessMatch.length > 0) {
           // Clear current selection and set the min excess match
           props.resetSelectedProofs()
-          minExcessMatch.forEach(proof => props.toggleSelectedProof(proof))
+          minExcessMatch.forEach(proof => props.toggleSelectedProof(proof));
+
+          const bestMatchAmount = CashuUtils.getProofsAmount(props.selectedProofs);
+          if (bestMatchAmount < requestedAmountInt) setIsNotEnoughErrVisible(true);
         }
       }
     } catch (e: any) {
-      // Handle error if needed
       console.error('Error finding proof selection:', e)
     }
+  }
+
+  const onCancel = function () {
+    props.resetSelectedProofs()
+    props.toggleProofSelectorModal()
   }
 
   const $labelStyle: TextStyle = { textAlign: "center" }
@@ -1500,15 +1506,13 @@ const SelectProofsBlock = observer(function (props: {
         }}>
         <Text
           text={'OFFLINE MODE'}
-          style={[
-            {
-              color: statusColor,
-              fontSize: 10,
-              fontFamily: typography.primary?.light,
-              padding: 0,
-              lineHeight: 16,
-            }
-          ]}
+          style={{
+            color: statusColor,
+            fontSize: 10,
+            fontFamily: typography.primary?.light,
+            padding: 0,
+            lineHeight: 16,
+          }}
         />
       </View>
       <Text
@@ -1523,17 +1527,25 @@ const SelectProofsBlock = observer(function (props: {
       <View style={{ padding: spacing.small }}>
         <AmountInput
           value={requestedAmount}
-          onChangeText={amount => setRequestedAmount(amount)}
+          onChangeText={amount => {
+            setRequestedAmount(amount);
+            setIsUserEditing(true);
+          }}
           unit={props.unit}
-          onEndEditing={onAmountEndEditing}
+          onEndEditing={calculateClosestAmount}
           style={$amountInpStyle}
         />
-        <View style={{ alignItems: 'center', marginTop: spacing.small }}>
+        <View style={{ 
+          alignItems: 'center', 
+          flexDirection: 'row', 
+          gap: spacing.small,
+          marginTop: spacing.small 
+        }}>
           <Text text="Closest match:" style={[$labelStyle, { marginBottom: spacing.tiny }]} />
           <CurrencyAmount
             amount={CashuUtils.getProofsAmount(props.selectedProofs)}
             mintUnit={props.unit}
-            size="huge"
+            size="large"
           />
         </View>
       </View>
@@ -1548,14 +1560,15 @@ const SelectProofsBlock = observer(function (props: {
         <FlatList<Proof>
           data={proofsStore.getByMint(props.mintBalanceToSendFrom.mintUrl, { isPending: false, unit: props.unit })}
           renderItem={({ item }) => {
-            const isSelected = props.selectedProofs.some(
-              p => p.secret === item.secret
-            )
-
+            const isSelected = props.selectedProofs.some(p => p.secret === item.secret)
             return (
               <Button
                 preset={isSelected ? 'default' : 'secondary'}
-                onPress={() => props.toggleSelectedProof(item)}
+                onPress={() => {
+                  props.toggleSelectedProof(item);
+                  setIsNotEnoughErrVisible(false);
+                  setIsUserEditing(false);
+                }}
                 text={`${item.amount}`}
                 style={{ minWidth: 80, margin: spacing.small }}
               />
@@ -1566,9 +1579,9 @@ const SelectProofsBlock = observer(function (props: {
         />
       </View>
 
-      {CashuUtils.getProofsAmount(props.selectedProofs) === 0 && (
+      {isNotEnoughErrVisible && (
         <Text
-          text="Not enough ecash! Select notes manually"
+          text="Not enough ecash!"
           style={{
             textAlign: "center",
             marginTop: spacing.medium,
