@@ -1417,113 +1417,199 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 )
 
 
-const SelectProofsBlock = observer(function (props: {    
-    mintBalanceToSendFrom: MintBalance
-    unit: MintUnit
-    selectedProofs: Proof[]
-    // isLockedToPubkey: boolean
-    toggleProofSelectorModal: any                    
-    toggleSelectedProof: any
-    // toggleIsLockedToPubkey: any
-    resetSelectedProofs: any
-    onOfflineSendConfirm: any
-  }) {
+const SelectProofsBlock = observer(function (props: {
+  mintBalanceToSendFrom: MintBalance
+  unit: MintUnit
+  selectedProofs: Proof[]
+  // isLockedToPubkey: boolean
+  toggleProofSelectorModal: any
+  toggleSelectedProof: any
+  // toggleIsLockedToPubkey: any
+  resetSelectedProofs: any
+  onOfflineSendConfirm: any
+}) {
 
-    const {proofsStore} = useStores()
-    const hintColor = useThemeColor('textDim')
-    const statusColor = useThemeColor('header')
+  const { proofsStore } = useStores()
+  const hintColor = useThemeColor('textDim')
+  const statusColor = useThemeColor('header')
+  const amountInputColor = useThemeColor('amountInput')
 
-    
-    const onCancel = function () {        
+  const [requestedAmount, setRequestedAmount] = useState<string>('0');
+
+
+  const onCancel = function () {
+    props.resetSelectedProofs()
+    props.toggleProofSelectorModal()
+  }
+
+  function onAmountEndEditing() {
+    try {
+      if (requestedAmount.trim() === "") return;
+      const precision = getCurrency(props.unit).precision
+      const requestedAmountInt = round(toNumber(requestedAmount) * precision, 0)
+
+      if (typeof requestedAmountInt !== "number" || Number.isNaN(requestedAmountInt) || requestedAmountInt === 0) {
+        return;
+      }
+
+      const availableProofs = proofsStore.getByMint(
+        props.mintBalanceToSendFrom.mintUrl,
+        { isPending: false, unit: props.unit }
+      )
+
+      // First try to find exact match
+      const exactMatch = CashuUtils.findExactMatch(requestedAmountInt, availableProofs)
+
+      if (exactMatch) {
+        // Clear current selection and set the exact match
         props.resetSelectedProofs()
-        props.toggleProofSelectorModal()        
+        exactMatch.forEach(proof => props.toggleSelectedProof(proof))
+      } else {
+        // If no exact match, use findMinExcess as fallback
+        const minExcessMatch = CashuUtils.findMinExcess(requestedAmountInt, availableProofs, 'SMALL')
+
+        if (minExcessMatch && minExcessMatch.length > 0) {
+          // Clear current selection and set the min excess match
+          props.resetSelectedProofs()
+          minExcessMatch.forEach(proof => props.toggleSelectedProof(proof))
+        }
+      }
+    } catch (e: any) {
+      // Handle error if needed
+      console.error('Error finding proof selection:', e)
     }
-    
-    return (
-        <View style={$bottomModal}>
-            <View
-                style={[
-                    {
-                    alignSelf: 'center',
-                    marginTop: spacing.tiny,
-                    paddingHorizontal: spacing.tiny,
-                    borderRadius: spacing.tiny,
-                    backgroundColor: colors.palette.primary200,
-                    },
-                ]}>
-                <Text
-                    text={'OFFLINE MODE'}
-                    style={[
-                    {
-                        color: statusColor,
-                        fontSize: 10,
-                        fontFamily: typography.primary?.light,
-                        padding: 0,
-                        lineHeight: 16,
-                    }
-                    ]}
-                />
-            </View>
-            <Text tx='sendSelectEcashToSend' style={{marginTop: spacing.large}}/>
-            <Text
-                tx='sendOfflineExactDenoms'
-                style={{color: hintColor, paddingHorizontal: spacing.small, textAlign: 'center'}}
-                size='xs'
-            />               
-            <CurrencyAmount 
-                amount={CashuUtils.getProofsAmount(props.selectedProofs)} 
-                mintUnit={props.unit}       
-                size='extraLarge'
-                containerStyle={{marginTop: spacing.large, marginBottom: spacing.small, alignItems: 'center'}}       
-            />
-            <View style={{
-                maxHeight: spacing.screenHeight * 0.45,
-                borderWidth: 1, 
-                borderColor: hintColor, 
-                borderRadius: spacing.medium, 
-                marginTop: spacing.small
-            }}>
-                <FlatList<Proof>
-                    data={proofsStore.getByMint(props.mintBalanceToSendFrom.mintUrl, {isPending: false, unit: props.unit})}
-                    renderItem={({ item }) => {
-                        const isSelected = props.selectedProofs.some(
-                            p => p.secret === item.secret
-                        )
+  }
 
-                        return (
-                            <Button
-                                preset={isSelected ? 'default' : 'secondary'}
-                                onPress={() => props.toggleSelectedProof(item)}
-                                text={`${item.amount}`}
-                                style={{minWidth: 80, margin: spacing.small}}
-                            />
-                        )
-                    }}
-                    numColumns={3}
-                    keyExtractor={(item) => item.secret}
-                />
-            </View>
-            <View style={[$bottomContainer, {marginTop: spacing.extraLarge}]}>
-                <View style={[$buttonContainer]}>
-                    <Button
-                        tx="sendCreateToken"
-                        onPress={props.onOfflineSendConfirm}
-                        style={{marginRight: spacing.medium}}          
-                    />
-                    <Button 
-                        preset="secondary" 
-                        tx="commonCancel" 
-                        onPress={onCancel} 
-                    />        
-                </View>
-            </View>
+  const $gridRowStyles: ViewStyle = {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: spacing.small,
+    marginBottom: spacing.small
+  }
+  const $labelStyle: TextStyle = { textAlign: "center" }
+  const $amountSharedStyle: TextStyle = {
+    fontSize: spacing.huge,
+    lineHeight: spacing.huge * 1.2
+  }
+  const $amountInpStyle: TextStyle = {
+    color: amountInputColor, 
+    textAlign: "center",
+    ...$amountSharedStyle
+  }
+
+  return (
+    <View style={$bottomModal}>
+      <View
+        style={{
+          alignSelf: 'center',
+          marginTop: spacing.tiny,
+          paddingHorizontal: spacing.tiny,
+          borderRadius: spacing.tiny,
+          backgroundColor: colors.palette.primary200,
+        }}>
+        <Text
+          text={'OFFLINE MODE'}
+          style={[
+            {
+              color: statusColor,
+              fontSize: 10,
+              fontFamily: typography.primary?.light,
+              padding: 0,
+              lineHeight: 16,
+            }
+          ]}
+        />
+      </View>
+      <Text
+        tx='sendSelectEcashToSend'
+        style={{ marginTop: spacing.large }}
+      />
+      <Text
+        tx='sendOfflineExactDenoms'
+        style={{ color: hintColor, paddingHorizontal: spacing.small, textAlign: 'center' }}
+        size='xs'
+      />
+      <View style={{ padding: spacing.small }}>
+        <View style={$gridRowStyles}>
+          <Text text="Selected amount" style={$labelStyle} />
+          <Text text="Closest match" style={$labelStyle} />
         </View>
-    )
-    
-  })
+        <View style={$gridRowStyles}>
+          <AmountInput
+            value={requestedAmount}
+            onChangeText={amount => setRequestedAmount(amount)}
+            unit={props.unit}
+            onEndEditing={onAmountEndEditing}
+            style={$amountInpStyle}
+          />
+          <CurrencyAmount
+            amount={CashuUtils.getProofsAmount(props.selectedProofs)}
+            mintUnit={props.unit}
+            size="large"
+            amountStyle={$amountSharedStyle}
+          />
+        </View>
+      </View>
+
+      <View style={{
+        maxHeight: spacing.screenHeight * 0.45,
+        borderWidth: 1,
+        borderColor: hintColor,
+        borderRadius: spacing.medium,
+        marginTop: spacing.small
+      }}>
+        <FlatList<Proof>
+          data={proofsStore.getByMint(props.mintBalanceToSendFrom.mintUrl, { isPending: false, unit: props.unit })}
+          renderItem={({ item }) => {
+            const isSelected = props.selectedProofs.some(
+              p => p.secret === item.secret
+            )
+
+            return (
+              <Button
+                preset={isSelected ? 'default' : 'secondary'}
+                onPress={() => props.toggleSelectedProof(item)}
+                text={`${item.amount}`}
+                style={{ minWidth: 80, margin: spacing.small }}
+              />
+            )
+          }}
+          numColumns={3}
+          keyExtractor={(item) => item.secret}
+        />
+      </View>
+
+      {CashuUtils.getProofsAmount(props.selectedProofs) === 0 && (
+        <Text
+          text="Not enough ecash! Select notes manually"
+          style={{
+            textAlign: "center",
+            marginTop: spacing.medium,
+            color: hintColor
+          }}
+        />
+      )}
+
+      <View style={[$bottomContainer, { marginTop: spacing.extraLarge }]}>
+        <View style={[$buttonContainer]}>
+          <Button
+            tx="sendCreateToken"
+            onPress={props.onOfflineSendConfirm}
+            style={{ marginRight: spacing.medium }}
+          />
+          <Button
+            preset="secondary"
+            tx="commonCancel"
+            onPress={onCancel}
+          />
+        </View>
+      </View>
+    </View>
+  )
+})
 
 
-  const TokenOptionsBlock = observer(function (props: {
+const TokenOptionsBlock = observer(function (props: {
     toggleNostrDMModal: any
     contactToSendTo?: Contact   
     gotoContacts: any
