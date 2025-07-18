@@ -475,7 +475,7 @@
 	"sendScreen_showOrShareToken": "Compartilhar ecash",
 	"sendScreen_showOrShareTokenDescription": "Apresente ou compartilhe token ecash para o valor que deseja enviar.",
 	"sendScreen_title": "Enviar",
-	"sendSelectEcashToSend": "Selecionar ecash para enviar",
+	"sendEnterEcashToSend": "Digite ecash para enviar",
 	"sendToContact": "Enviar para contato",
 	"setStartIndex": "Definir índice inicial",
 	"settingsScreen_backup": "Backup",

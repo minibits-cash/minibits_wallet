@@ -1480,21 +1480,12 @@ const SelectProofsBlock = observer(function (props: {
     }
   }
 
-  const $gridRowStyles: ViewStyle = {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: spacing.small,
-    marginBottom: spacing.small
-  }
   const $labelStyle: TextStyle = { textAlign: "center" }
-  const $amountSharedStyle: TextStyle = {
-    fontSize: spacing.huge,
-    lineHeight: spacing.huge * 1.2
-  }
   const $amountInpStyle: TextStyle = {
     color: amountInputColor, 
     textAlign: "center",
-    ...$amountSharedStyle
+    fontSize: spacing.huge,
+    lineHeight: spacing.huge * 1.2
   }
 
   return (
@@ -1521,7 +1512,7 @@ const SelectProofsBlock = observer(function (props: {
         />
       </View>
       <Text
-        tx='sendSelectEcashToSend'
+        tx='sendEnterEcashToSend'
         style={{ marginTop: spacing.large }}
       />
       <Text
@@ -1530,23 +1521,19 @@ const SelectProofsBlock = observer(function (props: {
         size='xs'
       />
       <View style={{ padding: spacing.small }}>
-        <View style={$gridRowStyles}>
-          <Text text="Selected amount" style={$labelStyle} />
-          <Text text="Closest match" style={$labelStyle} />
-        </View>
-        <View style={$gridRowStyles}>
-          <AmountInput
-            value={requestedAmount}
-            onChangeText={amount => setRequestedAmount(amount)}
-            unit={props.unit}
-            onEndEditing={onAmountEndEditing}
-            style={$amountInpStyle}
-          />
+        <AmountInput
+          value={requestedAmount}
+          onChangeText={amount => setRequestedAmount(amount)}
+          unit={props.unit}
+          onEndEditing={onAmountEndEditing}
+          style={$amountInpStyle}
+        />
+        <View style={{ alignItems: 'center', marginTop: spacing.small }}>
+          <Text text="Closest match:" style={[$labelStyle, { marginBottom: spacing.tiny }]} />
           <CurrencyAmount
             amount={CashuUtils.getProofsAmount(props.selectedProofs)}
             mintUnit={props.unit}
-            size="large"
-            amountStyle={$amountSharedStyle}
+            size="huge"
           />
         </View>
       </View>

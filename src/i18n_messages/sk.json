@@ -475,7 +475,7 @@
 	"sendScreen_showOrShareToken": "Zdieľaj ecash",
 	"sendScreen_showOrShareTokenDescription": "Zobraz alebo zdieľaj ecash token na sumu, ktorú chceš poslať",
 	"sendScreen_title": "Poslať",
-	"sendSelectEcashToSend": "Vyber ecash na odoslanie",
+	"sendEnterEcashToSend": "Zadaj ecash na odoslanie",
 	"sendToContact": "Poslať kontaktu",
 	"setStartIndex": "Nastav začiatočný index",
 	"settingsScreen_backup": "Záloha",
