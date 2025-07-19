@@ -1161,7 +1161,10 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     onMintBalanceSelect={onMintBalanceSelect}
                     onSecondaryMintBalanceSelect={onLockPubkeyStart}
                     onCancel={onMintBalanceCancel}                                           
-                    onMintBalanceConfirm={isOfflineSend ? onSelectProofsOffline : onMintBalanceConfirm}
+                    onMintBalanceConfirm={isOfflineSend 
+                      ? () => onSelectProofsOffline() 
+                      : () => onMintBalanceConfirm()
+                    }
                 />
             )}
             {transactionStatus === TransactionStatus.PENDING && encodedTokenToSend && paymentOption && (
