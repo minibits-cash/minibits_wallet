@@ -28,7 +28,8 @@ import {
   ErrorModal,
   BottomModal,
   Text,
-  AmountInput,  
+  AmountInput,
+  AmountMatchSelector,
 } from '../components'
 import {TransactionStatus, Transaction} from '../models/Transaction'
 import {useStores} from '../models'
@@ -133,6 +134,12 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     const [isPubkeySelectorModalVisible, setIsPubkeySelectorModalVisible] = useState(false)
     const [lockedPubkey, setLockedPubkey] = useState<string | undefined>() // Added lockedPubkey state
     const [lockTime, setLockTime] = useState<number | undefined>(1)
+
+    // Amount matching for offline mode
+    const [isAmountMatchSelectorVisible, setIsAmountMatchSelectorVisible] = useState(false)
+    const [closestMatchAmount, setClosestMatchAmount] = useState<number>(0)
+    const [isExactMatch, setIsExactMatch] = useState<boolean>(false)
+    const [requestedAmountInt, setRequestedAmountInt] = useState<number>(0)
 
     useEffect(() => {
         const focus = () => {
@@ -566,6 +573,54 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     // const toggleIsLockedToPubkey = () => setIsLockedToPubkey(previousState => !previousState)
     const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previousState => !previousState)
 
+    // Amount match selector handlers
+    const onAcceptClosestMatch = function () {
+        // Update the amount to the closest match and proceed
+        const newAmountToSend = `${numbro(closestMatchAmount / getCurrency(unitRef.current).precision)
+            .format({
+                thousandSeparated: true, 
+                mantissa: getCurrency(unitRef.current).mantissa
+            })}`
+        setAmountToSend(newAmountToSend)
+        setIsAmountMatchSelectorVisible(false)
+        
+        LayoutAnimation.easeInEaseOut()
+        setIsMintSelectorVisible(true)
+    }
+
+    const onSelectCustomAmount = function () {
+        // Open the banknote selector for custom selection
+        // First, auto-select the closest match proofs as a starting point
+        if (mintBalanceToSendFrom && closestMatchAmount > 0) {
+            const availableProofs = proofsStore.getByMint(
+                mintBalanceToSendFrom.mintUrl, 
+                { isPending: false, unit: unitRef.current }
+            )
+            
+            try {
+                const proofsToSend = CashuUtils.getProofsToSend(closestMatchAmount, availableProofs)
+                // Clear current selection and set the new proofs
+                resetSelectedProofs()
+                proofsToSend.forEach(proof => toggleSelectedProof(proof))
+            } catch (e: any) {
+                // If there's an error, just reset to empty selection
+                resetSelectedProofs()
+            }
+        }
+        
+        setIsAmountMatchSelectorVisible(false)
+        toggleProofSelectorModal()
+    }
+
+    const onCancelAmountMatch = function () {
+        // Cancel and go back to amount input
+        setIsAmountMatchSelectorVisible(false)
+        // Reset states
+        setClosestMatchAmount(0)
+        setIsExactMatch(false)
+        setRequestedAmountInt(0)
+    }
+
     const onAmountEndEditing = function () {
         try {        
             const precision = getCurrency(unitRef.current).precision            
@@ -585,17 +640,51 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 return
             }
 
-            LayoutAnimation.easeInEaseOut()            
-            
             setAvailableMintBalances(availableBalances)
 
             // Default mint if not set from route params is the one with the highest balance
             if(!mintBalanceToSendFrom) {
                 setMintBalanceToSendFrom(availableBalances[0])
-            }            
-            
-            LayoutAnimation.easeInEaseOut()        
-            setIsMintSelectorVisible(true)
+            }
+
+            // If offline, check for exact match and show amount match selector if needed
+            if (!isInternetReachable) {
+                const availableProofs = proofsStore.getByMint(
+                    availableBalances[0].mintUrl, 
+                    { isPending: false, unit: unitRef.current }
+                )
+                
+                try {
+                    const proofsToSend = CashuUtils.getProofsToSend(amount, availableProofs)
+                    const actualAmount = CashuUtils.getProofsAmount(proofsToSend)
+                    const exactMatch = actualAmount === amount
+
+                    setRequestedAmountInt(amount)
+                    setClosestMatchAmount(actualAmount)
+                    setIsExactMatch(exactMatch)
+
+                    if (exactMatch) {
+                        // Exact match - proceed directly to mint selector
+                        LayoutAnimation.easeInEaseOut()
+                        setIsMintSelectorVisible(true)
+                    } else {
+                        // No exact match - show amount match selector
+                        LayoutAnimation.easeInEaseOut()
+                        setIsAmountMatchSelectorVisible(true)
+                    }
+                } catch (proofsError: any) {
+                    // Insufficient funds or other error - show amount match selector with 0 closest amount
+                    setRequestedAmountInt(amount)
+                    setClosestMatchAmount(0)
+                    setIsExactMatch(false)
+                    LayoutAnimation.easeInEaseOut()
+                    setIsAmountMatchSelectorVisible(true)
+                }
+            } else {
+                // Online mode - proceed normally
+                LayoutAnimation.easeInEaseOut()        
+                setIsMintSelectorVisible(true)
+            }
 
         } catch (e: any) {
             handleError(e)
@@ -933,6 +1022,10 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         setIsResultModalVisible(false)
         setLockTime(undefined)        
         setLockedPubkey(undefined)
+        setIsAmountMatchSelectorVisible(false)
+        setClosestMatchAmount(0)
+        setIsExactMatch(false)
+        setRequestedAmountInt(0)
     }
 
 
@@ -1071,6 +1164,17 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 onMemoDone={onMemoDone}
                 onMemoEndEditing={onMemoEndEditing}
               />
+            )}
+            {isAmountMatchSelectorVisible && !encodedTokenToSend && (
+                <AmountMatchSelector
+                    requestedAmount={requestedAmountInt}
+                    availableAmount={closestMatchAmount}
+                    isExactMatch={isExactMatch}
+                    unit={unitRef.current}
+                    onAcceptMatch={onAcceptClosestMatch}
+                    onCustomSelect={onSelectCustomAmount}
+                    onCancel={onCancelAmountMatch}
+                />
             )}
             {isMintSelectorVisible && !encodedTokenToSend && (
                 <MintBalanceSelector
