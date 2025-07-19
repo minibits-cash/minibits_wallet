@@ -620,8 +620,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
       const proofsToSend = CashuUtils.getProofsToSend(amount, availableProofs)
       const isExactMatch = CashuUtils.getProofsAmount(proofsToSend) === amount;
 
-      // Store the original requested amount
-      const originalAmount = amountToSend;
+      const originalAmount = amountToSend; // Store the original requested amount
       resetSelectedProofs();
       setSelectedProofs(proofsToSend); // Set the selected proofs directly
       setAmountToSend(originalAmount); // Keep the original requested amount in the input
@@ -632,6 +631,9 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
       if (!isExactMatch) {
         setIsProofSelectorModalVisible(true);
+      } else {
+        // Exact match found, proceed directly to send
+        onMintBalanceConfirm();
       }
     } catch (error: any) {
       // If CashuUtils.getProofsToSend throws an error (insufficient funds) -> show it
