@@ -566,19 +566,33 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     // const toggleIsLockedToPubkey = () => setIsLockedToPubkey(previousState => !previousState)
     const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previousState => !previousState)
 
+  const validateAndProcessAmount = function (amountString: string, unit: MintUnit) {
+    // Normalize empty string to "0"
+    const normalizedAmount = amountString.trim() === "" ? "0" : amountString.trim()
+
+    const precision = getCurrency(unit).precision
+    const amount = round(toNumber(normalizedAmount) * precision, 0)
+
+    const isValid = typeof amount === "number" && !Number.isNaN(amount) && amount > 0
+
+    return {
+      amount: isValid ? amount : 0,
+      isValid,
+      normalizedAmountString: normalizedAmount
+    }
+  }
+
   const onAmountEndEditing = function () {
     try {
-      if (amountToSend.trim() === "") { setAmountToSend("0"); }
+      const { amount, isValid, normalizedAmountString } = validateAndProcessAmount(amountToSend, unitRef.current)
 
-      const precision = getCurrency(unitRef.current).precision
-      const amount = round(toNumber(amountToSend) * precision, 0)
+      if (!isValid) {
+        setAmountToSend(normalizedAmountString)
+        infoMessage(translate('payCommon_amountZeroOrNegative'))
+        return
+      }
 
       log.trace('[onAmountEndEditing]', amount)
-
-      if (typeof amount !== "number" || Number.isNaN(amount) || amount <= 0) {
-        infoMessage(translate('payCommon_amountZeroOrNegative'))
-        return;
-      }
 
       if (isInternetReachable) {
         handleOnlineEndEdit(amount)
@@ -631,13 +645,35 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
       if (!isExactMatch) {
         setIsProofSelectorModalVisible(true);
-      } else {
-        // Exact match found, proceed directly to send
-        onMintBalanceConfirm();
       }
     } catch (error: any) {
       // If CashuUtils.getProofsToSend throws an error (insufficient funds) -> show it
       infoMessage(translate('payCommon_insufficientFunds'))
+    }
+  }
+
+  const onSelectProofsOffline = async function () {
+    if (!mintBalanceToSendFrom) {
+      setIsProofSelectorModalVisible(true)
+      return;
+    }
+
+    const { amount, isValid, normalizedAmountString } = validateAndProcessAmount(amountToSend, unitRef.current)
+
+    if (!isValid) {
+      setAmountToSend(normalizedAmountString)
+      setIsProofSelectorModalVisible(true)
+      return;
+    }
+
+    // Check if we have an exact match with current selected proofs
+    const selectedAmount = CashuUtils.getProofsAmount(selectedProofs)
+    const isExactMatch = selectedAmount === amount;
+
+    if (isExactMatch) {
+      onMintBalanceConfirm() // Skip proof selector modal and proceed directly to send
+    } else {
+      setIsProofSelectorModalVisible(true)  // Show proof selector modal for manual selection
     }
   }
 
@@ -677,40 +713,40 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     togglePubkeySelectorModal()
   }
 
-    const onLockPubkeySelect = function () {
-        if(!lockedPubkey || lockedPubkey.length === 0) {
-            onLockPubkeyCancel()
-            return
-        }
-
-        if(lockedPubkey.startsWith('nsec')) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Invalid key. Please provide public key in NPUB or HEX format.')
-        }
-
-        const contact = contactsStore.findByNpub(lockedPubkey) || contactsStore.findByPubkey(lockedPubkey)
-
-        if(contact) {
-            log.trace('[onLockPubkeySelect] Provided pubkey belongs to a contact', {contactName: contact.name})
-            let relays: string[] = []                           
-
-            if(contact?.type === ContactType.PUBLIC) {
-                relays = relaysStore.allPublicUrls
-            } else {
-                relays = relaysStore.allUrls
-            }
-    
-            if (relays.length === 0) {                    
-                throw new AppError(Err.VALIDATION_ERROR, 'Missing NOSTR relays')
-            }
-            
-            setPaymentOption(SendOption.SEND_TOKEN)
-            setContactToSendFrom(getContactFrom())                
-            setContactToSendTo(contact)                
-            setRelaysToShareTo(relays)
-        }
-        
-        togglePubkeySelectorModal()
+  const onLockPubkeySelect = function () {
+    if (!lockedPubkey || lockedPubkey.length === 0) {
+      onLockPubkeyCancel()
+      return
     }
+
+    if (lockedPubkey.startsWith('nsec')) {
+      throw new AppError(Err.VALIDATION_ERROR, 'Invalid key. Please provide public key in NPUB or HEX format.')
+    }
+
+    const contact = contactsStore.findByNpub(lockedPubkey) || contactsStore.findByPubkey(lockedPubkey)
+
+    if (contact) {
+      log.trace('[onLockPubkeySelect] Provided pubkey belongs to a contact', { contactName: contact.name })
+      let relays: string[] = []
+
+      if (contact?.type === ContactType.PUBLIC) {
+        relays = relaysStore.allPublicUrls
+      } else {
+        relays = relaysStore.allUrls
+      }
+
+      if (relays.length === 0) {
+        throw new AppError(Err.VALIDATION_ERROR, 'Missing NOSTR relays')
+      }
+
+      setPaymentOption(SendOption.SEND_TOKEN)
+      setContactToSendFrom(getContactFrom())
+      setContactToSendTo(contact)
+      setRelaysToShareTo(relays)
+    }
+
+    togglePubkeySelectorModal()
+  }
 
     const onLockPubkeyCancel = function () { 
         togglePubkeySelectorModal()
@@ -799,15 +835,6 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         } finally {
             toggleResultModal() //close
         }
-    }
-
-
-    const onSelectProofsOffline = async function () {
-        if (!mintBalanceToSendFrom) {
-            return
-        }       
-
-        setIsProofSelectorModalVisible(true)
     }
 
 
