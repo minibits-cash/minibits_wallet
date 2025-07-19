@@ -51,10 +51,12 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
         onEndEditing()
       } 
       // Default formatting behavior
-      const formattedValue = numbro(value).format({
-        thousandSeparated: true,
-        mantissa: getCurrency(unit).mantissa
-      })
+      const formattedValue = typeof value === "undefined" 
+        ? "" 
+        : numbro(value).format({
+          thousandSeparated: true,
+          mantissa: getCurrency(unit).mantissa
+        })
       onChangeText(formattedValue)
       
     }

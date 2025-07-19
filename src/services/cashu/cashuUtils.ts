@@ -348,6 +348,7 @@ export const CashuUtils = {
     extractEncodedCashuPaymentRequest,
     getProofsAmount,    
     getMintsFromToken,
+    findExactMatch,
     findMinExcess,
     getProofsToSend,
     getProofsSubset,
