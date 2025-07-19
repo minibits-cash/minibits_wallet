@@ -620,9 +620,11 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
       const proofsToSend = CashuUtils.getProofsToSend(amount, availableProofs)
       const isExactMatch = CashuUtils.getProofsAmount(proofsToSend) === amount;
 
-      // Clear current selection and set the new proofs
+      // Store the original requested amount
+      const originalAmount = amountToSend;
       resetSelectedProofs();
-      proofsToSend.forEach(proof => toggleSelectedProof(proof))
+      setSelectedProofs(proofsToSend); // Set the selected proofs directly
+      setAmountToSend(originalAmount); // Keep the original requested amount in the input
 
       log.trace("requested amount:", amount)
       log.trace("best match:", CashuUtils.getProofsAmount(proofsToSend));
