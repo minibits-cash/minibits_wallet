@@ -601,13 +601,11 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         handleOfflineEndEdit(amount, availableProofs);
       }
     } catch (e: any) {
-
       handleError(e)
     }
   }
 
   const handleOnlineEndEdit = (amount: number) => {
-    log.trace("got to handleOnlineEndEdit, value: ", amount);
     try {
       const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(amount, unitRef.current)
 
@@ -627,7 +625,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
       LayoutAnimation.easeInEaseOut()
       setIsMintSelectorVisible(true)
     } catch (e: any) {
-      
+      log.trace("[handleOnlineEndEdit]", e)
       handleError(e);
     }
   }
@@ -1154,8 +1152,11 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     mintBalances={availableMintBalances}
                     selectedMintBalance={mintBalanceToSendFrom as MintBalance}
                     unit={unitRef.current}
-                    title='Send from mint'
-                    confirmTitle={isOfflineSend ? 'Send offline' : 'Create token'}                    
+                    title={translate("sendScreen_sendFromMintBalanceSel")}
+                    confirmTitle={isOfflineSend 
+                      ? translate("sendScreen_sendOfflineBtn") 
+                      : translate("sendScreen_createTokenBtn")
+                    }                    
                     secondaryConfirmTitle='Lock'                    
                     onMintBalanceSelect={onMintBalanceSelect}
                     onSecondaryMintBalanceSelect={onLockPubkeyStart}

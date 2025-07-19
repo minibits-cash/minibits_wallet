@@ -709,5 +709,8 @@
 	"welcomeScreen_page3_final": "Now, let's move some ecash!",
 	"welcomeScreen_page3_go": "Let's go!",
 	"welcomeScreen_page3_heading": "Don't forget",
-	"welcomeScreen_page3_intro": "Both the Cashu protocol and the Minibits wallet are experimental. By using them, you accept known and unknown risks."
+	"welcomeScreen_page3_intro": "Both the Cashu protocol and the Minibits wallet are experimental. By using them, you accept known and unknown risks.",
+	"sendScreen_sendFromMintBalanceSel": "Send from mint",
+	"sendScreen_sendOfflineBtn": "Send offline",
+	"sendScreen_createTokenBtn": "Create token"
 }
