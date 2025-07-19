@@ -567,7 +567,6 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previousState => !previousState)
 
   const onAmountEndEditing = function () {
-    // TODO also handle offline sending here
     try {
       if (amountToSend.trim() === "") { setAmountToSend("0"); }
 
@@ -581,89 +580,98 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         return;
       }
 
-      const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(amount, unitRef.current)
-
       if (isInternetReachable) {
-        if (availableBalances.length === 0) {
-          infoMessage(translate('payCommon_insufficientFunds'))
-          return
-        }
-
-        LayoutAnimation.easeInEaseOut()
-        setAvailableMintBalances(availableBalances)
-
-        // Default mint if not set from route params is the one with the highest balance
-        if (!mintBalanceToSendFrom) {
-          setMintBalanceToSendFrom(availableBalances[0])
-        }
-
-        LayoutAnimation.easeInEaseOut()
-        setIsMintSelectorVisible(true)
-      } else { // offline
+        handleOnlineEndEdit(amount)
+      } else {
         const availableProofs = proofsStore.getByMint(mintBalanceToSendFrom.mintUrl, { isPending: false, unit: unitRef.current });
-
-        try {
-          const proofsToSend = CashuUtils.getProofsToSend(amount, availableProofs)
-          const isExactMatch = CashuUtils.getProofsAmount(proofsToSend) === amount;
-
-          // Clear current selection and set the new proofs
-          resetSelectedProofs();
-          proofsToSend.forEach(proof => toggleSelectedProof(proof))
-          
-          log.debug("requested amount:", amount)
-          log.debug("best match:", CashuUtils.getProofsAmount(proofsToSend));
-          log.debug({ isExactMatch })
-
-          if (!isExactMatch) {
-            setIsProofSelectorModalVisible(true);
-          }
-        } catch (error: any) {
-          // If CashuUtils.getProofsToSend throws an error (insufficient funds) -> show it
-          infoMessage(translate('payCommon_insufficientFunds'))
-        }
+        handleOfflineEndEdit(amount, availableProofs);
       }
-
     } catch (e: any) {
       handleError(e)
     }
   }
 
+  const handleOnlineEndEdit = (amount: number) => {
+    try {
+      const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(amount, unitRef.current)
 
-    const onMemoEndEditing = function () {
-        LayoutAnimation.easeInEaseOut()
-        
-        // Show mint selector
-        if (availableMintBalances.length > 0) {
-            setIsMintSelectorVisible(true)
-        }               
+      if (availableBalances.length === 0) {
+        infoMessage(translate('payCommon_insufficientFunds'))
+        return
+      }
+
+      LayoutAnimation.easeInEaseOut()
+      setAvailableMintBalances(availableBalances)
+
+      // Default mint if not set from route params is the one with the highest balance
+      if (!mintBalanceToSendFrom) {
+        setMintBalanceToSendFrom(availableBalances[0])
+      }
+
+      LayoutAnimation.easeInEaseOut()
+      setIsMintSelectorVisible(true)
+    } catch (e: any) {
+      handleError(e);
     }
+  }
 
+  const handleOfflineEndEdit = (amount: number, availableProofs: Proof[]) => {
+    try {
+      const proofsToSend = CashuUtils.getProofsToSend(amount, availableProofs)
+      const isExactMatch = CashuUtils.getProofsAmount(proofsToSend) === amount;
 
-    const onMemoDone = function () {
-        if (parseInt(amountToSend) > 0) {
-          memoInputRef && memoInputRef.current
-            ? memoInputRef.current.blur()
-            : false
-          amountInputRef && amountInputRef.current
-            ? amountInputRef.current.blur()
-            : false
-          onMemoEndEditing()
-        } else {
-          amountInputRef && amountInputRef.current
-            ? amountInputRef.current.focus()
-            : false
-        }
+      // Clear current selection and set the new proofs
+      resetSelectedProofs();
+      proofsToSend.forEach(proof => toggleSelectedProof(proof))
+
+      log.trace("requested amount:", amount)
+      log.trace("best match:", CashuUtils.getProofsAmount(proofsToSend));
+      log.trace({ isExactMatch })
+
+      if (!isExactMatch) {
+        setIsProofSelectorModalVisible(true);
+      }
+    } catch (error: any) {
+      // If CashuUtils.getProofsToSend throws an error (insufficient funds) -> show it
+      infoMessage(translate('payCommon_insufficientFunds'))
     }
+  }
 
+  const onMemoEndEditing = function () {
+    LayoutAnimation.easeInEaseOut()
 
-    const onMintBalanceSelect = function (balance: MintBalance) {
-        setMintBalanceToSendFrom(balance)
+    // Show mint selector
+    if (availableMintBalances.length > 0) {
+      setIsMintSelectorVisible(true)
     }
+  }
 
-  
-    const onLockPubkeyStart = function () {
-        togglePubkeySelectorModal()
+
+  const onMemoDone = function () {
+    if (parseInt(amountToSend) > 0) {
+      memoInputRef && memoInputRef.current
+        ? memoInputRef.current.blur()
+        : false
+      amountInputRef && amountInputRef.current
+        ? amountInputRef.current.blur()
+        : false
+      onMemoEndEditing()
+    } else {
+      amountInputRef && amountInputRef.current
+        ? amountInputRef.current.focus()
+        : false
     }
+  }
+
+
+  const onMintBalanceSelect = function (balance: MintBalance) {
+    setMintBalanceToSendFrom(balance)
+  }
+
+
+  const onLockPubkeyStart = function () {
+    togglePubkeySelectorModal()
+  }
 
     const onLockPubkeySelect = function () {
         if(!lockedPubkey || lockedPubkey.length === 0) {
@@ -1461,120 +1469,50 @@ const SelectProofsBlock = observer(function (props: {
   const { proofsStore } = useStores()
   const hintColor = useThemeColor('textDim')
   const statusColor = useThemeColor('header')
-  const amountInputColor = useThemeColor('amountInput')
 
-  const [requestedAmount, setRequestedAmount] = useState<string>('0');
-  const [isNotEnoughErrVisible, setIsNotEnoughErrVisible] = useState(false);
-  const [isUserEditing, setIsUserEditing] = useState(false);
-
-  // Update requestedAmount when selectedProofs changes, but only if user isn't manually editing
-  useEffect(() => {
-    if (isUserEditing) return;
-    const totalAmount = CashuUtils.getProofsAmount(props.selectedProofs);
-    setRequestedAmount(String(totalAmount));
-  }, [props.selectedProofs, isUserEditing]);
-
-  const calculateClosestAmount = () => {
-    setIsNotEnoughErrVisible(false);
-    try {
-      if (requestedAmount.trim() === "") { setRequestedAmount("0"); }
-
-      const precision = getCurrency(props.unit).precision
-      const requestedAmountInt = round(toNumber(requestedAmount) * precision, 0)
-
-      if (typeof requestedAmountInt !== "number" || Number.isNaN(requestedAmountInt) || requestedAmountInt === 0) {
-        return;
-      }
-
-      const availableProofs = proofsStore.getByMint(props.mintBalanceToSendFrom.mintUrl, { isPending: false, unit: props.unit })
-      
-      try {
-        const proofsToSend = CashuUtils.getProofsToSend(requestedAmountInt, availableProofs)
-        const isExactMatch = CashuUtils.getProofsAmount(proofsToSend) === requestedAmountInt;
-        
-        // Clear current selection and set the new proofs
-        props.resetSelectedProofs()
-        proofsToSend.forEach(proof => props.toggleSelectedProof(proof))
-      } catch (error: any) {
-        // If CashuUtils.getProofsToSend throws an error (e.g., insufficient funds), 
-        // surface it by showing the not enough error
-        setIsNotEnoughErrVisible(true);
-      }
-      
-    } catch (e: any) {
-      console.error('Error finding proof selection:', e)
-    }
-  }
 
   const onCancel = function () {
     props.resetSelectedProofs()
     props.toggleProofSelectorModal()
   }
 
-  const $labelStyle: TextStyle = { textAlign: "center" }
-  const $amountInpStyle: TextStyle = {
-    color: amountInputColor, 
-    textAlign: "center",
-    fontSize: spacing.huge,
-    lineHeight: spacing.huge * 1.2
-  }
-
   return (
     <View style={$bottomModal}>
       <View
-        style={{
-          alignSelf: 'center',
-          marginTop: spacing.tiny,
-          paddingHorizontal: spacing.tiny,
-          borderRadius: spacing.tiny,
-          backgroundColor: colors.palette.primary200,
-        }}>
+        style={[
+          {
+            alignSelf: 'center',
+            marginTop: spacing.tiny,
+            paddingHorizontal: spacing.tiny,
+            borderRadius: spacing.tiny,
+            backgroundColor: colors.palette.primary200,
+          },
+        ]}>
         <Text
           text={'OFFLINE MODE'}
-          style={{
-            color: statusColor,
-            fontSize: 10,
-            fontFamily: typography.primary?.light,
-            padding: 0,
-            lineHeight: 16,
-          }}
+          style={[
+            {
+              color: statusColor,
+              fontSize: 10,
+              fontFamily: typography.primary?.light,
+              padding: 0,
+              lineHeight: 16,
+            }
+          ]}
         />
       </View>
-      <Text
-        tx='sendEnterEcashToSend'
-        style={{ marginTop: spacing.large }}
-      />
+      <Text tx='send' style={{ marginTop: spacing.large }} />
       <Text
         tx='sendOfflineExactDenoms'
         style={{ color: hintColor, paddingHorizontal: spacing.small, textAlign: 'center' }}
         size='xs'
       />
-      <View style={{ padding: spacing.small }}>
-        <AmountInput
-          value={requestedAmount}
-          onChangeText={amount => {
-            setRequestedAmount(amount);
-            setIsUserEditing(true);
-          }}
-          unit={props.unit}
-          onEndEditing={calculateClosestAmount}
-          style={$amountInpStyle}
-        />
-        <View style={{ 
-          alignItems: 'center', 
-          flexDirection: 'row', 
-          gap: spacing.small,
-          marginTop: spacing.small 
-        }}>
-          <Text text="Closest match:" style={[$labelStyle, { marginBottom: spacing.tiny }]} />
-          <CurrencyAmount
-            amount={CashuUtils.getProofsAmount(props.selectedProofs)}
-            mintUnit={props.unit}
-            size="large"
-          />
-        </View>
-      </View>
-
+      <CurrencyAmount
+        amount={CashuUtils.getProofsAmount(props.selectedProofs)}
+        mintUnit={props.unit}
+        size='extraLarge'
+        containerStyle={{ marginTop: spacing.large, marginBottom: spacing.small, alignItems: 'center' }}
+      />
       <View style={{
         maxHeight: spacing.screenHeight * 0.45,
         borderWidth: 1,
@@ -1585,15 +1523,14 @@ const SelectProofsBlock = observer(function (props: {
         <FlatList<Proof>
           data={proofsStore.getByMint(props.mintBalanceToSendFrom.mintUrl, { isPending: false, unit: props.unit })}
           renderItem={({ item }) => {
-            const isSelected = props.selectedProofs.some(p => p.secret === item.secret)
+            const isSelected = props.selectedProofs.some(
+              p => p.secret === item.secret
+            )
+
             return (
               <Button
                 preset={isSelected ? 'default' : 'secondary'}
-                onPress={() => {
-                  props.toggleSelectedProof(item);
-                  setIsNotEnoughErrVisible(false);
-                  setIsUserEditing(false);
-                }}
+                onPress={() => props.toggleSelectedProof(item)}
                 text={`${item.amount}`}
                 style={{ minWidth: 80, margin: spacing.small }}
               />
@@ -1603,18 +1540,6 @@ const SelectProofsBlock = observer(function (props: {
           keyExtractor={(item) => item.secret}
         />
       </View>
-
-      {isNotEnoughErrVisible && (
-        <Text
-          text="Not enough ecash!"
-          style={{
-            textAlign: "center",
-            marginTop: spacing.medium,
-            color: hintColor
-          }}
-        />
-      )}
-
       <View style={[$bottomContainer, { marginTop: spacing.extraLarge }]}>
         <View style={[$buttonContainer]}>
           <Button
@@ -1631,6 +1556,7 @@ const SelectProofsBlock = observer(function (props: {
       </View>
     </View>
   )
+
 })
 
 
