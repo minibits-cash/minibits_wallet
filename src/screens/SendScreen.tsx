@@ -1501,7 +1501,7 @@ const SelectProofsBlock = observer(function (props: {
           ]}
         />
       </View>
-      <Text tx='send' style={{ marginTop: spacing.large }} />
+      <Text tx='sendCreateToken' style={{ marginTop: spacing.large }} />
       <Text
         tx='sendOfflineExactDenoms'
         style={{ color: hintColor, paddingHorizontal: spacing.small, textAlign: 'center' }}
