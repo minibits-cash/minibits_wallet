@@ -642,10 +642,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
       log.trace("requested amount:", amount)
       log.trace("best match:", CashuUtils.getProofsAmount(proofsToSend));
       log.trace({ isExactMatch })
-
-      if (!isExactMatch) {
-        setIsProofSelectorModalVisible(true);
-      }
+      
     } catch (error: any) {
       // If CashuUtils.getProofsToSend throws an error (insufficient funds) -> show it
       infoMessage(translate('payCommon_insufficientFunds'))
@@ -755,13 +752,13 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     }
 
 
-    const onMintBalanceConfirm = async function () {
+    const onMintBalanceConfirm = async function (overrideAmount?: number) {
         if (!mintBalanceToSendFrom) {
             return
         }       
 
         setIsLoading(true)       
-        const amountToSendInt = round(toNumber(amountToSend) * getCurrency(unitRef.current).precision, 0)
+        const amountToSendInt = overrideAmount ?? round(toNumber(amountToSend) * getCurrency(unitRef.current).precision, 0)
 
         //@ts-ignore
         const p2pk: { 
@@ -956,8 +953,19 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
 
     const onOfflineSendConfirm = function () {
+        // Update amountToSend to match exactly the selected proofs amount before proceeding
+        const selectedAmount = CashuUtils.getProofsAmount(selectedProofs)
+        const precision = getCurrency(unitRef.current).precision
+        const formattedAmount = numbro(selectedAmount / precision)
+            .format({
+                thousandSeparated: true, 
+                mantissa: getCurrency(unitRef.current).mantissa
+            })
+        
+        setAmountToSend(formattedAmount)
         toggleProofSelectorModal() // close
-        onMintBalanceConfirm()
+        // Pass the exact selected amount directly to onMintBalanceConfirm
+        onMintBalanceConfirm(selectedAmount)
     }
 
     const gotoContacts = function () {
