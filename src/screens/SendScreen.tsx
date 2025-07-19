@@ -601,11 +601,13 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         handleOfflineEndEdit(amount, availableProofs);
       }
     } catch (e: any) {
+
       handleError(e)
     }
   }
 
   const handleOnlineEndEdit = (amount: number) => {
+    log.trace("got to handleOnlineEndEdit, value: ", amount);
     try {
       const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(amount, unitRef.current)
 
@@ -625,6 +627,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
       LayoutAnimation.easeInEaseOut()
       setIsMintSelectorVisible(true)
     } catch (e: any) {
+      
       handleError(e);
     }
   }
@@ -752,54 +755,55 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     }
 
 
-    const onMintBalanceConfirm = async function (overrideAmount?: number) {
-        if (!mintBalanceToSendFrom) {
-            return
-        }       
-
-        setIsLoading(true)       
-        const amountToSendInt = overrideAmount ?? round(toNumber(amountToSend) * getCurrency(unitRef.current).precision, 0)
-
-        //@ts-ignore
-        const p2pk: { 
-            pubkey: string; 
-            locktime?: number; 
-            refundKeys?: Array<string> 
-        } | undefined = undefined
-
-        log.trace('[onMintBalanceConfirm] lockedPubkey', {lockedPubkey})
-
-        if(lockedPubkey && lockedPubkey.length > 0) {
-            if(lockedPubkey.startsWith('npub')) {
-                p2pk.pubkey = '02' + NostrClient.getHexkey(lockedPubkey)
-            } else {
-                if(lockedPubkey.length === 64) {
-                    p2pk.pubkey = '02' + lockedPubkey
-                } else if(lockedPubkey.length === 66) {
-                    p2pk.pubkey = lockedPubkey
-                } else {
-                    throw new AppError(Err.VALIDATION_ERROR, 'Invalid key. Please provide public key in NPUB or HEX format.')
-                }    
-            }
-            
-            if(lockTime && lockTime > 0) {
-                p2pk.locktime = getUnixTime(new Date(Date.now() + lockTime * 24 * 60 * 60))
-                log.trace('[onMintBalanceConfirm] Locktime', {pubkey: p2pk.pubkey, locktime: p2pk.locktime})
-            }
-        }
-
-        setIsSendTaskSentToQueue(true)
-
-        WalletTask.sendQueue(
-            mintBalanceToSendFrom as MintBalance,
-            amountToSendInt,
-            unitRef.current,
-            memo,
-            selectedProofs,
-            p2pk,
-            draftTransactionIdRef.current
-        )
+  const onMintBalanceConfirm = async function (overrideAmount?: number) {
+    log.trace("onMintBalanceConfirm", overrideAmount)
+    if (!mintBalanceToSendFrom) {
+      return
     }
+
+    setIsLoading(true)
+    const amountToSendInt = overrideAmount ?? round(toNumber(amountToSend) * getCurrency(unitRef.current).precision, 0)
+
+    //@ts-ignore
+    const p2pk: {
+      pubkey: string;
+      locktime?: number;
+      refundKeys?: Array<string>
+    } | undefined = undefined
+
+    log.trace('[onMintBalanceConfirm] lockedPubkey', { lockedPubkey })
+
+    if (lockedPubkey && lockedPubkey.length > 0) {
+      if (lockedPubkey.startsWith('npub')) {
+        p2pk.pubkey = '02' + NostrClient.getHexkey(lockedPubkey)
+      } else {
+        if (lockedPubkey.length === 64) {
+          p2pk.pubkey = '02' + lockedPubkey
+        } else if (lockedPubkey.length === 66) {
+          p2pk.pubkey = lockedPubkey
+        } else {
+          throw new AppError(Err.VALIDATION_ERROR, 'Invalid key. Please provide public key in NPUB or HEX format.')
+        }
+      }
+
+      if (lockTime && lockTime > 0) {
+        p2pk.locktime = getUnixTime(new Date(Date.now() + lockTime * 24 * 60 * 60))
+        log.trace('[onMintBalanceConfirm] Locktime', { pubkey: p2pk.pubkey, locktime: p2pk.locktime })
+      }
+    }
+
+    setIsSendTaskSentToQueue(true)
+
+    WalletTask.sendQueue(
+      mintBalanceToSendFrom as MintBalance,
+      amountToSendInt,
+      unitRef.current,
+      memo,
+      selectedProofs,
+      p2pk,
+      draftTransactionIdRef.current
+    )
+  }
 
 
     const increaseProofsCounterAndRetry = async function () {
