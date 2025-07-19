@@ -566,42 +566,68 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     // const toggleIsLockedToPubkey = () => setIsLockedToPubkey(previousState => !previousState)
     const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previousState => !previousState)
 
-    const onAmountEndEditing = function () {
-        try {        
-            const precision = getCurrency(unitRef.current).precision            
-            const amount = round(toNumber(amountToSend) * precision, 0)            
+  const onAmountEndEditing = function () {
+    // TODO also handle offline sending here
+    try {
+      if (amountToSend.trim() === "") { setAmountToSend("0"); }
 
-            log.trace('[onAmountEndEditing]', amount)
+      const precision = getCurrency(unitRef.current).precision
+      const amount = round(toNumber(amountToSend) * precision, 0)
 
-            if (!amount || amount === 0) {
-                infoMessage(translate('payCommon_amountZeroOrNegative'))
-                return
-            }
-            
-            const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(amount, unitRef.current)
+      log.trace('[onAmountEndEditing]', amount)
 
-            if (availableBalances.length === 0) {
-                infoMessage(translate('payCommon_insufficientFunds'))
-                return
-            }
+      if (typeof amount !== "number" || Number.isNaN(amount) || amount <= 0) {
+        infoMessage(translate('payCommon_amountZeroOrNegative'))
+        return;
+      }
 
-            LayoutAnimation.easeInEaseOut()            
-            
-            setAvailableMintBalances(availableBalances)
+      const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(amount, unitRef.current)
 
-            // Default mint if not set from route params is the one with the highest balance
-            if(!mintBalanceToSendFrom) {
-                setMintBalanceToSendFrom(availableBalances[0])
-            }            
-            
-            LayoutAnimation.easeInEaseOut()        
-            setIsMintSelectorVisible(true)
-
-        } catch (e: any) {
-            handleError(e)
+      if (isInternetReachable) {
+        if (availableBalances.length === 0) {
+          infoMessage(translate('payCommon_insufficientFunds'))
+          return
         }
+
+        LayoutAnimation.easeInEaseOut()
+        setAvailableMintBalances(availableBalances)
+
+        // Default mint if not set from route params is the one with the highest balance
+        if (!mintBalanceToSendFrom) {
+          setMintBalanceToSendFrom(availableBalances[0])
+        }
+
+        LayoutAnimation.easeInEaseOut()
+        setIsMintSelectorVisible(true)
+      } else { // offline
+        const availableProofs = proofsStore.getByMint(mintBalanceToSendFrom.mintUrl, { isPending: false, unit: unitRef.current });
+
+        try {
+          const proofsToSend = CashuUtils.getProofsToSend(amount, availableProofs)
+          const isExactMatch = CashuUtils.getProofsAmount(proofsToSend) === amount;
+
+          // Clear current selection and set the new proofs
+          resetSelectedProofs();
+          proofsToSend.forEach(proof => toggleSelectedProof(proof))
+          
+          log.debug("requested amount:", amount)
+          log.debug("best match:", CashuUtils.getProofsAmount(proofsToSend));
+          log.debug({ isExactMatch })
+
+          if (!isExactMatch) {
+            setIsProofSelectorModalVisible(true);
+          }
+        } catch (error: any) {
+          // If CashuUtils.getProofsToSend throws an error (insufficient funds) -> show it
+          infoMessage(translate('payCommon_insufficientFunds'))
+        }
+      }
+
+    } catch (e: any) {
+      handleError(e)
     }
-    
+  }
+
 
     const onMemoEndEditing = function () {
         LayoutAnimation.easeInEaseOut()
@@ -1011,7 +1037,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     onChangeText={amount => setAmountToSend(amount)}
                     unit={unitRef.current}
                     onEndEditing={onAmountEndEditing}
-                    editable={(transactionStatus === TransactionStatus.PENDING || isOfflineSend || isCashuPrWithAmount)
+                    editable={(transactionStatus === TransactionStatus.PENDING || isCashuPrWithAmount)
                         ? false 
                         : true
                     }
@@ -1417,6 +1443,9 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 )
 
 
+/**
+ * allows you to manually select the ecash banknotes for offline sending
+ */
 const SelectProofsBlock = observer(function (props: {
   mintBalanceToSendFrom: MintBalance
   unit: MintUnit
