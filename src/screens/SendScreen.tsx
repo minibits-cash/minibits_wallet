@@ -1448,9 +1448,8 @@ const SelectProofsBlock = observer(function (props: {
   const calculateClosestAmount = () => {
     setIsNotEnoughErrVisible(false);
     try {
-      if (requestedAmount.trim() === "") {
-        setRequestedAmount("0");
-      }
+      if (requestedAmount.trim() === "") { setRequestedAmount("0"); }
+
       const precision = getCurrency(props.unit).precision
       const requestedAmountInt = round(toNumber(requestedAmount) * precision, 0)
 
@@ -1459,23 +1458,20 @@ const SelectProofsBlock = observer(function (props: {
       }
 
       const availableProofs = proofsStore.getByMint(props.mintBalanceToSendFrom.mintUrl, { isPending: false, unit: props.unit })
-      const exactMatch = CashuUtils.findExactMatch(requestedAmountInt, availableProofs)
-
-      if (exactMatch) {
+      
+      try {
+        const proofsToSend = CashuUtils.getProofsToSend(requestedAmountInt, availableProofs)
+        const isExactMatch = CashuUtils.getProofsAmount(proofsToSend) === requestedAmountInt;
+        
+        // Clear current selection and set the new proofs
         props.resetSelectedProofs()
-        exactMatch.forEach(proof => props.toggleSelectedProof(proof))
-      } else {
-        // If no exact match, use findMinExcess as fallback
-        const minExcessMatch = CashuUtils.findMinExcess(requestedAmountInt, availableProofs, 'SMALL')
-        if (minExcessMatch && minExcessMatch.length > 0) {
-          // Clear current selection and set the min excess match
-          props.resetSelectedProofs()
-          minExcessMatch.forEach(proof => props.toggleSelectedProof(proof));
-
-          const bestMatchAmount = CashuUtils.getProofsAmount(props.selectedProofs);
-          if (bestMatchAmount < requestedAmountInt) setIsNotEnoughErrVisible(true);
-        }
+        proofsToSend.forEach(proof => props.toggleSelectedProof(proof))
+      } catch (error: any) {
+        // If CashuUtils.getProofsToSend throws an error (e.g., insufficient funds), 
+        // surface it by showing the not enough error
+        setIsNotEnoughErrVisible(true);
       }
+      
     } catch (e: any) {
       console.error('Error finding proof selection:', e)
     }
