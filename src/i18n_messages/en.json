@@ -471,12 +471,18 @@
 	"sendLockEcashDesc": "Lock ecash token to one of your contacts or to a public key. Only the receiver will be able to unlock it.",
 	"sendLocked": "Locked",
 	"sendLockFor": "Lock for",
+	"sendOffline_usageHint": "Tap the ecash notes to adjust the amount",
+	"sendOfflineApproxMatch": "No exact match for your requested amount was found. Instead, a closest match was picked.",
 	"sendOfflineExactDenoms": "You can only send exact ecash denominations while you are offline.",
+	"sendScreen_createTokenBtn": "Create token",
 	"sendScreen_memo": "Memo for recipient",
+	"sendScreen_offlinemode": "OFFLINE MODE",
 	"sendScreen_pasteToSend": "Paste",
 	"sendScreen_pasteToSendDescription": "Paste lightning invoice from clipboard to pay it from your wallet.",
 	"sendScreen_scanToPay": "Scan to pay",
 	"sendScreen_scanToPayDescription": "Scan Lightning invoice, LNURL pay code or Lightning address to pay.",
+	"sendScreen_sendFromMintBalanceSel": "Send from mint",
+	"sendScreen_sendOfflineBtn": "Send offline",
 	"sendScreen_sendToContact": "Send to contact",
 	"sendScreen_sendToContactDescription": "Send your ecash to one of your contacts stored in your contact list.",
 	"sendScreen_showOrShareToken": "Share ecash",
@@ -709,8 +715,5 @@
 	"welcomeScreen_page3_final": "Now, let's move some ecash!",
 	"welcomeScreen_page3_go": "Let's go!",
 	"welcomeScreen_page3_heading": "Don't forget",
-	"welcomeScreen_page3_intro": "Both the Cashu protocol and the Minibits wallet are experimental. By using them, you accept known and unknown risks.",
-	"sendScreen_sendFromMintBalanceSel": "Send from mint",
-	"sendScreen_sendOfflineBtn": "Send offline",
-	"sendScreen_createTokenBtn": "Create token"
+	"welcomeScreen_page3_intro": "Both the Cashu protocol and the Minibits wallet are experimental. By using them, you accept known and unknown risks."
 }

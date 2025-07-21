@@ -633,7 +633,8 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
   const handleOfflineEndEdit = (amount: number, availableProofs: Proof[]) => {
     try {
       const proofsToSend = CashuUtils.getProofsToSend(amount, availableProofs)
-      const isExactMatch = CashuUtils.getProofsAmount(proofsToSend) === amount;
+      const selectedAmount = CashuUtils.getProofsAmount(proofsToSend)
+      const isExactMatch = selectedAmount === amount;
 
       const originalAmount = amountToSend; // Store the original requested amount
       resetSelectedProofs();
@@ -641,7 +642,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
       setAmountToSend(originalAmount); // Keep the original requested amount in the input
 
       log.trace("requested amount:", amount)
-      log.trace("best match:", CashuUtils.getProofsAmount(proofsToSend));
+      log.trace("best match:", selectedAmount);
       log.trace({ isExactMatch })
       
     } catch (error: any) {
@@ -1230,8 +1231,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 mintBalanceToSendFrom={mintBalanceToSendFrom as MintBalance}
                 unit={unitRef.current}
                 selectedProofs={selectedProofs}
-                // isLockedToPubkey={isLockedToPubkey}          
-                // toggleIsLockedToPubkey={toggleIsLockedToPubkey}    
+                showNoExactMatchMessage={true}
                 toggleProofSelectorModal={toggleProofSelectorModal}
                 toggleSelectedProof={toggleSelectedProof} 
                 resetSelectedProofs={resetSelectedProofs}           
@@ -1505,6 +1505,7 @@ const SelectProofsBlock = observer(function (props: {
   mintBalanceToSendFrom: MintBalance
   unit: MintUnit
   selectedProofs: Proof[]
+  showNoExactMatchMessage?: boolean
   // isLockedToPubkey: boolean
   toggleProofSelectorModal: any
   toggleSelectedProof: any
@@ -1517,10 +1518,16 @@ const SelectProofsBlock = observer(function (props: {
   const hintColor = useThemeColor('textDim')
   const statusColor = useThemeColor('header')
 
-
   const onCancel = function () {
     props.resetSelectedProofs()
     props.toggleProofSelectorModal()
+  }
+
+  const $informStyle: TextStyle = {
+    paddingHorizontal: spacing.small,
+    textAlign: 'center',
+    marginTop: spacing.extraSmall,
+    fontWeight: '500'
   }
 
   return (
@@ -1536,7 +1543,7 @@ const SelectProofsBlock = observer(function (props: {
           },
         ]}>
         <Text
-          text={'OFFLINE MODE'}
+          tx="sendScreen_offlinemode"
           style={[
             {
               color: statusColor,
@@ -1549,9 +1556,14 @@ const SelectProofsBlock = observer(function (props: {
         />
       </View>
       <Text tx='sendCreateToken' style={{ marginTop: spacing.large }} />
+      {props.showNoExactMatchMessage && (<Text
+        tx="sendOfflineApproxMatch"
+        style={$informStyle}
+        size='xs'
+      />)}
       <Text
         tx='sendOfflineExactDenoms'
-        style={{ color: hintColor, paddingHorizontal: spacing.small, textAlign: 'center' }}
+        style={{ color: hintColor, paddingHorizontal: spacing.tiny, marginTop: spacing.extraSmall, textAlign: 'center' }}
         size='xs'
       />
       <CurrencyAmount
@@ -1587,6 +1599,7 @@ const SelectProofsBlock = observer(function (props: {
           keyExtractor={(item) => item.secret}
         />
       </View>
+      <Text tx="sendOffline_usageHint" style={{ color: hintColor, marginVertical: spacing.extraSmall, textAlign: 'center' }} size="xs" />
       <View style={[$bottomContainer, { marginTop: spacing.extraLarge }]}>
         <View style={[$buttonContainer]}>
           <Button
