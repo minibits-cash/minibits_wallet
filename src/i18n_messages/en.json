@@ -472,7 +472,7 @@
 	"sendLocked": "Locked",
 	"sendLockFor": "Lock for",
 	"sendOffline_usageHint": "Tap the ecash notes to adjust the amount",
-	"sendOfflineApproxMatch": "No exact match for your requested amount was found. Instead, a closest match was picked.",
+	"sendOfflineApproxMatch": "No exact match for your requested amount was found.",
 	"sendOfflineExactDenoms": "You can only send exact ecash denominations while you are offline.",
 	"sendScreen_createTokenBtn": "Create token",
 	"sendScreen_memo": "Memo for recipient",

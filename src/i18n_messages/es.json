@@ -472,7 +472,7 @@
 	"sendLocked": "Bloqueado",
 	"sendLockFor": "Bloquear para",
 	"sendOffline_usageHint": "Toque las notas de ecash para ajustar el monto",
-	"sendOfflineApproxMatch": "No se encontró una coincidencia exacta para la cantidad solicitada. Se seleccionó la más cercana.",
+	"sendOfflineApproxMatch": "No se encontró una coincidencia exacta para la cantidad solicitada.",
 	"sendOfflineExactDenoms": "Solo puedes enviar denominaciones exactas de efectivo mientras estás desconectado.",
 	"sendScreen_createTokenBtn": "Crear token",
 	"sendScreen_memo": "Memo para el destinatario",

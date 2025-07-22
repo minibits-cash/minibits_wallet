@@ -472,7 +472,7 @@
 	"sendLocked": "Zamknuté",
 	"sendLockFor": "Zamknúť pre",
 	"sendOffline_usageHint": "Klepnutím na ecash bankovky upravte sumu",
-	"sendOfflineApproxMatch": "Nenašla sa presná zhoda pre požadovanú sumu. Namiesto toho bola vybraná najbližšia zhoda.",
+	"sendOfflineApproxMatch": "Nenašla sa presná zhoda pre požadovanú sumu.",
 	"sendOfflineExactDenoms": "Keď si offline, môžeš poslať len presné ecash denominácie.",
 	"sendScreen_createTokenBtn": "Vytvoriť token",
 	"sendScreen_memo": "Správa pre prijímateľa",

@@ -472,7 +472,7 @@
 	"sendLocked": "Bloqueado",
 	"sendLockFor": "Bloquear para",
 	"sendOffline_usageHint": "Toque nas notas de ecash para ajustar o valor",
-	"sendOfflineApproxMatch": "Não foi encontrada nenhuma correspondência exata para o valor solicitado. Em vez disso, foi selecionada uma correspondência mais próxima.",
+	"sendOfflineApproxMatch": "Não foi encontrada nenhuma correspondência exata para o valor solicitado.",
 	"sendOfflineExactDenoms": "Você só pode enviar denominações exatas de ecash offline.",
 	"sendScreen_createTokenBtn": "Criar token",
 	"sendScreen_memo": "Memorando para destinatário",
