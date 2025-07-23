@@ -589,6 +589,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(amount, unitRef.current)
 
             if (availableBalances.length === 0) {
+                log.trace('[onAmountEndEditing] payCommon_insufficientFunds')
                 infoMessage(translate('payCommon_insufficientFunds'))
                 return
             }
@@ -1064,7 +1065,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     value={amountToSend}
                     onChangeText={amount => setAmountToSend(amount)}
                     unit={unitRef.current}
-                    onEndEditing={onAmountEndEditing}
+                    onEndEditing={transactionStatus !== TransactionStatus.PENDING ? onAmountEndEditing : undefined}
                     editable={(transactionStatus === TransactionStatus.PENDING || isCashuPrWithAmount)
                         ? false 
                         : true
