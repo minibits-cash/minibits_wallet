@@ -159,8 +159,9 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 unitRef.current = unit
 
                 if(mintUrl) {
-                    const mintBalance = proofsStore.getMintBalance(mintUrl)    
+                    const mintBalance = proofsStore.getMintBalance(mintUrl)
                     setMintBalanceToSendFrom(mintBalance)
+                    log.trace('[setUnitAndMint] mintBalanceToSendFrom', mintBalance)
                 }
             } catch (e: any) {
                 handleError(e)
@@ -425,16 +426,14 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(1, unitRef.current)
 
         if (availableBalances.length === 0) {
-            setInfo('There are not enough funds to send')
+            setInfo('Not enough funds to send')
             return
         }
         
-        log.trace('Setting availableBalances')
+        log.trace('[Offline send] Setting availableBalances')
 
         setIsOfflineSend(true)
-        setAvailableMintBalances(availableBalances)
-        setMintBalanceToSendFrom(availableBalances[0])        
-        setIsMintSelectorVisible(true)      
+        setAvailableMintBalances(availableBalances)     
     }, [isInternetReachable])
 
 
@@ -563,67 +562,79 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     const toggleNostrDMModal = () => setIsNostrDMModalVisible(previousState => !previousState)
     const toggleProofSelectorModal = () => setIsProofSelectorModalVisible(previousState => !previousState)
     const toggleResultModal = () => setIsResultModalVisible(previousState => !previousState)
-    // const toggleIsLockedToPubkey = () => setIsLockedToPubkey(previousState => !previousState)
     const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previousState => !previousState)
 
+    const validateAndProcessAmount = function (amountString: string, unit: MintUnit) {
+        // Normalize empty string to "0"
+        const normalizedAmount = amountString.trim() === "" ? "0" : amountString.trim()
+
+        const precision = getCurrency(unit).precision
+        const amount = round(toNumber(normalizedAmount) * precision, 0)
+
+        const isValid = typeof amount === "number" && !Number.isNaN(amount) && amount > 0
+
+        return {
+        amount: isValid ? amount : 0,
+        amountString: normalizedAmount
+        }
+    }
+
     const onAmountEndEditing = function () {
-        try {        
-            const precision = getCurrency(unitRef.current).precision            
-            const amount = round(toNumber(amountToSend) * precision, 0)            
+        try {
+        const { amount, amountString } = validateAndProcessAmount(amountToSend, unitRef.current)
+        log.trace('[onAmountEndEditing]', amount, amountString)
 
-            log.trace('[onAmountEndEditing]', amount)
+        if (amount && amount > 0) {
 
-            if (!amount || amount === 0) {
-                infoMessage(translate('payCommon_amountZeroOrNegative'))
-                return
-            }
-            
             const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(amount, unitRef.current)
 
             if (availableBalances.length === 0) {
+                log.trace('[onAmountEndEditing] payCommon_insufficientFunds')
                 infoMessage(translate('payCommon_insufficientFunds'))
                 return
             }
 
-            LayoutAnimation.easeInEaseOut()            
-            
             setAvailableMintBalances(availableBalances)
 
             // Default mint if not set from route params is the one with the highest balance
-            if(!mintBalanceToSendFrom) {
+            if (!mintBalanceToSendFrom) {
                 setMintBalanceToSendFrom(availableBalances[0])
-            }            
-            
+            }
+
             LayoutAnimation.easeInEaseOut()        
             setIsMintSelectorVisible(true)
 
+        } else {
+            infoMessage(translate('payCommon_amountZeroOrNegative'))
+            return
+        }
         } catch (e: any) {
-            handleError(e)
+        handleError(e)
         }
     }
-    
+  
 
     const onMemoEndEditing = function () {
         LayoutAnimation.easeInEaseOut()
-        
+
         // Show mint selector
         if (availableMintBalances.length > 0) {
-            setIsMintSelectorVisible(true)
-        }               
+        setIsMintSelectorVisible(true)
+        }
     }
 
 
     const onMemoDone = function () {
         if (parseInt(amountToSend) > 0) {
-          memoInputRef && memoInputRef.current
+        memoInputRef && memoInputRef.current
             ? memoInputRef.current.blur()
             : false
-          amountInputRef && amountInputRef.current
+        amountInputRef && amountInputRef.current
             ? amountInputRef.current.blur()
             : false
-          onMemoEndEditing()
+        onMemoEndEditing()
         } else {
-          amountInputRef && amountInputRef.current
+        amountInputRef && amountInputRef.current
             ? amountInputRef.current.focus()
             : false
         }
@@ -634,43 +645,43 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         setMintBalanceToSendFrom(balance)
     }
 
-  
+
     const onLockPubkeyStart = function () {
         togglePubkeySelectorModal()
     }
 
     const onLockPubkeySelect = function () {
-        if(!lockedPubkey || lockedPubkey.length === 0) {
-            onLockPubkeyCancel()
-            return
+        if (!lockedPubkey || lockedPubkey.length === 0) {
+        onLockPubkeyCancel()
+        return
         }
 
-        if(lockedPubkey.startsWith('nsec')) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Invalid key. Please provide public key in NPUB or HEX format.')
+        if (lockedPubkey.startsWith('nsec')) {
+        throw new AppError(Err.VALIDATION_ERROR, 'Invalid key. Please provide public key in NPUB or HEX format.')
         }
 
         const contact = contactsStore.findByNpub(lockedPubkey) || contactsStore.findByPubkey(lockedPubkey)
 
-        if(contact) {
-            log.trace('[onLockPubkeySelect] Provided pubkey belongs to a contact', {contactName: contact.name})
-            let relays: string[] = []                           
+        if (contact) {
+        log.trace('[onLockPubkeySelect] Provided pubkey belongs to a contact', { contactName: contact.name })
+        let relays: string[] = []
 
-            if(contact?.type === ContactType.PUBLIC) {
-                relays = relaysStore.allPublicUrls
-            } else {
-                relays = relaysStore.allUrls
-            }
-    
-            if (relays.length === 0) {                    
-                throw new AppError(Err.VALIDATION_ERROR, 'Missing NOSTR relays')
-            }
-            
-            setPaymentOption(SendOption.SEND_TOKEN)
-            setContactToSendFrom(getContactFrom())                
-            setContactToSendTo(contact)                
-            setRelaysToShareTo(relays)
+        if (contact?.type === ContactType.PUBLIC) {
+            relays = relaysStore.allPublicUrls
+        } else {
+            relays = relaysStore.allUrls
         }
-        
+
+        if (relays.length === 0) {
+            throw new AppError(Err.VALIDATION_ERROR, 'Missing NOSTR relays')
+        }
+
+        setPaymentOption(SendOption.SEND_TOKEN)
+        setContactToSendFrom(getContactFrom())
+        setContactToSendTo(contact)
+        setRelaysToShareTo(relays)
+        }
+
         togglePubkeySelectorModal()
     }
 
@@ -682,38 +693,64 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
 
     const onMintBalanceConfirm = async function () {
-        if (!mintBalanceToSendFrom) {
-            return
-        }       
 
+        const { amount: amountToSendInt } = validateAndProcessAmount(amountToSend, unitRef.current)
+        const exactMatchProofs: Proof[] = []
+
+        if(isOfflineSend) {
+            const availableProofs = proofsStore.getByMint(mintBalanceToSendFrom.mintUrl, { isPending: false, unit: unitRef.current });
+            const autoSelectedProofs = CashuUtils.getProofsToSend(amountToSendInt, availableProofs)
+            const autoSelectedAmount = CashuUtils.getProofsAmount(autoSelectedProofs)
+            const isExactMatch = autoSelectedAmount === amountToSendInt
+
+            log.trace("[onMintBalanceConfirm]", {isOfflineSend, amountToSendInt, autoSelectedAmount, isExactMatch})
+
+            // setSelectedProofs(autoSelectedProofs) // 
+
+            if(!isExactMatch) {
+                // TODO need to improve algo auto-selected proofs
+
+                /* setAmountToSend(numbro(selectedAmount / getCurrency(unitRef.current).precision).format({
+                    thousandSeparated: true, 
+                    mantissa: getCurrency(unitRef.current).mantissa
+                })) */
+                resetSelectedProofs()
+                // show proof selector modal
+                setIsProofSelectorModalVisible(true)
+
+                return    
+            } else {
+                exactMatchProofs.push(...autoSelectedProofs)
+            }
+        }
+      
         setIsLoading(true)       
-        const amountToSendInt = round(toNumber(amountToSend) * getCurrency(unitRef.current).precision, 0)
-
+        
         //@ts-ignore
-        const p2pk: { 
-            pubkey: string; 
-            locktime?: number; 
-            refundKeys?: Array<string> 
+        const p2pk: {
+            pubkey: string;
+            locktime?: number;
+            refundKeys?: Array<string>
         } | undefined = undefined
 
-        log.trace('[onMintBalanceConfirm] lockedPubkey', {lockedPubkey})
+        log.trace('[onMintBalanceConfirm] lockedPubkey', { lockedPubkey })
 
-        if(lockedPubkey && lockedPubkey.length > 0) {
-            if(lockedPubkey.startsWith('npub')) {
+        if (lockedPubkey && lockedPubkey.length > 0) {
+            if (lockedPubkey.startsWith('npub')) {
                 p2pk.pubkey = '02' + NostrClient.getHexkey(lockedPubkey)
             } else {
-                if(lockedPubkey.length === 64) {
+                if (lockedPubkey.length === 64) {
                     p2pk.pubkey = '02' + lockedPubkey
-                } else if(lockedPubkey.length === 66) {
+                } else if (lockedPubkey.length === 66) {
                     p2pk.pubkey = lockedPubkey
                 } else {
-                    throw new AppError(Err.VALIDATION_ERROR, 'Invalid key. Please provide public key in NPUB or HEX format.')
-                }    
+                throw new AppError(Err.VALIDATION_ERROR, 'Invalid key. Please provide public key in NPUB or HEX format.')
+                }
             }
-            
-            if(lockTime && lockTime > 0) {
+
+            if (lockTime && lockTime > 0) {
                 p2pk.locktime = getUnixTime(new Date(Date.now() + lockTime * 24 * 60 * 60))
-                log.trace('[onMintBalanceConfirm] Locktime', {pubkey: p2pk.pubkey, locktime: p2pk.locktime})
+                log.trace('[onMintBalanceConfirm] Locktime', { pubkey: p2pk.pubkey, locktime: p2pk.locktime })
             }
         }
 
@@ -724,11 +761,14 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             amountToSendInt,
             unitRef.current,
             memo,
-            selectedProofs,
+            exactMatchProofs.length > 0 ? exactMatchProofs : selectedProofs, // autoSelected proofs are not yet in state
             p2pk,
             draftTransactionIdRef.current
         )
     }
+
+
+ 
 
 
     const increaseProofsCounterAndRetry = async function () {
@@ -761,15 +801,6 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         } finally {
             toggleResultModal() //close
         }
-    }
-
-
-    const onSelectProofsOffline = async function () {
-        if (!mintBalanceToSendFrom) {
-            return
-        }       
-
-        setIsProofSelectorModalVisible(true)
     }
 
 
@@ -867,18 +898,31 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
 
     const toggleSelectedProof = function (proof: Proof) {
+        const precision = getCurrency(unitRef.current).precision
+
         setSelectedProofs(prevSelectedProofs => {
           const isSelected = prevSelectedProofs.some(
             p => p.secret === proof.secret
           )
+          
+          // validate amountToSend s.t. it does not crash numbro
+          const _amountToSend = (!amountToSend || !amountToSend.trim() || Number.isNaN(parseInt(amountToSend))) 
+            ? 0 
+            : parseInt(amountToSend);
   
           if (isSelected) {
             // If the proof is already selected, remove it from the array            
-            setAmountToSend(`${parseInt(amountToSend) - proof.amount}`)
+            setAmountToSend(`${numbro(_amountToSend - proof.amount / precision).format({
+                thousandSeparated: true, 
+                mantissa: getCurrency(unitRef.current).mantissa
+            })}`)
             return prevSelectedProofs.filter(p => p.secret !== proof.secret)
           } else {
             // If the proof is not selected, add it to the array            
-            setAmountToSend(`${(parseInt(amountToSend) || 0) + proof.amount}`)
+            setAmountToSend(`${numbro(_amountToSend + proof.amount / precision).format({
+                thousandSeparated: true, 
+                mantissa: getCurrency(unitRef.current).mantissa
+            })}`)
             return [...prevSelectedProofs, proof]
           }
         })
@@ -891,7 +935,18 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
 
     const onOfflineSendConfirm = function () {
+        // Update amountToSend to match exactly the selected proofs amount before proceeding
+        // const selectedAmount = CashuUtils.getProofsAmount(selectedProofs)
+        // const precision = getCurrency(unitRef.current).precision
+        // const formattedAmount = numbro(selectedAmount / precision)
+        //     .format({
+        //         thousandSeparated: true, 
+        //         mantissa: getCurrency(unitRef.current).mantissa
+        //     })
+        
+        // setAmountToSend(formattedAmount)
         toggleProofSelectorModal() // close
+        // Pass the exact selected amount directly to onMintBalanceConfirm
         onMintBalanceConfirm()
     }
 
@@ -1010,8 +1065,8 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     value={amountToSend}
                     onChangeText={amount => setAmountToSend(amount)}
                     unit={unitRef.current}
-                    onEndEditing={onAmountEndEditing}
-                    editable={(transactionStatus === TransactionStatus.PENDING || isOfflineSend || isCashuPrWithAmount)
+                    onEndEditing={transactionStatus !== TransactionStatus.PENDING ? onAmountEndEditing : undefined}
+                    editable={(transactionStatus === TransactionStatus.PENDING || isCashuPrWithAmount)
                         ? false 
                         : true
                     }
@@ -1077,13 +1132,16 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     mintBalances={availableMintBalances}
                     selectedMintBalance={mintBalanceToSendFrom as MintBalance}
                     unit={unitRef.current}
-                    title='Send from mint'
-                    confirmTitle={isOfflineSend ? 'Send offline' : 'Create token'}                    
+                    title={translate("sendScreen_sendFromMintBalanceSel")}
+                    confirmTitle={isOfflineSend 
+                      ? translate("sendScreen_sendOfflineBtn") 
+                      : translate("sendScreen_createTokenBtn")
+                    }                    
                     secondaryConfirmTitle='Lock'                    
                     onMintBalanceSelect={onMintBalanceSelect}
                     onSecondaryMintBalanceSelect={onLockPubkeyStart}
                     onCancel={onMintBalanceCancel}                                           
-                    onMintBalanceConfirm={isOfflineSend ? onSelectProofsOffline : onMintBalanceConfirm}
+                    onMintBalanceConfirm={onMintBalanceConfirm}
                 />
             )}
             {transactionStatus === TransactionStatus.PENDING && encodedTokenToSend && paymentOption && (
@@ -1149,8 +1207,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 mintBalanceToSendFrom={mintBalanceToSendFrom as MintBalance}
                 unit={unitRef.current}
                 selectedProofs={selectedProofs}
-                // isLockedToPubkey={isLockedToPubkey}          
-                // toggleIsLockedToPubkey={toggleIsLockedToPubkey}    
+                showNoExactMatchMessage={true}
                 toggleProofSelectorModal={toggleProofSelectorModal}
                 toggleSelectedProof={toggleSelectedProof} 
                 resetSelectedProofs={resetSelectedProofs}           
@@ -1417,113 +1474,127 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 )
 
 
-const SelectProofsBlock = observer(function (props: {    
-    mintBalanceToSendFrom: MintBalance
-    unit: MintUnit
-    selectedProofs: Proof[]
-    // isLockedToPubkey: boolean
-    toggleProofSelectorModal: any                    
-    toggleSelectedProof: any
-    // toggleIsLockedToPubkey: any
-    resetSelectedProofs: any
-    onOfflineSendConfirm: any
-  }) {
+/**
+ * allows you to manually select the ecash banknotes for offline sending
+ */
+const SelectProofsBlock = observer(function (props: {
+  mintBalanceToSendFrom: MintBalance
+  unit: MintUnit
+  selectedProofs: Proof[]
+  showNoExactMatchMessage?: boolean
+  toggleProofSelectorModal: any
+  toggleSelectedProof: any
+  resetSelectedProofs: any
+  onOfflineSendConfirm: any
+}) {
 
-    const {proofsStore} = useStores()
-    const hintColor = useThemeColor('textDim')
-    const statusColor = useThemeColor('header')
+  const { proofsStore } = useStores()
+  const hintColor = useThemeColor('textDim')
+  const statusColor = useThemeColor('header')
 
-    
-    const onCancel = function () {        
-        props.resetSelectedProofs()
-        props.toggleProofSelectorModal()        
-    }
-    
-    return (
-        <View style={$bottomModal}>
-            <View
-                style={[
-                    {
-                    alignSelf: 'center',
-                    marginTop: spacing.tiny,
-                    paddingHorizontal: spacing.tiny,
-                    borderRadius: spacing.tiny,
-                    backgroundColor: colors.palette.primary200,
-                    },
-                ]}>
-                <Text
-                    text={'OFFLINE MODE'}
-                    style={[
-                    {
-                        color: statusColor,
-                        fontSize: 10,
-                        fontFamily: typography.primary?.light,
-                        padding: 0,
-                        lineHeight: 16,
-                    }
-                    ]}
-                />
-            </View>
-            <Text tx='sendSelectEcashToSend' style={{marginTop: spacing.large}}/>
-            <Text
-                tx='sendOfflineExactDenoms'
-                style={{color: hintColor, paddingHorizontal: spacing.small, textAlign: 'center'}}
-                size='xs'
-            />               
-            <CurrencyAmount 
-                amount={CashuUtils.getProofsAmount(props.selectedProofs)} 
-                mintUnit={props.unit}       
-                size='extraLarge'
-                containerStyle={{marginTop: spacing.large, marginBottom: spacing.small, alignItems: 'center'}}       
-            />
-            <View style={{
-                maxHeight: spacing.screenHeight * 0.45,
-                borderWidth: 1, 
-                borderColor: hintColor, 
-                borderRadius: spacing.medium, 
-                marginTop: spacing.small
-            }}>
-                <FlatList<Proof>
-                    data={proofsStore.getByMint(props.mintBalanceToSendFrom.mintUrl, {isPending: false, unit: props.unit})}
-                    renderItem={({ item }) => {
-                        const isSelected = props.selectedProofs.some(
-                            p => p.secret === item.secret
-                        )
+  const onCancel = function () {
+    props.resetSelectedProofs()
+    props.toggleProofSelectorModal()
+  }
 
-                        return (
-                            <Button
-                                preset={isSelected ? 'default' : 'secondary'}
-                                onPress={() => props.toggleSelectedProof(item)}
-                                text={`${item.amount}`}
-                                style={{minWidth: 80, margin: spacing.small}}
-                            />
-                        )
-                    }}
-                    numColumns={3}
-                    keyExtractor={(item) => item.secret}
-                />
-            </View>
-            <View style={[$bottomContainer, {marginTop: spacing.extraLarge}]}>
-                <View style={[$buttonContainer]}>
-                    <Button
-                        tx="sendCreateToken"
-                        onPress={props.onOfflineSendConfirm}
-                        style={{marginRight: spacing.medium}}          
-                    />
-                    <Button 
-                        preset="secondary" 
-                        tx="commonCancel" 
-                        onPress={onCancel} 
-                    />        
-                </View>
-            </View>
+  const $informStyle: TextStyle = {
+    paddingHorizontal: spacing.small,
+    textAlign: 'center',
+    marginTop: spacing.extraSmall,
+    fontWeight: '500'
+  }
+
+  return (
+    <View style={$bottomModal}>
+      <View
+        style={[
+          {
+            alignSelf: 'center',
+            marginTop: spacing.tiny,
+            paddingHorizontal: spacing.tiny,
+            borderRadius: spacing.tiny,
+            backgroundColor: colors.palette.primary200,
+          },
+        ]}>
+        <Text
+          tx="sendScreen_offlinemode"
+          style={[
+            {
+              color: statusColor,
+              fontSize: 10,
+              fontFamily: typography.primary?.light,
+              padding: 0,
+              lineHeight: 16,
+            }
+          ]}
+        />
+      </View>
+      <Text tx='sendCreateToken' style={{ marginTop: spacing.large }} />
+      {props.showNoExactMatchMessage && (<Text
+        tx="sendOfflineApproxMatch"
+        style={$informStyle}
+        size='xs'
+      />)}
+      <Text
+        tx='sendOfflineExactDenoms'
+        style={{ color: hintColor, paddingHorizontal: spacing.tiny, marginTop: spacing.extraSmall, textAlign: 'center' }}
+        size='xs'
+      />
+      <CurrencyAmount
+        amount={CashuUtils.getProofsAmount(props.selectedProofs)}
+        mintUnit={props.unit}
+        size='extraLarge'
+        containerStyle={{ marginTop: spacing.large, marginBottom: spacing.small, alignItems: 'center' }}
+      />
+      <View style={{
+        maxHeight: spacing.screenHeight * 0.45,
+        borderWidth: 1,
+        borderColor: hintColor,
+        borderRadius: spacing.medium,
+        marginTop: spacing.small
+      }}>
+        <FlatList<Proof>
+          data={proofsStore.getByMint(props.mintBalanceToSendFrom.mintUrl, { isPending: false, unit: props.unit })}
+          renderItem={({ item }) => {
+            const isSelected = props.selectedProofs.some(
+              p => p.secret === item.secret
+            )
+
+            return (
+              <Button
+                preset={isSelected ? 'default' : 'secondary'}
+                onPress={() => props.toggleSelectedProof(item)}
+                text={`${item.amount}`}
+                style={{ minWidth: 80, margin: spacing.small }}
+              />
+            )
+          }}
+          numColumns={3}
+          keyExtractor={(item) => item.secret}
+        />
+      </View>
+      <Text tx="sendOffline_usageHint" style={{ color: hintColor, marginVertical: spacing.extraSmall, textAlign: 'center' }} size="xs" />
+      <View style={[$bottomContainer, { marginTop: spacing.extraLarge }]}>
+        <View style={[$buttonContainer]}>
+          <Button
+            tx="sendCreateToken"
+            onPress={props.onOfflineSendConfirm}
+            style={{ marginRight: spacing.medium }}
+          />
+          <Button
+            preset="secondary"
+            tx="commonCancel"
+            onPress={onCancel}
+          />
         </View>
-    )
-    
-  })
+      </View>
+    </View>
+  )
+
+})
 
 
-  const TokenOptionsBlock = observer(function (props: {
+const TokenOptionsBlock = observer(function (props: {
     toggleNostrDMModal: any
     contactToSendTo?: Contact   
     gotoContacts: any
@@ -1724,7 +1795,7 @@ const NostDMInfoBlock = observer(function (props: {
     contactToSendTo: Contact
 }) {
 
-    const {walletProfileStore} = useStores()
+    
     const tokenTextColor = useThemeColor('textDim')
     const amountToSendInt = round(toNumber(props.amountToSend) * getCurrency(props.unit).precision, 0)
     const amountToSendDisplay = formatCurrency(amountToSendInt, getCurrency(props.unit).code)

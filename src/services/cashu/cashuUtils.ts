@@ -224,14 +224,14 @@ const getProofsToSend = function (requestedAmount: number, proofs: Proof[]): Pro
       'There is not enough funds to send this amount.', 
       {requestedAmount, proofsAmount, caller: 'getProofsToSend'})
   }
-  const exactMatch = findExactMatch(requestedAmount, proofs);
+  const exactMatch = findExactMatch(requestedAmount, proofs)
   if (exactMatch) {
       log.trace('[getProofsToSend] found exact match')
       return exactMatch;
   }
 
   log.trace('[getProofsToSend] no exact match, fallback to findMinExcess')
-  return findMinExcess(requestedAmount, proofs);
+  return findMinExcess(requestedAmount, proofs)
 }
 
 
@@ -348,6 +348,7 @@ export const CashuUtils = {
     extractEncodedCashuPaymentRequest,
     getProofsAmount,    
     getMintsFromToken,
+    findExactMatch,
     findMinExcess,
     getProofsToSend,
     getProofsSubset,
