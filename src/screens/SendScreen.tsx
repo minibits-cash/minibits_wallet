@@ -903,17 +903,22 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
           const isSelected = prevSelectedProofs.some(
             p => p.secret === proof.secret
           )
+          
+          // validate amountToSend s.t. it does not crash numbro
+          const _amountToSend = (!amountToSend || !amountToSend.trim() || Number.isNaN(parseInt(amountToSend))) 
+            ? 0 
+            : parseInt(amountToSend);
   
           if (isSelected) {
             // If the proof is already selected, remove it from the array            
-            setAmountToSend(`${numbro(parseInt(amountToSend) || 0 - proof.amount / precision).format({
+            setAmountToSend(`${numbro(_amountToSend - proof.amount / precision).format({
                 thousandSeparated: true, 
                 mantissa: getCurrency(unitRef.current).mantissa
             })}`)
             return prevSelectedProofs.filter(p => p.secret !== proof.secret)
           } else {
             // If the proof is not selected, add it to the array            
-            setAmountToSend(`${numbro(parseInt(amountToSend) || 0 + proof.amount / precision).format({
+            setAmountToSend(`${numbro(_amountToSend + proof.amount / precision).format({
                 thousandSeparated: true, 
                 mantissa: getCurrency(unitRef.current).mantissa
             })}`)
@@ -930,15 +935,15 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
     const onOfflineSendConfirm = function () {
         // Update amountToSend to match exactly the selected proofs amount before proceeding
-        const selectedAmount = CashuUtils.getProofsAmount(selectedProofs)
-        const precision = getCurrency(unitRef.current).precision
-        const formattedAmount = numbro(selectedAmount / precision)
-            .format({
-                thousandSeparated: true, 
-                mantissa: getCurrency(unitRef.current).mantissa
-            })
+        // const selectedAmount = CashuUtils.getProofsAmount(selectedProofs)
+        // const precision = getCurrency(unitRef.current).precision
+        // const formattedAmount = numbro(selectedAmount / precision)
+        //     .format({
+        //         thousandSeparated: true, 
+        //         mantissa: getCurrency(unitRef.current).mantissa
+        //     })
         
-        setAmountToSend(formattedAmount)
+        // setAmountToSend(formattedAmount)
         toggleProofSelectorModal() // close
         // Pass the exact selected amount directly to onMintBalanceConfirm
         onMintBalanceConfirm()
