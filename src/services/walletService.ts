@@ -2378,6 +2378,19 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
             const amountToReceive = CashuUtils.getProofsAmount(decoded.proofs)        
             const memo = decoded.memo || 'Received over Nostr'
 
+            // do not allow to receive automatically from unknown mints
+            if(!mintsStore.mintExists(decoded.mint)) {
+                let message = 'Receiving ecash token over Nostr from unknown mint is not allowed.'
+
+                await _sendErrorReceiveNotification(
+                    amountToReceive,
+                    decoded.unit as MintUnit,
+                    decoded.mint              
+                )
+
+                throw new AppError(Err.VALIDATION_ERROR, message, {decoded})  
+            }
+
             const {transaction, receivedAmount} = await receiveTask(
                 decoded,
                 amountToReceive,
@@ -2674,6 +2687,41 @@ const _sendReceiveNotification = async function (
     if(receivedAmount && receivedAmount > 0) {
         const { title, body } = getNotificationContent(receivedAmount, currencyCode, isZap, sentFrom);
         await NotificationService.createLocalNotification(title, body, sentFromPicture);
+    }
+
+    return
+}
+
+const _sendErrorReceiveNotification = async function (
+    amountToReceive: number,
+    unit: MintUnit,
+    mint: string
+): Promise<void> {
+    const getNotificationContent = (
+        amount: number,
+        currency: CurrencyCode,
+    ): { title: string; body: string } => {
+        const title = Platform.OS === 'android'
+            ? `<b>Received ${formatCurrency(amount, currency)} ${currency} ecash token from unknonw mint!</b>`
+            : `Received ${formatCurrency(amount, currency)} ${currency} ecash token from unknonw mint!`
+        const body = Platform.OS === 'android'
+            ? `Add <b>${mint}</b> to your wallet first to receive ecash over the Nostr network.`
+            : `Add ${mint} to your wallet first to receive ecash over the Nostr network.`
+        return { title, body };
+    }
+    
+    const enabled = await NotificationService.areNotificationsEnabled()
+    if(!enabled) {
+        return
+    }
+
+    //
+    // Send notification event
+    //
+    const currencyCode = getCurrency(unit).code
+    if(amountToReceive && amountToReceive > 0) {
+        const { title, body } = getNotificationContent(amountToReceive, currencyCode);
+        await NotificationService.createLocalNotification(title, body);
     }
 
     return
