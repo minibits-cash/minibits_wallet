@@ -96,7 +96,7 @@ replace-translation-keys.js
 
 # explore the codebase and create a detailed, step by step plan how you're going to implement this feature. 
 # don't do any implementations yet
-# write this plan down in tasks.md in root of the respoitory.
+# write this plan down in tasks.md as a list of markdown tasks - [ ], in root of the respoitory.
 # then, start working on it, constantly re-evaluating how much his done and if it's done, then check off that particular task. 
 # once they are all checked off, review the task list and double-check everything
 tasks.md
