@@ -277,7 +277,7 @@ const validateMintKeys = function (keys: object): boolean {
 }
 
 function getKeysetIdInt(keysetIdHex: string) {
-  return BigInt(`0x${keysetIdHex}`) % BigInt(2 ** 31 - 1)
+  return parseInt(`0x${keysetIdHex}`, 16) % (2 ** 31 - 1)
 }
 
 
@@ -285,20 +285,33 @@ function isCollidingKeysetId(
   newKeysetIdHex: string,
   storedKeysetIds: string[],
 ) {
-  const newKeysetIdInt = getKeysetIdInt(newKeysetIdHex);
+  const newKeysetIdInt = getKeysetIdInt(newKeysetIdHex)
   return storedKeysetIds.some((storedId) => {
-    const storedKeysetIdInt = getKeysetIdInt(storedId);
+    const storedKeysetIdInt = getKeysetIdInt(storedId)
     if (storedId === newKeysetIdHex) {
       // Colliding keyset ID!
-      return true;
+      log.error('[isCollidingKeysetId] Colliding keyset ID', {
+        newKeysetIdHex,
+        storedId,
+        newKeysetIdInt,
+        storedKeysetIdInt,
+      })
+      return true
     }
     if (storedKeysetIdInt === newKeysetIdInt) {
       // Colliding keyset ID integer!
-      return true;
+      log.error('[isCollidingKeysetId] Colliding keyset ID integer', {
+        newKeysetIdHex,
+        storedId,
+        newKeysetIdInt,
+        storedKeysetIdInt,
+      })
+
+      return true
     }
-    // No collisions, good to go
-    return false;
-  });
+
+    return false
+  })
 }
 
 
