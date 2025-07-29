@@ -276,10 +276,35 @@ const validateMintKeys = function (keys: object): boolean {
   }
 }
 
+function getKeysetIdInt(keysetIdHex: string) {
+  return BigInt(`0x${keysetIdHex}`) % BigInt(2 ** 31 - 1)
+}
+
+
+function isCollidingKeysetId(
+  newKeysetIdHex: string,
+  storedKeysetIds: string[],
+) {
+  const newKeysetIdInt = getKeysetIdInt(newKeysetIdHex);
+  return storedKeysetIds.some((storedId) => {
+    const storedKeysetIdInt = getKeysetIdInt(storedId);
+    if (storedId === newKeysetIdHex) {
+      // Colliding keyset ID!
+      return true;
+    }
+    if (storedKeysetIdInt === newKeysetIdInt) {
+      // Colliding keyset ID integer!
+      return true;
+    }
+    // No collisions, good to go
+    return false;
+  });
+}
+
+
 const isPow2 = function (number: number) {
   return Math.log2(number) % 1 === 0
 }
-
 
 
 const getMintFromProof = function (
@@ -356,5 +381,6 @@ export const CashuUtils = {
     getMintFromProof,
     getP2PKPubkeySecret,
     getP2PKLocktime,
-    isTokenP2PKLocked
+    isTokenP2PKLocked,
+    isCollidingKeysetId
 }

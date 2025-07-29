@@ -14,7 +14,7 @@ import { MintUnit, MintUnits } from '../services/wallet/currency'
 import { getRootStore } from './helpers/getRootStore'
 import { generateId } from '../utils/utils'
 import { Proof } from './Proof'
-import { CashuProof } from '../services/cashu/cashuUtils'
+import { CashuProof, CashuUtils } from '../services/cashu/cashuUtils'
 
 
 export type MintBalance = {
@@ -98,6 +98,12 @@ export const MintModel = types
         createdAt: types.optional(types.Date, new Date()),
     })
     .actions(withSetPropAction) // TODO? start to use across app to avoid pure setter methods, e.g. mint.setProp('color', '#ccc')
+    .views(self => ({
+        getAllMintsKeysetIds(): string[] {
+          const mintsStore = getRootStore(self).mintsStore        
+          return mintsStore.allKeysetIds 
+        }       
+    }))
     .actions(self => ({
         addKeyset(keyset: CashuMintKeyset) {
             const alreadyExists = self.keysets.some(k => k.id === keyset.id)
@@ -229,7 +235,11 @@ export const MintModel = types
 
                 if(existing) {
                     if (existing.unit !== keyset.unit) {                    
-                        throw new AppError(Err.VALIDATION_ERROR, `Keyset unit mismatch, got ${keyset.unit}, expected ${existing.unit}`)                 
+                        throw new AppError(
+                            Err.VALIDATION_ERROR, 
+                            `Keyset unit mismatch, got ${keyset.unit}, expected ${existing.unit}`,
+                            {caller: 'initKeyset'}
+                        )                 
                     }
 
                     if(keyset.input_fee_ppk && existing.input_fee_ppk !== keyset.input_fee_ppk) {
@@ -237,6 +247,15 @@ export const MintModel = types
                     }
 
                     return existing
+                }
+
+                // Prevent keysetId collision with other mints
+                if(CashuUtils.isCollidingKeysetId(keyset.id, self.getAllMintsKeysetIds())) {
+                    throw new AppError(
+                        Err.VALIDATION_ERROR, 
+                        `KeysetId validation failed, collision detected for ${keyset.id}`,
+                        {caller: 'initKeyset'}
+                    )
                 }
 
                 if(!keyset.input_fee_ppk) {
@@ -372,9 +391,9 @@ export const MintModel = types
         },
         getMintFeeReserve(proofs: CashuProof[] | Proof[]): number {
             // Find the corresponding keyset for each proof and sum the input fees
-            const totalInputFees = proofs.reduce((sum, proof) => {
+            const totalInputFees: number = proofs.reduce((sum: number, proof) => {
               const keyset = self.keysets.find(k => k.id === proof.id)
-              return keyset && keyset.input_fee_ppk ? sum + keyset.input_fee_ppk : sum
+              return keyset && keyset.input_fee_ppk ? sum + (keyset?.input_fee_ppk ?? 0) : sum
             }, 0)
       
             // Calculate the fees
