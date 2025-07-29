@@ -166,7 +166,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
           const matchingKeyset = keysets.find(keyset => selectedMint.keysets?.some(k => k.id === keyset.id))
 
           if(!matchingKeyset) {
-            throw new AppError(Err.VALIDATION_ERROR, 'No keyset match, provided URL likely points to different mint.')
+            throw new AppError(Err.VALIDATION_ERROR, 'No keyset match, provided URL likely points to a different mint.')
           }
 
           selectedMint.setMintUrl!(mintUrl)                    

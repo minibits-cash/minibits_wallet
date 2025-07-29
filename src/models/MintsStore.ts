@@ -56,6 +56,9 @@ export const MintsStoreModel = types
             const mint = self.mints.find(m => m.mintUrl === mintUrl)
             return mint ? mint : undefined
         },
+        get allKeysetIds() {
+            return self.mints.flatMap(m => m.keysetIds)
+        },
     }))
     .actions(withSetPropAction)
     .actions(self => ({
@@ -144,7 +147,7 @@ export const MintsStoreModel = types
                     continue                    
                 }
 
-                mintInstance.initKeyset(keyset)                    
+                mintInstance.initKeyset(keyset, self.allKeysetIds)            
             }
 
             for(const key of keys) {
@@ -196,7 +199,7 @@ export const MintsStoreModel = types
                     continue                    
                 }
 
-                mintInstance.initKeyset(keyset)          
+                mintInstance.initKeyset(keyset, self.allKeysetIds)      
             }
 
             for(const key of keys) {
@@ -286,9 +289,6 @@ export const MintsStoreModel = types
             })
 
             return Object.values(groupedByUnit) as MintsByUnit[]
-        },
-        get allKeysetIds() {
-            return self.mints.flatMap(m => m.keysetIds)
         },
         alreadyExists(mintUrl: string) {
             return self.mints.some(m => m.mintUrl === mintUrl) ? true : false

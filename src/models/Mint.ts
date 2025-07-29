@@ -99,10 +99,7 @@ export const MintModel = types
     })
     .actions(withSetPropAction) // TODO? start to use across app to avoid pure setter methods, e.g. mint.setProp('color', '#ccc')
     .views(self => ({
-        getAllMintsKeysetIds(): string[] {
-          const mintsStore = getRootStore(self).mintsStore        
-          return mintsStore.allKeysetIds 
-        }       
+    
     }))
     .actions(self => ({
         addKeyset(keyset: CashuMintKeyset) {
@@ -203,7 +200,7 @@ export const MintModel = types
         },
         keysetExists(keyset: CashuMintKeyset): boolean {
             return self.keysets.some(k => k.id === keyset.id)
-        },
+        }
     }))
     .actions(self => ({
         createProofsCounter(keyset: CashuMintKeyset) {
@@ -224,7 +221,7 @@ export const MintModel = types
         }
     }))
     .actions(self => ({ 
-        initKeyset(keyset: CashuMintKeyset) {
+        initKeyset(keyset: CashuMintKeyset, allKeysetIds: string[]) {
             // Do not add unit the wallet does not have configured
             try {
                 if(!self.isUnitSupported(keyset.unit as MintUnit)) {                                
@@ -250,7 +247,7 @@ export const MintModel = types
                 }
 
                 // Prevent keysetId collision with other mints
-                if(CashuUtils.isCollidingKeysetId(keyset.id, self.getAllMintsKeysetIds())) {
+                if(CashuUtils.isCollidingKeysetId(keyset.id, allKeysetIds)) {
                     throw new AppError(
                         Err.VALIDATION_ERROR, 
                         `KeysetId validation failed, collision detected for ${keyset.id}`,
@@ -300,10 +297,15 @@ export const MintModel = types
         },
     }))
     .actions(self => ({
-        refreshKeysets(freshKeysets: CashuMintKeyset[]) {            
+        refreshKeysets(freshKeysets: CashuMintKeyset[]) {   
+            const mintsStore = getRootStore(self).mintsStore
+            const allKeysetIds = mintsStore.allKeysetIds
+
+            log.trace('[refreshKeysets]', {freshKeysets, allKeysetIds})
+
             // add new keyset if not exists            
             for (const keyset of freshKeysets) {
-                self.initKeyset(keyset)
+                self.initKeyset(keyset, allKeysetIds)
                 self.setIsActive(keyset)
             }
         },
@@ -334,6 +336,8 @@ export const MintModel = types
         setMintUrl(url: string) {
             if(self.validateURL(url)) {
                 const mintsStore = getRootStore(self).mintsStore
+
+                //log.trace('[setMintUrl]', {mintsStore})
 
                 if(!mintsStore.alreadyExists(url)) {
 
