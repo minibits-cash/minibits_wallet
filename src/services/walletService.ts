@@ -1164,7 +1164,7 @@ const handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTask
 
     log.trace('[handleInFlightByMintTask]', {mintUrl: mint.mintUrl, inFlightCounters})
 
-    const allInFlightRequestLength = mint.allInFLightRequests?.length
+    const allInFlightRequestLength = mint.allInFlightRequests?.length
     const errors: string[] = []
 
     if(inFlightCounters && inFlightCounters.length > 0) {        

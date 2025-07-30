@@ -39,21 +39,24 @@ export const ErrorModal: FC<ErrorModalProps> = function ({ error }) {
         }
     }
 
-    const backgroundColor = useThemeColor('error')
+    const bg = useThemeColor('error')
 
     return (
         <BottomModal
             isVisible={isErrorVisible}
             onBackdropPress={onClose}
-            onBackButtonPress={onClose}
-            style={{ backgroundColor }}            
+            onBackButtonPress={onClose}            
             ContentComponent={
-            <>
+            <>                
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.small }}>
-                    <Icon icon="faInfoCircle" size={spacing.large} color="white" />
+                    <Icon icon="faTriangleExclamation" size={spacing.large} color={bg} />
                     <Text style={{ color: 'white', marginLeft: spacing.small }}>{error.name}</Text>                
                 </View>
-                <ScrollView>
+                <ScrollView 
+                    style={{ 
+                        //height: spacing.screenHeight * 0.1,                       
+                        maxHeight: spacing.screenHeight * 0.07,                        
+                    }}>
                     <Text style={{ color: 'white', marginBottom: spacing.small }}>{error.message}</Text>
                 </ScrollView>
                 {error.params && isObj(error.params) && (
