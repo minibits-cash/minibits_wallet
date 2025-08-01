@@ -529,7 +529,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
           style={{alignItems: 'stretch'}}
           ContentComponent={  
             <>
-            {[CurrencyCode.USD, CurrencyCode.EUR].map(code => 
+            {[CurrencyCode.USD, CurrencyCode.EUR, CurrencyCode.CAD].map(code => 
               <ListItem 
                   key={code}  
                   LeftComponent={
