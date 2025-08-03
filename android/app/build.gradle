@@ -95,8 +95,8 @@ android {
         applicationId "com.minibits_wallet"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 58039
-        versionName "0.2.2"
+        versionCode 58040
+        versionName "0.3.0"
     }
 
     splits {
@@ -191,5 +191,3 @@ dependencies {
     }*/    
 }
 
-// code-push
-// apply from: "../../node_modules/react-native-code-push/android/codepush.gradle"
