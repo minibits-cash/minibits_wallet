@@ -50,14 +50,14 @@ export const ErrorModal: FC<ErrorModalProps> = function ({ error }) {
             <>                
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.small }}>
                     <Icon icon="faTriangleExclamation" size={spacing.large} color={bg} />
-                    <Text style={{ color: 'white', marginLeft: spacing.small }}>{error.name}</Text>                
+                    <Text style={{ marginLeft: spacing.small }}>{error.name}</Text>                
                 </View>
                 <ScrollView 
                     style={{ 
                         //height: spacing.screenHeight * 0.1,                       
                         maxHeight: spacing.screenHeight * 0.07,                        
                     }}>
-                    <Text style={{ color: 'white', marginBottom: spacing.small }}>{error.message}</Text>
+                    <Text style={{ marginBottom: spacing.small }}>{error.message}</Text>
                 </ScrollView>
                 {error.params && isObj(error.params) && (
                     <>

@@ -3,6 +3,7 @@ import React, {FC, useEffect, useRef, useState} from 'react'
 import {AppState, LayoutAnimation, Platform, ScrollView, TextStyle, View, ViewStyle, useColorScheme} from 'react-native'
 import notifee, { AuthorizationStatus } from '@notifee/react-native'
 import messaging from '@react-native-firebase/messaging'
+import { HotUpdater, getUpdateSource } from '@hot-updater/react-native'
 import {
     APP_ENV,
     HOT_UPDATER_API_KEY,
@@ -14,14 +15,13 @@ import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import {translate} from '../i18n'
 import { log } from '../services'
-import {Env} from '../utils/envtypes'
-import { round } from '../utils/number'
 import { Currencies, CurrencyCode } from '../services/wallet/currency'
 import { NotificationService } from '../services/notificationService'
 import { SvgXml } from 'react-native-svg'
 import { CurrencySign } from './Wallet/CurrencySign'
 import { CommonActions, StaticScreenProps, useNavigation } from '@react-navigation/native'
-import { HotUpdater } from '@hot-updater/react-native'
+
+
 
 type Props = StaticScreenProps<undefined>
 
@@ -54,7 +54,9 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
         const checkForUpdate = async () => {
             try {
                 const updateInfo = await HotUpdater.checkForUpdate({
-                    source: HOT_UPDATER_URL,
+                  source: getUpdateSource(HOT_UPDATER_URL, {
+                    updateStrategy: "appVersion",
+                  }),
                     requestHeaders: {
                         Authorization: `Bearer ${HOT_UPDATER_API_KEY}`,
                     },
@@ -68,7 +70,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
 
                 if(!__DEV__) {
                     setIsUpdateAvailable(true)
-                    setUpdateDescription(updateInfo.message)
+                    setUpdateDescription(updateInfo.message || '')
                     
                     if (updateInfo.shouldForceUpdate) {
                         // apply emergency update immediately

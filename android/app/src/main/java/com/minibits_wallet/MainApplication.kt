@@ -30,13 +30,6 @@ class MainApplication : Application(), ReactApplication {
         override val isNewArchEnabled: Boolean = BuildConfig.IS_NEW_ARCHITECTURE_ENABLED
         override val isHermesEnabled: Boolean = BuildConfig.IS_HERMES_ENABLED
 
-        // minibits_wallet:react-native-code-push
-        // 2. Override the getJSBundleFile method in order to let
-        // the CodePush runtime determine where to get the JS
-        // bundle location from on each app start
-        // override fun getJSBundleFile(): String {
-        //    return CodePush.getJSBundleFile() 
-        // }
         override fun getJSBundleFile(): String? {  
           return HotUpdater.getJSBundleFile(applicationContext)  
         } 

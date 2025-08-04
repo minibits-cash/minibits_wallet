@@ -14,6 +14,6 @@ module.exports = {
       'module:react-native-dotenv',
       'react-native-reanimated/plugin',
       '@babel/plugin-proposal-export-namespace-from',
-      'hot-updater/babel-plugin', 
+      'hot-updater/babel-plugin',
   ],
 };

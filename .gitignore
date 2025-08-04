@@ -91,3 +91,5 @@ mise.yaml
 # temp dev scripts 2025-07-14 and beyond. will remove afterwards
 key-mappings.json
 replace-translation-keys.js
+# hot-updater
+.hot-updater/output

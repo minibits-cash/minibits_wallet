@@ -55,7 +55,7 @@ import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import { LeftProfileHeader } from './ContactsScreen'
 import { getUnixTime } from 'date-fns/getUnixTime'
 import FastImage from 'react-native-fast-image'
-import { HotUpdater } from '@hot-updater/react-native'
+import { HotUpdater, getUpdateSource } from '@hot-updater/react-native'
 
 const MINT_CHECK_INTERVAL = 60
 
@@ -111,7 +111,9 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         const checkForUpdate = async () => {
             try {
                 const updateInfo = await HotUpdater.checkForUpdate({
-                    source: HOT_UPDATER_URL,
+                  source: getUpdateSource(HOT_UPDATER_URL, {
+                    updateStrategy: "appVersion",
+                  }),
                     requestHeaders: {
                         Authorization: `Bearer ${HOT_UPDATER_API_KEY}`,
                     },
@@ -125,7 +127,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
 
                 if(!__DEV__) {
                     setIsUpdateAvailable(true)
-                    setUpdateDescription(updateInfo.message)
+                    setUpdateDescription(updateInfo.message || '')
                     toggleUpdateModal()
 
                     if (updateInfo.shouldForceUpdate) {
@@ -191,14 +193,14 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         const handleReceivedEventTaskResult  = async (result: WalletTaskResult) => {
             log.trace('[handleReceivedEventTaskResult]')
             if(result.error) {
-                setInfo(result.message)
+                handleError(result.error)
             }        
         }
 
         const handleClaimTaskResult  = async (result: WalletTaskResult) => {
             log.trace('[handleClaimTaskResult]')
             if(result.error) {
-                setInfo(result.message)
+                handleError(result.error)
             }
         }
         
@@ -286,7 +288,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             lastMintCheckRef.current = nowInSec
 
             WalletTask.handleInFlightQueue()
-            WalletTask.handleClaimQueue().catch(e => setInfo(e.message))
+            WalletTask.handleClaimQueue().catch(e => handleError(e))
             WalletTask.syncStateWithAllMintsQueue({isPending: true})
             WalletTask.handlePendingQueue()
 

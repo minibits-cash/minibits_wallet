@@ -7,7 +7,7 @@ import {
 } from '@env'
 import { WalletProfile, WalletProfileRecord } from "../models/WalletProfileStore"
 import { CurrencyCode } from "./wallet/currency"
- // refresh // refresh
+ // refresh // refresh // refresh
 
 type MinibitsRequestArgs = {
 	method: 'POST' | 'PUT' | 'DELETE' | 'GET'
@@ -301,7 +301,7 @@ const fetchApi = async (url: string, options: MinibitsRequestOptions, timeout = 
         log.trace('[fetchApi] error responseJson', responseJson)
 
         if(error === Object(error)) {            
-            throw new AppError(error.name || Err.NETWORK_ERROR, error.message || '', {caller: 'fetchApi', message: error.params?.message || '', status: response.status, url})
+            throw new AppError(error.name || Err.NETWORK_ERROR, error.message || '', {caller: error.params?.caller || 'fetchApi', message: error.params?.message || undefined, status: response.status, url})
         } else {
             throw new AppError(Err.NETWORK_ERROR, String(error), {caller: 'fetchApi', status: response.status, url})
         }        
