@@ -7,7 +7,9 @@ import {
 } from '@env'
 import { WalletProfileRecord } from "../models/WalletProfileStore"
 import { CurrencyCode } from "./wallet/currency"
-import { AuthService } from "./authService"
+import { rootStoreInstance } from "../models"
+import { JwtTokens } from "./keyChain"
+import { AuthChallengeResponse, VerifyChallengeResponse } from "../models/AuthStore"
  // refresh // refresh // refresh
 
 type MinibitsRequestArgs = {
@@ -15,9 +17,78 @@ type MinibitsRequestArgs = {
 	body?: Record<string, unknown>
 	headers?: Record<string, string>
 	jwtAuthRequired?: boolean
+    jwtAccessToken?: string
 }
 
 type MinibitsRequestOptions = MinibitsRequestArgs & Omit<RequestInit, 'body' | 'headers' | 'method'>
+
+const { authStore } = rootStoreInstance
+
+
+const getAuthChallenge = async function (pubkey: string, deviceId?: string | null) {
+    const challengeUrl = `${MINIBITS_SERVER_API_HOST}/auth/challenge`
+    const challengeBody = { pubkey, deviceId }
+    
+    const challengeResponse: AuthChallengeResponse = await fetchApi(challengeUrl, {
+        method: 'POST',
+        body: challengeBody,
+        jwtAuthRequired: false
+    })
+
+    return challengeResponse
+}
+
+
+const verifyAuthChallenge = async function (pubkey: string, challenge: string, signature: string, deviceId?: string | null) {
+    const verifyUrl = `${MINIBITS_SERVER_API_HOST}/auth/verify`
+    const verifyBody = {
+        pubkey,
+        challenge,
+        signature,
+        deviceId,            
+    }
+
+    const verifyChallengeResponse: VerifyChallengeResponse = await fetchApi(verifyUrl, {
+        method: 'POST',
+        body: verifyBody,
+        jwtAuthRequired: false
+    })
+
+    return verifyChallengeResponse
+}
+
+
+const refreshTokens = async function (refreshToken: string) {
+    const refreshUrl = `${MINIBITS_SERVER_API_HOST}/auth/refresh`
+    const refreshBody = {
+        refreshToken
+    }
+
+    const newTokens: JwtTokens = await fetchApi(refreshUrl, {
+        method: 'POST',
+        body: refreshBody,
+        jwtAuthRequired: false
+    })
+
+    return newTokens
+}
+
+
+const logout = async function (refreshToken: string) {
+    const logoutUrl = `${MINIBITS_SERVER_API_HOST}/auth/logout`
+    const logoutBody = {
+        refreshToken
+    }
+
+    await MinibitsClient.fetchApi(logoutUrl, {
+        method: 'POST',
+        body: logoutBody,
+        jwtAuthRequired: false
+    })
+
+    return
+}
+
 
 const getRandomPictures = async function () {
     const url = MINIBITS_SERVER_API_HOST + '/profile'  
@@ -284,12 +355,13 @@ const fetchApi = async (url: string, options: MinibitsRequestOptions, timeout = 
     
     const controller = new AbortController()
     const body = options.body ? JSON.stringify(options.body) : undefined
-    const jwtAuthRequired = options.jwtAuthRequired || false
+    const jwtAuthRequired = options.jwtAuthRequired
     
     let headers: Record<string, string>
     
     if (jwtAuthRequired) {
-        headers = await AuthService.getAuthenticatedHeaders()
+        const jwtAccessToken = await authStore.getValidAccessToken()
+        headers = getAuthenticatedHeaders(jwtAccessToken)
     } else {
         headers = getPublicHeaders()
     }
@@ -308,31 +380,6 @@ const fetchApi = async (url: string, options: MinibitsRequestOptions, timeout = 
     }
 
     let response = await makeRequest()
-
-    // Handle 401 responses by attempting token refresh once
-    if (response.status === 401 && jwtAuthRequired) {
-        try {
-            log.trace('[fetchApi] Got 401, attempting token refresh')
-            await AuthService.refreshTokens()
-            
-            // Update headers with new token and retry
-            headers = await AuthService.getAuthenticatedHeaders()
-            response = await makeRequest()
-            
-            log.trace('[fetchApi] Request retried successfully after token refresh')
-        } catch (refreshError: any) {
-            log.error('[fetchApi] Token refresh failed, logging out', refreshError)
-            
-            // If refresh fails, logout and throw the original 401 error
-            try {
-                await AuthService.logout()
-            } catch (logoutError: any) {
-                log.error('[fetchApi] Logout failed', logoutError)
-            }
-            
-            throw new AppError(Err.AUTH_ERROR, 'Authentication failed. Please log in again.', {caller: 'fetchApi', status: 401, url})
-        }
-    }
     
     const responseJson = await response.json() as any       
 
@@ -370,8 +417,22 @@ const getPublicHeaders = () => {
     }
 }
 
+const getAuthenticatedHeaders = (accessToken: string): Record<string, string> => {
+    return {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Accept-encoding': 'gzip, deflate',  
+        'Authorization': `Bearer ${accessToken}`,
+        'User-Agent': `Minibits/${JS_BUNDLE_VERSION}`
+    }
+}
+
 
 export const MinibitsClient = {
+    getAuthChallenge,
+    verifyAuthChallenge,
+    refreshTokens,
+    logout,
     getWalletProfile,
     createWalletProfile,
     updateWalletProfile,

@@ -20,7 +20,7 @@ import {
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import AppError, { Err } from '../utils/AppError'
-import { Database, KeyChain, log, MinibitsClient } from '../services'
+import { AuthService, Database, KeyChain, log, MinibitsClient } from '../services'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { rootStoreInstance, useStores } from '../models'
 import {MnemonicInput} from './Recovery/MnemonicInput'
@@ -284,7 +284,13 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
               mnemonic
             }
 
-            keys.SEED = seed      
+            keys.SEED = seed
+            
+            await AuthService.logout()
+            await AuthService.enrollDevice(
+              keys.NOSTR,
+              walletProfileStore.device
+            )
             
             if(isNewProfileNeeded) {
                 

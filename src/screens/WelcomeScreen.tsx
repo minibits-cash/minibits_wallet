@@ -84,6 +84,7 @@ export const WelcomeScreen = function ({ route }: Props) {
     })
 
     const {
+      authStore,
       userSettingsStore, 
       relaysStore, 
       walletProfileStore,
@@ -112,7 +113,15 @@ export const WelcomeScreen = function ({ route }: Props) {
 
             const keys = KeyChain.generateWalletKeys()            
 
-            setStatusMessage(translate('welcomeScreen_creatingProfile'))                        
+            setStatusMessage(translate('welcomeScreen_creatingProfile'))   
+            
+            // First, enroll device for JWT authentication then create profile
+            await authStore.logout()
+
+            await authStore.enrollDevice(
+              keys.NOSTR,
+              walletProfileStore.device
+            )
             
             await walletProfileStore.create(
               keys.NOSTR.publicKey, 

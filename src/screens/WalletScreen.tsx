@@ -111,15 +111,15 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         const checkForUpdate = async () => {
             try {
                 const updateInfo = await HotUpdater.checkForUpdate({
-                  source: getUpdateSource(HOT_UPDATER_URL, {
-                    updateStrategy: "appVersion",
-                  }),
+                    source: getUpdateSource(HOT_UPDATER_URL, {
+                        updateStrategy: "appVersion",
+                    }),
                     requestHeaders: {
                         Authorization: `Bearer ${HOT_UPDATER_API_KEY}`,
                     },
                 })
 
-                log.debug('[checkForUpdate]', {updateInfo})
+                log.trace('[checkForUpdate]', {updateInfo})
 
                 if (!updateInfo) {
                     return

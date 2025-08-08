@@ -1,6 +1,10 @@
 import {Instance, SnapshotOut, types, flow} from 'mobx-state-tree'
-import {JwtTokens, KeyChain, log} from '../services'
+import {JwtTokens, KeyChain, log, MinibitsClient, NostrEvent, NostrKeyPair, NostrUnsignedEvent} from '../services'
 import AppError, { Err } from '../utils/AppError'
+import { MINIBITS_SERVER_API_HOST } from '@env'
+import { finalizeEvent, getEventHash, verifyEvent } from 'nostr-tools/pure'
+import { hexToBytes } from '@noble/hashes/utils'
+import { decodeJwtExpiry } from '../utils/authUtils'
 
 export type AuthState = {
   accessToken: string | null
@@ -10,14 +14,26 @@ export type AuthState = {
   isAuthenticated: boolean
 }
 
+export interface AuthChallengeResponse {
+  challenge: string
+  expiresAt: number
+  createdAt: number
+}
+
+export interface VerifyChallengeResponse {
+  accessToken: string
+  refreshToken: string,    
+  pubkey: string,
+  deviceId: string
+}
+
 export const AuthStoreModel = types
   .model('AuthStore')
   .props({
     accessToken: types.maybeNull(types.string),
     refreshToken: types.maybeNull(types.string),
     accessTokenExpiresAt: types.maybeNull(types.number),
-    refreshTokenExpiresAt: types.maybeNull(types.number),
-    deviceId: types.maybeNull(types.string),
+    refreshTokenExpiresAt: types.maybeNull(types.number), 
   })
   .views(self => ({
     get isAuthenticated(): boolean {
@@ -46,9 +62,7 @@ export const AuthStoreModel = types
     }
   }))
   .actions(self => ({
-    setTokens: flow(function* setTokens(
-      tokens: JwtTokens
-    ) {
+    setTokens: flow(function* setTokens(tokens: JwtTokens) {
       try {
         log.trace('[setTokens] Saving JWT tokens', {tokens})
         
@@ -67,7 +81,6 @@ export const AuthStoreModel = types
         throw e
       }
     }),
-
     clearTokens: flow(function* clearTokens() {
       try {
         log.trace('[clearTokens] Clearing tokens')
@@ -86,14 +99,7 @@ export const AuthStoreModel = types
         log.error('[clearTokens] Failed to clear tokens', e)
         throw e
       }
-    }),
-    
-    setDeviceId: (deviceId: string) => {
-      log.trace('[AuthStore.setDeviceId]', {deviceId})
-      self.deviceId = deviceId
-      return deviceId
-    },
-    
+    }),     
     loadTokensFromKeyChain: flow(function* loadTokensFromKeyChain() {
       try {
         log.trace('[AuthStore.loadTokensFromKeyChain] Loading tokens from the KeyChain')
@@ -114,13 +120,167 @@ export const AuthStoreModel = types
         log.error('[AuthStore.loadTokensFromKeyChain] Failed to load tokens', e)
         // Don't throw here, just log the error as missing tokens is not critical
       }
+    }),
+    
+  }))
+  .actions(self => ({
+    refreshToken: flow(function* refreshToken() {
+      try {        
+        const {tokens} = self
+
+        if (!tokens || !tokens.refreshToken) {
+            throw new AppError(Err.AUTH_ERROR, 'No refresh token available. Please re-authenticate.')
+        }
+
+        log.trace('[refreshTokens] Refreshing tokens')
+
+        const refreshUrl = `${MINIBITS_SERVER_API_HOST}/auth/refresh`
+        const refreshBody = {
+            refreshToken: tokens.refreshToken
+        }
+
+        const newTokens: JwtTokens = yield MinibitsClient.fetchApi(refreshUrl, {
+            method: 'POST',
+            body: refreshBody,
+            jwtAuthRequired: false
+        })
+
+        log.info('[refreshTokens] Tokens refreshed successfully', {newTokens})
+
+        // Store new tokens securely
+        const jwtTokens: JwtTokens = {
+            accessToken: newTokens.accessToken,
+            refreshToken: newTokens.refreshToken,
+            accessTokenExpiresAt: decodeJwtExpiry(newTokens.accessToken) || 0,
+            refreshTokenExpiresAt: decodeJwtExpiry(newTokens.refreshToken) || 0
+        }
+
+        self.setTokens(jwtTokens)
+        return jwtTokens
+
+    } catch (e: any) {
+        log.error('[refreshTokens] Failed to refresh tokens', e)
+        
+        // If refresh fails, clear stored tokens
+        yield self.clearTokens()
+        
+        throw new AppError(Err.AUTH_ERROR, `Token refresh failed: ${e.message}`, e)
+    }
+    }),
+  }))
+  .actions(self => ({
+    enrollDevice: flow(function* enrollDevice(nostrKeys: NostrKeyPair, deviceId?: string | null) {
+      try {        
+        log.trace('[enrollDevice] Starting device enrollment', { nostrKeys, deviceId })
+
+        // Step 1: Get challenge from server
+        const challengeResponse: AuthChallengeResponse = yield MinibitsClient.getAuthChallenge(nostrKeys.publicKey, deviceId)
+
+        log.trace('[enrollDevice] Received challenge', { challenge: challengeResponse.challenge })
+
+        // Step 2: Sign the challenge with Nostr private key
+        let authUnsignedEvent: NostrUnsignedEvent = {
+            kind: 22242,
+            pubkey: nostrKeys.publicKey,
+            tags: [['relay', process.env.MINIBITS_RELAY_URL as string], ['challenge', challengeResponse.challenge]],
+            content: '',
+            created_at: challengeResponse.createdAt
+        }
+
+        let authEvent = {...authUnsignedEvent} as unknown as NostrEvent
+        
+        authEvent.id = getEventHash(authUnsignedEvent)
+        
+        const privateKeyBytes = hexToBytes(nostrKeys.privateKey)
+        const signedEvent = finalizeEvent(authEvent, privateKeyBytes)
+
+        if (!verifyEvent(signedEvent)) {
+            throw new AppError(Err.VALIDATION_ERROR, 'Failed to sign authentication challenge')
+        }
+
+        log.trace('[enrollDevice] Signed challenge event', { signedEvent })
+
+        // Step 3: Verify the signed event and get JWT tokens
+        const verifyChallengeResponse: VerifyChallengeResponse = yield MinibitsClient.verifyAuthChallenge(
+          nostrKeys.publicKey,
+          challengeResponse.challenge,
+          signedEvent.sig,
+          deviceId
+        )
+
+        log.trace('[enrollDevice] Device enrolled successfully')
+
+        // Store tokens securely
+        const jwtTokens: JwtTokens = {
+            accessToken: verifyChallengeResponse.accessToken,
+            refreshToken: verifyChallengeResponse.refreshToken,
+            accessTokenExpiresAt: decodeJwtExpiry(verifyChallengeResponse.accessToken) || 0,
+            refreshTokenExpiresAt: decodeJwtExpiry(verifyChallengeResponse.refreshToken) || 0
+        }
+        
+        yield self.setTokens(jwtTokens)
+
+        return jwtTokens
+        
+    } catch (e: any) {
+        // Throw error to satisfy return type
+        throw new AppError(Err.AUTH_ERROR, 'Failed to enroll device and obtain tokens', e)
+    }
+    }),
+    getValidAccessToken: flow(function* getValidAccessToken() {
+      try {
+        // If access token is valid, return it
+        if (self.isAuthenticated) {
+          log.trace('[getValidAccessToken] Access token is valid')
+          return self.accessToken
+        }
+
+        // If access token is expired, refresh tokens
+        log.trace('[getValidAccessToken] Access token is expired, refreshing tokens')
+        const newTokens = yield self.refreshToken()
+        
+        return newTokens.accessToken
+
+      } catch (e: any) {
+        log.error('[getValidAccessToken] Failed to get valid access token', e)
+        throw e
+      }
+    }),
+    logout: flow(function* logout() {
+      try {
+        const {tokens} = self
+
+        if (tokens && tokens.refreshToken) {
+            // Call server logout endpoint to invalidate refresh token
+            try {
+                yield MinibitsClient.logout(tokens.refreshToken)
+
+                log.info('[logout] Server logout successful')
+            } catch (e: any) {
+                // Log but don't throw - we still want to clear local tokens
+                log.warn('[logout] Server logout failed, clearing local tokens anyway', e)
+            }
+        }
+
+        // Always clear local tokens
+        yield self.clearTokens()
+        log.info('[logout] Local tokens cleared')
+
+    } catch (e: any) {
+        log.error('[logout] Logout failed', e)
+        // Still try to clear local tokens even if there's an error
+        yield self.clearTokens()
+        throw new AppError(Err.AUTH_ERROR, `Logout failed: ${e.message}`, e)
+    }
     })
-  })).postProcessSnapshot((snapshot) => {   // NOT persisted outside of KeyChain 
+  
+  })) 
+    .postProcessSnapshot((snapshot) => {   // NOT persisted outside of KeyChain except device
     return {
       accessToken: null,
       refreshToken: null,
       expiresAt: null,
-      deviceId: null,
+      device: snapshot.deviceId || null,
     }          
 })
 

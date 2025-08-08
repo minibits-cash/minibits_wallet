@@ -55,7 +55,8 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
         userSettingsStore, 
         transactionsStore, 
         walletProfileStore, 
-        walletStore
+        walletStore,
+        authStore
     } = useStores()
     
     const mnemonicInputRef = useRef<TextInput>(null)
@@ -504,6 +505,12 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
             }
 
             keys.SEED = seed
+            
+            await authStore.logout()
+            await authStore.enrollDevice(
+              keys.NOSTR,
+              walletProfileStore.device
+            )
 
             if(isNewProfileNeeded) {
                 

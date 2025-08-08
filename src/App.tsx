@@ -17,16 +17,16 @@ import {
 import RNExitApp from 'react-native-exit-app'
 import {AppNavigator} from './navigation'
 import {useInitialRootStore, useStores} from './models'
-import {KeyChain} from './services'
+import {KeyChain, WalletKeys} from './services'
 import {ErrorBoundary} from './screens/ErrorScreen/ErrorBoundary'
 import Config from './config'
 import {log} from './services'
-import {Env} from './utils/envtypes'
 import AppError from './utils/AppError'
 import { Image, TextStyle, View, Platform, UIManager } from 'react-native'
 import { spacing, typography } from './theme'
 import { displayName } from '../app.json'
 import { Text } from './components/Text'
+import useIsInternetReachable from './utils/useIsInternetReachable'
 
 /* Set default size ratio for styling */
 setSizeMattersBaseWidth(375)
@@ -52,8 +52,9 @@ if (!__DEV__) {
 
 function App() {
     
-    const {userSettingsStore, relaysStore} = useStores()
-    const [isAuthenticated, setIsAuthenticated] = useState(false)    
+    const {userSettingsStore, relaysStore, authStore, walletStore, walletProfileStore} = useStores()
+    const [isAuthenticated, setIsAuthenticated] = useState(false)
+    const isInternetReachable = useIsInternetReachable()   
 
     const {rehydrated} = useInitialRootStore(async() => {
         log.trace('[useInitialRootStore]', 'Root store rehydrated')
@@ -83,6 +84,21 @@ function App() {
             }
         } else {
             setIsAuthenticated(true)
+        }
+
+        // reenroll device for JWT authentication if refresh token expired
+        if(authStore.isRefreshokenExpired && isInternetReachable) {
+            log.trace('[useInitialRootStore]', 'Re-enrolling device for JWT authentication')
+            try {
+                const walletKeys: WalletKeys = await walletStore.getCachedWalletKeys()
+                const deviceId = walletProfileStore.device
+                
+                await authStore.logout()
+                await authStore.enrollDevice(walletKeys.NOSTR, deviceId)
+            } catch (e: any) {
+                log.error('[useInitialRootStore]', 'Failed to re-enroll device', {message: e.message})
+                
+            }
         }
 
         if(userSettingsStore.theme !== userSettingsStore.nextTheme) {
