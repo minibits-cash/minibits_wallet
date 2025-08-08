@@ -37,19 +37,45 @@ export const AuthStoreModel = types
   })
   .views(self => ({
     get isAuthenticated(): boolean {
+      log.trace('[AuthStore.isAuthenticated] Checking authentication status')
       if (!self.accessToken || !self.accessTokenExpiresAt) {
+        log.trace('[AuthStore.isAuthenticated] missing access token or expiry')
         return false
       }
 
-      return Math.floor(Date.now() / 1000) >= self.accessTokenExpiresAt
+      const now = Math.floor(Date.now() / 1000)
+      log.trace('[AuthStore.isAuthenticated]', {now, expiresAt: self.accessTokenExpiresAt})
+
+      if (now >= self.accessTokenExpiresAt) {
+        return false
+      } else {
+        log.trace('[AuthStore.isAuthenticated] Access token is valid')
+        return true
+      }
     },
     get isAccessTokenExpired(): boolean {
       if (!self.accessTokenExpiresAt) return true
-      return Math.floor(Date.now() / 1000) >= self.accessTokenExpiresAt
+      const now = Math.floor(Date.now() / 1000)
+      log.trace('[AuthStore.isAccessTokenExpired]', {now, expiresAt: self.accessTokenExpiresAt})
+
+      if (now >= self.accessTokenExpiresAt) {
+        log.trace('[AuthStore.isAccessTokenExpired] Access token is expired')
+        return false
+      } else {
+        return true
+      }
     },
-    get isRefreshokenExpired(): boolean {
+    get isRefreshTokenExpired(): boolean {
       if (!self.refreshTokenExpiresAt) return true
-      return Math.floor(Date.now() / 1000) >= self.refreshTokenExpiresAt
+      const now = Math.floor(Date.now() / 1000)
+      log.trace('[AuthStore.isRefreshTokenExpired]', {now, expiresAt: self.accessTokenExpiresAt})
+
+      if (now >= self.refreshTokenExpiresAt) {
+        log.trace('[AuthStore.isRefreshokenExpired] Refresh token is expired')
+        return false
+      } else {
+        return true
+      }
     },
     get tokens(): JwtTokens | null {
       if (!self.accessToken || !self.refreshToken) return null
@@ -124,7 +150,7 @@ export const AuthStoreModel = types
     
   }))
   .actions(self => ({
-    refreshToken: flow(function* refreshToken() {
+    refreshTokens: flow(function* refreshTokens() {
       try {        
         const {tokens} = self
 
@@ -147,12 +173,17 @@ export const AuthStoreModel = types
 
         log.info('[refreshTokens] Tokens refreshed successfully', {newTokens})
 
+        const atExpiry = decodeJwtExpiry(newTokens.accessToken) || 0
+        const rtExpiry = decodeJwtExpiry(newTokens.refreshToken) || 0
+
+        log.trace('[refreshTokens]', {now: Math.floor(Date.now() / 1000), atExpiry, rtExpiry})
+
         // Store new tokens securely
         const jwtTokens: JwtTokens = {
             accessToken: newTokens.accessToken,
             refreshToken: newTokens.refreshToken,
-            accessTokenExpiresAt: decodeJwtExpiry(newTokens.accessToken) || 0,
-            refreshTokenExpiresAt: decodeJwtExpiry(newTokens.refreshToken) || 0
+            accessTokenExpiresAt: atExpiry,
+            refreshTokenExpiresAt: rtExpiry
         }
 
         self.setTokens(jwtTokens)
@@ -237,7 +268,7 @@ export const AuthStoreModel = types
 
         // If access token is expired, refresh tokens
         log.trace('[getValidAccessToken] Access token is expired, refreshing tokens')
-        const newTokens = yield self.refreshToken()
+        const newTokens = yield self.refreshTokens()
         
         return newTokens.accessToken
 
@@ -280,7 +311,6 @@ export const AuthStoreModel = types
       accessToken: null,
       refreshToken: null,
       expiresAt: null,
-      device: snapshot.deviceId || null,
     }          
 })
 

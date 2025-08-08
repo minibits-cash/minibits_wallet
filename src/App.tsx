@@ -87,17 +87,23 @@ function App() {
         }
 
         // reenroll device for JWT authentication if refresh token expired
+        
         if(authStore.isRefreshokenExpired && isInternetReachable) {
             log.trace('[useInitialRootStore]', 'Re-enrolling device for JWT authentication')
             try {
                 const walletKeys: WalletKeys = await walletStore.getCachedWalletKeys()
                 const deviceId = walletProfileStore.device
                 
-                await authStore.logout()
-                await authStore.enrollDevice(walletKeys.NOSTR, deviceId)
+                // skipped if there is not refreshToken and wallet profile yet
+                if(walletKeys.NOSTR) {
+                    await authStore.logout()
+                    await authStore.enrollDevice(walletKeys.NOSTR, deviceId)
+                } else {
+                    log.warn('[useInitialRootStore]', 'No Nostr keys found, skipping re-enrollment')
+                }
+
             } catch (e: any) {
-                log.error('[useInitialRootStore]', 'Failed to re-enroll device', {message: e.message})
-                
+                log.error('[useInitialRootStore]', 'Failed to re-enroll device', {message: e.message})               
             }
         }
 
