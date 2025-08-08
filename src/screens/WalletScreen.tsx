@@ -36,7 +36,7 @@ import EventEmitter from '../utils/eventEmitter'
 import {useStores} from '../models'
 import {Mint, UnitBalance} from '../models/Mint'
 import {MintsByUnit} from '../models/MintsStore'
-import {Database, HANDLE_CLAIM_TASK, HANDLE_RECEIVED_EVENT_TASK, log, NostrClient, WalletTaskResult} from '../services'
+import {Database, HANDLE_CLAIM_TASK, HANDLE_RECEIVED_EVENT_TASK, log, NostrClient, SyncQueue, WalletTaskResult} from '../services'
 import {Transaction, TransactionStatus} from '../models/Transaction'
 import {TransactionListItem} from './Transactions/TransactionListItem'
 import {WalletTask} from '../services'
@@ -202,11 +202,6 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             if(result.error) {
                 handleError(result.error)
             }
-
-            // Make rate call only after a claim task result to avoid enroll / refresh token race condition    
-            if(userSettingsStore.exchangeCurrency) {
-                walletStore.refreshExchangeRate(userSettingsStore.exchangeCurrency)
-            }
         }
         
         Linking.addEventListener('url', handleDeeplink)
@@ -293,9 +288,14 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             lastMintCheckRef.current = nowInSec
 
             WalletTask.handleInFlightQueue()
-            WalletTask.handleClaimQueue().catch(e => handleError(e))
             WalletTask.syncStateWithAllMintsQueue({isPending: true})
             WalletTask.handlePendingQueue()
+            // Avoid rate and claim calls enroll or refresh token race
+            WalletTask.handleClaimQueue().then(() => {
+                if(userSettingsStore.exchangeCurrency) {
+                    walletStore.refreshExchangeRate(userSettingsStore.exchangeCurrency!) 
+                }
+            }).catch(e => handleError(e))
             
             // TODO rethink
             const countByStatus = Database.getTransactionsCount()
