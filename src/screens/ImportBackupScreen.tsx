@@ -20,7 +20,7 @@ import {
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import AppError, { Err } from '../utils/AppError'
-import { AuthService, Database, KeyChain, log, MinibitsClient } from '../services'
+import { Database, KeyChain, log, MinibitsClient } from '../services'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { rootStoreInstance, useStores } from '../models'
 import {MnemonicInput} from './Recovery/MnemonicInput'
@@ -35,6 +35,7 @@ import { MintsStoreSnapshot } from '../models/MintsStore'
 import { ContactsStoreSnapshot } from '../models/ContactsStore'
 import { CashuMint, MintActiveKeys } from '@cashu/cashu-ts'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+import { AuthStoreModel } from '../models/AuthStore'
 
 type Props = StaticScreenProps<undefined>
 
@@ -54,7 +55,8 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
         userSettingsStore, 
         contactsStore, 
         walletProfileStore, 
-        walletStore
+        walletStore,
+        authStore
     } = useStores()
     
     const mnemonicInputRef = useRef<TextInput>(null)
@@ -286,8 +288,8 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
 
             keys.SEED = seed
             
-            await AuthService.logout()
-            await AuthService.enrollDevice(
+            await authStore.logout()
+            await authStore.enrollDevice(
               keys.NOSTR,
               walletProfileStore.device
             )

@@ -25,7 +25,7 @@ import {useHeader} from '../utils/useHeader'
 import {rootStoreInstance, useStores} from '../models'
 import {translate} from '../i18n'
 import AppError from '../utils/AppError'
-import {AuthService, Database, KeyChain} from '../services'
+import {Database, KeyChain} from '../services'
 import {MMKVStorage} from '../services'
 import { LogLevel } from '../services/log/logTypes'
 import { getSnapshot } from 'mobx-state-tree'
@@ -44,7 +44,7 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
       onLeftPress: () => navigation.goBack(),
     })
 
-    const {transactionsStore, userSettingsStore, proofsStore, walletProfileStore} = useStores()
+    const {transactionsStore, userSettingsStore, proofsStore, walletProfileStore, authStore} = useStores()
 
     const [isLoading, setIsLoading] = useState(false)
     const [rnVersion, setRnVersion] = useState<string>('')
@@ -197,7 +197,7 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
             onPress: async () => {
               try {
                 setIsLoading(true)                
-                await AuthService.logout()
+                await authStore.logout()
                 setIsLoading(false)
                 setInfo(translate("developerScreen_jwtTokensCleared"))
               } catch (e: any) {
@@ -250,7 +250,7 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
                   // Clean mobx storage
                   MMKVStorage.clearAll()
                   // Reset server's jwt tokens and logout
-                  await AuthService.logout()
+                  await authStore.logout()
                   // recreate db schema
                   Database.getInstance()
                   setIsLoading(false)
