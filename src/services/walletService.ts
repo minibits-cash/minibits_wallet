@@ -865,7 +865,7 @@ const syncStateWithMintTask = async function (
                             tId: Number(tId),
                             amount: tx.amount,
                             spentByMintAmount: spentByMintTxAmount as number,
-                            meltQuoteToRecover: tx.type === TransactionType.TRANSFER && tx.quote.length > 0 ? tx.quote : null,
+                            meltQuoteToRecover: tx.type === TransactionType.TRANSFER && tx.quote && tx.quote.length > 0 ? tx.quote : null,
                             updatedStatus: TransactionStatus.COMPLETED
                         } as TransactionStateUpdate
                     }
@@ -1899,7 +1899,7 @@ const recoverMeltQuoteChange = async function (params: {mintUrl: string, meltQuo
     // check is quote has been paid
     const meltQuoteResponse: MeltQuoteResponse = await walletStore.checkLightningMeltQuote(mintUrl, meltQuote)
     const {quote, state} = meltQuoteResponse
-    const amountToRecover = sumBlindSignatures(meltQuoteResponse.change)
+    const amountToRecover = meltQuoteResponse.change ? sumBlindSignatures(meltQuoteResponse.change) : 0
 
     if (quote !== meltQuote) {
         throw new AppError(Err.VALIDATION_ERROR, 'Returned quote is different then the one requested', {mintUrl, meltQuoteResponse, meltQuote})
@@ -1932,7 +1932,7 @@ const recoverMeltQuoteChange = async function (params: {mintUrl: string, meltQuo
             let transactionId: number | undefined = undefined
 
             transaction = transactionsStore.findBy({quote: meltQuote})
-            transactionId = transaction?.id
+            
             const transactionData: TransactionData[] = transaction ? JSON.parse(transaction.data) : []
 
             // Older transactions might not have quote set
@@ -1956,10 +1956,11 @@ const recoverMeltQuoteChange = async function (params: {mintUrl: string, meltQuo
                     status: TransactionStatus.DRAFT,
                 }
                 // store tx in db and in the model
-                const transaction = await transactionsStore.addTransaction(newTransaction)
-                transaction.update({quote: meltQuote})
-                transactionId = transaction.id
+                transaction = await transactionsStore.addTransaction(newTransaction)
+                transaction.update({quote: meltQuote})                
             }
+
+            transactionId = transaction.id
 
             try {
 
@@ -1999,7 +2000,7 @@ const recoverMeltQuoteChange = async function (params: {mintUrl: string, meltQuo
                 )
                 
                 if(amountToRecover !== recoveredAmount) {
-                    transaction.update({amount: recoveredAmount})
+                    transaction!.update({amount: recoveredAmount})
                 }
 
                 const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
@@ -2015,7 +2016,7 @@ const recoverMeltQuoteChange = async function (params: {mintUrl: string, meltQuo
                     createdAt: new Date(),
                 })
     
-                transaction.update({
+                transaction!.update({
                     status: TransactionStatus.RECOVERED,
                     balanceAfter,
                     outputToken,
@@ -2033,7 +2034,7 @@ const recoverMeltQuoteChange = async function (params: {mintUrl: string, meltQuo
                     createdAt: new Date()
                 })
     
-                transaction.update({
+                transaction!.update({
                     status: TransactionStatus.ERROR,
                     data: JSON.stringify(transactionData)
                 })
@@ -2463,7 +2464,13 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
             const maybeMemo = NostrClient.findMemo(decryptedMessage)
             
             // create draft transaction
-            const defaultMintBalance: MintBalance= proofsStore.getMintBalanceWithMaxBalance('sat')
+            const defaultMintBalance: MintBalance | undefined = proofsStore.getMintBalanceWithMaxBalance('sat')
+            
+            if(!defaultMintBalance) {
+                let message = 'Wallet does not have any mint with SATS unit.'
+                throw new AppError(Err.VALIDATION_ERROR, message, {decoded})  
+            }
+
             const transactionData: TransactionData[] = [
                 {
                     status: TransactionStatus.DRAFT,
@@ -2493,11 +2500,11 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
                 paymentRequest: incoming.encoded,
                 expiresAt: addSeconds(new Date(timestamp * 1000), expiry),
                 profile: JSON.stringify(contactFrom),
-                sentTo: contactFrom.nip05 ?? contactFrom.name, // payee
+                sentTo: contactFrom?.nip05 ?? contactFrom?.name, // payee
                 sentFrom: contactTo.nip05 ?? contactTo.name // payer
             })   
 
-            _sendIncomingInvoiceNotification(amount, 'sat', contactFrom)
+            if(contactFrom) _sendIncomingInvoiceNotification(amount, 'sat', contactFrom)            
             
             return {
                 mintUrl: '',
@@ -2544,13 +2551,20 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
 
                 for (const mint of mints) {
                     if (mintsStore.mintExists(mint)) {
-                        const mintBalance = proofsStore.getMintBalance(mint)   
-                        availableBalances.push(mintBalance)
+                        const mintBalance = proofsStore.getMintBalance(mint)
+                        if(mintBalance) {
+                            availableBalances.push(mintBalance)
+                        }
                     }
                 }
 
             } else {
-                availableBalances.push(proofsStore.getMintBalanceWithMaxBalance(unit as MintUnit))
+                const mintBalance = proofsStore.getMintBalanceWithMaxBalance(unit as MintUnit)
+                if(!mintBalance) {
+                    let message = 'Wallet does not have any mint with this unit.'
+                    throw new AppError(Err.VALIDATION_ERROR, message, {decoded})  
+                }
+                availableBalances.push(mintBalance)
             }
 
             if(availableBalances.length === 0) {
@@ -2583,11 +2597,11 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
                 paymentId: id,
                 paymentRequest: incoming.encoded,                
                 profile: JSON.stringify(contactFrom),
-                sentTo: contactFrom.nip05 ?? contactFrom.name, // payee
+                sentTo: contactFrom?.nip05 ?? contactFrom?.name, // payee
                 sentFrom: contactTo.nip05 ?? contactTo.name // payer
             })  
 
-            _sendIncomingInvoiceNotification(amount, unit as MintUnit, contactFrom)
+            if(contactFrom) _sendIncomingInvoiceNotification(amount, unit as MintUnit, contactFrom)
             
             return {
                 mintUrl: '',

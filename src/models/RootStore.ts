@@ -8,6 +8,7 @@ import {ProofsStoreModel} from './ProofsStore'
 import {RelaysStoreModel} from './RelaysStore'
 import {WalletStoreModel} from './WalletStore'
 import {NwcStoreModel} from './NwcStore'
+import {AuthStoreModel} from './AuthStore'
 
 export const rootStoreModelVersion = 30 // Update this if model changes require migrations defined in setupRootStore.ts
 /**
@@ -24,7 +25,8 @@ export const RootStoreModel = types
         proofsStore: types.optional(ProofsStoreModel, {}),
         relaysStore: types.optional(RelaysStoreModel, {}),        
         walletStore: types.optional(WalletStoreModel, {}),   // not persisted   
-        nwcStore: types.optional(NwcStoreModel, {}),  
+        nwcStore: types.optional(NwcStoreModel, {}),
+        authStore: types.optional(AuthStoreModel, {}),
         version: types.optional(types.number, rootStoreModelVersion),
     })
     .actions(self => ({

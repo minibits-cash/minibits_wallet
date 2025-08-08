@@ -25,7 +25,7 @@ import {useHeader} from '../utils/useHeader'
 import {rootStoreInstance, useStores} from '../models'
 import {translate} from '../i18n'
 import AppError from '../utils/AppError'
-import {Database, KeyChain} from '../services'
+import {AuthService, Database, KeyChain} from '../services'
 import {MMKVStorage} from '../services'
 import { LogLevel } from '../services/log/logTypes'
 import { getSnapshot } from 'mobx-state-tree'
@@ -180,7 +180,34 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
           },
         ],
       )      
-    }   
+    }
+
+    const deleteJwtTokens = async function () {
+      Alert.alert(
+        translate("commonConfirmAlertTitle"),
+        translate("developerScreen_clearJwtTokensDescription"),
+        [
+          {
+            text: translate('commonCancel'),
+            style: 'cancel',
+            onPress: () => { /* Action canceled */ },
+          },
+          {
+            text: translate('commonConfirm'),
+            onPress: async () => {
+              try {
+                setIsLoading(true)                
+                await AuthService.logout()
+                setIsLoading(false)
+                setInfo(translate("developerScreen_jwtTokensCleared"))
+              } catch (e: any) {
+                handleError(e)
+              }
+            },
+          },
+        ],
+      )
+    }
 
 
     const toggleLogLevelSelector = () =>
@@ -216,10 +243,14 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
                   Database.cleanAll()                
                   // Delete wallet keys
                   await KeyChain.removeWalletKeys()
-                  // Delete auth token
+                  // Delete biometric auth token
                   await KeyChain.removeAuthToken()
+                  // Delete jwt tokens
+                  await KeyChain.removeJwtTokens()
                   // Clean mobx storage
                   MMKVStorage.clearAll()
+                  // Reset server's jwt tokens and logout
+                  await AuthService.logout()
                   // recreate db schema
                   Database.getInstance()
                   setIsLoading(false)
@@ -337,6 +368,17 @@ Sentry id: ${walletProfileStore.walletId}
                   RightComponent={<View style={$rightContainer} />}
                   style={$item}                  
                   onPress={deletePending}
+                  topSeparator
+                />
+                <ListItem
+                  tx="developerScreen_clearJwtTokens"
+                  subTx="developerScreen_clearJwtTokensDescription"
+                  leftIcon='faKey'
+                  leftIconColor={colors.palette.focus300}
+                  leftIconInverse={true}
+                  RightComponent={<View style={$rightContainer} />}
+                  style={$item}                  
+                  onPress={deleteJwtTokens}
                   topSeparator
                 />
                 <ListItem

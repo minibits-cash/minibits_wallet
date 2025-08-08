@@ -299,13 +299,13 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
       setIsHeaderVisible(true)
   }
 
-  const isCloseToBottom = function ({layoutMeasurement, contentOffset, contentSize}){
+  /* const isCloseToBottom = function ({layoutMeasurement, contentOffset, contentSize}){
     return layoutMeasurement.height + contentOffset.y >= contentSize.height - 20
   }
  
   const isCloseToTop = function({layoutMeasurement, contentOffset, contentSize}){
       return contentOffset.y == 0;
-  }
+  } */
 
   const $itemRight = {color: useThemeColor('textDim')}
   const headerBg = useThemeColor('header')

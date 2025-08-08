@@ -202,6 +202,11 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             if(result.error) {
                 handleError(result.error)
             }
+
+            // Make rate call only after a claim task result to avoid enroll / refresh token race condition    
+            if(userSettingsStore.exchangeCurrency) {
+                walletStore.refreshExchangeRate(userSettingsStore.exchangeCurrency)
+            }
         }
         
         Linking.addEventListener('url', handleDeeplink)
@@ -291,10 +296,6 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             WalletTask.handleClaimQueue().catch(e => handleError(e))
             WalletTask.syncStateWithAllMintsQueue({isPending: true})
             WalletTask.handlePendingQueue()
-
-            if(userSettingsStore.exchangeCurrency) {
-                walletStore.refreshExchangeRate(userSettingsStore.exchangeCurrency)
-            }
             
             // TODO rethink
             const countByStatus = Database.getTransactionsCount()

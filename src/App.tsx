@@ -49,10 +49,6 @@ if (!__DEV__) {
     })
 }
 
-if (Platform.OS === 'android' &&
-    UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true)
-}
 
 function App() {
     

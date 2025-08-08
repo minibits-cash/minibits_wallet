@@ -8,4 +8,5 @@ export * from "./logService"
 export * from "./torService"
 export * from "./syncQueueService"
 export * from "./notificationService"
+export * from "./authService"
 

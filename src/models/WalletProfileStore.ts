@@ -1,6 +1,6 @@
 import {Instance, SnapshotOut, types, flow} from 'mobx-state-tree'
 import { Metadata } from 'nostr-tools/kinds'
-import {KeyChain, MinibitsClient, NostrClient, NostrUnsignedEvent, WalletTask} from '../services'
+import {AuthService, KeyChain, MinibitsClient, NostrClient, NostrUnsignedEvent, WalletTask} from '../services'
 import {log} from '../services/logService'
 import { Err } from '../utils/AppError'
 import { getRandomUsername } from '../utils/usernames'
@@ -115,7 +115,13 @@ export const WalletProfileStoreModel = types
             log.trace('[create]', {seedHash, publicKey, walletId})
 
             try {
-                // creates new profile. If all params equal existing one, it is returned
+                // First, enroll device for JWT authentication after successful profile creation
+                yield AuthService.enrollDevice(
+                    publicKey,
+                    self.device
+                )
+
+                // Use retrieved jwt token to authenticate and creates new profile. If all params equal existing one, it is returned
                 profileRecord = yield MinibitsClient.createWalletProfile(publicKey, walletId, seedHash)                
                 self.hydrate(profileRecord)
             
@@ -126,12 +132,20 @@ export const WalletProfileStoreModel = types
                 if(e.name.includes(Err.ALREADY_EXISTS_ERROR)) {
                     // recreate walletId + default name
                     const name = getRandomUsername()
+                    
+                    // Enroll device for JWT authentication
+                    yield AuthService.enrollDevice(
+                        publicKey,
+                        self.device
+                    )
                     // attempt to create new unique profile again                    
                     profileRecord = yield MinibitsClient.createWalletProfile(publicKey, name, seedHash) 
                     
                     log.error('[create]', 'Profile reset executed to resolve duplicate walletId on the server.', {caller: 'create', walletId, newWalletId: name})
                     self.hydrate(profileRecord)
-                    return
+
+
+                    return self
                 }
                 throw e
             }          
@@ -190,6 +204,12 @@ export const WalletProfileStoreModel = types
             return self         
         }),
         recover: flow(function* recover(publicKey: string, walletId: string, seedHash: string) {
+            
+            // First re-enroll device for JWT authentication after successful profile recovery
+            yield AuthService.enrollDevice(
+                publicKey,
+                self.device
+            )
 
             let profileRecord: WalletProfileRecord = yield MinibitsClient.recoverProfile(
                 publicKey, walletId, seedHash

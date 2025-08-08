@@ -1,7 +1,6 @@
 import { showMessage } from "react-native-flash-message"
 import { colors, spacing, useThemeColor } from "../theme"
 import QuickCrypto from 'react-native-quick-crypto'
-import { fromByteArray } from "react-native-quick-base64"
 import { log } from "../services/logService"
 
 /**

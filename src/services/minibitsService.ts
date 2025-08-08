@@ -5,14 +5,16 @@ import {
     MINIBITS_SERVER_API_HOST,
     JS_BUNDLE_VERSION,    
 } from '@env'
-import { WalletProfile, WalletProfileRecord } from "../models/WalletProfileStore"
+import { WalletProfileRecord } from "../models/WalletProfileStore"
 import { CurrencyCode } from "./wallet/currency"
+import { AuthService } from "./authService"
  // refresh // refresh // refresh
 
 type MinibitsRequestArgs = {
 	method: 'POST' | 'PUT' | 'DELETE' | 'GET'
 	body?: Record<string, unknown>
 	headers?: Record<string, string>
+	jwtAuthRequired?: boolean
 }
 
 type MinibitsRequestOptions = MinibitsRequestArgs & Omit<RequestInit, 'body' | 'headers' | 'method'>
@@ -21,9 +23,10 @@ const getRandomPictures = async function () {
     const url = MINIBITS_SERVER_API_HOST + '/profile'  
     const method = 'GET'    
     
-    const avatars: string[] = await fetchApi(url + `/avatars`, {
-        method,        
-    })
+    const avatars = await fetchApi(url + `/avatars`, {
+        method,
+        jwtAuthRequired: true,        
+    }) as string[]
 
     log.trace('[getRandomPictures]', `Got pictures`)
 
@@ -43,10 +46,11 @@ const createWalletProfile = async function (pubkey: string, walletId: string, se
     
     log.trace('[createWalletProfile]', `Create new profile`, {url})
     
-    const walletProfile: WalletProfileRecord = await fetchApi(url, {
+    const walletProfile = await fetchApi(url, {
         method,        
         body,
-    })
+        jwtAuthRequired: true
+    }) as WalletProfileRecord
 
     log.info('[createWalletProfile]', `Created new profile`, {walletProfile})
 
@@ -65,10 +69,11 @@ const updateWalletProfile = async function (pubkey: string, update: {name?: stri
         avatar,        
     }        
 
-    const walletProfile: WalletProfile = await fetchApi(url + `/${pubkey}`, {
+    const walletProfile = await fetchApi(url + `/${pubkey}`, {
         method,        
         body,
-    })
+        jwtAuthRequired: true
+    }) as WalletProfileRecord
 
     log.trace('[updateWalletProfile]', `Updated wallet profile`, {update})
 
@@ -89,10 +94,11 @@ const updateWalletProfileNip05 = async function (pubkey: string, update: {newPub
         avatar
     }        
 
-    const walletProfile: WalletProfile = await fetchApi(url + `/nip05/${pubkey}`, {
+    const walletProfile = await fetchApi(url + `/nip05/${pubkey}`, {
         method,        
         body,
-    })
+        jwtAuthRequired: true
+    }) as WalletProfileRecord
 
     log.info('[updateWalletProfileNip05]', `Updated wallet profile nip05`, walletProfile.nip05)
 
@@ -110,10 +116,11 @@ const updateDeviceToken = async function (pubkey: string, update: {deviceToken: 
         deviceToken
     }        
 
-    const walletProfile: WalletProfile = await fetchApi(url + `/deviceToken/${pubkey}`, {
+    const walletProfile = await fetchApi(url + `/deviceToken/${pubkey}`, {
         method,        
         body,
-    })
+        jwtAuthRequired: true
+    }) as WalletProfileRecord
 
     log.info('[updateDeviceToken]', `Updated wallet deviceToken`, walletProfile.device)
 
@@ -131,10 +138,11 @@ const recoverProfile = async function (pubkey: string, walletId: string, seedHas
         seedHash        
     }        
 
-    const walletProfile: WalletProfile = await fetchApi(url + `/recover`, {
+    const walletProfile = await fetchApi(url + `/recover`, {
         method,        
         body,
-    })
+        jwtAuthRequired: true
+    }) as WalletProfileRecord
 
     log.info('[recoverProfile]', `Recovered wallet address`, {seedHash, pubkey, walletId})
 
@@ -146,25 +154,12 @@ const getWalletProfile = async function (pubkey: string) {
     const url = MINIBITS_SERVER_API_HOST + '/profile' 
     const method = 'GET'    
 
-    const walletProfile: WalletProfileRecord = await fetchApi(url + `/${pubkey}`, {
-        method,        
-    })
+    const walletProfile = await fetchApi(url + `/${pubkey}`, {
+        method,
+        jwtAuthRequired: true    
+    }) as WalletProfileRecord
 
     log.trace('[getWalletProfile]', `Got response`, walletProfile?.pubkey || null)
-
-    return walletProfile
-}
-
-
-const getWalletProfileByWalletId = async function (walletId: string) {    
-    const url = MINIBITS_SERVER_API_HOST + '/profile'
-    const method = 'GET'    
-
-    const walletProfile: WalletProfileRecord = await fetchApi(url + `/walletId/${walletId}`, {
-        method,                   
-    })
-
-    log.trace('[getWalletProfileByWalletId]', `Got response`, walletProfile?.walletId || null)
 
     return walletProfile
 }
@@ -174,9 +169,10 @@ const getWalletProfileByNip05 = async function (nip05: string) {
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'GET'    
 
-    const walletProfile: WalletProfileRecord = await fetchApi(url + `/nip05/${nip05}`, {
-        method,            
-    })
+    const walletProfile = await fetchApi(url + `/nip05/${nip05}`, {
+        method,
+        jwtAuthRequired: true       
+    }) as WalletProfileRecord
 
     log.trace('[getWalletProfileByNip05]', `Got response`, walletProfile?.walletId || null)
 
@@ -188,9 +184,10 @@ const getWalletProfileBySeedHash = async function (seedHash: string) {
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'GET'    
 
-    const walletProfile: WalletProfileRecord = await fetchApi(url + `/seedHash/${seedHash}`, {
-        method,            
-    })
+    const walletProfile = await fetchApi(url + `/seedHash/${seedHash}`, {
+        method,
+        jwtAuthRequired: true          
+    }) as WalletProfileRecord
 
     log.trace('[getWalletProfileBySeedHash]', `Got response`, walletProfile?.walletId || null)
 
@@ -208,13 +205,14 @@ const createDonation = async function (amount: number, memo: string, pubkey: str
         pubkey
     }        
 
-    const invoice: {
+    const invoice = await fetchApi(url, {
+        method,        
+        body,
+        jwtAuthRequired: true
+    }) as {
         payment_hash: string, 
         payment_request: string
-    } = await fetchApi(url, {
-        method,        
-        body
-    })
+    }
 
     log.info(`[createDonation] Created new donation invoice`, {invoice})
 
@@ -226,9 +224,10 @@ const checkDonationPaid = async function (paymentHash: string, pubkey: string) {
     const url = MINIBITS_SERVER_API_HOST + '/donation'      
     const method = 'GET'    
 
-    const donationPaid: {paid: boolean} = await fetchApi(url + `/${paymentHash}/${pubkey}`, {
-        method,            
-    })
+    const donationPaid = await fetchApi(url + `/${paymentHash}/${pubkey}`, {
+        method,
+        jwtAuthRequired: true         
+    }) as {paid: boolean}
 
     log.info(`[checkDonationPaid] Got response`, donationPaid)
 
@@ -249,14 +248,15 @@ const createClaim = async function (walletId: string, seedHash: string, pubkey: 
     
     // log.trace('[createClaim]', body)
 
-    const claimedTokens: Array<{
+    const claimedTokens = await fetchApi(url, {
+        method,        
+        body,
+        jwtAuthRequired: true
+    }) as Array<{
         token: string, 
         zapSenderProfile?: string, 
         zapRequest?: string
-    }> = await fetchApi(url, {
-        method,        
-        body
-    })
+    }>
 
     log.debug(`[minibitsClient.createClaim] Got claim response`)
 
@@ -268,9 +268,10 @@ const getExchangeRate = async function (currency: CurrencyCode) {
     const url = MINIBITS_SERVER_API_HOST + '/rate'      
     const method = 'GET'    
 
-    const rate: {currency: CurrencyCode, rate: number} = await fetchApi(url + `/${currency}`, {
-        method,            
-    })
+    const rate = await fetchApi(url + `/${currency}`, {
+        method,
+        jwtAuthRequired: true            
+    }) as {currency: CurrencyCode, rate: number}
 
     log.info(`[getExchangeRate] Got response`, rate)
 
@@ -283,18 +284,57 @@ const fetchApi = async (url: string, options: MinibitsRequestOptions, timeout = 
     
     const controller = new AbortController()
     const body = options.body ? JSON.stringify(options.body) : undefined
-    const headers = getHeaders()    
+    const jwtAuthRequired = options.jwtAuthRequired || false
+    
+    let headers: Record<string, string>
+    
+    if (jwtAuthRequired) {
+        headers = await AuthService.getAuthenticatedHeaders()
+    } else {
+        headers = getPublicHeaders()
+    }
 
-    const promise = fetch(url, {...options, body, headers})
-    const kill = new Promise((resolve) => setTimeout(resolve, timeout))
-    const response = await Promise.race([promise, kill]) as Response        
+    const makeRequest = async (): Promise<Response> => {
+        const promise = fetch(url, {...options, body, headers})
+        const kill = new Promise((resolve) => setTimeout(resolve, timeout))
+        const response = await Promise.race([promise, kill]) as Response        
 
-    if (!response) {
-        controller.abort()
-        throw new AppError(Err.NETWORK_TIMEOUT, 'Timeout: API takes too long to respond.', {caller: 'fetchApi', url})
+        if (!response) {
+            controller.abort()
+            throw new AppError(Err.NETWORK_TIMEOUT, 'Timeout: API takes too long to respond.', {caller: 'fetchApi', url})
+        }
+
+        return response
+    }
+
+    let response = await makeRequest()
+
+    // Handle 401 responses by attempting token refresh once
+    if (response.status === 401 && jwtAuthRequired) {
+        try {
+            log.trace('[fetchApi] Got 401, attempting token refresh')
+            await AuthService.refreshTokens()
+            
+            // Update headers with new token and retry
+            headers = await AuthService.getAuthenticatedHeaders()
+            response = await makeRequest()
+            
+            log.trace('[fetchApi] Request retried successfully after token refresh')
+        } catch (refreshError: any) {
+            log.error('[fetchApi] Token refresh failed, logging out', refreshError)
+            
+            // If refresh fails, logout and throw the original 401 error
+            try {
+                await AuthService.logout()
+            } catch (logoutError: any) {
+                log.error('[fetchApi] Logout failed', logoutError)
+            }
+            
+            throw new AppError(Err.AUTH_ERROR, 'Authentication failed. Please log in again.', {caller: 'fetchApi', status: 401, url})
+        }
     }
     
-    const responseJson = await response.json()        
+    const responseJson = await response.json() as any       
 
     if(responseJson && responseJson.error) {            
         const {error} = responseJson
@@ -310,7 +350,7 @@ const fetchApi = async (url: string, options: MinibitsRequestOptions, timeout = 
     return responseJson    
 }
 
-
+// legacy headers
 const getHeaders = () => {   
     return {
         'Content-Type': 'application/json',
@@ -325,7 +365,8 @@ const getPublicHeaders = () => {
     return {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'Accept-encoding': 'gzip, deflate',        
+        'Accept-encoding': 'gzip, deflate',
+        'User-Agent': `Minibits/${JS_BUNDLE_VERSION}`        
     }
 }
 
@@ -337,8 +378,7 @@ export const MinibitsClient = {
     updateWalletProfileNip05,
     updateDeviceToken,
     recoverProfile,    
-    getRandomPictures,
-    getWalletProfileByWalletId,
+    getRandomPictures,  
     getWalletProfileByNip05,
     getWalletProfileBySeedHash,
     createDonation,
