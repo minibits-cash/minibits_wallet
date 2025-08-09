@@ -6,6 +6,7 @@ import type {
   PaymentRequest as CashuPaymentRequest,
   PaymentRequestPayload,
 } from '@cashu/cashu-ts'
+import { bytesToHex } from '@noble/hashes/utils'
 import AppError, {Err} from '../../utils/AppError'
 import { getDecodedToken } from '@cashu/cashu-ts'
 import {Proof} from '../../models/Proof'
@@ -13,6 +14,7 @@ import { log } from '../logService'
 import { decodePaymentRequest, sumProofs } from '@cashu/cashu-ts/src/utils'
 import { NostrClient } from '../nostrService'
 import { getUnixTime } from 'date-fns/getUnixTime'
+import { Text } from '../../components'
 
 export {CashuProof}
 
@@ -276,10 +278,55 @@ const validateMintKeys = function (keys: object): boolean {
   }
 }
 
+function getKeysetIdInt(keysetId: string): bigint {
+  if (/^[0-9a-fA-F]+$/.test(keysetId)) {
+    return BigInt(`0x${keysetId}`) % BigInt(2 ** 31 - 1)
+  } else {
+    const bin = atob(keysetId)
+    const hex = bytesToHex(new TextEncoder().encode(bin))
+    return BigInt(`0x${hex}`) % BigInt(2 ** 31 - 1)
+  }
+}
+
+
+function isCollidingKeysetId(
+  newKeysetId: string,
+  storedKeysetIds: string[],
+) {
+  const newKeysetIdInt = getKeysetIdInt(newKeysetId)
+  return storedKeysetIds.some((storedId) => {
+    
+    if (storedId === newKeysetId) {
+      // Colliding keyset ID!
+      log.error('[isCollidingKeysetId] Colliding keyset ID', {
+        newKeysetId,
+        storedId,
+      })
+      return true
+    }
+
+    const storedKeysetIdInt = getKeysetIdInt(storedId)
+    
+    if (storedKeysetIdInt === newKeysetIdInt) {
+      // Colliding keyset ID integer!
+      log.error('[isCollidingKeysetId] Colliding keyset ID integer', {
+        newKeysetId,
+        storedId,
+        newKeysetIdInt: newKeysetIdInt.toString(),
+        storedKeysetIdInt: storedKeysetIdInt.toString(),
+      })
+
+      return true
+    }
+
+    return false
+  })
+}
+
+
 const isPow2 = function (number: number) {
   return Math.log2(number) % 1 === 0
 }
-
 
 
 const getMintFromProof = function (
@@ -356,5 +403,8 @@ export const CashuUtils = {
     getMintFromProof,
     getP2PKPubkeySecret,
     getP2PKLocktime,
-    isTokenP2PKLocked
+    isTokenP2PKLocked,
+    isCollidingKeysetId
 }
+
+

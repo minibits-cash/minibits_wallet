@@ -56,6 +56,9 @@ export const MintsStoreModel = types
             const mint = self.mints.find(m => m.mintUrl === mintUrl)
             return mint ? mint : undefined
         },
+        get allKeysetIds() {
+            return self.mints.flatMap(m => m.keysetIds)
+        },
     }))
     .actions(withSetPropAction)
     .actions(self => ({
@@ -136,20 +139,20 @@ export const MintsStoreModel = types
 
             for(const keyset of keysets) {
                 if(!keyset.unit) {
-                    keyset.unit = 'sat'
+                    continue
                 }
 
                 if (!mintInstance.isUnitSupported(keyset.unit as MintUnit)) {
-                    log.error('Unsupported mint usnit, skipping...', {caller: 'addMint', keyset})                    
+                    log.error('Unsupported mint unit, skipping...', {caller: 'addMint', keyset})                    
                     continue                    
                 }
 
-                mintInstance.initKeyset(keyset)                    
+                mintInstance.initKeyset(keyset, self.allKeysetIds)            
             }
 
             for(const key of keys) {
                 if(!key.unit) {
-                    key.unit = 'sat'
+                    continue
                 }
 
                 if (!mintInstance.isUnitSupported(key.unit as MintUnit)) {                    
@@ -184,11 +187,11 @@ export const MintsStoreModel = types
 
             if(!keysets || keysets.length === 0 || !keys || keys.length === 0) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Mint has no keysets and is not operational', {mintUrl})
-            }            
-
+            }
+            
             for(const keyset of keysets) {
                 if(!keyset.unit) {
-                    keyset.unit = 'sat'
+                    continue
                 }
 
                 if (!mintInstance.isUnitSupported(keyset.unit as MintUnit)) {
@@ -196,12 +199,12 @@ export const MintsStoreModel = types
                     continue                    
                 }
 
-                mintInstance.initKeyset(keyset)          
+                mintInstance.initKeyset(keyset, self.allKeysetIds)      
             }
 
             for(const key of keys) {
                 if(!key.unit) {
-                    key.unit = 'sat'
+                    continue
                 }
 
                 if (!mintInstance.isUnitSupported(key.unit as MintUnit)) {                    
