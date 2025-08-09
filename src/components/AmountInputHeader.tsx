@@ -114,9 +114,11 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
     const roundToSatPrecision = (value: number) => round(value, getCurrency(unitRef.current).mantissa)
     const roundToFiatPrecision = (value: number) => round(value, getCurrencyByCode(fiatCurrency)?.mantissa || 2)
 
-    // Handle value conversions when switching modes
     useEffect(() => {
         if (!canUseFiatMode) return;
+
+        // FIXME: some state desync
+        // toggling converts correctly, but if i backspace one from 400, suddenly it's 39K usd...
 
         if (isFiatMode) {
             // Switching to fiat mode: convert current SAT amount to fiat
