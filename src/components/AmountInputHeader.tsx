@@ -78,6 +78,8 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
 
     // Convert FIAT amount to display units (e.g., sats to mBTC)
     const FIATtoSATS = (inputAmount: string) => {
+        log.trace("fiat to sats: ", inputAmount)
+        // this function returns undefined even though i'm getting in 0.47 nicely
         if (!walletStore.exchangeRate || !inputAmount || inputAmount.trim() === '') return undefined;
 
         const precision = getCurrency(unitRef.current).precision
