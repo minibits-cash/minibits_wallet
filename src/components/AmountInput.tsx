@@ -4,6 +4,7 @@ import { spacing, useThemeColor, typography } from '../theme'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { MintUnit, getCurrency } from '../services/wallet/currency'
 import numbro from 'numbro'
+import { log } from '../services'
 
 interface AmountInputProps {
   value: string
@@ -51,14 +52,12 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
         onEndEditing()
       } 
       // Default formatting behavior
-      const formattedValue = typeof value === "undefined" 
-        ? "" 
-        : numbro(value).format({
-          thousandSeparated: true,
-          mantissa: getCurrency(unit).mantissa
-        })
+      if (!value) value = "0";
+      const formattedValue = numbro(value).format({
+        thousandSeparated: true,
+        mantissa: getCurrency(unit).mantissa
+      })
       onChangeText(formattedValue)
-      
     }
 
     const defaultStyle: TextStyle = {

@@ -3,7 +3,7 @@ import { View, ViewStyle, TextInput } from 'react-native'
 import { AmountInput } from "./AmountInput"
 import { CurrencyAmount } from '../screens/Wallet/CurrencyAmount'
 import { Text, Icon } from './'
-import { spacing } from '../theme'
+import { spacing, useThemeColor } from '../theme'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { TransactionStatus } from '../models/Transaction'
 import { MintUnit, CurrencyCode } from '../services/wallet/currency'
@@ -17,10 +17,8 @@ interface IAmountInputHeaderProps {
   onAmountEndEditing?: () => void
   transactionStatus?: TransactionStatus
   isCashuPrWithAmount?: boolean
-  amountInputColor: string
   isConvertedAmountVisible: () => boolean
   getConvertedAmount: () => number | undefined
-  convertedAmountColor: string
   lockedPubkey?: string
 }
 
@@ -31,6 +29,9 @@ const $amountContainer: ViewStyle = {
 
 export function AmountInputHeader(props: IAmountInputHeaderProps) {
   const { userSettingsStore } = useStores()
+
+  const amountInputColor = useThemeColor('amountInput');
+  const convertedAmountColor = useThemeColor('headerSubTitle')    
   
   const {
     amountInputRef,
@@ -40,12 +41,11 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
     onAmountEndEditing,
     transactionStatus,
     isCashuPrWithAmount,
-    amountInputColor,
     isConvertedAmountVisible,
     getConvertedAmount,
-    convertedAmountColor,
     lockedPubkey
   } = props
+
   
   return <View style={$amountContainer}>
     <AmountInput

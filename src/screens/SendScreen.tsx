@@ -28,8 +28,7 @@ import {
   ErrorModal,
   BottomModal,
   Text,
-  AmountInput,  
-  AmountInputHeader,
+  AmountInputHeader
 } from '../components'
 import {TransactionStatus, Transaction} from '../models/Transaction'
 import {useStores} from '../models'
@@ -1002,7 +1001,6 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     }
 
     const headerBg = useThemeColor('header')
-    const amountInputColor = useThemeColor('amountInput')
     const hintColor = useThemeColor('textDim')
     const inputText = useThemeColor('text')
     const inputBg = useThemeColor('background')
@@ -1029,7 +1027,6 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         })        
     }
 
-    const convertedAmountColor = useThemeColor('headerSubTitle')    
 
     const getConvertedAmount = function () {
         if (!walletStore.exchangeRate) {
@@ -1059,7 +1056,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             mint={mintBalanceToSendFrom ? mintsStore.findByUrl(mintBalanceToSendFrom?.mintUrl) : undefined}
             unit={unitRef.current}            
         />
-        <View style={[$headerContainer, {backgroundColor: headerBg}]}>
+        <View style={[$headerContainer, { backgroundColor: headerBg}]}>
           <AmountInputHeader
             amountInputRef={amountInputRef}
             amountToSend={amountToSend}
@@ -1068,10 +1065,8 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             onAmountEndEditing={onAmountEndEditing}
             transactionStatus={transactionStatus}
             isCashuPrWithAmount={isCashuPrWithAmount}
-            amountInputColor={amountInputColor}
             isConvertedAmountVisible={isConvertedAmountVisible}
             getConvertedAmount={getConvertedAmount}
-            convertedAmountColor={convertedAmountColor}
             lockedPubkey={lockedPubkey}
           />
         </View>

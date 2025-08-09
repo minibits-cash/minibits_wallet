@@ -1,4 +1,5 @@
 export * from "./AmountInput"
+export * from "./AmountInputHeader"
 export * from "./AutoImage"
 export * from "./Button"
 export * from "./CadIcon"
