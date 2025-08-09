@@ -1000,7 +1000,6 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         setError(e)
     }
 
-    const headerBg = useThemeColor('header')
     const hintColor = useThemeColor('textDim')
     const inputText = useThemeColor('text')
     const inputBg = useThemeColor('background')
@@ -1032,12 +1031,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
     return (
       <Screen preset="fixed" contentContainerStyle={$screen}>
-        <MintHeader 
-            mint={mintBalanceToSendFrom ? mintsStore.findByUrl(mintBalanceToSendFrom?.mintUrl) : undefined}
-            unit={unitRef.current}            
-        />
-        <View style={[$headerContainer, { backgroundColor: headerBg}]}>
-          <AmountInputHeader
+        <AmountInputHeader
             amountInputRef={amountInputRef}
             amountToSend={amountToSend}
             setAmountToSend={setAmountToSend}
@@ -1047,8 +1041,8 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             isCashuPrWithAmount={isCashuPrWithAmount}
             lockedPubkey={lockedPubkey}
             unitRef={unitRef}
-          />
-        </View>
+            mintHeaderMint={mintBalanceToSendFrom ? mintsStore.findByUrl(mintBalanceToSendFrom?.mintUrl) : undefined}
+        />
         <View style={$contentContainer}>
             {!encodedTokenToSend && (
               <MemoInputCard
@@ -1766,14 +1760,6 @@ const $screen: ViewStyle = {
   flex: 1,
 }
 
-const $headerContainer: TextStyle = {
-  alignItems: 'center',
-  padding: spacing.extraSmall,
-  paddingTop: 0,
-  height: spacing.screenHeight * 0.20,
-
-}
-
 const $pubkeyInput: TextStyle = {
     flex: 1,
     // borderRadius: 0,
@@ -1783,16 +1769,6 @@ const $pubkeyInput: TextStyle = {
     alignSelf: 'stretch',
     textAlignVertical: 'top',
 // borderWidth: 1,
-}
-
-const $amountInput: TextStyle = {    
-   borderRadius: spacing.small,
-    margin: 0,
-    padding: 0,
-    fontSize: verticalScale(48),
-    fontFamily: typography.primary?.medium,
-    textAlign: 'center',
-    color: 'white',    
 }
 
 const $contentContainer: TextStyle = {

@@ -155,6 +155,15 @@ export const getCurrency = (unit: MintUnit) => {
     return currencyData as CurrencyData
 }
 
+export const getCurrencyByCode = (code: CurrencyCode): CurrencyData | undefined => {
+    for (const [currencyCode, currencyData] of Object.entries(Currencies)) {
+        if (currencyCode === code && currencyData) {
+            return currencyData satisfies CurrencyData
+        }
+    }
+    return void 0;
+}
+
 export const convertToFromSats = (amount: number, currencyFrom: CurrencyCode, satExchangeRate: ExchangeRate) => {
     // exchangeRate is always 1 fiat precision unit (cent) in SAT {currency: 'EUR', rate: 15.69} 
 
@@ -163,5 +172,15 @@ export const convertToFromSats = (amount: number, currencyFrom: CurrencyCode, sa
     }
 
     return amount * satExchangeRate.rate
+}
+
+export const convertToSatsFrom = (amount: number, currencyFrom: CurrencyCode, satExchangeRate: ExchangeRate) => {
+    // exchangeRate is always 1 fiat precision unit (cent) in SAT {currency: 'EUR', rate: 15.69} 
+
+    if(currencyFrom === CurrencyCode.SAT) {
+        return amount * satExchangeRate.rate
+    }
+
+    return amount / satExchangeRate.rate
     
 }
