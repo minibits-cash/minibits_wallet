@@ -29,6 +29,7 @@ import {
   BottomModal,
   Text,
   AmountInput,  
+  AmountInputHeader,
 } from '../components'
 import {TransactionStatus, Transaction} from '../models/Transaction'
 import {useStores} from '../models'
@@ -1058,63 +1059,21 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             mint={mintBalanceToSendFrom ? mintsStore.findByUrl(mintBalanceToSendFrom?.mintUrl) : undefined}
             unit={unitRef.current}            
         />
-        <View style={[$headerContainer, {backgroundColor: headerBg}]}>        
-            <View style={$amountContainer}>
-                <AmountInput
-                    ref={amountInputRef}
-                    value={amountToSend}
-                    onChangeText={amount => setAmountToSend(amount)}
-                    unit={unitRef.current}
-                    onEndEditing={transactionStatus !== TransactionStatus.PENDING ? onAmountEndEditing : undefined}
-                    editable={(transactionStatus === TransactionStatus.PENDING || isCashuPrWithAmount)
-                        ? false 
-                        : true
-                    }
-                    style={{color: amountInputColor}}
-                />
-                {isConvertedAmountVisible() && ( 
-                    <CurrencyAmount
-                        amount={getConvertedAmount() ?? 0}
-                        currencyCode={unitRef.current === 'sat' ? userSettingsStore.exchangeCurrency : CurrencyCode.SAT}
-                        symbolStyle={{color: convertedAmountColor, marginTop: spacing.tiny, fontSize: verticalScale(10)}}
-                        amountStyle={{color: convertedAmountColor, lineHeight: spacing.small}}                        
-                        size='small'
-                        containerStyle={{justifyContent: 'center'}}
-                    />
-                )}
-                {lockedPubkey ? (
-                    <View
-                        style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            marginTop: isConvertedAmountVisible() ? -spacing.extraSmall : undefined
-                        }}
-                    >
-                        <Icon 
-                            icon="faLock"
-                            size={spacing.small}
-                            color={amountInputColor} 
-                        />
-                        <Text
-                            size='xs'
-                            tx="sendLocked"
-                            style={{color: amountInputColor, marginLeft: spacing.tiny}}
-                        />
-
-                    </View>
-                ) : (
-                    <Text
-                        size='xs'
-                        tx='amountSend'
-                        style={{
-                            color: amountInputColor,
-                            textAlign: 'center',
-                            marginTop: isConvertedAmountVisible() ? -spacing.extraSmall : undefined
-                        }}
-                    />
-                )}
-            </View>          
+        <View style={[$headerContainer, {backgroundColor: headerBg}]}>
+          <AmountInputHeader
+            amountInputRef={amountInputRef}
+            amountToSend={amountToSend}
+            setAmountToSend={setAmountToSend}
+            unit={unitRef.current}
+            onAmountEndEditing={onAmountEndEditing}
+            transactionStatus={transactionStatus}
+            isCashuPrWithAmount={isCashuPrWithAmount}
+            amountInputColor={amountInputColor}
+            isConvertedAmountVisible={isConvertedAmountVisible}
+            getConvertedAmount={getConvertedAmount}
+            convertedAmountColor={convertedAmountColor}
+            lockedPubkey={lockedPubkey}
+          />
         </View>
         <View style={$contentContainer}>
             {!encodedTokenToSend && (
@@ -1850,9 +1809,6 @@ const $pubkeyInput: TextStyle = {
     alignSelf: 'stretch',
     textAlignVertical: 'top',
 // borderWidth: 1,
-}
-
-const $amountContainer: ViewStyle = {
 }
 
 const $amountInput: TextStyle = {    
