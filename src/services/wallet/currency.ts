@@ -1,5 +1,5 @@
 import numbro from 'numbro'
-import { BtcIcon, EurIcon, UsdIcon } from '../../components'
+import { BtcIcon, EurIcon, UsdIcon, CadIcon } from '../../components'
 import AppError, { Err } from '../../utils/AppError'
 import { log } from '../logService'
 import { ExchangeRate } from '../../models/WalletStore'
@@ -11,6 +11,7 @@ export const MintUnits = ['btc', 'sat', 'msat', 'usd', 'eur'] as const
 export enum CurrencyCode {
     BTC = 'BTC', SAT = 'SAT', MSAT = 'MSAT', EUR = 'EUR', GBP = 'GBP', 
     CZK = 'CZK', USD = 'USD', PLN = 'PLN', HUF = 'HUF', RON = 'RON',
+    CAD = 'CAD'
 }
 
 export type MintUnitCurrencyPair = {
@@ -114,6 +115,14 @@ export const Currencies: CurrencyList = {
         precision: 100,
         mantissa: 2,
     },
+    CAD: {
+        symbol: 'CAD',
+        title: 'Canadian Dollar',
+        code: CurrencyCode.CAD,
+        icon: CadIcon,
+        precision: 100,
+        mantissa: 2,
+    },
 } as const
 
 
@@ -146,6 +155,15 @@ export const getCurrency = (unit: MintUnit) => {
     return currencyData as CurrencyData
 }
 
+export const getCurrencyByCode = (code: CurrencyCode): CurrencyData | undefined => {
+    for (const [currencyCode, currencyData] of Object.entries(Currencies)) {
+        if (currencyCode === code && currencyData) {
+            return currencyData satisfies CurrencyData
+        }
+    }
+    return void 0;
+}
+
 export const convertToFromSats = (amount: number, currencyFrom: CurrencyCode, satExchangeRate: ExchangeRate) => {
     // exchangeRate is always 1 fiat precision unit (cent) in SAT {currency: 'EUR', rate: 15.69} 
 
@@ -154,5 +172,4 @@ export const convertToFromSats = (amount: number, currencyFrom: CurrencyCode, sa
     }
 
     return amount * satExchangeRate.rate
-    
 }

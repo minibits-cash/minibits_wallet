@@ -1,10 +1,6 @@
 {
-    "[javascriptreact][typescriptreact]": {
+    "[javascriptreact][typescriptreact][javascript][typescript]": {
         "editor.insertSpaces": true,
-		"editor.tabSize": 2
-    },
-	"[javascript][typescript]": {
-		"editor.insertSpaces": true,
-		"editor.tabSize": 2
-	}
+		"editor.tabSize": 4  
+    }
 }

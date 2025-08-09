@@ -28,7 +28,7 @@ import {
   ErrorModal,
   BottomModal,
   Text,
-  AmountInput,  
+  AmountInputHeader
 } from '../components'
 import {TransactionStatus, Transaction} from '../models/Transaction'
 import {useStores} from '../models'
@@ -1000,8 +1000,6 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         setError(e)
     }
 
-    const headerBg = useThemeColor('header')
-    const amountInputColor = useThemeColor('amountInput')
     const hintColor = useThemeColor('textDim')
     const inputText = useThemeColor('text')
     const inputBg = useThemeColor('background')
@@ -1028,94 +1026,23 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         })        
     }
 
-    const convertedAmountColor = useThemeColor('headerSubTitle')    
 
-    const getConvertedAmount = function () {
-        if (!walletStore.exchangeRate) {
-            return undefined
-        }
-
-        const precision = getCurrency(unitRef.current).precision
-        return convertToFromSats(
-            round(toNumber(amountToSend) * precision, 0) || 0, 
-            getCurrency(unitRef.current).code,
-            walletStore.exchangeRate
-        )
-    }
-
-    const isConvertedAmountVisible = function () {
-        return (
-        walletStore.exchangeRate &&
-        (userSettingsStore.exchangeCurrency === getCurrency(unitRef.current).code ||
-        unitRef.current === 'sat') &&
-        getConvertedAmount() !== undefined
-        )
-    }
+    
 
     return (
       <Screen preset="fixed" contentContainerStyle={$screen}>
-        <MintHeader 
-            mint={mintBalanceToSendFrom ? mintsStore.findByUrl(mintBalanceToSendFrom?.mintUrl) : undefined}
-            unit={unitRef.current}            
+        <AmountInputHeader
+            amountInputRef={amountInputRef}
+            amountToSend={amountToSend}
+            setAmountToSend={setAmountToSend}
+            unit={unitRef.current}
+            onAmountEndEditing={onAmountEndEditing}
+            transactionStatus={transactionStatus}
+            isCashuPrWithAmount={isCashuPrWithAmount}
+            lockedPubkey={lockedPubkey}
+            unitRef={unitRef}
+            mintHeaderMint={mintBalanceToSendFrom ? mintsStore.findByUrl(mintBalanceToSendFrom?.mintUrl) : undefined}
         />
-        <View style={[$headerContainer, {backgroundColor: headerBg}]}>        
-            <View style={$amountContainer}>
-                <AmountInput
-                    ref={amountInputRef}
-                    value={amountToSend}
-                    onChangeText={amount => setAmountToSend(amount)}
-                    unit={unitRef.current}
-                    onEndEditing={transactionStatus !== TransactionStatus.PENDING ? onAmountEndEditing : undefined}
-                    editable={(transactionStatus === TransactionStatus.PENDING || isCashuPrWithAmount)
-                        ? false 
-                        : true
-                    }
-                    style={{color: amountInputColor}}
-                />
-                {isConvertedAmountVisible() && ( 
-                    <CurrencyAmount
-                        amount={getConvertedAmount() ?? 0}
-                        currencyCode={unitRef.current === 'sat' ? userSettingsStore.exchangeCurrency : CurrencyCode.SAT}
-                        symbolStyle={{color: convertedAmountColor, marginTop: spacing.tiny, fontSize: verticalScale(10)}}
-                        amountStyle={{color: convertedAmountColor, lineHeight: spacing.small}}                        
-                        size='small'
-                        containerStyle={{justifyContent: 'center'}}
-                    />
-                )}
-                {lockedPubkey ? (
-                    <View
-                        style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            marginTop: isConvertedAmountVisible() ? -spacing.extraSmall : undefined
-                        }}
-                    >
-                        <Icon 
-                            icon="faLock"
-                            size={spacing.small}
-                            color={amountInputColor} 
-                        />
-                        <Text
-                            size='xs'
-                            tx="sendLocked"
-                            style={{color: amountInputColor, marginLeft: spacing.tiny}}
-                        />
-
-                    </View>
-                ) : (
-                    <Text
-                        size='xs'
-                        tx='amountSend'
-                        style={{
-                            color: amountInputColor,
-                            textAlign: 'center',
-                            marginTop: isConvertedAmountVisible() ? -spacing.extraSmall : undefined
-                        }}
-                    />
-                )}
-            </View>          
-        </View>
         <View style={$contentContainer}>
             {!encodedTokenToSend && (
               <MemoInputCard
@@ -1833,14 +1760,6 @@ const $screen: ViewStyle = {
   flex: 1,
 }
 
-const $headerContainer: TextStyle = {
-  alignItems: 'center',
-  padding: spacing.extraSmall,
-  paddingTop: 0,
-  height: spacing.screenHeight * 0.20,
-
-}
-
 const $pubkeyInput: TextStyle = {
     flex: 1,
     // borderRadius: 0,
@@ -1850,19 +1769,6 @@ const $pubkeyInput: TextStyle = {
     alignSelf: 'stretch',
     textAlignVertical: 'top',
 // borderWidth: 1,
-}
-
-const $amountContainer: ViewStyle = {
-}
-
-const $amountInput: TextStyle = {    
-   borderRadius: spacing.small,
-    margin: 0,
-    padding: 0,
-    fontSize: verticalScale(48),
-    fontFamily: typography.primary?.medium,
-    textAlign: 'center',
-    color: 'white',    
 }
 
 const $contentContainer: TextStyle = {
