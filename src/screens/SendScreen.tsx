@@ -1028,27 +1028,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     }
 
 
-    const getConvertedAmount = function () {
-        if (!walletStore.exchangeRate) {
-            return undefined
-        }
-
-        const precision = getCurrency(unitRef.current).precision
-        return convertToFromSats(
-            round(toNumber(amountToSend) * precision, 0) || 0, 
-            getCurrency(unitRef.current).code,
-            walletStore.exchangeRate
-        )
-    }
-
-    const isConvertedAmountVisible = function () {
-        return (
-        walletStore.exchangeRate &&
-        (userSettingsStore.exchangeCurrency === getCurrency(unitRef.current).code ||
-        unitRef.current === 'sat') &&
-        getConvertedAmount() !== undefined
-        )
-    }
+    
 
     return (
       <Screen preset="fixed" contentContainerStyle={$screen}>
@@ -1065,9 +1045,8 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             onAmountEndEditing={onAmountEndEditing}
             transactionStatus={transactionStatus}
             isCashuPrWithAmount={isCashuPrWithAmount}
-            isConvertedAmountVisible={isConvertedAmountVisible}
-            getConvertedAmount={getConvertedAmount}
             lockedPubkey={lockedPubkey}
+            unitRef={unitRef}
           />
         </View>
         <View style={$contentContainer}>

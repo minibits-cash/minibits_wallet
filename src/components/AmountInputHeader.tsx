@@ -6,8 +6,9 @@ import { Text, Icon } from './'
 import { spacing, useThemeColor } from '../theme'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { TransactionStatus } from '../models/Transaction'
-import { MintUnit, CurrencyCode } from '../services/wallet/currency'
+import { MintUnit, CurrencyCode, getCurrency, convertToFromSats } from '../services/wallet/currency'
 import { useStores } from '../models'
+import { round, toNumber } from '../utils/number'
 
 interface IAmountInputHeaderProps {
   amountInputRef: React.RefObject<TextInput>
@@ -17,9 +18,8 @@ interface IAmountInputHeaderProps {
   onAmountEndEditing?: () => void
   transactionStatus?: TransactionStatus
   isCashuPrWithAmount?: boolean
-  isConvertedAmountVisible: () => boolean
-  getConvertedAmount: () => number | undefined
   lockedPubkey?: string
+  unitRef: React.RefObject<MintUnit>
 }
 
 const $amountContainer: ViewStyle = {
@@ -28,11 +28,11 @@ const $amountContainer: ViewStyle = {
 }
 
 export function AmountInputHeader(props: IAmountInputHeaderProps) {
-  const { userSettingsStore } = useStores()
+  const { userSettingsStore, walletStore } = useStores()
 
   const amountInputColor = useThemeColor('amountInput');
-  const convertedAmountColor = useThemeColor('headerSubTitle')    
-  
+  const convertedAmountColor = useThemeColor('headerSubTitle');
+
   const {
     amountInputRef,
     amountToSend,
@@ -41,12 +41,30 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
     onAmountEndEditing,
     transactionStatus,
     isCashuPrWithAmount,
-    isConvertedAmountVisible,
-    getConvertedAmount,
-    lockedPubkey
+    lockedPubkey,
+    unitRef
   } = props
 
-  
+  const isConvertedAmountVisible = () => {
+    return (
+      walletStore.exchangeRate &&
+      (userSettingsStore.exchangeCurrency === getCurrency(unit).code ||
+        unit === 'sat') &&
+      getConvertedAmount() !== undefined
+    )
+  }
+
+  const getConvertedAmount = () => {
+    if (!walletStore.exchangeRate) return undefined;
+
+    const precision = getCurrency(unitRef.current).precision
+    return convertToFromSats(
+      round(toNumber(amountToSend) * precision, 0) || 0,
+      getCurrency(unitRef.current).code,
+      walletStore.exchangeRate
+    )
+  }
+
   return <View style={$amountContainer}>
     <AmountInput
       ref={amountInputRef}
@@ -54,10 +72,7 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
       onChangeText={amount => setAmountToSend(amount)}
       unit={unit}
       onEndEditing={transactionStatus !== TransactionStatus.PENDING ? onAmountEndEditing : undefined}
-      editable={(transactionStatus === TransactionStatus.PENDING || isCashuPrWithAmount)
-        ? false
-        : true
-      }
+      editable={!(transactionStatus === TransactionStatus.PENDING || isCashuPrWithAmount)}
       style={{ color: amountInputColor }}
     />
     {isConvertedAmountVisible() && (
@@ -65,8 +80,8 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
         amount={getConvertedAmount() ?? 0}
         currencyCode={unit === 'sat' ? userSettingsStore.exchangeCurrency : CurrencyCode.SAT}
         symbolStyle={{ color: convertedAmountColor, marginTop: spacing.tiny, fontSize: verticalScale(10) }}
-        amountStyle={{ color: convertedAmountColor, lineHeight: spacing.small }}
-        size='small'
+        amountStyle={{ color: convertedAmountColor, lineHeight: spacing.medium }}
+        size='medium'
         containerStyle={{ justifyContent: 'center' }}
       />
     )}
