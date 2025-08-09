@@ -173,14 +173,3 @@ export const convertToFromSats = (amount: number, currencyFrom: CurrencyCode, sa
 
     return amount * satExchangeRate.rate
 }
-
-export const convertToSatsFrom = (amount: number, currencyFrom: CurrencyCode, satExchangeRate: ExchangeRate) => {
-    // exchangeRate is always 1 fiat precision unit (cent) in SAT {currency: 'EUR', rate: 15.69} 
-
-    if(currencyFrom === CurrencyCode.SAT) {
-        return amount * satExchangeRate.rate
-    }
-
-    return amount / satExchangeRate.rate
-    
-}
