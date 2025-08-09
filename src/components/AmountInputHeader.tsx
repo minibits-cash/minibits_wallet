@@ -48,6 +48,7 @@ const $pubKey: ViewStyle = {
 export function AmountInputHeader(props: IAmountInputHeaderProps) {
     const { userSettingsStore, walletStore } = useStores()
     const [isFiatMode, setIsFiatMode] = useState(false)
+    const [shouldTriggerSubmit, setShouldTriggerSubmit] = useState(false);
     const [amountFiat, setAmountFiat] = useState("0");
     const [currencyAmount, setCurrencyAmount] = useState(0);
 
@@ -68,7 +69,6 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
         mintHeaderMint
     } = props
 
-    // TODO: possibly support all currencies from the available user-settable exchangeCurrencies
     // TODO: test with EUR and CAD once USD is working fine
     
     const fiatCurrency = userSettingsStore.exchangeCurrency
@@ -140,15 +140,16 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
             // FIAT -> SATS mode
             // we convert our FIAT "result" (e.g. 1.06) using FIATtoSATS
             // since editing the SATS input always correctly calculates the FIAT currency on editd, we simply call handleAmountChange
-
             const newVal = (FIATtoSATS(amountFiat) || 0).toString();
             setAmountToSend(newVal);
             handleAmountChange(newVal)
+            if (shouldTriggerSubmit && onAmountEndEditing) onAmountEndEditing();
         }
 
     }, [isFiatMode])
 
     const handleAmountChange = (amount: string) => {
+        setShouldTriggerSubmit(false);
         setAmountToSend(amount)
         if (canUseFiatMode) {
             const convertedAmount = SATStoFIAT(amount)
@@ -166,8 +167,10 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
         setCurrencyAmount(convertedAmount || 0)
         setAmountToSend((convertedAmount || 0).toString())
 
-        if (amountFiat.trim()) setIsFiatMode(false);
-        onAmountEndEditing();
+        if (amountFiat.trim()) {
+            setShouldTriggerSubmit(true);
+            setIsFiatMode(false);
+        }
     }
     
     const handleAmountEndEditing = () => {
