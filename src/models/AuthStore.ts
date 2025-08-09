@@ -60,9 +60,9 @@ export const AuthStoreModel = types
 
       if (now >= self.accessTokenExpiresAt) {
         log.trace('[AuthStore.isAccessTokenExpired] Access token is expired')
-        return false
-      } else {
         return true
+      } else {
+        return false
       }
     },
     get isRefreshTokenExpired(): boolean {
@@ -72,9 +72,9 @@ export const AuthStoreModel = types
 
       if (now >= self.refreshTokenExpiresAt) {
         log.trace('[AuthStore.isRefreshokenExpired] Refresh token is expired')
-        return false
-      } else {
         return true
+      } else {
+        return false
       }
     },
     get tokens(): JwtTokens | null {
@@ -150,56 +150,6 @@ export const AuthStoreModel = types
     
   }))
   .actions(self => ({
-    refreshTokens: flow(function* refreshTokens() {
-      try {        
-        const {tokens} = self
-
-        if (!tokens || !tokens.refreshToken) {
-            throw new AppError(Err.AUTH_ERROR, 'No refresh token available. Please re-authenticate.')
-        }
-
-        log.trace('[refreshTokens] Refreshing tokens')
-
-        const refreshUrl = `${MINIBITS_SERVER_API_HOST}/auth/refresh`
-        const refreshBody = {
-            refreshToken: tokens.refreshToken
-        }
-
-        const newTokens: JwtTokens = yield MinibitsClient.fetchApi(refreshUrl, {
-            method: 'POST',
-            body: refreshBody,
-            jwtAuthRequired: false
-        })
-
-        log.info('[refreshTokens] Tokens refreshed successfully', {newTokens})
-
-        const atExpiry = decodeJwtExpiry(newTokens.accessToken) || 0
-        const rtExpiry = decodeJwtExpiry(newTokens.refreshToken) || 0
-
-        log.trace('[refreshTokens]', {now: Math.floor(Date.now() / 1000), atExpiry, rtExpiry})
-
-        // Store new tokens securely
-        const jwtTokens: JwtTokens = {
-            accessToken: newTokens.accessToken,
-            refreshToken: newTokens.refreshToken,
-            accessTokenExpiresAt: atExpiry,
-            refreshTokenExpiresAt: rtExpiry
-        }
-
-        self.setTokens(jwtTokens)
-        return jwtTokens
-
-    } catch (e: any) {
-        log.error('[refreshTokens] Failed to refresh tokens', e)
-        
-        // If refresh fails, clear stored tokens
-        yield self.clearTokens()
-        
-        throw new AppError(Err.AUTH_ERROR, `Token refresh failed: ${e.message}`, e)
-    }
-    }),
-  }))
-  .actions(self => ({
     enrollDevice: flow(function* enrollDevice(nostrKeys: NostrKeyPair, deviceId?: string | null) {
       try {        
         log.trace('[enrollDevice] Starting device enrollment', { nostrKeys, deviceId })
@@ -258,25 +208,6 @@ export const AuthStoreModel = types
         throw new AppError(Err.AUTH_ERROR, 'Failed to enroll device and obtain tokens', e)
     }
     }),
-    getValidAccessToken: flow(function* getValidAccessToken() {
-      try {
-        // If access token is valid, return it
-        if (self.isAuthenticated) {
-          log.trace('[getValidAccessToken] Access token is valid')
-          return self.accessToken
-        }
-
-        // If access token is expired, refresh tokens
-        log.trace('[getValidAccessToken] Access token is expired, refreshing tokens')
-        const newTokens = yield self.refreshTokens()
-        
-        return newTokens.accessToken
-
-      } catch (e: any) {
-        log.error('[getValidAccessToken] Failed to get valid access token', e)
-        throw e
-      }
-    }),
     logout: flow(function* logout() {
       try {
         const {tokens} = self
@@ -305,7 +236,78 @@ export const AuthStoreModel = types
     }
     })
   
-  })) 
+  }))
+  .actions(self => ({
+    refreshTokens: flow(function* refreshTokens() {
+      try {        
+        const {tokens} = self
+
+        if (!tokens || !tokens.refreshToken) {
+            throw new AppError(Err.AUTH_ERROR, 'No refresh token available. Please re-authenticate.')
+        }
+
+        log.trace('[refreshTokens] Refreshing tokens')
+
+        const refreshUrl = `${MINIBITS_SERVER_API_HOST}/auth/refresh`
+        const refreshBody = {
+            refreshToken: tokens.refreshToken
+        }
+
+        const newTokens: JwtTokens = yield MinibitsClient.fetchApi(refreshUrl, {
+            method: 'POST',
+            body: refreshBody,
+            jwtAuthRequired: false
+        })
+
+        log.info('[refreshTokens] Tokens refreshed successfully', {newTokens})
+
+        const atExpiry = decodeJwtExpiry(newTokens.accessToken) || 0
+        const rtExpiry = decodeJwtExpiry(newTokens.refreshToken) || 0
+
+        log.trace('[refreshTokens]', {now: Math.floor(Date.now() / 1000), atExpiry, rtExpiry})
+
+        // Store new tokens securely
+        const jwtTokens: JwtTokens = {
+            accessToken: newTokens.accessToken,
+            refreshToken: newTokens.refreshToken,
+            accessTokenExpiresAt: atExpiry,
+            refreshTokenExpiresAt: rtExpiry
+        }
+
+        self.setTokens(jwtTokens)
+        return jwtTokens
+
+    } catch (e: any) {
+        log.error('[refreshTokens] Failed to refresh tokens', e)
+        
+        // If refresh fails, clear stored tokens
+        yield self.clearTokens()
+        
+        throw new AppError(Err.AUTH_ERROR, `Token refresh failed: ${e.message}`, e)
+    }
+    }),
+  }))
+    .actions(self => ({
+      getValidAccessToken: flow(function* getValidAccessToken() {
+        try {
+          // If access token is valid, return it
+          if (self.isAuthenticated) {
+            log.trace('[getValidAccessToken] Access token is valid')
+            return self.accessToken
+          }
+  
+          // If access token is expired, refresh tokens
+          log.trace('[getValidAccessToken] Access token is expired, refreshing tokens')
+          const newTokens = yield self.refreshTokens()
+          
+          return newTokens.accessToken
+  
+        } catch (e: any) {
+          log.error('[getValidAccessToken] Failed to get valid access token', e)
+          throw e
+        }
+      }),
+  }))
     .postProcessSnapshot((snapshot) => {   // NOT persisted outside of KeyChain except device
     return {
       accessToken: null,

@@ -88,7 +88,7 @@ function App() {
 
         // reenroll device for JWT authentication if refresh token expired
         
-        if(authStore.isRefreshokenExpired && isInternetReachable) {
+        if(authStore.isRefreshTokenExpired && isInternetReachable) {
             log.trace('[useInitialRootStore]', 'Re-enrolling device for JWT authentication')
             try {
                 const walletKeys: WalletKeys = await walletStore.getCachedWalletKeys()
