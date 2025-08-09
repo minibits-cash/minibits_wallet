@@ -4,7 +4,6 @@ import { spacing, useThemeColor, typography } from '../theme'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { MintUnit, getCurrency } from '../services/wallet/currency'
 import numbro from 'numbro'
-import { log } from '../services'
 
 interface AmountInputProps {
   value: string
