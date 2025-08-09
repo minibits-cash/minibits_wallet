@@ -78,7 +78,7 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
 
     // Convert FIAT amount to display units (e.g., sats to mBTC)
     const FIATtoSATS = (inputAmount: string) => {
-        if (!walletStore.exchangeRate) return undefined;
+        if (!walletStore.exchangeRate || !inputAmount || inputAmount.trim() === '') return undefined;
 
         const precision = getCurrency(unitRef.current).precision
         return convertToFromSats(
@@ -90,7 +90,7 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
 
     // Convert display units to FIAT amount
     const SATStoFIAT = (inputAmount: string) => {
-        if (!walletStore.exchangeRate) return undefined;
+        if (!walletStore.exchangeRate || !inputAmount || inputAmount.trim() === '') return undefined;
 
         const precision = getCurrency(unitRef.current).precision
         return convertToFromSats(
@@ -105,22 +105,36 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
     }
 
     const handleAmountChange = (amount: string) => {
-        calculateOtherAmount();
         setAmountToSend(amount)
+        if (canUseFiatMode) {
+            const convertedAmount = SATStoFIAT(amount)
+            setCurrencyAmount(convertedAmount || 0)
+        }
     }
+    
     const handleFiatAmountChange = (amount: string) => {
-        calculateOtherAmount();
-        setAmountFiat(amount);
+        log.trace("fiat amount: ", amount)
+        setAmountFiat(amount)
+        setCurrencyAmount(FIATtoSATS(amount) || 0)
     }
+    
     const onFiatAmountEndEditing = () => {
-        calculateOtherAmount();
-        setAmountToSend(currencyAmount.toString());
+        const convertedAmount = FIATtoSATS(amountFiat)
+        setCurrencyAmount(convertedAmount || 0)
+        setAmountToSend((convertedAmount || 0).toString())
+
+        // if (onAmountEndEditing) {
+        //     onAmountEndEditing()
+        // }
     }
-    const calculateOtherAmount = () => {
-        if (canUseFiatMode && isFiatMode) {
-            setCurrencyAmount(FIATtoSATS(amountFiat));
-        } else {
-            setCurrencyAmount(SATStoFIAT(amountToSend));
+    
+    const handleAmountEndEditing = () => {
+        if (canUseFiatMode) {
+            const convertedAmount = SATStoFIAT(amountToSend)
+            setCurrencyAmount(convertedAmount || 0)
+        }
+        if (onAmountEndEditing) {
+            onAmountEndEditing()
         }
     }
 
@@ -144,14 +158,24 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
                     value={amountToSend}
                     onChangeText={handleAmountChange}
                     unit={unit}
-                    onEndEditing={transactionStatus !== TransactionStatus.PENDING ? onAmountEndEditing : undefined}
+                    onEndEditing={transactionStatus !== TransactionStatus.PENDING ? handleAmountEndEditing : undefined}
                     editable={!(transactionStatus === TransactionStatus.PENDING || isCashuPrWithAmount)}
                     style={{ color: amountInputColor }}
                     ref={amountInputRef}
                 />
             )}
             {isConvertedAmountVisible() && (
-                <TouchableOpacity onPress={() => canUseFiatMode && setIsFiatMode(!isFiatMode)}>
+                <TouchableOpacity onPress={() => {
+                    if (!canUseFiatMode) return;
+                    setIsFiatMode(!isFiatMode);
+                    if (isFiatMode) {
+                        setAmountFiat(SATStoFIAT(amountToSend).toString() || "0");
+                        setCurrencyAmount(toNumber(amountToSend.trim() || "0"));
+                    } else {
+                        setAmountToSend(FIATtoSATS(amountFiat).toString() || "0");
+                        setCurrencyAmount(toNumber(amountFiat.trim() || "0"));
+                    }
+                }}>
                     <CurrencyAmount
                         amount={currencyAmount}
                         currencyCode={isFiatMode ? CurrencyCode.SAT : fiatCurrency}
