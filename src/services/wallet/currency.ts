@@ -126,13 +126,13 @@ export const Currencies: CurrencyList = {
 } as const
 
 
-export const formatCurrency = (amount: number, code: CurrencyCode) => {
+export const formatCurrency = (amount: number, code: CurrencyCode, thousandSeparated: boolean = true) => {
     const c = Currencies[code] 
     if(!c || !c.precision) {
         throw new AppError(Err.VALIDATION_ERROR, `Currency code ${code} is not yet supported by Minibits. Submit request to add it on our Github.`)
     }
 
-    return numbro(amount / c.precision).format({ mantissa: c.mantissa, thousandSeparated: true })
+    return numbro(amount / c.precision).format({ mantissa: c.mantissa, thousandSeparated })
 }
 
 export const getCurrency = (unit: MintUnit) => {

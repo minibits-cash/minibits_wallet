@@ -1,12 +1,13 @@
 import { verticalScale } from '@gocodingnow/rn-size-matters'
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { TextInput, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native'
 import { useStores } from '../models'
 import type { Mint } from '../models/Mint'
 import { TransactionStatus } from '../models/Transaction'
+import { availableExchangeCurrencies } from '../screens'
 import { MintHeader } from '../screens/Mints/MintHeader'
 import { CurrencyAmount } from '../screens/Wallet/CurrencyAmount'
-import { convertToFromSats, Currencies, CurrencyCode, getCurrency, getCurrencyByCode, MintUnit } from '../services/wallet/currency'
+import { convertToFromSats, CurrencyCode, formatCurrency, getCurrency, getCurrencyByCode, MintUnit } from '../services/wallet/currency'
 import { spacing, useThemeColor } from '../theme'
 import { round, toNumber } from '../utils/number'
 import { AmountInput, Icon, Text } from './index'
@@ -67,8 +68,11 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
         mintHeaderMint
     } = props
 
+    // TODO: possibly support all currencies from the available user-settable exchangeCurrencies
+    // TODO: test with EUR and CAD once USD is working fine
+    
     const fiatCurrency = userSettingsStore.exchangeCurrency
-    const isFiatSupported = fiatCurrency === CurrencyCode.USD || fiatCurrency === CurrencyCode.EUR
+    const isFiatSupported = availableExchangeCurrencies.includes(fiatCurrency as typeof availableExchangeCurrencies[number]);
     const canUseFiatMode = isFiatSupported && walletStore.exchangeRate && unit === 'sat'
 
     const getFiatUnit = () => {
@@ -76,27 +80,28 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
         return currencyData?.mintUnit || 'sat'
     }
 
+    const roundToSatPrecision = (value: number) => round(value, getCurrency(unitRef.current).mantissa)
+    const roundToFiatPrecision = (value: number) => round(value, getCurrencyByCode(fiatCurrency)?.mantissa || 2)
+
     // Convert FIAT amount to display units (e.g., sats to mBTC)
     const FIATtoSATS = (inputAmount: string) => {
-        if (!walletStore.exchangeRate || !inputAmount || inputAmount.trim() === '') return undefined;
+        if (!walletStore.exchangeRate || !inputAmount || inputAmount.trim() === '') return null;
 
         const fiatCurrencyData = getCurrencyByCode(fiatCurrency)
-        if (!fiatCurrencyData) return undefined;
+        if (!fiatCurrencyData) return null;
         
         const precision = fiatCurrencyData.precision
-        const num = round(toNumber(inputAmount) * precision, 0) || 0;
-
         const converted = convertToFromSats(
-            num,
+            round(toNumber(inputAmount) * precision, 0) || 0,
             fiatCurrency,
             walletStore.exchangeRate
         )
-        return converted ? roundToSatPrecision(converted) : undefined;
+        return converted ? roundToSatPrecision(converted) : null;
     }
 
     // Convert display units to FIAT amount
     const SATStoFIAT = (inputAmount: string) => {
-        if (!walletStore.exchangeRate || !inputAmount || inputAmount.trim() === '') return undefined;
+        if (!walletStore.exchangeRate || !inputAmount || inputAmount.trim() === '') return null;
 
         const precision = getCurrency(unitRef.current).precision
         const converted = convertToFromSats(
@@ -104,34 +109,41 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
             getCurrency(unitRef.current).code,
             walletStore.exchangeRate
         )
-        return converted ? roundToFiatPrecision(converted) : undefined;
+        return converted ? roundToFiatPrecision(converted) : null;
     }
 
     const isConvertedAmountVisible = () => {
         return canUseFiatMode && walletStore.exchangeRate
     }
 
-    const roundToSatPrecision = (value: number) => round(value, getCurrency(unitRef.current).mantissa)
-    const roundToFiatPrecision = (value: number) => round(value, getCurrencyByCode(fiatCurrency)?.mantissa || 2)
-
     useEffect(() => {
         if (!canUseFiatMode) return;
+        
+        // the conversions between the two *looks* asymetric, but it works:
+        // the reason it's like this is because <CurrencyAmount /> formats each currency differently,
+        // so setting currencyAmount to 9.97 often produces stuff like 0.1 EUR
 
-        // FIXME: some state desync
-        // toggling converts correctly, but if i backspace one from 400, suddenly it's 39K usd...
+        // there is possibly a better way to solve this:
+        // if CurrencyAmount would just display raw values, we could just call FIATtoSATS and SATStoFIAT respectively
+        // feel free to refactor/change this; i spent way too long trying to get it to work
 
-        if (isFiatMode) {
-            // Switching to fiat mode: convert current SAT amount to fiat
-            const fiatFromSats = SATStoFIAT(amountToSend) || 0;
-            const roundedFiat = roundToFiatPrecision(fiatFromSats);
-            log.trace("Converting to fiat mode", { amountToSend, fiatFromSats, roundedFiat });
-            
-            setAmountFiat(roundedFiat.toString());
+        if (isFiatMode) { 
+            // SATS -> FIAT mode
+            // for 1067 sats, even though currencyAmount is 106.26, after formatting it's the desired 1.06
+            // we can simply do the same formatting as <CurrencyAmount /> to get 1.06 for our input
+            // since <CurrencyAmount /> formats SATS normally, we can pass in the raw value (e.g. 1067)
+
+            const newVal = formatCurrency(currencyAmount, fiatCurrency, false);
+            setAmountFiat(newVal);
             setCurrencyAmount(toNumber(amountToSend.trim() || "0"));
         } else {
-            // Switching back to SAT mode: keep the original SAT amount, just update display
-            const convertedFiat = SATStoFIAT(amountToSend) || 0;
-            setCurrencyAmount(convertedFiat);
+            // FIAT -> SATS mode
+            // we convert our FIAT "result" (e.g. 1.06) using FIATtoSATS
+            // since editing the SATS input always correctly calculates the FIAT currency on editd, we simply call handleAmountChange
+
+            const newVal = (FIATtoSATS(amountFiat) || 0).toString();
+            setAmountToSend(newVal);
+            handleAmountChange(newVal)
         }
 
     }, [isFiatMode])
@@ -154,7 +166,8 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
         setCurrencyAmount(convertedAmount || 0)
         setAmountToSend((convertedAmount || 0).toString())
 
-        // TODO: switch back to normal input with the sat amount that was calculated.
+        if (amountFiat.trim()) setIsFiatMode(false);
+        onAmountEndEditing();
     }
     
     const handleAmountEndEditing = () => {

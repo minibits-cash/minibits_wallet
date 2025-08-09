@@ -25,6 +25,10 @@ import { HotUpdater } from '@hot-updater/react-native'
 
 type Props = StaticScreenProps<undefined>
 
+/** add any currency codes you want to allow the user to select as "reference currency" in the app settings, here: */
+export const availableExchangeCurrencies = [CurrencyCode.USD, CurrencyCode.EUR, CurrencyCode.CAD] as const;
+// ^ this is exported so it can be consumed in other components
+
 export const SettingsScreen = observer(function SettingsScreen({ route }: Props) {
     const navigation = useNavigation()
     useHeader({}) // default header component
@@ -529,7 +533,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
           style={{alignItems: 'stretch'}}
           ContentComponent={  
             <>
-            {[CurrencyCode.USD, CurrencyCode.EUR, CurrencyCode.CAD].map(code => 
+            {availableExchangeCurrencies.map(code => 
               <ListItem 
                   key={code}  
                   LeftComponent={
