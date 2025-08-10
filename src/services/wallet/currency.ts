@@ -1,7 +1,6 @@
 import numbro from 'numbro'
 import { BtcIcon, EurIcon, UsdIcon, CadIcon } from '../../components'
 import AppError, { Err } from '../../utils/AppError'
-import { log } from '../logService'
 import { ExchangeRate } from '../../models/WalletStore'
 
 
