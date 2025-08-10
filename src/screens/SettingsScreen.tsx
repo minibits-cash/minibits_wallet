@@ -16,7 +16,7 @@ import {translate} from '../i18n'
 import { log } from '../services'
 import {Env} from '../utils/envtypes'
 import { round } from '../utils/number'
-import { Currencies, CurrencyCode } from '../services/wallet/currency'
+import { Currencies, CurrencyCode, availableExchangeCurrencies } from '../services/wallet/currency'
 import { NotificationService } from '../services/notificationService'
 import { SvgXml } from 'react-native-svg'
 import { CurrencySign } from './Wallet/CurrencySign'
@@ -24,10 +24,6 @@ import { CommonActions, StaticScreenProps, useNavigation } from '@react-navigati
 import { HotUpdater } from '@hot-updater/react-native'
 
 type Props = StaticScreenProps<undefined>
-
-/** add any currency codes you want to allow the user to select as "reference currency" in the app settings, here: */
-export const availableExchangeCurrencies = [CurrencyCode.USD, CurrencyCode.EUR, CurrencyCode.CAD] as const;
-// ^ this is exported so it can be consumed in other components
 
 export const SettingsScreen = observer(function SettingsScreen({ route }: Props) {
     const navigation = useNavigation()

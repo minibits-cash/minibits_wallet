@@ -54,7 +54,9 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
 
     const handleEndEditing = () => {
         if (onEndEditing) onEndEditing();
-        if (!value) value = "0";
+        if (!value) value = "0"; 
+        // ^^ needed as previous '=== undefined' check didn't trigger on value = "", 
+        // which would still crash numbro's formatter
 
         // Merge default format options with overrides
         const formatOptionsMerged = Object.assign(

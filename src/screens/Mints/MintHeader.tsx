@@ -67,6 +67,7 @@ export const MintHeader = observer(function(props: {
             RightActionComponent={mint && unit && !hideBalance ? (
                 <CurrencyAmount 
                     mintUnit={displayCurrency ? 'sat' : unit}
+                    // always display wallet balance in SAT if using displayCurrency
                     amount={mint?.balances?.balances[displayCurrency ? 'sat' : unit as MintUnit] || 0}
                     amountStyle={{color: 'white'}}
                     symbolStyle={{color: 'white'}}

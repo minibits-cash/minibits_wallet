@@ -4,14 +4,20 @@ import { TextInput, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-n
 import { useStores } from '../models'
 import type { Mint } from '../models/Mint'
 import { TransactionStatus } from '../models/Transaction'
-import { availableExchangeCurrencies } from '../screens'
 import { MintHeader } from '../screens/Mints/MintHeader'
 import { CurrencyAmount } from '../screens/Wallet/CurrencyAmount'
-import { convertToFromSats, CurrencyCode, formatCurrency, getCurrency, getCurrencyByCode, MintUnit } from '../services/wallet/currency'
+import {
+    availableExchangeCurrencies,
+    convertToFromSats,
+    CurrencyCode,
+    formatCurrency,
+    getCurrency,
+    getCurrencyByCode,
+    MintUnit
+} from '../services/wallet/currency'
 import { spacing, useThemeColor } from '../theme'
 import { round, toNumber } from '../utils/number'
 import { AmountInput, Icon, Text } from './index'
-import { log } from '../services'
 
 interface IAmountInputHeaderProps {
     amountInputRef: React.RefObject<TextInput>
@@ -47,10 +53,12 @@ const $pubKey: ViewStyle = {
 
 export function AmountInputHeader(props: IAmountInputHeaderProps) {
     const { userSettingsStore, walletStore } = useStores()
-    const [isFiatMode, setIsFiatMode] = useState(false)
-    const [shouldTriggerSubmit, setShouldTriggerSubmit] = useState(false);
-    const [amountFiat, setAmountFiat] = useState("0");
+
+    /** displayed converted amount for <CurrencyAmount /> */
     const [currencyAmount, setCurrencyAmount] = useState(0);
+    const [isFiatMode, setIsFiatMode] = useState(false)
+    const [amountFiat, setAmountFiat] = useState("0");
+    const [shouldTriggerSubmit, setShouldTriggerSubmit] = useState(false);
 
     const amountInputColor = useThemeColor('amountInput');
     const convertedAmountColor = useThemeColor('headerSubTitle');
@@ -69,7 +77,7 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
         unitRef,
         mintHeaderMint
     } = props
-    
+
     const fiatCurrency = userSettingsStore.exchangeCurrency
     const isFiatSupported = availableExchangeCurrencies.includes(fiatCurrency as typeof availableExchangeCurrencies[number]);
     const canUseFiatMode = isFiatSupported && walletStore.exchangeRate && unit === 'sat'
@@ -82,29 +90,25 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
     const roundToSatPrecision = (value: number) => round(value, getCurrency(unitRef.current).mantissa)
     const roundToFiatPrecision = (value: number) => round(value, getCurrencyByCode(fiatCurrency)?.mantissa || 2)
 
+    /** @returns converted number or 0 if conversion fails for any reason */
     const FIATtoSATS = (inputAmount: string) => {
-        if (!walletStore.exchangeRate || !inputAmount || inputAmount.trim() === '') return null;
+        if (!walletStore.exchangeRate || !inputAmount || inputAmount.trim() === '') return 0;
 
         const fiatCurrencyData = getCurrencyByCode(fiatCurrency)
-        if (!fiatCurrencyData) return null;
-        
+        if (!fiatCurrencyData) return 0;
+
         const precision = fiatCurrencyData.precision
         const converted = convertToFromSats(
             round(toNumber(inputAmount) * precision, 0) || 0,
             fiatCurrency,
             walletStore.exchangeRate
         )
-        log.trace("FIATtoSATS", { 
-            converted, precision, 
-            rounded: converted && roundToFiatPrecision(converted), 
-            amountFiat, amountToSend,
-            fiatUnit: getFiatUnit() 
-        });
-        return converted ? roundToSatPrecision(converted) : null;
+        return converted ? roundToSatPrecision(converted) : 0;
     }
 
+    /** @returns converted number or 0 if conversion fails for any reason */
     const SATStoFIAT = (inputAmount: string) => {
-        if (!walletStore.exchangeRate || !inputAmount || inputAmount.trim() === '') return null;
+        if (!walletStore.exchangeRate || !inputAmount || inputAmount.trim() === '') return 0;
 
         const precision = getCurrency(unitRef.current).precision
         const converted = convertToFromSats(
@@ -112,8 +116,7 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
             getCurrency(unitRef.current).code,
             walletStore.exchangeRate
         )
-        // log.trace("SATStoFIAT", { converted, precision, rounded: converted && roundToFiatPrecision(converted), amountFiat, amountToSend });
-        return converted ? roundToFiatPrecision(converted) : null;
+        return converted ? roundToFiatPrecision(converted) : 0;
     }
 
     const isConvertedAmountVisible = () => {
@@ -121,10 +124,9 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
     }
 
     useEffect(() => {
-        // log.trace({ "current": unitRef.current, fiatCurrency, canUseFiatMode })
         if (!canUseFiatMode) return;
-        
-        // the conversions between the two *looks* asymetric, but it works:
+
+        // the conversions between the two *looks* asymmetric, but it works:
         // the reason it's like this is because <CurrencyAmount /> formats each currency differently,
         // so setting currencyAmount to 9.97 often produces stuff like 0.1 EUR
 
@@ -132,7 +134,7 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
         // if CurrencyAmount would just display raw values, we could just call FIATtoSATS and SATStoFIAT respectively
         // feel free to refactor/change this; i spent way too long trying to get it to work
 
-        if (isFiatMode) { 
+        if (isFiatMode) {
             // SATS -> FIAT mode
             // for 1067 sats, even though currencyAmount is 106.26, after formatting it's the desired 1.06
             // we can simply do the same formatting as <CurrencyAmount /> to get 1.06 for our input
@@ -144,7 +146,7 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
             // FIAT -> SATS mode
             // we convert our FIAT "result" (e.g. 1.06) using FIATtoSATS
             // since editing the SATS input always correctly calculates the FIAT currency on editd, we simply call handleAmountChange
-            const newVal = (FIATtoSATS(amountFiat) || 0).toString();
+            const newVal = FIATtoSATS(amountFiat).toString();
             setAmountToSend(newVal);
             handleAmountChange(newVal)
             if (shouldTriggerSubmit && onAmountEndEditing) onAmountEndEditing();
@@ -157,33 +159,32 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
         setAmountToSend(amount)
         if (canUseFiatMode) {
             const convertedAmount = SATStoFIAT(amount)
-            setCurrencyAmount(convertedAmount || 0)
+            setCurrencyAmount(convertedAmount)
         }
     }
-    
+
     const handleFiatAmountChange = (amount: string) => {
         setAmountFiat(amount)
-        setCurrencyAmount(FIATtoSATS(amount) || 0)
-    }
-    
-    const onFiatAmountEndEditing = () => {
-        const convertedAmount = FIATtoSATS(amountFiat)
-        setCurrencyAmount(convertedAmount || 0)
-        setAmountToSend((convertedAmount || 0).toString())
-
-        if (amountFiat.trim()) {
-            setShouldTriggerSubmit(true);
-            setIsFiatMode(false);
-        }
+        setCurrencyAmount(FIATtoSATS(amount))
     }
     
     const handleAmountEndEditing = () => {
         if (canUseFiatMode) {
             const convertedAmount = SATStoFIAT(amountToSend)
-            setCurrencyAmount(convertedAmount || 0)
+            setCurrencyAmount(convertedAmount)
         }
-        if (onAmountEndEditing) {
-            onAmountEndEditing()
+        if (onAmountEndEditing) onAmountEndEditing();
+    }
+
+    /** when FIAT input is submitted, it just recalculates to SATS and submits that amount */
+    const onFiatAmountEndEditing = () => {
+        const convertedAmount = FIATtoSATS(amountFiat)
+        setCurrencyAmount(convertedAmount)
+        setAmountToSend(convertedAmount.toString())
+
+        if (amountFiat.trim()) {
+            setShouldTriggerSubmit(true);
+            setIsFiatMode(false);
         }
     }
 
@@ -199,9 +200,9 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
                     value={amountFiat}
                     onChangeText={handleFiatAmountChange}
                     unit={getFiatUnit()}
-                    formatOptions={{ // Override formatting for fiat: no thousand separators, use fiat currency's decimal precision
-                        thousandSeparated: false, 
-                        mantissa: getCurrencyByCode(fiatCurrency)?.mantissa || 2 
+                    formatOptions={{ // Override formatting for FIAT
+                        thousandSeparated: false,
+                        mantissa: getCurrencyByCode(fiatCurrency)?.mantissa || 2
                     }}
                     onEndEditing={transactionStatus !== TransactionStatus.PENDING ? onFiatAmountEndEditing : undefined}
                     editable={!(transactionStatus === TransactionStatus.PENDING || isCashuPrWithAmount)}
@@ -219,7 +220,7 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
                 />
             )}
             {isConvertedAmountVisible() && (
-                <TouchableOpacity 
+                <TouchableOpacity
                     onPress={() => {
                         if (!canUseFiatMode) return;
                         setIsFiatMode(!isFiatMode);

@@ -8,6 +8,7 @@ import { ExchangeRate } from '../../models/WalletStore'
 export type MintUnit = typeof MintUnits[number]
 export const MintUnits = ['btc', 'sat', 'msat', 'usd', 'eur'] as const
 
+
 export enum CurrencyCode {
     BTC = 'BTC', SAT = 'SAT', MSAT = 'MSAT', EUR = 'EUR', GBP = 'GBP', 
     CZK = 'CZK', USD = 'USD', PLN = 'PLN', HUF = 'HUF', RON = 'RON',
@@ -17,6 +18,9 @@ export enum CurrencyCode {
 export type MintUnitCurrencyPair = {
     [key in MintUnit]: CurrencyCode
 }
+
+/** add any currency codes you want to allow the user to select as "reference currency" in the app settings, here: */
+export const availableExchangeCurrencies = [CurrencyCode.USD, CurrencyCode.EUR, CurrencyCode.CAD] as const;
 
 export const MintUnitCurrencyPairs: MintUnitCurrencyPair = {
   btc:CurrencyCode.BTC, sat:CurrencyCode.SAT, msat:CurrencyCode.MSAT, eur:CurrencyCode.EUR, usd:CurrencyCode.USD,
@@ -158,7 +162,7 @@ export const getCurrency = (unit: MintUnit) => {
 export const getCurrencyByCode = (code: CurrencyCode): CurrencyData | undefined => {
     for (const [currencyCode, currencyData] of Object.entries(Currencies)) {
         if (currencyCode === code && currencyData) {
-            return currencyData satisfies CurrencyData
+            return currencyData
         }
     }
     return void 0;
