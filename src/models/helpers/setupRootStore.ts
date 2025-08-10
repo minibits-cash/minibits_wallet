@@ -16,7 +16,7 @@ import {
 } from 'mobx-state-tree'
 import * as Sentry from '@sentry/react-native'
 import type { RootStore } from '../RootStore'
-import { MMKVStorage } from '../../services'
+import { MMKVStorage, WalletKeys } from '../../services'
 import {Database} from '../../services'
 import { log } from  '../../services/logService'
 import { rootStoreModelVersion } from '../RootStore'
@@ -24,6 +24,7 @@ import AppError, { Err } from '../../utils/AppError'
 import { LogLevel } from '../../services/log/logTypes'
 import { CurrencyCode } from '../../services/wallet/currency'
 import { ThemeCode } from '../../theme'
+import { auth } from 'firebase-admin'
 
 /**
  * The key we'll be saving our state as within storage.
@@ -109,8 +110,9 @@ async function _runMigrations(rootStore: RootStore) {
     const { 
         userSettingsStore,
         mintsStore,
-        proofsStore,
         transactionsStore,
+        authStore,
+        walletStore,
         walletProfileStore
     } = rootStore
     

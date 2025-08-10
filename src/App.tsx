@@ -21,7 +21,7 @@ import {KeyChain, WalletKeys} from './services'
 import {ErrorBoundary} from './screens/ErrorScreen/ErrorBoundary'
 import Config from './config'
 import {log} from './services'
-import AppError from './utils/AppError'
+import AppError, { Err } from './utils/AppError'
 import { Image, TextStyle, View, Platform, UIManager } from 'react-native'
 import { spacing, typography } from './theme'
 import { displayName } from '../app.json'
@@ -93,17 +93,19 @@ function App() {
             try {
                 const walletKeys: WalletKeys = await walletStore.getCachedWalletKeys()
                 const deviceId = walletProfileStore.device
-                
-                // skipped if there is not refreshToken and wallet profile yet
-                if(walletKeys.NOSTR) {
-                    await authStore.logout()
-                    await authStore.enrollDevice(walletKeys.NOSTR, deviceId)
-                } else {
-                    log.warn('[useInitialRootStore]', 'No Nostr keys found, skipping re-enrollment')
-                }
+
+                await authStore.logout()
+                await authStore.enrollDevice(walletKeys.NOSTR, deviceId)
 
             } catch (e: any) {
-                log.error('[useInitialRootStore]', 'Failed to re-enroll device', {message: e.message})               
+                if(e.name === Err.NOTFOUND_ERROR) {
+                    // new installation, no keys found
+                    
+                    userSettingsStore.setIsOnboarded(false) // force onboarding just in case
+                    log.trace('[useInitialRootStore]', 'No device keys found, skipping re-enrollment')  
+                } else {
+                    log.error('[useInitialRootStore]', 'Failed to re-enroll device', {message: e.message})
+                }            
             }
         }
 

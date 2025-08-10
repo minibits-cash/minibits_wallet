@@ -45,6 +45,7 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
     })
 
     const {transactionsStore, userSettingsStore, proofsStore, walletProfileStore, authStore} = useStores()
+    const rootStore = useStores()
 
     const [isLoading, setIsLoading] = useState(false)
     const [rnVersion, setRnVersion] = useState<string>('')
@@ -240,22 +241,24 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
                 setIsLoading(true)
                 try {
                   // Delete database
-                  Database.cleanAll()                
+                  Database.cleanAll()
+                  // Clean mobx storage
+                  MMKVStorage.clearAll()
+                  rootStore.reset()
+                  // recreate db schema
+                  Database.getInstance()             
                   // Delete wallet keys
                   await KeyChain.removeWalletKeys()
                   // Delete biometric auth token
                   await KeyChain.removeAuthToken()
                   // Delete jwt tokens
                   await KeyChain.removeJwtTokens()
-                  // Clean mobx storage
-                  MMKVStorage.clearAll()
                   // Reset server's jwt tokens and logout
                   await authStore.logout()
-                  // recreate db schema
-                  Database.getInstance()
+
                   setIsLoading(false)
                   setInfo(translate("factoryResetSuccess"))
-                  await delay(1000)
+                  await delay(2000)
                   RNExitApp.exitApp()
                 } catch (e: any) {
                   handleError(e)
