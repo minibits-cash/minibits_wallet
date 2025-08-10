@@ -2,7 +2,7 @@ import React from "react"
 import { TextStyle, View, ViewStyle } from "react-native"
 import { SvgXml } from "react-native-svg"
 import { Text } from "../../components"
-import { Spacing, colors, spacing, typography, useThemeColor } from "../../theme"
+import { Spacing, spacing, typography, useThemeColor } from "../../theme"
 import { CurrencyCode, Currencies, MintUnit, getCurrency } from "../../services/wallet/currency"
 
 
@@ -22,7 +22,6 @@ export const CurrencySign = function(props: {
     }
   
     const textColor = useThemeColor('amount')
-    const bgColor = colors.palette.primary200
   
     return (
         <View

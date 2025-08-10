@@ -6,7 +6,6 @@ import { CurrencyCode, MintUnit } from "../../services/wallet/currency"
 import { CurrencySign } from "../Wallet/CurrencySign"
 import { CurrencyAmount } from "../Wallet/CurrencyAmount"
 import { observer } from "mobx-react-lite"
-import { StackNavigationProp } from "@react-navigation/stack"
 import { moderateScale } from "@gocodingnow/rn-size-matters"
 import { useNavigation } from "@react-navigation/native"
 
