@@ -69,8 +69,6 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
         unitRef,
         mintHeaderMint
     } = props
-
-    // TODO: test with EUR and CAD once USD is working fine
     
     const fiatCurrency = userSettingsStore.exchangeCurrency
     const isFiatSupported = availableExchangeCurrencies.includes(fiatCurrency as typeof availableExchangeCurrencies[number]);
@@ -84,7 +82,6 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
     const roundToSatPrecision = (value: number) => round(value, getCurrency(unitRef.current).mantissa)
     const roundToFiatPrecision = (value: number) => round(value, getCurrencyByCode(fiatCurrency)?.mantissa || 2)
 
-    // Convert FIAT amount to display units (e.g., sats to mBTC)
     const FIATtoSATS = (inputAmount: string) => {
         if (!walletStore.exchangeRate || !inputAmount || inputAmount.trim() === '') return null;
 
@@ -97,10 +94,11 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
             fiatCurrency,
             walletStore.exchangeRate
         )
+        // log.trace({ converted, precision, fiatCurrencyData, fiatCurrency, inputAmount })
+
         return converted ? roundToSatPrecision(converted) : null;
     }
 
-    // Convert display units to FIAT amount
     const SATStoFIAT = (inputAmount: string) => {
         if (!walletStore.exchangeRate || !inputAmount || inputAmount.trim() === '') return null;
 
@@ -118,6 +116,7 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
     }
 
     useEffect(() => {
+        // log.trace({ "current": unitRef.current, fiatCurrency, canUseFiatMode })
         if (!canUseFiatMode) return;
         
         // the conversions between the two *looks* asymetric, but it works:
