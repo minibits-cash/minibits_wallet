@@ -94,8 +94,7 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
             fiatCurrency,
             walletStore.exchangeRate
         )
-        // log.trace({ converted, precision, fiatCurrencyData, fiatCurrency, inputAmount })
-
+        log.trace("FIATtoSATS", { converted, precision, rounded: converted && roundToFiatPrecision(converted), amountFiat, amountToSend, stack: new Error().stack });
         return converted ? roundToSatPrecision(converted) : null;
     }
 
@@ -108,6 +107,7 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
             getCurrency(unitRef.current).code,
             walletStore.exchangeRate
         )
+        // log.trace("SATStoFIAT", { converted, precision, rounded: converted && roundToFiatPrecision(converted), amountFiat, amountToSend });
         return converted ? roundToFiatPrecision(converted) : null;
     }
 
@@ -132,7 +132,6 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
             // for 1067 sats, even though currencyAmount is 106.26, after formatting it's the desired 1.06
             // we can simply do the same formatting as <CurrencyAmount /> to get 1.06 for our input
             // since <CurrencyAmount /> formats SATS normally, we can pass in the raw value (e.g. 1067)
-
             const newVal = formatCurrency(currencyAmount, fiatCurrency, false);
             setAmountFiat(newVal);
             setCurrencyAmount(toNumber(amountToSend.trim() || "0"));
@@ -166,6 +165,7 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
         const convertedAmount = FIATtoSATS(amountFiat)
         setCurrencyAmount(convertedAmount || 0)
         setAmountToSend((convertedAmount || 0).toString())
+        // setAmountToSend((currencyAmount || 0).toString())
 
         if (amountFiat.trim()) {
             setShouldTriggerSubmit(true);
@@ -186,11 +186,8 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
     return <View style={[$headerContainer, { backgroundColor: headerBg }]}>
         <MintHeader
             mint={mintHeaderMint}
-            // for now i change the unit to the FIAT one when isFiatMode to better communicate we're entering in FIAT
-            // this has a side-effect of the balance being broken/0 in FIAT mode
-            // for now i just hide the balance in FIAT mode, but maybe we can somehow always show SAT balance
             unit={canUseFiatMode && isFiatMode ? getFiatUnit() : unitRef.current}
-            hideBalance={canUseFiatMode && isFiatMode}
+            displayCurrency={canUseFiatMode && isFiatMode ? fiatCurrency : undefined}
         />
         <View style={$amountContainer}>
             {isFiatMode && canUseFiatMode ? (

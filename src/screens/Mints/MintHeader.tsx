@@ -2,7 +2,7 @@ import React from "react"
 import { Header, Text } from "../../components"
 import { spacing, useThemeColor } from "../../theme"
 import { Mint } from "../../models/Mint"
-import { MintUnit } from "../../services/wallet/currency"
+import { CurrencyCode, MintUnit } from "../../services/wallet/currency"
 import { CurrencySign } from "../Wallet/CurrencySign"
 import { CurrencyAmount } from "../Wallet/CurrencyAmount"
 import { observer } from "mobx-react-lite"
@@ -15,10 +15,11 @@ export const MintHeader = observer(function(props: {
     mint?: Mint
     hideBalance?: boolean
     onBackPress?: () => void   
+    displayCurrency?: CurrencyCode
 }
 ) {
     const navigation = useNavigation()
-    const {mint, unit, hideBalance, onBackPress} = props
+    const {mint, unit, hideBalance, onBackPress, displayCurrency} = props
 
     const getActiveUnitColor = () => {
         /* switch (props.unit) {
@@ -47,7 +48,8 @@ export const MintHeader = observer(function(props: {
                         size='xxs'
                     />)}
                     <CurrencySign 
-                        mintUnit={unit}
+                        mintUnit={displayCurrency ? undefined : unit}
+                        currencyCode={displayCurrency}
                         textStyle={{color: 'white'}}
                         containerStyle={{
                             borderBottomWidth: 2, 
@@ -64,8 +66,8 @@ export const MintHeader = observer(function(props: {
             }}                
             RightActionComponent={mint && unit && !hideBalance ? (
                 <CurrencyAmount 
-                    mintUnit={unit}
-                    amount={mint?.balances?.balances[unit as MintUnit] || 0}
+                    mintUnit={displayCurrency ? 'sat' : unit}
+                    amount={mint?.balances?.balances[displayCurrency ? 'sat' : unit as MintUnit] || 0}
                     amountStyle={{color: 'white'}}
                     symbolStyle={{color: 'white'}}
                     containerStyle={{marginRight: spacing.medium}}
