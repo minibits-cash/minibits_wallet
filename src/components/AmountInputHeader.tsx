@@ -35,7 +35,7 @@ const $headerContainer: TextStyle = {
     alignItems: 'center',
     padding: spacing.extraSmall,
     paddingTop: 0,
-    height: spacing.screenHeight * 0.30,
+    height: spacing.screenHeight * 0.31,
 }
 
 const $pubKey: ViewStyle = {
@@ -55,6 +55,7 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
     const amountInputColor = useThemeColor('amountInput');
     const convertedAmountColor = useThemeColor('headerSubTitle');
     const headerBg = useThemeColor('header')
+    const buttonIconColor = useThemeColor('buttonIcon');
 
     const {
         amountInputRef,
@@ -186,7 +187,11 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
     return <View style={[$headerContainer, { backgroundColor: headerBg }]}>
         <MintHeader
             mint={mintHeaderMint}
-            unit={isFiatMode && canUseFiatMode ? getFiatUnit() : unitRef.current}
+            // for now i change the unit to the FIAT one when isFiatMode to better communicate we're entering in FIAT
+            // this has a side-effect of the balance being broken/0 in FIAT mode
+            // for now i just hide the balance in FIAT mode, but maybe we can somehow always show SAT balance
+            unit={canUseFiatMode && isFiatMode ? getFiatUnit() : unitRef.current}
+            hideBalance={canUseFiatMode && isFiatMode}
         />
         <View style={$amountContainer}>
             {isFiatMode && canUseFiatMode ? (
@@ -210,17 +215,25 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
                 />
             )}
             {isConvertedAmountVisible() && (
-                <TouchableOpacity onPress={() => {
-                    if (!canUseFiatMode) return;
-                    setIsFiatMode(!isFiatMode);
-                }}>
+                <TouchableOpacity 
+                    onPress={() => {
+                        if (!canUseFiatMode) return;
+                        setIsFiatMode(!isFiatMode);
+                    }}
+                    style={{ position: 'relative', flexDirection: 'row', alignItems: "center" }}
+                >
                     <CurrencyAmount
                         amount={currencyAmount}
                         currencyCode={isFiatMode ? CurrencyCode.SAT : fiatCurrency}
                         symbolStyle={{ color: convertedAmountColor, marginTop: spacing.tiny, fontSize: verticalScale(10) }}
                         amountStyle={{ color: convertedAmountColor, lineHeight: spacing.medium }}
                         size='medium'
-                        containerStyle={{ justifyContent: 'center' }}
+                        containerStyle={{ justifyContent: 'center', paddingRight: 0 }}
+                    />
+                    <Icon
+                        icon="faArrowRightArrowLeft"
+                        size={16}
+                        color={buttonIconColor}
                     />
                 </TouchableOpacity>
             )}
