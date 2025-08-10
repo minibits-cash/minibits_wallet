@@ -9,6 +9,11 @@ interface AmountInputProps {
   value: string
   onChangeText: (text: string) => void
   unit?: MintUnit
+  /** 
+   * Override default formatting options (thousandSeparated, mantissa, etc.) for onEndEditing formatting.
+   * Useful for fiat currencies that need custom decimal precision or thousand separator behavior. 
+   */
+  formatOptions?: Partial<numbro.Format>
   onEndEditing?: () => void
   editable?: boolean
   selectTextOnFocus?: boolean
@@ -23,6 +28,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
       value,
       onChangeText,
       unit = 'sat',
+      formatOptions,
       onEndEditing,
       editable = true,
       selectTextOnFocus,
@@ -47,16 +53,16 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
     }
 
     const handleEndEditing = () => {
-      if (onEndEditing) {
-        onEndEditing()
-      } 
-      // Default formatting behavior
-      if (!value) value = "0";
-      const formattedValue = numbro(value).format({
-        thousandSeparated: true,
-        mantissa: getCurrency(unit).mantissa
-      })
-      onChangeText(formattedValue)
+        if (onEndEditing) onEndEditing();
+        if (!value) value = "0";
+
+        // Merge default format options with overrides
+        const formatOptionsMerged = Object.assign(
+            { thousandSeparated: true, mantissa: getCurrency(unit).mantissa }, 
+            formatOptions
+        );
+        const formattedValue = numbro(value).format(formatOptionsMerged);
+        onChangeText(formattedValue)
     }
 
     const defaultStyle: TextStyle = {

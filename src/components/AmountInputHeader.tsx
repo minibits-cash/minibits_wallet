@@ -94,7 +94,12 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
             fiatCurrency,
             walletStore.exchangeRate
         )
-        log.trace("FIATtoSATS", { converted, precision, rounded: converted && roundToFiatPrecision(converted), amountFiat, amountToSend, stack: new Error().stack });
+        log.trace("FIATtoSATS", { 
+            converted, precision, 
+            rounded: converted && roundToFiatPrecision(converted), 
+            amountFiat, amountToSend,
+            fiatUnit: getFiatUnit() 
+        });
         return converted ? roundToSatPrecision(converted) : null;
     }
 
@@ -165,7 +170,6 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
         const convertedAmount = FIATtoSATS(amountFiat)
         setCurrencyAmount(convertedAmount || 0)
         setAmountToSend((convertedAmount || 0).toString())
-        // setAmountToSend((currencyAmount || 0).toString())
 
         if (amountFiat.trim()) {
             setShouldTriggerSubmit(true);
@@ -195,6 +199,10 @@ export function AmountInputHeader(props: IAmountInputHeaderProps) {
                     value={amountFiat}
                     onChangeText={handleFiatAmountChange}
                     unit={getFiatUnit()}
+                    formatOptions={{ // Override formatting for fiat: no thousand separators, use fiat currency's decimal precision
+                        thousandSeparated: false, 
+                        mantissa: getCurrencyByCode(fiatCurrency)?.mantissa || 2 
+                    }}
                     onEndEditing={transactionStatus !== TransactionStatus.PENDING ? onFiatAmountEndEditing : undefined}
                     editable={!(transactionStatus === TransactionStatus.PENDING || isCashuPrWithAmount)}
                     style={{ color: amountInputColor }}
