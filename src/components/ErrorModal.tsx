@@ -74,7 +74,7 @@ export const ErrorModal: FC<ErrorModalProps> = function ({ error }) {
                     }}>
                     <Text style={{ marginBottom: spacing.small }}>{error.message}</Text>
                 </ScrollView>
-                {error.name === Err.AUTH_ERROR && error.message?.includes('re-authenticate') ? (
+                {error.name === Err.AUTH_ERROR && (error.message?.includes('re-authenticate') || error.message.includes('expired refresh token')) ? (
                     <Button
                         onPress={enrollDevice}
                         text='Login again'
