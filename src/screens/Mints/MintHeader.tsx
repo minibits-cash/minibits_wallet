@@ -2,10 +2,11 @@ import React from "react"
 import { Header, Text } from "../../components"
 import { spacing, useThemeColor } from "../../theme"
 import { Mint } from "../../models/Mint"
-import { CurrencyCode, MintUnit } from "../../services/wallet/currency"
+import { MintUnit } from "../../services/wallet/currency"
 import { CurrencySign } from "../Wallet/CurrencySign"
 import { CurrencyAmount } from "../Wallet/CurrencyAmount"
 import { observer } from "mobx-react-lite"
+import { StackNavigationProp } from "@react-navigation/stack"
 import { moderateScale } from "@gocodingnow/rn-size-matters"
 import { useNavigation } from "@react-navigation/native"
 
@@ -14,11 +15,10 @@ export const MintHeader = observer(function(props: {
     mint?: Mint
     hideBalance?: boolean
     onBackPress?: () => void   
-    displayCurrency?: CurrencyCode
 }
 ) {
     const navigation = useNavigation()
-    const {mint, unit, hideBalance, onBackPress, displayCurrency} = props
+    const {mint, unit, hideBalance, onBackPress} = props
 
     const getActiveUnitColor = () => {
         /* switch (props.unit) {
@@ -47,8 +47,7 @@ export const MintHeader = observer(function(props: {
                         size='xxs'
                     />)}
                     <CurrencySign 
-                        mintUnit={displayCurrency ? undefined : unit}
-                        currencyCode={displayCurrency}
+                        mintUnit={unit}
                         textStyle={{color: 'white'}}
                         containerStyle={{
                             borderBottomWidth: 2, 
@@ -65,9 +64,8 @@ export const MintHeader = observer(function(props: {
             }}                
             RightActionComponent={mint && unit && !hideBalance ? (
                 <CurrencyAmount 
-                    mintUnit={displayCurrency ? 'sat' : unit}
-                    // always display wallet balance in SAT if using displayCurrency
-                    amount={mint?.balances?.balances[displayCurrency ? 'sat' : unit as MintUnit] || 0}
+                    mintUnit={unit}
+                    amount={mint?.balances?.balances[unit as MintUnit] || 0}
                     amountStyle={{color: 'white'}}
                     symbolStyle={{color: 'white'}}
                     containerStyle={{marginRight: spacing.medium}}
