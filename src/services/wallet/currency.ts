@@ -1,21 +1,25 @@
 import numbro from 'numbro'
-import { BtcIcon, EurIcon, UsdIcon } from '../../components'
+import { BtcIcon, EurIcon, UsdIcon, CadIcon } from '../../components'
 import AppError, { Err } from '../../utils/AppError'
-import { log } from '../logService'
 import { ExchangeRate } from '../../models/WalletStore'
 
 
 export type MintUnit = typeof MintUnits[number]
 export const MintUnits = ['btc', 'sat', 'msat', 'usd', 'eur'] as const
 
+
 export enum CurrencyCode {
     BTC = 'BTC', SAT = 'SAT', MSAT = 'MSAT', EUR = 'EUR', GBP = 'GBP', 
     CZK = 'CZK', USD = 'USD', PLN = 'PLN', HUF = 'HUF', RON = 'RON',
+    CAD = 'CAD'
 }
 
 export type MintUnitCurrencyPair = {
     [key in MintUnit]: CurrencyCode
 }
+
+/** add any currency codes you want to allow the user to select as "reference currency" in the app settings, here: */
+export const availableExchangeCurrencies = [CurrencyCode.USD, CurrencyCode.EUR, CurrencyCode.CAD] as const;
 
 export const MintUnitCurrencyPairs: MintUnitCurrencyPair = {
   btc:CurrencyCode.BTC, sat:CurrencyCode.SAT, msat:CurrencyCode.MSAT, eur:CurrencyCode.EUR, usd:CurrencyCode.USD,
@@ -114,16 +118,24 @@ export const Currencies: CurrencyList = {
         precision: 100,
         mantissa: 2,
     },
+    CAD: {
+        symbol: 'CAD',
+        title: 'Canadian Dollar',
+        code: CurrencyCode.CAD,
+        icon: CadIcon,
+        precision: 100,
+        mantissa: 2,
+    },
 } as const
 
 
-export const formatCurrency = (amount: number, code: CurrencyCode) => {
+export const formatCurrency = (amount: number, code: CurrencyCode, thousandSeparated: boolean = true) => {
     const c = Currencies[code] 
     if(!c || !c.precision) {
         throw new AppError(Err.VALIDATION_ERROR, `Currency code ${code} is not yet supported by Minibits. Submit request to add it on our Github.`)
     }
 
-    return numbro(amount / c.precision).format({ mantissa: c.mantissa, thousandSeparated: true })
+    return numbro(amount / c.precision).format({ mantissa: c.mantissa, thousandSeparated })
 }
 
 export const getCurrency = (unit: MintUnit) => {
@@ -146,6 +158,15 @@ export const getCurrency = (unit: MintUnit) => {
     return currencyData as CurrencyData
 }
 
+export const getCurrencyByCode = (code: CurrencyCode): CurrencyData | undefined => {
+    for (const [currencyCode, currencyData] of Object.entries(Currencies)) {
+        if (currencyCode === code && currencyData) {
+            return currencyData
+        }
+    }
+    return void 0;
+}
+
 export const convertToFromSats = (amount: number, currencyFrom: CurrencyCode, satExchangeRate: ExchangeRate) => {
     // exchangeRate is always 1 fiat precision unit (cent) in SAT {currency: 'EUR', rate: 15.69} 
 
@@ -154,5 +175,4 @@ export const convertToFromSats = (amount: number, currencyFrom: CurrencyCode, sa
     }
 
     return amount * satExchangeRate.rate
-    
 }

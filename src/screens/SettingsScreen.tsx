@@ -15,7 +15,10 @@ import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import {translate} from '../i18n'
 import { log } from '../services'
-import { Currencies, CurrencyCode } from '../services/wallet/currency'
+
+import {Env} from '../utils/envtypes'
+import { round } from '../utils/number'
+import { Currencies, CurrencyCode, availableExchangeCurrencies } from '../services/wallet/currency'
 import { NotificationService } from '../services/notificationService'
 import { SvgXml } from 'react-native-svg'
 import { CurrencySign } from './Wallet/CurrencySign'
@@ -531,7 +534,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
           style={{alignItems: 'stretch'}}
           ContentComponent={  
             <>
-            {[CurrencyCode.USD, CurrencyCode.EUR].map(code => 
+            {availableExchangeCurrencies.map(code => 
               <ListItem 
                   key={code}  
                   LeftComponent={
