@@ -92,6 +92,7 @@ mise.yaml
 key-mappings.json
 replace-translation-keys.js
 
+
 # for AI agents' one-off jobs, it's useful to use this workflow: tell them:
 
 # explore the codebase and create a detailed, step by step plan how you're going to implement this feature. 
@@ -100,3 +101,7 @@ replace-translation-keys.js
 # then, start working on it, constantly re-evaluating how much his done and if it's done, then check off that particular task. 
 # once they are all checked off, review the task list and double-check everything
 tasks.md
+
+# hot-updater
+.hot-updater/output
+

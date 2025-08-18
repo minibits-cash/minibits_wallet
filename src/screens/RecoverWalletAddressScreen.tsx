@@ -29,7 +29,7 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
     },
   })
 
-  const { walletProfileStore, userSettingsStore, walletStore } = useStores()
+  const { walletProfileStore, userSettingsStore, walletStore, authStore } = useStores()
 
   const mnemonicInputRef = useRef<TextInput>(null)
   const seedRef = useRef<Uint8Array | null>(null)
@@ -111,6 +111,12 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
       const keys = await walletStore.getCachedWalletKeys()
 
       log.trace('[onCompleteAddress] Wallet keys', { keys })
+
+      await authStore.logout()
+      await authStore.enrollDevice(
+        keys.NOSTR,
+        walletProfileStore.device
+      )
 
       await walletProfileStore.recover(
         keys.NOSTR.publicKey,

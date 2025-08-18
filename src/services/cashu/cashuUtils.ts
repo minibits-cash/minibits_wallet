@@ -1,6 +1,5 @@
 import {Mint} from '../../models/Mint'
 import type {
-  getEncodedToken,
   Token, 
   Proof as CashuProof,
   PaymentRequest as CashuPaymentRequest,
@@ -14,7 +13,6 @@ import { log } from '../logService'
 import { decodePaymentRequest, sumProofs } from '@cashu/cashu-ts/src/utils'
 import { NostrClient } from '../nostrService'
 import { getUnixTime } from 'date-fns/getUnixTime'
-import { Text } from '../../components'
 
 export {CashuProof}
 
@@ -128,18 +126,6 @@ const extractEncodedCashuPaymentRequest = function (maybeRequest: string): strin
   }
   
   throw new AppError(Err.NOTFOUND_ERROR, 'Could not extract ecash token from the provided string', {maybeRequest, caller: 'extractEncodedCashuPaymentRequest'})
-}
-
-
-
-function base64urlFromBase64(str: string) {
-	return str.replace(/\+/g, '-').replace(/\//g, '_').split('=')[0];
-	// .replace(/=/g, '.');
-}
-
-function base64urlToBase64(str: string) {
-	return str.replace(/-/g, '+').replace(/_/g, '/').split('=')[0];
-	// .replace(/./g, '=');
 }
 
 const getProofsAmount = function (proofs: Array<Proof | CashuProof>): number {

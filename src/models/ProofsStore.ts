@@ -432,7 +432,7 @@ export const ProofsStoreModel = types
         },
         getMintBalanceWithMaxBalance: (unit: MintUnit) => {
             const balances = self.balances.mintBalances
-            let maxBalance = undefined;
+            let maxBalance: MintBalance | undefined = undefined;
             let maxAmount = -Infinity;
           
             for (const balance of balances) {

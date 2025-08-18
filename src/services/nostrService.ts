@@ -21,7 +21,6 @@ import AppError, { Err } from '../utils/AppError'
 import { MinibitsClient } from './minibitsService'
 import { rootStoreInstance } from '../models'
 import { WalletTask } from './walletService'
-import { nip19 } from 'nostr-tools'
 
 // refresh
 
@@ -355,10 +354,10 @@ const getNip05Record = async function (nip05: string) {
         const method = 'GET'        
         const headers = MinibitsClient.getPublicHeaders()
         
-        const nip05Record: Nip05VerificationRecord = await MinibitsClient.fetchApi(url, {
+        const nip05Record = await MinibitsClient.fetchApi(url, {
             method,            
             headers,            
-        })
+        }) as Nip05VerificationRecord
 
         log.trace('[getNip05Record]', `Got response`, nip05Record || null)
 

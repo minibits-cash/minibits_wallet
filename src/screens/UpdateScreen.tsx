@@ -26,7 +26,7 @@ import { log } from '../services'
 import {Env} from '../utils/envtypes'
 import { CommonActions, StaticScreenProps, useNavigation } from '@react-navigation/native'
 import { translate } from '../i18n'
-import { HotUpdater, useHotUpdaterStore } from '@hot-updater/react-native'
+import { getUpdateSource, HotUpdater, useHotUpdaterStore } from '@hot-updater/react-native'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
 
 
@@ -89,12 +89,14 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
     const handleUpdate = async function () {
         try {
             setIsUpdateModalVisible(true)
-            const updateInfo = await HotUpdater.checkForUpdate({
-                source: HOT_UPDATER_URL,
-                requestHeaders: {
-                    Authorization: `Bearer ${HOT_UPDATER_API_KEY}`,
-                },
-            })
+                const updateInfo = await HotUpdater.checkForUpdate({
+                    source: getUpdateSource(HOT_UPDATER_URL, {
+                      updateStrategy: "appVersion",
+                    }),
+                    requestHeaders: {
+                        Authorization: `Bearer ${HOT_UPDATER_API_KEY}`,
+                    },
+                })
 
             if (!updateInfo) {
                 throw new AppError(Err.NETWORK_ERROR, translate('updateScreen_couldNotRetrieveUpdate'))

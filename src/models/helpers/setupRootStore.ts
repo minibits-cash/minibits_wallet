@@ -15,8 +15,8 @@ import {
   onSnapshot,
 } from 'mobx-state-tree'
 import * as Sentry from '@sentry/react-native'
-import type {RootStore} from '../RootStore'
-import {KeyChain, MMKVStorage} from '../../services'
+import type { RootStore } from '../RootStore'
+import { MMKVStorage, WalletKeys } from '../../services'
 import {Database} from '../../services'
 import { log } from  '../../services/logService'
 import { rootStoreModelVersion } from '../RootStore'
@@ -24,6 +24,7 @@ import AppError, { Err } from '../../utils/AppError'
 import { LogLevel } from '../../services/log/logTypes'
 import { CurrencyCode } from '../../services/wallet/currency'
 import { ThemeCode } from '../../theme'
+import { auth } from 'firebase-admin'
 
 /**
  * The key we'll be saving our state as within storage.
@@ -57,12 +58,13 @@ export async function setupRootStore(rootStore: RootStore) {
         const stateHydrated = performance.now()
         log.trace(`[setupRootStore] Hydrating rooStoreModel took ${stateHydrated - mmkvLoaded} ms.`)
         
-        const {proofsStore, walletProfileStore} = rootStore
+        const {proofsStore, walletProfileStore, authStore} = rootStore
 
         if(walletProfileStore.walletId) {
             Sentry.setUser({ id: walletProfileStore.walletId })
         }
 
+        await authStore.loadTokensFromKeyChain()
         await proofsStore.loadProofsFromDatabase()
         
         const proofsLoaded = performance.now()
@@ -108,8 +110,9 @@ async function _runMigrations(rootStore: RootStore) {
     const { 
         userSettingsStore,
         mintsStore,
-        proofsStore,
         transactionsStore,
+        authStore,
+        walletStore,
         walletProfileStore
     } = rootStore
     
@@ -179,14 +182,6 @@ async function _runMigrations(rootStore: RootStore) {
             log.trace(`Starting rootStore migrations from version v${currentVersion} -> v29`)
 
             transactionsStore.addRecentByUnit()
-
-            rootStore.setVersion(rootStoreModelVersion)
-            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
-        }
-        if(currentVersion < 30) {
-            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v30`)
-
-            await KeyChain.migrateWalletKeys(walletProfileStore.walletId)
 
             rootStore.setVersion(rootStoreModelVersion)
             log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)

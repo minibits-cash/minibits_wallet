@@ -1,6 +1,6 @@
 import {Instance, SnapshotOut, types, flow} from 'mobx-state-tree'
 import { Metadata } from 'nostr-tools/kinds'
-import {KeyChain, MinibitsClient, NostrClient, NostrUnsignedEvent, WalletTask} from '../services'
+import {KeyChain, MinibitsClient, NostrClient, NostrKeyPair, NostrUnsignedEvent, WalletTask} from '../services'
 import {log} from '../services/logService'
 import { Err } from '../utils/AppError'
 import { getRandomUsername } from '../utils/usernames'
@@ -108,15 +108,15 @@ export const WalletProfileStoreModel = types
         })
     }))   
     .actions(self => ({  
-        create: flow(function* create(publicKey: string, walletId: string, seedHash: string) {
+        create: flow(function* create(nostrPublicKey: string, walletId: string, seedHash: string) {
        
             let profileRecord: WalletProfileRecord            
 
-            log.trace('[create]', {seedHash, publicKey, walletId})
+            log.trace('[create]', {seedHash, nostrPublicKey, walletId})
 
             try {
-                // creates new profile. If all params equal existing one, it is returned
-                profileRecord = yield MinibitsClient.createWalletProfile(publicKey, walletId, seedHash)                
+                // Use retrieved jwt token to authenticate and creates new profile. If all params equal existing one, it is returned
+                profileRecord = yield MinibitsClient.createWalletProfile(nostrPublicKey, walletId, seedHash)                
                 self.hydrate(profileRecord)
             
                 log.info('[create]', 'Wallet profile saved in WalletProfileStore', {self})
@@ -127,11 +127,12 @@ export const WalletProfileStoreModel = types
                     // recreate walletId + default name
                     const name = getRandomUsername()
                     // attempt to create new unique profile again                    
-                    profileRecord = yield MinibitsClient.createWalletProfile(publicKey, name, seedHash) 
+                    profileRecord = yield MinibitsClient.createWalletProfile(nostrPublicKey, name, seedHash) 
                     
                     log.error('[create]', 'Profile reset executed to resolve duplicate walletId on the server.', {caller: 'create', walletId, newWalletId: name})
                     self.hydrate(profileRecord)
-                    return
+
+                    return self
                 }
                 throw e
             }          
@@ -189,10 +190,10 @@ export const WalletProfileStoreModel = types
             log.info('[updateNip05]', 'Wallet nip05 updated in the WalletProfileStore', {self})
             return self         
         }),
-        recover: flow(function* recover(publicKey: string, walletId: string, seedHash: string) {
+        recover: flow(function* recover(nostrPublicKey: string, walletId: string, seedHash: string) {
 
             let profileRecord: WalletProfileRecord = yield MinibitsClient.recoverProfile(
-                publicKey, walletId, seedHash
+                nostrPublicKey, walletId, seedHash
             )            
             
             self.hydrate(profileRecord)

@@ -8,7 +8,6 @@ import {
   Platform,
   ScrollView,
 } from 'react-native'
-import {btoa} from 'react-native-quick-base64'
 import notifee, { AndroidImportance } from '@notifee/react-native'
 import {useThemeColor, spacing, typography, colors} from '../theme'
 import {

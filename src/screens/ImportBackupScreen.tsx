@@ -2,7 +2,6 @@ import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useRef, useState} from 'react'
 import {LayoutAnimation, Platform, ScrollView, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
 import {validateMnemonic} from '@scure/bip39'
-import { btoa, atob } from 'react-native-quick-base64'
 import QuickCrypto from 'react-native-quick-crypto'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import { mnemonicToSeedSync } from '@scure/bip39'
@@ -36,6 +35,7 @@ import { MintsStoreSnapshot } from '../models/MintsStore'
 import { ContactsStoreSnapshot } from '../models/ContactsStore'
 import { CashuMint, MintActiveKeys } from '@cashu/cashu-ts'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+import { AuthStoreModel } from '../models/AuthStore'
 
 type Props = StaticScreenProps<undefined>
 
@@ -55,7 +55,8 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
         userSettingsStore, 
         contactsStore, 
         walletProfileStore, 
-        walletStore
+        walletStore,
+        authStore
     } = useStores()
     
     const mnemonicInputRef = useRef<TextInput>(null)
@@ -285,7 +286,13 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
               mnemonic
             }
 
-            keys.SEED = seed      
+            keys.SEED = seed
+            
+            await authStore.logout()
+            await authStore.enrollDevice(
+              keys.NOSTR,
+              walletProfileStore.device
+            )
             
             if(isNewProfileNeeded) {
                 

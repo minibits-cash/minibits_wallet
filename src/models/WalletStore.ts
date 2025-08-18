@@ -517,7 +517,7 @@ export const WalletStoreModel = types
             }
         
             log.debug('[WalletStore.send] counter', currentCounter.counter)
-            const {p2pk} = options
+            const p2pk = options?.p2pk
             
             const sendParams: SendParams = options?.inFlightRequest?.request || {
                 amount: amountToSend,              

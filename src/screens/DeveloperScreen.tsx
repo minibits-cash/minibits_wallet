@@ -44,7 +44,8 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
       onLeftPress: () => navigation.goBack(),
     })
 
-    const {transactionsStore, userSettingsStore, proofsStore, walletProfileStore} = useStores()
+    const {transactionsStore, userSettingsStore, proofsStore, walletProfileStore, authStore} = useStores()
+    const rootStore = useStores()
 
     const [isLoading, setIsLoading] = useState(false)
     const [rnVersion, setRnVersion] = useState<string>('')
@@ -180,7 +181,34 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
           },
         ],
       )      
-    }   
+    }
+
+    const deleteJwtTokens = async function () {
+      Alert.alert(
+        translate("commonConfirmAlertTitle"),
+        translate("developerScreen_clearJwtTokensDescription"),
+        [
+          {
+            text: translate('commonCancel'),
+            style: 'cancel',
+            onPress: () => { /* Action canceled */ },
+          },
+          {
+            text: translate('commonConfirm'),
+            onPress: async () => {
+              try {
+                setIsLoading(true)                
+                await authStore.logout()
+                setIsLoading(false)
+                setInfo(translate("developerScreen_jwtTokensCleared"))
+              } catch (e: any) {
+                handleError(e)
+              }
+            },
+          },
+        ],
+      )
+    }
 
 
     const toggleLogLevelSelector = () =>
@@ -213,18 +241,24 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
                 setIsLoading(true)
                 try {
                   // Delete database
-                  Database.cleanAll()                
-                  // Delete wallet keys
-                  await KeyChain.removeWalletKeys()
-                  // Delete auth token
-                  await KeyChain.removeAuthToken()
+                  Database.cleanAll()
                   // Clean mobx storage
                   MMKVStorage.clearAll()
+                  rootStore.reset()
                   // recreate db schema
-                  Database.getInstance()
+                  Database.getInstance()             
+                  // Delete wallet keys
+                  await KeyChain.removeWalletKeys()
+                  // Delete biometric auth token
+                  await KeyChain.removeAuthToken()
+                  // Delete jwt tokens
+                  await KeyChain.removeJwtTokens()
+                  // Reset server's jwt tokens and logout
+                  await authStore.logout()
+
                   setIsLoading(false)
                   setInfo(translate("factoryResetSuccess"))
-                  await delay(1000)
+                  await delay(2000)
                   RNExitApp.exitApp()
                 } catch (e: any) {
                   handleError(e)
@@ -337,6 +371,17 @@ Sentry id: ${walletProfileStore.walletId}
                   RightComponent={<View style={$rightContainer} />}
                   style={$item}                  
                   onPress={deletePending}
+                  topSeparator
+                />
+                <ListItem
+                  tx="developerScreen_clearJwtTokens"
+                  subTx="developerScreen_clearJwtTokensDescription"
+                  leftIcon='faKey'
+                  leftIconColor={colors.palette.focus300}
+                  leftIconInverse={true}
+                  RightComponent={<View style={$rightContainer} />}
+                  style={$item}                  
+                  onPress={deleteJwtTokens}
                   topSeparator
                 />
                 <ListItem

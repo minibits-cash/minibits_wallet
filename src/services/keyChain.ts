@@ -5,17 +5,17 @@ import { generateMnemonic as generateNewMnemonic, mnemonicToSeedSync } from "@sc
 import { wordlist } from "@scure/bip39/wordlists/english"
 import { bytesToHex } from '@noble/hashes/utils'
 import { generateSecretKey, getPublicKey } from 'nostr-tools/pure'
-import {btoa, fromByteArray} from 'react-native-quick-base64'
 import {log} from './logService'
 import { getRandomUsername } from '../utils/usernames'
 
 
 export enum KeyChainServiceName {  
-  NOSTR = 'app.minibits.nostr',
-  SEED = 'app.minibits.seed',
-  MNEMONIC = 'app.minibits.mnemonic',
-  AUTH = 'app.minibits.auth',
+  // NOSTR = 'app.minibits.nostr',
+  // SEED = 'app.minibits.seed',
+  // MNEMONIC = 'app.minibits.mnemonic',
+  BIOMETRIC_AUTH = 'app.minibits.auth',
   KEYS = 'app.minibits.keys',
+  JWT_TOKENS = 'app.minibits.jwt',
 }
 
 export type NostrKeyPair = {
@@ -34,6 +34,13 @@ export type WalletKeys = {
     seedHash: string,
     mnemonic: string
   }  
+}
+
+export type JwtTokens = {
+  accessToken: string,
+  refreshToken: string,
+  accessTokenExpiresAt: number,
+  refreshTokenExpiresAt: number
 }
 
 
@@ -212,70 +219,6 @@ const removeWalletKeys = async function (): Promise<boolean> {
 }
 
 
-  /**
-   * One time migration
-   *
-   */
-  const migrateWalletKeys = async function (walletId: string): Promise<void> {
-    let mnemonic: string | undefined = undefined
-    let seed: string | undefined = undefined
-    let seedHash: string | undefined = undefined
-    let nostrKeys: NostrKeyPair | undefined = undefined
-
-    try {
-      log.trace('[migrateWalletKeys]', 'start')
-      
-      const mnemonicResult = await _Keychain.getGenericPassword({
-        service: KeyChainServiceName.MNEMONIC,          
-      })      
-
-      if (mnemonicResult) {
-        mnemonic = mnemonicResult.password
-      }
-
-      const seedResult = await _Keychain.getGenericPassword({
-        service: KeyChainServiceName.SEED          
-      })      
-
-      if (seedResult) {
-        seed = seedResult.password
-        const seedBytesArray: Uint8Array = new Uint8Array(Buffer.from(seed, 'base64'))
-        seedHash = QuickCrypto.createHash('sha256')
-        .update(seedBytesArray)
-        .digest('hex')
-      }
-
-      const nostrResult = await _Keychain.getGenericPassword({
-        service: KeyChainServiceName.NOSTR
-      })
-
-      if (nostrResult) {
-        nostrKeys = JSON.parse(nostrResult.password)          
-      }
-
-      if(mnemonic && seed && seedHash && nostrKeys) {
-        const walletKeys: WalletKeys = {
-          walletId,
-          SEED: {
-            seed,
-            seedHash,
-            mnemonic
-          },
-          NOSTR: nostrKeys
-        }
-
-        await saveWalletKeys(walletKeys)
-
-        log.debug('[migrateWalletKeys]', 'Migration completed.')
-
-      } else {
-        new Error(`Missing wallet keys to migrate for mnemonic: ${mnemonic}, use it to reinstall and recover the wallet.`)
-      }      
-    } catch (e: any) {
-      throw new AppError(Err.KEYCHAIN_ERROR, e.message, e)
-    }
-  }
-
 
 /**
  * AuthToken to trigger biometric auth on wallet start *
@@ -286,8 +229,7 @@ const generateAuthToken = (): string => {
       const tokenLength = 16 // Length of the token in bytes
       const tokenBytes = QuickCrypto.randomBytes(tokenLength)
       const uint8Array = new Uint8Array(tokenBytes)
-      const tokenStr = fromByteArray(uint8Array)
-      const tokenBase64 = btoa(tokenStr)
+      const tokenBase64 = btoa(String.fromCharCode(...uint8Array))
 
       log.trace('New Base64 authToken created:', tokenBase64)
 
@@ -325,10 +267,10 @@ const saveAuthToken = async function (
 ): Promise<_Keychain.Result | false> {
   try {
     const result = await _Keychain.setGenericPassword(
-        KeyChainServiceName.AUTH, 
+        KeyChainServiceName.BIOMETRIC_AUTH, 
         token, 
         {
-            service: KeyChainServiceName.AUTH,
+            service: KeyChainServiceName.BIOMETRIC_AUTH,
             accessControl: isAuthOn ? _Keychain.ACCESS_CONTROL.BIOMETRY_ANY_OR_DEVICE_PASSCODE : undefined
         }
     )
@@ -349,7 +291,7 @@ const saveAuthToken = async function (
 const getAuthToken = async function (isAuthOn: boolean): Promise<string | undefined> {
   try {    
       const result = await _Keychain.getGenericPassword({
-          service: KeyChainServiceName.AUTH, 
+          service: KeyChainServiceName.BIOMETRIC_AUTH, 
           authenticationPrompt: isAuthOn ? {
               title: 'Please authenticate',
               subtitle: '',
@@ -379,7 +321,7 @@ const getAuthToken = async function (isAuthOn: boolean): Promise<string | undefi
 const removeAuthToken = async function (): Promise<boolean> {
   try {
       const result = await _Keychain.resetGenericPassword({
-          service: KeyChainServiceName.AUTH
+          service: KeyChainServiceName.BIOMETRIC_AUTH
       })
 
       log.trace('[removeAuthToken]', 'Removed authToken.')
@@ -407,6 +349,82 @@ async function updateAuthSettings(isAuthOn: boolean) {
 }
 
 
+/**
+ * Save JWT tokens in KeyChain/KeyStore
+ *
+ * @param tokens JwtTokens type
+ * @param isAuthOn boolean for biometric protection
+ */
+const saveJwtTokens = async function (
+  tokens: JwtTokens,
+  isAuthOn: boolean = false
+): Promise<_Keychain.Result | false> {
+  try {
+    const result = await _Keychain.setGenericPassword(
+        KeyChainServiceName.JWT_TOKENS,
+        JSON.stringify(tokens),
+        {
+            service: KeyChainServiceName.JWT_TOKENS,
+            accessControl: isAuthOn ? _Keychain.ACCESS_CONTROL.BIOMETRY_ANY_OR_DEVICE_PASSCODE : undefined
+        },
+    )   
+
+    log.trace('[saveJwtTokens]', 'Saved JWT tokens to the KeyChain')
+
+    return result
+  } catch (e: any) {
+    throw new AppError(Err.KEYCHAIN_ERROR, e.message, e)
+  }
+}
+
+
+/**
+ * Get JWT tokens from the KeyChain/KeyStore
+ *
+ * 
+ */
+const getJwtTokens = async function (): Promise<JwtTokens | undefined> {    
+  try {
+    log.trace('[getJwtTokens]', 'start')
+
+    const result = await _Keychain.getGenericPassword({
+        service: KeyChainServiceName.JWT_TOKENS,
+    })      
+
+    if (result) {        
+      const tokens: JwtTokens = JSON.parse(result.password)
+
+      log.trace('[getJwtTokens]', 'Returning JWT tokens from KeyChain')
+
+      return tokens
+    }
+
+    log.debug('[getJwtTokens]', 'Did not find existing JWT tokens in the KeyChain')
+    return undefined
+  } catch (e: any) {
+    throw new AppError(Err.KEYCHAIN_ERROR, e.message, e)
+  }
+}
+
+
+/**
+ * Removes JWT tokens from KeyChain/KeyStore
+ *
+ * 
+ */
+const removeJwtTokens = async function (): Promise<boolean> {
+  try {
+      const result = await _Keychain.resetGenericPassword({
+          service: KeyChainServiceName.JWT_TOKENS
+      })
+      log.trace('[removeJwtTokens]', 'Removed JWT tokens.')
+      return result
+  } catch (e: any) {
+      throw new AppError(Err.KEYCHAIN_ERROR, e.message, e)
+  }
+}
+
+
 export const KeyChain = {
     getSupportedBiometryType,
     
@@ -414,15 +432,20 @@ export const KeyChain = {
     generateNostrKeyPair,
     generateWalletKeys,
     saveWalletKeys,
-    migrateWalletKeys,
     getWalletKeys,
     hasWalletKeys,
     removeWalletKeys,
 
+    // local biometric auth token
     generateAuthToken,
     saveAuthToken,
     getAuthToken,
     getOrCreateAuthToken,
     removeAuthToken,
     updateAuthSettings,
+
+    // server JWT tokens
+    saveJwtTokens,
+    getJwtTokens,
+    removeJwtTokens,
 }
