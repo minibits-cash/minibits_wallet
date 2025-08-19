@@ -57,6 +57,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
     const [isConvertedValueVisible, setIsConvertedValueVisible] = useState<boolean>(false)
     const [hasTopAmountFocusedOnce, setHasTopAmountFocusedOnce] = useState(false)
     const [hasBottomAmountFocusedOnce, setHasBottomAmountFocusedOnce] = useState(false)
+    const [hasBeenFirstTimeConverted, setHasBeenFirstTimeConverted] = useState<boolean>(false)
 
     const amountInputColor = useThemeColor("amountInput")
     const convertedAmountColor = useThemeColor("headerSubTitle")
@@ -153,13 +154,16 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
       } else {
         setBottomValue("0")
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     useEffect(() => {
       log.trace(`[useEffect] setTopValue call`, value)
       setTopValue(value)
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+      if(!hasBeenFirstTimeConverted && value && toNumber(value) > 0) {
+        setBottomValue(recalcBottom(value))
+        setHasBeenFirstTimeConverted(true)
+      }
+      
     }, [value])
 
     // input change handlers (bi-directional)
