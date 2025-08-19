@@ -40,7 +40,7 @@ export const sendTask = async function (
     memo: string,
     selectedProofs: Proof[],
     p2pk?: { pubkey: string; locktime?: number; refundKeys?: Array<string> },
-    draftTransactionId?: number
+    draftTransactionId?: number | null
 ) : Promise<TransactionTaskResult> {
 
     const mintUrl = mintBalanceToSendFrom.mintUrl
@@ -57,7 +57,7 @@ export const sendTask = async function (
 
     try {
         if(draftTransactionId && draftTransactionId > 0) {
-            transaction = transactionsStore.findById(draftTransactionId)
+            transaction = transactionsStore.findById(draftTransactionId)!
         } else {
             // create draft transaction
             transactionData.push({

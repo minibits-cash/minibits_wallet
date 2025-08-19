@@ -1,5 +1,5 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useState, useCallback, useEffect} from 'react'
+import React, {FC, useState, useCallback, useEffect, useRef} from 'react'
 import {CommonActions, StackActions, StaticScreenProps, useFocusEffect, useNavigation} from '@react-navigation/native'
 import {TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import {spacing, useThemeColor, colors, typography} from '../theme'
@@ -53,6 +53,9 @@ type Props = StaticScreenProps<{
 export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
     const navigation = useNavigation()
     const isInternetReachable = useIsInternetReachable()
+
+    const amountInputRef = useRef<TextInput>(null)
+    
     const {mintsStore, walletStore, userSettingsStore} = useStores()
 
     const [token, setToken] = useState<Token | undefined>()
@@ -326,23 +329,14 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
             />
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>    
             <View style={$amountContainer}>
-                <AmountInput                                        
+                <AmountInput
+                    ref={amountInputRef}                                               
                     value={toNumber(receivedAmount) > 0 ? receivedAmount : amountToReceive}                    
                     onChangeText={() => {}}
                     unit={unit}
                     editable={false}
                 />
             </View>
-            {isConvertedAmountVisible() && ( 
-                <CurrencyAmount
-                    amount={getConvertedAmount() ?? 0}
-                    currencyCode={unit === 'sat' ? userSettingsStore.exchangeCurrency : CurrencyCode.SAT}
-                    symbolStyle={{color: convertedAmountColor, marginTop: spacing.tiny, fontSize: verticalScale(10)}}
-                    amountStyle={{color: convertedAmountColor, lineHeight: spacing.small}}                        
-                    size='small'
-                    containerStyle={{justifyContent: 'center'}}
-                />
-            )}
             {isP2PKLocked ? (
               <View style={{
                 flexDirection: 'row', 
@@ -375,12 +369,10 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
                   tx={toNumber(receivedAmount) > 0 ? "receiveScreen_received" : "receiveScreen_toReceive"}
                   style={{
                     color: amountInputColor, 
-                    textAlign: 'center',
-                    marginTop: isConvertedAmountVisible() ? -spacing.extraSmall : undefined
+                    textAlign: 'center',                    
                   }}
               />
             )}
-
         </View>
         <View style={$contentContainer}>          
           {token && toNumber(amountToReceive) > 0 && (
@@ -606,16 +598,7 @@ const $headerContainer: TextStyle = {
 }
 
 const $amountContainer: ViewStyle = {
-}
-
-const $amountInput: TextStyle = {    
-    borderRadius: spacing.small,
-    margin: 0,
-    padding: 0,
-    fontSize: verticalScale(48),
-    fontFamily: typography.primary?.medium,
-    textAlign: 'center',
-    color: 'white',    
+  height: spacing.screenHeight * 0.11,
 }
 
 const $contentContainer: TextStyle = {

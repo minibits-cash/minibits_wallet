@@ -712,30 +712,6 @@ const headerBg = useThemeColor('header')
 const iconColor = useThemeColor('textDim')
 const amountInputColor = useThemeColor('amountInput')
 
-  const convertedAmountColor = useThemeColor('headerSubTitle')    
-
-  const getConvertedAmount = function () {
-      if (!walletStore.exchangeRate) {
-        return undefined
-      }
-
-      const precision = getCurrency(unitRef.current).precision
-      return convertToFromSats(
-          round(toNumber(amountToTransfer) * precision, 0) || 0, 
-          getCurrency(unitRef.current).code,
-          walletStore.exchangeRate
-      )
-  }
-
-  const isConvertedAmountVisible = function () {
-    return (
-      walletStore.exchangeRate &&
-      (userSettingsStore.exchangeCurrency === getCurrency(unitRef.current).code ||
-      unitRef.current === 'sat') &&
-      getConvertedAmount() !== undefined
-    )
-  }
-
 
     return (
       <Screen preset="fixed" contentContainerStyle={$screen}>
@@ -753,41 +729,28 @@ const amountInputColor = useThemeColor('amountInput')
               ref={amountInputRef}
               value={amountToTransfer}
               onChangeText={amount => setAmountToTransfer(amount)}
+              selectTextOnFocus={true}
               unit={unitRef.current}
               editable={isAmountEditable}
               style={{color: amountInputColor}}
             />
-
-            {encodedInvoice && (meltQuote?.fee_reserve || finalFee) ? (
+          </View>
+          {encodedInvoice && (meltQuote?.fee_reserve || finalFee) ? (
               <FeeBadge
                 currencyCode={getCurrency(unitRef.current).code}
                 estimatedFee={meltQuote?.fee_reserve || 0}
                 finalFee={finalFee}
               />
             ) : (
-              <>
-                {isConvertedAmountVisible() && ( 
-                    <CurrencyAmount
-                        amount={getConvertedAmount() ?? 0}
-                        currencyCode={unitRef.current === 'sat' ? userSettingsStore.exchangeCurrency : CurrencyCode.SAT}
-                        symbolStyle={{color: convertedAmountColor, marginTop: spacing.tiny, fontSize: verticalScale(10)}}
-                        amountStyle={{color: convertedAmountColor, lineHeight: spacing.small}}                        
-                        size='small'
-                        containerStyle={{justifyContent: 'center'}}
-                    />
-                )}
-                <Text
-                  size="xs"
-                  tx="payCommon_amountToPayLabel"
+              <Text
+                  size='xs'
+                  tx='payCommon_amountToPayLabel'
                   style={{
-                    color: amountInputColor, 
-                    textAlign: 'center',
-                    marginTop: isConvertedAmountVisible() ? -spacing.extraSmall : undefined
+                      color: amountInputColor,
+                      textAlign: 'center',                            
                   }}
-                />
-              </>
+              />
             )}
-          </View>
         </View>
         <View style={$contentContainer}>
           {transactionStatus !== TransactionStatus.COMPLETED && (
@@ -1045,25 +1008,9 @@ const $headerContainer: TextStyle = {
   }
   
   const $amountContainer: ViewStyle = {
+    height: spacing.screenHeight * 0.11,
   }
   
-  const $amountInput: TextStyle = {    
-      borderRadius: spacing.small,
-      margin: 0,
-      padding: 0,
-      fontSize: verticalScale(48),
-      fontFamily: typography.primary?.medium,
-      textAlign: 'center',
-      color: 'white',    
-  }
-
-const $commentInput: TextStyle = {
-  textAlignVertical: 'top' ,
-  borderRadius: spacing.extraSmall,
-  padding: spacing.extraSmall,        
-  alignSelf: 'stretch',
-  height: 120,
-}
 
 const $contentContainer: TextStyle = {
     flex: 1,

@@ -23,6 +23,7 @@ import {
   ErrorModal,
   BottomModal,
   Text,
+  AmountInput,
 } from "../components"
 import useIsInternetReachable from "../utils/useIsInternetReachable"
 import {HANDLE_RECEIVED_EVENT_TASK, log, TransactionTaskResult, WalletTask } from "../services"
@@ -33,6 +34,7 @@ import { CASHU_PAYMENT_REQUEST_TASK } from "../services/wallet/cashuPaymentReque
 import { ResultModalInfo } from "./Wallet/ResultModalInfo"
 import { MintHeader } from "./Mints/MintHeader"
 import { verticalScale } from "@gocodingnow/rn-size-matters"
+import { MemoInputCard } from "../components/MemoInputCard"
 
 type Props = StaticScreenProps<{
   unit: MintUnit,
@@ -51,9 +53,9 @@ export const CashuPaymentRequestScreen = observer(function CashuPaymentRequestSc
 
   const amountInputRef = useRef<TextInput>(null)
   const memoInputRef = useRef<TextInput>(null)
+  const unitRef = useRef<MintUnit>('sat')
 
-  const [amountToRequest, setAmountToRequest] = useState<string>("0")
-  const [unit, setUnit] = useState<MintUnit>("sat")
+  const [amountToRequest, setAmountToRequest] = useState<string>("0")  
   const [memo, setMemo] = useState("")
   const [availableMintBalances, setAvailableMintBalances] = useState<any[]>([])
   const [mintBalanceToReceiveTo, setMintBalanceToReceiveTo] = useState<any | undefined>(undefined)
@@ -95,7 +97,7 @@ useEffect(() => {
         )
       }
 
-      setUnit(unit)
+      unitRef.current = unit
 
       if (mintUrl) {
         const mintBalance = proofsStore.getMintBalance(mintUrl)
@@ -212,8 +214,8 @@ const onAmountEndEditing = () => {
   }
 
   try {
-    const precision = getCurrency(unit).precision
-    const mantissa = getCurrency(unit).mantissa
+    const precision = getCurrency(unitRef.current).precision
+    const mantissa = getCurrency(unitRef.current).mantissa
     const amountNum = round(toNumber(amountToRequest) * precision, 0)
 
     if (!amountNum || amountNum <= 0) {
@@ -221,7 +223,7 @@ const onAmountEndEditing = () => {
       return
     }
 
-    const balances = proofsStore.getMintBalancesWithUnit(unit)
+    const balances = proofsStore.getMintBalancesWithUnit(unitRef.current)
     if (balances.length === 0) {
       infoMessage(
         translate("topup_missingMintAddFirst"),
@@ -284,14 +286,14 @@ const onMintBalanceConfirm = async () => {
     setIsCashuPaymentRequestTaskSentToQueue(true)
 
     const amountInt = round(
-      toNumber(amountToRequest) * getCurrency(unit).precision,
+      toNumber(amountToRequest) * getCurrency(unitRef.current).precision,
       0,
     )
 
     WalletTask.cashuPaymentRequestQueue(
       mintBalanceToReceiveTo,
       amountInt,
-      unit,
+      unitRef.current,
       memo,      
     )
     
@@ -334,10 +336,10 @@ const inputText = useThemeColor("text")
           return undefined
         }
 
-        const precision = getCurrency(unit).precision
+        const precision = getCurrency(unitRef.current).precision
         return convertToFromSats(
             round(toNumber(amountToRequest) * precision, 0) || 0, 
-            getCurrency(unit).code,
+            getCurrency(unitRef.current).code,
             walletStore.exchangeRate
         )
     }
@@ -345,8 +347,8 @@ const inputText = useThemeColor("text")
     const isConvertedAmountVisible = function () {
       return (
         walletStore.exchangeRate &&
-        (userSettingsStore.exchangeCurrency === getCurrency(unit).code ||
-          unit === 'sat') &&
+        (userSettingsStore.exchangeCurrency === getCurrency(unitRef.current).code ||
+        unitRef.current === 'sat') &&
         getConvertedAmount() !== undefined
       )
     }
@@ -360,80 +362,47 @@ return (
           ? mintsStore.findByUrl(mintBalanceToReceiveTo?.mintUrl)
           : undefined
       }
-      unit={unit}          
+      unit={unitRef.current}          
     />
     <View style={[$headerContainer, { backgroundColor: headerBg }]}>
       <View style={$amountContainer}>
-        <TextInput
-          ref={amountInputRef}
-          onChangeText={setAmountToRequest}
-          onEndEditing={onAmountEndEditing}
-          value={amountToRequest}
-          style={[$amountInput, { color: amountInputColor }]}
-          maxLength={9}
-          keyboardType="numeric"
-          editable={
-            transactionStatus === TransactionStatus.PENDING ? false : true
-          }
-          selectTextOnFocus={true}
-          returnKeyType={"done"}
+        <AmountInput
+            ref={amountInputRef}
+            value={amountToRequest}
+            onChangeText={amount => setAmountToRequest(amount)}
+            unit={unitRef.current}
+            onEndEditing={onAmountEndEditing}
+            selectTextOnFocus={true}
+            editable={
+              transactionStatus === TransactionStatus.PENDING ? false : true
+            }
+            style={{color: amountInputColor}}
         />
-        {isConvertedAmountVisible() && ( 
-            <CurrencyAmount
-                amount={getConvertedAmount() ?? 0}
-                currencyCode={unit === 'sat' ? userSettingsStore.exchangeCurrency : CurrencyCode.SAT}
-                symbolStyle={{color: convertedAmountColor, marginTop: spacing.tiny, fontSize: verticalScale(10)}}
-                amountStyle={{color: convertedAmountColor, lineHeight: spacing.small}}                        
-                size='small'
-                containerStyle={{justifyContent: 'center'}}
-            />
-        )}
-        <Text
+      </View>
+      <Text
           size="xs"
           text={translate("amountRequested")}
           style={{
             color: amountInputColor,
-            textAlign: "center",
-            marginTop: isConvertedAmountVisible()
-              ? -spacing.extraSmall
-              : undefined,
+            textAlign: "center",        
           }}
         />
-      </View>
-    </View>
+    </View>123
     <View style={$contentContainer}>
       {!encodedPaymentRequest && (
-        <Card
-          style={$memoCard}
-          ContentComponent={
-            <View style={$memoContainer}>
-              <TextInput
-                ref={memoInputRef}
-                onChangeText={setMemo}
-                onEndEditing={onMemoEndEditing}
-                value={memo}
-                style={[$memoInput, { color: inputText }]}
-                maxLength={200}
-                keyboardType="default"
-                selectTextOnFocus={true}
-                placeholder={translate("payerMemo")}
-                placeholderTextColor={placeholderTextColor}
-              />
-              <Button
-                preset="secondary"
-                style={$memoButton}
-                tx="commonCompleted"
-                onPress={onMemoDone}
-              />
-            </View>
-          }
-        />
+        <MemoInputCard
+          memo={memo}
+          ref={memoInputRef}
+          setMemo={setMemo}          
+          onMemoDone={onMemoDone}
+          onMemoEndEditing={onMemoEndEditing}
+        />        
       )}
       {isMintSelectorVisible && (
         <MintBalanceSelector
           mintBalances={availableMintBalances}
           selectedMintBalance={mintBalanceToReceiveTo}
-          unit={unit}
+          unit={unitRef.current}
           title={translate('cashuPaymentRequestTitle')}
           confirmTitle={translate("cashuPaymentRequest_create")}
           onMintBalanceSelect={onMintBalanceSelect}
@@ -475,7 +444,7 @@ return (
                 <TranItem
                   label="transactionCommon_feePaid"
                   value={transaction.fee || 0}
-                  unit={unit}
+                  unit={unitRef.current}
                   isCurrency={true}
                 />
                 <TranItem
@@ -560,16 +529,8 @@ paddingTop: 0,
 height: spacing.screenHeight * 0.2,
 }
 
-const $amountContainer: ViewStyle = {}
-
-const $amountInput: TextStyle = {
-borderRadius: spacing.small,
-margin: 0,
-padding: 0,
-fontSize: 48,
-fontFamily: typography.primary?.medium,
-textAlign: "center",
-color: "white",
+const $amountContainer: ViewStyle = {
+  height: spacing.screenHeight * 0.11,
 }
 
 const $contentContainer: TextStyle = {

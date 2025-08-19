@@ -44,7 +44,7 @@ import { Proof } from '../models/Proof'
 import { Contact, ContactType } from '../models/Contact'
 import { getImageSource, infoMessage } from '../utils/utils'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
-import { CurrencyCode, MintUnit, MintUnits, convertToFromSats, formatCurrency, getCurrency } from "../services/wallet/currency"
+import { MintUnit, MintUnits, formatCurrency, getCurrency } from "../services/wallet/currency"
 import { MintHeader } from './Mints/MintHeader'
 import { MintBalanceSelector } from './Mints/MintBalanceSelector'
 import { round, toNumber } from '../utils/number'
@@ -90,7 +90,6 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         relaysStore,
         walletStore,
         contactsStore,
-        userSettingsStore
     } = useStores()
 
     const amountInputRef = useRef<TextInput>(null)
@@ -454,14 +453,14 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             }
 
             if(paymentOption === SendOption.PAY_CASHU_PAYMENT_REQUEST) {  
-                if(decodedCashuPaymentRequest && decodedCashuPaymentRequest.id) {
+                if(decodedCashuPaymentRequest && decodedCashuPaymentRequest.id && transaction) {
 
                     transaction.update({
                         paymentId: decodedCashuPaymentRequest.id,
                         paymentRequest: encodedCashuPaymentRequest,
                         profile: JSON.stringify(contactToSendFrom),
-                        sentTo: contactToSendTo.nip05 || contactToSendTo.name,        // payee
-                        sentFrom: contactToSendFrom.nip05 || contactToSendFrom.name   // payer
+                        sentTo: contactToSendTo ? contactToSendTo.nip05 || contactToSendTo.name : null,        // payee
+                        sentFrom: contactToSendFrom ? contactToSendFrom.nip05 || contactToSendFrom.name : null  // payer
                     })
                 }
             }
@@ -694,6 +693,10 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
     const onMintBalanceConfirm = async function () {
 
+        if(!mintBalanceToSendFrom) {
+            throw new AppError(Err.VALIDATION_ERROR, 'Please select mint balance to send from.')
+        }
+
         const { amount: amountToSendInt } = validateAndProcessAmount(amountToSend, unitRef.current)
         const exactMatchProofs: Proof[] = []
 
@@ -731,7 +734,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             pubkey: string;
             locktime?: number;
             refundKeys?: Array<string>
-        } | undefined = undefined
+        } = {}
 
         log.trace('[onMintBalanceConfirm] lockedPubkey', { lockedPubkey })
 
@@ -1024,33 +1027,13 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         //@ts-ignore
         navigation.navigate('Scan', { 
             unit: unitRef.current,  
-            mintUrl: mintBalanceToSendFrom.mintUrl
+            mintUrl: mintBalanceToSendFrom?.mintUrl
         })        
     }
 
-    const convertedAmountColor = useThemeColor('headerSubTitle')    
 
-    const getConvertedAmount = function () {
-        if (!walletStore.exchangeRate) {
-            return undefined
-        }
 
-        const precision = getCurrency(unitRef.current).precision
-        return convertToFromSats(
-            round(toNumber(amountToSend) * precision, 0) || 0, 
-            getCurrency(unitRef.current).code,
-            walletStore.exchangeRate
-        )
-    }
 
-    const isConvertedAmountVisible = function () {
-        return (
-        walletStore.exchangeRate &&
-        (userSettingsStore.exchangeCurrency === getCurrency(unitRef.current).code ||
-        unitRef.current === 'sat') &&
-        getConvertedAmount() !== undefined
-        )
-    }
 
     return (
       <Screen preset="fixed" contentContainerStyle={$screen}>
@@ -1061,60 +1044,50 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>        
             <View style={$amountContainer}>
                 <AmountInput
-                    ref={amountInputRef}
+                    ref={amountInputRef}                    
                     value={amountToSend}
                     onChangeText={amount => setAmountToSend(amount)}
                     unit={unitRef.current}
                     onEndEditing={transactionStatus !== TransactionStatus.PENDING ? onAmountEndEditing : undefined}
+                    selectTextOnFocus={true}
                     editable={(transactionStatus === TransactionStatus.PENDING || isCashuPrWithAmount)
                         ? false 
                         : true
                     }
                     style={{color: amountInputColor}}
                 />
-                {isConvertedAmountVisible() && ( 
-                    <CurrencyAmount
-                        amount={getConvertedAmount() ?? 0}
-                        currencyCode={unitRef.current === 'sat' ? userSettingsStore.exchangeCurrency : CurrencyCode.SAT}
-                        symbolStyle={{color: convertedAmountColor, marginTop: spacing.tiny, fontSize: verticalScale(10)}}
-                        amountStyle={{color: convertedAmountColor, lineHeight: spacing.small}}                        
-                        size='small'
-                        containerStyle={{justifyContent: 'center'}}
+            </View>
+            {lockedPubkey ? (
+                <View
+                    style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        //marginTop: isConvertedAmountVisible() ? -spacing.extraSmall : undefined
+                    }}
+                >
+                    <Icon 
+                        icon="faLock"
+                        size={spacing.small}
+                        color={amountInputColor} 
                     />
-                )}
-                {lockedPubkey ? (
-                    <View
-                        style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            marginTop: isConvertedAmountVisible() ? -spacing.extraSmall : undefined
-                        }}
-                    >
-                        <Icon 
-                            icon="faLock"
-                            size={spacing.small}
-                            color={amountInputColor} 
-                        />
-                        <Text
-                            size='xs'
-                            tx="sendLocked"
-                            style={{color: amountInputColor, marginLeft: spacing.tiny}}
-                        />
-
-                    </View>
-                ) : (
                     <Text
                         size='xs'
-                        tx='amountSend'
-                        style={{
-                            color: amountInputColor,
-                            textAlign: 'center',
-                            marginTop: isConvertedAmountVisible() ? -spacing.extraSmall : undefined
-                        }}
+                        tx="sendLocked"
+                        style={{color: amountInputColor, marginLeft: spacing.tiny}}
                     />
-                )}
-            </View>          
+
+                </View>
+            ) : (
+                <Text
+                    size='xs'
+                    tx='amountSend'
+                    style={{
+                        color: amountInputColor,
+                        textAlign: 'center',                            
+                    }}
+                />
+            )}         
         </View>
         <View style={$contentContainer}>
             {!encodedTokenToSend && (
@@ -1853,17 +1826,9 @@ const $pubkeyInput: TextStyle = {
 }
 
 const $amountContainer: ViewStyle = {
+    height: spacing.screenHeight * 0.11,
 }
 
-const $amountInput: TextStyle = {    
-   borderRadius: spacing.small,
-    margin: 0,
-    padding: 0,
-    fontSize: verticalScale(48),
-    fontFamily: typography.primary?.medium,
-    textAlign: 'center',
-    color: 'white',    
-}
 
 const $contentContainer: TextStyle = {
     flex: 1,

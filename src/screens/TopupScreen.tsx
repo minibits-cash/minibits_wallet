@@ -702,31 +702,21 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
                 onChangeText={amount => setAmountToTopup(amount)}
                 unit={unitRef.current}
                 onEndEditing={onAmountEndEditing}
+                selectTextOnFocus={true}
                 editable={
                   transactionStatus === TransactionStatus.PENDING ? false : true
                 }
                 style={{color: amountInputColor}}
-            />             
-            {isConvertedAmountVisible() && ( 
-                <CurrencyAmount
-                    amount={getConvertedAmount() ?? 0}
-                    currencyCode={unitRef.current === 'sat' ? userSettingsStore.exchangeCurrency : CurrencyCode.SAT}
-                    symbolStyle={{color: convertedAmountColor, marginTop: spacing.tiny, fontSize: verticalScale(10)}}
-                    amountStyle={{color: convertedAmountColor, lineHeight: spacing.small}}                        
-                    size='small'
-                    containerStyle={{justifyContent: 'center'}}
-                />
-            )}
-            <Text
-              size="xs"
-              text={getAmountTitle()}
-              style={{
-                color: amountInputColor, 
-                textAlign: 'center', 
-                marginTop: isConvertedAmountVisible() ? -spacing.extraSmall : undefined
-              }}
             />
           </View>
+          <Text
+            size="xs"
+            text={getAmountTitle()}
+            style={{
+              color: amountInputColor, 
+              textAlign: 'center',                 
+            }}
+          />
         </View>
         <View style={$contentContainer}>
           {!invoiceToPay && (
@@ -1313,17 +1303,10 @@ const $headerContainer: TextStyle = {
   height: spacing.screenHeight * 0.20,
 }
 
-const $amountContainer: ViewStyle = {}
-
-const $amountInput: TextStyle = {
-  borderRadius: spacing.small,
-  margin: 0,
-  padding: 0,
-  fontSize: verticalScale(48),
-  fontFamily: typography.primary?.medium,
-  textAlign: 'center',
-  color: 'white',
+const $amountContainer: ViewStyle = {
+  height: spacing.screenHeight * 0.11,
 }
+
 
 const $contentContainer: TextStyle = {
   flex: 1,

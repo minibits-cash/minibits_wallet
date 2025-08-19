@@ -39,8 +39,7 @@ export const CurrencyAmount = observer(function (props: {
         <View
             style={[{                
                 paddingHorizontal: spacing.tiny,
-                // borderColor: 'red',
-                // borderWidth: 1,
+
                 flexDirection: 'row',                
             }, containerStyle || {}]}
         >
@@ -53,13 +52,16 @@ export const CurrencyAmount = observer(function (props: {
     
                 }, symbolStyle || {}]}            
                 text={currencySymbol}
-                size="xxs"
+                //size="xxs"
             />
             <Text 
                 style={[$amount, {
                     color: amountColor,
                     fontSize: props.size && spacing[props.size] * 1.2 || spacing.small * 1.2,
-                    lineHeight: size && spacing[size] * 1.2 || spacing.small * 1.2
+                    lineHeight: size && spacing[size] * 1.2 || spacing.small * 1.2,
+                    //borderColor: 'red',
+                    //borderWidth: 1,
+                    paddingTop: size && spacing[size] * 0.2 || spacing.small * 0.2,
                 }, amountStyle || {}]} 
                 text={`${(formatCurrency(amount, currencyCode2))}`}               
             />

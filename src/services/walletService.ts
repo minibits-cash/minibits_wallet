@@ -388,7 +388,7 @@ const sendQueue = async function (
     memo: string,
     selectedProofs: Proof[],
     p2pk?: { pubkey: string; locktime?: number; refundKeys?: Array<string> },
-    draftTransactionId?: number
+    draftTransactionId?: number | null
 ): Promise<void> {
     const now = new Date().getTime()
     SyncQueue.addPrioritizedTask(
