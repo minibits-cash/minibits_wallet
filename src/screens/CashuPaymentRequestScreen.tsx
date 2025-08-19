@@ -329,29 +329,6 @@ const headerBg = useThemeColor("header")
 const placeholderTextColor = useThemeColor("textDim")
 const amountInputColor = useThemeColor("amountInput")
 const inputText = useThemeColor("text")
-    const convertedAmountColor = useThemeColor('headerSubTitle')    
-
-    const getConvertedAmount = function () {
-        if (!walletStore.exchangeRate) {
-          return undefined
-        }
-
-        const precision = getCurrency(unitRef.current).precision
-        return convertToFromSats(
-            round(toNumber(amountToRequest) * precision, 0) || 0, 
-            getCurrency(unitRef.current).code,
-            walletStore.exchangeRate
-        )
-    }
-
-    const isConvertedAmountVisible = function () {
-      return (
-        walletStore.exchangeRate &&
-        (userSettingsStore.exchangeCurrency === getCurrency(unitRef.current).code ||
-        unitRef.current === 'sat') &&
-        getConvertedAmount() !== undefined
-      )
-    }
 
 
 return (
@@ -376,7 +353,6 @@ return (
             editable={
               transactionStatus === TransactionStatus.PENDING ? false : true
             }
-            style={{color: amountInputColor}}
         />
       </View>
       <Text
@@ -384,10 +360,11 @@ return (
           text={translate("amountRequested")}
           style={{
             color: amountInputColor,
-            textAlign: "center",        
+            textAlign: "center",
+            marginTop: spacing.extraSmall
           }}
         />
-    </View>123
+    </View>
     <View style={$contentContainer}>
       {!encodedPaymentRequest && (
         <MemoInputCard
@@ -530,7 +507,7 @@ height: spacing.screenHeight * 0.2,
 }
 
 const $amountContainer: ViewStyle = {
-  height: spacing.screenHeight * 0.11,
+  // height: spacing.screenHeight * 0.11,
 }
 
 const $contentContainer: TextStyle = {

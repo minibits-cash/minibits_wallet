@@ -30,6 +30,8 @@ interface AmountInputProps {
   onEndEditing?: () => void
   editable?: boolean
   selectTextOnFocus?: boolean
+  onFocus?: () => void
+  onBlur?: () => void
   style?: TextStyle
 }
 
@@ -42,14 +44,19 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
       onEndEditing,
       editable = true,
       selectTextOnFocus,
+      onFocus,
+      onBlur,
       style,
       ...rest
     },
     ref
   ) => {
     const { walletStore, userSettingsStore } = useStores()
+
     const [focused, setFocused] = useState<"top" | "bottom">("top")
     const [isConvertedValueVisible, setIsConvertedValueVisible] = useState<boolean>(false)
+    const [hasTopAmountFocusedOnce, setHasTopAmountFocusedOnce] = useState(false)
+    const [hasBottomAmountFocusedOnce, setHasBottomAmountFocusedOnce] = useState(false)
 
     const amountInputColor = useThemeColor("amountInput")
     const convertedAmountColor = useThemeColor("headerSubTitle")
@@ -63,6 +70,28 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
     // values shown in inputs
     const [topValue, setTopValue] = useState(value)
     const [bottomValue, setBottomValue] = useState("0")
+
+    const handleTopFocus = () => {
+      setHasTopAmountFocusedOnce(true)
+      setFocused('top')
+      onFocus?.()
+    }
+
+    const handleTopBlur = () => {
+      setHasTopAmountFocusedOnce(false)
+      onBlur?.()
+    }
+
+    const handleBottomFocus = () => {
+      setHasBottomAmountFocusedOnce(true)
+      setFocused('bottom')
+      onFocus?.()
+    }
+
+    const handleBottomBlur = () => {
+      setHasBottomAmountFocusedOnce(false)
+      onBlur?.()
+    }
 
     // --- conversion helpers (IMPORTANT: cents ↔ major handling) ---
 
@@ -171,7 +200,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
         bottomScale.value = withTiming(1, { duration: 250 })
       } else {
         topScale.value = withTiming(0.6, { duration: 250 })
-        bottomScale.value = withTiming(1.7, { duration: 250 })
+        bottomScale.value = withTiming(1.65, { duration: 250 })
       }
     }, [focused, topScale, bottomScale])
 
@@ -195,14 +224,12 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
       padding: 0,
       fontSize: spacing.medium,
       fontFamily: typography.primary?.medium,
-      textAlign: "center",
       color: convertedAmountColor,      
     }
 
     const animatedBottomStyle = useAnimatedStyle(() => ({
       transform: [{ scale: bottomScale.value }],
-      fontSize: spacing.medium * bottomScale.value,
-      marginTop: spacing.extraSmall * bottomScale.value,      
+      fontSize: spacing.medium * bottomScale.value,  
     }))
 
     // symbol style
@@ -211,15 +238,14 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
       fontSize: spacing.extraSmall,
       fontFamily: typography.primary?.light,
       alignSelf: "center",
-      marginRight: spacing.tiny,
-      marginLeft: focused === 'bottom' ? - spacing.large : undefined
+      marginLeft: focused === 'bottom' ? - spacing.large * 1.7: undefined
     }
 
     // animated scale for symbol
     const animatedSymbolStyle = useAnimatedStyle(() => ({
       transform: [{ scale: bottomScale.value }], // sync with bottom input
       fontSize: spacing.extraSmall * bottomScale.value, // scale font size
-      marginRight: focused === 'bottom' ? spacing.medium + bottomValue.length * 4 : spacing.tiny,       
+      marginRight: focused === 'bottom' ? spacing.medium + bottomValue.length * 4.5 : spacing.tiny,       
     }))
 
     const bottomCurrencyCode = topIsSat ? fiatCode : CurrencyCode.SAT
@@ -233,12 +259,13 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
           value={topValue}
           onChangeText={handleTopChange}
           onEndEditing={onAmountEndEditing}
-          onFocus={() => setFocused("top")}
+          onFocus={handleTopFocus}
+          onBlur={handleTopBlur}
           style={[defaultTopStyle, style, animatedTopStyle]}
           maxLength={9}
           keyboardType="numeric"
           returnKeyType="done"
-          selectTextOnFocus={selectTextOnFocus}
+          selectTextOnFocus={!hasTopAmountFocusedOnce}
           editable={editable}
           {...rest}
         />
@@ -246,14 +273,13 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
         {isConvertedValueVisible && (
           <View
           style={{
-            paddingHorizontal: spacing.tiny,
             flexDirection: "row",
             justifyContent: "center",
-            alignItems: "center", // keeps vertical aligned
           }}
         >
           <Animated.Text
-            style={[defaultSymbolStyle, animatedSymbolStyle]}
+            style={[defaultSymbolStyle, animatedSymbolStyle, 
+            ]}
           >
             {currencySymbol}
           </Animated.Text>
@@ -262,7 +288,8 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
             value={bottomValue}
             onChangeText={handleBottomChange}
             onEndEditing={onAmountEndEditing}
-            onFocus={() => setFocused("bottom")}
+            onFocus={handleBottomFocus}
+            onBlur={handleBottomBlur}
             style={[
               defaultBottomStyle,
               style,
@@ -272,7 +299,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
             maxLength={9}
             keyboardType="numeric"
             returnKeyType="done"
-            selectTextOnFocus={selectTextOnFocus}
+            selectTextOnFocus={selectTextOnFocus !== undefined ? selectTextOnFocus : !hasBottomAmountFocusedOnce}
             editable={editable}
             {...rest}
           />

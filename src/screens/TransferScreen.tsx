@@ -747,7 +747,8 @@ const amountInputColor = useThemeColor('amountInput')
                   tx='payCommon_amountToPayLabel'
                   style={{
                       color: amountInputColor,
-                      textAlign: 'center',                            
+                      textAlign: 'center',
+                      marginTop: spacing.extraSmall                            
                   }}
               />
             )}
@@ -1008,7 +1009,7 @@ const $headerContainer: TextStyle = {
   }
   
   const $amountContainer: ViewStyle = {
-    height: spacing.screenHeight * 0.11,
+    // height: spacing.screenHeight * 0.11,
   }
   
 

@@ -1054,7 +1054,6 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                         ? false 
                         : true
                     }
-                    style={{color: amountInputColor}}
                 />
             </View>
             {lockedPubkey ? (
@@ -1084,7 +1083,8 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     tx='amountSend'
                     style={{
                         color: amountInputColor,
-                        textAlign: 'center',                            
+                        textAlign: 'center',
+                        marginTop: spacing.extraSmall                            
                     }}
                 />
             )}         
@@ -1826,7 +1826,7 @@ const $pubkeyInput: TextStyle = {
 }
 
 const $amountContainer: ViewStyle = {
-    height: spacing.screenHeight * 0.11,
+    //height: spacing.screenHeight * 0.11,
 }
 
 

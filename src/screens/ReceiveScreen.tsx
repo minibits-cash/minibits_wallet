@@ -297,30 +297,6 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
     const iconColor = useThemeColor('textDim')
     const amountInputColor = useThemeColor('amountInput')
 
-    const convertedAmountColor = useThemeColor('headerSubTitle')    
-
-    const getConvertedAmount = function () {
-        if (!walletStore.exchangeRate) {
-          return undefined
-        }
-
-        const precision = getCurrency(unit).precision
-        return convertToFromSats(
-            round(toNumber(amountToReceive) * precision, 0) || 0, 
-            getCurrency(unit).code,
-            walletStore.exchangeRate
-        )
-    }
-
-    const isConvertedAmountVisible = function () {
-      return (
-        walletStore.exchangeRate &&
-        (userSettingsStore.exchangeCurrency === getCurrency(unit).code ||
-          unit === 'sat') &&
-        getConvertedAmount() !== undefined
-      )
-    }
-
     return (
       <Screen preset="auto" contentContainerStyle={$screen}>
             <MintHeader 
@@ -341,7 +317,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
               <View style={{
                 flexDirection: 'row', 
                 alignItems: 'center',
-                marginTop: isConvertedAmountVisible() ? -spacing.extraSmall : undefined
+                marginTop: spacing.extraSmall,
               }}>
                 <Icon
                   containerStyle={$iconLockContainer}
@@ -353,13 +329,19 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
                   <Text
                       size='xs'
                       tx={toNumber(receivedAmount) > 0 ? "receiveScreen_received" : "receiveScreen_lockedToWalletPK"}
-                      style={{color: amountInputColor, textAlign: 'center'}}
+                      style={{
+                        color: amountInputColor, 
+                        textAlign: 'center',
+                      }}
                   />
                 ) : (
                   <Text
                       size='xs'
                       tx={toNumber(receivedAmount) > 0 ? "receiveScreen_received" : "receiveScreen_lockedToUnknownPK"}
-                      style={{color: amountInputColor, textAlign: 'center'}}
+                      style={{
+                        color: amountInputColor, 
+                        textAlign: 'center',
+                      }}
                   />
                 )}
               </View>
@@ -369,7 +351,8 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
                   tx={toNumber(receivedAmount) > 0 ? "receiveScreen_received" : "receiveScreen_toReceive"}
                   style={{
                     color: amountInputColor, 
-                    textAlign: 'center',                    
+                    textAlign: 'center',
+                    marginTop: spacing.extraSmall                   
                   }}
               />
             )}
@@ -598,7 +581,7 @@ const $headerContainer: TextStyle = {
 }
 
 const $amountContainer: ViewStyle = {
-  height: spacing.screenHeight * 0.11,
+  //height: spacing.screenHeight * 0.11,
 }
 
 const $contentContainer: TextStyle = {
