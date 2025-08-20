@@ -19,10 +19,10 @@ Minibits is an ecash and Lightning wallet exploring how ₿-backed ecash can ena
 
 Platform support
 - [x] Android app
-- [x] iOS app [✨ New in early Testflight, not yet public] 
+- [x] iOS app [✨ over the Testflight and Freedomstore.io]
 - [x] Light and dark mode
 - [x] i18n support
-- [ ] Other then EN languange support
+- [x] EN, PT, ES, SK languange support [✨ New!]
 
 Mints
 - [x] Multiple currency units issued by mints
@@ -41,15 +41,15 @@ Receive ecash
 - [x] Receive ecash from another wallet over NOSTR message sent to minibits.cash address
 - [x] Receive ecash in person while being offline, redeem later (MVP version)
 - [x] Realtime and encrypted push notifications on receive to minibits.cash lightning address
-- [x] Display or send cashu payment requests [✨ New!]
+- [x] Display or send cashu payment requests
 
 Send ecash
 - [x] Share ecash token to send through another app
 - [x] Show ecash token as a QR code
 - [x] Show large ecash token as an animated QR code
 - [x] Send ecash to contact (minibits.cash or another NOSTR address)
-- [x] Lock ecash to the receiver wallet key (P2PK) [✨ New!]
-- [x] Set lock expiry to allow recovery of locked ecash after timeout (P2PK) [✨ New!]
+- [x] Lock ecash to the receiver wallet key (P2PK)
+- [x] Set lock expiry to allow recovery of locked ecash after timeout (P2PK)
 - [x] Scan and pay cashu payment requests
 
 Top up wallet
@@ -57,6 +57,7 @@ Top up wallet
 - [x] Share encoded bitcoin Lightning invoice to pay
 - [x] Share lightning invoice with a contact over NOSTR message
 - [x] Top up balance with LNURL Withdraw
+- [x] Enter transaction amount in fiat currency [✨ New!]
 
 Pay / Cash out from wallet
 - [x] One click ZAPS - tip users of NOSTR social network
@@ -125,8 +126,8 @@ The wallet's design has been crafted to prioritize the following primary quality
 As a result, the following architectural constraints are in place:
 - Wherever available, use libraries with a fast JSI (JavaScript Interface) to native modules.
 - Avoid Expo modules.
-- Use fastest available storage for most wallet operations and separate local database storage to store data that incrementally grows.
-- Leverage local database as an append-only ecash backup independent from fast storage.
+- Use fastest available storage for most wallet operations and a separate local database storage to store data that incrementally grows.
+- Leverage local SQLite database as persistent storage for ecash notes.
 
 <img src="https://www.minibits.cash/img/minibits_architecture_v2.png">
 
@@ -144,6 +145,7 @@ Minibits wallet is in early beta and available as of now only for Android device
 - [x] Join testing program on Google Play to get early releases to test (Submit your email to get an invite on [Minibits.cash](https://www.minibits.cash))
 - [x] Download .apk file from Releases page and install it on your phone
 - [x] Try on Testflight
+- [x] Download from Freedomstore.io (for EU-based users)
 - [ ] Download from AppStore
 
 
@@ -155,10 +157,9 @@ The code is derived from Ignite template, however with many libraries, notably E
 
 Wallet state is managed by mobx-state-tree and persisted in fast MMKV storage. Only the basic mobx concepts are in place, whole model could be improved. All critical wallet code is in services/walletService.ts and all ecash state changes are in models/ProofsStore.ts. Wallet communication with the mints is in model/Wallet.ts and uses [cashu-ts](https://github.com/cashubtc/cashu-ts) library.
 
-Crypto operations are handled by react-native-quick-crypto, that is fast and does not require awful javascript shims. Transaction history and ecash backup is stored in sqlite, with fast react-native-quick-sqlite driver that enables to run lighter queries synchronously.
+Crypto operations are handled by react-native-quick-crypto, that is fast and does not require awful javascript shims. Transaction history and ecash notes are stored in sqlite, with fast react-native-quick-sqlite driver that enables to run lighter queries synchronously.
 
-Wallet included own Tor daemon using react-native-tor library to connect to the mints over Tor network. However this seems not to be long term approach as this library is
-not properly maintained and future updates of React native will likely break it. Help with replacement would be appreciated.
+Wallet included own Tor daemon using react-native-tor library to connect to the mints over Tor network. However this seems not to be long term approach as this library is not properly maintained and future updates of React native will likely break it. Help with replacement would be appreciated.
 
 In case of breaking state and data model changes, versioning and code is ready to run necessary migrations on wallet startup.
 
@@ -175,8 +176,7 @@ After the dependecies are installed, continue to create the following .env file 
 
 ```bash
 APP_ENV='DEV'
-MINIBITS_SERVER_API_KEY='mockkey'
-MINIBITS_SERVER_API_HOST='http://localhost/api' 
+MINIBITS_SERVER_API_HOST='http://localhost/api/v2' 
 MINIBITS_NIP05_DOMAIN='@localhost'
 MINIBITS_RELAY_URL='ws://localhost/relay'
 MINIBITS_MINT_URL='http://localhost/mint' 
