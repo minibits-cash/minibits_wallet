@@ -349,7 +349,7 @@ export const PrivateContacts = observer(function (props: {
                   }
                   value={newContactName}
                   autoCapitalize="none"
-                  keyboardType="default"                  
+                  keyboardType="email-address"                  
                   maxLength={80}
                   selectTextOnFocus={true}
                   style={[

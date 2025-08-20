@@ -603,7 +603,7 @@ export const PublicContacts = observer(function (props: {
                         onChangeText={(url) => setNewPublicRelay(url)}
                         value={newPublicRelay}
                         autoCapitalize='none'
-                        keyboardType='default'
+                        keyboardType='url'
                         maxLength={64}
                         placeholder={translate('placeholderRelay')}
                         placeholderTextColor={placeholderTextColor}

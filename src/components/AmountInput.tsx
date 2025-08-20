@@ -168,18 +168,19 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
 
     // input change handlers (bi-directional)
     const handleTopChange = (text: string) => {
-      setTopValue(text)
+      const normalized = text.replace(',', '.')
+      setTopValue(normalized)
       if (focused === "top") {
-        setBottomValue(recalcBottom(text))
-        onChangeText?.(text) // parent receives "top" value (sat or fiat, as per `unit`)
+        setBottomValue(recalcBottom(normalized))
+        onChangeText?.(normalized) // parent receives "top" value (sat or fiat, as per `unit`)
       }
     }
 
     const handleBottomChange = (text: string) => {
-      log.trace(`[AmountInput] handleBottomChange: ${text}`)
-      setBottomValue(text)
+      const normalized = text.replace(',', '.')
+      setBottomValue(normalized)
       if (focused === "bottom") {
-        const newTop = recalcTop(text)
+        const newTop = recalcTop(normalized)
         setTopValue(newTop)
         onChangeText?.(newTop) // keep parent synced to "top" side
       }
@@ -267,7 +268,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
           onBlur={handleTopBlur}
           style={[defaultTopStyle, style, animatedTopStyle]}
           maxLength={9}
-          keyboardType="numeric"
+          keyboardType="decimal-pad"
           returnKeyType="done"
           selectTextOnFocus={!hasTopAmountFocusedOnce}
           editable={editable}
@@ -301,7 +302,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
               animatedBottomStyle,
             ]}
             maxLength={9}
-            keyboardType="numeric"
+            keyboardType="decimal-pad"
             returnKeyType="done"
             selectTextOnFocus={selectTextOnFocus !== undefined ? selectTextOnFocus : !hasBottomAmountFocusedOnce}
             editable={editable}

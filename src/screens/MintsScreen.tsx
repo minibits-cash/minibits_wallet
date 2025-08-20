@@ -438,7 +438,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
                             onChangeText={mintUrl => setMintUrl(mintUrl)}
                             onFocus={() => mintUrl.length === 0 ? setMintUrl('https://') : undefined}
                             autoCapitalize='none'
-                            keyboardType='default'
+                            keyboardType='url'
                             value={mintUrl}
                             style={[$mintInput, {backgroundColor: inputBg, color: inputText}]}
                             maxLength={200}

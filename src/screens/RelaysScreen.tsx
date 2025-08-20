@@ -258,7 +258,7 @@ export const RelaysScreen = observer(function RelaysScreen({ route }: Props) {
                         onChangeText={(url) => setNewPublicRelay(url)}
                         value={newPublicRelay}
                         autoCapitalize='none'
-                        keyboardType='default'
+                        keyboardType='url'
                         maxLength={128}
                         placeholder='wss://...'
                         placeholderTextColor={placeholderTextColor}

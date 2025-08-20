@@ -267,7 +267,7 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
                                   onChangeText={(name) => setOwnNip05(name.trim())}
                                   value={ownNip05}
                                   autoCapitalize='none'
-                                  keyboardType='default'
+                                  keyboardType='email-address'
                                   maxLength={30}
                                   placeholder='name@domain.com'
                                   placeholderTextColor={placeholderTextColor}
