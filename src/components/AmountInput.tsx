@@ -65,7 +65,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
 
     // which fiat are we converting to/from (major units)
     const fiatCode = userSettingsStore.exchangeCurrency
-    const fiatPrecision = Currencies[fiatCode]!.precision ?? 100 // cents per unit
+    const fiatPrecision = fiatCode ? Currencies[fiatCode]!.precision ?? 100 : null// cents per unit
     const topIsSat = getCurrency(unit).code === CurrencyCode.SAT
 
     // values shown in inputs
@@ -99,11 +99,11 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
     // SAT (or other top unit) -> bottom display value
     const recalcBottom = (v: string) => {
       log.trace(`[AmountInput] recalcBottom: ${v}`)
-      if (!walletStore.exchangeRate) return "0"
+      if (!walletStore.exchangeRate || !fiatCode || !fiatPrecision) return "0"
 
       if (topIsSat) {
         // top is sat/msat etc. Convert to sats first, then sats -> cents -> major
-        const satPrecision = getCurrency(unit).precision // usually 1 for sat
+        const satPrecision = getCurrency(unit).precision // 1
         const sats = round(toNumber(v) * satPrecision, 0) || 0
 
         // convertToFromSats(from SAT) returns FIAT PRECISION UNITS (cents)
@@ -121,7 +121,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
 
     // bottom (display) -> top value
     const recalcTop = (v: string) => {
-      if (!walletStore.exchangeRate) return "0"
+      if (!walletStore.exchangeRate || !fiatCode || !fiatPrecision) return "0"
 
       if (topIsSat) {
         // bottom is FIAT major. Convert major -> cents -> sats -> top (sat/msat)
@@ -141,12 +141,16 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
       log.trace(`[useEffect] setTopValue call`, value)
       setTopValue(value)
 
+      // only show if
+      // - user has set conversion currency in settings
+      // - we have an exchange rate  
+      // - mint unit is SATS or mint unit is the one we have exchange rate for (so we convert to SATS):
       const canShow =
+        fiatCode &&  
         !!walletStore.exchangeRate &&
-        // only show if the "other" currency makes sense:
         (topIsSat || getCurrency(unit).code === fiatCode)
 
-      setIsConvertedValueVisible(!!canShow)
+          setIsConvertedValueVisible(!!canShow)
 
       if (canShow) {
         log.trace(`[useEffect] recalcBottom call`, value)
@@ -254,7 +258,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
     }))
 
     const bottomCurrencyCode = topIsSat ? fiatCode : CurrencyCode.SAT
-    const currencySymbol = Currencies[bottomCurrencyCode]!.symbol
+    const currencySymbol = bottomCurrencyCode ? Currencies[bottomCurrencyCode]!.symbol : null
 
     return (
       <>

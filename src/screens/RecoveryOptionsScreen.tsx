@@ -174,7 +174,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
     const onMintBalanceConfirm = function () {      
       toggleMintSelectorModal()
 
-      if(setMintBalanceToRecoverFrom) {
+      if(mintBalanceToRecoverFrom) {
         if(Platform.OS === 'ios') {
           setTimeout(() => {
             if(isMeltQuoteRecoveryStarted) {
@@ -301,8 +301,8 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
       setIsLoading(false)
       setError(undefined)
       setInfo('')
-      setMintedAmount(0)
-      setMeltChangeAmount(0)
+      //setMintedAmount(0)
+      //setMeltChangeAmount(0)
       setMintQuote('')
       setMeltQuote('')
       setIsSyncStateSentToQueue(false)

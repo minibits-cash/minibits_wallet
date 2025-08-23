@@ -21,7 +21,7 @@ export const UserSettingsStoreModel = types
     .model('UserSettingsStore')
     .props({        
         preferredUnit: types.optional(types.frozen<MintUnit>(), 'sat'),
-        exchangeCurrency: types.optional(types.frozen<CurrencyCode>(), CurrencyCode.USD),
+        exchangeCurrency: types.optional(types.frozen<CurrencyCode | null>(), CurrencyCode.USD),
         theme: types.optional(types.frozen<ThemeCode>(), ThemeCode.DEFAULT),
         nextTheme: types.optional(types.frozen<ThemeCode>(), ThemeCode.DEFAULT),
         isOnboarded: types.optional(types.boolean, false),        
@@ -35,7 +35,7 @@ export const UserSettingsStoreModel = types
             self.preferredUnit = preferredUnit            
             return preferredUnit
         },
-        setExchangeCurrency: (exchangeCurrency: CurrencyCode) => {            
+        setExchangeCurrency: (exchangeCurrency: CurrencyCode | null) => {  
             self.exchangeCurrency = exchangeCurrency            
             return exchangeCurrency
         },
