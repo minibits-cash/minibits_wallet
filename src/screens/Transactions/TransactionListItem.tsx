@@ -275,7 +275,7 @@ export const TransactionListItem = observer(function (props: TransactionListProp
                           amountStyle={{color: txPendingColor}}
                     />                    
                 )}
-                {tx.status === TransactionStatus.COMPLETED && (
+                {[TransactionStatus.COMPLETED, TransactionStatus.RECOVERED].includes(tx.status) && (
                     <CurrencyAmount 
                           amount={tx.amount}
                           mintUnit={tx.unit}

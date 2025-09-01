@@ -104,7 +104,7 @@ const getRandomPictures = async function () {
     return avatars
 }
 
-
+// TODO remove pubkey params
 const createWalletProfile = async function (pubkey: string, walletId: string, seedHash: string) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'POST'    
@@ -129,6 +129,7 @@ const createWalletProfile = async function (pubkey: string, walletId: string, se
 }
 
 // what is passed in {update} gets updated
+// TODO remove pubkey from url and params
 const updateWalletProfile = async function (pubkey: string, update: {name?: string, lud16?: string, avatar?: string}) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'PUT'    
@@ -151,7 +152,7 @@ const updateWalletProfile = async function (pubkey: string, update: {name?: stri
     return walletProfile
 }
 
-
+// TODO remove pubkey from url and params
 const updateWalletProfileNip05 = async function (pubkey: string, update: {newPubkey: string, name: string, nip05: string, lud16: string, avatar: string}) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'PUT'    
@@ -177,7 +178,7 @@ const updateWalletProfileNip05 = async function (pubkey: string, update: {newPub
 }
 
 
-
+// TODO remove pubkey from url and params
 const updateDeviceToken = async function (pubkey: string, update: {deviceToken: string} ) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile' 
     const method = 'PUT'    
@@ -198,7 +199,7 @@ const updateDeviceToken = async function (pubkey: string, update: {deviceToken: 
     return walletProfile
 }
 
-
+// TODO remove pubkey from params
 const recoverProfile = async function (pubkey: string, walletId: string, seedHash: string) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'PUT'    
@@ -220,7 +221,7 @@ const recoverProfile = async function (pubkey: string, walletId: string, seedHas
     return walletProfile
 }
 
-
+// TODO remove 
 const getWalletProfile = async function (pubkey: string) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile' 
     const method = 'GET'    
