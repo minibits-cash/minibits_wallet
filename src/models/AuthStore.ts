@@ -27,6 +27,11 @@ export interface VerifyChallengeResponse {
   deviceId: string
 }
 
+export interface TokenPair {
+  accessToken: string
+  refreshToken: string  
+}
+
 export const AuthStoreModel = types
   .model('AuthStore')
   .props({
@@ -253,7 +258,7 @@ export const AuthStoreModel = types
             refreshToken: tokens.refreshToken
         }
 
-        const newTokens: JwtTokens = yield MinibitsClient.fetchApi(refreshUrl, {
+        const newTokens: TokenPair = yield MinibitsClient.fetchApi(refreshUrl, {
             method: 'POST',
             body: refreshBody,
             jwtAuthRequired: false
@@ -312,7 +317,8 @@ export const AuthStoreModel = types
     return {
       accessToken: null,
       refreshToken: null,
-      expiresAt: null,
+      accessTokenExpiresAt: null,
+      refreshTokenExpiresAt: null
     }          
 })
 
