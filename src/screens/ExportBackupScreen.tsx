@@ -188,7 +188,7 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
             setIsSwapAllSentToQueue(true)             
 
             if(Platform.OS === 'android') {
-              await NotificationService.createForegroundNotification(
+              await NotificationService.createTaskNotification(
                 'Optimizing ecash proofs denominations...',
                 {task: SWAP_ALL_TASK}
               )

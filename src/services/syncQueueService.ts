@@ -2,7 +2,7 @@ import { Task, TaskId, TaskQueue, TaskStatus } from "taskon"
 import {log} from './logService'
 import EventEmitter from '../utils/eventEmitter'
 import { TransactionTaskResult, WalletTaskResult } from "./walletService"
-import { NotificationService } from "./notificationService"
+import { NotificationService, NWC_LISTENER_NAME } from "./notificationService"
 
 let _queue: any = undefined
 
@@ -61,8 +61,13 @@ const _handleTaskResult = async (taskId: TaskId, result: WalletTaskResult | Tran
     
     log.trace('[_handleTaskResult]', {inQueue: queue.getAllTasksDetails(['idle', 'running']).length})
 
-    if(queue.getAllTasksDetails(['idle', 'running']).length === 0) {        
-        await NotificationService.stopForegroundService()
+    if(queue.getAllTasksDetails(['idle', 'running']).length === 0) {
+        const notifications = await NotificationService.getDisplayedNotifications()
+        // Do not stop the listener for NWC events
+        if(notifications.some(n => n.notification.title && n.notification.title !== NWC_LISTENER_NAME)) {  
+            log.trace('[_handleTaskResult] Stopping foreground service')    
+            await NotificationService.stopForegroundService()
+        }
     }
 }
   

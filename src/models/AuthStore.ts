@@ -44,7 +44,7 @@ export const AuthStoreModel = types
       }
 
       const now = Math.floor(Date.now() / 1000)
-      log.trace('[AuthStore.isAuthenticated]', {now, expiresAt: self.accessTokenExpiresAt})
+      log.trace('[AuthStore.isAuthenticated]', {now, atExpiresAt: self.accessTokenExpiresAt})
 
       if (now >= self.accessTokenExpiresAt) {
         return false
@@ -56,7 +56,7 @@ export const AuthStoreModel = types
     get isAccessTokenExpired(): boolean {
       if (!self.accessTokenExpiresAt) return true
       const now = Math.floor(Date.now() / 1000)
-      log.trace('[AuthStore.isAccessTokenExpired]', {now, expiresAt: self.accessTokenExpiresAt})
+      log.trace('[AuthStore.isAccessTokenExpired]', {now, atExpiresAt: self.accessTokenExpiresAt})
 
       if (now >= self.accessTokenExpiresAt) {
         log.trace('[AuthStore.isAccessTokenExpired] Access token is expired')
@@ -68,7 +68,7 @@ export const AuthStoreModel = types
     get isRefreshTokenExpired(): boolean {
       if (!self.refreshTokenExpiresAt) return true
       const now = Math.floor(Date.now() / 1000)
-      log.trace('[AuthStore.isRefreshTokenExpired]', {now, expiresAt: self.accessTokenExpiresAt})
+      log.trace('[AuthStore.isRefreshTokenExpired]', {now, rtExpiresAt: self.refreshTokenExpiresAt})
 
       if (now >= self.refreshTokenExpiresAt) {
         log.trace('[AuthStore.isRefreshokenExpired] Refresh token is expired')
@@ -292,7 +292,6 @@ export const AuthStoreModel = types
         try {
           // If access token is valid, return it
           if (self.isAuthenticated) {
-            log.trace('[getValidAccessToken] Access token is valid')
             return self.accessToken
           }
   

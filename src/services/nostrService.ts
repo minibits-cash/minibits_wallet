@@ -107,7 +107,7 @@ const reconnectToRelays = async function () {
         WalletTask.receiveEventsFromRelaysQueue().catch(e => false)
 
         if(!walletProfileStore.device) {
-            nwcStore.receiveNwcEventsQueue()
+            nwcStore.listenForNwcEvents()
         }
     }     
 }

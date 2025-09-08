@@ -53,7 +53,8 @@ if (!__DEV__) {
 function App() {
     
     const {userSettingsStore, relaysStore, authStore, walletStore, walletProfileStore} = useStores()
-    const [isAuthenticated, setIsAuthenticated] = useState(false)
+    const [isUserAuthenticated, setIsUserAuthenticated] = useState(false)
+    const [isDeviceAuthenticated, setIsDeviceAuthenticated] = useState(false)
     const isInternetReachable = useIsInternetReachable()   
 
     const {rehydrated} = useInitialRootStore(async() => {
@@ -65,7 +66,7 @@ function App() {
         if(userSettingsStore.isAuthOn) {
             try {
                 const authToken = await KeyChain.getOrCreateAuthToken(userSettingsStore.isAuthOn)
-                setIsAuthenticated(true)
+                setIsUserAuthenticated(true)
                 log.trace('[useInitialRootStore]', {authToken})
             } catch (e: any) {
                 log.warn('[useInitialRootStore]', 'Authentication failed', {message: e.message})
@@ -83,7 +84,7 @@ function App() {
                 }  
             }
         } else {
-            setIsAuthenticated(true)
+            setIsUserAuthenticated(true)
         }
 
         // reenroll device for JWT authentication if refresh token expired
@@ -94,8 +95,9 @@ function App() {
                 const walletKeys: WalletKeys = await walletStore.getCachedWalletKeys()
                 const deviceId = walletProfileStore.device
 
-                await authStore.logout()
+                await authStore.clearTokens()
                 await authStore.enrollDevice(walletKeys.NOSTR, deviceId)
+                setIsDeviceAuthenticated(true)
 
             } catch (e: any) {
                 if(e.name === Err.NOTFOUND_ERROR) {
@@ -107,6 +109,8 @@ function App() {
                     log.error('[useInitialRootStore]', 'Failed to re-enroll device', {message: e.message})
                 }            
             }
+        } else {
+            setIsDeviceAuthenticated(true)
         }
 
         if(userSettingsStore.theme !== userSettingsStore.nextTheme) {
@@ -120,7 +124,7 @@ function App() {
 
     
 
-    if (!rehydrated || !isAuthenticated) {    
+    if (!rehydrated || !isUserAuthenticated || !isDeviceAuthenticated) {    
         return (
             <ErrorBoundary catchErrors={Config.catchErrors}>
                 <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>

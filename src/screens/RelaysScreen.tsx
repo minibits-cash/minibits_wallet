@@ -9,10 +9,11 @@ import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import { Relay } from '../models/Relay'
 import AppError, { Err } from '../utils/AppError'
-import { log, WalletTask } from '../services'
+import { log, NotificationService, WalletTask } from '../services'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { translate } from '../i18n'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+import { LISTEN_FOR_NWC_EVENTS } from '../models/NwcStore'
 
 type Props = StaticScreenProps<undefined>
 
@@ -34,21 +35,19 @@ export const RelaysScreen = observer(function RelaysScreen({ route }: Props) {
     const [newPublicRelay, setNewPublicRelay] = useState<string>('')
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
-    const [isRemoteDataPushEnabled, setIsRemoteDataPushEnabled] = useState<boolean>(false)
+    const [isRemoteDataPushEnabled, setIsRemoteDataPushEnabled] = useState<boolean>(walletProfileStore.device ? true : false)
+    const [areNotificationsEnabled, setAreNotificationsEnabled] = useState<boolean>(false)
 
     useEffect(() => {
-      const getNotificationPermission = async () => {
-          try {              
-              const remoteEnabled = walletProfileStore.device ? true : false
-              setIsRemoteDataPushEnabled(remoteEnabled)              
-          } catch (e: any) {
-              log.warn(e.name, e.message)
-              return false // silent
-          }
-      } 
-      getNotificationPermission()
-  }, [])
-    
+        const setNotificationsStatus = async () => {
+            const enabled = await NotificationService.areNotificationsEnabled()
+            if(enabled) {
+                setAreNotificationsEnabled(true)
+            } 
+        } 
+        setNotificationsStatus()
+    }, [])
+
     const toggleAddRelayModal = () => {
         setIsAddRelayModalVisible(previousState => !previousState)
         if(selectedRelay) {
@@ -75,9 +74,13 @@ export const RelaysScreen = observer(function RelaysScreen({ route }: Props) {
         // Full force re-subscription, not just reconnect
         WalletTask.receiveEventsFromRelaysQueue().catch(e => false)
 
-        // Subscribe to NWC events if we have some connections
-        if(!isRemoteDataPushEnabled) {          
-          nwcStore.receiveNwcEventsQueue()  
+        // if device does not support firebase notifications, but notifications are enabled, 
+        // use foreground service to listen for NWC events
+        if(!isRemoteDataPushEnabled && areNotificationsEnabled) {
+            await NotificationService.stopForegroundService()
+            await NotificationService.createNwcListenerNotification()    
+            // nwcStore.listenForNwcEvents()   
+            setInfo(translate('nwcScreen_pushNotificationWarning'))
         }
         setSelectedRelay(undefined)        
     }

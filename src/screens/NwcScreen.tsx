@@ -3,11 +3,11 @@ import { Observer } from 'mobx-react-lite'
 import React, {FC, useEffect, useRef, useState} from 'react'
 import {FlatList, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
-import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, Loading} from '../components'
+import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, Loading, Header} from '../components'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import AppError, { Err } from '../utils/AppError'
-import { log } from '../services'
+import { log, NotificationService } from '../services'
 import { translate } from '../i18n'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { NwcConnection } from '../models/NwcStore'
@@ -34,13 +34,18 @@ export const NwcScreen = observer(function NwcScreen(_props) {
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState(false)
     const [isRemoteDataPushEnabled, setIsRemoteDataPushEnabled] = useState<boolean>(walletProfileStore.device ? true : false)
+    const [areNotificationsEnabled, setAreNotificationsEnabled] = useState<boolean>(false)
 
-    useHeader({
-        leftIcon: 'faArrowLeft',
-        onLeftPress: () => navigation.goBack(),
-        rightIcon: isRemoteDataPushEnabled ? 'faRotate' : undefined,
-        onRightPress: () => isRemoteDataPushEnabled ? onConnect() : false
-    }) 
+
+    useEffect(() => {
+        const setNotificationsStatus = async () => {
+            const enabled = await NotificationService.areNotificationsEnabled()
+            if(enabled) {
+                setAreNotificationsEnabled(true)
+            } 
+        } 
+        setNotificationsStatus()
+    }, [])
 
 
     useEffect(() => {
@@ -92,9 +97,13 @@ export const NwcScreen = observer(function NwcScreen(_props) {
     const onConnect = async function () {
         log.trace('[onConnect]') 
         
-        if(!isRemoteDataPushEnabled) {
-            setSelectedConnection(undefined)        
-            nwcStore.receiveNwcEventsQueue()   
+        // if device does not support firebase notifications, but notifications are enabled, 
+        // use foreground service to listen for NWC events
+        if(!isRemoteDataPushEnabled && areNotificationsEnabled) {
+            setSelectedConnection(undefined)
+            await NotificationService.stopForegroundService() // stop previous if any
+            await NotificationService.createNwcListenerNotification()
+            // nwcStore.listenForNwcEvents()   
             setInfo(translate('nwcScreen_pushNotificationWarning'))
         }
     }
@@ -158,6 +167,12 @@ export const NwcScreen = observer(function NwcScreen(_props) {
     
     return (
       <Screen contentContainerStyle={$screen} preset='fixed'>
+        <Header 
+            leftIcon='faArrowLeft'
+            onLeftPress={() => navigation.goBack()}
+            rightIcon={!isRemoteDataPushEnabled && areNotificationsEnabled ? 'faCircleNodes' : undefined}
+            onRightPress={() => !isRemoteDataPushEnabled && areNotificationsEnabled ? onConnect() : false}
+        />
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text
             preset='heading'

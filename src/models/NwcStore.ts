@@ -80,6 +80,8 @@ const getConnectionRelays = function () {
     return minibitsRelays
 }
 
+export const LISTEN_FOR_NWC_EVENTS = 'listenForNwcEvents'
+
 const MIN_LIGHTNING_FEE = 2 // sats
 const LIGHTNING_FEE_PERCENT = 1
 const MAX_MULTI_PAY_INVOICES = 5
@@ -717,13 +719,13 @@ export const NwcStoreModel = types
                 log.debug('[remove]', 'Connection removed from NwcStore')
             }
         },
-        receiveNwcEventsQueue () {
-            log.trace('[receiveNwcEvents] start listening for NWC events', {                
+        listenForNwcEvents () {
+            log.trace('[listenForNwcEvents] start listening for NWC events', {                
                 walletPubkey: self.walletPubkey
             })
 
             if(self.nwcConnections.length === 0) {
-                log.trace('[receiveNwcEvents] No NWC connections, skipping subscription...')
+                log.trace('[listenForNwcEvents] No NWC connections, skipping subscription...')
                 return
             }
 
@@ -769,7 +771,7 @@ export const NwcStoreModel = types
                         )                        
                     },
                     oneose() {
-                        log.trace('[receiveNwcEvents]', `Eose: Got ${eventsBatch.length} NWC events`)
+                        log.trace('[listenForNwcEvents]', `Eose: Got ${eventsBatch.length} NWC events`)
                         eventsBatch = []
                     }
                 })
@@ -789,7 +791,6 @@ export const NwcStoreModel = types
                 const message = `Your wallet has received a NWC command, but could not find related NWC connection to handle it.`
                 log.error('[handleNwcRequestFromNotification]', message, {pubkey: event.pubkey})
                 
-                //yield NotificationService.stopForegroundService()
                 yield NotificationService.createLocalNotification(
                     Platform.OS === 'android' ? `<b>Nostr Wallet Connect<b> error` : `Nostr Wallet Connect error`,
                     message,
@@ -807,7 +808,6 @@ export const NwcStoreModel = types
                 const message = `Your wallet has received a NWC command, but could not retrieve the required data.`
                 log.error('[handleNwcRequestFromNotification]', message)
                 
-                //yield NotificationService.stopForegroundService()
                 yield NotificationService.createLocalNotification(
                     Platform.OS === 'android' ? `<b>Nostr Wallet Connect<b> error` : `Nostr Wallet Connect error`,
                     message,

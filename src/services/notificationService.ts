@@ -1,4 +1,4 @@
-import notifee, { AndroidImportance, AuthorizationStatus } from '@notifee/react-native'
+import notifee, { AndroidImportance, AuthorizationStatus, DisplayedNotification } from '@notifee/react-native'
 import { colors } from '../theme'
 import { log } from './logService'
 import {
@@ -10,7 +10,7 @@ import { NostrClient, NostrEvent, NostrProfile } from './nostrService'
 import AppError, { Err } from '../utils/AppError'
 import { Platform } from 'react-native'
 import { rootStoreInstance, setupRootStore } from '../models'
-import { NwcRequest, nwcPngUrl } from '../models/NwcStore';
+import { LISTEN_FOR_NWC_EVENTS, NwcRequest, nwcPngUrl } from '../models/NwcStore';
 import { HANDLE_NWC_REQUEST_TASK, WalletTask, WalletTaskResult } from './walletService'
 import { SyncQueue } from './syncQueueService'
 import { delay } from '../utils/delay'
@@ -78,6 +78,7 @@ const DEFAULT_CHANNEL_NAME = 'Minibits notifications'
 
 const NWC_CHANNEL_ID = 'nwcDefault';
 const NWC_CHANNEL_NAME = 'Minibits NWC payment'
+export const NWC_LISTENER_NAME = 'Minibits NWC listener'
 
 export const TASK_QUEUE_CHANNEL_ID = 'internalDefault'
 export const TASK_QUEUE_CHANNEL_NAME = 'Minibits tasks'
@@ -285,6 +286,14 @@ const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {
                 progress: {
                     indeterminate: true,
                 },
+                actions: [
+                    {
+                      title: 'Stop',
+                      pressAction: {
+                        id: 'stop',
+                      },
+                    },
+                ],
             },
             ios: {
                 categoryId: NWC_CHANNEL_ID,
@@ -340,8 +349,8 @@ const _getRemoteData = async function(remoteMessage: FirebaseMessagingTypes.Remo
 
 
 // Foreground service creation for Android long running tasks
-const createForegroundNotification = async function (body: string, data: {task: string, data?: any}) {
-    log.trace('Start', {body, data}, 'createForegroundNotification')
+const createTaskNotification = async function (body: string, data: {task: string, data?: any}) {
+    log.trace('Start', {body, data}, 'createTaskNotification')
     
     const isChannelCreated = await notifee.isChannelCreated(TASK_QUEUE_CHANNEL_ID)
     if (!isChannelCreated) {
@@ -362,12 +371,62 @@ const createForegroundNotification = async function (body: string, data: {task: 
             importance: AndroidImportance.HIGH,
             progress: {
                 indeterminate: true,
-            }
+            },
+            actions: [
+                {
+                  title: 'Stop',
+                  pressAction: {
+                    id: 'stop',
+                  },
+                },
+            ],
         },
         ios: {
             categoryId: TASK_QUEUE_CHANNEL_ID,
         },
         data
+    })
+}
+
+
+const createNwcListenerNotification = async function () {
+
+    if(Platform.OS !== 'android') {
+        return
+    }
+
+    log.trace('Start', 'createNwcListenerNotification')
+
+    const isChannelCreated = await notifee.isChannelCreated(NWC_CHANNEL_ID)
+    if (!isChannelCreated) {
+        await notifee.createChannel({
+            id: NWC_CHANNEL_ID,
+            name: NWC_CHANNEL_NAME,
+            sound: 'default',
+        })
+    }    
+        
+    return notifee.displayNotification({
+        title: NWC_LISTENER_NAME,
+        body: 'Listening for NWC commands...',
+        android: {
+            channelId: NWC_CHANNEL_ID,
+            asForegroundService: true,
+            largeIcon: minibitsPngIcon,
+            importance: AndroidImportance.HIGH,
+            /*progress: {
+                indeterminate: true,
+            },*/
+            actions: [
+                {
+                  title: 'Stop',
+                  pressAction: {
+                    id: 'stop',
+                  },
+                },
+            ],
+        },
+        data: {task: LISTEN_FOR_NWC_EVENTS}
     })
 }
 
@@ -428,30 +487,10 @@ const createLocalNotification = async function (title: string, body: string, lar
     }    
 }
 
-// unreliable and delayed for foreground service
-const isNotificationDisplayed = async function (options: { foregroundServiceOnly?: boolean }): Promise<boolean> {
-    const { foregroundServiceOnly } = options
+
+const getDisplayedNotifications = async function (): Promise<DisplayedNotification[]> {
     const notifications = await notifee.getDisplayedNotifications()
-    let isDisplayed: boolean = false
-
-    log.trace('[isNotificationDisplayed] Displayed notifications', {notifications, foregroundServiceOnly})
-
-    for (const notification of notifications) {
-        if (foregroundServiceOnly) {
-            // Assuming `foreground` is a property that indicates if the notification is in the foreground
-            if (notification.notification.android?.asForegroundService === true) {
-                log.trace('[isNotificationDisplayed] foregroundServiceOnly true')
-                isDisplayed = true
-            }
-        } else {
-            // If foregroundOnly is false, return true as soon as we find any notification            
-            isDisplayed = true
-        }
-    }
-
-    // If no matching notification is found, return false
-    log.trace('[isNotificationDisplayed]', isDisplayed)
-    return isDisplayed
+    return notifications
 }
 
 
@@ -473,11 +512,12 @@ const stopForegroundService = async function (): Promise<void> {
 
 export const NotificationService = {
     initNotifications,
-    createForegroundNotification,
+    createTaskNotification,
+    createNwcListenerNotification,
     createLocalNotification,
     onBackgroundNotification,
     onForegroundNotification,    
     areNotificationsEnabled,
-    isNotificationDisplayed,
+    getDisplayedNotifications,
     stopForegroundService
 }

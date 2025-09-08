@@ -146,7 +146,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
       setIsSyncStateSentToQueue(true)
 
       if(Platform.OS === 'android') {
-        await NotificationService.createForegroundNotification(
+        await NotificationService.createTaskNotification(
           'Cleaning spent ecash from spendable balance...',
           {task: SYNC_STATE_WITH_ALL_MINTS_TASK}
         )
