@@ -253,7 +253,8 @@ export const NwcScreen = observer(function NwcScreen(_props) {
         </View>
         <View style={$bottomContainer}>
             <View style={$buttonContainer}>
-                <Button
+                {areNotificationsEnabled ? (
+                    <Button
                     LeftAccessory={() => (
                         <Icon
                             icon='faPlus'
@@ -266,6 +267,13 @@ export const NwcScreen = observer(function NwcScreen(_props) {
                     preset='tertiary'
                     tx='nwcScreen_addConnection'
                 />
+                ) : ( 
+                    <Text
+                        text={'Enable app notifications in Settings first.'}
+                        style={{textAlign: 'center'}} 
+                    />
+                )}
+                
             </View>
         </View>
         
