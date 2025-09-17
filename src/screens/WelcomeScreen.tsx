@@ -116,7 +116,9 @@ export const WelcomeScreen = function ({ route }: Props) {
             setStatusMessage(translate('welcomeScreen_creatingProfile'))   
             
             // First, enroll device for JWT authentication then create profile
-            await authStore.logout()
+            try {
+              await authStore.logout()
+            } catch (e: any) {}
 
             await authStore.enrollDevice(
               keys.NOSTR,
