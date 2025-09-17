@@ -149,7 +149,7 @@ const initNotifications = async () => {
             if (!isCreated) {
                 notifee.createChannel({
                 id: TEST_CHANNEL_ID,
-                name: TASK_QUEUE_CHANNEL_NAME,
+                name: TEST_CHANNEL_NAME,
                 sound: 'default',
                 })
             }

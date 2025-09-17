@@ -1,5 +1,5 @@
 import numbro from 'numbro'
-import { BtcIcon, EurIcon, UsdIcon, CadIcon } from '../../components'
+import { BtcIcon, EurIcon, UsdIcon, CadIcon, GbpIcon } from '../../components'
 import AppError, { Err } from '../../utils/AppError'
 import { ExchangeRate } from '../../models/WalletStore'
 
@@ -19,7 +19,7 @@ export type MintUnitCurrencyPair = {
 }
 
 /** add any currency codes you want to allow the user to select as "reference currency" in the app settings, here: */
-export const availableExchangeCurrencies = [CurrencyCode.USD, CurrencyCode.EUR, CurrencyCode.CAD] as const;
+export const availableExchangeCurrencies = [CurrencyCode.USD, CurrencyCode.EUR, CurrencyCode.CAD, CurrencyCode.GBP] as const;
 
 export const MintUnitCurrencyPairs: MintUnitCurrencyPair = {
   btc:CurrencyCode.BTC, sat:CurrencyCode.SAT, msat:CurrencyCode.MSAT, eur:CurrencyCode.EUR, usd:CurrencyCode.USD,
@@ -85,8 +85,9 @@ export const Currencies: CurrencyList = {
     },
     GBP: {
         symbol: '£',
-        title: 'Pound sterling',
-        code: CurrencyCode.GBP,        
+        title: 'British pound',
+        code: CurrencyCode.GBP,
+        icon: GbpIcon,      
         precision: 100,
         mantissa: 2,
     },
