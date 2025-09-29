@@ -43,15 +43,17 @@ const extractEncodedLnurl = function (maybeLnurl: string) {
         return maybeLnurl
     }
 
-    if (maybeLnurl && maybeLnurl.toLowerCase().startsWith('http')) { // e.g. lnbits withdraw extension links
-        const parsed = new URL(maybeLnurl.toLowerCase())
-        encodedLnurl = parsed.searchParams.get('lightning')
-
-        if(encodedLnurl) {
-            const decoded = decodelnurl(encodedLnurl) // throws
-            log.trace('[extractEncodedLnurl] Extracted lnurl from URL', encodedLnurl)
-            return encodedLnurl
-        }
+    if (maybeLnurl &&         
+        (
+            maybeLnurl.toLowerCase().startsWith('bitcoin:') ||
+            maybeLnurl.toLowerCase().startsWith('http')
+        )
+    ) {  
+        const url = new URL(maybeLnurl.toLowerCase())
+        // Use URLSearchParams to get the value of the "lightning" parameter
+        encodedLnurl = url.searchParams.get("lightning") as string
+        const decoded = decodelnurl(encodedLnurl) // throws
+        return encodedLnurl
     }
 
 	for (const prefix of LNURL_URI_PREFIXES) {
