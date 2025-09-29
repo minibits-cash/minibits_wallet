@@ -63,6 +63,7 @@ export const SecurityScreen = observer(function SecurityScreen({ route }: Props)
 
                 if(!biometryType) {
                     setInfo('Your device does not support any biometric authentication method.')
+                    return
                 }
             } 
 
