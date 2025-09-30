@@ -108,7 +108,7 @@ export const AuthStoreModel = types
         
         log.trace('[setTokens] JWT Tokens saved successfully')
       } catch (e: any) {
-        log.error('[setTokens] Failed to save JWT tokens', e)
+        log.error(`Failed to save JWT tokens: ${e.message}`, {caller: 'setTokens'})
         throw e
       }
     }),
@@ -127,13 +127,13 @@ export const AuthStoreModel = types
         
         log.trace('[clearTokens] Tokens cleared successfully')
       } catch (e: any) {
-        log.error('[clearTokens] Failed to clear tokens', e)
+        log.error(`Failed to clear tokens: ${e.message}`, {caller: 'clearTokens'})
         throw e
       }
     }),     
     loadTokensFromKeyChain: flow(function* loadTokensFromKeyChain() {
       try {
-        log.trace('[AuthStore.loadTokensFromKeyChain] Loading tokens from the KeyChain')
+        log.trace('Loading tokens from the KeyChain')
         
         const tokens = yield KeyChain.getJwtTokens()
         
@@ -143,12 +143,12 @@ export const AuthStoreModel = types
           self.accessTokenExpiresAt = tokens.accessTokenExpiresAt
           self.refreshTokenExpiresAt = tokens.refreshTokenExpiresAt
           
-          log.trace('[AuthStore.loadTokensFromKeyChain] Tokens loaded successfully')
+          log.trace('Tokens loaded successfully')
         } else {
-          log.warn('[AuthStore.loadTokensFromKeyChain] No tokens found in the KeyChain')
+          log.warn('No tokens found in the KeyChain')
         }
       } catch (e: any) {
-        log.error('[AuthStore.loadTokensFromKeyChain] Failed to load tokens', e)
+        log.error(`Failed to load tokens: ${e.message}`, {caller: 'loadTokensFromKeyChain'})
         // Don't throw here, just log the error as missing tokens is not critical
       }
     }),
@@ -210,7 +210,7 @@ export const AuthStoreModel = types
         
     } catch (e: any) {
         // Throw error to satisfy return type
-        throw new AppError(Err.AUTH_ERROR, 'Failed to enroll device and obtain tokens', e)
+        throw new AppError(Err.AUTH_ERROR, `Failed to enroll device and obtain tokens: ${e.message}`, {caller: 'enrollDevice'})
     }
     }),
     logout: flow(function* logout() {
@@ -237,7 +237,7 @@ export const AuthStoreModel = types
         log.error('[logout] Logout failed', e)
         // Still try to clear local tokens even if there's an error
         yield self.clearTokens()
-        throw new AppError(Err.AUTH_ERROR, `Logout failed: ${e.message}`, e)
+        throw new AppError(Err.AUTH_ERROR, `Logout failed: ${e.message}`, {caller: 'logout'})
     }
     })
   
@@ -248,7 +248,7 @@ export const AuthStoreModel = types
         const {tokens} = self
 
         if (!tokens || !tokens.refreshToken) {
-            throw new AppError(Err.AUTH_ERROR, 'No refresh token available. Please re-authenticate.')
+            throw new AppError(Err.AUTH_ERROR, 'No refresh token available. Please re-authenticate.', {caller: 'refreshTokens'})
         }
 
         log.trace('[refreshTokens] Refreshing tokens')
@@ -264,7 +264,7 @@ export const AuthStoreModel = types
             jwtAuthRequired: false
         })
 
-        log.info('[refreshTokens] Tokens refreshed successfully', {newTokens})
+        log.info('Tokens refreshed successfully', {newTokens, caller: 'refreshTokens'})
 
         const atExpiry = decodeJwtExpiry(newTokens.accessToken) || 0
         const rtExpiry = decodeJwtExpiry(newTokens.refreshToken) || 0
@@ -283,12 +283,10 @@ export const AuthStoreModel = types
         return jwtTokens
 
     } catch (e: any) {
-        log.error('[refreshTokens] Failed to refresh tokens', e)
-        
         // If refresh fails, clear stored tokens
         yield self.clearTokens()
         
-        throw new AppError(Err.AUTH_ERROR, `Token refresh failed: ${e.message}`, e)
+        throw new AppError(Err.AUTH_ERROR, `Token refresh failed: ${e.message}`, {caller: 'refreshTokens'})
     }
     }),
   }))
@@ -307,7 +305,7 @@ export const AuthStoreModel = types
           return newTokens.accessToken
   
         } catch (e: any) {
-          log.error('[getValidAccessToken] Failed to get valid access token', e)
+          log.error(`Failed to get valid access token: ${e.message}`, {caller: 'getValidAccessToken'})
           throw e
         }
       }),
