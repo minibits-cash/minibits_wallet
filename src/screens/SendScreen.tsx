@@ -30,7 +30,7 @@ import {
   Text,
   AmountInput,  
 } from '../components'
-import {TransactionStatus, Transaction} from '../models/Transaction'
+import {TransactionStatus, Transaction, TransactionData} from '../models/Transaction'
 import {useStores} from '../models'
 import {NostrClient, SYNC_STATE_WITH_MINT_TASK, SyncStateTaskResult, TransactionTaskResult, WalletTask} from '../services'
 import {log} from '../services/logService'
@@ -766,7 +766,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             memo,
             exactMatchProofs.length > 0 ? exactMatchProofs : selectedProofs, // autoSelected proofs are not yet in state
             p2pk,
-            draftTransactionIdRef.current
+            draftTransactionIdRef.current || undefined
         )
     }
 
@@ -867,7 +867,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     return
                 }
 
-                let updated = []
+                let updated = [] as unknown as TransactionData
 
                 try {
                     updated = JSON.parse(transaction.data)

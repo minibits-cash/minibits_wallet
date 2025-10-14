@@ -35,6 +35,7 @@ import {useStores} from '../models'
 import {translate, TxKeyPath} from '../i18n'
 import {
   Transaction,
+  TransactionData,
   TransactionStatus,
   TransactionType,
 } from '../models/Transaction'
@@ -135,7 +136,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
 
     const onNoteSave = async function () {
       try {        
-        transaction.update({noteToSelf: note})
+        transaction && transaction.update({noteToSelf: note})
         setIsNoteEditing(false)        
       } catch (e: any) {
         handleError(e)
@@ -602,7 +603,7 @@ const ReceiveInfoBlock = function (props: {
                     
         
           if(errorRecord) {
-              const {error} = errorRecord
+              const error: {message: string} = errorRecord.error
               
               if(error.message && ['network', 'gateway', 'outputs'].some(word => error.message.toLowerCase().includes(word))) {                    
                   setIsRetriable(true)
@@ -1434,7 +1435,7 @@ const TopupInfoBlock = function (props: {
 
 
   const onRetryToHandlePendingTopup = async function () {                
-      if(!isInternetReachable) {
+      if(!isInternetReachable || !mint) {
           return
       }
 
@@ -1998,7 +1999,7 @@ export const TranItem = function (props: {
 
 
 const getAuditTrail = function (transaction: Transaction) {
-    let data = []
+    let data = [] as unknown as TransactionData
     try {        
         data = JSON.parse(transaction.data)
     } catch (e) {}

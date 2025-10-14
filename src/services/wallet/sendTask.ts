@@ -384,7 +384,11 @@ export const sendFromMintSync = async function (
                 transactionId
             })
 
-            let sendResult = undefined
+            let sendResult = {} as {
+                returnedProofs: CashuProof[],
+                proofsToSend: CashuProof[], 
+                swapFeePaid: number
+            }
 
             try {
                 sendResult = await walletStore.send(

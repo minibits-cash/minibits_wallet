@@ -424,6 +424,8 @@
 	"recoveryOptionsFromBackupDescription": "Importovať zálohu exportovanú z inej peňaženky Minibits. Jednoduchá možnosť, ak prechádzate na nové zariadenie.",
 	"recoveryOptionsFromSeed": "Zotavenie zo semien",
 	"recoveryOptionsFromSeedDescription": "Použite 12-slovnú úvodnú frázu na obnovenie stratených elektronických peňazí s pomocou mincovní. Použite v prípade straty zariadenia.",
+	"seedRecoveryOptions": "Obnova založená na seede",
+	"seedRecoveryOptionsDesc": "Obnov svoju peňaženku pomocou seed frázy alebo záložného súboru",
 	"recoveryOptionsTitle": "Možnosti obnovenia",
 	"recoveryPermissionNeededDesc": "Minibits potrebuje povolenie na zobrazenie notifikácie počas behu tejto úlohy.",
 	"recoveryPermissionNeededTitle": "Potrebné povolenie",

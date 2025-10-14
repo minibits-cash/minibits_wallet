@@ -105,12 +105,11 @@ const getRandomPictures = async function () {
 }
 
 // TODO remove pubkey params
-const createWalletProfile = async function (pubkey: string, walletId: string, seedHash: string) {    
+const createWalletProfile = async function (walletId: string, seedHash: string) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'POST'    
     
     const body = {
-        pubkey,
         walletId,
         seedHash
     }
@@ -130,7 +129,7 @@ const createWalletProfile = async function (pubkey: string, walletId: string, se
 
 // what is passed in {update} gets updated
 // TODO remove pubkey from url and params
-const updateWalletProfile = async function (pubkey: string, update: {name?: string, lud16?: string, avatar?: string}) {    
+const updateWalletProfile = async function (update: {name?: string, lud16?: string, avatar?: string}) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'PUT'    
     const { name, lud16, avatar } = update
@@ -141,7 +140,7 @@ const updateWalletProfile = async function (pubkey: string, update: {name?: stri
         avatar,        
     }        
 
-    const walletProfile = await fetchApi(url + `/${pubkey}`, {
+    const walletProfile = await fetchApi(url, {
         method,        
         body,
         jwtAuthRequired: true
@@ -153,7 +152,7 @@ const updateWalletProfile = async function (pubkey: string, update: {name?: stri
 }
 
 // TODO remove pubkey from url and params
-const updateWalletProfileNip05 = async function (pubkey: string, update: {newPubkey: string, name: string, nip05: string, lud16: string, avatar: string}) {    
+const updateWalletProfileNip05 = async function (update: {newPubkey: string, name: string, nip05: string, lud16: string, avatar: string}) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'PUT'    
     const { newPubkey, name, nip05, lud16, avatar } = update
@@ -166,7 +165,7 @@ const updateWalletProfileNip05 = async function (pubkey: string, update: {newPub
         avatar
     }        
 
-    const walletProfile = await fetchApi(url + `/nip05/${pubkey}`, {
+    const walletProfile = await fetchApi(url + `/nip05`, {
         method,        
         body,
         jwtAuthRequired: true
@@ -179,16 +178,16 @@ const updateWalletProfileNip05 = async function (pubkey: string, update: {newPub
 
 
 // TODO remove pubkey from url and params
-const updateDeviceToken = async function (pubkey: string, update: {deviceToken: string} ) {    
+const updateDeviceToken = async function (deviceToken: string) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile' 
     const method = 'PUT'    
-    const { deviceToken } = update
+    
     
     const body = {            
         deviceToken
     }        
 
-    const walletProfile = await fetchApi(url + `/deviceToken/${pubkey}`, {
+    const walletProfile = await fetchApi(url + `/deviceToken`, {
         method,        
         body,
         jwtAuthRequired: true
@@ -200,12 +199,11 @@ const updateDeviceToken = async function (pubkey: string, update: {deviceToken: 
 }
 
 // TODO remove pubkey from params
-const recoverProfile = async function (pubkey: string, walletId: string, seedHash: string) {    
+const recoverProfile = async function (walletId: string, seedHash: string) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'PUT'    
     
     const body = {            
-        pubkey,
         walletId,
         seedHash        
     }        
@@ -216,7 +214,28 @@ const recoverProfile = async function (pubkey: string, walletId: string, seedHas
         jwtAuthRequired: true
     }) as WalletProfileRecord
 
-    log.info('[recoverProfile]', `Recovered wallet address`, {seedHash, pubkey, walletId})
+    log.info('[recoverProfile]', `Recovered wallet address`, {seedHash, walletId})
+
+    return walletProfile
+}
+
+
+const recoverAddress = async function (walletId: string, seedHash: string) {    
+    const url = MINIBITS_SERVER_API_HOST + '/profile'
+    const method = 'PUT'    
+    
+    const body = {
+        walletId,
+        seedHash        
+    }        
+
+    const walletProfile = await fetchApi(url + `/recover`, {
+        method,        
+        body,
+        jwtAuthRequired: true
+    }) as WalletProfileRecord
+
+    log.info('[recoverProfile]', `Recovered wallet address`, {seedHash, walletId})
 
     return walletProfile
 }

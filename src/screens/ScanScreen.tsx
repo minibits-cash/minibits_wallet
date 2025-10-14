@@ -288,8 +288,7 @@ export const ScanScreen = function ScanScreen({ route }: Props) {
             <Camera
                 cameraType={CameraType.Back}                      
                 scanBarcode
-                onReadCode={(event: any) => (isScanned ? undefined : onReadCode(event))}
-                hideControls
+                onReadCode={(event: any) => (isScanned ? undefined : onReadCode(event))}                
                 style={{flex: 1}}            
             />
             <View style={$bottomContainer}>                

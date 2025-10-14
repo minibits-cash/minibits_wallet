@@ -29,11 +29,9 @@ import { MintBalance } from '../models/Mint'
 import { MintUnit } from '../services/wallet/currency'
 import Clipboard from '@react-native-clipboard/clipboard'
 
-type Props = StaticScreenProps<{
-  fromScreen?: string
-}>
+type Props = StaticScreenProps<undefined>
 
-export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ route }: Props) {
+export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen(_: Props) {
     const navigation = useNavigation()
     useHeader({
       leftIcon: 'faArrowLeft',
@@ -116,21 +114,9 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
     const toggleMeltQuoteResultModal = () =>
       setIsMeltQuoteResultModalVisible(previousState => !previousState)
 
-    const gotoSeedRecovery = function () {
+    const gotoSeedRecoveryOptions = function () {
       //@ts-ignore
-      navigation.navigate('SeedRecovery')
-    }
-
-
-    const gotoImportBackup = function () {
-      //@ts-ignore
-      navigation.navigate('ImportBackup')
-    }
-
-
-    const gotoAddressRecovery = function () {
-      //@ts-ignore
-      navigation.navigate('RecoverWalletAddress')
+      navigation.navigate('SeedRecoveryOptions')
     }
 
 
@@ -326,140 +312,111 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen({ r
               style={{color: 'white'}}
             />
         </View>
-        <ScrollView style={$contentContainer}>  
-        {route.params && route.params.fromScreen !== 'Settings' && (                
-            <Card
-                style={$ecashCard}
-                ContentComponent={
-                    <>
-                    <ListItem
-                        tx="recoveryOptionsFromBackup"
-                        subTx="recoveryOptionsFromBackupDescription"
-                        leftIcon='faDownload'
-                        leftIconColor={colors.palette.focus300}
-                        leftIconInverse={true}
-                        style={$item}
-                        bottomSeparator={true}
-                        onPress={gotoImportBackup}
-                    />                 
-                    <ListItem
-                        tx="recoveryOptionsFromSeed"
-                        subTx="recoveryOptionsFromSeedDescription"
-                        leftIcon='faSeedling'
-                        leftIconColor={colors.palette.orange400}
-                        leftIconInverse={true}                        
-                        style={$item}
-                        onPress={gotoSeedRecovery}
-                    />   
-                    </>
-              }
-            />
-          )}
-          {route.params && route.params.fromScreen === 'Settings' && (
-            <>
-              <Card
-                style={$card}
-                HeadingComponent={
-                <ListItem
-                  tx="walletAddressRecovery"
-                  subTx="walletAddressRecoveryDesc"
-                  leftIcon='faCircleUser'
-                  leftIconColor={colors.palette.iconViolet300}
-                  leftIconInverse={true}
-                  style={$item}
-                  onPress={gotoAddressRecovery}
-                />}
+        <ScrollView style={$contentContainer}>
+          <Card
+            style={$card}
+            HeadingComponent={
+              <ListItem
+                tx="seedRecoveryOptions"
+                subTx="seedRecoveryOptionsDesc"
+                leftIcon='faSeedling'
+                leftIconColor={colors.palette.orange400}
+                leftIconInverse={true}
+                style={$item}
+                onPress={gotoSeedRecoveryOptions}
               />
-              <Card
-                style={$card}                HeadingComponent={                               
+            }
+          />
+
+          <Card
+            style={$card}
+            HeadingComponent={                               
+              <ListItem
+                  tx="backupRemoveSpentCoins"
+                  subTx="backupRemoveSpentCoinsDescription"
+                  leftIcon='faRecycle'
+                  leftIconColor={colors.palette.secondary300}
+                  leftIconInverse={true}
+                  RightComponent={
+                    <View style={$rightContainer}>
+                        <Button
+                          onPress={checkSpent}
+                          tx='recoveryScreen_remove'
+                          preset='secondary'                                           
+                        /> 
+                    </View>                           
+                  }
+                  style={$item}                        
+              />
+            }
+          /> 
+          <Card
+              style={$card}
+              HeadingComponent={
+              <>                
                   <ListItem
-                      tx="backupRemoveSpentCoins"
-                      subTx="backupRemoveSpentCoinsDescription"
-                      leftIcon='faRecycle'
-                      leftIconColor={colors.palette.secondary300}
+                      tx="increaseRecoveryIndexes"
+                      subTx="increaseRecoveryIndexesDesc"
+                      leftIcon='faArrowUp'
+                      leftIconColor={colors.palette.success300}
                       leftIconInverse={true}
                       RightComponent={
-                        <View style={$rightContainer}>
-                            <Button
-                              onPress={checkSpent}
-                              tx='recoveryScreen_remove'
-                              preset='secondary'                                           
-                            /> 
-                        </View>                           
-                      }
+                          <View style={$rightContainer}>
+                              <Button
+                                  onPress={increaseCounters}
+                                  tx='recoveryScreen_increase'
+                                  preset='secondary'                                           
+                              /> 
+                          </View>                           
+                      } 
                       style={$item}                        
                   />
-                }
-              /> 
-              <Card
-                  style={$card}
-                  HeadingComponent={
-                  <>                
-                      <ListItem
-                          tx="increaseRecoveryIndexes"
-                          subTx="increaseRecoveryIndexesDesc"
-                          leftIcon='faArrowUp'
-                          leftIconColor={colors.palette.success300}
-                          leftIconInverse={true}
-                          RightComponent={
-                              <View style={$rightContainer}>
-                                  <Button
-                                      onPress={increaseCounters}
-                                      tx='recoveryScreen_increase'
-                                      preset='secondary'                                           
-                                  /> 
-                              </View>                           
-                          } 
-                          style={$item}                        
-                      />
-                  </>
-                  }
-              />
-              <Card
-                labelTx='recoveryScreen_experimentalTools'
-                style={[$card, {marginBottom: spacing.huge * 2}]}
-                HeadingComponent={
-                <>         
-                    <ListItem
-                          tx="recoveryScreen_recoverMintQuote"
-                          subTx="recoveryScreen_recoverMintQuoteDesc"
-                          leftIcon='faCoins'
-                          leftIconColor={colors.palette.orange400}
-                          leftIconInverse={true}
-                          RightComponent={
-                              <View style={$rightContainer}>
-                                  <Button
-                                      onPress={startMintQuoteRecovery}
-                                      tx='recoveryScreen_start'
-                                      preset='secondary'                                           
-                                  /> 
-                              </View>                           
-                          } 
-                          style={$item}                        
-                    />       
-                    <ListItem
-                        tx="recoveryScreen_recoverMeltQuoteChange"
-                        subTx="recoveryScreen_recoverMeltQuoteChangeDesc"
-                        leftIcon='faArrowTurnDown'
-                        leftIconColor={colors.palette.iconGreyBlue400}
-                        leftIconInverse={true}
-                        topSeparator={true}
-                        RightComponent={
-                            <View style={$rightContainer}>
-                                <Button
-                                    onPress={startMeltQuoteRecovery}
-                                    tx='recoveryScreen_start'
-                                    preset='secondary'                                           
-                                /> 
-                            </View>                           
-                        } 
-                        style={$item}                        
-                    />
-                </>
-                }
-              />
+              </>
+              }
+          />
+          <Card
+            labelTx='recoveryScreen_experimentalTools'
+            style={[$card, {marginBottom: spacing.huge * 2}]}
+            HeadingComponent={
+            <>         
+                <ListItem
+                      tx="recoveryScreen_recoverMintQuote"
+                      subTx="recoveryScreen_recoverMintQuoteDesc"
+                      leftIcon='faCoins'
+                      leftIconColor={colors.palette.orange400}
+                      leftIconInverse={true}
+                      RightComponent={
+                          <View style={$rightContainer}>
+                              <Button
+                                  onPress={startMintQuoteRecovery}
+                                  tx='recoveryScreen_start'
+                                  preset='secondary'                                           
+                              /> 
+                          </View>                           
+                      } 
+                      style={$item}                        
+                />       
+                <ListItem
+                    tx="recoveryScreen_recoverMeltQuoteChange"
+                    subTx="recoveryScreen_recoverMeltQuoteChangeDesc"
+                    leftIcon='faArrowTurnDown'
+                    leftIconColor={colors.palette.iconGreyBlue400}
+                    leftIconInverse={true}
+                    topSeparator={true}
+                    RightComponent={
+                        <View style={$rightContainer}>
+                            <Button
+                                onPress={startMeltQuoteRecovery}
+                                tx='recoveryScreen_start'
+                                preset='secondary'                                           
+                            /> 
+                        </View>                           
+                    } 
+                    style={$item}                        
+                />
             </>
-            )} 
+            }
+          />
           {isLoading && <Loading />}        
           {error && <ErrorModal error={error} />}
           {info && <InfoModal message={info} />}                    
@@ -698,11 +655,6 @@ const $quoteInput: TextStyle = {
   textAlignVertical: 'top',
 }
 
-const $ecashCard: ViewStyle = {
-  // marginTop: -spacing.extraLarge * 1.5,
-  marginBottom: spacing.small,
-  // paddingTop: 0,
-}
 
 const $card: ViewStyle = {
   marginBottom: spacing.small,

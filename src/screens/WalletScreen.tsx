@@ -185,9 +185,8 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
 
             // Create websocket subscriptions to receive NWC requests from remote wallets (if any)
             // go through websockets only if remote notifications not working as push data messages are
-            // delivered even if notifications are disabled on device            
-            const isRemoteDataPushEnabled = walletProfileStore.device ? true : false
-            if(!isRemoteDataPushEnabled) {nwcStore.receiveNwcEventsQueue()} 
+            // delivered even if notifications are disabled on device                        
+            if(!walletProfileStore.device) {nwcStore.listenForNwcEvents()}
         }
 
         const handleReceivedEventTaskResult  = async (result: WalletTaskResult) => {

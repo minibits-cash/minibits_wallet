@@ -101,9 +101,10 @@ export const NwcScreen = observer(function NwcScreen(_props) {
         // use foreground service to listen for NWC events
         if(!isRemoteDataPushEnabled && areNotificationsEnabled) {
             setSelectedConnection(undefined)
+            
             await NotificationService.stopForegroundService() // stop previous if any
             await NotificationService.createNwcListenerNotification()
-            // nwcStore.listenForNwcEvents()   
+               
             setInfo(translate('nwcScreen_pushNotificationWarning'))
         }
     }

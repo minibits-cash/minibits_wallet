@@ -423,6 +423,8 @@
 	"recoveryOptionsFromBackupDescription": "Importa la copia de seguridad exportada desde otra billetera Minibits. Una opción sencilla si cambias de dispositivo.",
 	"recoveryOptionsFromSeed": "Recuperarse de la semilla",
 	"recoveryOptionsFromSeedDescription": "Usa una frase inicial de 12 palabras para recrear tu dinero electrónico perdido con la ayuda de mentas. Úsala en caso de pérdida del dispositivo.",
+	"seedRecoveryOptions": "Recuperación basada en semilla",
+	"seedRecoveryOptionsDesc": "Recupera tu billetera usando frase semilla o archivo de respaldo",
 	"recoveryOptionsTitle": "Recuperación",
 	"recoveryPermissionNeededDesc": "Minibits necesita un permiso para mostrar notificaciones mientras se ejecuta esta tarea.",
 	"recoveryPermissionNeededTitle": "Se necesita permiso",

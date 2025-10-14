@@ -6,13 +6,14 @@ import {
   TransactionType,
 } from '../../models/Transaction'
 import {rootStoreInstance} from '../../models'
-import {CashuUtils} from '../cashu/cashuUtils'
+import {CashuProof, CashuUtils} from '../cashu/cashuUtils'
 import AppError, {Err} from '../../utils/AppError'
 import { TransactionTaskResult } from '../walletService'
 import { WalletUtils } from './utils'
 import { MintUnit, formatCurrency, getCurrency } from './currency'
 import { PaymentRequestPayload, Token, getDecodedToken } from '@cashu/cashu-ts'
 import { getEncodedToken, getKeepAmounts } from '@cashu/cashu-ts/src/utils'
+import { Proof } from '../../models/Proof'
 
 const {
     mintsStore,
@@ -286,7 +287,7 @@ export const receiveOfflineCompleteTask = async function (
             throw new AppError(Err.VALIDATION_ERROR, 'Could not retrieve transaction.', {transactionId})
         }   
 
-        let transactionData = []
+        let transactionData = [] as unknown as TransactionData
 
         try {
             transactionData = JSON.parse(transaction.data)
@@ -370,7 +371,7 @@ export const receiveOfflineCompleteTask = async function (
         // release lock
         if(transaction) {
                 
-            let transactionData = []
+            let transactionData = [] as unknown as TransactionData
 
             try {
                 transactionData = JSON.parse(transaction.data)
@@ -403,7 +404,7 @@ export const receiveByCashuPaymentRequestTask = async function (
     paymentRequestPayload: PaymentRequestPayload,    
 ): Promise<TransactionTaskResult> {
 
-  const transactionData: TransactionData[] = []  
+  const transactionData = []  as unknown as TransactionData
   let transaction: Transaction | undefined = undefined
   const unit = paymentRequestPayload.unit as MintUnit
   const mintToReceive = paymentRequestPayload.mint
@@ -562,7 +563,7 @@ export const receiveSync = async function (
             throw new AppError(Err.VALIDATION_ERROR, 'Missing mint', {mintToReceive})
         }        
         
-        let receivedResult = undefined
+        let receivedResult = {} as unknown as {proofs: CashuProof[], swapFeePaid: number}
 
         try {
             receivedResult = await walletStore.receive(

@@ -32,7 +32,7 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
     const [isUpdateModalVisible, setIsUpdateModalVisible] = useState<boolean>(false)
     const [isShareModalVisible, setIsShareModalVisible] = useState<boolean>(false)
     const [isQrCodeModalVisible, setIsQrCodeModalVisible] = useState(false)
-    const [qrCodeData, setQrCodeData] = useState<{title: TxKeyPath, data: string}>(undefined)
+    const [qrCodeData, setQrCodeData] = useState<{title: TxKeyPath, data: string}>()
     const [isLoading, setIsLoading] = useState<boolean>(false)
     const [info, setInfo] = useState('')    
     const [error, setError] = useState<AppError | undefined>()
@@ -147,7 +147,7 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
             log.trace('[onSyncOwnProfile]', {profile})
 
             // update own profile based on data from relays
-            await MinibitsClient.updateWalletProfile(profile.pubkey, {
+            await MinibitsClient.updateWalletProfile({
                 avatar: profile.picture || '', // this is https:// link
                 lud16: profile.lud16 || '',
                 name: profile.name

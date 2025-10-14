@@ -388,7 +388,7 @@ const sendQueue = async function (
     memo: string,
     selectedProofs: Proof[],
     p2pk?: { pubkey: string; locktime?: number; refundKeys?: Array<string> },
-    draftTransactionId?: number | null
+    draftTransactionId?: number
 ): Promise<void> {
     const now = new Date().getTime()
     SyncQueue.addPrioritizedTask(
@@ -1180,7 +1180,7 @@ const handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTask
                     continue
                 }
 
-                let transactionData = []
+                let transactionData = [] as unknown as TransactionData
 
                 try {
                     transactionData = JSON.parse(transaction.data)
@@ -1589,7 +1589,7 @@ const handlePendingTopupTask = async function (params: {transaction: Transaction
 
     log.trace('[handlePendingTopupTask] start', transaction)
     
-    let transactionData = []
+    let transactionData = [] as unknown as TransactionData
 
     try {
         transactionData = JSON.parse(transaction.data)

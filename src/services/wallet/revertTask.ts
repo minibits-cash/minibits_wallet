@@ -1,6 +1,7 @@
 import {log} from '../logService'
 import {
   Transaction,
+  TransactionData,
   TransactionStatus,  
 } from '../../models/Transaction'
 import {rootStoreInstance} from '../../models'
@@ -24,7 +25,7 @@ export const revertTask = async function (
 ): Promise<TransactionTaskResult> {    
 
 
-let transactionData = []
+let transactionData = [] as unknown as TransactionData
 
 try {
     transactionData = JSON.parse(transaction.data)

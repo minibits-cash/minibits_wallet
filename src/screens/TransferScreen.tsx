@@ -663,7 +663,7 @@ const transfer = async function () {
         invoiceExpiry as Date,
         encodedInvoice,
         undefined,
-        draftTransactionIdRef.current
+        draftTransactionIdRef.current || undefined
     )
   } catch (e: any) {
     handleError(e)

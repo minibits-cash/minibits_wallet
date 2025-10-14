@@ -125,8 +125,7 @@ export const WelcomeScreen = function ({ route }: Props) {
               walletProfileStore.device
             )
             
-            await walletProfileStore.create(
-              keys.NOSTR.publicKey, 
+            await walletProfileStore.create(              
               keys.walletId, 
               keys.SEED.seedHash
             )
@@ -151,15 +150,6 @@ export const WelcomeScreen = function ({ route }: Props) {
       } catch (e: any) {
           handleError(e)
       }      
-    }
-
-
-    const gotoRecovery = async function () {
-        try {            
-            navigation.navigate('RecoveryOptions', {fromScreen: 'Welcome'})
-        } catch (e: any) {
-            handleError(e)
-        }      
     }
 
     const handleError = function (e: AppError) { 
@@ -264,13 +254,13 @@ export const WelcomeScreen = function ({ route }: Props) {
                                 preset='secondary'
                                 tx="welcomeScreen_lastPageConfirmButton"
                             />
-                            <Button 
+                            {/*<Button 
                                 onPress={gotoRecovery}
                                 preset='tertiary'
                                 tx="welcomeScreen_lastPageRecoverLostWalletButton"
                                 LeftAccessory={() => {return<Icon icon='faHeartPulse'/>}}
                                 style={{marginTop: spacing.medium}}
-                            />
+                            />*/}
                         </ScrollView>
                     )} 
                     </View>               

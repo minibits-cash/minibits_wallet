@@ -16,15 +16,15 @@ import {
   ErrorModal,
   InfoModal,
   BottomModal,
-  Button,  
+  Button,
+  Header,  
 } from '../components'
-import {useHeader} from '../utils/useHeader'
 import AppError, { Err } from '../utils/AppError'
 import { Database, KeyChain, log, MinibitsClient } from '../services'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { rootStoreInstance, useStores } from '../models'
 import {MnemonicInput} from './Recovery/MnemonicInput'
-import { MINIBITS_MINT_URL, MINIBITS_NIP05_DOMAIN } from '@env'
+import { MINIBITS_MINT_URL } from '@env'
 import { delay } from '../utils/utils'
 import { applySnapshot} from 'mobx-state-tree'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
@@ -35,20 +35,11 @@ import { MintsStoreSnapshot } from '../models/MintsStore'
 import { ContactsStoreSnapshot } from '../models/ContactsStore'
 import { CashuMint, MintActiveKeys } from '@cashu/cashu-ts'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
-import { AuthStoreModel } from '../models/AuthStore'
 
 type Props = StaticScreenProps<undefined>
 
 export const ImportBackupScreen = observer(function ImportBackupScreen({ route }: Props) {
     const navigation = useNavigation()
-
-    useHeader({
-        leftIcon: 'faArrowLeft',
-        onLeftPress: () => {            
-            navigation.goBack()
-        },
-    })
-
     const {
         mintsStore, 
         proofsStore, 
@@ -64,11 +55,9 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
     const seedRef = useRef<Uint8Array | null>(null)
     const seedHashRef = useRef<string | null>(null)
     
-    const [info, setInfo] = useState('')    
-    const [mnemonicExists, setMnemonicExists] = useState(false)
+    const [info, setInfo] = useState('')        
     const [mnemonic, setMnemonic] = useState<string>('')    
-    const [isValidMnemonic, setIsValidMnemonic] = useState(false)
-    const [isNewProfileNeeded, setIsNewProfileNeeded] = useState(false)     
+    const [isValidMnemonic, setIsValidMnemonic] = useState(false)      
     const [backup, setBackup] = useState<string>('')
     const [isValidBackup, setIsValidBackup] = useState(false)    
     const [walletSnapshot, setWalletSnapshot] = useState<{
@@ -81,20 +70,6 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
     const [error, setError] = useState<AppError | undefined>()        
     const [statusMessage, setStatusMessage] = useState<string>()
 
-    useEffect(() => {
-        const getMnemonic = async () => {  
-            try {                
-                const existing = await KeyChain.getWalletKeys()
-                if(existing && existing.SEED.mnemonic) {
-                    setMnemonicExists(true)
-                }                
-            } catch (e: any) {                
-                handleError(e)
-            } 
-        }
-        getMnemonic()
-    }, [])
-
 
     const onBack = () => {
         navigation.goBack()
@@ -102,47 +77,32 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
 
     
     const onConfirmMnemonic = async function () {
-        try {
-            if(!mnemonic) {
-                throw new AppError(Err.VALIDATION_ERROR, translate('backupMissingMnemonicError'))
-            }
-
-            LayoutAnimation.easeInEaseOut()            
-
-            if (!validateMnemonic(mnemonic, wordlist)) {
-                throw new AppError(Err.VALIDATION_ERROR, translate("recoveryInvalidMnemonicError"))
-            }
-
-            setIsValidMnemonic(true)
-            
-            const binarySeed = mnemonicToSeedSync(mnemonic)            
-
-            const seedHash = QuickCrypto.createHash('sha256')
-            .update(binarySeed)
-            .digest('hex')
-
-            seedRef.current = binarySeed
-            seedHashRef.current = seedHash
-            
-            const profile = await MinibitsClient.getWalletProfileBySeedHash(seedHash as string) // throws if not found
-          
-            log.info('[onCheckWalletAddress] profileToRecover', {profile})                
-  
-            if(profile.nip05.includes(MINIBITS_NIP05_DOMAIN)) {                                    
-                setProfileToRecover(profile)
-            } else {
-                setInfo(translate("recovery_ownKeysImportAgain", { addr: profile.nip05 }))
-                setIsNewProfileNeeded(true)              
-            }            
-        } catch (e: any) {
-          // Profile with provided seed hash does not exists
-          if(e.name.includes(Err.NOTFOUND_ERROR)) {
-            setIsNewProfileNeeded(true)
-          } else {
-            handleError(e)
+      try {
+          if(!mnemonic) {
+              throw new AppError(Err.VALIDATION_ERROR, translate('backupMissingMnemonicError'))
           }
-        }
-    }
+
+          LayoutAnimation.easeInEaseOut()            
+
+          if (!validateMnemonic(mnemonic, wordlist)) {
+              throw new AppError(Err.VALIDATION_ERROR, translate("recoveryInvalidMnemonicError"))
+          }
+
+          setIsValidMnemonic(true)
+          
+          const binarySeed = mnemonicToSeedSync(mnemonic)            
+
+          const seedHash = QuickCrypto.createHash('sha256')
+          .update(binarySeed)
+          .digest('hex')
+
+          seedRef.current = binarySeed
+          seedHashRef.current = seedHash            
+          
+      } catch (e: any) {
+          handleError(e)
+      }
+  }
 
     
     const onPasteBackup = async function () {
@@ -243,8 +203,6 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
         applySnapshot(mintsStore, walletSnapshot.mintsStore)
         applySnapshot(contactsStore, walletSnapshot.contactsStore)        
 
-        // log.trace('After import', {rootStore})        
-        const rootStore = rootStoreInstance
         log.trace('After import and mint keys hydration', {mintsStore})
 
         // import proofs into the db
@@ -270,66 +228,48 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
     
     const onCompleteAddress = async () => {
         try {
-            if(!seedHashRef.current || !seedRef.current) {
-              throw new AppError(Err.VALIDATION_ERROR, translate('backupMissingMnemonicOrSeedError'))
-            }
-            // create a new walletId and Nostr key pair after a new install or factory reset
-            // and keep provided seed
-            setIsLoading(true)
-            setStatusMessage(translate("recovery_recoveringAddress"))
+          if(!seedHashRef.current || !seedRef.current) {
+            throw new AppError(Err.VALIDATION_ERROR, translate('backupMissingMnemonicOrSeedError'))
+          }
+          // create a new walletId and a new Nostr key pair
+          // and keep provided seed
+          setIsLoading(true)
+          setStatusMessage(translate("recovery_recoveringAddress"))
 
-            const keys = KeyChain.generateWalletKeys()
-            // Set seed to the provided one
-            const seed = {
-              seed: Buffer.from(seedRef.current).toString('base64'),
-              seedHash: seedHashRef.current,
-              mnemonic
-            }
+          const keys = await walletStore.getCachedWalletKeys()
+          // Set seed to the provided one
+          const seed = {
+            seed: Buffer.from(seedRef.current).toString('base64'),
+            seedHash: seedHashRef.current,
+            mnemonic
+          }
 
-            keys.SEED = seed
-            
-            await authStore.logout()
-            await authStore.enrollDevice(
-              keys.NOSTR,
-              walletProfileStore.device
-            )
-            
-            if(isNewProfileNeeded) {
-                
-                await walletProfileStore.create(
-                  keys.NOSTR.publicKey, 
-                  keys.walletId, 
-                  seedHashRef.current
-                )                
-                
-            } else {
-                // In case of recovery from backup we link new pubkey and new walletId to the profile
-                // with user provided seedHash                
-                await walletProfileStore.recover(
-                  keys.NOSTR.publicKey,
-                  keys.walletId, 
-                  seedHashRef.current,
-                )
-            }
+          // update seed to the provided one
+          keys.SEED = seed
 
-            await KeyChain.saveWalletKeys(keys)            
-            walletStore.cleanCachedWalletKeys()
-            // force publish now that we have keys available
-            await walletProfileStore.publishToRelays()
-            userSettingsStore.setIsOnboarded(true)
+          // In case there is a profile linked to provided seedHash,
+          // it's address is recovered to the current profile.
+          // As we regenerate ecash from provided seed, it is linked to current profile as well.
+          await walletProfileStore.recover(
+              keys.walletId, 
+              seedHashRef.current,
+          )
 
-            if(!mintsStore.mintExists(MINIBITS_MINT_URL)) {
-                await mintsStore.addMint(MINIBITS_MINT_URL)            
-            }
+          await KeyChain.saveWalletKeys(keys)            
+          walletStore.cleanCachedWalletKeys()
 
-            setStatusMessage(translate('recovery_completed'))
-                        
-            // go directly to the wallet (profile hase been rehydrated from the one with the seed)
-            // @ts-ignore
-            navigation.navigate('Tabs')
-            await delay(1000)
-            setStatusMessage('')
-            setIsLoading(false)       
+          if(!mintsStore.mintExists(MINIBITS_MINT_URL)) {
+              await mintsStore.addMint(MINIBITS_MINT_URL)            
+          }
+
+          setStatusMessage(translate('recovery_completed'))
+                      
+          // go directly to the wallet (profile hase been rehydrated from the one with the seed)
+          //@ts-ignore
+          navigation.navigate('Tabs')
+          await delay(1000)
+          setStatusMessage('')
+          setIsLoading(false)       
       } catch (e: any) {
           handleError(e)
       }
@@ -349,41 +289,12 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
     const headerTitle = useThemeColor('headerTitle')
     const placeholderTextColor = useThemeColor('textDim')
 
-    if(mnemonicExists) {
-      return (
-        <Screen contentContainerStyle={$screen} preset="fixed">
-            <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
-                <Text preset="heading" tx="importBackupWalletRecovery" style={{color: headerTitle, zIndex: 10}} />
-            </View>
-            <ScrollView style={$contentContainer}>                
-                <Card
-                    style={$card}
-                    ContentComponent={
-                        <ListItem
-                            tx="recovery_mnemonicCollision"
-                            subTx="recovery_mnemonicCollisionDesc"
-                            leftIcon='faTriangleExclamation'
-                            // leftIconColor='red'                  
-                            style={$item}                    
-                            bottomSeparator={true}
-                        /> 
-                    }
-                    FooterComponent={
-                        <View style={$buttonContainer}>               
-                            <Button
-                                onPress={onBack}
-                                tx='commonBack'
-                                preset='secondary'                      
-                            />                        
-                        </View>                    
-                    }          
-                />
-            </ScrollView>            
-        </Screen>
-      )
-  } else {
     return (
       <Screen contentContainerStyle={$screen} preset="fixed">
+        <Header                
+            leftIcon='faArrowLeft'
+            onLeftPress={() => onBack()}                            
+        /> 
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
             <Text 
               preset="heading" 
@@ -471,7 +382,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
                   }        
               />
             )}
-            {isValidMnemonic && isValidBackup && isNewProfileNeeded && (
+            {isValidMnemonic && isValidBackup && (
               <Card
                 style={$card}
                 ContentComponent={
@@ -510,7 +421,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
         {isLoading && <Loading statusMessage={statusMessage} textStyle={{color: 'white'}} style={{backgroundColor: headerBg, opacity: 1}}/>}    
       </Screen>
     )
-  }
+  
 })
 
 const $screen: ViewStyle = {flex: 1}

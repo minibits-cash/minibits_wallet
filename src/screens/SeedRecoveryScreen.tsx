@@ -20,8 +20,7 @@ import {
   Header,
 } from '../components'
 import AppError, { Err } from '../utils/AppError'
-import { KeyChain, log, MinibitsClient } from '../services'
-import Clipboard from '@react-native-clipboard/clipboard'
+import { KeyChain, log } from '../services'
 import { useStores } from '../models'
 import { MintListItem } from './Mints/MintListItem'
 import { Mint } from '../models/Mint'
@@ -31,7 +30,7 @@ import { Proof } from '../models/Proof'
 import { Transaction, TransactionData, TransactionStatus, TransactionType } from '../models/Transaction'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import { mnemonicToSeedSync } from '@scure/bip39'
-import { MINIBITS_MINT_URL, MINIBITS_NIP05_DOMAIN } from '@env'
+import { MINIBITS_MINT_URL } from '@env'
 import { delay } from '../utils/utils'
 import { getSnapshot } from 'mobx-state-tree'
 import { scale } from '@gocodingnow/rn-size-matters'
@@ -65,11 +64,8 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
     const seedHashRef = useRef<string | null>(null)
 
     const [info, setInfo] = useState('')    
-    const [mnemonic, setMnemonic] = useState<string>('')        
-    const [mnemonicExists, setMnemonicExists] = useState(false)
-    const [isValidMnemonic, setIsValidMnemonic] = useState(false)  
-    const [profileToRecover, setProfileToRecover] = useState<WalletProfileRecord | undefined>(undefined)
-    const [isNewProfileNeeded, setIsNewProfileNeeded] = useState(false) 
+    const [mnemonic, setMnemonic] = useState<string>('')            
+    const [isValidMnemonic, setIsValidMnemonic] = useState(false)         
     const [selectedMintUrl, setSelectedMintUrl] = useState<string | undefined>()
     const [selectedKeyset, setSelectedKeyset] = useState<MintKeyset | undefined>()
     const [selectedMintKeysets, setSelectedMintKeysets] = useState<MintKeyset[]>([])
@@ -89,20 +85,6 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
     const [recoveryErrors, setRecoveryErrors] = useState<AppError[]>([])
     const [statusMessage, setStatusMessage] = useState<string>()
 
-    useEffect(() => {
-        const getMnemonic = async () => {  
-            try {                
-                const existing = await KeyChain.getWalletKeys()
-                if(existing && existing.SEED.mnemonic) {
-                    setMnemonicExists(true)
-                }                
-            } catch (e: any) {                
-                handleError(e)
-            } 
-        }
-        getMnemonic()
-    }, [])
-
 
     const toggleResultModal = () => {
         if(isResultModalVisible === true) {
@@ -114,23 +96,6 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
 
     const toggleErrorsModal = () => {
         setIsErrorsModalVisible(previousState => !previousState)
-    }
-
-
-    const onPasteMnemonic = async function () {
-        try {
-            const maybeMnemonic = await Clipboard.getString()
-
-            if(!maybeMnemonic) {
-              throw new AppError(Err.VALIDATION_ERROR, translate('backupMissingMnemonicError'))
-            }
-
-            const cleanedMnemonic = maybeMnemonic.replace(/\s+/g, ' ').trim()
-
-            setMnemonic(cleanedMnemonic)
-        } catch (e: any) {
-            handleError(e)
-        }
     }
 
 
@@ -155,25 +120,10 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
             .digest('hex')
 
             seedRef.current = binarySeed
-            seedHashRef.current = seedHash
+            seedHashRef.current = seedHash            
             
-            const profile = await MinibitsClient.getWalletProfileBySeedHash(seedHash as string) // throws if not found
-          
-            log.info('[onCheckWalletAddress] profileToRecover', {profile})                
-  
-            if(profile.nip05.includes(MINIBITS_NIP05_DOMAIN)) {                                    
-                setProfileToRecover(profile)
-            } else {
-                setInfo(translate("recovery_ownKeysImportAgain", { addr: profile.nip05 }))
-                setIsNewProfileNeeded(true)              
-            }            
         } catch (e: any) {
-          // Profile with provided seed hash does not exists
-          if(e.name.includes(Err.NOTFOUND_ERROR)) {
-            setIsNewProfileNeeded(true)
-          } else {
             handleError(e)
-          }
         }
     }
 
@@ -491,12 +441,12 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
             if(!seedHashRef.current || !seedRef.current) {
               throw new AppError(Err.VALIDATION_ERROR, translate('backupMissingMnemonicOrSeedError'))
             }
-            // create a new walletId and Nostr key pair after a new install or factory reset
+            // create a new walletId and a new Nostr key pair
             // and keep provided seed
             setIsLoading(true)
             setStatusMessage(translate("recovery_recoveringAddress"))
 
-            const keys = KeyChain.generateWalletKeys()
+            const keys = await walletStore.getCachedWalletKeys()
             // Set seed to the provided one
             const seed = {
               seed: Buffer.from(seedRef.current).toString('base64'),
@@ -504,37 +454,19 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
               mnemonic
             }
 
+            // update seed to the provided one
             keys.SEED = seed
-            
-            await authStore.logout()
-            await authStore.enrollDevice(
-              keys.NOSTR,
-              walletProfileStore.device
-            )
 
-            if(isNewProfileNeeded) {
-                
-                await walletProfileStore.create(
-                  keys.NOSTR.publicKey, 
-                  keys.walletId, 
-                  seedHashRef.current
-                )                
-                
-            } else {
-                // In case of recovery from backup we link new pubkey and new walletId to the profile
-                // with user provided seedHash                
-                await walletProfileStore.recover(
-                  keys.NOSTR.publicKey,
-                  keys.walletId, 
-                  seedHashRef.current,
-                )
-            }
+            // In case there is a profile linked to provided seedHash,
+            // it's address is recovered to the current profile.
+            // As we regenerate ecash from provided seed, it is linked to current profile as well.
+            await walletProfileStore.recover(
+                keys.walletId, 
+                seedHashRef.current,
+            )
 
             await KeyChain.saveWalletKeys(keys)            
             walletStore.cleanCachedWalletKeys()
-            // force publish now that we have keys available
-            await walletProfileStore.publishToRelays()
-            userSettingsStore.setIsOnboarded(true)
 
             if(!mintsStore.mintExists(MINIBITS_MINT_URL)) {
                 await mintsStore.addMint(MINIBITS_MINT_URL)            
@@ -566,348 +498,309 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
     const inputText = useThemeColor('text')
     const headerTitle = useThemeColor('headerTitle')
 
-    if(mnemonicExists) {
-        return (
-            <Screen contentContainerStyle={$screen} preset="fixed">
-                <Header                
-                    leftIcon='faArrowLeft'
-                    onLeftPress={() => navigation.goBack()}                            
-                /> 
-                <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
-                    <Text preset="heading" tx="seedRecoveryScreenTitle" style={{color: headerTitle, zIndex: 10}} />
-                </View>
-                <ScrollView style={$contentContainer}>                
-                    <Card
-                        style={$card}
-                        ContentComponent={
-                            <ListItem
-                                tx="recovery_mnemonicCollision"
-                                subTx="recovery_mnemonicCollisionDesc"
-                                leftIcon='faTriangleExclamation'
-                                // leftIconColor='red'                  
-                                style={$item}                    
-                                bottomSeparator={true}
-                            /> 
-                        }
-                        FooterComponent={
-                            <View style={$buttonContainer}>               
-                                <Button
-                                    onPress={onBack}
-                                    tx='commonBack'
-                                    preset='secondary'                      
-                                />                        
-                            </View>                    
-                        }          
-                    />
-                </ScrollView>
-            </Screen>
-        )
-    } else {
-        return (
-            <Screen contentContainerStyle={$screen} preset="fixed">
-              {isRecoveryStarted ? (
-                <Header/> 
-              ) : (
-                <Header                
-                    leftIcon='faArrowLeft'
-                    onLeftPress={() => navigation.goBack()}                            
-                /> 
-              )}
-              <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
-                  <Text preset="heading" tx="seedRecoveryScreenTitle" style={{color: headerTitle, zIndex: 10}} />
-              </View>
-              <ScrollView style={$contentContainer}>                              
-                  <MnemonicInput   
-                        ref={mnemonicInputRef}             
-                        mnemonic={mnemonic}
-                        isValidMnemonic={isValidMnemonic}
-                        setMnemonic={setMnemonic}
-                        onConfirm={onConfirmMnemonic}
-                        onError={handleError}
-                  />
-                  <>
-                  {isValidMnemonic && (
-                                                                
-                      <Card
-                          style={$card}
-                          HeadingComponent={
-                              <>
-                              <ListItem
-                                  tx="recoveryFromMints"
-                                  subTx={mintsStore.mintCount > 0 ? undefined : "recoveryFromMintsDesc"}
-                                  LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text tx='seedRecoveryStep2'/></View>} 
-                                  RightComponent={mintsStore.mintCount > 0 ? (
-                                      <View style={$rightContainer}>
-                                          <Button
-                                              onPress={onAddMints}
-                                              tx='seedRecoveryMints'
-                                              preset='secondary'                                           
-                                          /> 
-                                      </View>
-                                      ) : (undefined)        
-                                  }                        
-                                  style={$item}                            
-                              />
-                              {mintsStore.mintCount === 0 && (
-                                  <View style={$buttonContainer}>
-                                      <Button
-                                          onPress={onAddMints}
-                                          tx="addMints"
-                                      /> 
-                                  </View>
-                              )}
-                              </>
-                          }
-                          ContentComponent={
-                              <>
-                              {mintsStore.mints.map((mint: Mint, index: number) => (
-                                  <MintListItem
-                                  key={mint.mintUrl}
-                                  mint={mint}
-                                  mintBalance={proofsStore.getMintBalance(mint.mintUrl)}
-                                  selectedUnit={selectedKeyset?.unit as MintUnit}
-                                  onMintSelect={() => onMintSelect(mint)}
-                                  isSelectable={true}
-                                  isSelected={selectedMintUrl === mint.mintUrl}                                  
-                                  separator={index === 0 ? 'both' : 'bottom'}
-                                  />
-                              ))}
-                              </>
-                          }
-                          FooterComponent={
-                              <>
-                                  {mintsStore.mintCount > 0 && selectedMintUrl && (
-                                  <>
-                                      <View style={$buttonContainer}>               
-                                          <Button
-                                              onPress={startRecovery}
-                                              tx={startIndex === 0 ? 'startRecovery' : 'nextInterval'}
-                                              preset={(startIndex === 0 ||  totalRecoveredAmount > 0) ? 'default' : 'secondary'}
-                                              style={{marginRight: spacing.small}}
-                                              disabled={selectedMintUrl ? false : true}    
-                                          />
-                                          {(startIndex > 0 || totalRecoveredAmount > 0) && (
-                                              <Button
-                                                  onPress={onCompleteAddress}
-                                                  tx="commonCompleted"                                                        
-                                                  preset='secondary'                                        
-                                              />
-                                          )} 
-                                      </View>
-      
-                                      <View style={[$buttonContainer,{marginTop: 0}]}>
-                                        <Text 
-                                            text={translate("recovery_intervalParam", { 
-                                                startIndex: startIndex,
-                                                endIndex: endIndex
-                                            })} 
-                                            size='xxs' 
-                                            style={{color: textHint, alignSelf: 'center', marginTop: spacing.small}}
-                                        />
-                                        <Pressable onPress={toggleIndexModal}>
-                                            <Text 
-                                                tx="recovery_setManually"
-                                                size='xxs' 
-                                                style={{color: textHint, alignSelf: 'center', marginTop: spacing.small}}
-                                            />  
-                                        </Pressable>                                    
-                                        </View>
-                                      <View style={[$buttonContainer,{marginTop: 0}]}>
-                                      <Text 
-                                          text={translate("recovery_keysetID", { 
-                                              id: selectedKeyset?.id,
-                                              unit: selectedKeyset?.unit  
-                                          })}
-                                          size='xxs' 
-                                          style={{color: textHint, alignSelf: 'center', marginTop: spacing.extraSmall}}
-                                      />
-                                      {selectedMintKeysets.length > 1 && (
-                                          <Pressable onPress={toggleKeysetModal}>
-                                              <Text 
-                                                  tx="recovery_selectAnotherKeyset"
-                                                  size='xxs' 
-                                                  style={{color: textHint, alignSelf: 'center', marginTop: spacing.extraSmall}}
-                                              />  
-                                          </Pressable> 
-                                      )}                                                                       
-                                      </View>
-                                  </>  
-                                  )}
-                                  {mintsStore.mintCount > 0 && !selectedMintUrl && (
-                                      <Text 
-                                          tx='recovery_selectMintFrom'
-                                          size='xxs' 
-                                          style={{color: textHint, alignSelf: 'center', margin: spacing.large}}
-                                      />
-                                  )}
-                              </>   
-                          }         
-                      />
-                  )}                
-                  </>
-              </ScrollView>
-              <BottomModal
-                isVisible={isIndexModalVisible}
-                ContentComponent={
-                  <View style={$indexContainer}>
-                      <Text tx="setStartIndex" preset="subheading" />
-                      <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                          <TextInput
-                              ref={indexInputRef}
-                              onChangeText={index => setStartIndexString(index)}
-                              value={startIndexString}
-                              style={[$noteInput, {backgroundColor: inputBg, color: inputText}]}
-                              maxLength={8}
-                              selectTextOnFocus={true}
-                              keyboardType='numeric'
-                              textAlign='right'
-                          />
-                          <Button
-                              tx='commonSave'
-                              onPress={onResetStartIndex}
-                          />
-                      </View>
-                      <Text 
-                          tx="recovery_startIndexDesc"
-                          size='xxs' 
-                          style={{color: textHint, margin: spacing.small}}
-                      />
-                  </View>
-                }
-                onBackButtonPress={toggleIndexModal}
-                onBackdropPress={toggleIndexModal}
-              />
-              <BottomModal
-                isVisible={isKeysetModalVisible}
-                // style={{alignItems: 'stretch'}} 
-                HeadingComponent={<Text tx="recovery_selectKeyset" style={{textAlign: 'center', margin: spacing.small}}/>}
-                ContentComponent={
-                  <FlatList
-                      data={selectedMintKeysets}
-                      numColumns={2}
-                      renderItem={({ item, index }) => {                                
-                          return(
-                              <Button
-                                  key={index}
-                                  preset={selectedKeyset?.id === item.id ? 'default' : 'secondary'}
-                                  onPress={() => {
-                                      setSelectedKeyset(item)
-                                      setStartIndex(0)
-                                      setEndIndex(RESTORE_INDEX_INTERVAL)
-                                  }}
-                                  text={`${item.id} (${item.unit})`}
-                                  style={{minWidth: scale(80), margin: spacing.extraSmall}}
-                                  textStyle={$sizeStyles.xxs}
-                              />
-                          )
-                      }}
-                      keyExtractor={(item) => item.id} 
-                      style={{ flexGrow: 0  }}
-                  />
-                }
-                FooterComponent={
-                  <Button                
-                      preset={'secondary'}
-                      onPress={toggleKeysetModal}
-                      tx='commonClose'
-                      style={{marginTop: spacing.small}}
-                  />}
-                onBackButtonPress={toggleKeysetModal}
-                onBackdropPress={toggleKeysetModal}
-              />
-              <BottomModal
-                isVisible={isErrorsModalVisible}
-                style={{alignItems: 'stretch'}}          
-                ContentComponent={
-                  <>
-                      {recoveryErrors?.map((err, index) => (
-                              <ListItem
-                                  key={index}
-                                  leftIcon='faTriangleExclamation'
-                                  leftIconColor={colors.palette.angry500}                       
-                                  text={err.message}
-                                  subText={err.params ? err.params.mintUrl : ''}
-                                  bottomSeparator={true}
-                                  style={{paddingHorizontal: spacing.small}}
-                              />             
-                          )
-                      )}
-                  </>
-                }
-                onBackButtonPress={toggleErrorsModal}
-                onBackdropPress={toggleErrorsModal}
-              />
-              <BottomModal
-                isVisible={isResultModalVisible ? true : false}          
-                ContentComponent={
-                  <>
-                    {resultModalInfo &&
-                      resultModalInfo.status === TransactionStatus.COMPLETED && (
-                        <>
-                          <ResultModalInfo
-                            icon="faCheckCircle"
-                            iconColor={colors.palette.success200}
-                            title={translate("recovery_success")}
-                            message={resultModalInfo?.message}
-                          />
-                          <View style={$buttonContainer}>
-                            <Button
-                              preset="secondary"
-                              tx='commonClose'
-                              onPress={toggleResultModal}
-                            />
-                          </View>
-                        </>
-                      )}
-                    {resultModalInfo &&
-                      resultModalInfo.status === TransactionStatus.ERROR && (
-                        <>
-                          <ResultModalInfo
-                            icon="faTriangleExclamation"
-                            iconColor={colors.palette.angry500}
-                            title={translate("recovery_failed")}
-                            message={resultModalInfo?.message}
-                          />
-                          <View style={$buttonContainer}>
-                            <Button
-                              preset="secondary"
-                              tx="showErrors"
-                              onPress={toggleErrorsModal}
-                            />
-                          </View>
-                        </>
-                      )}
-                    {resultModalInfo &&
-                      resultModalInfo.status === TransactionStatus.EXPIRED && (
-                        <>
-                          <ResultModalInfo
-                            icon='faInfoCircle'
-                            iconColor={colors.palette.neutral400}
-                            title={translate("noEcashRecovered")}
-                            message={resultModalInfo?.message}
-                          />
-                          <View style={$buttonContainer}>
-                            <Button
-                              preset="secondary"
-                              tx='commonClose'
-                              onPress={toggleResultModal}
-                            />
-                          </View>
-                        </>
-                      )}
-                  </>
-                }
-                onBackButtonPress={toggleResultModal}
-                onBackdropPress={toggleResultModal}
-              />             
-              {error && <ErrorModal error={error} />}
-              {info && <InfoModal message={info} />}
-              {isLoading && <Loading statusMessage={statusMessage} textStyle={{color: 'white'}} style={{backgroundColor: headerBg, opacity: 1}}/>}    
-            </Screen>
-          )
-    }
 
-    
+return (
+    <Screen contentContainerStyle={$screen} preset="fixed">
+        {isRecoveryStarted ? (
+        <Header/> 
+        ) : (
+        <Header                
+            leftIcon='faArrowLeft'
+            onLeftPress={() => onBack()}                            
+        /> 
+        )}
+        <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
+            <Text preset="heading" tx="seedRecoveryScreenTitle" style={{color: headerTitle, zIndex: 10}} />
+        </View>
+        <ScrollView style={$contentContainer}>                              
+            <MnemonicInput   
+                ref={mnemonicInputRef}             
+                mnemonic={mnemonic}
+                isValidMnemonic={isValidMnemonic}
+                setMnemonic={setMnemonic}
+                onConfirm={onConfirmMnemonic}
+                onError={handleError}
+            />
+            <>
+            {isValidMnemonic && (
+                                                        
+                <Card
+                    style={$card}
+                    HeadingComponent={
+                        <>
+                        <ListItem
+                            tx="recoveryFromMints"
+                            subTx={mintsStore.mintCount > 0 ? undefined : "recoveryFromMintsDesc"}
+                            LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text tx='seedRecoveryStep2'/></View>} 
+                            RightComponent={mintsStore.mintCount > 0 ? (
+                                <View style={$rightContainer}>
+                                    <Button
+                                        onPress={onAddMints}
+                                        tx='seedRecoveryMints'
+                                        preset='secondary'                                           
+                                    /> 
+                                </View>
+                                ) : (undefined)        
+                            }                        
+                            style={$item}                            
+                        />
+                        {mintsStore.mintCount === 0 && (
+                            <View style={$buttonContainer}>
+                                <Button
+                                    onPress={onAddMints}
+                                    tx="addMints"
+                                /> 
+                            </View>
+                        )}
+                        </>
+                    }
+                    ContentComponent={
+                        <>
+                        {mintsStore.mints.map((mint: Mint, index: number) => (
+                            <MintListItem
+                            key={mint.mintUrl}
+                            mint={mint}
+                            mintBalance={proofsStore.getMintBalance(mint.mintUrl)}
+                            selectedUnit={selectedKeyset?.unit as MintUnit}
+                            onMintSelect={() => onMintSelect(mint)}
+                            isSelectable={true}
+                            isSelected={selectedMintUrl === mint.mintUrl}                                  
+                            separator={index === 0 ? 'both' : 'bottom'}
+                            />
+                        ))}
+                        </>
+                    }
+                    FooterComponent={
+                        <>
+                            {mintsStore.mintCount > 0 && selectedMintUrl && (
+                            <>
+                                <View style={$buttonContainer}>               
+                                    <Button
+                                        onPress={startRecovery}
+                                        tx={startIndex === 0 ? 'startRecovery' : 'nextInterval'}
+                                        preset={(startIndex === 0 ||  totalRecoveredAmount > 0) ? 'default' : 'secondary'}
+                                        style={{marginRight: spacing.small}}
+                                        disabled={selectedMintUrl ? false : true}    
+                                    />
+                                    {(startIndex > 0 || totalRecoveredAmount > 0) && (
+                                        <Button
+                                            onPress={onCompleteAddress}
+                                            tx="commonCompleted"                                                        
+                                            preset='secondary'                                        
+                                        />
+                                    )} 
+                                </View>
+
+                                <View style={[$buttonContainer,{marginTop: 0}]}>
+                                <Text 
+                                    text={translate("recovery_intervalParam", { 
+                                        startIndex: startIndex,
+                                        endIndex: endIndex
+                                    })} 
+                                    size='xxs' 
+                                    style={{color: textHint, alignSelf: 'center', marginTop: spacing.small}}
+                                />
+                                <Pressable onPress={toggleIndexModal}>
+                                    <Text 
+                                        tx="recovery_setManually"
+                                        size='xxs' 
+                                        style={{color: textHint, alignSelf: 'center', marginTop: spacing.small}}
+                                    />  
+                                </Pressable>                                    
+                                </View>
+                                <View style={[$buttonContainer,{marginTop: 0}]}>
+                                <Text 
+                                    text={translate("recovery_keysetID", { 
+                                        id: selectedKeyset?.id,
+                                        unit: selectedKeyset?.unit  
+                                    })}
+                                    size='xxs' 
+                                    style={{color: textHint, alignSelf: 'center', marginTop: spacing.extraSmall}}
+                                />
+                                {selectedMintKeysets.length > 1 && (
+                                    <Pressable onPress={toggleKeysetModal}>
+                                        <Text 
+                                            tx="recovery_selectAnotherKeyset"
+                                            size='xxs' 
+                                            style={{color: textHint, alignSelf: 'center', marginTop: spacing.extraSmall}}
+                                        />  
+                                    </Pressable> 
+                                )}                                                                       
+                                </View>
+                            </>  
+                            )}
+                            {mintsStore.mintCount > 0 && !selectedMintUrl && (
+                                <Text 
+                                    tx='recovery_selectMintFrom'
+                                    size='xxs' 
+                                    style={{color: textHint, alignSelf: 'center', margin: spacing.large}}
+                                />
+                            )}
+                        </>   
+                    }         
+                />
+            )}                
+            </>
+        </ScrollView>
+        <BottomModal
+        isVisible={isIndexModalVisible}
+        ContentComponent={
+            <View style={$indexContainer}>
+                <Text tx="setStartIndex" preset="subheading" />
+                <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                    <TextInput
+                        ref={indexInputRef}
+                        onChangeText={index => setStartIndexString(index)}
+                        value={startIndexString}
+                        style={[$noteInput, {backgroundColor: inputBg, color: inputText}]}
+                        maxLength={8}
+                        selectTextOnFocus={true}
+                        keyboardType='numeric'
+                        textAlign='right'
+                    />
+                    <Button
+                        tx='commonSave'
+                        onPress={onResetStartIndex}
+                    />
+                </View>
+                <Text 
+                    tx="recovery_startIndexDesc"
+                    size='xxs' 
+                    style={{color: textHint, margin: spacing.small}}
+                />
+            </View>
+        }
+        onBackButtonPress={toggleIndexModal}
+        onBackdropPress={toggleIndexModal}
+        />
+        <BottomModal
+        isVisible={isKeysetModalVisible}
+        // style={{alignItems: 'stretch'}} 
+        HeadingComponent={<Text tx="recovery_selectKeyset" style={{textAlign: 'center', margin: spacing.small}}/>}
+        ContentComponent={
+            <FlatList
+                data={selectedMintKeysets}
+                numColumns={2}
+                renderItem={({ item, index }) => {                                
+                    return(
+                        <Button
+                            key={index}
+                            preset={selectedKeyset?.id === item.id ? 'default' : 'secondary'}
+                            onPress={() => {
+                                setSelectedKeyset(item)
+                                setStartIndex(0)
+                                setEndIndex(RESTORE_INDEX_INTERVAL)
+                            }}
+                            text={`${item.id} (${item.unit})`}
+                            style={{minWidth: scale(80), margin: spacing.extraSmall}}
+                            textStyle={$sizeStyles.xxs}
+                        />
+                    )
+                }}
+                keyExtractor={(item) => item.id} 
+                style={{ flexGrow: 0  }}
+            />
+        }
+        FooterComponent={
+            <Button                
+                preset={'secondary'}
+                onPress={toggleKeysetModal}
+                tx='commonClose'
+                style={{marginTop: spacing.small}}
+            />}
+        onBackButtonPress={toggleKeysetModal}
+        onBackdropPress={toggleKeysetModal}
+        />
+        <BottomModal
+        isVisible={isErrorsModalVisible}
+        style={{alignItems: 'stretch'}}          
+        ContentComponent={
+            <>
+                {recoveryErrors?.map((err, index) => (
+                        <ListItem
+                            key={index}
+                            leftIcon='faTriangleExclamation'
+                            leftIconColor={colors.palette.angry500}                       
+                            text={err.message}
+                            subText={err.params ? err.params.mintUrl : ''}
+                            bottomSeparator={true}
+                            style={{paddingHorizontal: spacing.small}}
+                        />             
+                    )
+                )}
+            </>
+        }
+        onBackButtonPress={toggleErrorsModal}
+        onBackdropPress={toggleErrorsModal}
+        />
+        <BottomModal
+        isVisible={isResultModalVisible ? true : false}          
+        ContentComponent={
+            <>
+            {resultModalInfo &&
+                resultModalInfo.status === TransactionStatus.COMPLETED && (
+                <>
+                    <ResultModalInfo
+                    icon="faCheckCircle"
+                    iconColor={colors.palette.success200}
+                    title={translate("recovery_success")}
+                    message={resultModalInfo?.message}
+                    />
+                    <View style={$buttonContainer}>
+                    <Button
+                        preset="secondary"
+                        tx='commonClose'
+                        onPress={toggleResultModal}
+                    />
+                    </View>
+                </>
+                )}
+            {resultModalInfo &&
+                resultModalInfo.status === TransactionStatus.ERROR && (
+                <>
+                    <ResultModalInfo
+                    icon="faTriangleExclamation"
+                    iconColor={colors.palette.angry500}
+                    title={translate("recovery_failed")}
+                    message={resultModalInfo?.message}
+                    />
+                    <View style={$buttonContainer}>
+                    <Button
+                        preset="secondary"
+                        tx="showErrors"
+                        onPress={toggleErrorsModal}
+                    />
+                    </View>
+                </>
+                )}
+            {resultModalInfo &&
+                resultModalInfo.status === TransactionStatus.EXPIRED && (
+                <>
+                    <ResultModalInfo
+                    icon='faInfoCircle'
+                    iconColor={colors.palette.neutral400}
+                    title={translate("noEcashRecovered")}
+                    message={resultModalInfo?.message}
+                    />
+                    <View style={$buttonContainer}>
+                    <Button
+                        preset="secondary"
+                        tx='commonClose'
+                        onPress={toggleResultModal}
+                    />
+                    </View>
+                </>
+                )}
+            </>
+        }
+        onBackButtonPress={toggleResultModal}
+        onBackdropPress={toggleResultModal}
+        />             
+        {error && <ErrorModal error={error} />}
+        {info && <InfoModal message={info} />}
+        {isLoading && <Loading statusMessage={statusMessage} textStyle={{color: 'white'}} style={{backgroundColor: headerBg, opacity: 1}}/>}    
+    </Screen>
+    )
 })
 
 const $screen: ViewStyle = {flex: 1}

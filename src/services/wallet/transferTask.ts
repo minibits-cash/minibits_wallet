@@ -83,6 +83,10 @@ export const transferTask = async function (
             transaction = await transactionsStore.addTransaction(newTransaction)
         }
 
+        if(!transaction) {
+            throw new AppError(Err.DATABASE_ERROR, 'Could not find or create transaction.')
+        }
+
         const transactionId = transaction.id
         const paymentHash = LightningUtils.getInvoiceData(LightningUtils.decodeInvoice(encodedInvoice)).payment_hash
         // Replace individual setters with a single update

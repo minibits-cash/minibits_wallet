@@ -77,9 +77,10 @@ export const RelaysScreen = observer(function RelaysScreen({ route }: Props) {
         // if device does not support firebase notifications, but notifications are enabled, 
         // use foreground service to listen for NWC events
         if(!isRemoteDataPushEnabled && areNotificationsEnabled) {
+            
             await NotificationService.stopForegroundService()
             await NotificationService.createNwcListenerNotification()    
-            // nwcStore.listenForNwcEvents()   
+            
             setInfo(translate('nwcScreen_pushNotificationWarning'))
         }
         setSelectedRelay(undefined)        

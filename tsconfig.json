@@ -1,5 +1,7 @@
 {
   "extends": "@react-native/typescript-config",
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["**/node_modules", "**/Pods"],
   "compilerOptions": {
     "jsx": "react",
     "typeRoots": ["./src/utils/envtypes"],
@@ -9,5 +11,6 @@
     },
     "resolveJsonModule": true,
     "esModuleInterop": true,
+    "types": ["react-native-dotenv"]
   }
 }

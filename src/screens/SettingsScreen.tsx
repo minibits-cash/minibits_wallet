@@ -5,7 +5,6 @@ import notifee, { AuthorizationStatus } from '@notifee/react-native'
 import messaging from '@react-native-firebase/messaging'
 import { HotUpdater, getUpdateSource } from '@hot-updater/react-native'
 import {
-    APP_ENV,
     HOT_UPDATER_API_KEY,
     HOT_UPDATER_URL,
 } from '@env'
@@ -195,12 +194,8 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
   }
 
   const gotoRecoveryOptions = function() {
-    navigation.getParent()!.dispatch(
-      CommonActions.navigate({
-        name: 'RecoveryOptions',
-        params: {fromScreen: 'Settings'},
-      }
-    ))
+    // @ts-ignore
+    navigation.navigate('RecoveryOptions')
   }
 
   const gotoUpdate = function() {

@@ -10,7 +10,7 @@ import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
 import { WalletUtils } from './utils'
 import { MintUnit } from './currency'
 import { NostrEvent } from '../nostrService'
-import { Err } from '../../utils/AppError'
+import AppError, { Err } from '../../utils/AppError'
 import { CashuMint, CashuWallet, MintQuoteResponse } from '@cashu/cashu-ts'
 import { addSeconds } from 'date-fns/addSeconds'
 
@@ -60,7 +60,11 @@ export const topupTask = async function (
             status: TransactionStatus.DRAFT,
         }
         // store tx in db and in the model
-        transaction = await transactionsStore.addTransaction(newTransaction)        
+        transaction = await transactionsStore.addTransaction(newTransaction)
+        
+        if(!transaction) {
+            throw new AppError(Err.DATABASE_ERROR, 'Could not store transaction.')
+        }
 
         const {
             encodedInvoice, 
@@ -146,7 +150,7 @@ export const topupTask = async function (
                     mintQuote,
                     async (m: MintQuoteResponse) => {
                         log.trace(`Websocket: mint quote PAID: ${m.quote}`)
-                        WalletTask.handlePendingTopupQueue({transaction})
+                        WalletTask.handlePendingTopupQueue({transaction} as {transaction: Transaction})
                         unsub()                        
                     },
                     async (error: any) => {

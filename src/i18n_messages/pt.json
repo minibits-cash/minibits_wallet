@@ -425,6 +425,8 @@
 	"recoveryOptionsFromSeed": "Recuperar de seed",
 	"recoveryOptionsFromSeedDescription": "Use frase seed de 12 palavras para recriar ecash perdido com assistência de mints. Use em caso de perda de dispositivo.",
 	"recoveryOptionsTitle": "Opções de recuperação",
+	"seedRecoveryOptions": "Recuperação baseada em seed",
+	"seedRecoveryOptionsDesc": "Recupere sua carteira usando frase seed ou arquivo de backup",
 	"recoveryPermissionNeededDesc": "Minibits precisa de permissão para exibir notificação enquanto esta tarefa executar.",
 	"recoveryPermissionNeededTitle": "Permissão necessária",
 	"recoveryRecoverChangeButton": "Recuperar troco",

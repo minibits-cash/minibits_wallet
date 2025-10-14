@@ -13,6 +13,7 @@ import {
   SeedRecoveryScreen,
   MintsScreen,
   RecoveryOptionsScreen,  
+  SeedRecoveryOptionsScreen,
   ImportBackupScreen,
   RecoverWalletAddressScreen
 } from "../screens"
@@ -40,6 +41,8 @@ const RootStack = createNativeStackNavigator({
   screens: {
     Welcome: WelcomeScreen,
     RecoveryOptions: RecoveryOptionsScreen,
+
+    SeedRecoveryOptions: SeedRecoveryOptionsScreen,
     SeedRecovery: SeedRecoveryScreen,
     ImportBackup: ImportBackupScreen,
     RecoverWalletAddress: RecoverWalletAddressScreen,   

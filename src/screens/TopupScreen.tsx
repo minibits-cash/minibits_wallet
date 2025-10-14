@@ -26,7 +26,7 @@ import {
   Text,
   AmountInput,
 } from '../components'
-import {TransactionStatus, Transaction} from '../models/Transaction'
+import {TransactionStatus, Transaction, TransactionData} from '../models/Transaction'
 import {useStores} from '../models'
 import {
   HANDLE_PENDING_TOPUP_TASK,
@@ -527,7 +527,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
             return
           }
 
-          let updated = []
+          let updated = [] as unknown as TransactionData
 
           try {
               updated = JSON.parse(transaction.data)
@@ -586,7 +586,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
           )
         }
 
-        let updated = []
+        let updated = [] as unknown as TransactionData
 
         try {
             updated = JSON.parse(transaction.data)

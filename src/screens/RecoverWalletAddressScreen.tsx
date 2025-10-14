@@ -81,6 +81,7 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
         .update(seedRef.current)
         .digest('hex')
 
+      // TODO figure out how to avoid
       const profile = await MinibitsClient.getWalletProfileBySeedHash(seedHash as string) // throws if not found
 
       log.trace('[onCheckWalletAddress] profileToRecover', { profile })
@@ -112,14 +113,8 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
 
       log.trace('[onCompleteAddress] Wallet keys', { keys })
 
-      await authStore.logout()
-      await authStore.enrollDevice(
-        keys.NOSTR,
-        walletProfileStore.device
-      )
-
-      await walletProfileStore.recover(
-        keys.NOSTR.publicKey,
+      // keeps current wallet seed as we do not recover ecash linked to the provided seed
+      await walletProfileStore.recoverAddress(
         keys.walletId,
         seedHashRef.current
       )
