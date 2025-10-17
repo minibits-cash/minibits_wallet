@@ -17,7 +17,7 @@ export const SeedRecoveryOptionsScreen = observer(function SeedRecoveryOptionsSc
     onLeftPress: () => navigation.goBack(),
   })
 
-  const headerTitle = translate('recoveryOptionsTitle')
+  // const headerTitle = translate('seedRecoveryOptions')
   const headerBackground = useThemeColor('header')
   const headerTitleColor = useThemeColor('headerTitle')
 
@@ -36,7 +36,11 @@ export const SeedRecoveryOptionsScreen = observer(function SeedRecoveryOptionsSc
   return (
     <Screen preset="fixed" contentContainerStyle={$screen}>
       <View style={[$headerContainer, {backgroundColor: headerBackground}]}>
-        <Text preset="heading" text={headerTitle} style={{color: headerTitleColor}} />
+          <Text
+            preset="heading"
+            tx="seedRecoveryOptions"
+            style={{color: 'white'}}
+          />
       </View>
       <ScrollView style={$contentContainer}>
         <Card
@@ -83,8 +87,7 @@ export const SeedRecoveryOptionsScreen = observer(function SeedRecoveryOptionsSc
 const $screen: ViewStyle = {}
 
 const $headerContainer: ViewStyle = {
-  alignItems: 'center',
-  justifyContent: 'flex-end',
+  alignItems: 'center',  
   paddingBottom: spacing.medium,
   height: spacing.screenHeight * 0.15,
 }

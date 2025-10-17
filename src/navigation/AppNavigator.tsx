@@ -39,9 +39,7 @@ const RootStack = createNativeStackNavigator({
     //contentStyle: {backgroundColor: bgColor} 
   },
   screens: {
-    Welcome: WelcomeScreen,
-    RecoveryOptions: RecoveryOptionsScreen,
-
+    Welcome: WelcomeScreen,    
     SeedRecoveryOptions: SeedRecoveryOptionsScreen,
     SeedRecovery: SeedRecoveryScreen,
     ImportBackup: ImportBackupScreen,

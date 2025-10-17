@@ -35,7 +35,8 @@ import {
   OwnKeysScreen,
   TokenReceiveScreen,
   NwcScreen,
-  CashuPaymentRequestScreen
+  CashuPaymentRequestScreen,
+  RecoveryOptionsScreen
 } from "../screens"
 import { colors, spacing, typography } from "../theme"
 
@@ -135,6 +136,7 @@ const SettingsStack = createNativeStackNavigator({
     Privacy: PrivacyScreen,
     Update: UpdateScreen,
     BackupOptions: BackupOptionsScreen,
+    RecoveryOptions: RecoveryOptionsScreen,
     Mnemonic: MnemonicScreen,
     ExportBackup: ExportBackupScreen,
     Developer: DeveloperScreen,

@@ -425,7 +425,7 @@
 	"recoveryOptionsFromSeed": "Recover from seed",
 	"recoveryOptionsFromSeedDescription": "Use 12 word seed phrase to re-create your lost ecash with assistance of mints. Use in case of device loss.",
 	"recoveryOptionsTitle": "Recovery options",
-	"seedRecoveryOptions": "Seed-based recovery",
+	"seedRecoveryOptions": "Seed recovery",
 	"seedRecoveryOptionsDesc": "Recover your wallet using seed phrase or backup file",
 	"recoveryPermissionNeededDesc": "Minibits needs a permission to display notification while this task will be running.",
 	"recoveryPermissionNeededTitle": "Permission needed",
