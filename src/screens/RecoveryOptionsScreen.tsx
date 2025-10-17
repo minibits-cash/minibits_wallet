@@ -330,8 +330,9 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen(_: 
 
           <Card
             style={$card}
-            HeadingComponent={                               
-              <ListItem
+            HeadingComponent={ 
+              <>                              
+                <ListItem
                   tx="backupRemoveSpentCoins"
                   subTx="backupRemoveSpentCoinsDescription"
                   leftIcon='faRecycle'
@@ -347,33 +348,28 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen(_: 
                     </View>                           
                   }
                   style={$item}                        
-              />
+                />
+                <ListItem
+                  tx="increaseRecoveryIndexes"
+                  subTx="increaseRecoveryIndexesDesc"
+                  leftIcon='faArrowUp'
+                  leftIconColor={colors.palette.success300}
+                  leftIconInverse={true}
+                  RightComponent={
+                      <View style={$rightContainer}>
+                          <Button
+                              onPress={increaseCounters}
+                              tx='recoveryScreen_increase'
+                              preset='secondary'                                           
+                          /> 
+                      </View>                           
+                  }
+                  topSeparator={true}
+                  style={$item}                        
+                />
+              </>
             }
           /> 
-          <Card
-              style={$card}
-              HeadingComponent={
-              <>                
-                  <ListItem
-                      tx="increaseRecoveryIndexes"
-                      subTx="increaseRecoveryIndexesDesc"
-                      leftIcon='faArrowUp'
-                      leftIconColor={colors.palette.success300}
-                      leftIconInverse={true}
-                      RightComponent={
-                          <View style={$rightContainer}>
-                              <Button
-                                  onPress={increaseCounters}
-                                  tx='recoveryScreen_increase'
-                                  preset='secondary'                                           
-                              /> 
-                          </View>                           
-                      } 
-                      style={$item}                        
-                  />
-              </>
-              }
-          />
           <Card
             labelTx='recoveryScreen_experimentalTools'
             style={[$card, {marginBottom: spacing.huge * 2}]}
@@ -494,39 +490,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen(_: 
           }
           onBackButtonPress={toggleMintQuoteModal}
           onBackdropPress={toggleMintQuoteModal}
-        />
-        {/* it looks like this modal is a duplicate of the one above? for now not removing, but worth checking later */}
-        <BottomModal
-          isVisible={isMintQuoteModalVisible ? true : false}          
-          ContentComponent={
-            <View style={$quoteContainer}>
-                <Text tx='recoveryEnterMintQuote' />
-                <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
-                    <TextInput
-                        ref={mintQuoteInputRef}
-                        onChangeText={(quote) => setMintQuote(quote)}
-                        value={mintQuote}
-                        autoCapitalize='none'
-                        keyboardType='default'
-                        maxLength={40}                        
-                        selectTextOnFocus={true}
-                        style={[$quoteInput, {backgroundColor: inputBg, color: inputText}]}
-                    />
-                    <Button
-                        tx='commonPaste'
-                        preset='secondary'
-                        style={$pasteButton}
-                        onPress={onPasteMintQuote}
-                    />                    
-                </View>
-                <View style={[$buttonContainer, {marginTop: spacing.medium}]}> 
-                    <Button onPress={onMintEcashFromQuote} tx='recoveryMintEcashButton' />
-                </View>                
-            </View>
-          }
-          onBackButtonPress={toggleMintQuoteModal}
-          onBackdropPress={toggleMintQuoteModal}
-        />
+        />        
         <BottomModal
           isVisible={isMintQuoteResultModalVisible ? true : false}          
           ContentComponent={
@@ -608,7 +572,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen(_: 
 )
 
 const $screen: ViewStyle = {
-  //flex: 1,
+  // flex: 1,
 }
 
 const $headerContainer: TextStyle = {
@@ -625,7 +589,8 @@ const $contentContainer: TextStyle = {
 }
 
 const $mintsContainer: TextStyle = {
-  // flex: 1, 
+  flex: 0,
+  // alignItems: 'flex-start',
   alignSelf: 'stretch',
   minHeight: spacing.screenHeight * 0.4,
 }
@@ -633,8 +598,8 @@ const $mintsContainer: TextStyle = {
 const $quoteContainer: TextStyle = {
   // flex: 1,
   padding: spacing.small,
-  alignSelf: 'stretch',
-  minHeight: spacing.screenHeight * 0.3,
+  // alignSelf: 'stretch',
+  maxHeight: spacing.screenHeight * 0.3,
 }
 
 const $pasteButton: ViewStyle = {

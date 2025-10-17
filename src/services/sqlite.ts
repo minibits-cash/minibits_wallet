@@ -612,9 +612,15 @@ const getTransactionBy = function (criteria: { paymentId?: string; quote?: strin
     const db = getInstance()
     const {rows} = db.execute(query, params)
 
+    log.trace(rows)
+
+    if(!rows || rows.length === 0) {    
+      throw new AppError(Err.DATABASE_ERROR, 'Transaction not found', 'No matching transaction')
+    }
+
     return normalizeTransactionRecord(rows?.item(0))
   } catch (e: any) {
-    throw new AppError(Err.DATABASE_ERROR, 'Transaction not found', e.message)
+    throw new AppError(Err.DATABASE_ERROR, 'Transaction getTransactionBy error', e.message)
   }
 }
 

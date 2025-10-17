@@ -351,6 +351,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
 
 
     const toggleSendModal = () => {
+        log.trace('toggleSendModal')
         setIsSendModalVisible(previousState => !previousState)
     }
 
@@ -744,7 +745,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
 
         <BottomModal
             isVisible={isUpdateModalVisible ? true : false}
-            style={{alignItems: 'stretch'}}
+            // style={{alignItems: 'stretch'}}
             ContentComponent={        
             <ListItem
                 LeftComponent={
@@ -765,7 +766,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         />
         <BottomModal
             isVisible={isMintsModalVisible ? true : false}
-            style={{alignItems: 'stretch'}}
+            // style={{alignItems: 'stretch'}}
             ContentComponent={        
                 <MintsByUnitList                                    
                     mintsByUnit={groupedMints}
@@ -780,7 +781,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         />
         <BottomModal
           isVisible={isSendModalVisible ? true : false}
-          style={{alignItems: 'stretch'}}
+          //style={{alignItems: 'stretch'}}
           ContentComponent={  
             <>
             <ListItem   
@@ -803,7 +804,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         /> 
         <BottomModal
           isVisible={isReceiveModalVisible ? true : false}
-          style={{alignItems: 'stretch'}}
+          // style={{alignItems: 'stretch'}}
           ContentComponent={  
             <>
             <ListItem   

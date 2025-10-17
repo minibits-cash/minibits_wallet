@@ -200,7 +200,7 @@ export const WalletProfileStoreModel = types
         }),
         recoverAddress: flow(function* recover(walletId: string, seedHash: string) {
 
-            let profileRecord: WalletProfileRecord = yield MinibitsClient.recoverProfile(
+            let profileRecord: WalletProfileRecord = yield MinibitsClient.recoverAddress(
                 walletId, seedHash
             )            
             

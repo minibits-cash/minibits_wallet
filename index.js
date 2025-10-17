@@ -93,6 +93,7 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
   return true
 })
 
+globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true
 messaging().onMessage(NotificationService.onForegroundNotification)
 messaging().setBackgroundMessageHandler(NotificationService.onBackgroundNotification)
 NotificationService.initNotifications()

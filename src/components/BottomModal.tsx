@@ -8,15 +8,13 @@ import {
   ViewStyle,
   KeyboardAvoidingView,
   Platform,
-  StatusBar, 
+  Modal as RNModal, 
 } from "react-native"
 import { colors, useThemeColor, spacing } from "../theme"
 import { Text, TextProps } from "./Text"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Header } from "@react-navigation/stack"
-import { moderateVerticalScale } from "@gocodingnow/rn-size-matters"
-import { KeyboardState, useAnimatedKeyboard } from "react-native-reanimated"
-import { log } from "../services"
+import { log } from "../services/logService"
+
 
 
 interface ModalProps extends ViewProps {
@@ -113,7 +111,7 @@ export function BottomModal(props: ModalProps) {
     isVisible = true,    
     onBackdropPress,
     onBackButtonPress,
-    backdropOpacity = Platform.OS === 'ios' ? 0.25 : 0, 
+    backdropOpacity = Platform.OS === 'ios' ? 0.25 : 0.25, 
     content,
     contentTx,
     contentTxOptions,
@@ -165,20 +163,28 @@ export function BottomModal(props: ModalProps) {
 
   // const statusBarOnModalOpen = useThemeColor('statusBarOnModalOpen')
   // const keyboard = useAnimatedKeyboard()
-  //log.trace({keyboard})
+  // log.trace({isVisible})
 
   return (
     <View>   
       <Modal      
         isVisible={isVisible}
-        // statusBarTranslucent={true}  // makes the modal hide behind the keyboard if open
+        statusBarTranslucent={true}  // makes the modal hide behind the keyboard if open
         
-        avoidKeyboard={true}     
+        // RNModal
+        // avoidKeyboard={true}
+        // allowSwipeDismissal
+        // onRequestClose={onBackButtonPress}
+
         onBackdropPress={onBackdropPress}
         onBackButtonPress={onBackButtonPress}
+        useNativeDriver={true}
+        hideModalContentWhileAnimating={true}
+        // useNativeDriverForBackdrop={true} // causes issues with backdropOpacity animation on Android
         backdropOpacity={backdropOpacity}
         
         style={[$outerContainerBase, $containerStyleOverride]}
+
         {...otherProps}
       >
       
@@ -244,8 +250,7 @@ const $outerContainerBase: ViewStyle = {
 }
 
 const $innerContainerBase: ViewStyle = {
-  width: '100%',    
-  alignItems: 'center',
+  width: '100%',  
   borderTopLeftRadius: spacing.small,
   borderTopRightRadius: spacing.small,
   padding: spacing.small

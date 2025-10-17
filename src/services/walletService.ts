@@ -858,16 +858,19 @@ const syncStateWithMintTask = async function (
                         } as TransactionStateUpdate
 
                     } else {
+                        // syn just after we've reverted the transaction should not complete it again
+                        if(tx.status !== TransactionStatus.REVERTED) {
 
-                        completedTransactionIds.push(Number(tId))
+                            completedTransactionIds.push(Number(tId))
 
-                        return {
-                            tId: Number(tId),
-                            amount: tx.amount,
-                            spentByMintAmount: spentByMintTxAmount as number,
-                            meltQuoteToRecover: tx.type === TransactionType.TRANSFER && tx.quote && tx.quote.length > 0 ? tx.quote : null,
-                            updatedStatus: TransactionStatus.COMPLETED
-                        } as TransactionStateUpdate
+                            return {
+                                tId: Number(tId),
+                                amount: tx.amount,
+                                spentByMintAmount: spentByMintTxAmount as number,
+                                meltQuoteToRecover: tx.type === TransactionType.TRANSFER && tx.quote && tx.quote.length > 0 ? tx.quote : null,
+                                updatedStatus: TransactionStatus.COMPLETED
+                            } as TransactionStateUpdate
+                        }
                     }
                 }
 
@@ -2066,8 +2069,7 @@ const handleClaimQueue = async function (): Promise<void> {
     // Based on user setting, ask for batched token if more then 5 payments are waiting to be claimed
     const claimedTokens = await MinibitsClient.createClaim(
         keys.walletId,
-        keys.SEED.seedHash, 
-        keys.NOSTR.publicKey,
+        keys.SEED.seedHash,         
         isBatchClaimOn ? 5 : undefined
     )
 

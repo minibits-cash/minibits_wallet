@@ -239,8 +239,7 @@ export const OwnName = observer(function (props: {pubkey: string}) {
             }
             
             const { paid } = await MinibitsClient.checkDonationPaid(
-                donationInvoice.payment_hash as string,
-                pubkey as string
+                donationInvoice.payment_hash as string,                
             )
 
             if(paid) {                

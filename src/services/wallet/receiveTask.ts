@@ -421,7 +421,7 @@ export const receiveByCashuPaymentRequestTask = async function (
         }                
 
         // Let's find transaction with related payment request
-        const transaction = transactionsStore.findBy({paymentRequest: paymentRequestId})
+        const transaction = transactionsStore.findBy({paymentId: paymentRequestId})
 
         if(!transaction) {
             throw new AppError(

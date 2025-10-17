@@ -10,7 +10,7 @@ import { CurrencyCode } from "./wallet/currency"
 import { rootStoreInstance } from "../models"
 import { JwtTokens } from "./keyChain"
 import { AuthChallengeResponse, VerifyChallengeResponse } from "../models/AuthStore"
- // refresh // refresh // refresh
+ // refresh // refresh // refresh // refresh
 
 type MinibitsRequestArgs = {
 	method: 'POST' | 'PUT' | 'DELETE' | 'GET'
@@ -214,7 +214,7 @@ const recoverProfile = async function (walletId: string, seedHash: string) {
         jwtAuthRequired: true
     }) as WalletProfileRecord
 
-    log.info('[recoverProfile]', `Recovered wallet address`, {seedHash, walletId})
+    log.info('[recoverProfile]', `Recovered wallet address`, {walletAddress: walletProfile.nip05})
 
     return walletProfile
 }
@@ -311,11 +311,11 @@ const createDonation = async function (amount: number, memo: string, pubkey: str
 }
 
 
-const checkDonationPaid = async function (paymentHash: string, pubkey: string) {    
+const checkDonationPaid = async function (paymentHash: string) {    
     const url = MINIBITS_SERVER_API_HOST + '/donation'      
     const method = 'GET'    
 
-    const donationPaid = await fetchApi(url + `/${paymentHash}/${pubkey}`, {
+    const donationPaid = await fetchApi(url + `/${paymentHash}`, {
         method,
         jwtAuthRequired: true         
     }) as {paid: boolean}
@@ -326,14 +326,13 @@ const checkDonationPaid = async function (paymentHash: string, pubkey: string) {
 }
 
 
-const createClaim = async function (walletId: string, seedHash: string, pubkey: string, batchFrom?: number) {    
+const createClaim = async function (walletId: string, seedHash: string, batchFrom?: number) {    
     const url = MINIBITS_SERVER_API_HOST + '/claim' 
     const method = 'POST'    
     
     const body = {
         walletId,
-        seedHash,
-        pubkey,
+        seedHash,        
         batchFrom
     }
     
@@ -458,7 +457,8 @@ export const MinibitsClient = {
     updateWalletProfile,
     updateWalletProfileNip05,
     updateDeviceToken,
-    recoverProfile,    
+    recoverProfile,
+    recoverAddress,   
     getRandomPictures,  
     getWalletProfileByNip05,
     getWalletProfileBySeedHash,
