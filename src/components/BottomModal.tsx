@@ -8,13 +8,15 @@ import {
   ViewStyle,
   KeyboardAvoidingView,
   Platform,
-  Modal as RNModal, 
+  StatusBar, 
 } from "react-native"
 import { colors, useThemeColor, spacing } from "../theme"
 import { Text, TextProps } from "./Text"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { log } from "../services/logService"
-
+import { Header } from "@react-navigation/stack"
+import { moderateVerticalScale } from "@gocodingnow/rn-size-matters"
+import { KeyboardState, useAnimatedKeyboard } from "react-native-reanimated"
+import { log } from "../services"
 
 
 interface ModalProps extends ViewProps {
@@ -111,7 +113,7 @@ export function BottomModal(props: ModalProps) {
     isVisible = true,    
     onBackdropPress,
     onBackButtonPress,
-    backdropOpacity = Platform.OS === 'ios' ? 0.25 : 0.25, 
+    backdropOpacity = Platform.OS === 'ios' ? 0.25 : 0, 
     content,
     contentTx,
     contentTxOptions,
@@ -163,28 +165,23 @@ export function BottomModal(props: ModalProps) {
 
   // const statusBarOnModalOpen = useThemeColor('statusBarOnModalOpen')
   // const keyboard = useAnimatedKeyboard()
-  // log.trace({isVisible})
+  //log.trace({keyboard})
 
   return (
     <View>   
       <Modal      
         isVisible={isVisible}
-        statusBarTranslucent={true}  // makes the modal hide behind the keyboard if open
+        // statusBarTranslucent={true}  // makes the modal hide behind the keyboard if open
         
-        // RNModal
-        // avoidKeyboard={true}
-        // allowSwipeDismissal
-        // onRequestClose={onBackButtonPress}
-
+        avoidKeyboard={true}     
         onBackdropPress={onBackdropPress}
         onBackButtonPress={onBackButtonPress}
-        useNativeDriver={true}
-        hideModalContentWhileAnimating={true}
-        // useNativeDriverForBackdrop={true} // causes issues with backdropOpacity animation on Android
         backdropOpacity={backdropOpacity}
+        useNativeDriverForBackdrop={true}
+        hideModalContentWhileAnimating={true}
+        useNativeDriver={true}
         
         style={[$outerContainerBase, $containerStyleOverride]}
-
         {...otherProps}
       >
       
@@ -253,5 +250,5 @@ const $innerContainerBase: ViewStyle = {
   width: '100%',  
   borderTopLeftRadius: spacing.small,
   borderTopRightRadius: spacing.small,
-  padding: spacing.small
+  padding: spacing.small,  
 }

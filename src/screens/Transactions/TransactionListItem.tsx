@@ -170,7 +170,7 @@ export const TransactionListItem = observer(function (props: TransactionListProp
       if([TransactionType.RECEIVE, TransactionType.TOPUP, TransactionType.RECEIVE_BY_PAYMENT_REQUEST].includes(tx.type)) {
         if(tx.profile) {
           const profilePicture = getProfilePicture(tx.profile)
-          if(profilePicture) {
+          if(profilePicture) {            
             return profilePicture
           }
         }
