@@ -1,4 +1,3 @@
-import { StackNavigationProp } from '@react-navigation/stack'
 import { ReceiveOption, SendOption, TransferOption } from '../screens'
 import AppError, { Err } from '../utils/AppError'
 import { log } from './logService'

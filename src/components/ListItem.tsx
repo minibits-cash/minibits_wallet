@@ -320,7 +320,9 @@ const $touchableStyle: ViewStyle = {
 
 const $componentContainer: ViewStyle = {
     flex: 0,
-    alignSelf: 'center',      
+    alignSelf: 'center', 
+    // borderColor: 'green',
+    // borderWidth: 1,  
 }
 
 const $bottomComponentContainer: ViewStyle = {

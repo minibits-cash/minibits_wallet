@@ -7,6 +7,7 @@ import {Header, Icon, Screen} from '../components'
 import {useStores} from '../models'
 import { PrivateContacts } from './Contacts/PrivateContacts'
 import { PublicContacts } from './Contacts/PublicContacts'
+import { PublicContactsNew } from './Contacts/PublicContactsNew'
 import { log } from '../services/logService'
 import { getImageSource } from '../utils/utils'
 import { ReceiveOption } from './ReceiveScreen'
@@ -35,7 +36,7 @@ export const ContactsScreen = observer(function ({ route }: Props) {
           case 'first':
             return <PrivateContacts paymentOption={paymentOption} />
           case 'second':
-            return <PublicContacts paymentOption={paymentOption} />
+            return <PublicContactsNew paymentOption={paymentOption} />
           default:
             return null
         }

@@ -248,8 +248,17 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             
                     const pr: CashuPaymentRequest = decodePaymentRequest(encodedCashuPaymentRequest)
 
+                    log.trace('[handlePaymentRequest] decoded payment request', pr)
+
                     setDecodedCashuPaymentRequest(pr)
                     setEncodedCashuPaymentRequest(encodedCashuPaymentRequest)
+
+                    if(!pr.transport || pr.transport.length === 0) {
+                        throw new AppError(Err.VALIDATION_ERROR, 
+                            'Payment request can not be paid as it does not have any transport defined.',
+                            {caller: 'handlePaymentRequest', paymentRequest: pr}
+                        )
+                    }
 
                     const transports: PaymentRequestTransport[] = pr.transport
                     

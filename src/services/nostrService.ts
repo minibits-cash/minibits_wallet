@@ -21,6 +21,7 @@ import AppError, { Err } from '../utils/AppError'
 import { MinibitsClient } from './minibitsService'
 import { rootStoreInstance } from '../models'
 import { WalletTask } from './walletService'
+import { Relay } from 'nostr-tools/relay'
 
 // refresh
 
@@ -38,6 +39,7 @@ export type NostrProfile = {
     lud16?: string
     about?: string
     picture?: string
+    followersCount?: number
 }
 
 export type Nip05VerificationRecord = {
@@ -54,6 +56,7 @@ export type Nip05VerificationRecord = {
 
 const _defaultPublicRelays: string[] = ['wss://relay.primal.net', 'wss://relay.damus.io']
 const _minibitsRelays: string[] = ['wss://relay.minibits.cash']
+const _searchRelays: string[] = ['wss://relay.nostr.band', 'wss://relay.noswhere.com']
 
 let _pool: any = undefined
 
@@ -75,6 +78,10 @@ const getDefaultRelays = function () {
 
 const getMinibitsRelays = function () {
     return _minibitsRelays    
+}
+
+const getSearchRelays = function () {
+    return _searchRelays
 }
 
 const getAllRelays = function () {
@@ -323,6 +330,21 @@ const getEvent = async function (
     return null    
 }
 
+// nostr-tools pool does not support count
+const getCount = async function (        
+    filters: NostrFilter[]
+): Promise<number | null> {   
+    
+    const relay = await Relay.connect('wss://relay.nostr.band/all')
+
+    if(relay) {
+        const count = await relay.count(filters, {})
+        return count
+    }
+
+    return null    
+}
+
 
 const getEvents = async function (    
     relays: string[],
@@ -347,7 +369,7 @@ const getNip05Record = async function (nip05: string) {
 
     try {
         if(!nip05Domain || !nip05Name) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Contact does not have a valid nip05 identifier.', {nip05})
+            throw new AppError(Err.VALIDATION_ERROR, 'Not a valid nip05 identifier.', {nip05})
         }
 
         const url = `https://${nip05Domain}/.well-known/nostr.json?name=${nip05Name}`
@@ -408,7 +430,7 @@ const getNip05PubkeyAndRelays = async function (nip05: string) {
     }
 
     // retrieve recommended relays
-    if(nip05Record.relays && nip05Record.relays[nip05Pubkey].length > 0) {
+    if(nip05Record.relays && nip05Record.relays[nip05Pubkey] && nip05Record.relays[nip05Pubkey].length > 0) {
         nip05Relays = nip05Record.relays[nip05Pubkey]
         log.trace('Got relays from server', nip05Relays, 'getNip05PubkeyAndRelays')
     }
@@ -469,6 +491,11 @@ const getNormalizedNostrProfile = async function (nip05: string, relays: string[
 
     if(!profile) {
         throw new AppError(Err.NOTFOUND_ERROR, `Profile could not be found on Nostr relays, visit Settings and add relay that hosts the profile.`, {nip05, relays})
+    }
+
+    if(!profile.nip05) {
+        // e.g. jack@primal.net has not nip05 in profile...
+        profile.nip05 = nip05
     }
 
     if(profile.nip05 !== nip05) {        
@@ -569,6 +596,7 @@ export const NostrClient = { // TODO split helper functions to separate module
     getRelayPool,        
     getDefaultRelays,
     getMinibitsRelays,
+    getSearchRelays,
     getAllRelays,
     getNostrKeys,
     reconnectToRelays,
@@ -587,6 +615,7 @@ export const NostrClient = { // TODO split helper functions to separate module
     publish,   
     getEvent,
     getEvents,
+    getCount,
     getNip05Record,
     verifyNip05,
     getNip05PubkeyAndRelays,

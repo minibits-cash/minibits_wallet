@@ -125,7 +125,7 @@ const extractEncodedCashuPaymentRequest = function (maybeRequest: string): strin
       return encodedRequest
   }
   
-  throw new AppError(Err.NOTFOUND_ERROR, 'Could not extract ecash token from the provided string', {maybeRequest, caller: 'extractEncodedCashuPaymentRequest'})
+  throw new AppError(Err.NOTFOUND_ERROR, 'Could not extract ecash payment request from the provided string', {maybeRequest, caller: 'extractEncodedCashuPaymentRequest'})
 }
 
 const getProofsAmount = function (proofs: Array<Proof | CashuProof>): number {
