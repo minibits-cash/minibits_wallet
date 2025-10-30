@@ -308,7 +308,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
             maxLength={9}
             keyboardType="decimal-pad"
             returnKeyType="done"
-            selectTextOnFocus={selectTextOnFocus !== undefined ? selectTextOnFocus : !hasBottomAmountFocusedOnce}
+            selectTextOnFocus={!hasBottomAmountFocusedOnce}
             editable={editable}
             {...rest}
           />
