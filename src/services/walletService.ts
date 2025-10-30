@@ -1902,6 +1902,7 @@ const recoverMeltQuoteChange = async function (params: {mintUrl: string, meltQuo
     // check is quote has been paid
     const meltQuoteResponse: MeltQuoteResponse = await walletStore.checkLightningMeltQuote(mintUrl, meltQuote)
     const {quote, state} = meltQuoteResponse
+
     const amountToRecover = meltQuoteResponse.change ? sumBlindSignatures(meltQuoteResponse.change) : 0
 
     if (quote !== meltQuote) {
@@ -2041,6 +2042,8 @@ const recoverMeltQuoteChange = async function (params: {mintUrl: string, meltQuo
                     status: TransactionStatus.ERROR,
                     data: JSON.stringify(transactionData)
                 })
+
+                return { recoveredAmount: 0 }
             }
         /* 
         * UNKNOWN 

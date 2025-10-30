@@ -198,7 +198,7 @@ const updateDeviceToken = async function (deviceToken: string) {
     return walletProfile
 }
 
-// TODO remove pubkey from params
+// recover profile address, avatar and seed from former profile (if exists, otherwise only seed is linked) to the current one. 
 const recoverProfile = async function (walletId: string, seedHash: string) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'PUT'    
@@ -214,12 +214,12 @@ const recoverProfile = async function (walletId: string, seedHash: string) {
         jwtAuthRequired: true
     }) as WalletProfileRecord
 
-    log.info('[recoverProfile]', `Recovered wallet address`, {walletAddress: walletProfile.nip05})
+    log.info('[recoverProfile]', `Recovered wallet profile `, {walletAddress: walletProfile.nip05})
 
     return walletProfile
 }
 
-
+// recover address only to the current profile, keep current avatar and seed
 const recoverAddress = async function (walletId: string, seedHash: string) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'PUT'    
@@ -229,13 +229,13 @@ const recoverAddress = async function (walletId: string, seedHash: string) {
         seedHash        
     }        
 
-    const walletProfile = await fetchApi(url + `/recover`, {
+    const walletProfile = await fetchApi(url + `/recoverAddress`, {
         method,        
         body,
         jwtAuthRequired: true
     }) as WalletProfileRecord
 
-    log.info('[recoverProfile]', `Recovered wallet address`, {seedHash, walletId})
+    log.info('[recoverAddress]', `Recovered wallet address`, {seedHash, walletId})
 
     return walletProfile
 }

@@ -454,18 +454,18 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
               mnemonic
             }
 
-            // update seed to the provided one
-            keys.SEED = seed
-
             // In case there is a profile linked to provided seedHash,
-            // it's address is recovered to the current profile.
-            // As we regenerate ecash from provided seed, it is linked to current profile as well.
+            // it's address, avatar and seed is recovered to the current profile.
             await walletProfileStore.recover(
                 keys.walletId, 
                 seedHashRef.current,
             )
 
-            await KeyChain.saveWalletKeys(keys)            
+            // update seed to the provided one
+            const keysCopy = { ...keys }
+            keysCopy.SEED = seed
+
+            await KeyChain.saveWalletKeys(keysCopy)            
             walletStore.cleanCachedWalletKeys()
 
             if(!mintsStore.mintExists(MINIBITS_MINT_URL)) {
@@ -578,7 +578,7 @@ return (
                                     <Button
                                         onPress={startRecovery}
                                         tx={startIndex === 0 ? 'startRecovery' : 'nextInterval'}
-                                        preset={(startIndex === 0 ||  totalRecoveredAmount > 0) ? 'default' : 'secondary'}
+                                        preset={(startIndex === 0 ||  totalRecoveredAmount == 0) ? 'default' : 'secondary'}
                                         style={{marginRight: spacing.small}}
                                         disabled={selectedMintUrl ? false : true}    
                                     />

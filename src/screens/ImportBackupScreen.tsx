@@ -43,7 +43,6 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
     const {
         mintsStore, 
         proofsStore, 
-        userSettingsStore, 
         contactsStore, 
         walletProfileStore, 
         walletStore,
@@ -65,7 +64,6 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
       mintsStore: MintsStoreSnapshot,
       contactsStore: ContactsStoreSnapshot,      
     } | undefined>(undefined) // type tbd
-    const [profileToRecover, setProfileToRecover] = useState<WalletProfileRecord | undefined>(undefined)
     const [isLoading, setIsLoading] = useState(false)    
     const [error, setError] = useState<AppError | undefined>()        
     const [statusMessage, setStatusMessage] = useState<string>()
@@ -155,8 +153,8 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
     
     const onConfirmBackup = async function () {
       try {
-          if(!backup) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Missing backup.')
+          if(!backup || !seedHashRef.current) {
+            throw new AppError(Err.VALIDATION_ERROR, 'Missing backup or seed.')
           }
 
           LayoutAnimation.easeInEaseOut()    
@@ -244,18 +242,18 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
             mnemonic
           }
 
-          // update seed to the provided one
-          keys.SEED = seed
-
           // In case there is a profile linked to provided seedHash,
-          // it's address is recovered to the current profile.
-          // As we regenerate ecash from provided seed, it is linked to current profile as well.
+          // it's address, avatar and seed is recovered to the current profile.
           await walletProfileStore.recover(
               keys.walletId, 
               seedHashRef.current,
           )
 
-          await KeyChain.saveWalletKeys(keys)            
+          // update seed to the provided one
+          const keysCopy = { ...keys }
+          keysCopy.SEED = seed
+
+          await KeyChain.saveWalletKeys(keysCopy)            
           walletStore.cleanCachedWalletKeys()
 
           if(!mintsStore.mintExists(MINIBITS_MINT_URL)) {
@@ -369,26 +367,13 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
                     }        
                 />
             )}
-            {isValidMnemonic && isValidBackup && profileToRecover && (
-              <Card
-                style={$card}
-                ContentComponent={
-                    <ListItem
-                        text={profileToRecover.nip05}
-                        subTx="profileToRecoverDesc"
-                        LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text={'3'}/></View>}
-                        style={$item}                            
-                    /> 
-                  }        
-              />
-            )}
             {isValidMnemonic && isValidBackup && (
               <Card
                 style={$card}
                 ContentComponent={
                     <ListItem
-                        text={'Wallet address not found'}
-                        subText="Wallet profile linked to the provided seed not found, new one will be created for you."
+                        text={'Wallet profile recovery'}
+                        subText="While importing the wallet we'll try to recover wallet address and avatar linked to the provided seed."
                         LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text={'3'}/></View>}
                         style={$item}                            
                     /> 

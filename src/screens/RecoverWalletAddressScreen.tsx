@@ -29,7 +29,7 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
     },
   })
 
-  const { walletProfileStore, userSettingsStore, walletStore, authStore } = useStores()
+  const { walletProfileStore, walletStore } = useStores()
 
   const mnemonicInputRef = useRef<TextInput>(null)
   const seedRef = useRef<Uint8Array | null>(null)
@@ -119,16 +119,13 @@ export const RecoverWalletAddressScreen = observer(function RecoverWalletAddress
         seedHashRef.current
       )
 
-      userSettingsStore.setIsOnboarded(true)
-
       setStatusMessage(translate('recovery_completed'))
       await delay(1000)
       setStatusMessage('')
       setIsLoading(false)
       
-      navigation.dispatch(                
-        StackActions.popToTop()
-      )
+      //@ts-ignore
+      navigation.navigate('Tabs')
     } catch (e: any) {
       handleError(e)
     }
