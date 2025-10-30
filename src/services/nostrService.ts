@@ -331,14 +331,27 @@ const getEvent = async function (
 }
 
 // nostr-tools pool does not support count
+// DO NOT USE
 const getCount = async function (        
     filters: NostrFilter[]
 ): Promise<number | null> {   
     
     const relay = await Relay.connect('wss://relay.nostr.band/all')
 
+    const getCountWithTimeout = async (): Promise<number | null> => {
+        const promise = relay.count(filters, {})
+        const kill = new Promise((resolve) => setTimeout(resolve, 3000))
+        const result = await Promise.race([promise, kill]) as number | null        
+
+        if (!result) {
+            return null
+        }
+
+        return result
+    }   
+
     if(relay) {
-        const count = await relay.count(filters, {})
+        const count = await getCountWithTimeout()
         return count
     }
 
@@ -352,7 +365,9 @@ const getEvents = async function (
 ): Promise<NostrEvent[]> {   
     
     const pool = getRelayPool()    
-    const events: NostrEvent[] = await pool.querySync(relays, filter)    
+    const events: NostrEvent[] = await pool.querySync(relays, filter, {maxWait: 5000})
+    
+    log.trace('[getEvents] Events received', {events, relays, filter})
 
     if(events && events.length > 0) {       
         return events
@@ -448,8 +463,7 @@ const getProfileFromRelays = async function (pubkey: string, relays: string[]): 
         kinds: [Metadata],            
     }
 
-    const events = await NostrClient.getEvents(relays, filter)
-
+    const events = await NostrClient.getEvents(relays, filter)    
     
     if(!events || events.length === 0) {
         // do not log as error to save capacity
@@ -478,7 +492,7 @@ const getNormalizedNostrProfile = async function (nip05: string, relays: string[
         const maxRelays: number = 5 // do not add dozens of relays on some profiles
 
         for (const relay of nip05Relays) {
-            if(counter <= maxRelays) {
+            if(counter <= maxRelays && !relaysToConnect.includes(relay)) {
                 relaysToConnect.push(relay)                
                 counter++
             } else {
@@ -487,10 +501,14 @@ const getNormalizedNostrProfile = async function (nip05: string, relays: string[
         }        
     }
 
+    log.trace('[getNormalizedNostrProfile] Connecting to relays to get profile', {relaysToConnect})
     const profile: NostrProfile | undefined = await NostrClient.getProfileFromRelays(nip05Pubkey, relaysToConnect)
 
     if(!profile) {
-        throw new AppError(Err.NOTFOUND_ERROR, `Profile could not be found on Nostr relays, visit Settings and add relay that hosts the profile.`, {nip05, relays})
+        throw new AppError(Err.NOTFOUND_ERROR, 
+            `Profile could not be found on Nostr relays, visit Settings and add relay that hosts the profile.`, 
+            {nip05, relaysToConnect}
+        )
     }
 
     if(!profile.nip05) {

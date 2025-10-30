@@ -453,7 +453,7 @@ export const PublicContactsNew = observer(function (props: {
     const onSearchProfiles = async function () {
         if (!searchQuery.trim()) return
         setSearchProfiles([])
-        setIsSearching(true)
+        setIsLoading(true)
         try {
             let results: NostrProfile[] = []
             if (searchQuery.includes('@')) {
@@ -466,13 +466,13 @@ export const PublicContactsNew = observer(function (props: {
                         "#p": [profile.pubkey],
                     }
 
-                    const count = await NostrClient.getCount([followersFilter])
+                    /*const count = await NostrClient.getCount([followersFilter])
 
                     log.trace('[onSearchProfiles] Followers count', {pubkey: profile.pubkey, count})
 
                     if(count !== null) {
                         profile.followersCount = count
-                    }
+                    }*/
 
                     results.push(profile)
                 }
@@ -505,13 +505,13 @@ export const PublicContactsNew = observer(function (props: {
                             "#p": [profile.pubkey],
                         }
 
-                        const count = await NostrClient.getCount([followersFilter])
+                        /*const count = await NostrClient.getCount([followersFilter])
 
                         log.trace('[onSearchProfiles] Followers count', {pubkey: profile.pubkey, count})
 
                         if(count !== null) {
                             profile.followersCount = count
-                        }
+                        }*/
 
                         profiles.push(profile)
 
@@ -552,13 +552,15 @@ export const PublicContactsNew = observer(function (props: {
             if (results.length === 0) {
                 setInfo(translate('contactsScreen_publicContacts_searchNoResults'))
             }
+
             log.trace('Search results:', results)
             setSearchProfiles(results)
+
         } catch (e: any) {
-            setIsSearching(false)
+            setIsLoading(false)
             handleError(e)
         } finally {
-            setIsSearching(false)
+            setIsLoading(false)
         }
     }
 
@@ -662,7 +664,7 @@ export const PublicContactsNew = observer(function (props: {
                                                 )}
                                             </View>}
                                         text={item.name}                                        
-                                        subText={item.nip05 ? item.nip05 : undefined}
+                                        subText={item.nip05 || item.lud16 || undefined}
                                         RightComponent={item.followersCount ? (                                        
                                             <View style={{paddingBottom: spacing.extraSmall}}>                                                
                                                 <Text text={numbro(item.followersCount).format({average: true})} size='sm'/>
@@ -676,7 +678,8 @@ export const PublicContactsNew = observer(function (props: {
                             }}
                             keyExtractor={(item) => item.pubkey}
                             contentInset={insets}
-                            style={{ maxHeight: spacing.screenHeight * 0.8 }}
+                            style={{ maxHeight: spacing.screenHeight * 0.55}}
+                            //contentContainerStyle={{paddingBottom: 70}}                           
                         />
                     )}
                     </>
@@ -741,7 +744,7 @@ export const PublicContactsNew = observer(function (props: {
                         onStartReached={expandProfile}                        
                         keyExtractor={(item) => item.pubkey}
                         contentInset={insets}
-                        style={{ maxHeight: spacing.screenHeight * 0.72 }}
+                        style={{ maxHeight: spacing.screenHeight * 0.55 }}
                         // contentContainerStyle={{paddingBottom: 200}}
                     />
                 </>
@@ -750,7 +753,7 @@ export const PublicContactsNew = observer(function (props: {
             />
         )}        
         </View>
-        {(isLoading || isSearching) && <Loading />}
+        {isLoading && <Loading />}
         <BottomModal
           isVisible={isNpubActionsModalVisible}
           style={{alignItems: 'stretch'}}
