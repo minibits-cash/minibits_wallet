@@ -106,7 +106,7 @@
 	"contactsScreen_ownName_payToGetOwnName": "Pay the following lightning invoice and get your %{name} wallet name.",
 	"contactsScreen_ownName_profileExists": "This wallet name is already in use, choose another one.",
 	"contactsScreen_ownName_tooShort": "Please use at least 2 characters for your name",
-	"contactsScreen_privateContacts_bottomModal": "Private contacts are unique identifiers of other Minibits wallets. You can use them to send or request ecash and you can safely share your own with others.",
+	"contactsScreen_privateContacts_bottomModal": "Private contacts are public addresses of other Minibits wallets or even any Nostr users. You can use them to send or request ecash and you can safely share your own with others.",
 	"contactsScreen_privateContacts_domainExternal": "Use another domain",
 	"contactsScreen_privateContacts_domainMinibits": "Use minibits.cash domain",
 	"contactsScreen_privateContacts_explainerSubText": "Add other Minibits users as your private contacts. Every user gets sharable @minibits.cash wallet address. You can pay privately to your contacts anytime even if they are offline.",

@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { IncomingDataType, IncomingParser } from '../../services/incomingParser'
 import { translate } from '../../i18n'
 import { useNavigation } from '@react-navigation/native'
-import { toJS } from 'mobx'
+import { set, toJS } from 'mobx'
 import FastImage from 'react-native-fast-image'
 import { TransferOption } from '../TransferScreen'
 import numbro from 'numbro'
@@ -31,7 +31,7 @@ const maxContactsToLoad = 20
 export const PublicContactsNew = observer(function (props: {
     paymentOption: ReceiveOption | SendOption | TransferOption | undefined}
 ) {
-    const {contactsStore, relaysStore, userSettingsStore} = useStores()
+    const {contactsStore, relaysStore, userSettingsStore, walletProfileStore} = useStores()
     const navigation = useNavigation()
     
     const npubInputRef = useRef<TextInput>(null)    
@@ -42,6 +42,7 @@ export const PublicContactsNew = observer(function (props: {
     const [newPublicPubkey, setNewPublicPubkey] = useState<string>('')
     const [newPublicRelay, setNewPublicRelay] = useState<string>('')    
     
+    const [maybeOwnProfile, setMaybeOwnProfile] = useState<NostrProfile | undefined>(undefined)
     const [ownProfile, setOwnProfile] = useState<NostrProfile | undefined>(undefined)    
     const [followingPubkeys, setFollowingPubkeys] = useState<string[]>([])
     const [followingProfiles, setFollowingProfiles] = useState<NostrProfile[]>([])
@@ -49,14 +50,15 @@ export const PublicContactsNew = observer(function (props: {
     
     const [isLoading, setIsLoading] = useState(false)        
     const [isNpubModalVisible, setIsNpubModalVisible] = useState(false)
+    const [isMaybeOwnProfileVisible, setIsMaybeOwnProfileVisible] = useState(false)
     const [isNpubActionsModalVisible, setIsNpubActionsModalVisible] = useState(false)
     const [isRelayModalVisible, setIsRelayModalVisible] = useState(false)
     const [shouldReload, setShouldReload] = useState(false)
     const [error, setError] = useState<AppError | undefined>()
     const [searchQuery, setSearchQuery] = useState('dev@minibits.cash')
     const [searchProfiles, setSearchProfiles] = useState<NostrProfile[]>([])
-    const [isSearching, setIsSearching] = useState(false)
-       
+
+           
     useEffect(() => {
         const focus = () => {
             npubInputRef && npubInputRef.current
@@ -227,7 +229,60 @@ export const PublicContactsNew = observer(function (props: {
 
     const onChangeSerchQuery = async function (text: string) {
         setSearchQuery(text)
-    } 
+    }
+
+    const onSearchOwnProfile = async function () {
+        // attempt to search for nostr profile that has wallet address set as lud16
+        // and default such profile as own public profile
+        setIsLoading(true)
+        try {
+            const filter: NostrFilter = {
+                kinds: [Metadata],
+                search: walletProfileStore.nip05,
+                limit: 5
+            }
+
+            const events = await NostrClient.getEvents(NostrClient.getSearchRelays(), filter)
+            let maybeProfile: NostrProfile | undefined = undefined
+
+            for (const event of events) {
+                const profile: NostrProfile = JSON.parse(event.content)
+
+                log.trace('[onPreloadOwnPubkey]', 'Checking profile from search', profile)
+
+                // filter out minibits wallet profiles
+                if(profile.nip05 && profile.nip05 !== walletProfileStore.nip05) {                    
+                    
+                    // make sure search returned a profile where lud16 matches wallet address
+                    if(profile.lud16 && profile.lud16 === walletProfileStore.nip05) {
+                        log.trace('[onPreloadOwnPubkey]', 'Got matching profile', {name: profile.name, nip05: profile.nip05, lud16: profile.lud16})
+
+                        const npub = NostrClient.getNpubkey(event.pubkey)
+                        profile.pubkey = event.pubkey
+                        profile.npub = npub                        
+                        maybeProfile = profile
+                        break                        
+                    }
+                }
+            }
+
+            setIsLoading(false)
+            log.trace('[onPreloadOwnPubkey]', 'Found maybe own profile', maybeProfile)            
+            if(maybeProfile) {
+                
+                setMaybeOwnProfile(maybeProfile)
+                toggleMaybeOwnProfileModal()
+            } else {
+                toggleNpubModal()
+            }
+            
+        } catch (e: any) {
+            // silent
+            log.error('[onPreloadOwnPubkey] error:', e.message)
+            setIsLoading(false)
+            toggleNpubModal()
+        }
+    }
     
     const onPastePublicPubkey = async function () {
         const key = await Clipboard.getString()
@@ -290,6 +345,40 @@ export const PublicContactsNew = observer(function (props: {
     }
 
 
+    const onMaybeOwnProfileConfirm = () => {
+        if(!maybeOwnProfile) {
+            toggleMaybeOwnProfileModal()
+            return
+        }
+
+        try {            
+            const hexKey = NostrClient.getHexkey(maybeOwnProfile.npub)                
+            contactsStore.setPublicPubkey(hexKey)                
+            resetContactsState()
+            setOwnProfile({
+                pubkey: hexKey,
+                npub: maybeOwnProfile.npub,
+                name: '',
+                nip05: ''
+            })
+            toggleMaybeOwnProfileModal()
+            onClearSearch()
+
+            setTimeout(() => setShouldReload(true), 1000)            
+
+        } catch(e: any) {
+            handleError(e)
+        }
+    }
+
+
+    const onMaybeOwnProfileCancel = () => {
+        setMaybeOwnProfile(undefined)
+        toggleMaybeOwnProfileModal()
+        toggleNpubModal()
+    }
+
+
     const onSavePublicRelay = function () {        
         try {
             if(newPublicRelay) {                
@@ -321,6 +410,7 @@ export const PublicContactsNew = observer(function (props: {
     }
 
 
+
     const onRemovePublicRelay = function () {        
         relaysStore.removeRelay(newPublicRelay)
 
@@ -344,6 +434,10 @@ export const PublicContactsNew = observer(function (props: {
         if(isNpubActionsModalVisible) {
             toggleNpubActionsModal()
         }
+    }
+
+    const toggleMaybeOwnProfileModal = () => {
+        setIsMaybeOwnProfileVisible(previousState => !previousState)
     }
 
 
@@ -578,21 +672,6 @@ export const PublicContactsNew = observer(function (props: {
     return (
     <Screen contentContainerStyle={$screen}>
         <View style={[$contentContainer, !isOwnProfileVisible && {marginTop: -100}]}>
-        {/*!contactsStore.publicPubkey && (
-            <Card
-                ContentComponent={
-                    <ListItem
-                        leftIcon='faComment'
-                        leftIconInverse={true}
-                        leftIconColor={colors.palette.iconViolet200}
-                        tx="nostr_tip"
-                        subTx='nostr_tipSubText'
-                        onPress={toggleNpubModal}
-                    />                
-                }
-                style={$card}                
-            />                   
-        )*/}
         {!contactsStore.publicPubkey && (
             <Card
                 heading='Find Nostr users'
@@ -635,7 +714,7 @@ export const PublicContactsNew = observer(function (props: {
                         tx={
                             'nostr_tip'
                         }
-                        onPress={toggleNpubModal}
+                        onPress={onSearchOwnProfile}
                         style={{alignSelf: 'flex-start', minHeight: verticalScale(30)}}
                         textStyle={{lineHeight: verticalScale(16), fontSize: 12}}
                     />
@@ -822,13 +901,48 @@ export const PublicContactsNew = observer(function (props: {
                     />
                 </View>
                 <View style={[$buttonContainer, {marginTop: spacing.medium}]}>
-                    <Button preset='tertiary' onPress={() => setNewPublicPubkey(defaultPublicNpub)} tx="contactsScreen_publicContacts_pasteDemoKey"/>
+                    {!newPublicPubkey && (<Button preset='tertiary' onPress={() => setNewPublicPubkey(defaultPublicNpub)} tx="contactsScreen_publicContacts_pasteDemoKey"/>)}
                     <Button preset='tertiary' onPress={toggleNpubModal} tx="commonCancel"/>                    
                 </View>                
             </View>
           }
           onBackButtonPress={toggleNpubModal}
           onBackdropPress={toggleNpubModal}
+        />
+        <BottomModal
+          isVisible={isMaybeOwnProfileVisible}          
+          ContentComponent={
+            <View style={{padding: spacing.small}}>
+                <Text text="Is this your public profile?" preset="subheading" />
+                {maybeOwnProfile && (
+                    <View>
+                        <ListItem 
+                            key={maybeOwnProfile.pubkey}
+                            LeftComponent={
+                                <View style={{marginRight: spacing.medium, borderRadius: 20, overflow: 'hidden'}}>
+                                    {maybeOwnProfile.picture ? (
+                                        <FastImage 
+                                            source={{uri: maybeOwnProfile.picture}}
+                                            style={{width: 40, height: 40}}
+                                        />
+                                    ) : (
+                                        <Icon icon='faCircleUser' size={35} color={inputBg} />
+                                    )}
+                                </View>}
+                            text={maybeOwnProfile.name}
+                            subText={maybeOwnProfile.nip05 || maybeOwnProfile.lud16 || ''}                            
+                            onPress={() => {false}}                                  
+                        />
+                        <View style={[$buttonContainer, {marginTop: spacing.medium}]}>
+                            <Button preset='default' onPress={onMaybeOwnProfileConfirm} tx="commonConfirm"/>
+                            <Button preset='tertiary' onPress={onMaybeOwnProfileCancel} tx="commonCancel"/>                    
+                        </View> 
+                    </View> 
+                )} 
+            </View>
+          }
+          onBackButtonPress={toggleMaybeOwnProfileModal}
+          onBackdropPress={toggleMaybeOwnProfileModal}
         />
         <BottomModal
           isVisible={isRelayModalVisible ? true : false}          

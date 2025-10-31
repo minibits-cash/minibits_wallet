@@ -2388,6 +2388,31 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
             if(!mintsStore.mintExists(decoded.mint)) {
                 let message = 'Receiving ecash token over Nostr from unknown mint is not allowed.'
 
+                const transactionData: TransactionData[] = []  
+                let transaction: Transaction | undefined = undefined
+                const {unit, mint} = decoded
+
+                transactionData.push({
+                    status: TransactionStatus.ERROR,
+                    amountToReceive,
+                    unit,            
+                    createdAt: new Date(),
+                })
+    
+                const newTransaction = {
+                    type: TransactionType.RECEIVE,
+                    amount: amountToReceive,
+                    fee: 0,
+                    unit,
+                    data: JSON.stringify(transactionData),
+                    memo,
+                    mint,            
+                    status: TransactionStatus.DRAFT,
+                }
+        
+                transaction = await transactionsStore.addTransaction(newTransaction)
+                transaction.update({inputToken: incoming.encoded})
+
                 await _sendErrorReceiveNotification(
                     amountToReceive,
                     decoded.unit as MintUnit,

@@ -148,6 +148,8 @@ export const PrivateContacts = observer(function (props: {
             setIsLoading(false)
 
         } catch(e: any) {
+            setNewContactName('')
+            setIsExternalDomain(false)
             handleError(e)
         }
     }
@@ -257,6 +259,7 @@ export const PrivateContacts = observer(function (props: {
     const mainButtonColor = useThemeColor('card')
     const mainButtonIcon = useThemeColor('mainButtonIcon')
     const screenBg = useThemeColor('background')
+    const buttonBorder = useThemeColor('card')
 
     return (
       <Screen contentContainerStyle={$screen}>
@@ -355,11 +358,7 @@ export const PrivateContacts = observer(function (props: {
                   style={[
                     $contactInput,                    
                     {backgroundColor: inputBg, color: inputText},
-                    isExternalDomain && {
-                      marginRight: spacing.small,
-                      borderTopRightRadius: spacing.small,
-                      borderBottomRightRadius: spacing.small,
-                    },
+
                   ]}
                 />
                 {!isExternalDomain && (
@@ -374,9 +373,13 @@ export const PrivateContacts = observer(function (props: {
                 <Button
                   tx={'commonSave'}
                   style={{
-                    borderRadius: spacing.small,
-                    marginRight: spacing.small,
-                  }}
+                    borderRadius: 0,                                
+                    // marginLeft: -spacing.small,
+                    borderLeftWidth: 1,
+                    borderLeftColor: buttonBorder,
+                    borderTopRightRadius: spacing.small,
+                    borderBottomRightRadius: spacing.small,
+                }}
                   onPress={saveNewContact}
                 />
               </View>
@@ -422,14 +425,15 @@ const $item: ViewStyle = {
 }
 
 const $newContainer: TextStyle = {
-    //padding: spacing.small,
+    padding: spacing.small,
     alignItems: 'center',
 }
 
 const $contactInput: TextStyle = {
     flex: 1,
-    // borderRadius: 0,
-    borderRadius: spacing.extraSmall,    
+    borderRadius: 0,
+    borderTopLeftRadius: spacing.extraSmall,
+    borderBottomLeftRadius: spacing.extraSmall,    
     fontSize: verticalScale(16),
     padding: spacing.small,
     alignSelf: 'stretch',
@@ -438,10 +442,10 @@ const $contactInput: TextStyle = {
 }
 
 const $contactDomain: TextStyle = {    
-    marginRight: spacing.small,
+    // marginRight: spacing.small,
     marginLeft: -spacing.small,
-    borderTopRightRadius: spacing.extraSmall,
-    borderBottomRightRadius: spacing.extraSmall,    
+    // borderTopRightRadius: spacing.extraSmall,
+    // borderBottomRightRadius: spacing.extraSmall,    
     padding: spacing.extraSmall,
     alignSelf: 'stretch',
     justifyContent: 'center'
