@@ -400,7 +400,7 @@ export const sendFromMintSync = async function (
                     {p2pk: p2pk && p2pk.pubkey ? p2pk : undefined}
                 )
             } catch (e: any) {                
-                if(e.params && e.params.message.includes('outputs have already been signed before')) {          
+                if(e.params && (e.params.message.includes('outputs have already been signed before') || e.params.message.includes('duplicate key value violates unique constraint'))) {
                     log.error('[sendFromMintSync] Increasing proofsCounter outdated values and repeating send.')      
                     sendResult = await walletStore.send(
                         mintUrl,
@@ -447,7 +447,7 @@ export const sendFromMintSync = async function (
                 )
             }
 
-            proofsToSend = [...proofsToSendFrom] // copy         
+            proofsToSend = CashuUtils.exportProofs(proofsToSendFrom)       
         }      
 
         // remove used proofs and move sent proofs to pending
@@ -463,20 +463,10 @@ export const sendFromMintSync = async function (
             }       
         )        
 
-        // Clean private properties to not to send them out. This returns plain js array, not model objects.
-        const cleanedProofsToSend: CashuProof[] = proofsToSend.map(proof => {
-            if (isStateTreeNode(proof)) {
-                const {mintUrl, unit, tId, ...rest} = getSnapshot(proof)
-                return rest
-            } else {
-                const {mintUrl, unit, tId, ...rest} = proof as Proof
-                return rest
-            }
-        })        
         
         // We return cleaned proofs to be encoded as a sendable token + fees
         return {
-            proofs: cleanedProofsToSend,
+            proofs: proofsToSend,
             swapFeeReserve, 
             swapFeePaid,
             isSwapNeeded            

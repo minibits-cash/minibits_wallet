@@ -133,7 +133,7 @@ export const AuthStoreModel = types
     }),     
     loadTokensFromKeyChain: flow(function* loadTokensFromKeyChain() {
       try {
-        log.trace('Loading tokens from the KeyChain')
+        log.trace('[loadTokensFromKeyChain] Loading tokens from the KeyChain')
         
         const tokens = yield KeyChain.getJwtTokens()
         
@@ -143,9 +143,9 @@ export const AuthStoreModel = types
           self.accessTokenExpiresAt = tokens.accessTokenExpiresAt
           self.refreshTokenExpiresAt = tokens.refreshTokenExpiresAt
           
-          log.trace('Tokens loaded successfully')
+          log.trace('[loadTokensFromKeyChain] Tokens loaded successfully')
         } else {
-          log.warn('No tokens found in the KeyChain')
+          log.warn('[loadTokensFromKeyChain] No tokens found in the KeyChain')
         }
       } catch (e: any) {
         log.error(`Failed to load tokens: ${e.message}`, {caller: 'loadTokensFromKeyChain'})
@@ -253,16 +253,7 @@ export const AuthStoreModel = types
 
         log.trace('[refreshTokens] Refreshing tokens')
 
-        const refreshUrl = `${MINIBITS_SERVER_API_HOST}/auth/refresh`
-        const refreshBody = {
-            refreshToken: tokens.refreshToken
-        }
-
-        const newTokens: TokenPair = yield MinibitsClient.fetchApi(refreshUrl, {
-            method: 'POST',
-            body: refreshBody,
-            jwtAuthRequired: false
-        })
+        const newTokens = yield MinibitsClient.refreshTokens(tokens.refreshToken)
 
         log.info('Tokens refreshed successfully', {newTokens, caller: 'refreshTokens'})
 

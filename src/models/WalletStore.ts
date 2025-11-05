@@ -55,7 +55,7 @@ export type ReceiveParams = {
 
 export type SendParams = {
     amount: number,
-		proofs: Array<Proof>,
+		proofs: Array<CashuProof>,
 		options?: {
 			outputAmounts?: OutputAmounts;
 			proofsWeHave?: Array<CashuProof>;
@@ -521,7 +521,7 @@ export const WalletStoreModel = types
             
             const sendParams: SendParams = options?.inFlightRequest?.request || {
                 amount: amountToSend,              
-                proofs: proofsToSendFrom,
+                proofs: CashuUtils.exportProofs(proofsToSendFrom),
                 options: {
                     keysetId: cashuWallet.keysetId,                   
                     counter: p2pk && p2pk.pubkey  ? undefined : currentCounter.counter, // p2pk is not deterministic
@@ -787,7 +787,7 @@ export const WalletStoreModel = types
             mintUrl: string,
             unit: MintUnit,
             meltQuote: MeltQuoteResponse,  // invoice is stored by mint by quote
-            proofsToMeltFrom: CashuProof[],  // proofAmount >= amount + fee_reserve
+            proofsToMeltFrom: Proof[],  // proofAmount >= amount + fee_reserve
             transactionId: number,
             options?: {
               increaseCounterBy?: number,
@@ -819,7 +819,7 @@ export const WalletStoreModel = types
             
             const meltParams: MeltParams = options?.inFlightRequest?.request || {
                 meltQuote,              
-                proofsToSend: proofsToMeltFrom,
+                proofsToSend: CashuUtils.exportProofs(proofsToMeltFrom),
                 options: {                    
                     keysetId: cashuWallet.keysetId,                    
                     counter: currentCounter.counter                       

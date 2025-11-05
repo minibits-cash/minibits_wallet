@@ -540,7 +540,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
                     message={resultModalInfo?.message as string}
                   />
                   <View style={$buttonContainer}>
-                      {resultModalInfo.message.includes('outputs have already been signed before') ? (
+                      {(resultModalInfo.message.includes('outputs have already been signed before') || resultModalInfo.message.includes('duplicate key value violates unique constraint')) ? (
                           <Button
                               preset="secondary"
                               tx="commonTryAgain"

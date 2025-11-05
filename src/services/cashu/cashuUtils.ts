@@ -13,6 +13,7 @@ import { log } from '../logService'
 import { decodePaymentRequest, sumProofs } from '@cashu/cashu-ts/src/utils'
 import { NostrClient } from '../nostrService'
 import { getUnixTime } from 'date-fns/getUnixTime'
+import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
 
 export {CashuProof}
 
@@ -275,6 +276,22 @@ function getKeysetIdInt(keysetId: string): bigint {
 }
 
 
+const exportProofs = (proofs: Proof[]): CashuProof[] => {  
+
+  const exported: CashuProof[] =   proofs.map(proof => {
+    if (isStateTreeNode(proof)) {
+        const {mintUrl, unit, tId, ...rest} = getSnapshot(proof)
+        return rest
+    } else {
+        const {mintUrl, unit, tId, ...rest} = proof as Proof
+        return rest
+    }
+  })
+  
+  return exported
+}
+
+
 function isCollidingKeysetId(
   newKeysetId: string,
   storedKeysetIds: string[],
@@ -384,6 +401,7 @@ export const CashuUtils = {
     findExactMatch,
     findMinExcess,
     getProofsToSend,
+    exportProofs,
     getProofsSubset,
     validateMintKeys,
     getMintFromProof,

@@ -436,7 +436,7 @@ const swapAllTask = async function (): Promise<WalletTaskResult> {
     const errors: string[] = []
     // Do not create a pending transaction above mint's spent sync (check) limit as it becomes stuck pending
     // As well keep tokens reasonably sized so that a device can keep related transaction in the state / load it from DB
-    const maxBatchSize = MAX_SWAP_INPUT_SIZE
+    const maxBatchSize = 2
     
     for (const mint of mintsStore.allMints) {     
 
@@ -475,6 +475,10 @@ const swapAllTask = async function (): Promise<WalletTaskResult> {
                         tokenToReceive.memo as string,
                         encodedTokenToReceive
                     )
+
+                    // sync pending proofs state (from pending to spent) from current round send so that there is not big pile of pending at the end 
+                    // that makes wallet freeze on next startup
+                    await syncStateWithMintTask({proofsToSync: batch, mintUrl: mint.mintUrl, isPending: true})
 
                     if(receiveResult.receivedProofsCount && receiveResult.receivedProofsCount > 0) {
                         finalProofsCount += receiveResult.receivedProofsCount
@@ -1661,7 +1665,7 @@ const handlePendingTopupTask = async function (params: {transaction: Transaction
                         transactionId
                     ))
                 } catch (e: any) {
-                    if(e.message.includes('outputs have already been signed before')) {
+                    if(e.message.includes('outputs have already been signed before') || e.message.includes('duplicate key value violates unique constraint')) {
                         
                         log.error('[handlePendingTopupTask] Increasing proofsCounter outdated values and repeating mintProofs.')                        
         
@@ -1826,7 +1830,7 @@ const recoverMintQuote = async function (params: {mintUrl: string, mintQuote: st
                     transactionId
                 ))
             } catch (e: any) {
-                if(e.message.includes('outputs have already been signed before')) {
+                if(e.message.includes('outputs have already been signed before') || e.message.includes('duplicate key value violates unique constraint')) {
                     
                     log.error('[recoverMintQuote] Increasing proofsCounter outdated values and repeating mintProofs.')                        
     

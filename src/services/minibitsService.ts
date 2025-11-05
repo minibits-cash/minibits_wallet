@@ -9,7 +9,7 @@ import { WalletProfileRecord } from "../models/WalletProfileStore"
 import { CurrencyCode } from "./wallet/currency"
 import { rootStoreInstance } from "../models"
 import { JwtTokens } from "./keyChain"
-import { AuthChallengeResponse, VerifyChallengeResponse } from "../models/AuthStore"
+import { AuthChallengeResponse, TokenPair, VerifyChallengeResponse } from "../models/AuthStore"
  // refresh // refresh // refresh // refresh
 
 type MinibitsRequestArgs = {
@@ -64,7 +64,7 @@ const refreshTokens = async function (refreshToken: string) {
         refreshToken
     }
 
-    const newTokens: JwtTokens = await fetchApi(refreshUrl, {
+    const newTokens: TokenPair = await fetchApi(refreshUrl, {
         method: 'POST',
         body: refreshBody,
         jwtAuthRequired: false

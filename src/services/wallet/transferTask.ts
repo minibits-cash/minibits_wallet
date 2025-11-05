@@ -196,7 +196,7 @@ export const transferTask = async function (
                 transactionId,
             )
         } catch (e: any) {
-            if(e.params && e.params.message.includes('outputs have already been signed before')) {                
+            if(e.params && (e.params.message.includes('outputs have already been signed before') || e.params.message.includes('duplicate key value violates unique constraint'))) {                
                 log.error('[transferTask] Increasing proofsCounter outdated values and repeating payLightningMelt.')
                 meltResponse = await walletStore.payLightningMelt(
                     mintUrl,
@@ -227,10 +227,6 @@ export const transferTask = async function (
             let returnedAmount = CashuUtils.getProofsAmount(meltResponse.change)
 
             let outputToken: string | undefined
-
-            if(meltResponse.quote.payment_preimage) {
-                // include proof in update payload
-            }
 
             if(meltResponse.change.length > 0) {
 
@@ -273,9 +269,11 @@ export const transferTask = async function (
                 fee: totalFeePaid,
                 balanceAfter,
             }
+            
             if (outputToken) {
                 updatePayload.outputToken = outputToken
             }
+
             if (meltResponse.quote.payment_preimage) {
                 updatePayload.proof = meltResponse.quote.payment_preimage
             }

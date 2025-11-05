@@ -405,11 +405,14 @@ export const receiveByCashuPaymentRequestTask = async function (
 ): Promise<TransactionTaskResult> {
 
   const transactionData = []  as unknown as TransactionData
-  let transaction: Transaction | undefined = undefined
+  // let transaction: Transaction | undefined = undefined
   const unit = paymentRequestPayload.unit as MintUnit
   const mintToReceive = paymentRequestPayload.mint
   const proofsToReceive = paymentRequestPayload.proofs
   const paymentRequestId = paymentRequestPayload.id
+
+  // Let's find transaction with related payment request
+  const transaction = transactionsStore.findBy({paymentId: paymentRequestId}) as Transaction | undefined
 
   try {        
         if (!mintToReceive || !unit || !Array.isArray(proofsToReceive) || proofsToReceive.length === 0) {
@@ -418,10 +421,7 @@ export const receiveByCashuPaymentRequestTask = async function (
                 'Payment request payload is invalid.',
                 {paymentRequestPayload}
             )
-        }                
-
-        // Let's find transaction with related payment request
-        const transaction = transactionsStore.findBy({paymentId: paymentRequestId})
+        }
 
         if(!transaction) {
             throw new AppError(
@@ -512,22 +512,20 @@ export const receiveByCashuPaymentRequestTask = async function (
             receivedProofsCount: receivedProofs.length
         } as TransactionTaskResult
         
-    } catch (e: any) {
-        if (transaction) {            
-
-            transactionData.push({
-                status: TransactionStatus.ERROR,
-                error: WalletUtils.formatError(e),
-                errorToken: e.params?.errorToken || undefined
-            })
-
-            transaction.update({
-                status: TransactionStatus.ERROR,
-                data: JSON.stringify(transactionData)
-            })
-        }
+    } catch (e: any) {    
 
         log.error(e.name, e.message)
+
+        transactionData.push({
+            status: TransactionStatus.ERROR,
+            error: WalletUtils.formatError(e),
+            errorToken: e.params?.errorToken || undefined
+        })
+
+        transaction && transaction.update({
+            status: TransactionStatus.ERROR,
+            data: JSON.stringify(transactionData)
+        })
 
         return {
             taskFunction: RECEIVE_BY_CASHU_PAYMENT_REQUEST_TASK,
@@ -573,7 +571,7 @@ export const receiveSync = async function (
                 transactionId   
             )
         } catch (e: any) {            
-            if(e.message.includes('outputs have already been signed before')) {                
+            if(e.message.includes('outputs have already been signed before') || e.message.includes('duplicate key value violates unique constraint')) {                
                 log.error('[receiveSync] Increasing proofsCounter outdated values and repeating receiveSync.')
                 receivedResult = await walletStore.receive(
                     mintToReceive,
