@@ -176,8 +176,8 @@ export const ListItem = function (props: ListItemProps) {
   const $subTextStyles = [$subTextStyle, $subTextStyleOverride, TextProps?.style]
 
   const $containerStyles = [
-    topSeparator && $separatorTop, { borderTopColor: separatorColor },
-    bottomSeparator && $separatorBottom, { borderBottomColor: separatorColor },
+    $separatorTop, topSeparator && { borderTopColor: separatorColor },
+    $separatorBottom, bottomSeparator && { borderBottomColor: separatorColor },
     $containerStyleOverride, {paddingVertical: spacing.tiny},
   ]
 
@@ -283,11 +283,13 @@ function ListItemAction(props: ListItemActionProps) {
 }
 
 const $separatorTop: ViewStyle = {
-  borderTopWidth: 1,  
+  borderTopWidth: 1,
+  borderTopColor: 'transparent',  
 }
 
 const $separatorBottom: ViewStyle = {
-  borderBottomWidth: 1,  
+  borderBottomWidth: 1,
+  borderBottomColor: 'transparent',
 }
 
 const $textStyle: TextStyle = {

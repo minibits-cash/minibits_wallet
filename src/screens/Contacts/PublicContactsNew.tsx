@@ -22,6 +22,7 @@ import { set, toJS } from 'mobx'
 import FastImage from 'react-native-fast-image'
 import { TransferOption } from '../TransferScreen'
 import numbro from 'numbro'
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
 
 
 // const defaultPublicNpub = 'npub14n7frsyufzqsxlvkx8vje22cjah3pcwnnyqncxkuj2243jvt9kmqsdgs52'
@@ -46,7 +47,6 @@ export const PublicContactsNew = observer(function (props: {
     const [ownProfile, setOwnProfile] = useState<NostrProfile | undefined>(undefined)    
     const [followingPubkeys, setFollowingPubkeys] = useState<string[]>([])
     const [followingProfiles, setFollowingProfiles] = useState<NostrProfile[]>([])
-    const [isOwnProfileVisible, setIsOwnProfileVisible] = useState<boolean>(true)
     
     const [isLoading, setIsLoading] = useState(false)        
     const [isNpubModalVisible, setIsNpubModalVisible] = useState(false)
@@ -528,17 +528,6 @@ export const PublicContactsNew = observer(function (props: {
     }
 
 
-    const collapseProfile = function () {
-        LayoutAnimation.easeInEaseOut()        
-        setIsOwnProfileVisible(false)
-        
-    }
-
-    const expandProfile = function () {
-        LayoutAnimation.easeInEaseOut()
-        setIsOwnProfileVisible(true)
-    }
-
     const handleError = function (e: AppError): void {
         setIsLoading(false)
         setError(e)
@@ -668,10 +657,40 @@ export const PublicContactsNew = observer(function (props: {
     const inputText = useThemeColor('text')
     const placeholderTextColor = useThemeColor('textDim')
     const buttonBorder = useThemeColor('card')
+
+
+    const isOwnProfileVisible = useSharedValue(true)
+    const profileHeight = useSharedValue(100)
+    const followsListHeight = useSharedValue(spacing.screenHeight * 0.55)
+
+    const collapseProfile = () => {
+        profileHeight.value = 0
+        isOwnProfileVisible.value = false
+        followsListHeight.value = spacing.screenHeight * 0.68
+    }
+    
+    const expandProfile = () => {
+        profileHeight.value = 100
+        isOwnProfileVisible.value = true
+        followsListHeight.value = spacing.screenHeight * 0.55
+    }
+
+    const animatedOwnProfile = useAnimatedStyle(() => {
+        return {
+            height: withTiming(profileHeight.value, { duration: 300 }),
+            marginBottom: withTiming(isOwnProfileVisible.value ? spacing.medium : 0, { duration: 300 })
+        }
+    })
+
+    const animatedFollowsListHeight = useAnimatedStyle(() => {
+        return {
+            maxHeight: withTiming(followsListHeight.value, { duration: 300 }),
+        }
+    })
     
     return (
     <Screen contentContainerStyle={$screen}>
-        <View style={[$contentContainer, !isOwnProfileVisible && {marginTop: -100}]}>
+        <View style={[$contentContainer]}>
         {!contactsStore.publicPubkey && (
             <Card
                 heading='Find Nostr users'
@@ -765,36 +784,38 @@ export const PublicContactsNew = observer(function (props: {
                 }
             />
         )}        
-        {ownProfile && (            
-            <Card
-                ContentComponent={
-                    <ListItem                        
-                        LeftComponent={
-                            <View style={{marginRight: spacing.medium, borderRadius: 20, overflow: 'hidden' }}>
-                                {ownProfile.picture ? (
-                                    <FastImage 
-                                        source={{uri: ownProfile.picture}}
-                                        style={{width: 40, height: 40}}
-                                    />
-                                ) : (
-                                    <Icon icon='faCircleUser' size={35} color={inputBg} />
-                                )}
-                            </View>
-                        }
-                        text={ownProfile.name}
-                        subText={isOwnProfileVisible ? relaysStore.allPublicUrls.toString() : undefined}
-                        onPress={toggleNpubActionsModal}
-                        rightIcon={'faEllipsisVertical'}                                                                            
-                    />
-                }
-                style={$card}           
-            />            
+        {ownProfile && (
+            <Animated.View style={[animatedOwnProfile]}>           
+                <Card
+                    ContentComponent={
+                        <ListItem                        
+                            LeftComponent={
+                                <View style={{marginRight: spacing.medium, borderRadius: 20, overflow: 'hidden' }}>
+                                    {ownProfile.picture ? (
+                                        <FastImage 
+                                            source={{uri: ownProfile.picture}}
+                                            style={{width: 40, height: 40}}
+                                        />
+                                    ) : (
+                                        <Icon icon='faCircleUser' size={35} color={inputBg} />
+                                    )}
+                                </View>
+                            }
+                            text={ownProfile.name}
+                            subText={isOwnProfileVisible ? relaysStore.allPublicUrls.toString() : undefined}
+                            onPress={toggleNpubActionsModal}
+                            rightIcon={'faEllipsisVertical'}                                                                            
+                        />
+                    }
+                    style={[$card]}           
+                />
+            </Animated.View>            
         )}
         {followingProfiles.length > 0 && (                           
             <Card
                 ContentComponent={
                 <>
-                    <FlatList<NostrProfile>
+                    <Animated.FlatList<NostrProfile>
                         data={followingProfiles}
                         renderItem={({ item, index }) => {
                             const isFirst= index === 0
@@ -819,11 +840,11 @@ export const PublicContactsNew = observer(function (props: {
                                 />
                             ) 
                         }}
-                        onScrollBeginDrag={collapseProfile}                                                
-                        onStartReached={expandProfile}                        
+                        onEndReached={collapseProfile}
+                        onStartReached={expandProfile}                       
                         keyExtractor={(item) => item.pubkey}
                         contentInset={insets}
-                        style={{ maxHeight: spacing.screenHeight * 0.55 }}
+                        style={animatedFollowsListHeight}
                         // contentContainerStyle={{paddingBottom: 200}}
                     />
                 </>
@@ -1006,14 +1027,15 @@ const $headerContainer: TextStyle = {
 }
 
 const $pasteButton: ViewStyle = {
-    borderTopLeftRadius: 0,
-    borderBottomLeftRadius: 0,
+    borderRadius: 0,
     alignSelf: 'stretch',
     justifyContent: 'center', 
 }
 
 const $saveButton: ViewStyle = {
-    borderRadius: spacing.extraSmall,
+    borderRadius: 0,
+    borderTopRightRadius: spacing.extraSmall,
+    borderBottomRightRadius: spacing.extraSmall,
     // marginLeft: spacing.small,
 }
 

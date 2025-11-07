@@ -586,7 +586,7 @@ export const WalletStoreModel = types
                 log.trace('[WalletStore.getProofsStatesFromMint] start', {mintUrl, unit})
                 
                 const cashuWallet: CashuWallet = yield self.getWallet(mintUrl, unit, {withSeed: false})    
-                const proofsByState: {[key in CheckStateEnum]: Proof[]} = yield cashuWallet.checkProofsStates(proofs)
+                const proofsByState: {[key in CheckStateEnum]: CashuProof[]} = yield cashuWallet.checkProofsStates(proofs)
             
                 log.trace('[WalletStore.getProofsStatesFromMint]', {mintUrl, proofsByState})
             
