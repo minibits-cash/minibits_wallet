@@ -19,7 +19,7 @@ import {MeltQuoteResponse, MeltQuoteState, MintQuoteState, PaymentRequestPayload
 import {Mint} from '../models/Mint'
 import {pollerExists, stopPolling} from '../utils/poller'
 import { NostrClient, NostrEvent, NostrProfile } from './nostrService'
-import { MINIBITS_NIP05_DOMAIN, MINIBITS_SERVER_API_HOST, MINIBIT_SERVER_NOSTR_PUBKEY } from '@env'
+import { MINIBITS_NIP05_DOMAIN, MINIBIT_SERVER_NOSTR_PUBKEY } from '@env'
 import { IncomingDataType, IncomingParser } from './incomingParser'
 import { Contact } from '../models/Contact'
 import { SyncQueue } from './syncQueueService'
@@ -41,7 +41,8 @@ import { UnsignedEvent } from 'nostr-tools'
 import { Platform } from 'react-native'
 import { cashuPaymentRequestTask } from './wallet/cashuPaymentRequestTask'
 import { decodePaymentRequest, sumBlindSignatures } from '@cashu/cashu-ts/src/utils'
-import { Database } from './sqlite'
+
+
 
 /**
  * The default number of proofs per denomination to keep in a wallet.
@@ -2225,6 +2226,7 @@ const receiveEventsFromRelaysQueue = async function (): Promise<void> {
 
         log.trace('[receiveEventsFromRelays]', {filter})
 
+        // do not use event timestamp as it might be in the future, preventing further checks
         contactsStore.setLastPendingReceivedCheck()         
         const pool = NostrClient.getRelayPool()
 
@@ -2258,10 +2260,7 @@ const receiveEventsFromRelaysQueue = async function (): Promise<void> {
                 }
                 
                 eventsBatch.push(event)
-                contactsStore.addReceivedEventId(event.id)
-                
-                // move window to receive events to the last event created_at to avoid recive it again
-                // contactsStore.setLastPendingReceivedCheck(event.created_at)
+                contactsStore.addReceivedEventId(event.id)                
 
                 const now = new Date().getTime()
                 SyncQueue.addTask(       
@@ -2312,44 +2311,78 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
         }
         
         // set REAL direct message created_at as the lastPendingReceivedCheck
-        contactsStore.setLastPendingReceivedCheck(directMessageEvent.created_at)    
+        // but only if it is in the past (so that malicious event won't block future checks)
+        if(directMessageEvent.created_at < new Date().getTime() / 1000) {
+            contactsStore.setLastPendingReceivedCheck(directMessageEvent.created_at)
+        }  
 
         log.trace('[handleReceivedEventTask]', 'Received event', {directMessageEvent})
+
+        let sentFromPubkey = directMessageEvent.pubkey
+        let sentFrom = NostrClient.getFirstTagValue(directMessageEvent.tags, 'from') as string | undefined
+        let sentFromNpub = NostrClient.getNpubkey(sentFromPubkey)
+
+        // Drop message if user wants to receive only from contacts and sender is not in
+        if(userSettingsStore.isReceiveOnlyFromContactsOn 
+            && sentFromPubkey !== MINIBIT_SERVER_NOSTR_PUBKEY) {
+
+            const contactInstance = contactsStore.findByPubkey(sentFromPubkey)
+
+            if(!contactInstance) {
+                // drop silently
+                let message = 'Message received over Nostr has been blocked, the sender is not in your contacts.'
+                log.error(message, {sentFromPubkey, sentFrom, decryptedMessage})
+
+                return {            
+                    taskFunction: HANDLE_RECEIVED_EVENT_TASK,
+                    message,            
+                } as WalletTaskResult
+            }
+        }
         
         // get sender profile and save it as a contact
-        // this is not valid for events sent from LNURL bridge, that are sent and signed by a minibits server key
+        // this is not valid for events sent from Minibits LNURL bridge, that are sent and signed by a minibits server key
         // and *** do not contain sentFrom *** // LEGACY, replaced by claim api
-        let sentFromPubkey = directMessageEvent.pubkey
-        let sentFrom = NostrClient.getFirstTagValue(directMessageEvent.tags, 'from') as string
-        let sentFromNpub = NostrClient.getNpubkey(sentFromPubkey)
+
         let contactFrom: Contact | undefined = undefined
         let zapSenderProfile: NostrProfile | undefined = undefined 
         let sentFromPicture: string | undefined = undefined          
 
-        // add ecash or pr sender to the contacts
-        if(sentFrom) {
-            const sentFromName = NostrClient.getNameFromNip05(sentFrom as string)                                  
-            
-            if(sentFrom.includes(MINIBITS_NIP05_DOMAIN)) {
-                sentFromPicture = MINIBITS_SERVER_API_HOST + '/profile/avatar/' + sentFromPubkey
+        // Add ecash or pr sender to the contacts.
+        // To avoid malicious events (from tag can be faked), add only minibits.cash addresses
+        // where we check, that sentFromPubkey matches the pubkey of sentFrom name on the Minibits server
+                                              
+        if( sentFrom 
+            && sentFrom.includes(MINIBITS_NIP05_DOMAIN) 
+            && userSettingsStore.isReceiveOnlyFromContactsOn === false
+        ) {
+
+            const serverProfile = await MinibitsClient.getWalletProfileByNip05(sentFrom)
+
+            if(serverProfile.pubkey !== sentFromPubkey) {
+                throw new AppError(Err.UNAUTHORIZED_ERROR, 'Sender pubkey does not match the one on the Minibits server.', {sentFrom, sentFromPubkey, serverProfile})
             }
 
-            // we skip retrieval of external nostr profiles to minimize failures
-            // external contacts will thus miss image and lud16 address...
-                                
+            log.info('[handleReceivedEventTask]', 'Event sent from Minibits server user, adding to contacts...', {sentFrom, sentFromPubkey})
+            
             contactFrom = {                        
                 pubkey: sentFromPubkey,
                 npub: sentFromNpub,
-                nip05: sentFrom,
-                lud16: sentFrom.includes(MINIBITS_NIP05_DOMAIN) ? sentFrom : undefined,
-                name: sentFromName || undefined,
-                picture: sentFromPicture || undefined,
-                isExternalDomain: sentFrom.includes(MINIBITS_NIP05_DOMAIN) ? false : true                        
+                nip05: serverProfile.nip05,
+                lud16: serverProfile.lud16,
+                name: serverProfile.name,
+                picture: serverProfile.avatar,
+                isExternalDomain: false                       
             } as Contact
             
-            contactsStore.addContact(contactFrom)        
-        } else {
-            // Event was sent from Minibits server
+            contactsStore.addContact(contactFrom)  
+        }
+         
+        
+        // Event was sent from Minibits server, try to extract zap sender profile from the message
+        if(sentFromPubkey === MINIBIT_SERVER_NOSTR_PUBKEY) {
+            log.info('[handleReceivedEventTask]', 'Event sent from Minibits server, extracting zap sender profile...')
+            
             const maybeZapSenderString = _extractZapSenderData(decryptedMessage)
 
             if(maybeZapSenderString) {

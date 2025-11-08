@@ -13,6 +13,7 @@ export type UserSettings = {
   isAuthOn: boolean
   isLocalBackupOn: boolean
   isBatchClaimOn: boolean
+  isReceiveOnlyFromContactsOn: boolean // allow receiving over Nostr from unknown contacts
   isLoggerOn: boolean  
   logLevel: LogLevel
 }
@@ -27,6 +28,7 @@ export const UserSettingsStoreModel = types
         isOnboarded: types.optional(types.boolean, false),        
         isAuthOn: types.optional(types.boolean, false),        
         isBatchClaimOn: types.optional(types.boolean, true),
+        isReceiveOnlyFromContactsOn: types.optional(types.boolean, false),
         isLoggerOn: types.optional(types.boolean, true),
         logLevel: types.optional(types.frozen<LogLevel>(), LogLevel.ERROR)
     })
@@ -64,6 +66,10 @@ export const UserSettingsStoreModel = types
         setIsBatchClaimOn: (isBatchClaimOn: boolean) => {            
             self.isBatchClaimOn = isBatchClaimOn            
             return isBatchClaimOn
+        },
+        setIsReceiveOnlyFromContactsOn: (isReceiveOnlyFromContactsOn: boolean) => {            
+            self.isReceiveOnlyFromContactsOn = isReceiveOnlyFromContactsOn            
+            return isReceiveOnlyFromContactsOn
         },
         setIsLoggerOn: (isLoggerOn: boolean) => {            
             self.isLoggerOn = isLoggerOn            

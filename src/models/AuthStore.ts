@@ -274,8 +274,12 @@ export const AuthStoreModel = types
         return jwtTokens
 
     } catch (e: any) {
-        // If refresh fails, clear stored tokens
-        yield self.clearTokens()
+        // If refresh fails on anything but timeout, clear stored tokens
+        if(e.name === Err.NETWORK_TIMEOUT || e.message.includes('timeout')) {
+          
+        } else {
+          yield self.clearTokens()
+        }
         
         throw new AppError(Err.AUTH_ERROR, `Token refresh failed: ${e.message}`, {caller: 'refreshTokens'})
     }

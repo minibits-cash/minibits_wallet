@@ -89,6 +89,15 @@ export const SecurityScreen = observer(function SecurityScreen({ route }: Props)
         }
     }
 
+    const toggleReceiveOnlyFromContactsSwitch = () => {
+        try {
+            const newValue = !userSettingsStore.isReceiveOnlyFromContactsOn
+            userSettingsStore.setIsReceiveOnlyFromContactsOn(newValue)
+        } catch (e: any) {
+            handleError(e)
+        }
+    }
+
     const toggleAuthModal = () =>
         setIsAuthModalVisible(previousState => !previousState)
 
@@ -123,12 +132,33 @@ export const SecurityScreen = observer(function SecurityScreen({ route }: Props)
                         RightComponent={
                         <View style={$rightContainer}>
                             <Switch
-                            onValueChange={toggleBiometricAuthSwitch}
-                            value={isBiometricAuthOn}
+                                onValueChange={toggleBiometricAuthSwitch}
+                                value={isBiometricAuthOn}
                             />
                         </View>
                         }
                         style={$item}
+                    />
+                    <ListItem
+                        text="Receive only from contacts"
+                        subText="Only allow receiving funds over Nostr from your contacts to block spam or malicious attempts."
+                        leftIcon={'faUserShield'}
+                        leftIconColor={
+                            userSettingsStore.isReceiveOnlyFromContactsOn
+                            ? colors.palette.success200
+                            : colors.palette.neutral400
+                        }
+                        leftIconInverse={true}
+                        RightComponent={
+                            <View style={$rightContainer}>
+                                <Switch
+                                    onValueChange={toggleReceiveOnlyFromContactsSwitch}
+                                    value={userSettingsStore.isReceiveOnlyFromContactsOn}
+                                />
+                            </View>
+                        }
+                        style={$item}
+                        topSeparator={true}
                     />
                     {/*isBiometricAuthOn && (
                         <ListItem

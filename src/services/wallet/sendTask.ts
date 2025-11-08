@@ -106,11 +106,6 @@ export const sendTask = async function (
             createdAt: new Date(),
         })
 
-        // Create sendable encoded token
-        if (!memo || memo === '') {
-            memo = 'Sent from Minibits'
-        }
-
         const outputToken = getEncodedToken({
             mint: mintUrl,
             proofs: proofsToSend,
