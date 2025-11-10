@@ -61,6 +61,7 @@ import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import { CashuUtils } from '../services/cashu/cashuUtils'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { getUnixTime } from 'date-fns'
+import { MinibitsClient } from '../services/minibitsService'
 
 export enum SendOption {
     SEND_TOKEN = 'SEND_TOKEN',    
@@ -106,6 +107,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     const [contactToSendFrom, setContactToSendFrom] = useState<Contact| undefined>()    
     const [contactToSendTo, setContactToSendTo] = useState<Contact| undefined>()        
     const [relaysToShareTo, setRelaysToShareTo] = useState<string[]>([])
+    const [postEndpointUrl, setPostEndpointUrl] = useState<string | undefined>()
     const [memo, setMemo] = useState('')
     const [availableMintBalances, setAvailableMintBalances] = useState<MintBalance[]>([])
     const [mintBalanceToSendFrom, setMintBalanceToSendFrom] = useState<MintBalance | undefined>()
@@ -128,6 +130,9 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)
     const [isNostrDMSending, setIsNostrDMSending] = useState(false)
     const [isNostrDMSuccess, setIsNostrDMSuccess] = useState(false)
+    const [isPostModalVisible, setIsPostModalVisible] = useState(false)
+    const [isPostSending, setIsPostSending] = useState(false)
+    const [isPostSuccess, setIsPostSuccess] = useState(false)
     
     const [isPubkeySelectorModalVisible, setIsPubkeySelectorModalVisible] = useState(false)
     const [lockedPubkey, setLockedPubkey] = useState<string | undefined>() // Added lockedPubkey state
@@ -261,61 +266,64 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     }
 
                     const transports: PaymentRequestTransport[] = pr.transport
-                    
-                    for (const transport of transports) {
 
-                        if (transport.type == PaymentRequestTransportType.NOSTR) {
+                    // Check for NOSTR transport first
+                    const nostrTransport = transports.find(t => t.type === PaymentRequestTransportType.NOSTR)
+                    if (nostrTransport) {
+                        const decoded = NostrClient.decodeNprofile(nostrTransport.target)
+                        const pubkey = (decoded.data as ProfilePointer).pubkey
+                        const npub = NostrClient.getNpubkey(pubkey)
+                        let relays = (decoded.data as ProfilePointer).relays?.slice(0, 5)
 
-                            const decoded = NostrClient.decodeNprofile(transport.target)
-                            const pubkey = (decoded.data as ProfilePointer).pubkey                            
-                            const npub = NostrClient.getNpubkey(pubkey)
-                            let relays = (decoded.data as ProfilePointer).relays?.slice(0, 5)
-
-                            if(!relays || relays.length === 0) {
-                                relays = NostrClient.getAllRelays()
-                            }
-
-                            let contactTo = {                        
-                                pubkey,
-                                npub,                                                       
-                            } as Contact
-
-                            const existing = contactsStore.findByPubkey(pubkey)
-                            
-                            if(!existing) {
-                                try {
-                                    const profile = await NostrClient.getProfileFromRelays(pubkey, relays)                                    
-                                
-                                    if(profile) {
-                                        contactTo.nip05 = profile.nip05
-                                        contactTo.picture = profile.picture
-                                        contactTo.lud16 = profile.lud16
-                                        contactTo.name = profile.name
-                                        contactTo.isExternalDomain = profile.nip05.includes(MINIBITS_NIP05_DOMAIN) ? false : true
-
-                                        contactsStore.addContact(contactTo)
-                                    }
-
-                                } catch (e:any) {
-                                    log.warn('[handlePaymentRequest] Could not get the payee profile from relays.')
-                                }
-                            } else {
-                                contactTo = existing
-                            }                            
-                            
-                            setContactToSendTo(contactTo)
-                            setRelaysToShareTo(relays)
+                        if(!relays || relays.length === 0) {
+                            relays = NostrClient.getAllRelays()
                         }
 
-                        if (transport.type == PaymentRequestTransportType.POST) {
-                            throw new AppError(Err.VALIDATION_ERROR, 'Payment requests with POST transport are not supported yet.')
-                        }                        
+                        let contactTo = {
+                            pubkey,
+                            npub,
+                        } as Contact
+
+                        const existing = contactsStore.findByPubkey(pubkey)
+
+                        if(!existing) {
+                            try {
+                                const profile = await NostrClient.getProfileFromRelays(pubkey, relays)
+
+                                if(profile) {
+                                    contactTo.nip05 = profile.nip05
+                                    contactTo.picture = profile.picture
+                                    contactTo.lud16 = profile.lud16
+                                    contactTo.name = profile.name
+                                    contactTo.isExternalDomain = profile.nip05.includes(MINIBITS_NIP05_DOMAIN) ? false : true
+
+                                    contactsStore.addContact(contactTo)
+                                }
+
+                            } catch (e:any) {
+                                log.warn('[handlePaymentRequest] Could not get the payee profile from relays.')
+                            }
+                        } else {
+                            contactTo = existing
+                        }
+
+                        setContactToSendTo(contactTo)
+                        setRelaysToShareTo(relays)
+                    } else {
+                        // Fallback to POST transport
+                        const postTransport = transports.find(t => t.type === PaymentRequestTransportType.POST)
+                        if (postTransport) {
+                            setPostEndpointUrl(postTransport.target)
+                        } else {
+                            // Error if neither transport is supported
+                            throw new AppError(Err.VALIDATION_ERROR, 'Payment request only supports NOSTR or POST transports, but neither is available.')
+                        }
                     }
 
                     log.trace('[handlePaymentRequest]', {pr})
 
                     if(pr.unit && !MintUnits.includes(pr.unit as MintUnit)) {
-                        throw new AppError(Err.NOTFOUND_ERROR, `Wallet does not support ${pr.unit} unit.`)
+                        throw new AppError(Err.VALIDATION_ERROR, `Wallet does not support ${pr.unit} unit.`)
                     }
                     
                     if (pr.unit) {
@@ -491,7 +499,11 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             }
             
             if (paymentOption === SendOption.PAY_CASHU_PAYMENT_REQUEST) {
-                toggleNostrDMModal()
+                if (relaysToShareTo.length > 0) {
+                    toggleNostrDMModal()
+                } else if (postEndpointUrl) {
+                    togglePostModal()
+                }
             }
         }
 
@@ -571,6 +583,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     const toggleProofSelectorModal = () => setIsProofSelectorModalVisible(previousState => !previousState)
     const toggleResultModal = () => setIsResultModalVisible(previousState => !previousState)
     const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previousState => !previousState)
+    const togglePostModal = () => setIsPostModalVisible(previousState => !previousState)
 
     const validateAndProcessAmount = function (amountString: string, unit: MintUnit) {
         // Normalize empty string to "0"
@@ -908,6 +921,70 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         }
     }
 
+    const sendAsPostRequest = async function () {
+        try {
+            if (!postEndpointUrl) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing POST endpoint URL.')
+            }
+
+            if (!encodedTokenToSend) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing token to send.')
+            }
+
+            if (!decodedCashuPaymentRequest) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing payment request to pay.')
+            }
+
+            setIsPostSending(true)
+
+            const decodedTokenToSend = getDecodedToken(encodedTokenToSend)
+
+            const payload = {
+                id: decodedCashuPaymentRequest.id,
+                mint: decodedTokenToSend.mint,
+                unit: decodedTokenToSend.unit,
+                proofs: decodedTokenToSend.proofs,
+                memo: decodedTokenToSend.memo || undefined,
+            }
+
+            await MinibitsClient.fetchApi(postEndpointUrl, {
+                method: 'POST',
+                body: payload,
+                jwtAuthRequired: false
+            })
+
+            setIsPostSending(false)
+            setIsPostSuccess(true)
+
+            if (!transactionId) {
+                return
+            }
+
+            const transaction = transactionsStore.findById(transactionId)
+
+            if (!transaction || !transaction.data) {
+                return
+            }
+
+            let updated = [] as unknown as TransactionData
+
+            try {
+                updated = JSON.parse(transaction.data)
+            } catch (e) {}
+
+            if (updated.length > 2) {
+                updated[2].postEndpointUrl = postEndpointUrl
+
+                transaction.update({
+                    status: TransactionStatus.PENDING,
+                    data: JSON.stringify(updated)
+                })
+            }
+        } catch (e: any) {
+            handleError(e)
+        }
+    }
+
 
     const toggleSelectedProof = function (proof: Proof) {
         const precision = getCurrency(unitRef.current).precision
@@ -1000,6 +1077,10 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         setIsResultModalVisible(false)
         setLockTime(undefined)        
         setLockedPubkey(undefined)
+        setPostEndpointUrl(undefined)
+        setIsPostModalVisible(false)
+        setIsPostSending(false)
+        setIsPostSuccess(false)
     }
 
 
@@ -1009,6 +1090,8 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         setIsProofSelectorModalVisible(false)
         setIsNostrDMModalVisible(false)
         setIsLoading(false)
+        setIsPostSending(false)
+        setIsPostModalVisible(false)
         setError(e)
     }
 
@@ -1389,6 +1472,29 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
           onBackdropPress={toggleNostrDMModal}
         />
         <BottomModal
+          isVisible={isPostModalVisible}
+          ContentComponent={
+            isPostSuccess ? (
+              <PostSuccessBlock
+                togglePostModal={togglePostModal}
+                onClose={gotoWallet}
+              />
+            ) : (
+              <SendAsPostRequestBlock
+                togglePostModal={togglePostModal}
+                encodedTokenToSend={encodedTokenToSend as string}
+                postEndpointUrl={postEndpointUrl as string}
+                amountToSend={amountToSend}
+                unit={unitRef.current}
+                sendAsPostRequest={sendAsPostRequest}
+                isPostSending={isPostSending}
+              />
+            )
+          }
+          onBackButtonPress={togglePostModal}
+          onBackdropPress={togglePostModal}
+        />
+        <BottomModal
           isVisible={isResultModalVisible ? true : false}          
           ContentComponent={
             <>
@@ -1726,6 +1832,97 @@ const SendAsNostrDMBlock = observer(function (props: {
     )
 })
 
+const SendAsPostRequestBlock = observer(function (props: {
+    togglePostModal: any
+    encodedTokenToSend: string
+    postEndpointUrl: string
+    amountToSend: string
+    unit: MintUnit
+    sendAsPostRequest: any
+    isPostSending: boolean
+  }) {
+    const sendBg = useThemeColor('background')
+    const tokenTextColor = useThemeColor('textDim')
+
+    return (
+      <View style={$bottomModal}>
+        <Text text={'Send payment request'} />
+        <Text
+          text={props.postEndpointUrl}
+          style={{color: tokenTextColor, textAlign: 'center', marginVertical: spacing.small}}
+          size="xs"
+        />
+        <CurrencyAmount
+          amount={round(toNumber(props.amountToSend) * getCurrency(props.unit).precision, 0)}
+          mintUnit={props.unit}
+          size='large'
+          containerStyle={{alignItems: 'center', marginBottom: spacing.small}}
+        />
+        <ScrollView
+          style={[
+            $tokenContainer,
+            {backgroundColor: sendBg, marginHorizontal: spacing.small},
+          ]}>
+          <Text
+            selectable
+            text={props.encodedTokenToSend}
+            style={{color: tokenTextColor, paddingBottom: spacing.medium, fontFamily: typography.code?.normal}}
+            size="xxs"
+          />
+        </ScrollView>
+        {props.isPostSending ? (
+            <View style={[$buttonContainer, {minHeight: verticalScale(55)}]}>
+                <Loading />
+            </View>
+        ) : (
+            <View style={$buttonContainer}>
+                <Button
+                    tx="commonSend"
+                    onPress={props.sendAsPostRequest}
+                    style={{marginRight: spacing.medium}}
+                    LeftAccessory={() => (
+                    <Icon
+                        icon="faPaperPlane"
+                        color="white"
+                        size={spacing.medium}
+                    />
+                    )}
+                />
+                <Button
+                    preset="tertiary"
+                    tx="commonClose"
+                    onPress={props.togglePostModal}
+                />
+            </View>
+        )}
+      </View>
+    )
+  })
+
+const PostSuccessBlock = observer(function (props: {
+    togglePostModal: any
+    onClose: any
+  }) {
+
+    return (
+      <View style={$bottomModal}>
+        <ResultModalInfo
+            icon="faCheckCircle"
+            iconColor={colors.palette.success200}
+            title="Success!"
+            message="Payment successfully sent"
+        />
+        <View style={$buttonContainer}>
+            <Button
+            preset="secondary"
+            tx={'commonClose'}
+            onPress={props.onClose}
+            />
+        </View>
+      </View>
+    )
+})
+
 const ContactItem = function (props: {
     contact: Contact
     onPress: any
@@ -1903,5 +2100,3 @@ const $bottomContainer: ViewStyle = {
     alignSelf: 'stretch',
     // opacity: 0,
   }
-
-
