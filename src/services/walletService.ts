@@ -1666,7 +1666,8 @@ const handlePendingTopupTask = async function (params: {transaction: Transaction
                         transactionId
                     ))
                 } catch (e: any) {
-                    if(e.message.includes('outputs have already been signed before') || e.message.includes('duplicate key value violates unique constraint')) {
+                    if(e.message.toLowerCase().includes('outputs have already been signed before') || 
+                        e.message.toLowerCase().includes('duplicate key value violates unique constraint')) {
                         
                         log.error('[handlePendingTopupTask] Increasing proofsCounter outdated values and repeating mintProofs.')                        
         
@@ -1831,7 +1832,8 @@ const recoverMintQuote = async function (params: {mintUrl: string, mintQuote: st
                     transactionId
                 ))
             } catch (e: any) {
-                if(e.message.includes('outputs have already been signed before') || e.message.includes('duplicate key value violates unique constraint')) {
+                if(e.message.toLowerCase().includes('outputs have already been signed before') || 
+                    e.message.toLowerCase().includes('duplicate key value violates unique constraint')) {
                     
                     log.error('[recoverMintQuote] Increasing proofsCounter outdated values and repeating mintProofs.')                        
     

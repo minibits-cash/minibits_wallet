@@ -189,6 +189,10 @@ export const ProofsStoreModel = types
                         addedProofs.push(proof)
                     }
                     
+                    // If we do not just move proofs to pending, we need to update the proofsCounter
+                    if(isPending) {
+                        continue
+                    }
                     // Find the corresponding counter for this keysetId
                     const proofsCounter = mintInstance.getProofsCounterByKeysetId(keysetId)
                     // Increment the counter by the number of proofs to insert
@@ -255,18 +259,6 @@ export const ProofsStoreModel = types
             secrets.replace(secrets.filter(secret => !secretsToRemove.includes(secret)))
             log.trace('[removeManyFromPendingByMint]', 'Secrets removed from pending by mint', {secretsToRemove, remaining: secrets})
         },
-        /* removeOnLocalRecovery(proofsToRemove: ProofV3[], isPending: boolean = false) {
-            const proofs = isPending ? self.pendingProofs : self.proofs
-
-            proofsToRemove.map((proof) => {
-                const proofInstance = self.getProofInstance(proof, isPending)
-                if(proofInstance) {
-                    detach(proofInstance) // vital
-                }                   
-            }) 
-
-            proofs.replace(proofs.filter(proof => !proofsToRemove.some(removed => removed.secret === proof.secret)))
-        },*/
         updateMintUrl(currentMintUrl: string, updatedMintUrl: string) {
             log.trace('[proofStore.updateMintUrl] start')
             for (const proof of self.proofs) {

@@ -787,7 +787,7 @@ export const WalletStoreModel = types
             mintUrl: string,
             unit: MintUnit,
             meltQuote: MeltQuoteResponse,  // invoice is stored by mint by quote
-            proofsToMeltFrom: Proof[],  // proofAmount >= amount + fee_reserve
+            proofsToMeltFrom: Proof[],
             transactionId: number,
             options?: {
               increaseCounterBy?: number,
@@ -814,15 +814,27 @@ export const WalletStoreModel = types
             if(options && options.increaseCounterBy) {
               currentCounter.increaseProofsCounter(options.increaseCounterBy)
             }
+
+            // store local counter value before increasing it preemptively
+            const counterValueForMelt = currentCounter.counter
+
+            // Preemptively increase local counter in case we miss response with change from mint
+            currentCounter.increaseProofsCounter(proofsToMeltFrom.length) // ?
+            
+            let countChangeOutputs = 0
+            if (meltQuote.fee_reserve > 0) {
+              countChangeOutputs = Math.ceil(Math.log2(meltQuote.fee_reserve)) || 1
+              currentCounter.increaseProofsCounter(countChangeOutputs)              
+            }
         
-            log.debug('[WalletStore.payLightningMelt] counter', currentCounter.counter)
+            log.debug('[WalletStore.payLightningMelt] counter before melt', {localCounter: currentCounter.counter, counterValueForMelt})
             
             const meltParams: MeltParams = options?.inFlightRequest?.request || {
                 meltQuote,              
                 proofsToSend: CashuUtils.exportProofs(proofsToMeltFrom),
                 options: {                    
                     keysetId: cashuWallet.keysetId,                    
-                    counter: currentCounter.counter                       
+                    counter: counterValueForMelt              
                 }
             }                
             
@@ -849,6 +861,8 @@ export const WalletStoreModel = types
                    !e.message.toLowerCase().includes('network request failed')) {
                   // remove in-flight request only if it was not a timeout or network error
                   currentCounter.removeInFlightRequest(transactionId)
+                  // we  might roll back preemptive counter increase
+                  // currentCounter.decreaseProofsCounter(countChangeOutputs)
                 }      
 
                 let message = 'Lightning payment failed.'

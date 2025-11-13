@@ -128,7 +128,7 @@ export const transferTask = async function (
 
         const walletInstance = await walletStore.getWallet(mintUrl, unit, {withSeed: true})        
         meltFeeReserve = walletInstance.getFeesForProofs(proofsToMeltFrom)
-        const amountWithFees = amountToTransfer + meltQuote.fee_reserve + meltFeeReserve
+        const amountWithFees = amountToTransfer + meltQuote.fee_reserve + meltFeeReserve        
 
         if (totalAmountFromMint < amountWithFees) {
             throw new AppError(
@@ -193,10 +193,11 @@ export const transferTask = async function (
                 unit,
                 meltQuote,
                 proofsToMeltFrom,
-                transactionId,
+                transactionId,                
             )
         } catch (e: any) {
-            if(e.params && (e.params.message.includes('outputs have already been signed before') || e.params.message.includes('duplicate key value violates unique constraint'))) {                
+            if(e.params && (e.params.message.toLowerCase().includes('outputs have already been signed before') || 
+                e.params.message.toLowerCase().includes('duplicate key value violates unique constraint'))) {                
                 log.error('[transferTask] Increasing proofsCounter outdated values and repeating payLightningMelt.')
                 meltResponse = await walletStore.payLightningMelt(
                     mintUrl,
@@ -337,16 +338,39 @@ export const transferTask = async function (
                 if(refreshedMeltQuote.state === MeltQuoteState.PAID) {
 
                     message = `Lightning invoice has been successfully paid, however some error occured: ${e.message}`
+                    
+                    taskResult.preimage =  refreshedMeltQuote.payment_preimage
+                    taskResult.message = message
+
+                    const change = await walletStore.recoverMeltQuoteChange(
+                        mintUrl as string,
+                        refreshedMeltQuote
+                    )                    
+
+                    let recoveredChangeAmount = 0
+
+                    if(change && change.length > 0) {
+            
+                        const {addedAmount} = WalletUtils.addCashuProofs(
+                            mintUrl as string,
+                            change,
+                            {
+                                unit,
+                                transactionId: transaction.id,
+                                isPending: false               
+                            }
+                        )
+
+                        recoveredChangeAmount += addedAmount
+                    }
 
                     log.error('[transfer]', message, {
+                        recoveredChangeAmount,
                         error: e.message,
                         refreshedMeltQuote, 
                         unit,
                         transactionId: transaction.id
-                    })                    
-                    
-                    taskResult.preimage =  refreshedMeltQuote.payment_preimage
-                    taskResult.message = message
+                    }) 
                         
                 } else if(refreshedMeltQuote.state === MeltQuoteState.PENDING) {
 
@@ -356,11 +380,12 @@ export const transferTask = async function (
                     log.error('[transfer]', message, {
                         error: `${e.message}: ${e.params.message}`,                       
                         unit,
+                        refreshedMeltQuote,
                         transactionId: transaction.id
                     })
 
                 } else {
-                    if (e.params && e.params.message && e.params.message.includes('Token already spent')) {
+                    if (e.params && e.params.message && e.params.message.toLowerCase().includes('token already spent')) {
 
                         message = 'Token already spent, going to sync wallet pending proofs with the mint.'
                         taskResult.message = message
@@ -368,7 +393,7 @@ export const transferTask = async function (
                         log.error('[transfer]', message, {
                             transactionId: transaction.id
                         })                        
-                    } else if (e.params && e.params.message && e.params.message.includes('Proofs are pending')) {
+                    } else if (e.params && e.params.message && e.params.message.toLowerCase().includes('proofs are pending')) {
                         // if melt quote is UNPAID wallet used pending by mint proofs for this transaction
                         // we do not want to return them to spendable but keep them pending
                         message = 'Pending proofs were used for this transaction, going to sync proofsToMeltFrom with the mint.'

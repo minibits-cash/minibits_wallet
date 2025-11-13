@@ -1,4 +1,4 @@
-import {cast, flow, getParent, getRoot, getSnapshot, IAnyStateTreeNode, Instance, IStateTreeNode, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
+import {cast, detach, flow, getParent, getRoot, getSnapshot, IAnyStateTreeNode, Instance, isAlive, IStateTreeNode, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
 import {withSetPropAction} from './helpers/withSetPropAction'
 import {    
     type GetInfoResponse, 
@@ -56,12 +56,17 @@ export const MintProofsCounterModel = types.model('MintProofsCounter', {
             log.trace('[addInFlightRequest]', {transactionId, request})
         }
     },
-    removeInFlightRequest(transactionId: number) {        
-        const index = self.inFlightRequests.findIndex(r => r.transactionId === transactionId)
-        
-        if(index !== -1) {
-            self.inFlightRequests.splice(index, 1)
-            self.inFlightRequests = cast(self.inFlightRequests)
+    removeInFlightRequest(transactionId: number) {
+        // Only work with the array if this node is alive
+        if (!isAlive(self)) return
+
+        // Create a shallow copy to avoid modifying during iteration
+        const idx = self.inFlightRequests.findIndex(r => r.transactionId === transactionId)
+        if (idx !== -1) {
+            // Replace with a filtered array instead of removing in-place
+            self.inFlightRequests.replace(
+                self.inFlightRequests.filter(r => r.transactionId !== transactionId)
+            )
 
             log.trace('[removeInFlightRequest]', {transactionId})
         }

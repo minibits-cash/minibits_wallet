@@ -395,7 +395,9 @@ export const sendFromMintSync = async function (
                     {p2pk: p2pk && p2pk.pubkey ? p2pk : undefined}
                 )
             } catch (e: any) {                
-                if(e.params && (e.params.message.includes('outputs have already been signed before') || e.params.message.includes('duplicate key value violates unique constraint'))) {
+                if(e.params && (e.params.message.toLowerCase().includes('outputs have already been signed before') || 
+                    e.params.message.toLowerCase().includes('duplicate key value violates unique constraint'))) {
+                        
                     log.error('[sendFromMintSync] Increasing proofsCounter outdated values and repeating send.')      
                     sendResult = await walletStore.send(
                         mintUrl,
@@ -468,7 +470,7 @@ export const sendFromMintSync = async function (
         }
   } catch (e: any) {
         // try to clean spent proofs if that was the swap error cause
-        if (e.params && e.params.message && e.params.message.includes('Token already spent')) {
+        if (e.params && e.params.message && e.params.message.toLowerCase().includes('token already spent')) {
 
             log.error('[sendFromMintSync] Going to clean spent proofs from proofsToSendFrom and from pending', {transactionId})
             

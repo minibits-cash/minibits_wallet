@@ -943,13 +943,14 @@ const amountInputColor = useThemeColor('amountInput')
                       message={resultModalInfo?.message}
                     />
                     <View style={$buttonContainer}>
-                        {(resultModalInfo.message.includes('outputs have already been signed before') || resultModalInfo.message.includes('duplicate key value violates unique constraint')) ? (
+                        {(resultModalInfo.message.toLowerCase().includes('outputs have already been signed before') || 
+                          resultModalInfo.message.toLowerCase().includes('duplicate key value violates unique constraint')) ? (
                             <Button
                                 preset="secondary"
                                 text={"Retry again"}
                                 onPress={increaseProofsCounterAndRetry}
                             />
-                        ) : resultModalInfo.message.includes('Token already spent') ? (
+                        ) : resultModalInfo.message.toLowerCase().includes('token already spent') ? (
                             <Button
                                 preset="secondary"
                                 text={"Retry again"}

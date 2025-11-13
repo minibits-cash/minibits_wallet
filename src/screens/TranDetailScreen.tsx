@@ -1441,7 +1441,8 @@ const TopupInfoBlock = function (props: {
 
       setIsLoading(true)
 
-      if(resultModalInfo && (resultModalInfo.message.includes('outputs have already been signed before') || resultModalInfo.message.includes('duplicate key value violates unique constraint'))) {
+      if(resultModalInfo && (resultModalInfo.message.toLowerCase().includes('outputs have already been signed before') || 
+        resultModalInfo.message.toLowerCase().includes('duplicate key value violates unique constraint'))) {
         const walletInstance = await walletStore.getWallet(
           mint.mintUrl as string, 
           transaction.unit, 
