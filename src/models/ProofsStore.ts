@@ -3,40 +3,54 @@ import {
     SnapshotOut,
     types,
     isStateTreeNode,
-    detach,
+    isAlive,
+    getSnapshot,
     flow,
 } from 'mobx-state-tree'
-import {withSetPropAction} from './helpers/withSetPropAction'
-import {ProofModel, Proof, ProofRecord} from './Proof'
-import {log} from '../services/logService'
-import {getRootStore} from './helpers/getRootStore'
-import AppError, {Err} from '../utils/AppError'
-import {Mint, MintBalance, UnitBalance} from './Mint'
-import {Database} from '../services'
+import { withSetPropAction } from './helpers/withSetPropAction'
+import { ProofModel, Proof, ProofRecord } from './Proof'
+import { log } from '../services/logService'
+import { getRootStore } from './helpers/getRootStore'
+import AppError, { Err } from '../utils/AppError'
+import { Mint, MintBalance, UnitBalance } from './Mint'
+import { Database } from '../services'
 import { MintUnit } from '../services/wallet/currency'
 
-
 export const ProofsStoreModel = types
-    .model('Proofs', {
-        proofs: types.array(ProofModel),
-        pendingProofs: types.array(ProofModel),
+    .model('ProofsStore', {
+        // Map with `secret` as key → O(1) lookup, safe delete, no duplicates
+        proofs: types.map(ProofModel),
+        pendingProofs: types.map(ProofModel),
         pendingByMintSecrets: types.array(types.string),
     })
     .actions(withSetPropAction)
+
+    // ───────────────────── VIEWS ─────────────────────
     .views(self => ({
-        getBySecret(secret: string, isPending: boolean = false): Proof | undefined {
-            const proofs = isPending ? self.pendingProofs : self.proofs
-            return proofs.find(proof => proof.secret === secret) || undefined
+        getBySecret(secret: string, isPending = false): Proof | undefined {
+            const map = isPending ? self.pendingProofs : self.proofs
+            return map.get(secret)
         },
-        getByTransactionId(tId: number, isPending: boolean = false): Proof[] {
-            const proofs = isPending ? self.pendingProofs : self.proofs
-            return proofs.filter(proof => proof.tId === tId)
-        }
+
+        getByTransactionId(tId: number, isPending = false): Proof[] {
+            const map = isPending ? self.pendingProofs : self.proofs
+            return Array.from(map.values()).filter(proof => proof.tId === tId)
+        },
+
+        alreadyExists(proof: Proof | { secret: string }, isPending = false): boolean {
+            const map = isPending ? self.pendingProofs : self.proofs
+            return map.has(typeof proof === 'object' ? proof.secret : proof)
+        },
+
+        getProofInstance(proof: Proof | { secret: string }, isPending = false): Proof | undefined {
+            return this.getBySecret(typeof proof === 'object' ? proof.secret : proof, isPending)
+        },
     }))
+
     .views(self => ({
         getMintFromProof(proof: Proof): Mint | undefined {
             const rootStore = getRootStore(self)
-            const {mintsStore} = rootStore
+            const { mintsStore } = rootStore
 
             for (const mint of mintsStore.allMints) {
                 for (const counter of mint.proofsCounters) {
@@ -45,429 +59,273 @@ export const ProofsStoreModel = types
                     }
                 }
             }
-
             return undefined
         },
+
         getByMint(
             mintUrl: string,
             options: {
-                isPending: boolean,
-                unit?: MintUnit,                
+                isPending: boolean
+                unit?: MintUnit
                 keysetIds?: string[]
                 ascending?: boolean
             }
         ): Proof[] {
-            let proofs: Proof[] = []
-            if(options.keysetIds && options.keysetIds.length > 0) {
-                proofs = options.isPending ? 
-                    self.pendingProofs.filter(p => options.keysetIds?.includes(p.id)) : 
-                    self.proofs.filter(p => options.keysetIds?.includes(p.id))
-            } else {
-                proofs = options.isPending ? self.pendingProofs : self.proofs
+            const map = options.isPending ? self.pendingProofs : self.proofs
+            let proofs = Array.from(map.values())
+
+            // Filter by keysetIds if provided
+            if (options.keysetIds && options.keysetIds.length > 0) {
+                proofs = proofs.filter(p => options.keysetIds!.includes(p.id))
             }
 
+            // Filter by mintUrl and optionally unit
+            proofs = proofs.filter(p => p.mintUrl === mintUrl)
             if (options.unit) {
-                if(options.ascending) {
-                    return proofs.filter(
-                        proof => proof.mintUrl === mintUrl && 
-                        proof.unit === options.unit
-                    )
-                    .slice()
-                    .sort((a, b) => a.amount - b.amount)   
-                } else {
-                    return proofs.filter(
-                        proof => proof.mintUrl === mintUrl && 
-                        proof.unit === options.unit
-                    )
-                    .slice()
-                    .sort((a, b) => b.amount - a.amount)   
-                }                
+                proofs = proofs.filter(p => p.unit === options.unit)
             }
 
-            if(options.ascending) {
-                return proofs.filter(proof => proof.mintUrl === mintUrl)
+            // Sort ascending/descending by amount
+            return proofs
                 .slice()
-                .sort((a, b) => a.amount - b.amount)
-            } else {
-                return proofs.filter(proof => proof.mintUrl === mintUrl)
-                .slice()
-                .sort((a, b) => b.amount - a.amount)
-            }
-        },        
-        getProofInstance(proof: Proof, isPending: boolean = false) {
-            return self.getBySecret(proof.secret, isPending)
-        },
-        alreadyExists(proof: Proof, isPending: boolean = false) {
-            const proofs = isPending ? self.pendingProofs : self.proofs
-            return proofs.some(p => p.secret === proof.secret) ? true : false
+                .sort((a, b) => (options.ascending ? a.amount - b.amount : b.amount - a.amount))
         },
     }))
+
+    // ───────────────────── ACTIONS ─────────────────────
     .actions(self => ({
-        // Proofs are not more persisted in mmkv storage but loaded from database when hydrating the model
-        loadProofsFromDatabase: flow(function* loadProofsFromDatabase() {             
-            
-            const unspentAndPendingProofs = yield Database.getProofs(true, true, false)
-            
-            // Group into isUnspent and isPending
-            const groupedProofs = unspentAndPendingProofs.reduce(
-                (acc: {isPending: ProofRecord[], isUnspent: ProofRecord[]}, proof: ProofRecord) => {
-                if (proof.isPending) {
-                    acc.isPending.push(proof);
-                } else {
-                    acc.isUnspent.push(proof);
+        loadProofsFromDatabase: flow(function* loadProofsFromDatabase() {
+            const unspentAndPendingProofs: ProofRecord[] = yield Database.getProofs(true, true, false)
+
+            const cleanProof = (p: ProofRecord): Proof => {
+                const { isPending, isSpent, updatedAt, ...cleaned } = p
+                return cleaned as Proof
+            }
+
+            // Clear current maps
+            self.proofs.clear()
+            self.pendingProofs.clear()
+
+            for (const record of unspentAndPendingProofs) {
+                const proof = cleanProof(record)
+                const targetMap = record.isPending ? self.pendingProofs : self.proofs
+                targetMap.put(ProofModel.create(proof)) // put() uses `secret` as key
+            }
+
+            log.trace('[loadProofsFromDatabase]', `Loaded ${self.proofs.size} proofs + ${self.pendingProofs.size} pending`)
+        }),
+
+        addProofs(newProofs: Proof[], isPending = false): { addedAmount: number; addedProofs: Proof[] } {
+            if (newProofs.length === 0) return { addedAmount: 0, addedProofs: [] }
+
+            const map = isPending ? self.pendingProofs : self.proofs
+            let addedAmount = 0
+            const addedProofs: Proof[] = []
+            const unit = newProofs[0].unit
+
+            const mintsStore = getRootStore(self).mintsStore
+            const mintInstance = mintsStore.findByUrl(newProofs[0].mintUrl)
+
+            if (!mintInstance) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Mint not found', { mintUrl: newProofs[0].mintUrl })
+            }
+
+            const proofsByKeyset = new Map<string, Proof[]>()
+
+            for (const proof of newProofs) {
+                if (self.alreadyExists(proof, isPending)) {
+                    log.warn('[addProofs] Duplicate proof skipped', { secret: proof.secret })
+                    continue
                 }
-                return acc;
-                },
-                { isUnspent: [], isPending: [] } // Initialize the groups
+                if (proof.unit !== unit) {
+                    log.error('[addProofs] Mixed units in batch')
+                    continue
+                }
+
+                // Create MST node or plain object → always use put()
+                const proofNode = isStateTreeNode(proof) ? proof : ProofModel.create(proof)
+                map.put(proofNode) // ← automatically uses `secret` as key
+
+                addedAmount += proof.amount
+                addedProofs.push(proofNode)
+
+                proofsByKeyset.set(proof.id, (proofsByKeyset.get(proof.id) || []).concat(proofNode))
+            }
+
+            // Update counters
+            for (const [keysetId, proofs] of proofsByKeyset) {
+                const counter = mintInstance.getProofsCounterByKeysetId(keysetId)
+                counter?.increaseProofsCounter(proofs.length)
+            }
+
+            if (addedProofs.length > 0) {
+                Database.addOrUpdateProofs(addedProofs, isPending) // isSpent = false
+            }
+
+            log.trace('[addProofs]', `Added ${addedProofs.length} ${isPending ? 'pending ' : ''}proofs`)
+            return { addedAmount, addedProofs }
+        },
+
+        removeProofs(
+            proofsToRemove: Proof[] | { secret: string }[],  // allow plain objects with at least secret
+            isPending = false,
+            isRecoveredFromPending = false
+        ) {
+            const map = isPending ? self.pendingProofs : self.proofs
+
+            const instancesToRemove = proofsToRemove
+                .map((p): Proof | undefined => {
+                    if (isStateTreeNode(p)) {
+                        return p as Proof
+                    }
+                    // p is now narrowed to { secret: string }
+                    return map.get((p as any).secret) ?? undefined
+                })
+                .filter((p): p is Proof => p !== undefined)
+
+            if (instancesToRemove.length === 0) return
+
+            Database.addOrUpdateProofs(
+                instancesToRemove,
+                false,
+                isRecoveredFromPending ? false : true
             )
 
-            const cleanProofs = (proofs: ProofRecord[]) => {
-                return proofs.map(p => {
-                    // Destructure the unwanted properties and collect the rest in `cleaned`
-                    const { isPending, isSpent, updatedAt, ...cleaned } = p            
-                    // Return the cleaned object
-                    return cleaned as Proof
-                })
+            for (const proof of instancesToRemove) {
+                map.delete(proof.secret) // safe, automatic detach
             }
 
-            self.proofs.replace(cleanProofs(groupedProofs.isUnspent))
-            self.pendingProofs.replace(cleanProofs(groupedProofs.isPending))
-        }),
-    }))
-    .actions(self => ({
-        addProofs(newProofs: Proof[], isPending: boolean = false): {addedAmount: number, addedProofs: Proof[]} {
-            try {
-                const proofs = isPending ? self.pendingProofs : self.proofs
-
-                if(newProofs.length === 0) {
-                    log.error('[addProofs]', 'No proofs to add')
-                    return {addedAmount: 0, addedProofs: []}
-                }
-
-                let addedAmount: number = 0
-                let addedProofs: Proof[] = []
-                const unit: MintUnit = newProofs[0].unit
-
-                const proofsByKeysetId = new Map<string, Array<Proof>>();
-        
-                for (const proof of newProofs) {
-                    if (!proofsByKeysetId.has(proof.id)) {
-                        proofsByKeysetId.set(proof.id, []);
-                    }
-                    proofsByKeysetId.get(proof.id)!.push(proof);
-                }
-        
-                // Step 2: Update counters and prepare batches for insertion
-                const mintsStore = getRootStore(self).mintsStore
-                const mintInstance = mintsStore.findByUrl(newProofs[0].mintUrl as string)
-
-                if(!mintInstance) {
-                    throw new AppError(Err.STORAGE_ERROR, 'Could not find mint', {mintUrl: newProofs[0].mintUrl})
-                }
-
-                for (const [keysetId, keysetProofs] of Array.from(proofsByKeysetId.entries())) {                    
-
-                    for (const proof of keysetProofs) { 
-                        if(self.alreadyExists(proof)) {
-                            log.error('[addProofs]', `${isPending ? ' pending' : ''} proof with this secret already exists in the ProofsStore`, {proof})
-                            continue
-                        }
-        
-                        if(proof.unit !== unit) {
-                            log.error('[addProofs]', `Proof has a different unit then others`, {proof, unit})
-                            continue
-                        }
-        
-                        if (isStateTreeNode(proof)) {
-                            proofs.push(proof)                    
-                        } else {
-                            const proofInstance = ProofModel.create(proof)
-                            proofs.push(proofInstance)
-                        }
-
-                        addedAmount += proof.amount
-                        addedProofs.push(proof)
-                    }
-                    
-                    // Find the corresponding counter for this keysetId
-                    const proofsCounter = mintInstance.getProofsCounterByKeysetId(keysetId)
-                    // Increment the counter by the number of proofs to insert
-                    proofsCounter.increaseProofsCounter(keysetProofs.length)                    
-                }        
-                
-                log.trace('[addProofs]', `Added new ${addedProofs.length}${isPending ? ' pending' : ''} proofs to the ProofsStore`)                           
-    
-                if (addedProofs.length > 0) {
-                    Database.addOrUpdateProofs(addedProofs, isPending) // isSpent = false
-                }
-    
-                return { addedAmount, addedProofs }
-        
-            } catch (e: any) {
-                throw new AppError(Err.STORAGE_ERROR, e.message, {caller: 'addProofs'})
-            }
+            log.trace('[removeProofs]', `${instancesToRemove.length} ${isPending ? 'pending ' : ''}proofs removed`)
         },
-        removeProofs(proofsToRemove: Proof[], isPending: boolean = false, isRecoveredFromPending: boolean = false) {
-            try {                
-                const proofs = isPending ? self.pendingProofs : self.proofs
-                const count = proofsToRemove.length
-                
-                if(isRecoveredFromPending) { 
-                    Database.addOrUpdateProofs(proofsToRemove, false, false) // isPending = false, isSpent = false
-                } else {
-                    Database.addOrUpdateProofs(proofsToRemove, false, true) // isPending = false, isSpent = true
-                }
 
-                proofsToRemove.forEach((proof) => {
-                    if (isStateTreeNode(proof)) {                        
-                        detach(proof) // vital
-                    } else {
-                        const proofInstance = self.getProofInstance(proof, isPending)                        
-                        if(proofInstance) {
-                            detach(proofInstance) // vital
-                        }
-                    }                    
-                }) 
-
-                proofs.replace(proofs.filter(proof => !proofsToRemove.some(removed => removed.secret === proof.secret)))
-
-                log.trace('[removeProofs]', `${count} ${(isPending) ? 'pending' : ''} proofs removed from ProofsStore`)
-
-            } catch (e: any) {
-                throw new AppError(Err.STORAGE_ERROR, e.message.toString())
-            }
-        },
         addToPendingByMint(proof: Proof): boolean {
-            if(self.pendingByMintSecrets.some(s => s === proof.secret)) {
-                return false
-            }
-            
+            if (self.pendingByMintSecrets.includes(proof.secret)) return false
             self.pendingByMintSecrets.push(proof.secret)
-            log.trace('[addToPendingByMint]', 'Proof marked as pending by mint, secret', proof.secret)
-            return true            
+            log.trace('[addToPendingByMint]', proof.secret)
+            return true
         },
+
         removeFromPendingByMint(proof: Proof) {
             self.pendingByMintSecrets.remove(proof.secret)
-            log.trace('[removeFromPendingByMint]', 'Proof removed from pending by mint, secret', proof.secret)
+            log.trace('[removeFromPendingByMint]', proof.secret)
         },
+
         removeManyFromPendingByMint(secretsToRemove: string[]) {
-            const secrets = self.pendingByMintSecrets
-            secrets.replace(secrets.filter(secret => !secretsToRemove.includes(secret)))
-            log.trace('[removeManyFromPendingByMint]', 'Secrets removed from pending by mint', {secretsToRemove, remaining: secrets})
+            self.pendingByMintSecrets.replace(
+                self.pendingByMintSecrets.filter(s => !secretsToRemove.includes(s))
+            )
         },
-        /* removeOnLocalRecovery(proofsToRemove: ProofV3[], isPending: boolean = false) {
-            const proofs = isPending ? self.pendingProofs : self.proofs
 
-            proofsToRemove.map((proof) => {
-                const proofInstance = self.getProofInstance(proof, isPending)
-                if(proofInstance) {
-                    detach(proofInstance) // vital
-                }                   
-            }) 
-
-            proofs.replace(proofs.filter(proof => !proofsToRemove.some(removed => removed.secret === proof.secret)))
-        },*/
         updateMintUrl(currentMintUrl: string, updatedMintUrl: string) {
-            log.trace('[proofStore.updateMintUrl] start')
-            for (const proof of self.proofs) {
-                if(proof.mintUrl === currentMintUrl) {
-                    proof.setMintUrl(updatedMintUrl)                    
+            const updateInMap = (map: typeof self.proofs) => {
+                for (const proof of map.values()) {
+                    if (proof.mintUrl === currentMintUrl) {
+                        proof.setMintUrl(updatedMintUrl)
+                    }
                 }
             }
 
-            for (const proof of self.pendingProofs) {
-                if(proof.mintUrl === currentMintUrl) {
-                    proof.setMintUrl(updatedMintUrl)                    
-                } 
-            }
+            updateInMap(self.proofs)
+            updateInMap(self.pendingProofs)
 
             Database.updateProofsMintUrl(currentMintUrl, updatedMintUrl)
+            log.trace('[updateMintUrl] Updated mint URL in proofs')
         },
     }))
+
+    // ───────────────────── DERIVED VIEWS ─────────────────────
     .views(self => ({
-        get proofsCount() {
-            return self.proofs.length
-        },
-        get pendingProofsCount() {
-            return self.pendingProofs.length
-        },
-        get allProofs() {
-            return self.proofs
-        },
-        get allPendingProofs() {
-            return self.pendingProofs
-        },
+        get proofsCount() { return self.proofs.size },
+        get pendingProofsCount() { return self.pendingProofs.size },
+        get allProofs() { return Array.from(self.proofs.values()) },
+        get allPendingProofs() { return Array.from(self.pendingProofs.values()) },
     }))
+
     .views(self => ({
         get balances() {
-            const mintBalancesMap: Map<string, MintBalance> = new Map()
-            const unitBalancesMap: Map<MintUnit, number> = new Map()
-            const mintPendingBalancesMap: Map<string, MintBalance> = new Map()
-            const unitPendingBalancesMap: Map<MintUnit, number> = new Map()
+            const mintBalancesMap = new Map<string, MintBalance>()
+            const unitBalancesMap = new Map<MintUnit, number>()
+            const mintPendingMap = new Map<string, MintBalance>()
+            const unitPendingMap = new Map<MintUnit, number>()
 
-            const mints: Mint[] = getRootStore(self).mintsStore.allMints
+            const mints = getRootStore(self).mintsStore.allMints
 
-            // make sure balances are defined even if we have no proofs
+            // Initialize zero balances
             for (const mint of mints) {
-                const {mintUrl, units} = mint
-                const zeroBalances = Object.fromEntries(units!.map(unit => [unit, 0])) as { [key in MintUnit]: number };                
-
-                // make distinct copies of zeroBalances so that balances are not summed by reference!!!
-                mintBalancesMap.set(mintUrl, { mintUrl, balances: JSON.parse(JSON.stringify(zeroBalances))})
-                mintPendingBalancesMap.set(mintUrl, { mintUrl, balances: JSON.parse(JSON.stringify(zeroBalances))})
-
-                for (const unit of mint.units!) {
-                    unitBalancesMap.set(unit, 0)
-                }
+                const zero = Object.fromEntries(mint.units!.map(u => [u, 0])) as Record<MintUnit, number>
+                mintBalancesMap.set(mint.mintUrl, { mintUrl: mint.mintUrl, balances: { ...zero } })
+                mintPendingMap.set(mint.mintUrl, { mintUrl: mint.mintUrl, balances: { ...zero } })
             }
 
-            //log.trace('[getBalances] zero balances', [...mintBalancesMap.entries()])
-            //log.trace('[getBalances] zero pendingBalances', [...mintPendingBalancesMap.entries()])
+            for (const proof of self.proofs.values()) {
+                const mb = mintBalancesMap.get(proof.mintUrl)
+                if (!mb) continue
 
-            //log.trace('[getBalances] proofs count', self.proofs.length)
-
-            for (const proof of self.proofs) {
-                const { mintUrl, unit, amount } = proof
-        
-                // Make sure to not cause madness from orphaned proofs if it would happen
-                if (!mintBalancesMap.has(mintUrl)) {
-                    continue
-                }
-        
-                // Update balance for the unit
-                const mintBalance = mintBalancesMap.get(mintUrl)!
-                mintBalance.balances[unit] = (mintBalance.balances[unit] || 0) + amount
-                unitBalancesMap.set(unit, (unitBalancesMap.get(unit) || 0) + amount)
-            }
-        
-            const mintBalances: MintBalance[] = Array.from(mintBalancesMap.values())
-
-            //log.trace('[getBalances] filled balances', [...mintBalancesMap.entries()])
-
-            //log.trace('[getBalances] zero pendingBalances', [...mintPendingBalancesMap.entries()])
-
-            // Convert map to array of UnitBalance objects
-            const unitBalances: UnitBalance[]  = Array.from(unitBalancesMap.entries()).map(([unit, unitBalance]) => ({
-                unitBalance,
-                unit
-            }))            
-
-            for (const proof of self.pendingProofs) {
-                const { mintUrl, unit, amount } = proof
-
-                //log.trace('adding pending proof amount', proof.amount)
-        
-                // Make sure to not cause madness from orphaned proofs if it would happen
-                if (!mintPendingBalancesMap.has(mintUrl)) {
-                    continue
-                }
-        
-                // Update balance for the unit
-                const mintPendingBalance = mintPendingBalancesMap.get(mintUrl)!
-                mintPendingBalance.balances[unit] = (mintPendingBalance.balances[unit] || 0) + amount
-                unitPendingBalancesMap.set(unit, (unitPendingBalancesMap.get(unit) || 0) + amount)
+                mb.balances[proof.unit]! += proof.amount
+                unitBalancesMap.set(proof.unit, (unitBalancesMap.get(proof.unit) || 0) + proof.amount)
             }
 
-            //log.trace('[getBalances] pendingBalances', [...mintPendingBalancesMap.entries()])
-        
-            const mintPendingBalances: MintBalance[] = Array.from(mintPendingBalancesMap.values())
+            for (const proof of self.pendingProofs.values()) {
+                const mb = mintPendingMap.get(proof.mintUrl)
+                if (!mb) continue
 
-            // Convert map to array of UnitBalance objects
-            const unitPendingBalances: UnitBalance[]  = Array.from(unitPendingBalancesMap.entries()).map(([unit, unitBalance]) => ({
-                unitBalance,
-                unit
-            }))            
-
-            const balances = {            
-                mintBalances,
-                mintPendingBalances,
-                unitBalances,
-                unitPendingBalances,  
+                mb.balances[proof.unit]! += proof.amount
+                unitPendingMap.set(proof.unit, (unitPendingMap.get(proof.unit) || 0) + proof.amount)
             }
-        
-            // log.debug('[getBalances]', balances)
-            // console.log(balances)
+
+            const balances = {
+                mintBalances: Array.from(mintBalancesMap.values()),
+                mintPendingBalances: Array.from(mintPendingMap.values()),
+                unitBalances: Array.from(unitBalancesMap.entries()).map(([unit, unitBalance]) => ({ unit, unitBalance })),
+                unitPendingBalances: Array.from(unitPendingMap.entries()).map(([unit, unitBalance]) => ({ unit, unitBalance })),
+            }
+
+            log.trace('[balances]', balances)
 
             return balances
         },
     }))
-    .views(self => ({ // Move to MintsStore?
-        getMintBalance: (mintUrl: string) => {
-            const balances = self.balances.mintBalances
 
-            const mintBalance = balances
-                .find((balance: MintBalance) => balance.mintUrl === mintUrl)                
+    .views(self => ({
+        getMintBalance: (mintUrl: string) => self.balances.mintBalances.find(b => b.mintUrl === mintUrl),
+        getMintBalancesWithEnoughBalance: (amount: number, unit: MintUnit) =>
+            self.balances.mintBalances
+                .filter(b => (b.balances[unit] || 0) >= amount)
+                .sort((a, b) => (b.balances[unit] || 0) - (a.balances[unit] || 0)),
 
-            return mintBalance
-        },
-        getMintBalancesWithEnoughBalance: (amount: number, unit: MintUnit) => {
-            const balances = self.balances.mintBalances
+        getMintBalancesWithUnit: (unit: MintUnit) =>
+            self.balances.mintBalances
+                .filter(b => unit in b.balances)
+                .sort((a, b) => (b.balances[unit] || 0) - (a.balances[unit] || 0)),
 
-            const filteredMintBalances = balances                
-                .filter((balance: MintBalance) => {                    
-                        if((balance.balances[unit] || 0) >= amount) {
-                            return true
-                        }                    
-                    return false
-                })
-                .slice()
-                .sort((a, b) => b.balances[unit]! - a.balances[unit]!)
-
-            return filteredMintBalances
-        },
-        getMintBalancesWithUnit: (unit: MintUnit) => {
-            const balances = self.balances.mintBalances
-
-            const filteredMintBalances = balances                
-                .filter((balance: MintBalance) => {                                            
-                        if(Object.keys(balance.balances).includes(unit)) {
-                            return true
-                        }                    
-                    return false
-                })
-                .slice()
-                .sort((a, b) => b.balances[unit]! - a.balances[unit]!)
-
-            return filteredMintBalances
-        },
         getMintBalanceWithMaxBalance: (unit: MintUnit) => {
-            const balances = self.balances.mintBalances
-            let maxBalance: MintBalance | undefined = undefined;
-            let maxAmount = -Infinity;
-          
-            for (const balance of balances) {
-                const amount = balance.balances[unit];
-                if (amount !== undefined && amount > maxAmount) {
-                      maxAmount = amount;
-                      maxBalance = balance;
+            let max: MintBalance | undefined
+            let maxAmt = -1
+            for (const b of self.balances.mintBalances) {
+                const amt = b.balances[unit] || 0
+                if (amt > maxAmt) {
+                    maxAmt = amt
+                    max = b
                 }
             }
-
-            log.debug('[getMintBalanceWithMaxBalance]', {maxBalance})
-            return maxBalance;
+            return max
         },
-        getUnitBalance: (unit: MintUnit) => {
-            const balances = self.balances.unitBalances
 
-            const unitBalance = balances
-                .find((balance: UnitBalance) => balance.unit === unit)                
+        getUnitBalance: (unit: MintUnit) =>
+            self.balances.unitBalances.find(b => b.unit === unit),
 
-            return unitBalance
-        },        
         getProofsSubset: (proofs: Proof[], proofsToRemove: Proof[]) => {
-            // return proofs.filter(proof => !proofsToRemove.includes(proof))
-            const secrets = new Set(proofsToRemove.map(p => p.secret));
-            return proofs.filter(p => !secrets.has(p.secret));
+            const removeSecrets = new Set(proofsToRemove.map(p => p.secret))
+            return proofs.filter(p => !removeSecrets.has(p.secret))
         },
-    })).postProcessSnapshot((snapshot) => {   // NOT persisted to storage except last pendingByMintSecrets!  
-        return {
-            proofs: [],
-            pendingProofs: [],            
-            pendingByMintSecrets: snapshot.pendingByMintSecrets
-        }          
-    })
-    
+    }))
 
-export interface Proofs extends Instance<typeof ProofsStoreModel> {}
-export interface ProofsStoreSnapshot
-  extends SnapshotOut<typeof ProofsStoreModel> {}
+    // Only persist pendingByMintSecrets (proofs are loaded from DB on startup)
+    .postProcessSnapshot(snapshot => ({
+        proofs: [],
+        pendingProofs: [],
+        pendingByMintSecrets: snapshot.pendingByMintSecrets,
+    }))
+
+export interface ProofsStore extends Instance<typeof ProofsStoreModel> {}
+export interface ProofsStoreSnapshot extends SnapshotOut<typeof ProofsStoreModel> {}
