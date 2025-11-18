@@ -32,8 +32,7 @@ export const TransactionsStoreModel = types
         recentByUnit: types.array(types.safeReference(TransactionModel, { acceptsUndefined: false })),
     })
     .actions(withSetPropAction)
-
-    // ───────────────────── VIEWS (100% preserved) ─────────────────────
+    
     .views(self => ({
         get pendingHistory() {
             return self.history
@@ -74,8 +73,7 @@ export const TransactionsStoreModel = types
         countRecentByUnit(unit: MintUnit): number {
             return this.getRecentByUnit(unit).length
         },
-
-        // ── Pending topups/transfers from DB (kept exactly as-is) ──
+        
         getPendingTopups(): Transaction[] {
             const dbTopups = Database.getPendingTopups()
             return dbTopups.map(t => TransactionModel.create({ ...t }))
@@ -87,7 +85,7 @@ export const TransactionsStoreModel = types
         },
     }))
 
-    // ───────────────────── ACTIONS (safe + complete) ─────────────────────
+    
     .actions(self => ({
         findById(id: number, loadTokens = false): Transaction | undefined {
             let tx = self.transactionsMap.get(String(id))
@@ -125,8 +123,7 @@ export const TransactionsStoreModel = types
             self.transactionsMap.set(String(dbTx.id), inStoreTx)
             return self.transactionsMap.get(String(dbTx.id))
         },
-
-        // ── Safe pruning (rebuild instead of filter + replace) ──
+        
         pruneHistory() {
             if (self.history.length <= maxTransactionsInHistory) return
 
@@ -262,20 +259,19 @@ export const TransactionsStoreModel = types
 
     }))
 
-    .actions(self => ({
-       
-        // ── Call this once after hydration (e.g. in RootStore.afterCreate) ──
-        rehydrateFromDatabase: flow(function* rehydrateFromDatabase() {
+    .actions(self => ({       
+        
+        loadRecentFromDatabase: flow(function* loadRecentFromDatabase() {
             if (self.history.length > 0 || self.recentByUnit.length > 0) return // already loaded
 
-            yield self.addRecentByUnit()
-            yield self.addToHistory(20, 0, false) // initial page
+            yield self.addRecentByUnit() // wallet screen
+            yield self.addToHistory(maxTransactionsInHistory, 0, false) // tx screen
 
-            log.debug('[TransactionsStore] Rehydrated from database')
+            log.trace('[TransactionsStore] Rehydrated from database')
         }),
         
     }))
-    // ── Clean empty snapshot (no pruning logic!) ──
+    
     .postProcessSnapshot(() => ({
         transactionsMap: {},
         history: [],
