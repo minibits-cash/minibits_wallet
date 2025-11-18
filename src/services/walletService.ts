@@ -1,6 +1,5 @@
 import {addSeconds, isBefore} from 'date-fns'
 import {getSnapshot} from 'mobx-state-tree'
-import notifee, { AndroidImportance } from '@notifee/react-native'
 import { GiftWrap, EncryptedDirectMessage } from 'nostr-tools/kinds'
 import {log} from './logService'
 import {Proof} from '../models/Proof'

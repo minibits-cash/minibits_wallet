@@ -11,6 +11,5 @@
     },
     "resolveJsonModule": true,
     "esModuleInterop": true,
-    "types": ["react-native-dotenv"]
   }
 }
