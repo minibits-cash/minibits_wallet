@@ -251,7 +251,7 @@ export const transferTask = async function (
                 lightningFeePaid = totalFeePaid - meltFeeReserve
             }         
     
-            const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
+            const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
     
             // build consolidated update payload
             const completedDataItem: TransactionData = {

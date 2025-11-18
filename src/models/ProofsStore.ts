@@ -314,7 +314,7 @@ export const ProofsStoreModel = types
         },
 
         getUnitBalance: (unit: MintUnit) =>
-            self.balances.unitBalances.find(b => b.unit === unit),
+            self.balances.unitBalances.find(b => b.unit === unit) || { unit, unitBalance: 0 },
 
         getProofsSubset: (proofs: Proof[], proofsToRemove: Proof[]) => {
             const removeSecrets = new Set(proofsToRemove.map(p => p.secret))

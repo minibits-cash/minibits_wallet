@@ -115,7 +115,7 @@ export const receiveTask = async function (
             createdAt: new Date(),
         })
 
-        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
+        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
         
         transaction.update({
             status: TransactionStatus.COMPLETED,
@@ -348,7 +348,7 @@ export const receiveOfflineCompleteTask = async function (
             createdAt: new Date(),
         })        
 
-        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
+        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
         
         transaction.update({
             status: TransactionStatus.COMPLETED,
@@ -492,7 +492,7 @@ export const receiveByCashuPaymentRequestTask = async function (
             createdAt: new Date(),
         })
 
-        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
+        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
         
         transaction.update({
             status: TransactionStatus.COMPLETED,

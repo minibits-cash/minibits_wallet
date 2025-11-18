@@ -124,7 +124,7 @@ export const sendTask = async function (
             createdAt: new Date(),
         })
 
-        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
+        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
         
         transaction.update({
             status: TransactionStatus.PENDING,

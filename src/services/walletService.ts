@@ -1254,7 +1254,7 @@ const handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTask
                                 data: JSON.stringify(transactionData),
                             })
     
-                            const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
+                            const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
                             transaction.update({balanceAfter, outputToken})
     
                             if(swapFeePaid > 0) {
@@ -1326,7 +1326,7 @@ const handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTask
                                 unit,
                             })
 
-                            const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
+                            const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
 
                             transactionData.push({
                                 status: TransactionStatus.PENDING,                      
@@ -1386,7 +1386,7 @@ const handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTask
     
                             stopPolling(`handlePendingTopupPoller-${transaction.paymentId}`)
 
-                            const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
+                            const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
                             
                             transactionData.push({
                                 status: TransactionStatus.COMPLETED,                      
@@ -1472,7 +1472,7 @@ const handleInFlightByMintTask = async function (mint: Mint): Promise<WalletTask
                                 transaction.update({fee: totalFeePaid})
                             }
 
-                            const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
+                            const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
                             
                             transactionData.push({
                                 status: TransactionStatus.COMPLETED,                
@@ -1709,7 +1709,7 @@ const handlePendingTopupTask = async function (params: {transaction: Transaction
                 stopPolling(`handlePendingTopupPoller-${paymentHash}`)
 
                 const currencyCode = getCurrency(unit).code  
-                const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
+                const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
         
                 // update related tx
                 transactionData.push({
@@ -1872,7 +1872,7 @@ const recoverMintQuote = async function (params: {mintUrl: string, mintQuote: st
                 }
             )                
             
-            const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
+            const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
 
             transactionData.push({
                 status: TransactionStatus.RECOVERED,                                         
@@ -2021,7 +2021,7 @@ const recoverMeltQuoteChange = async function (params: {mintUrl: string, meltQuo
                     transaction!.update({amount: recoveredAmount})
                 }
 
-                const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance!
+                const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
                 const outputToken = getEncodedToken({
                     mint: mintUrl,
                     proofs: returnedProofs,
