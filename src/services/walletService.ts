@@ -1531,17 +1531,24 @@ const handlePendingQueue = async function (): Promise<void> {
             if (isBefore(transfer.expiresAt as Date, new Date())) {
                 log.debug('[handlePendingQueue]', `Transfer invoice expired: ${transfer.paymentId} ${transfer.quote}`)
     
-                const transactionData = JSON.parse(transfer.data)
-                transactionData.push({
+                const update = {
                     status: TransactionStatus.EXPIRED,
-                    message: 'Invoice expired',                        
+                    message: '[handlePendingQueue] related invoice expired',                        
                     createdAt: new Date(),
-                })
-    
-                transfer.update({
-                    status: TransactionStatus.EXPIRED,
-                    data: JSON.stringify(transactionData)
-                })    
+                }
+
+                try {
+                    const transactionData = JSON.parse(transfer.data)
+                    transactionData.push(update)
+        
+                    transfer.update({
+                        status: TransactionStatus.EXPIRED,
+                        data: JSON.stringify(transactionData)
+                    })  
+                } catch (e) {
+                    transfer.update(update)  
+                }
+  
             }
         }
     }

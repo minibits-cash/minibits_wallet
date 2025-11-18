@@ -827,7 +827,7 @@ export const WalletStoreModel = types
               currentCounter.increaseProofsCounter(countChangeOutputs)              
             }
         
-            log.debug('[WalletStore.payLightningMelt] counter before melt', {localCounter: currentCounter.counter, counterValueForMelt})
+            log.trace('[WalletStore.payLightningMelt] Counter state before melt', {localCounter: currentCounter.counter, counterValueForMelt})
             
             const meltParams: MeltParams = options?.inFlightRequest?.request || {
                 meltQuote,              

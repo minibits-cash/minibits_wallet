@@ -1,4 +1,4 @@
-import { Instance, SnapshotIn, SnapshotOut, types } from 'mobx-state-tree'
+import { Instance, isAlive, SnapshotIn, SnapshotOut, types } from 'mobx-state-tree'
 import { log } from '../services/logService'
 import { MintUnit } from '../services/wallet/currency'
 import { Database } from '../services'
@@ -72,6 +72,11 @@ export const TransactionModel = types
         update(fields: Partial<Transaction>) {
             // Update multiple fields in database with a single query
             const updatedTransaction = Database.updateTransaction(self.id, fields)
+
+            if (!isAlive(self)) {
+                log.error('[update]', 'Transaction instance is not alive, aborting state update', { id: self.id })
+                return
+            }
 
             // Update the model to keep store in sync
             Object.keys(updatedTransaction).forEach(key => {

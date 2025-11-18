@@ -57,8 +57,11 @@ export const MintProofsCounterModel = types.model('MintProofsCounter', {
         }
     },
     removeInFlightRequest(transactionId: number) {
-        // Only work with the array if this node is alive
-        if (!isAlive(self)) return
+        
+        if (!isAlive(self)) {
+            log.error('[removeInFlightRequest]', 'ProofsCounter is not alive, aborting removal', { keyset: self.keyset })
+            return
+        }
 
         // Create a shallow copy to avoid modifying during iteration
         const idx = self.inFlightRequests.findIndex(r => r.transactionId === transactionId)

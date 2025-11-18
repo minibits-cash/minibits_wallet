@@ -154,6 +154,8 @@ export const ProofsStoreModel = types
 
             // Update counters
             for (const [keysetId, proofs] of proofsByKeyset) {
+                if(isPending) continue // do not update counters for move to pending proofs
+
                 const counter = mintInstance.getProofsCounterByKeysetId(keysetId)
                 counter?.increaseProofsCounter(proofs.length)
             }
