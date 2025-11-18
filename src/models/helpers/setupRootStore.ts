@@ -58,7 +58,7 @@ export async function setupRootStore(rootStore: RootStore) {
         const stateHydrated = performance.now()
         log.trace(`[setupRootStore] Hydrating rooStoreModel took ${stateHydrated - mmkvLoaded} ms.`)
         
-        const {proofsStore, walletProfileStore, authStore, userSettingsStore} = rootStore
+        const {proofsStore, walletProfileStore, authStore, userSettingsStore, transactionsStore} = rootStore
 
         if(walletProfileStore.walletId) {
             Sentry.setUser({ id: walletProfileStore.walletId })
@@ -71,9 +71,10 @@ export async function setupRootStore(rootStore: RootStore) {
 
         // hydrate ecash proofs to model from database
         await proofsStore.loadProofsFromDatabase()
+        await transactionsStore.loadRecentFromDatabase()
         
         const proofsLoaded = performance.now()
-        log.trace(`[setupRootStore] Loading proofs from DB and hydrating took ${proofsLoaded - stateHydrated} ms.`)
+        log.trace(`[setupRootStore] Loading proofs and transactions from DB and hydrating took ${proofsLoaded - stateHydrated} ms.`)
         
     } catch (e: any) {        
         log.error('[setupRootStore]', Err.STORAGE_ERROR, {message: e.message, params: e.params})
