@@ -467,7 +467,13 @@ export const WalletStoreModel = types
                 const amountToReceive: number = CashuUtils.getProofsAmount(decodedToken.proofs)
                 const swapFeePaid = amountToReceive - receivedAmount
             
-                return {proofs, swapFeePaid}
+                return {
+                  proofs, 
+                  swapFeePaid
+                } as {
+                  proofs: CashuProof[], 
+                  swapFeePaid: number
+                }
 
             } catch (e: any) {
                 if(!e.message.toLowerCase().includes('timeout') &&

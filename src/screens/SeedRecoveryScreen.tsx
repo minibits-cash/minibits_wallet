@@ -268,19 +268,17 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                         status: TransactionStatus.PREPARED,
                     }
 
-                    transaction = await transactionsStore.addTransaction(newTransaction)                    
+                    transaction = await transactionsStore.addTransaction(newTransaction)
+                    
+                    const { updatedAmount: addedAmount } = proofsStore.addOrUpdate(proofStates.UNSPENT, {
+                        mintUrl: recoveredMint.mintUrl,
+                        unit: selectedKeyset.unit as MintUnit,
+                        tId: transaction.id,
+                        isPending: false,
+                        isSpent: false,                        
+                    })              
 
-                    const { amountToAdd, addedAmount } = WalletUtils.addCashuProofs(
-                        recoveredMint.mintUrl,
-                        proofStates.UNSPENT,
-                        {
-                            unit: selectedKeyset.unit as MintUnit,
-                            transactionId: transaction.id,
-                            isPending: false
-                        }            
-                    )                 
-
-                    if (amountToAdd !== addedAmount) {
+                    if (amount !== addedAmount) {
                         transaction.update({amount: addedAmount})
                         recoveredAmount = addedAmount
                     }
@@ -328,17 +326,15 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
 
                     pendingTransaction = await transactionsStore.addTransaction(newTransaction)
 
-                    const { amountToAdd, addedAmount } = WalletUtils.addCashuProofs(
-                        recoveredMint.mintUrl,
-                        proofStates.PENDING,
-                        {
-                            unit: selectedKeyset?.unit as MintUnit,
-                            transactionId: pendingTransaction.id,
-                            isPending: true
-                        }            
-                    )
+                    const { updatedAmount: addedAmount } = proofsStore.addOrUpdate(proofStates.PENDING, {
+                        mintUrl: recoveredMint.mintUrl,
+                        unit: selectedKeyset.unit as MintUnit,
+                        tId: pendingTransaction.id,
+                        isPending: true,
+                        isSpent: false,  
+                    })
 
-                    if (amountToAdd !== addedAmount) {
+                    if (pendingAmount !== addedAmount) {
                         pendingTransaction.update({amount: addedAmount})
                     }
 

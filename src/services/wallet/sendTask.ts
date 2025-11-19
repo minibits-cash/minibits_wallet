@@ -21,7 +21,6 @@ import { Mint, MintBalance } from '../../models/Mint'
 import { Proof } from '../../models/Proof'
 import { poller } from '../../utils/poller'
 import { WalletUtils } from './utils'
-import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
 import { MintUnit } from './currency'
 
 const {
@@ -278,26 +277,17 @@ export const sendFromMintSync = async function (
             }
 
             // move sent proofs to pending and add tx references
-            proofsStore.removeProofs(selectedProofs)            
-            WalletUtils.addCashuProofs(
-                mintUrl, 
-                selectedProofs, 
-                {
-                    unit,
-                    transactionId: transactionId,
-                    isPending: true
-                }                
-            )
-
-            // Clean private properties to not to send them out. This returns plain js array, not model objects.
-            const cleanedProofsToSend = selectedProofs.map(proof => {                
-                const {mintUrl, unit, tId, ...rest} = getSnapshot(proof)
-                return rest                
+            proofsStore.addOrUpdate(selectedProofs, {
+                mintUrl,
+                unit,
+                tId: transactionId,
+                isPending: true,
+                isSpent: false
             })
 
             // We return cleaned proofs to be encoded as a sendable token
             return {
-                proofs: cleanedProofsToSend, 
+                proofs: CashuUtils.exportProofs(selectedProofs), 
                 swapFeeReserve: 0, 
                 swapFeePaid: 0
             }
@@ -420,15 +410,13 @@ export const sendFromMintSync = async function (
             log.trace('[sendFromMintSync] add returned proofs to spendable')
             
             if(returnedProofs.length > 0) {
-                WalletUtils.addCashuProofs(
+                proofsStore.addOrUpdate(returnedProofs, {
                     mintUrl,
-                    returnedProofs,
-                    {
-                        unit,
-                        transactionId,
-                        isPending: false
-                    }
-                ) 
+                    unit,
+                    tId: transactionId,
+                    isPending: false,
+                    isSpent: false
+                })
             }          
             
         } else {        
@@ -448,19 +436,22 @@ export const sendFromMintSync = async function (
         }      
 
         // remove used proofs and move sent proofs to pending
-        proofsStore.removeProofs(proofsToSendFrom)
-        
-        WalletUtils.addCashuProofs(            
+        proofsStore.addOrUpdate(proofsToSendFrom, {
             mintUrl,
-            proofsToSend,
-            {
-                unit,
-                transactionId,
-                isPending: true
-            }       
-        )        
+            unit,
+            tId: transactionId,
+            isPending: false,
+            isSpent: true
+        })
 
-        
+        proofsStore.addOrUpdate(proofsToSendFrom, {
+            mintUrl,
+            unit,
+            tId: transactionId,
+            isPending: true,
+            isSpent: false
+        })     
+
         // We return cleaned proofs to be encoded as a sendable token + fees
         return {
             proofs: proofsToSend,

@@ -150,7 +150,7 @@ export const topupTask = async function (
                     mintQuote,
                     async (m: MintQuoteResponse) => {
                         log.trace(`Websocket: mint quote PAID: ${m.quote}`)
-                        WalletTask.handlePendingTopupQueue({transaction} as {transaction: Transaction})
+                        WalletTask.handlePendingQueue()
                         unsub()                        
                     },
                     async (error: any) => {
@@ -165,7 +165,7 @@ export const topupTask = async function (
 
                 poller(
                     `handlePendingTopupPoller-${paymentHash}`, 
-                    WalletTask.handlePendingTopupQueue,
+                    WalletTask.handlePendingQueue,
                     {
                         interval: 10 * 1000,
                         maxPolls: 6,

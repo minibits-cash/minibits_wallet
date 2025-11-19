@@ -26,7 +26,7 @@ const normalizeTransactionRows = function(rows: any) {
 
 let _db: QuickSQLiteConnection
 
-const _dbVersion = 22 // Update this if db changes require migrations
+const _dbVersion = 23 // Update this if db changes require migrations
 
 const getInstance = function () {
   if (!_db) {
@@ -89,6 +89,9 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
         amount INTEGER NOT NULL,
         secret TEXT PRIMARY KEY NOT NULL,
         C TEXT NOT NULL,
+        dleq_r TEXT,
+        dleq_s TEXT,
+        dleq_e TEXT,
         unit TEXT,
         tId INTEGER,
         mintUrl TEXT,
@@ -178,6 +181,25 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
       ])
 
       log.info(`Prepared database migrations from ${currentVersion} -> 22`)
+    }
+
+    if (currentVersion < 23) {
+      migrationQueries.push([
+        `ALTER TABLE proofs
+         ADD COLUMN dleq_r TEXT` 
+      ])
+
+      migrationQueries.push([
+        `ALTER TABLE proofs
+         ADD COLUMN dleq_s TEXT` 
+      ])
+
+      migrationQueries.push([
+        `ALTER TABLE proofs
+         ADD COLUMN dleq_e TEXT` 
+      ])
+
+      log.info(`Prepared database migrations from ${currentVersion} -> 23`)
     }
 
     // Update db version as a part of migration sqls
@@ -271,19 +293,6 @@ const updateTransaction = function (id: number, fields: Partial<Transaction>): T
   const allowedColumns = ['amount','fee','unit','data','sentFrom','sentTo','profile','memo','paymentId','quote','paymentRequest','zapRequest','inputToken','outputToken','proof','balanceAfter','noteToSelf','tags','status','expiresAt'];
   
   try {
-    // Normalize data types for sqlite
-    for (const key in fields) {
-      const value = fields[key]
-    
-      if (value === '') {
-        fields[key] = null
-      }
-    
-      if (isDate(value)) {
-        fields[key] = value.toISOString()
-      }
-    }
-
     // Filter keys against allowed columns
     const validKeys = Object.keys(fields).filter(key => allowedColumns.includes(key))        
     
@@ -294,7 +303,7 @@ const updateTransaction = function (id: number, fields: Partial<Transaction>): T
 
     // Build SET clauses and parameters
     const setClauses = validKeys.map(key => `${key} = ?`)
-    const params = validKeys.map(key => fields[key])
+    const params = validKeys.map(key => fields[key as keyof Transaction])
     params.push(id) // Add id at the end for WHERE clause
 
     const query = `
@@ -769,7 +778,7 @@ const deleteTransactionById = function (id: number) {
 }
 
 /*
- * Proofs - backup of store model
+ * Proofs
  */
 const addOrUpdateProof = function (
   proof: Proof,
@@ -780,14 +789,18 @@ const addOrUpdateProof = function (
     const now = new Date()
 
     const query = `
-      INSERT OR REPLACE INTO proofs (id, amount, secret, C, tId, mintUrl, isPending, isSpent, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO proofs (id, amount, secret, C, dleq_r, dleq_s, dleq_e, unit, tId, mintUrl, isPending, isSpent, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
     const params = [
       proof.id,
       proof.amount,
       proof.secret,
       proof.C,
+      proof.dleq ? proof.dleq.r : null,
+      proof.dleq ? proof.dleq.s : null,
+      proof.dleq ? proof.dleq.e : null,
+      proof.unit,
       proof.tId,
       proof.mintUrl,
       isPending,
@@ -826,14 +839,18 @@ const addOrUpdateProofs = function (
 
     for (const proof of proofs) {
       insertQueries.push([
-        ` INSERT OR REPLACE INTO proofs (id, amount, secret, C, unit, tId, mintUrl, isPending, isSpent, updatedAt)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `
+          INSERT OR REPLACE INTO proofs (id, amount, secret, C, dleq_r, dleq_s, dleq_e, unit, tId, mintUrl, isPending, isSpent, updatedAt)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           proof.id,
           proof.amount,
           proof.secret,
           proof.C,
+          proof.dleq ? proof.dleq.r : null,
+          proof.dleq ? proof.dleq.s : null,
+          proof.dleq ? proof.dleq.e : null,
           proof.unit,
           proof.tId,
           proof.mintUrl,
@@ -842,15 +859,11 @@ const addOrUpdateProofs = function (
           now.toISOString(),
         ],
       ])
-    }
-
-    // log.trace('[addOrUpdateProofs]', {insertQueries})
+    }    
 
     // Execute the batch of SQL statements
     const db = getInstance()
-    const {rowsAffected} = db.executeBatch(insertQueries)
-
-    // const totalAmount = CashuUtils.getProofsAmount(proofs)
+    const {rowsAffected} = db.executeBatch(insertQueries)    
     
     // DO NOT log proof secrets to Sentry
     log.info('[addOrUpdateProofs]',
@@ -864,31 +877,6 @@ const addOrUpdateProofs = function (
     throw new AppError(
       Err.DATABASE_ERROR,
       'Could not store proofs into the database',
-      e.message,
-    )
-  }
-}
-
-// migration
-const updateProofsMintUrlMigration = function (id: string, mintUrl: string) {
-  try {
-    const query = `
-      UPDATE proofs
-      SET mintUrl = ?
-      WHERE id = ?      
-    `
-    const params = [mintUrl, id]
-
-    const db = getInstance()
-    db.execute(query, params)
-    
-    log.debug('[updateMintUrl]', 'Proof mintUrl updated', {id, mintUrl})
-
-    
-  } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not update proof mintUrl in database',
       e.message,
     )
   }
@@ -1037,26 +1025,6 @@ const getProofsByTransaction = function (transactionId: number): ProofRecord[] {
 }
 
 
-const updateProofsToDefaultUnit = async function () {
-  try {   
-
-    const query = `
-      UPDATE proofs
-      SET unit = ?
-      WHERE unit IS NULL OR unit = ''     
-    `
-    const params = ['sat']
-
-    const _db = getInstance()
-    const result = await _db.executeAsync(query, params)
-
-    log.info('[migrateProofsToDefaultUnit] executed in the database', {result})
-
-  } catch (e: any) {
-    throw new AppError(Err.DATABASE_ERROR, 'Could not migrateProofsToDefaultUnit  in database', e.message)
-  }
-}
-
 export const Database = {
   getInstance,
   getDatabaseVersion,
@@ -1078,12 +1046,10 @@ export const Database = {
   deleteTransactionById,
   getPendingAmount,
   addOrUpdateProof,
-  addOrUpdateProofs,
-  updateProofsMintUrlMigration,
+  addOrUpdateProofs,  
   updateProofsMintUrl,
   removeAllProofs,
   getProofById,
   getProofs,
-  getProofsByTransaction,
-  updateProofsToDefaultUnit
+  getProofsByTransaction,  
 }

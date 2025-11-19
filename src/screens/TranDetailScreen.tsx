@@ -1202,7 +1202,7 @@ const SendInfoBlock = function (props: {
           throw new AppError(Err.VALIDATION_ERROR, message)          
         }
         
-        const pendingProofs = proofsStore.getByTransactionId(transaction.id!, true)
+        const pendingProofs = proofsStore.getByTransactionId(transaction.id)
 
         if(pendingProofs.length === 0) {
           const message = 'Could not get proofs related to the transaction from wallet state.'
@@ -1454,10 +1454,7 @@ const TopupInfoBlock = function (props: {
       }
 
       setIsPendingTopupTaskSentToQueue(true)
-      WalletTask.handlePendingTopupQueue(
-          {transaction}
-      )
-
+      WalletTask.handlePendingQueue()
   }
 
   const onGoBack = () => {
@@ -1712,14 +1709,11 @@ const TransferInfoBlock = function (props: {
     try {
       log.trace('[onRevertPreparedTransfer]', {tId: transaction.id})
       
-      const pendingProofs = proofsStore.getByTransactionId(transaction.id!, true) // PREPARED should always pending
+      const pendingProofs = proofsStore.getByTransactionId(transaction.id) // PREPARED should always pending
       const transactionData = getAuditTrail(transaction)
 
-      if(pendingProofs.length > 0) {
-        // remove it from pending proofs in the wallet
-        proofsStore.removeProofs(pendingProofs, true, true)
-        // add proofs back to the spendable wallet                
-        proofsStore.addProofs(pendingProofs)
+      if(pendingProofs.length > 0) {               
+        proofsStore.revertToSpendable(pendingProofs)
       }
       
       const message = 'Ecash has been returned to spendable balance.'

@@ -442,7 +442,7 @@ export const MintModel = types
         },
         get proofsCountersWithInFlightRequests(): MintProofsCounter[] {            
             const counters = self.proofsCounters.filter(c => c.inFlightRequests && c.inFlightRequests.length > 0)                       
-            return counters as MintProofsCounter[]
+            return counters || [] as MintProofsCounter[]
         },
         get allInFlightRequests(): InFlightRequest[] {            
             const requests = self.proofsCounters

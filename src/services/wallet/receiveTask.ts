@@ -588,17 +588,15 @@ export const receiveSync = async function (
         }
         
         const receivedProofs = receivedResult!.proofs
-        const swapFeePaid = receivedResult!.swapFeePaid       
-       
-        const { addedAmount: receivedAmount } = WalletUtils.addCashuProofs(
-            mintToReceive,
-            receivedProofs,
-            {
-                unit,
-                transactionId: transactionId,
-                isPending: false
-            }                    
-        )        
+        const swapFeePaid = receivedResult!.swapFeePaid
+        
+        const { updatedAmount: receivedAmount } = proofsStore.addOrUpdate(receivedProofs, {
+            mintUrl: mintToReceive,
+            unit,
+            tId: transactionId,
+            isPending: false,
+            isSpent: false
+        })       
 
         // store swapped proofs as encoded token in tx data        
         const outputToken = getEncodedToken({

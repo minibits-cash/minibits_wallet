@@ -35,7 +35,7 @@ const unit = transaction.unit as MintUnit
 
 try {
     
-    const pendingProofs = proofsStore.getByTransactionId(transaction.id!, true)
+    const pendingProofs = proofsStore.getByTransactionId(transaction.id)
 
     if(pendingProofs.length === 0) {
     throw new AppError(Err.VALIDATION_ERROR, 'Missing proofs to swap')
@@ -73,18 +73,16 @@ try {
       })
       
       // Remove original pending proofs
-      proofsStore.removeProofs(pendingProofs, true, false)
+      proofsStore.moveToSpent(pendingProofs)
      
       // add fresh proofs to spendable wallet
-      const { addedAmount: receivedAmount } = WalletUtils.addCashuProofs(
-          mintInstance.mintUrl,
-          receivedProofs,
-          {
-              unit,
-              transactionId: transaction.id!,
-              isPending: false
-          }                    
-      )
+      const { updatedAmount: receivedAmount } = proofsStore.addOrUpdate(receivedProofs, {
+        mintUrl: mintInstance.mintUrl,
+        unit,
+        tId: transaction.id,
+        isPending: false,
+        isSpent: false
+      })
 
       // Update transaction status
       transactionData.push({

@@ -126,8 +126,8 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
                 const pendingCount = proofsStore.pendingProofsCount.valueOf()
 
                 if(pendingCount > 0) {
-                  // remove pending proofs from state and move them to spent in the db
-                  proofsStore.removeProofs(pending, true, false) 
+                  // move pending to spent
+                  proofsStore.moveToSpent(pending) 
                 }
 
                 syncTransactionsFromDb()                
@@ -166,9 +166,8 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
                 const pendingCount = proofsStore.pendingProofsCount.valueOf()                
 
                 if(pendingCount > 0) {
-                  // force move pending proofs to spendable wallet
-                  proofsStore.removeProofs(pending, true, true)
-                  proofsStore.addProofs(pending)
+                  // force move pending proofs to spendable wallet                  
+                  proofsStore.revertToSpendable(pending)
                 }                     
 
                 setIsLoading(false)

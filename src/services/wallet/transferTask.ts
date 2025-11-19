@@ -148,17 +148,16 @@ export const transferTask = async function (
             proofsToMeltFromAmount = CashuUtils.getProofsAmount(proofsToMeltFrom)
         }
 
-        // move proofs to PENDING state
-        proofsStore.removeProofs(proofsToMeltFrom)
-        WalletUtils.addCashuProofs(
-            mintUrl, 
-            proofsToMeltFrom, 
+        // move proofs to PENDING state and link them to current tx
+        proofsStore.addOrUpdate(proofsToMeltFrom,
             {
+                mintUrl,
+                tId: transaction.id,
                 unit,
-                transactionId: transaction.id,
-                isPending: true
-            }                
-        )        
+                isPending: true,
+                isSpent: false
+            }
+        )       
 
         log.trace('[transfer]', 'Prepared proofsToMeltFrom proofs', {
             proofsToMeltFromAmount,             
@@ -218,8 +217,8 @@ export const transferTask = async function (
                 transactionId
             })
 
-            // Spend pending proofs that were used to settle the lightning invoice
-            proofsStore.removeProofs(proofsToMeltFrom as Proof[], true, false)
+            // Spend pending proofs that were used to settle the lightning invoice            
+            proofsStore.moveToSpent(proofsToMeltFrom)
 
             // compute fees and change
             let totalFeePaid = proofsToMeltFromAmount - amountToTransfer
@@ -231,14 +230,14 @@ export const transferTask = async function (
 
             if(meltResponse.change.length > 0) {
 
-                WalletUtils.addCashuProofs(
-                    mintUrl, 
-                    meltResponse.change, 
+                proofsStore.addOrUpdate(meltResponse.change,
                     {
+                        mintUrl,
+                        tId: transaction.id,
                         unit,
-                        transactionId: transaction.id,
-                        isPending: false
-                    }                
+                        isPending: false,
+                        isSpent: false
+                    }
                 )
         
                 outputToken = getEncodedToken({
@@ -350,18 +349,18 @@ export const transferTask = async function (
                     let recoveredChangeAmount = 0
 
                     if(change && change.length > 0) {
-            
-                        const {addedAmount} = WalletUtils.addCashuProofs(
-                            mintUrl as string,
-                            change,
+
+                        const {updatedAmount} = proofsStore.addOrUpdate(change,
                             {
+                                mintUrl,
+                                tId: transaction.id,
                                 unit,
-                                transactionId: transaction.id,
-                                isPending: false               
+                                isPending: false,
+                                isSpent: false
                             }
                         )
 
-                        recoveredChangeAmount += addedAmount
+                        recoveredChangeAmount += updatedAmount
                     }
 
                     log.error('[transfer]', message, {
@@ -410,9 +409,8 @@ export const transferTask = async function (
                         })
                         
                     } else {
-                        // if melt quote is UNPAID return proofs from pending to spendable balance
-                        proofsStore.removeProofs(proofsToMeltFrom, true, true)
-                        proofsStore.addProofs(proofsToMeltFrom)
+                        // if melt quote is UNPAID return proofs from pending to spendable balance                        
+                        proofsStore.revertToSpendable(proofsToMeltFrom)
 
                         message = "Ecash reserved for this payment was returned to spendable balance."
 

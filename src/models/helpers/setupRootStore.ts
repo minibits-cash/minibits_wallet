@@ -53,6 +53,12 @@ export async function setupRootStore(rootStore: RootStore) {
         // log.trace({restoredState})
         log.trace('[setupRootStore]', `Loading ${dataSize.toLocaleString()} bytes of state from MMKV took ${(mmkvLoaded - start).toLocaleString()} ms.`)        
         
+        // temp dirty migration of proofStore from array to map
+        if(restoredState?.proofsStore?.proofs && Array.isArray(restoredState.proofsStore.proofs)) {           
+            restoredState.proofsStore.proofs = {}
+            restoredState.proofsStore.pendingProofs = {}
+        }
+
         applySnapshot(rootStore, restoredState)        
         
         const stateHydrated = performance.now()
@@ -121,66 +127,7 @@ async function _runMigrations(rootStore: RootStore) {
     
     let currentVersion = rootStore.version
 
-    try {       
-        
-        if(currentVersion < 16) {
-            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v16`)
-            try {                
-
-                for (const mint of mintsStore.allMints) {
-                    try {                    
-                        mint.setId() 
-                        log.trace('[_runMigrations]', {id: mint.id, mintUrl: mint.mintUrl})                       
-                    } catch (e: any) {
-                        log.warn('[_runMigrations]', e.message)
-                        continue
-                    }
-                }
-
-                log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
-                rootStore.setVersion(rootStoreModelVersion)
-            } catch (e: any) {
-                log.warn('[setupRootStore] Migration error', {message: e.name})
-            }
-        }
-
-        if(currentVersion < 23) {
-            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v23`)            
-            // walletProfileStore.setIsBatchClaimOn(false)
-            rootStore.setVersion(rootStoreModelVersion)
-            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
-        }
-
-        if(currentVersion < 24) {
-            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v24`)            
-            userSettingsStore.setLogLevel(LogLevel.ERROR)
-            rootStore.setVersion(rootStoreModelVersion)
-            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
-        }
-        if(currentVersion < 28) {
-            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v28`)
-
-            userSettingsStore.setExchangeCurrency(CurrencyCode.USD)
-            userSettingsStore.setTheme(ThemeCode.DEFAULT)
-
-            /* if(!userSettingsStore.isLocalBackupOn) {
-                const proofs = proofsStore.allProofs
-                const pendingProofs = proofsStore.pendingProofs
-
-                Database.addOrUpdateProofs(proofs, false, false)
-                Database.addOrUpdateProofs(pendingProofs, true, false)
-                userSettingsStore.setIsLocalBackupOn(true)
-            }*/
-            
-            for (const mint of mintsStore.allMints) {
-                for(const keysetId of mint.keysetIds) {
-                    Database.updateProofsMintUrlMigration(keysetId, mint.mintUrl)
-                }                
-            }
-
-            rootStore.setVersion(rootStoreModelVersion)
-            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
-        }
+    try {
         if(currentVersion < 29) {
             log.trace(`Starting rootStore migrations from version v${currentVersion} -> v29`)
 
@@ -191,9 +138,9 @@ async function _runMigrations(rootStore: RootStore) {
         }
     } catch (e: any) {
         throw new AppError(
-        Err.STORAGE_ERROR,
-        'Error when executing rootStore migrations',
-        e.message,
+            Err.STORAGE_ERROR,
+            'Error when executing rootStore migrations',
+            e.message,
         )    
     }
 
