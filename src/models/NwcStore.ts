@@ -28,7 +28,7 @@ import { addSeconds } from 'date-fns/addSeconds'
 import { Transaction, TransactionStatus, TransactionType } from './Transaction'
 import { MeltQuoteResponse } from '@cashu/cashu-ts'
 import { WalletStore } from './WalletStore'
-import { Proofs } from './ProofsStore'
+import { ProofsStore } from './ProofsStore'
 import { isSameDay } from 'date-fns/isSameDay'
 import { NotificationService } from '../services/notificationService'
 import { roundUp } from '../utils/number'
@@ -118,7 +118,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         const {walletProfileStore} = rootStore
         return walletProfileStore
     },
-    getProofsStore (): Proofs {  
+    getProofsStore (): ProofsStore {  
         const rootStore = getRootStore(self)
         const {proofsStore} = rootStore
         return proofsStore

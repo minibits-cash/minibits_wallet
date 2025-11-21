@@ -30,6 +30,7 @@ export const BackupOptionsScreen = observer(function () {
     }
 
     const gotoMnemonic = function () {
+      //@ts-ignore
         navigation.navigate('Mnemonic')
     }
 

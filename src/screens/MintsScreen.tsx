@@ -223,10 +223,10 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
                     setIsMintMenuVisible(false)
                     mintsStore.removeMint(selectedMint as Mint)
                     if (proofsByMint && proofsByMint.length > 0) {
-                        proofsStore.removeProofs(proofsByMint)           
+                        proofsStore.moveToSpent(proofsByMint)           
                     }
                     if (pendingProofsByMint && pendingProofsByMint.length > 0) {
-                        proofsStore.removeProofs(pendingProofsByMint, true)           
+                        proofsStore.moveToSpent(pendingProofsByMint)           
                     }
                     setInfo(translate('mintsScreen_mintRemoved'))
                 } catch (e: any) {

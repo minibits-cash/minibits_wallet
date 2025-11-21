@@ -64,7 +64,7 @@ export const QRCodeBlock = function (props: {
 
 
     useEffect(() => {
-      let qrCodeInterval: NodeJS.Timeout
+      let qrCodeInterval: NodeJS.Timeout | number
 
       if (isAnimating) {
         setIsLoadingQRCode(true)
