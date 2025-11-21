@@ -56,7 +56,6 @@ export async function setupRootStore(rootStore: RootStore) {
         // temp dirty migration of proofStore from array to map
         if(restoredState?.proofsStore?.proofs && Array.isArray(restoredState.proofsStore.proofs)) {           
             restoredState.proofsStore.proofs = {}
-            restoredState.proofsStore.pendingProofs = {}
         }
 
         applySnapshot(rootStore, restoredState)        
@@ -75,8 +74,9 @@ export async function setupRootStore(rootStore: RootStore) {
             await authStore.loadTokensFromKeyChain()
         }
 
-        // hydrate ecash proofs to model from database
+        // hydrate unspent and pending ecash proofs to model from database
         await proofsStore.loadProofsFromDatabase()
+        // hydrate last transactions from database
         await transactionsStore.loadRecentFromDatabase()
         
         const proofsLoaded = performance.now()

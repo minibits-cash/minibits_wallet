@@ -84,28 +84,11 @@ export const topupTask = async function (
             timestamp
         } = LightningUtils.getInvoiceData(decodedInvoice)
 
-        // sender is current wallet profile
-        const {
-            pubkey,
-            npub,
-            name,
-            nip05,
-            picture,
-        } = walletProfileStore
-
-        const contactFrom: Contact = {
-            pubkey,
-            npub,
-            name,
-            nip05,
-            picture
-        }
-
         // Private contacts are stored in model, public ones are plain objects
         // contactToSendTo is to whom to send the request
         const contactTo = isStateTreeNode(contactToSendTo) ? getSnapshot(contactToSendTo) : contactToSendTo
 
-        // Bulk update quote, paymentId, paymentRequest, expiresAt, sentFrom, sentTo
+        // Bulk tx update
         let expiresAtDate: Date | undefined = undefined
         if(expiry && expiry > 0) {
             expiresAtDate = addSeconds(new Date(timestamp * 1000), expiry)
@@ -115,18 +98,7 @@ export const topupTask = async function (
         
         const sentFromValue = contactTo?.nip05 || contactTo?.name || ''
         const sentToValue = walletProfileStore.nip05 || ''
-
-        log.trace('[topupTask]', expiresAtDate)
-
-        transaction.update({
-            quote: mintQuote,
-            paymentId: paymentHash,
-            paymentRequest: encodedInvoice,
-            expiresAt: expiresAtDate,
-            sentFrom: sentFromValue,
-            sentTo: sentToValue
-        })
-
+        
         log.trace('[topupTask] invoice', {amount, paymentHash, expiry, timestamp, expiresAtDate})
 
         transactionData.push({
@@ -135,11 +107,18 @@ export const topupTask = async function (
             createdAt: new Date()
         })
 
-        // Update status and data in one call
-        transaction.update({
+        const updateData = {
+            quote: mintQuote,
+            paymentId: paymentHash,
+            paymentRequest: encodedInvoice,
+            expiresAt: expiresAtDate,
+            sentFrom: sentFromValue,
+            sentTo: sentToValue,
             status: TransactionStatus.PENDING,
             data: JSON.stringify(transactionData)
-        })
+        }
+
+        transaction.update(updateData)
 
         if(!nwcEvent) {
             const wsMint = new CashuMint(mintUrl)

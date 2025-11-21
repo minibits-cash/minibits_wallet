@@ -35,6 +35,7 @@ import { MintsStoreSnapshot } from '../models/MintsStore'
 import { ContactsStoreSnapshot } from '../models/ContactsStore'
 import { CashuMint, MintActiveKeys } from '@cashu/cashu-ts'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+import { Proof, ProofModel } from '../models/Proof'
 
 type Props = StaticScreenProps<undefined>
 
@@ -60,7 +61,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
     const [backup, setBackup] = useState<string>('')
     const [isValidBackup, setIsValidBackup] = useState(false)    
     const [walletSnapshot, setWalletSnapshot] = useState<{
-      proofsStore: ProofsStoreSnapshot,
+      proofsStore: {proofs: Proof[], pendingByMintSecrets: string[]},
       mintsStore: MintsStoreSnapshot,
       contactsStore: ContactsStoreSnapshot,      
     } | undefined>(undefined) // type tbd
@@ -135,7 +136,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
             
             // try to load as json
             const snapshot = JSON.parse(decoded) as {
-                proofsStore: ProofsStoreSnapshot,
+                proofsStore: {proofs: Proof[], pendingByMintSecrets: string[]},
                 mintsStore: MintsStoreSnapshot,
                 contactsStore: ContactsStoreSnapshot,            
             }
@@ -197,7 +198,15 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
           }
         }
   
-        applySnapshot(proofsStore, walletSnapshot.proofsStore)
+        // applySnapshot(proofsStore, walletSnapshot.proofsStore)
+        for (const proof of walletSnapshot.proofsStore.proofs) {
+          proofsStore.proofs.put(
+            ProofModel.create(proof)
+          )
+        }
+        for(const secret of walletSnapshot.proofsStore.pendingByMintSecrets) {
+          proofsStore.pendingByMintSecrets.push(secret)
+        }
         applySnapshot(mintsStore, walletSnapshot.mintsStore)
         applySnapshot(contactsStore, walletSnapshot.contactsStore)        
 

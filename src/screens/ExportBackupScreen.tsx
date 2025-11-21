@@ -207,8 +207,7 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
           setIsLoading(true)  
 
           let exportedProofsStore: ProofsStoreSnapshot = {
-              proofs: [], 
-              pendingProofs: [], 
+              proofs: [],               
               pendingByMintSecrets: []
           }
 
@@ -228,14 +227,10 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
 
           if(isEcashInBackup) {
             // proofsStore is emptied in snapshot postprocess!
-            const proofsSnapshot = getSnapshot(proofsStore.proofs)
-
-            // Do not include orphaned proofs as they can not be imported without mintUrl
-            const cleaned = proofsSnapshot.filter(p => p.mintUrl && p.mintUrl.length > 0)
+            const proofsSnapshot = Array.from(proofsStore.proofs.values())
 
             exportedProofsStore = {
-              proofs: cleaned,
-              pendingProofs: getSnapshot(proofsStore.pendingProofs) || [],
+              proofs: proofsSnapshot,
               pendingByMintSecrets: getSnapshot(proofsStore.pendingByMintSecrets)
             }              
           }
@@ -326,7 +321,7 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
             setInfo(translate("missingMintsForProofsUserMessage"))
           }
 
-          const groupedByMint = groupProofsByMint(proofsStore.proofs)
+          const groupedByMint = groupProofsByMint(Array.from(proofsStore.proofs.values()))
 
           for (const mint in groupedByMint) { 
             

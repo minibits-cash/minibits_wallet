@@ -169,7 +169,7 @@ export const TransactionsStoreModel = types
 
     .actions(self => ({
         // ── Main add (push + safe prune) ──
-        addTransaction: flow(function* addTransaction(newTxData: any) {
+        addTransaction: flow(function* addTransaction(newTxData: Partial<Transaction>) {
             const dbTx: Transaction = yield Database.addTransactionAsync(newTxData)
             const tx = TransactionModel.create(dbTx)
 

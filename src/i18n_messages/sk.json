@@ -177,7 +177,7 @@
 	"importBackupWalletProfileNotFound": "Profil peňaženky pripojený k poskytnutému seedu nebol nájdený, nový bude vytvorený pre vás.",
 	"importBackupWalletRecovery": "Obnova peňaženky",
 	"increaseRecoveryIndexes": "Navýšiť indexy pre obnovenie",
-	"increaseRecoveryIndexesDesc": "Po nekompletnej obnove pomocou seed kľúča alebo po inej chybe sa môžeš stretnúť s duplicate outputs chybou pri poslaní ecash. Toto nastaví indexy obnovenia na vyššiu hodnotu, čo vyrieši tento problém.",
+	"increaseRecoveryIndexesDesc": "Po nekompletnej obnove pomocou seed kľúča alebo po inej chybe sa môžeš stretnúť s outputs have already been signed chybou pri poslaní ecash. Toto nastaví indexy obnovenia na vyššiu hodnotu, čo vyrieši tento problém.",
 	"invalidRelayUrl": "Neplatná relay URL adresa.",
 	"lightningAddress": "Lightning adresa",
 	"lightningInvoiceSharedWaiting": "Lightning invoice bola vyzdieľaná, čaká na zaplatenie príjemcom.",

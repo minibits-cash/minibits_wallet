@@ -480,77 +480,84 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
 
     const renderUnitTabs = function ({ route }: { route: { key: string } }) {
         const unitMints = groupedMints.find((mintUnit) => mintUnit.unit === route.key)
+                
+        // log.trace('[renderUnitTabs]', {unitMints, balance: balances.unitBalances.find((balance) => balance.unit === unitMints?.unit)})
+        // log.warn({balances})
         
-        //log.trace('[renderUnitTabs]', {recentByUnit: transactionsStore.getRecentByUnit(unitMints!.unit), unit: unitMints!.unit})
-        
-        if (unitMints) {            
-            return (
-            <>
-                <View style={[
-                    $headerContainer, {
-                        backgroundColor: headerBg, 
-                        paddingTop: spacing.small,
-                    }
-                ]}>
-                    <UnitBalanceBlock                            
-                        unitBalance={balances.unitBalances.find((balance) => balance.unit === unitMints.unit)!}
-                    />
-                    <Pressable                         
-                        onPress={toggleMintsModal}
-                    >                        
-                        <MintsByUnitSummary 
-                            mintsByUnit={unitMints}
-                            navigation={navigation}
-                        />
-                    </Pressable>
-                </View>
-                <View style={$tabContainer}>                           
-                    {transactionsStore.getRecentByUnit(unitMints.unit).length > 0 ? (
-                        <Card                                    
-                            ContentComponent={                                            
-                                <FlatList
-                                    data={transactionsStore.getRecentByUnit(unitMints.unit) as Transaction[]}
-                                    renderItem={({item, index}) => {
-                                        return (
-                                            <TransactionListItem
-                                                key={item.id}
-                                                transaction={item}
-                                                isFirst={index === 0}
-                                                isTimeAgoVisible={true}                                                
-                                            />
-                                        )}
-                                    }                                        
-                                />                                            
+        if (unitMints?.mints && unitMints?.mints.length > 0) {
+            
+            const unitBalance = balances.unitBalances.find((balance) => balance.unit === unitMints.unit)
+            log.trace('[renderUnitTabs]', {unitBalance})
+
+            if(unitBalance) {
+                return (
+                    <>
+                        <View style={[
+                            $headerContainer, {
+                                backgroundColor: headerBg, 
+                                paddingTop: spacing.small,
                             }
-                            style={[$card, {paddingVertical: spacing.extraSmall}]}
-                        />
-                    ) : (
-                        <Card                                
-                            ContentComponent={
-                                <ListItem 
-                                    leftIcon='faArrowTurnDown'
-                                    leftIconColor={colors.palette.green400}
-                                    tx='walletScreen_startByFunding'
-                                    textStyle={{fontSize: moderateScale(14)}}
-                                    RightComponent={
-                                        <View style={$rightContainer}>
-                                            <Button 
-                                                preset='secondary'
-                                                text={`Topup`}
-                                                onPress={() => gotoTopup()}
-                                            />
-                                        </View>
-                                    }
+                        ]}>
+                            <UnitBalanceBlock                            
+                                unitBalance={unitBalance}
+                            />
+                            <Pressable                         
+                                onPress={toggleMintsModal}
+                            >                        
+                                <MintsByUnitSummary 
+                                    mintsByUnit={unitMints}
+                                    navigation={navigation}
                                 />
-                            }                                
-                            style={[$card, {paddingTop: spacing.extraSmall, minHeight: 80}]}
-                        />
-                    )}
-                </View>                
-            </>
-          )
+                            </Pressable>
+                        </View>
+                        <View style={$tabContainer}>                           
+                            {transactionsStore.getRecentByUnit(unitMints.unit).length > 0 ? (
+                                <Card                                    
+                                    ContentComponent={                                            
+                                        <FlatList
+                                            data={transactionsStore.getRecentByUnit(unitMints.unit) as Transaction[]}
+                                            renderItem={({item, index}) => {
+                                                return (
+                                                    <TransactionListItem
+                                                        key={item.id}
+                                                        transaction={item}
+                                                        isFirst={index === 0}
+                                                        isTimeAgoVisible={true}                                                
+                                                    />
+                                                )}
+                                            }                                        
+                                        />                                            
+                                    }
+                                    style={[$card, {paddingVertical: spacing.extraSmall}]}
+                                />
+                            ) : (
+                                <Card                                
+                                    ContentComponent={
+                                        <ListItem 
+                                            leftIcon='faArrowTurnDown'
+                                            leftIconColor={colors.palette.green400}
+                                            tx='walletScreen_startByFunding'
+                                            textStyle={{fontSize: moderateScale(14)}}
+                                            RightComponent={
+                                                <View style={$rightContainer}>
+                                                    <Button 
+                                                        preset='secondary'
+                                                        text={`Topup`}
+                                                        onPress={() => gotoTopup()}
+                                                    />
+                                                </View>
+                                            }
+                                        />
+                                    }                                
+                                    style={[$card, {paddingTop: spacing.extraSmall, minHeight: 80}]}
+                                />
+                            )}
+                        </View>                
+                    </>            
+                )
+            }
         }
-        return null;
+        return null
     }
 
     const tabWidth = moderateScale(75)

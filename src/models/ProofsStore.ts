@@ -15,6 +15,7 @@ import {
   import { Database } from '../services'
   import { MintUnit } from '../services/wallet/currency'
 import { CashuProof } from '../services/cashu/cashuUtils'
+import { SerializedDLEQ } from '@cashu/cashu-ts'
   
   export const ProofsStoreModel = types
     .model('ProofsStore', {      
@@ -73,10 +74,10 @@ import { CashuProof } from '../services/cashu/cashuUtils'
         getByMint(
             mintUrl: string,
             options: {
-            isPending?: boolean          
-            unit?: MintUnit
-            keysetIds?: string[]
-            ascending?: boolean
+              isPending?: boolean          
+              unit?: MintUnit
+              keysetIds?: string[]
+              ascending?: boolean
             } = {}
         ): Proof[] {
             let proofs = Array.from(self.proofs.values()).filter(p => !p.isSpent)
@@ -88,13 +89,13 @@ import { CashuProof } from '../services/cashu/cashuUtils'
     
             // Filter by keysetIds
             if (options.keysetIds && options.keysetIds.length > 0) {
-            proofs = proofs.filter(p => options.keysetIds!.includes(p.id))
+              proofs = proofs.filter(p => options.keysetIds!.includes(p.id))
             }
     
             proofs = proofs.filter(p => p.mintUrl === mintUrl)
 
             if (options.unit) {
-            proofs = proofs.filter(p => p.unit === options.unit)
+              proofs = proofs.filter(p => p.unit === options.unit)
             }
     
             return proofs
@@ -105,23 +106,55 @@ import { CashuProof } from '../services/cashu/cashuUtils'
     
         // ───────────────────── ACTIONS ─────────────────────
         .actions(self => ({
-        loadProofsFromDatabase: flow(function* loadProofsFromDatabase() {
-            // Load unspent + pending (you can control via param later)
-            const allProofRecords: ProofRecord[] = yield Database.getProofs(true, true, false)
-    
-            self.proofs.clear()
-    
-            for (const record of allProofRecords) {          
-            const {dleq_e, dleq_r, dleq_s, updatedAt, ...withoutDleq} = record
+            loadProofsFromDatabase: flow(function* loadProofsFromDatabase(includeSpent: boolean = false) {
+                // Load all proofs we care about (unspent + pending + optionally spent)
+                const proofRecords: ProofRecord[] = yield Database.getProofs(
+                  true,   // includeUnspent
+                  true,   // includePending
+                  includeSpent
+                )
 
-            self.proofs.put(ProofModel.create({
-                ...withoutDleq,
-                dleq: record.dleq_s? {r: record.dleq_r, s: record.dleq_s as string, e: record.dleq_e as string} : undefined            
-            }))
-            }
-    
-            log.trace('[loadProofsFromDatabase]', `Loaded ${self.proofs.size} proofs (incl. spent)`)
-        }),
+                // log.trace({proofRecords})
+              
+                self.proofs.clear()
+              
+                for (const record of proofRecords) {
+                  const {
+                    isPending: dbIsPending,   // 0 or 1 from DB
+                    isSpent: dbIsSpent,       // 0 or 1 from DB
+                    dleq_e,
+                    dleq_r,
+                    dleq_s,
+                    updatedAt,
+                    ...coreProof
+                  } = record
+              
+                  // Normalize boolean fields: 0|1|undefined → proper boolean
+                  const isPending = !!dbIsPending
+                  const isSpent = !!dbIsSpent
+              
+                  // Reconstruct DLEQ only if mandatory parts exist
+                  const dleq = dleq_e && dleq_s
+                    ? { e: dleq_e as string, r: dleq_r as string, s: dleq_s as string }
+                    : undefined
+              
+                  self.proofs.put(
+                    ProofModel.create({
+                      ...coreProof,
+                      isPending,
+                      isSpent,
+                      dleq,
+                    })
+                  )
+                }
+              
+                log.trace('[loadProofsFromDatabase]', {
+                  loaded: self.proofs.size,
+                  unspent: Array.from(self.proofs.values()).filter(p => !p.isSpent && !p.isPending).length,
+                  pending: Array.from(self.proofs.values()).filter(p => p.isPending).length,
+                  spent: Array.from(self.proofs.values()).filter(p => p.isSpent).length,
+                })
+              }),
     
         addOrUpdate(
             proofs: CashuProof[] | Proof[], 
@@ -192,20 +225,21 @@ import { CashuProof } from '../services/cashu/cashuUtils'
             }
     
             if (updatedProofs.length > 0) {
-                Database.addOrUpdateProofs(updatedProofs, isPending, false)
+                Database.addOrUpdateProofs(updatedProofs, isPending, isSpent)
             }
     
-            log.trace('[addOrUpdate]', `Added or updated ${updatedProofs.length} ${isPending ? 'pending ' : ''}proofs`)
+            log.trace('[addOrUpdate]', `Added or updated ${updatedProofs.length} ${isPending && 'pending '} ${isSpent && 'spent '} proofs`)
             return { updatedAmount, updatedProofs }
         },
 
         // Only call this when proofs are locally pending (ecash send, melt prepare, etc.)
         // Does NOT touch pendingByMintSecrets
-        moveToPending(proofs: Proof[]) {
-            for (const p of proofs) {
-                if (!p.isSpent) {
-                    p.isPending = true
-                }
+        moveToPending(proofs: Proof[]) {            
+            Database.addOrUpdateProofs(proofs, true, false)
+
+            for (const p of proofs) {                
+                p.isPending = true
+                p.isSpent = false                
             }
         },
 
@@ -213,13 +247,10 @@ import { CashuProof } from '../services/cashu/cashuUtils'
         // This is the ONLY place that should add to pendingByMintSecrets
         registerAsPendingAtMint(proofs: Proof[]) {
             for (const p of proofs) {
-                if (!p.isSpent) {
-                    p.isPending = true
-                }
-                if (!self.pendingByMintSecrets.includes(p.secret)) {
-                    self.pendingByMintSecrets.push(p.secret)
-                }
-            }
+              if (!self.pendingByMintSecrets.includes(p.secret)) {
+                  self.pendingByMintSecrets.push(p.secret)
+              }
+            }            
         },
 
         // Only call this when mint no longer reports PENDING (success or failure)
@@ -227,19 +258,14 @@ import { CashuProof } from '../services/cashu/cashuUtils'
             const set = secrets instanceof Set ? secrets : new Set(secrets)
             self.pendingByMintSecrets.replace(
             self.pendingByMintSecrets.filter(s => !set.has(s)))
-
-            // Optionally also clear local pending flag if you want to be strict
-            // (usually not needed because success → spent, failure → reverted)
-            // for (const s of set) {
-            //   const p = self.proofs.get(s)
-            //   if (p) p.isPending = false
-            // }
         },
 
         moveToSpent(proofs: Proof[]) {
+            Database.addOrUpdateProofs(proofs, false, true)
+
             for (const p of proofs) {
-                p.isSpent = true
                 p.isPending = false
+                p.isSpent = true                
             }
             // Automatically clean if any were in mint-pending list
             const secrets = proofs.map(p => p.secret)
@@ -249,6 +275,8 @@ import { CashuProof } from '../services/cashu/cashuUtils'
         },
 
         revertToSpendable(proofs: Proof[]) {
+            Database.addOrUpdateProofs(proofs, false, false)
+
             for (const p of proofs) {
                 p.isPending = false
                 p.isSpent = false
@@ -288,35 +316,72 @@ import { CashuProof } from '../services/cashu/cashuUtils'
         const unitBalancesMap = new Map<MintUnit, number>()
         const mintPendingMap = new Map<string, MintBalance>()
         const unitPendingMap = new Map<MintUnit, number>()
-  
+      
         const mints = getRootStore(self).mintsStore.allMints
-  
+      
+        // Collect all unique units across all mints
+        const allUnits = new Set<MintUnit>()
         for (const mint of mints) {
-          const zero = Object.fromEntries(mint.units!.map(u => [u, 0])) as Record<MintUnit, number>
-          mintBalancesMap.set(mint.mintUrl, { mintUrl: mint.mintUrl, balances: { ...zero } })
-          mintPendingMap.set(mint.mintUrl, { mintUrl: mint.mintUrl, balances: { ...zero } })
+          if (mint.units) {
+            for (const unit of mint.units) {
+              allUnits.add(unit)
+            }
+          }
         }
-  
+      
+        // Pre-seed unit maps with 0 for all known units → ensures zero values even if no proofs
+        for (const unit of allUnits) {
+          unitBalancesMap.set(unit, 0)
+          unitPendingMap.set(unit, 0)
+        }
+      
+        // Pre-seed mint balances (you already did this correctly)
+        for (const mint of mints) {
+          const zero = Object.fromEntries(
+            (mint.units ?? []).map(u => [u, 0])
+          ) as Record<MintUnit, number>
+      
+          mintBalancesMap.set(mint.mintUrl, {
+            mintUrl: mint.mintUrl,
+            balances: { ...zero },
+          })
+          mintPendingMap.set(mint.mintUrl, {
+            mintUrl: mint.mintUrl,
+            balances: { ...zero },
+          })
+        }
+      
+        // Now process proofs
         for (const proof of self.proofs.values()) {
           if (proof.isSpent) continue
-  
-          const targetMap = proof.isPending ? mintPendingMap : mintBalancesMap
-          const targetUnitMap = proof.isPending ? unitPendingMap : unitBalancesMap
-  
-          const mb = targetMap.get(proof.mintUrl)
-          if (mb) {
-            mb.balances[proof.unit]! += proof.amount
+      
+          const isPending = proof.isPending
+          const targetMintMap = isPending ? mintPendingMap : mintBalancesMap
+          const targetUnitMap = isPending ? unitPendingMap : unitBalancesMap
+      
+          // Update mint-specific balance
+          const mintBalance = targetMintMap.get(proof.mintUrl)
+          if (mintBalance) {
+            mintBalance.balances[proof.unit]! += proof.amount
           }
-          targetUnitMap.set(proof.unit, (targetUnitMap.get(proof.unit) || 0) + proof.amount)
+      
+          // Update global unit balance (safe because pre-seeded)
+          targetUnitMap.set(proof.unit, targetUnitMap.get(proof.unit)! + proof.amount)
         }
-  
+      
         return {
           mintBalances: Array.from(mintBalancesMap.values()),
           mintPendingBalances: Array.from(mintPendingMap.values()),
-          unitBalances: Array.from(unitBalancesMap.entries()).map(([unit, unitBalance]) => ({ unit, unitBalance })),
-          unitPendingBalances: Array.from(unitPendingMap.entries()).map(([unit, unitBalance]) => ({ unit, unitBalance })),
+          unitBalances: Array.from(unitBalancesMap.entries()).map(([unit, unitBalance]) => ({
+            unit,
+            unitBalance,
+          })),
+          unitPendingBalances: Array.from(unitPendingMap.entries()).map(([unit, unitBalance]) => ({
+            unit,
+            unitBalance,
+          })),
         }
-      },
+      }
     }))
   
     .views(self => ({
@@ -353,9 +418,9 @@ import { CashuProof } from '../services/cashu/cashuUtils'
       },
     }))
   
-    // Only persist the array of pending secrets (proofs themselves are in DB)
+    // Only persist the array of pending by mint secrets (proofs are loaded from DB on app start)
     .postProcessSnapshot(snapshot => ({
-      proofs: {}, // never persist full proofs
+      proofs: {},
       pendingByMintSecrets: snapshot.pendingByMintSecrets,
     }))
   

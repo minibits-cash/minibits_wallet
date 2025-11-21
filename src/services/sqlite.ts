@@ -302,13 +302,19 @@ const updateTransaction = function (id: number, fields: Partial<Transaction>): T
     }
 
     // Build SET clauses and parameters
-    const setClauses = validKeys.map(key => `${key} = ?`)
-    const params = validKeys.map(key => fields[key as keyof Transaction])
+    const setClauses = validKeys.map(key => `${key} = ?`).join(', ')
+    const params = validKeys.map(key => {
+      const value = fields[key as keyof Transaction]
+      if (key === 'expiresAt' && value instanceof Date) {
+        return value.toISOString()
+      }
+      return value;
+    })
     params.push(id) // Add id at the end for WHERE clause
 
     const query = `
       UPDATE transactions
-      SET ${setClauses.join(', ')}
+      SET ${setClauses}
       WHERE id = ?
     `
 
@@ -317,7 +323,7 @@ const updateTransaction = function (id: number, fields: Partial<Transaction>): T
 
     const updated = getTransactionById(id) // already normalized
 
-    log.trace('[updateTransaction] Transaction updated in the database', {id: updated.id})
+    log.trace('[updateTransaction] Transaction updated in the database', {id: updated.id, status: updated.status})
 
     return updated as Transaction
   } catch (e: any) {
@@ -634,7 +640,7 @@ const getTransactionBy = function (criteria: { paymentId?: string; quote?: strin
 }
 
 
-const addTransactionAsync = async function (tx: Transaction): Promise<Transaction> {
+const addTransactionAsync = async function (tx: Partial<Transaction>): Promise<Transaction> {
   try {
     const {type, amount, fee, unit, data, memo, mint, status} = tx
     const now = new Date()
@@ -836,6 +842,10 @@ const addOrUpdateProofs = function (
     const now = new Date()
     let insertQueries: SQLBatchTuple[] = []
 
+    if(isPending && isSpent) {
+      throw new Error('Conflicting proof states')
+    }
+
 
     for (const proof of proofs) {
       insertQueries.push([
@@ -867,8 +877,7 @@ const addOrUpdateProofs = function (
     
     // DO NOT log proof secrets to Sentry
     log.info('[addOrUpdateProofs]',
-      `${rowsAffected}${isPending ? ' pending' : ''
-      } proofs were added or updated in the database`,
+      `${rowsAffected}${isPending && ' pending'} ${isSpent && ' spent'} proofs were added or updated in the database`,
       {isPending, isSpent}
     )
 
@@ -876,7 +885,7 @@ const addOrUpdateProofs = function (
   } catch (e: any) {
     throw new AppError(
       Err.DATABASE_ERROR,
-      'Could not store proofs into the database',
+      'Could not insert or update proofs into the database',
       e.message,
     )
   }
@@ -943,64 +952,49 @@ const getProofById = function (id: number) {
   }
 }
 
-const getProofs = async function (
-  isUnspent: boolean,
-  isPending: boolean,
-  isSpent: boolean,
-): Promise<ProofRecord[]> {
-  let query: string = ''
+const getProofs = async (
+  includeUnspent: boolean,
+  includePending: boolean,
+  includeSpent: boolean,
+): Promise<ProofRecord[]> => {
+  // If nothing is requested, return empty array early
+  if (!includeUnspent && !includePending && !includeSpent) {
+    return [];
+  }
+
+  const conditions: string[] = [];
+
+  if (includeUnspent) {
+    conditions.push('(isPending = 0 AND isSpent = 0)');
+  }
+  if (includePending) {
+    conditions.push('(isPending = 1 AND isSpent = 0)');
+  }
+  if (includeSpent) {
+    conditions.push('isSpent = 1');
+  }
+
+  const whereClause = conditions.join(' OR ');
+
+  const query = `
+    SELECT *
+    FROM proofs
+    WHERE ${whereClause}
+    ORDER BY id DESC
+  `;
 
   try {
-    if (isUnspent) {
-        query = `
-            SELECT *
-            FROM proofs
-            WHERE isPending = 0
-            AND isSpent = 0
-            ORDER BY id DESC        
-        `
-    }
-    if (isPending) {
-        query = `
-            SELECT *
-            FROM proofs
-            WHERE isPending = 1
-            AND isSpent = 0
-            ORDER BY id DESC        
-        `
-    }
-    if (isSpent) {
-        query = `
-            SELECT *
-            FROM proofs
-            WHERE isSpent = 1
-            ORDER BY id DESC        
-        `
-    }
-    if (isUnspent && isPending) {
-      if (isPending) {
-        query = `
-            SELECT *
-            FROM proofs
-            WHERE isSpent = 0            
-            ORDER BY id DESC        
-        `
-    }
-  }
-    
-    const db = getInstance()
-    const {rows} = await db.executeAsync(query)
-    
-    return rows?._array as ProofRecord[]
-
+    const db = getInstance();
+    const { rows } = await db.executeAsync(query);
+    return (rows?._array ?? []) as ProofRecord[];
   } catch (e: any) {
     throw new AppError(
       Err.DATABASE_ERROR,
       'Proofs could not be retrieved from the database',
       e.message,
-    )
+    );
   }
-}
+};
 
 const getProofsByTransaction = function (transactionId: number): ProofRecord[] {
   try {

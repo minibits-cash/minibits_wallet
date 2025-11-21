@@ -1526,8 +1526,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                       message={resultModalInfo?.message}
                     />
                     <View style={$buttonContainer}>
-                        {(resultModalInfo.message.toLowerCase().includes('outputs have already been signed before') || 
-                            resultModalInfo.message.toLowerCase().includes('duplicate key value violates unique constraint')) ? (
+                        {((/already.*signed|duplicate key/i.test(resultModalInfo.message))) ? (
                             <Button
                                 preset="secondary"
                                 text={"Retry again"}

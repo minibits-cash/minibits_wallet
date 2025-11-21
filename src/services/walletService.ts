@@ -34,7 +34,7 @@ import { transferTask } from './wallet/transferTask'
 import { revertTask } from './wallet/revertTask'
 import { WalletUtils } from './wallet/utils'
 import { NotificationService } from './notificationService'
-import { CurrencyCode, MintUnit, formatCurrency, getCurrency } from './wallet/currency'
+import { CurrencyCode, MintUnit, MintUnitCurrencyPairs, MintUnits, formatCurrency, getCurrency } from './wallet/currency'
 import { MinibitsClient } from './minibitsService'
 import { UnsignedEvent } from 'nostr-tools'
 import { Platform } from 'react-native'
@@ -799,7 +799,8 @@ const syncStateWithMintTask = async function (
       // 1. Proofs now SPENT at mint → transaction succeeded
       // ─────────────────────────────────────────────────────────────
       if (secrets.spent.size > 0) {
-        const spentProofs = proofsToSync.filter(p => secrets.spent.has(p.secret))
+        const spentProofs = proofsToSync.filter(p => secrets.spent.has(p.secret))        
+
         proofsStore.moveToSpent(spentProofs) // sets isSpent = true, isPending = false + clean if they were in pendingByMintSecrets
     
         const spentByTx = groupByTId(spentProofs)
@@ -892,16 +893,15 @@ const syncStateWithMintTask = async function (
   
         if (newPendingProofs.length > 0) {
           proofsStore.registerAsPendingAtMint(newPendingProofs)
-  
           const pendingByTx = groupByTId(newPendingProofs)
 
           for (const [tId, { amount: pendingAmount }] of pendingByTx) {
             if (!pendingTxIds.includes(tId)) pendingTxIds.push(tId)
-                transactionStateUpdates.push({
-                    tId,
-                    pendingByMintAmount: pendingAmount,
-                    updatedStatus: TransactionStatus.PENDING,
-                })
+              transactionStateUpdates.push({
+                  tId,
+                  pendingByMintAmount: pendingAmount,
+                  updatedStatus: TransactionStatus.PENDING,
+              })
           }
   
           // If we discovered pending proofs in spendable balance (recovery mode), move them
@@ -1340,10 +1340,10 @@ const handlePendingTopupTask = async (
       expiresAt,
     } = tx
   
-    log.trace('[handlePendingTopupTask] start', { tId, paymentHash, mintUrl, amount, unit })
+    log.warn('[handlePendingTopupTask] start', {tx})
   
     const mint = mintsStore.findByUrl(mintUrl)
-    if (!mint || !mintQuote || !unit || !amount) {
+    if (!mint || !mintQuote || !unit || !amount) {      
       throw new AppError(Err.VALIDATION_ERROR, 'Invalid pending topup transaction', { tId })
     }
   
@@ -1558,8 +1558,8 @@ const recoverMintQuote = async (
         try {
           proofs = await walletStore.mintProofs(mintUrl, amount, unit, mintQuote, tx.id)
         } catch (e: any) {
-          if (/already.*signed|duplicate key/i.test(e.message)) {
-            log.error('[recoverMintQuote] Retrying with counter bump')
+          if (/already.*signed|duplicate key/i.test(e.message) || e.code && e.code === 10002) {
+            log.error('[recoverMintQuote] Increasing proofsCounter outdated values and repeating mintProofs')
             proofs = await walletStore.mintProofs(mintUrl, amount, unit, mintQuote, tx.id, { increaseCounterBy: 10 })
           } else {
             throw e
@@ -2102,7 +2102,7 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
                     type: TransactionType.RECEIVE,
                     amount: amountToReceive,
                     fee: 0,
-                    unit,
+                    unit: unit as MintUnit,
                     data: JSON.stringify(transactionData),
                     memo,
                     mint,            
@@ -2215,7 +2215,7 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
                 type: TransactionType.TRANSFER,
                 amount,
                 fee: 0,
-                unit: 'sat',
+                unit: 'sat' as MintUnit,
                 data: JSON.stringify(transactionData),
                 memo: maybeMemo || description,
                 mint: defaultMintBalance.mintUrl,
@@ -2313,7 +2313,7 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
                 type: TransactionType.SEND,
                 amount,
                 fee: 0,
-                unit,
+                unit: unit as MintUnit,
                 data: JSON.stringify(transactionData),
                 memo: description,
                 mint: availableBalances[0].mintUrl,

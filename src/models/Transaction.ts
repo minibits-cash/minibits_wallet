@@ -1,4 +1,4 @@
-import { Instance, isAlive, SnapshotIn, SnapshotOut, types } from 'mobx-state-tree'
+import { flow, Instance, isAlive, SnapshotIn, SnapshotOut, types } from 'mobx-state-tree'
 import { log } from '../services/logService'
 import { MintUnit } from '../services/wallet/currency'
 import { Database } from '../services'
@@ -70,8 +70,9 @@ export const TransactionModel = types
             log.trace('[pruneOutputToken]', 'Transaction outputToken pruned in store', { id: self.id })
         },
         update(fields: Partial<Transaction>) {
+            log.trace('[update]', {fields})
             // Update multiple fields in database with a single query
-            const updatedTransaction = Database.updateTransaction(self.id, fields)
+            const updatedTransaction = Database.updateTransaction(self.id, fields)            
 
             if (!isAlive(self)) {
                 log.error('[update]', 'Transaction instance is not alive, aborting state update', { id: self.id })
@@ -83,8 +84,8 @@ export const TransactionModel = types
                 ;(self as any)[key] = (updatedTransaction as any)[key]
             })
 
-            log.trace('[update]', 'Transaction updated', { id: self.id, updatedData: fields})
-        },
+            log.trace('[update]', 'Transaction updated in state', { id: self.id, status: self.status})
+        }
     }))
 
 export interface Transaction extends Instance<typeof TransactionModel> {}
