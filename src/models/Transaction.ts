@@ -70,7 +70,7 @@ export const TransactionModel = types
             log.trace('[pruneOutputToken]', 'Transaction outputToken pruned in store', { id: self.id })
         },
         update(fields: Partial<Transaction>) {
-            log.trace('[update]', {fields})
+            // log.trace('[update]', {fields})
             // Update multiple fields in database with a single query
             const updatedTransaction = Database.updateTransaction(self.id, fields)            
 

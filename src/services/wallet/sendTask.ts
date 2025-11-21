@@ -138,7 +138,7 @@ export const sendTask = async function (
         if(selectedProofs.length === 0) {
 
             const proofsToSync = proofsStore.getByMint(mintUrl, {isPending: true})
-            
+
             const wsMint = new CashuMint(mintUrl)
             const wsWallet = new CashuWallet(wsMint)
             
@@ -405,21 +405,27 @@ export const sendFromMintSync = async function (
             swapFeePaid = sendResult.swapFeePaid
             
             // add proofs returned by the mint after the split
-            log.trace('[sendFromMintSync] add returned proofs to spendable')
+            log.trace('[sendFromMintSync] after swap: add returned proofs to spendable')
+            proofsStore.addOrUpdate(returnedProofs, {
+                mintUrl,
+                unit,
+                tId: transactionId,
+                isPending: false,
+                isSpent: false
+            })
             
-            if(returnedProofs.length > 0) {
-                proofsStore.addOrUpdate(returnedProofs, {
-                    mintUrl,
-                    unit,
-                    tId: transactionId,
-                    isPending: false,
-                    isSpent: false
-                })
-            }          
+            log.trace('[sendFromMintSync] after swap: move proofsToSendFrom to spent')            
+            proofsStore.addOrUpdate(proofsToSendFrom, {
+                mintUrl,
+                unit,
+                tId: transactionId,
+                isPending: false,
+                isSpent: true
+            })
             
         } else {        
             // SWAP is NOT needed, we've found denominations that match exact amount
-            log.debug('[sendFromMintSync] Swap is not necessary.', {transactionId})
+            log.trace('[sendFromMintSync] Swap is not necessary.', {transactionId})
 
             // If we selected whole balance, check if it is not above limit acceptable by wallet and mints.
             if(proofsToSendFrom.length > MAX_SWAP_INPUT_SIZE) {
@@ -433,15 +439,8 @@ export const sendFromMintSync = async function (
             proofsToSend = CashuUtils.exportProofs(proofsToSendFrom)       
         }      
 
-        // remove used proofs and move sent proofs to pending
-        proofsStore.addOrUpdate(proofsToSendFrom, {
-            mintUrl,
-            unit,
-            tId: transactionId,
-            isPending: false,
-            isSpent: true
-        })
-
+        // move sent proofs to pending
+        log.trace('[sendFromMintSync] move proofsToSend to pending') 
         proofsStore.addOrUpdate(proofsToSend, {
             mintUrl,
             unit,
