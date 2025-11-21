@@ -336,7 +336,7 @@ const updateTransaction = function (id: number, fields: Partial<Transaction>): T
 }
 
 
-const getTransactions = function (limit: number, offset: number, onlyPending: boolean = false) {
+const getTransactionsAsync = async function (limit: number, offset: number, onlyPending: boolean = false) {
   let query: string = ''
   try {
       query = `
@@ -361,9 +361,9 @@ const getTransactions = function (limit: number, offset: number, onlyPending: bo
       // log.trace(query, params)
 
       const db = getInstance()
-      const {rows} = db.execute(query, params)
+      const {rows} = await db.executeAsync(query, params)
 
-      log.trace(`[getTransactions], Returned ${rows?.length} rows`)
+      log.trace(`[getTransactionsAsync], Returned ${rows?.length} rows`)
 
       return normalizeTransactionRows(rows)
 
@@ -537,7 +537,7 @@ const getTransactionsCount = function (status?: TransactionStatus) {
 }
 
 
-const getRecentTransactionsByUnit = (countRecent: number) => {
+const getRecentTransactionsByUnitAsync = async (countRecent: number) => {
   try {
       const query = `
           SELECT *
@@ -552,7 +552,7 @@ const getRecentTransactionsByUnit = (countRecent: number) => {
 
       const params = [countRecent]
       const db = getInstance()
-      const { rows } = db.execute(query, params)     
+      const { rows } = await db.executeAsync(query, params)     
       
       return normalizeTransactionRows(rows)
       
@@ -1026,8 +1026,8 @@ export const Database = {
   getTransactionsCount,
   getTransactionById,
   getTransactionBy,
-  getRecentTransactionsByUnit,
-  getTransactions,
+  getRecentTransactionsByUnitAsync,
+  getTransactionsAsync,
   getPendingTopups,
   getPendingTopupsCount,
   getPendingTransfers,

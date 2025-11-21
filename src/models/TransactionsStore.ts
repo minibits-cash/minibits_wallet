@@ -185,28 +185,33 @@ export const TransactionsStoreModel = types
 
         // ── Lazy load more history ──
         addToHistory: flow(function* addToHistory(limit: number, offset: number, onlyPending: boolean) {
-            const dbTxs = Database.getTransactions(limit, offset, onlyPending)
-            if (!dbTxs?.length) return
+            // Appends transaction to the map and adds reference to history from database.
+            const transactions = yield Database.getTransactionsAsync(limit, offset, onlyPending)
 
-            for (const dbTx of dbTxs) {
-                if (self.transactionsMap.has(String(dbTx.id))) continue
+            for (const dbTx of transactions) {
+                const { id } = dbTx
 
-                const tx = TransactionModel.create({
-                    ...dbTx,
-                    inputToken: dbTx.inputToken?.slice(0, 40) || '',
-                    outputToken: dbTx.outputToken?.slice(0, 40) || '',
-                })
+                if (!self.transactionsMap.has(id)) {
+                    self.transactionsMap.set(id, {
+                        ...dbTx,
+                        inputToken: dbTx.inputToken?.slice(0, 40) || '',
+                        outputToken: dbTx.outputToken?.slice(0, 40) || '',
+                    })
+                    log.trace('[addToHistory]', `${id} added to transactionsMap`)
+                }
 
-                self.transactionsMap.set(String(dbTx.id), tx)
-                if (!self.history.some(t => t.id === dbTx.id)) {
-                    self.history.push(tx)
+                const ref = self.transactionsMap.get(id)
+
+                if (!self.history.find(t => t.id === id)) {
+                    if(ref) self.history.push(ref)
                 }
             }
+            
         }),
 
         // ── Rehydrate recent on app start ──
         addRecentByUnit: flow(function* addRecentByUnit() {
-            const dbTxs = Database.getRecentTransactionsByUnit(maxTransactionsByUnit)
+            const dbTxs = yield Database.getRecentTransactionsByUnitAsync(maxTransactionsByUnit)
             if (!dbTxs?.length) return
 
             for (const dbTx of dbTxs) {

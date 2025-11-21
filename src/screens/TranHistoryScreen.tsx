@@ -81,11 +81,11 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
             // Preload transactions to model in case they are not there
             if(countByStatus.total > 0) {
                 if(transactionsStore.historyCount === 0) {
-                    transactionsStore.addToHistory(limit, 0, false)                    
+                    await transactionsStore.addToHistory(limit, 0, false)                    
                 }
 
                 if(transactionsStore.recentByUnit.length === 0) {                    
-                    transactionsStore.addRecentByUnit()                    
+                    await transactionsStore.addRecentByUnit()                    
                 }
             }
 
@@ -131,10 +131,10 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
     }
 
     
-    const addTransactionsToList = function () {
+    const addTransactionsToList = async function () {
         setIsLoading(true)
         try {
-            transactionsStore.addToHistory(limit, transactionsStore.historyCount, false)            
+            await transactionsStore.addToHistory(limit, transactionsStore.historyCount, false)            
 
             log.trace('[addTransactionsToList]', {
                 currentOffset: transactionsStore.historyCount,                
@@ -153,18 +153,18 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
     }   
     
 
-    const addPendingTransactionsToList = function () {
+    const addPendingTransactionsToList = async function () {
         setIsLoading(true)
         try {
-            transactionsStore.addToHistory(limit, transactionsStore.historyCount, true)            
+            await transactionsStore.addToHistory(limit, transactionsStore.historyCount, true)            
 
-            log.trace('[addTransactionsToList] onlyPending', {
+            log.trace('[addPendingTransactionsToList]', {
                 currentOffset: transactionsStore.historyCount,                
                 pendingDbCount
             })
 
             if (transactionsStore.historyCount >= pendingDbCount) {
-                log.trace('[getTransactionsList] onlyPending setAll true')
+                log.trace('[addPendingTransactionsToList] setAll true')
                 setPendingIsAll(true)
             }            
 
@@ -175,7 +175,7 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
     }  
     
 
-    const toggleShowPendingOnly = function () {
+    const toggleShowPendingOnly = async function () {
         if (showPendingOnly) {        
             transactionsStore.removeAllHistory()            
             addTransactionsToList()         

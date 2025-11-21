@@ -74,10 +74,10 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
     }, [])
 
     // Reset of transaction model state and reload from DB
-    const syncTransactionsFromDb = function () {
+    const syncTransactionsFromDb = async function () {
       setIsLoading(true)
       try {
-        const dbTransactions = Database.getTransactions(
+        const dbTransactions = await Database.getTransactionsAsync(
           maxTransactionsInHistory,
           0,
         )
@@ -87,9 +87,9 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
             transactionsStore.removeAllTransactions()
 
             // Add last 10 to history
-            transactionsStore.addToHistory(maxTransactionsInHistory, 0, false)
+            await transactionsStore.addToHistory(maxTransactionsInHistory, 0, false)
             // Add recent by unit
-            transactionsStore.addRecentByUnit()
+            await transactionsStore.addRecentByUnit()
 
             setIsLoading(false)
             setInfo(translate('resetCompletedDetail', { transCount: dbTransactions.length }))
