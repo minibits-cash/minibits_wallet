@@ -366,15 +366,15 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         const transactions = lightningTransactions.map(t => {
             return {                
                 type: t.type === TransactionType.TOPUP ? 'incoming' : 'outgoing',
-                invoice: '',
+                invoice: t.paymentRequest,
                 description: t.memo,
-                preimage: null,
-                payment_hash: null,
-                amount: t.amount,
+                preimage: t.proof,
+                payment_hash: t.paymentId,
+                amount: t.amount * 1000,
                 fees_paid: t.fee,
-                created_at: Math.floor(t.createdAt!.getTime() / 1000),
-                settled_at: Math.floor(t.createdAt!.getTime() / 1000),
-                expires_at: null                  
+                created_at: Math.floor(t.createdAt.getTime() / 1000),
+                settled_at: Math.floor(t.createdAt.getTime() / 1000),
+                expires_at: t.expiresAt ? Math.floor(t.expiresAt.getTime() / 1000) : 0,                  
             } as NwcTransaction
         })
         
@@ -452,7 +452,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                     description: transaction.memo,                                    
                     payment_hash: transaction.paymentId,
                     amount: transaction.amount * 1000,
-                    fees_paid: 0,
+                    fees_paid: transaction.fee,
                     created_at: Math.floor(transaction.createdAt!.getTime() / 1000),
                     expires_at: Math.floor(transaction.expiresAt!.getTime() / 1000),                    
                     preimage: null,
@@ -502,11 +502,11 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                 description: transaction.memo,                                    
                 payment_hash: transaction.paymentId,
                 amount: transaction.amount * 1000,
-                fees_paid: 0,
+                fees_paid: transaction.fee,
                 created_at: Math.floor(transaction.createdAt!.getTime() / 1000),
                 expires_at: Math.floor(transaction.expiresAt!.getTime() / 1000),                    
-                preimage: null,
-                settled_at: null
+                preimage: transaction.proof,
+                settled_at: Math.floor(transaction.createdAt!.getTime() / 1000)
             } as NwcTransaction
         } as NwcResponse
     },

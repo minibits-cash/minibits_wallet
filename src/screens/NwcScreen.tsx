@@ -1,7 +1,7 @@
 import {observer} from 'mobx-react-lite'
 import { Observer } from 'mobx-react-lite'
 import React, {FC, useEffect, useRef, useState} from 'react'
-import {FlatList, TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import {FlatList, Platform, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, Loading, Header} from '../components'
 import {useHeader} from '../utils/useHeader'
@@ -33,7 +33,7 @@ export const NwcScreen = observer(function NwcScreen(_props) {
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState(false)
-    const [isRemoteDataPushEnabled, setIsRemoteDataPushEnabled] = useState<boolean>(walletProfileStore.device ? true : false)
+    const [isRemoteDataPushEnabled, setIsRemoteDataPushEnabled] = useState<boolean>((!walletProfileStore.device || __DEV__) ? false : true)
     const [areNotificationsEnabled, setAreNotificationsEnabled] = useState<boolean>(false)
 
 

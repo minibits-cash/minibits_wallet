@@ -283,33 +283,42 @@ const decryptDirectMessageNip17 = async function (
 
 const publish = async function (
     event: NostrUnsignedEvent,
-    relays: string[],    
-): Promise<NostrEvent | undefined> {
+    relays: string[],
+    retrievePublishedEvent: boolean = true    
+): Promise<NostrEvent | void> {
+    try{
 
-    const  keys: NostrKeyPair = await getNostrKeys()
-    
-    const privateKeyBytes = hexToBytes(keys.privateKey)
-    const finalEvent = finalizeEvent(event, privateKeyBytes)
+        const  keys: NostrKeyPair = await getNostrKeys()
+        
+        const privateKeyBytes = hexToBytes(keys.privateKey)
+        const finalEvent = finalizeEvent(event, privateKeyBytes)
 
-    if(!validateEvent(finalEvent)) {
-        throw new AppError(Err.VALIDATION_ERROR, 'Event is invalid and could not be published', {finalEvent})
+        if(!validateEvent(finalEvent)) {
+            throw new AppError(Err.VALIDATION_ERROR, 'Event is invalid and could not be published', {finalEvent})
+        }
+        
+        // log.trace('Event to be published', signed, 'publish')
+
+        const pool = getRelayPool()
+        await Promise.any(pool.publish(relays, finalEvent))
+        log.trace('[NostrClient.publish] Event likely published')     
+
+        if(retrievePublishedEvent) {
+            const published = await pool.get(relays, {
+                ids: [finalEvent.id]
+            }) as NostrEvent
+            
+            if(published) {
+                log.trace('[NostrClient.publish] Event successfully retrieved from relays')        
+                return published
+            }
+        }
+        
+        return
+        
+    } catch(e: any) {
+        log.error(e.name, e.message)
     }
-    
-    // log.trace('Event to be published', signed, 'publish')
-
-    const pool = getRelayPool()
-    await Promise.any(pool.publish(relays, finalEvent))    
-
-    const published = await pool.get(relays, {
-        ids: [finalEvent.id]
-    }) as NostrEvent
-    
-    if(published) {
-        log.trace('[NostrClient.publish] Event successfully published')        
-        return published
-    }
-    
-    return undefined    
 }
 
 
