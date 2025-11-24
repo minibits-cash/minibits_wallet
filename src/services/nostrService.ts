@@ -73,19 +73,19 @@ const getRelayPool = function () {
 
 
 const getDefaultRelays = function () {
-    return _defaultPublicRelays    
+    return _defaultPublicRelays.map(url => getNormalizedRelayUrl(url))   
 }
 
 const getMinibitsRelays = function () {
-    return _minibitsRelays    
+    return _minibitsRelays.map(url => getNormalizedRelayUrl(url))  
 }
 
 const getSearchRelays = function () {
-    return _searchRelays
+    return _searchRelays.map(url => getNormalizedRelayUrl(url))  
 }
 
 const getAllRelays = function () {
-    return [..._minibitsRelays, ..._defaultPublicRelays]
+    return [..._minibitsRelays, ..._defaultPublicRelays].map(url => getNormalizedRelayUrl(url))  
 }
 
 const getNostrKeys = async function () {

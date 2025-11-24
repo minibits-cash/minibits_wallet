@@ -81,7 +81,7 @@ notifee.registerForegroundService(async (notification) => {
 
 
 notifee.onForegroundEvent(async ({ type, detail }) => {
-  log.trace('[onForegroundEvent]', {type, detail})
+  //log.trace('[onForegroundEvent]', {type, detail})
   
   if (detail.pressAction && detail.pressAction.id === 'stop') {
     log.trace('[onForegroundEvent] Stopping foreground service')

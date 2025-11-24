@@ -24,7 +24,6 @@ import { MINIBITS_NIP05_DOMAIN } from '@env'
           contacts: types.array(ContactModel),
           publicPubkey: types.maybe(types.string),          
           lastPendingReceivedCheck: types.maybe(types.number), // UNIX timestamp
-          receivedEventIds: types.optional(types.array(types.string), []),
           selectedContact: types.maybe(types.frozen<Contact>())
       })
       .actions(withSetPropAction)
@@ -129,20 +128,6 @@ import { MINIBITS_NIP05_DOMAIN } from '@env'
                 const ts2: number = Math.floor(Date.now() / 1000)
                 self.lastPendingReceivedCheck = ts2
                 log.trace('[setLastPendingReceivedCheck]', {ts2})                
-            },
-            addReceivedEventId(id: string) {
-                if(self.receivedEventIds.includes(id)) {
-                    return
-                }
-
-                const num = self.receivedEventIds.unshift(id)
-                
-                if(num > 50) {
-                    self.receivedEventIds.pop()
-                }
-            },
-            eventAlreadyReceived(id: string) {            
-                return self.receivedEventIds.includes(id)
             },
       }))
       .views(self => ({

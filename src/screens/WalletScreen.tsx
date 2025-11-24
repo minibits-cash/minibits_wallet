@@ -36,7 +36,7 @@ import EventEmitter from '../utils/eventEmitter'
 import {useStores} from '../models'
 import {Mint, UnitBalance} from '../models/Mint'
 import {MintsByUnit} from '../models/MintsStore'
-import {Database, HANDLE_CLAIM_TASK, HANDLE_RECEIVED_EVENT_TASK, log, NostrClient, SyncQueue, WalletTaskResult} from '../services'
+import {Database, HANDLE_CLAIM_TASK, HANDLE_RECEIVED_EVENT_TASK, log, NostrClient, NotificationService, SyncQueue, WalletTaskResult} from '../services'
 import {Transaction, TransactionStatus} from '../models/Transaction'
 import {TransactionListItem} from './Transactions/TransactionListItem'
 import {WalletTask} from '../services'
@@ -186,7 +186,8 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             // Create websocket subscriptions to receive NWC requests from remote wallets (if any)
             // go through websockets only if remote notifications not working as push data messages are
             // delivered even if notifications are disabled on device                        
-            if(!walletProfileStore.device || __DEV__ ) {nwcStore.listenForNwcEvents()}
+            if(!walletProfileStore.device) {nwcStore.listenForNwcEvents()}
+            if(__DEV__) NotificationService.createNwcListenerNotification()
         }
 
         const handleReceivedEventTaskResult  = async (result: WalletTaskResult) => {

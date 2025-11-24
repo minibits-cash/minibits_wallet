@@ -63,10 +63,14 @@ const _handleTaskResult = async (taskId: TaskId, result: WalletTaskResult | Tran
 
     if(queue.getAllTasksDetails(['idle', 'running']).length === 0) {
         const notifications = await NotificationService.getDisplayedNotifications()
-        // Do not stop the listener for NWC events
-        if(notifications.some(n => n.notification.title && n.notification.title !== NWC_LISTENER_NAME)) {  
-            log.trace('[_handleTaskResult] Stopping foreground service')    
-            await NotificationService.stopForegroundService()
+        // Do not stop the listener for NWC events, this one is handled via timeout
+        for (const n of notifications) {            
+            if(n.notification.android?.asForegroundService) {
+                if(n.notification.title && n.notification.title !== NWC_LISTENER_NAME) {
+                    log.trace('[_handleTaskResult] Stopping foreground service')
+                    await NotificationService.stopForegroundService()
+                }
+            }
         }
     }
 }

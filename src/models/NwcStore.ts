@@ -39,6 +39,7 @@ import { topupTask } from '../services/wallet/topupTask'
 import { WalletProfileStore } from './WalletProfileStore'
 import { Platform } from 'react-native'
 import { TransactionsStore } from './TransactionsStore'
+import { SubCloser } from 'nostr-tools/abstract-pool'
 
 type NwcError = {
     result_type: string,
@@ -214,7 +215,8 @@ export const NwcConnectionModel = types.model('NwcConnection', {
 
         yield NostrClient.publish(
             responseEvent,
-            self.connectionRelays                    
+            self.connectionRelays,
+            false                    
         )    
     }),
     payInvoice: flow(function* payInvoice(nwcRequest: NwcRequest, encodedInvoice: string, requestEvent: NostrEvent) {
@@ -623,7 +625,9 @@ export const NwcConnectionModel = types.model('NwcConnection', {
 
 export const NwcStoreModel = types
     .model('NwcStore', {
-        nwcConnections: types.array(NwcConnectionModel),        
+        nwcConnections: types.array(NwcConnectionModel),
+        isNwcListenerActive: types.optional(types.boolean, false),
+        nwcSubscription: types.maybe(types.frozen<SubCloser>()),     
     })    
     .views(self => ({          
         findByName: (name: string) => {
@@ -660,6 +664,13 @@ export const NwcStoreModel = types
                     c.setCurrentDay()
                 }
             }
+        },
+        resetSubscription () {
+            if(self.nwcSubscription) {
+                log.trace('[resetSubscription] Closing and removing existing nwcSubscription')
+                self.nwcSubscription.close()
+                self.nwcSubscription = undefined
+            }           
         }
     }))
     .actions(self => ({
@@ -700,7 +711,8 @@ export const NwcStoreModel = types
 
                 NostrClient.publish(
                     infoEvent,
-                    newConnection.connectionRelays                    
+                    newConnection.connectionRelays,
+                    false                    
                 )
             }
         }),        
@@ -720,8 +732,10 @@ export const NwcStoreModel = types
             }
         },
         listenForNwcEvents () {
-            log.trace('[listenForNwcEvents] start listening for NWC events', {                
-                walletPubkey: self.walletPubkey
+            log.trace('[listenForNwcEvents] got request to start nwcListener', {                
+                walletPubkey: self.walletPubkey,
+                isNwcListenerActive: self.isNwcListenerActive,
+                relays: self.connectionRelays
             })
 
             if(self.nwcConnections.length === 0) {
@@ -729,11 +743,17 @@ export const NwcStoreModel = types
                 return
             }
 
+            if(self.isNwcListenerActive) {
+                log.trace('[listenForNwcEvents] nwcListener is already OPEN, skipping subscription...')
+                return 
+            }
+
             // reset daily limits if day changed            
             self.resetDailyLimits()            
             
             try {
-                const since = Math.floor(Date.now() / 1000)
+                // 10s window to get the first event that came with push message
+                const since = Math.floor(Date.now() / 1000) - 5000 
                 const connectionsPubkeys = self.nwcConnections.map(c => c.connectionPubkey)
                 let eventsBatch: NostrEvent[] = []               
         
@@ -744,15 +764,29 @@ export const NwcStoreModel = types
                     since
                 }]    
                 
-                const pool = NostrClient.getRelayPool()   
+                const pool = NostrClient.getRelayPool()
+                const relaysStore = getRootStore(self).relaysStore 
                 
                 const sub = pool.subscribeMany(self.connectionRelays , filter, {
                     onevent(event) {
+                        log.trace('[listenForNwcEvents]', `onEvent`)
                         if (event.kind != NWCWalletRequest) {
                             return
                         }                    
             
                         eventsBatch.push(event)
+
+                        if(relaysStore.eventAlreadyReceived(event.id)) {
+                            log.warn(
+                                Err.ALREADY_EXISTS_ERROR, 
+                                '[listenForNwcEvents] Event has been processed in the past, skipping...', 
+                                {id: event.id, created_at: event.created_at}
+                            )
+                            return
+                        }
+                        
+                        eventsBatch.push(event)
+                        relaysStore.addReceivedEventId(event.id)
                         
                         // find connection the nwc request is sent to
                         const targetConnection = self.nwcConnections.find(c => 
@@ -760,7 +794,7 @@ export const NwcStoreModel = types
                         )
     
                         if(!targetConnection) {
-                            throw new AppError(Err.VALIDATION_ERROR, 'Missing connection matching event pubkey', {pubkey: event.pubkey})
+                            throw new AppError(Err.VALIDATION_ERROR, `Your wallet has received a NWC command, but could not find related NWC connection to handle it.`)
                         }
                         
                         // dispatch to correct connection, process over sync queue
@@ -771,10 +805,22 @@ export const NwcStoreModel = types
                         )                        
                     },
                     oneose() {
-                        log.trace('[listenForNwcEvents]', `Eose: Got ${eventsBatch.length} NWC events`)
+                        log.trace('[listenForNwcEvents]', `onEose: Got ${eventsBatch.length} NWC events`)
                         eventsBatch = []
+
+                        const connections = pool.listConnectionStatus()
+                        log.trace('[listenForNwcEvents] onEose', {connections: Array.from(connections)})
+
+                        const nwcConnStatuses = Array.from(connections).filter((conn: any) => self.connectionRelays.some(r => r === conn[0]))
+  
+                    },
+                    onclose() {
+                        log.trace('[listenForNwcEvents]', `onClose`)
+                        self.nwcSubscription = undefined
                     }
                 })
+
+                self.nwcSubscription = sub
                 
             } catch (e: any) {
                 log.error(e.name, e.message)
@@ -836,6 +882,13 @@ export const NwcStoreModel = types
             return self.nwcConnections
         }                
     }))
+    .postProcessSnapshot((snapshot) => {
+        return {
+            nwcConnections: snapshot.nwcConnections,            
+            nwcSubscription: undefined,            
+        }          
+      })
+
 
 
 export interface NwcConnection extends Instance<typeof NwcConnectionModel> {}

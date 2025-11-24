@@ -1844,8 +1844,8 @@ const handleNwcRequestQueue = async function (params: {requestEvent: NostrEvent}
     const {requestEvent} = params
     log.trace('[handleNwcRequestQueue] start')
     
+    // pass command to handler
     const now = new Date().getTime()
-    
     SyncQueue.addTask(    
         `handleNwcRequestTask-${now}`,               
         async () => await nwcStore.handleNwcRequestTask(requestEvent)                
@@ -1912,7 +1912,7 @@ const receiveEventsFromRelaysQueue = async function (): Promise<void> {
                     return
                 }                
 
-                if(contactsStore.eventAlreadyReceived(event.id)) {
+                if(relaysStore.eventAlreadyReceived(event.id)) {
                     log.warn(
                         Err.ALREADY_EXISTS_ERROR, 
                         'Event has been processed in the past, skipping...', 
@@ -1922,7 +1922,7 @@ const receiveEventsFromRelaysQueue = async function (): Promise<void> {
                 }
                 
                 eventsBatch.push(event)
-                contactsStore.addReceivedEventId(event.id)                
+                relaysStore.addReceivedEventId(event.id)                
 
                 const now = new Date().getTime()
                 SyncQueue.addTask(       

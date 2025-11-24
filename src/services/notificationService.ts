@@ -257,76 +257,8 @@ const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {
         await setupRootStore(rootStoreInstance)        
     }
 
-    // start new foreground service only if none is running    
-    const queue: TaskQueue = SyncQueue.getSyncQueue()
-    const isNwcRequestTaskRunning = queue.getAllTasksDetails(['idle', 'running'])
-        .some(task => String(task.taskId).includes('handleNwcRequestTask'))   
+    await createNwcListenerNotification()
 
-    if(!isNwcRequestTaskRunning) {
-        
-        if(Platform.OS === 'android') {
-            const isChannelCreated = await notifee.isChannelCreated(NWC_CHANNEL_ID)
-            if (!isChannelCreated) {
-                await notifee.createChannel({
-                    id: NWC_CHANNEL_ID,
-                    name: NWC_CHANNEL_NAME,
-                    sound: 'default',
-                })
-            }
-        }
-
-        await notifee.displayNotification({
-            title: NWC_CHANNEL_NAME,
-            body: 'Processing remote NWC command...',
-            android: {
-                channelId: NWC_CHANNEL_ID,
-                asForegroundService: true,
-                largeIcon: nwcPngUrl,
-                importance: AndroidImportance.HIGH,
-                progress: {
-                    indeterminate: true,
-                },
-                actions: [
-                    {
-                      title: 'Stop',
-                      pressAction: {
-                        id: 'stop',
-                      },
-                    },
-                ],
-            },
-            ios: {
-                categoryId: NWC_CHANNEL_ID,
-            },
-            data: {task: HANDLE_NWC_REQUEST_TASK,  data: requestEvent}, // Pass the task data to the foreground service
-        })
-
-        if(Platform.OS === 'ios') {
-            WalletTask.handleNwcRequestQueue({requestEvent})
-        }
-            
-
-    } else {
-        // if fg service is already running, add new nwc command to the queue
-        WalletTask.handleNwcRequestQueue({requestEvent})
-        
-        if(Platform.OS === 'ios') {
-
-            await notifee.displayNotification({
-                title: NWC_CHANNEL_NAME,
-                body: 'Processing remote NWC command...',
-                ios: {
-                    categoryId: NWC_CHANNEL_ID,
-                }
-            })
-        }
-        
-    }
-
-    // make some room for foreground service to start and pass nwcRequest to the queue
-    // to avoid new one being attempted
-    await delay(500)
-    log.trace('[_nwcRequestHandler] done')
 }
 
 const _getRemoteData = async function(remoteMessage: FirebaseMessagingTypes.RemoteMessage) {
@@ -390,23 +322,36 @@ const createTaskNotification = async function (body: string, data: {task: string
 
 
 const createNwcListenerNotification = async function () {
-
-    if(Platform.OS !== 'android') {
-        return
+    const {nwcStore} = rootStoreInstance
+            
+    const notifications = await getDisplayedNotifications()
+    
+    if(notifications.some(n => n.notification.android?.asForegroundService && n.notification.title === NWC_LISTENER_NAME)) {
+        if(Platform.OS === 'android') {
+            log.trace('[createNwcListenerNotification] Android foreground service is already running, quit...', NWC_LISTENER_NAME)
+        } else {
+            if(nwcStore.nwcSubscription) {
+                log.trace('[createNwcListenerNotification] iOS listener is already running, quit...', NWC_LISTENER_NAME)
+            } else {
+                log.trace('[createNwcListenerNotification] iOS listener not in state, restarting...', NWC_LISTENER_NAME)
+                nwcStore.listenForNwcEvents()
+            }
+        }
     }
 
-    log.trace('Start', 'createNwcListenerNotification')
-
-    const isChannelCreated = await notifee.isChannelCreated(NWC_CHANNEL_ID)
-    if (!isChannelCreated) {
-        await notifee.createChannel({
-            id: NWC_CHANNEL_ID,
-            name: NWC_CHANNEL_NAME,
-            sound: 'default',
-        })
-    }    
+    
+    if(Platform.OS === 'android') {
+        const isChannelCreated = await notifee.isChannelCreated(NWC_CHANNEL_ID)
+        if (!isChannelCreated) {
+            await notifee.createChannel({
+                id: NWC_CHANNEL_ID,
+                name: NWC_CHANNEL_NAME,
+                sound: 'default',
+            })
+        }   
+    } 
         
-    return notifee.displayNotification({
+    const listenerNotification = await notifee.displayNotification({
         title: NWC_LISTENER_NAME,
         body: 'Listening for NWC commands...',
         android: {
@@ -419,15 +364,35 @@ const createNwcListenerNotification = async function () {
             },*/
             actions: [
                 {
-                  title: 'Stop',
-                  pressAction: {
+                title: 'Stop',
+                pressAction: {
                     id: 'stop',
-                  },
+                },
                 },
             ],
         },
+        ios: {
+            categoryId: NWC_CHANNEL_ID,
+        },
         data: {task: LISTEN_FOR_NWC_EVENTS}
     })
+
+    if(Platform.OS === 'ios') {
+        nwcStore.listenForNwcEvents()
+    }
+    
+    const timer = setTimeout(async () => {
+        if(Platform.OS === 'android') {
+            log.trace('[createNwcListenerNotification] Terminating Android foreground service after timeout')
+            // this should close the sub
+            await stopForegroundService()
+        } else {
+            log.trace('[createNwcListenerNotification] Closing iOS nwcSubscription after timeout')
+            nwcStore.resetSubscription()
+            cancelNotification(listenerNotification)
+        }
+    }, 30 * 1000)
+    
 }
 
 
@@ -508,6 +473,12 @@ const areNotificationsEnabled = async function (): Promise<boolean> {
 const stopForegroundService = async function (): Promise<void> {    
     await notifee.stopForegroundService()
     log.trace('[stopForegroundService] completed')
+}
+
+
+const cancelNotification = async function (id: string): Promise<void> {    
+    await notifee.cancelNotification(id)
+    log.trace('[cancelNotification]', {id})
 }
 
 export const NotificationService = {

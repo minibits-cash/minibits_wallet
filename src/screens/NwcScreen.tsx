@@ -33,7 +33,6 @@ export const NwcScreen = observer(function NwcScreen(_props) {
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState(false)
-    const [isRemoteDataPushEnabled, setIsRemoteDataPushEnabled] = useState<boolean>((!walletProfileStore.device || __DEV__) ? false : true)
     const [areNotificationsEnabled, setAreNotificationsEnabled] = useState<boolean>(false)
 
 
@@ -99,7 +98,7 @@ export const NwcScreen = observer(function NwcScreen(_props) {
         
         // if device does not support firebase notifications, but notifications are enabled, 
         // use foreground service to listen for NWC events
-        if(!isRemoteDataPushEnabled && areNotificationsEnabled) {
+        if(!walletProfileStore.device && areNotificationsEnabled) {
             setSelectedConnection(undefined)
             
             await NotificationService.stopForegroundService() // stop previous if any
@@ -171,8 +170,8 @@ export const NwcScreen = observer(function NwcScreen(_props) {
         <Header 
             leftIcon='faArrowLeft'
             onLeftPress={() => navigation.goBack()}
-            rightIcon={!isRemoteDataPushEnabled && areNotificationsEnabled ? 'faCircleNodes' : undefined}
-            onRightPress={() => !isRemoteDataPushEnabled && areNotificationsEnabled ? onConnect() : false}
+            rightIcon={!walletProfileStore.device && areNotificationsEnabled ? 'faCircleNodes' : undefined}
+            onRightPress={() => !walletProfileStore.device && areNotificationsEnabled ? onConnect() : false}
         />
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
           <Text

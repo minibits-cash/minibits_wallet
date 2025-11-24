@@ -16,7 +16,8 @@ import AppError, { Err } from '../utils/AppError'
   
 export const RelaysStoreModel = types
     .model('RelaysStore', {
-        relays: types.array(RelayModel),          
+        relays: types.array(RelayModel),
+        receivedEventIds: types.optional(types.array(types.string), []),          
     })
     .views(self => ({
         findByUrl: (url: string) => {
@@ -85,7 +86,21 @@ export const RelaysStoreModel = types
         resetStatuses() {            
             self.allRelays.every(relay => relay.setStatus(WebSocket.CLOSED))
             log.trace('[RelayStore] resetStatuses')
-        }
+        },
+        addReceivedEventId(id: string) {
+            if(self.receivedEventIds.includes(id)) {
+                return
+            }
+
+            const num = self.receivedEventIds.unshift(id)
+            
+            if(num > 50) {
+                self.receivedEventIds.pop()
+            }
+        },
+        eventAlreadyReceived(id: string) {            
+            return self.receivedEventIds.includes(id)
+        },
     })) 
     .views(self => ({
         get allUrls() {
@@ -102,6 +117,11 @@ export const RelaysStoreModel = types
         },          
 
         
+}))
+// persist last 50 event ids to keep it not growing
+.postProcessSnapshot(snapshot => ({
+    relays: snapshot.relays,
+    receivedEventIds: snapshot.receivedEventIds.slice(-50),
 }))
 
 export interface RelaysStore extends Instance<typeof RelaysStoreModel> {}
