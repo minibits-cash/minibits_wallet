@@ -5,6 +5,7 @@ import {
     isStateTreeNode,
     getSnapshot,
     flow,
+    isAlive,
   } from 'mobx-state-tree'
   import { withSetPropAction } from './helpers/withSetPropAction'
   import { ProofModel, Proof, ProofRecord } from './Proof' // Proof type now includes isPending/isSpent
@@ -192,6 +193,11 @@ import { SerializedDLEQ } from '@cashu/cashu-ts'
 
                 if (proofNode) {
                     if(proofNode.isSpent) continue // skip update if proof is spent already
+                    
+                    if (!isAlive(proofNode)) {
+                        log.error('[addOrUpdate]', 'Proof instance is not alive, aborting state update', { secret: proofNode.secret })
+                        continue
+                    }
 
                     proofNode?.setProp('mintUrl', mintUrl)
                     proofNode?.setProp('tId', tId)
@@ -237,7 +243,12 @@ import { SerializedDLEQ } from '@cashu/cashu-ts'
         moveToPending(proofs: Proof[]) {            
             Database.addOrUpdateProofs(proofs, true, false)
 
-            for (const p of proofs) {                
+            for (const p of proofs) { 
+              if (!isAlive(p)) {
+                log.error('[moveToPending]', 'Proof instance is not alive, aborting state update', { secret: p.secret })
+                continue
+              }
+
                 p.isPending = true
                 p.isSpent = false                
             }
@@ -264,8 +275,13 @@ import { SerializedDLEQ } from '@cashu/cashu-ts'
             Database.addOrUpdateProofs(proofs, false, true)
 
             for (const p of proofs) {
-                p.isPending = false
-                p.isSpent = true                
+              if (!isAlive(p)) {
+                log.error('[moveToSpent]', 'Proof instance is not alive, aborting state update', { secret: p.secret })
+                continue
+              }
+
+              p.isPending = false
+              p.isSpent = true                
             }
             // Automatically clean if any were in mint-pending list
             const secrets = proofs.map(p => p.secret)
@@ -278,8 +294,13 @@ import { SerializedDLEQ } from '@cashu/cashu-ts'
             Database.addOrUpdateProofs(proofs, false, false)
 
             for (const p of proofs) {
-                p.isPending = false
-                p.isSpent = false
+              if (!isAlive(p)) {
+                log.error('[revertToSpendable]', 'Proof instance is not alive, aborting state update', { secret: p.secret })
+                continue
+              }
+
+              p.isPending = false
+              p.isSpent = false
             }
         },
 
@@ -287,7 +308,12 @@ import { SerializedDLEQ } from '@cashu/cashu-ts'
             const updateInMap = (map: typeof self.proofs) => {
                 for (const proof of map.values()) {
                     if (proof.mintUrl === currentMintUrl) {
-                        proof.setMintUrl(updatedMintUrl)
+                      if (!isAlive(proof)) {
+                        log.error('[revertToSpendable]', 'Proof instance is not alive, aborting state update', { secret: proof.secret })
+                        continue
+                      }
+                      
+                      proof.setMintUrl(updatedMintUrl)
                     }
                 }
             }
