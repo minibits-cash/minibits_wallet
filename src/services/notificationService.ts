@@ -331,12 +331,14 @@ const createNwcListenerNotification = async function () {
             log.trace('[createNwcListenerNotification] Android foreground service is already running, quit...', NWC_LISTENER_NAME)
         } else {
             if(nwcStore.nwcSubscription) {
-                log.trace('[createNwcListenerNotification] iOS listener is already running, quit...', NWC_LISTENER_NAME)
+                log.debug('[createNwcListenerNotification] iOS listener is already running, quit...', NWC_LISTENER_NAME)
             } else {
-                log.trace('[createNwcListenerNotification] iOS listener not in state, restarting...', NWC_LISTENER_NAME)
+                log.debug('[createNwcListenerNotification] iOS listener not in state, restarting...', NWC_LISTENER_NAME)
                 nwcStore.listenForNwcEvents()
             }
         }
+
+        return
     }
 
     

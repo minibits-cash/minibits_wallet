@@ -732,7 +732,7 @@ export const NwcStoreModel = types
             }
         },
         listenForNwcEvents () {
-            log.trace('[listenForNwcEvents] got request to start nwcListener', {                
+            log.debug('[listenForNwcEvents] got request to start nwcListener', {                
                 walletPubkey: self.walletPubkey,
                 isNwcListenerActive: self.isNwcListenerActive,
                 relays: self.connectionRelays
@@ -753,7 +753,7 @@ export const NwcStoreModel = types
             
             try {
                 // 10s window to get the first event that came with push message
-                const since = Math.floor(Date.now() / 1000) - 5000 
+                const since = Math.floor(Date.now() / 1000) - 10 * 1000 
                 const connectionsPubkeys = self.nwcConnections.map(c => c.connectionPubkey)
                 let eventsBatch: NostrEvent[] = []               
         
@@ -815,8 +815,8 @@ export const NwcStoreModel = types
   
                     },
                     onclose() {
-                        log.trace('[listenForNwcEvents]', `onClose`)
-                        self.nwcSubscription = undefined
+                        log.debug('[listenForNwcEvents]', `onClose`)
+                        self.resetSubscription()
                     }
                 })
 
