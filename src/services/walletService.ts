@@ -1420,11 +1420,8 @@ const handlePendingTopupTask = async (
           try {
             proofs = await walletStore.mintProofs(mintUrl, amount, unit, mintQuote, tId)
           } catch (e: any) {
-            if (
-              e.message.toLowerCase().includes('already been signed') ||
-              e.message.toLowerCase().includes('duplicate key')
-            ) {
-              log.warn('[handlePendingTopupTask] Idempotency conflict – retrying with counter bump')
+            if (/already.*signed|duplicate key/i.test(e.message) || e.code && e.code === 10002) {
+              log.error('[handlePendingTopupTask] Idempotency conflict – retrying with counter bump')
               proofs = await walletStore.mintProofs(mintUrl, amount, unit, mintQuote, tId, { increaseCounterBy: 10 })
             } else {
               throw e
