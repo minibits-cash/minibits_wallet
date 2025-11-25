@@ -627,7 +627,8 @@ export const NwcStoreModel = types
     .model('NwcStore', {
         nwcConnections: types.array(NwcConnectionModel),
         isNwcListenerActive: types.optional(types.boolean, false),
-        nwcSubscription: types.maybe(types.frozen<SubCloser>()),     
+        nwcSubscription: types.maybe(types.frozen<SubCloser>()),
+        retrieveEventsSince: types.optional(types.number,  Math.floor(Date.now() / 1000) - 5 * 1000), // room for killed app wakeup, if not set    
     })    
     .views(self => ({          
         findByName: (name: string) => {
@@ -671,6 +672,9 @@ export const NwcStoreModel = types
                 self.nwcSubscription.close()
                 self.nwcSubscription = undefined
             }           
+        },
+        setRetrieveEventsSince (since: number) {
+            self.retrieveEventsSince = since
         }
     }))
     .actions(self => ({
@@ -753,7 +757,7 @@ export const NwcStoreModel = types
             
             try {
                 // 10s window to get the first event that came with push message
-                const since = Math.floor(Date.now() / 1000) - 10 * 1000 
+                const since = self.retrieveEventsSince 
                 const connectionsPubkeys = self.nwcConnections.map(c => c.connectionPubkey)
                 let eventsBatch: NostrEvent[] = []               
         
@@ -809,14 +813,13 @@ export const NwcStoreModel = types
                         eventsBatch = []
 
                         const connections = pool.listConnectionStatus()
-                        log.trace('[listenForNwcEvents] onEose', {connections: Array.from(connections)})
-
-                        const nwcConnStatuses = Array.from(connections).filter((conn: any) => self.connectionRelays.some(r => r === conn[0]))
+                        log.trace('[listenForNwcEvents] onEose', {connections: Array.from(connections)})                        
   
                     },
                     onclose() {
                         log.debug('[listenForNwcEvents]', `onClose`)
                         self.resetSubscription()
+                        self.setRetrieveEventsSince(Math.floor(Date.now() / 1000))
                     }
                 })
 
@@ -885,7 +888,8 @@ export const NwcStoreModel = types
     .postProcessSnapshot((snapshot) => {
         return {
             nwcConnections: snapshot.nwcConnections,            
-            nwcSubscription: undefined,            
+            nwcSubscription: undefined,
+            retrieveEventsSince: snapshot.retrieveEventsSince           
         }          
       })
 

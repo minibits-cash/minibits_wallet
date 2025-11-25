@@ -326,14 +326,15 @@ const createNwcListenerNotification = async function () {
             
     const notifications = await getDisplayedNotifications()
     
-    if(notifications.some(n => n.notification.android?.asForegroundService && n.notification.title === NWC_LISTENER_NAME)) {
+    if(notifications.some(n => n.notification.title && n.notification.title === NWC_LISTENER_NAME)) {
+
         if(Platform.OS === 'android') {
-            log.trace('[createNwcListenerNotification] Android foreground service is already running, quit...', NWC_LISTENER_NAME)
+            log.debug('[createNwcListenerNotification] Android foreground service is already running, quit...', NWC_LISTENER_NAME)
         } else {
             if(nwcStore.nwcSubscription) {
-                log.debug('[createNwcListenerNotification] iOS listener is already running, quit...', NWC_LISTENER_NAME)
+                log.debug('[createNwcListenerNotification] iOS nwc subscription is already running, quit...', NWC_LISTENER_NAME)
             } else {
-                log.debug('[createNwcListenerNotification] iOS listener not in state, restarting...', NWC_LISTENER_NAME)
+                log.debug('[createNwcListenerNotification] iOS nwc subscription not found in the state, restarting...', NWC_LISTENER_NAME)
                 nwcStore.listenForNwcEvents()
             }
         }
