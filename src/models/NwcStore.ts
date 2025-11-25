@@ -301,7 +301,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                 nwcResponse = {
                     result_type: nwcRequest.method,
                     result: {
-                      preimage: result.preimage,
+                      preimage: result.preimage || 'not-provided',
                     }
                 } as NwcResponse
     
