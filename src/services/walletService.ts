@@ -1295,13 +1295,19 @@ const handlePendingQueue = async (): Promise<void> => {
           message: 'Lightning invoice expired',
           createdAt: new Date(),
         }
-  
-        const txData = tx.data ? [...JSON.parse(tx.data), update] : [update]
-  
-        tx.update({
-          status: TransactionStatus.EXPIRED,
-          data: JSON.stringify(txData),
-        })
+
+        try { 
+          const txData = tx.data ? [...JSON.parse(tx.data), update] : [update]
+          tx.update({
+            status: TransactionStatus.EXPIRED,
+            data: JSON.stringify(txData),
+          })
+        } catch(e: any) {
+          tx.update({
+            status: TransactionStatus.EXPIRED,
+            data: JSON.stringify(update),
+          })
+        }
       }
     }
   
