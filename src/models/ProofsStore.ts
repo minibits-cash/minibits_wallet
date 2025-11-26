@@ -284,9 +284,9 @@ import { SerializedDLEQ } from '@cashu/cashu-ts'
               p.isSpent = true                
             }
             // Automatically clean if any were in mint-pending list
-            const secrets = proofs.map(p => p.secret)
-                self.pendingByMintSecrets.replace(
-                self.pendingByMintSecrets.filter(s => !secrets.includes(s))
+            const secrets = new Set(proofs.map(p => p.secret))
+            self.pendingByMintSecrets.replace(
+              self.pendingByMintSecrets.filter(s => !secrets.has(s))
             )
         },
 
