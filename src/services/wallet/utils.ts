@@ -9,6 +9,25 @@ const formatError = function (e: AppError) {
     } as AppError 
 }
 
+const shouldHealOutputsError = function (e: any): boolean {
+    if (e instanceof AppError) {
+        if (/already.*signed|duplicate key/i.test(e.message)) {
+          return true
+        }
+
+        if (e.params && e.params.message && /already.*signed|duplicate key/i.test(e.params.message)) {
+          return true
+        }
+
+        if(e.code && e.code === 10002) {
+          return true
+        }
+    }
+    return false
+} 
+
 export const WalletUtils = {            
-    formatError
+    formatError,
+    shouldHealOutputsError
 }
+

@@ -385,7 +385,7 @@ export const sendFromMintSync = async function (
                     {p2pk: p2pk && p2pk.pubkey ? p2pk : undefined}
                 )
             } catch (e: any) {                
-                if (/already.*signed|duplicate key/i.test(e.message) || e.code && e.code === 10002) {
+                if (WalletUtils.shouldHealOutputsError(e)) {
                     log.error('[sendFromMintSync] Increasing proofsCounter outdated values and repeating send.')      
                     sendResult = await walletStore.send(
                         mintUrl,

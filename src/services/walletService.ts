@@ -1426,8 +1426,8 @@ const handlePendingTopupTask = async (
           try {
             proofs = await walletStore.mintProofs(mintUrl, amount, unit, mintQuote, tId)
           } catch (e: any) {
-            if (/already.*signed|duplicate key/i.test(e.message) || e.code && e.code === 10002) {
-              log.error('[handlePendingTopupTask] Idempotency conflict – retrying with counter bump')
+            if (WalletUtils.shouldHealOutputsError(e)) {
+              log.error('[handlePendingTopupTask] Increasing proofsCounter outdated values and repeating mintProofs.')
               proofs = await walletStore.mintProofs(mintUrl, amount, unit, mintQuote, tId, { increaseCounterBy: 10 })
             } else {
               throw e
@@ -1561,7 +1561,7 @@ const recoverMintQuote = async (
         try {
           proofs = await walletStore.mintProofs(mintUrl, amount, unit, mintQuote, tx.id)
         } catch (e: any) {
-          if (/already.*signed|duplicate key/i.test(e.message) || e.code && e.code === 10002) {
+          if (WalletUtils.shouldHealOutputsError(e)) {
             log.error('[recoverMintQuote] Increasing proofsCounter outdated values and repeating mintProofs')
             proofs = await walletStore.mintProofs(mintUrl, amount, unit, mintQuote, tx.id, { increaseCounterBy: 10 })
           } else {
@@ -2487,7 +2487,6 @@ const _extractZapSenderData = function (str: string) {
     return match ? match[0] : null;
 }
 
-
 const testQueue = async () => {
     const now = new Date().getTime()
     
@@ -2521,5 +2520,5 @@ export const WalletTask: WalletTaskService = {
     revertQueue,
     testQueue,
     recoverMintQuote,
-    recoverMeltQuoteChange
+    recoverMeltQuoteChange,
 }

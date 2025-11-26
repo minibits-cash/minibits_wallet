@@ -31,12 +31,14 @@ export interface IAppError {
 }
 
 class AppError extends Error {
+  public code?: number
   public name: Err
   public message: string
   public params?: { caller?: string, message?: string, [key: string]: any }
 
   constructor(name: Err = Err.UNKNOWN_ERROR, message: string, params?: any) {
     super(name)
+    this.code = params && params.code ? params.code : undefined
     this.name = name
     this.message = message
     this.params = params

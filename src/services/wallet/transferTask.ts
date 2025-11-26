@@ -195,7 +195,7 @@ export const transferTask = async function (
                 transactionId,                
             )
         } catch (e: any) {
-            if (/already.*signed|duplicate key/i.test(e.message) || e.code && e.code === 10002) {                                
+            if (WalletUtils.shouldHealOutputsError(e)) {                                
                 log.error('[transferTask] Increasing proofsCounter outdated values and repeating payLightningMelt.')
                 meltResponse = await walletStore.payLightningMelt(
                     mintUrl,

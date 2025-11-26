@@ -571,7 +571,7 @@ export const receiveSync = async function (
                 transactionId   
             )
         } catch (e: any) {            
-            if (/already.*signed|duplicate key/i.test(e.message) || e.code && e.code === 10002) {                               
+            if (WalletUtils.shouldHealOutputsError(e)) {                            
                 log.error('[receiveSync] Increasing proofsCounter outdated values and repeating receive.')
                 receivedResult = await walletStore.receive(
                     mintToReceive,
