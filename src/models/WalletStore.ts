@@ -484,7 +484,11 @@ export const WalletStoreModel = types
                 throw new AppError(
                     Err.MINT_ERROR, 
                     e.message, 
-                    {caller: 'WalletStore.receive'}
+                    {
+                      caller: 'WalletStore.receive',
+                      code: e.code || undefined,
+                      message: e.message,   
+                    }
                 )
             }        
         }),
@@ -578,7 +582,8 @@ export const WalletStoreModel = types
                     {
                         message: e.message,            
                         mintUrl,
-                        caller: 'WalletStore.send',                 
+                        caller: 'WalletStore.send', 
+                        code: e.code || undefined,                   
                     }
                 )
             }              
@@ -879,7 +884,8 @@ export const WalletStoreModel = types
                     {
                         message: e.message,
                         caller: 'payLightningMelt', 
-                        mintUrl            
+                        mintUrl,
+                        code: e.code || undefined,        
                     }
                 )
             }
