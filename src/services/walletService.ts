@@ -148,7 +148,7 @@ type WalletTaskService = {
     }) => Promise<{recoveredAmount: number}>
     recoverMeltQuoteChange: (params: {
         mintUrl: string, 
-        meltQuote: string
+        meltQuote: string | MeltQuoteResponse
     }) => Promise<{recoveredAmount: number}>
 }
 
@@ -1608,7 +1608,7 @@ const recoverMintQuote = async (
   const recoverMeltQuoteChange = async (
     params: { 
       mintUrl: string
-      meltQuote: string 
+      meltQuote: string | MeltQuoteResponse
   }
   ): Promise<{ recoveredAmount: number }> => {
     const { mintUrl, meltQuote } = params
@@ -1620,14 +1620,14 @@ const recoverMintQuote = async (
     }
   
     log.trace('[recoverMeltQuoteChange] start', { mintUrl, meltQuote })
-  
-    const response = await walletStore.checkLightningMeltQuote(mintUrl, meltQuote)
-    const { quote, state, change, amount } = response
-  
-    if (quote !== meltQuote) {
-      throw new AppError(Err.VALIDATION_ERROR, 'Mint returned mismatched melt quote', { meltQuote, returned: quote })
-    }
-  
+
+    const meltQuoteResponse: MeltQuoteResponse =
+      typeof meltQuote === 'string'
+        ? await walletStore.checkLightningMeltQuote(mintUrl, meltQuote)
+        : meltQuote
+ 
+    const { quote, state, change } = meltQuoteResponse
+    
     switch (state) {
       case MeltQuoteState.UNPAID:
         throw new AppError(Err.VALIDATION_ERROR, `Melt quote ${meltQuote} was not paid`)
@@ -1640,7 +1640,7 @@ const recoverMintQuote = async (
           throw new AppError(Err.VALIDATION_ERROR, `No change available for melt quote ${meltQuote}`)
         }
   
-        let tx = transactionsStore.findLastBy({ quote: meltQuote })
+        let tx = transactionsStore.findLastBy({ quote })
   
         if (!tx) {
           throw new AppError(Err.VALIDATION_ERROR, 'Original melt transaction not found', { meltQuote })
@@ -1650,7 +1650,7 @@ const recoverMintQuote = async (
   
         try {
           // Recover blind signatures requires original counter value to produce valid proofs
-          const change = await walletStore.recoverMeltQuoteChange(mintUrl, response, tx.id)
+          const change = await walletStore.recoverMeltQuoteChange(mintUrl, meltQuoteResponse, tx.id)
 
           // Make sure we do not recover already received change
           const newChange = change.filter(proof => !proofsStore.alreadyExists(proof))

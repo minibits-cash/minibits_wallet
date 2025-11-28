@@ -248,7 +248,7 @@ export const transferTask = async function (
                 totalFeePaid = totalFeePaid - returnedAmount
                 lightningFeePaid = totalFeePaid - meltFeeReserve
             }         
-    
+
             const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
     
             // build consolidated update payload
@@ -338,33 +338,16 @@ export const transferTask = async function (
                     message = `Lightning invoice has been successfully paid, however some error occured: ${e.message}`
                     
                     taskResult.preimage =  refreshedMeltQuote.payment_preimage
-                    taskResult.message = message
+                    taskResult.message = message               
 
-                    const change = await walletStore.recoverMeltQuoteChange(
-                        mintUrl as string,
-                        refreshedMeltQuote,
-                        transaction.id
-                    )                    
-
-                    let recoveredChangeAmount = 0
-
-                    if(change && change.length > 0) {
-
-                        const {updatedAmount} = proofsStore.addOrUpdate(change,
-                            {
-                                mintUrl,
-                                tId: transaction.id,
-                                unit,
-                                isPending: false,
-                                isSpent: false
-                            }
-                        )
-
-                        recoveredChangeAmount += updatedAmount
-                    }
+                    const {recoveredAmount} = await WalletTask.recoverMeltQuoteChange({
+                        mintUrl,
+                        meltQuote: refreshedMeltQuote,                    
+                    })
+                    
 
                     log.error('[transfer]', message, {
-                        recoveredChangeAmount,
+                        recoveredAmount,
                         error: e.message,
                         refreshedMeltQuote, 
                         unit,

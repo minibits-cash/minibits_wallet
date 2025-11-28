@@ -921,7 +921,7 @@ export const WalletStoreModel = types
         recoverMeltQuoteChange: flow(function* recoverMeltQuoteChange(
           mintUrl: string,   
           meltQuote: MeltQuoteResponse,
-          txId: number       
+          transactionId: number       
         ) {
           try {
             const mintInstance = self.getMintModelInstance(mintUrl)
@@ -939,10 +939,10 @@ export const WalletStoreModel = types
             )
 
             const currentCounter = mintInstance.getProofsCounterByKeysetId!(cashuWallet.keysetId)
-            const counterValueForMelt = currentCounter.getMeltCounterValue(txId)?.counterAtMelt
+            const counterValueForMelt = currentCounter.getMeltCounterValue(transactionId)?.counterAtMelt
 
             if(counterValueForMelt === undefined) {
-              throw new AppError(Err.VALIDATION_ERROR, 'No melt counter value stored for provided transaction id', {mintUrl, txId})
+              throw new AppError(Err.VALIDATION_ERROR, 'Change already claimed - counterAtMelt not available for this transaction', {mintUrl, transactionId})
             }
 
             const {change}: MeltProofsResponse = yield cashuWallet.recoverMeltQuoteChange(      
@@ -952,6 +952,8 @@ export const WalletStoreModel = types
                 counter: counterValueForMelt                    
               }
             )
+
+            currentCounter.removeMeltCounterValue(transactionId)
         
             log.info('[recoverMeltQuoteChange]', {change})
         
