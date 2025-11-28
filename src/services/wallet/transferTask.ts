@@ -342,7 +342,8 @@ export const transferTask = async function (
 
                     const change = await walletStore.recoverMeltQuoteChange(
                         mintUrl as string,
-                        refreshedMeltQuote
+                        refreshedMeltQuote,
+                        transaction.id
                     )                    
 
                     let recoveredChangeAmount = 0

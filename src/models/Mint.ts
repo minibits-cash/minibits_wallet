@@ -34,59 +34,209 @@ export type Balances = {
     unitBalances: UnitBalance[]
 }
 
-export type InFlightRequest<TRequest = any> = {
-    transactionId: number;
-    request: TRequest;
-}
-
 export enum MintStatus {
     ONLINE = 'ONLINE',
     OFFLINE = 'OFFLINE'
 }
 
-export const MintProofsCounterModel = types.model('MintProofsCounter', {
-    keyset: types.string,
-    unit: types.optional(types.frozen<MintUnit>(), 'sat'),
-    counter: types.optional(types.number, 0),
-    inFlightRequests: types.array(types.frozen<InFlightRequest>()),    
-}).actions(self => ({
-    addInFlightRequest(transactionId: number, request: any) {
-        if(!self.inFlightRequests.find(r => r.transactionId === transactionId)) {
-            self.inFlightRequests.push({transactionId, request})
-            log.trace('[addInFlightRequest]', {transactionId, request})
-        }
-    },
-    removeInFlightRequest(transactionId: number) {
-        
-        if (!isAlive(self)) {
-            log.error('[removeInFlightRequest]', 'ProofsCounter is not alive, aborting removal', { keyset: self.keyset })
-            return
-        }
+export type InFlightRequest<TRequest = any>  = {
+    transactionId: number
+    request: TRequest
+}
 
-        // Create a shallow copy to avoid modifying during iteration
-        const idx = self.inFlightRequests.findIndex(r => r.transactionId === transactionId)
-        if (idx !== -1) {
-            // Replace with a filtered array instead of removing in-place
-            self.inFlightRequests.replace(
-                self.inFlightRequests.filter(r => r.transactionId !== transactionId)
-            )
+const InFlightRequestModel = types.model('InFlightRequest', {
+    transactionId: types.number,
+    request: types.frozen<any>(), // or replace `any` with your actual request type
+})
 
-            log.trace('[removeInFlightRequest]', {transactionId})
+// Sub-model for melt counter snapshots
+const MeltCounterValueModel = types.model('MeltCounterValue', {
+    transactionId: types.number,
+    counterAtMelt: types.number,        // the counter value when melt started
+    createdAt: types.optional(types.Date, () => new Date()), // optional: when it was added
+})
+
+// === Migration function ===
+const migrateSnapshot = (snapshot: any): any => {
+    if (!snapshot) return snapshot
+
+    // 1. Convert old inFlightRequests array → map (if needed)
+    if (Array.isArray(snapshot.inFlightRequests)) {
+        const oldArray = snapshot.inFlightRequests as Array<{ transactionId: number; request: any }>
+        const newMap: Record<string, any> = {}
+
+        oldArray.forEach(item => {
+            if (item && typeof item.transactionId === 'number') {
+                newMap[item.transactionId.toString()] = {
+                    transactionId: item.transactionId,
+                    request: item.request ?? null,
+                }
+            }
+        })
+
+        snapshot = {
+            ...snapshot,
+            inFlightRequests: newMap,
         }
-    },  
-    increaseProofsCounter(numberOfProofs: number) {
-        if(isNaN(self.counter)) self.counter = 0
-        self.counter += numberOfProofs
-        log.info('[increaseProofsCounter]', 'Increased proofsCounter', {numberOfProofs, counter: self.counter})
-    },
-    decreaseProofsCounter(numberOfProofs: number) {
-        self.counter -= numberOfProofs
-        Math.max(0, self.counter)
-        log.trace('[decreaseProofsCounter]', 'Decreased proofsCounter', {numberOfProofs, counter: self.counter})
-    },
-}))
+    } else if (snapshot.inFlightRequests == null) {
+        // Ensure it's an object (empty map)
+        snapshot = { ...snapshot, inFlightRequests: {} }
+    }
+
+    // 2. Add missing meltCounterValues map (new in v2+)
+    if (snapshot.meltCounterValues === undefined) {
+        snapshot = { ...snapshot, meltCounterValues: {} }
+    }
+
+    return snapshot
+}
+
+
+export const MintProofsCounterModel = types
+    .model('MintProofsCounter', {
+        keyset: types.string,
+        unit: types.optional(types.frozen<MintUnit>(), 'sat'),
+        counter: types.optional(types.number, 0),
+
+        // In-flight mint requests
+        inFlightRequests: types.map(InFlightRequestModel),
+
+        // Melt transactions that have started (counter value frozen at start)
+        meltCounterValues: types.map(MeltCounterValueModel),
+    })
+    .preProcessSnapshot(migrateSnapshot)
+    .actions(self => ({
+        // === In-flight mint requests (unchanged) ===
+        addInFlightRequest(transactionId: number, request: any) {
+            self.inFlightRequests.set(transactionId.toString(), {
+                transactionId,
+                request,
+            })
+            log.trace('[addInFlightRequest]', { transactionId, request })
+        },
+
+        removeInFlightRequest(transactionId: number) {
+            if (!isAlive(self)) {
+                log.error('[removeInFlightRequest]', 'ProofsCounter is not alive', { keyset: self.keyset })
+                return
+            }
+            const key = transactionId.toString()
+            if (self.inFlightRequests.has(key)) {
+                self.inFlightRequests.delete(key)
+                log.trace('[removeInFlightRequest]', { transactionId })
+            }
+        },
+
+        clearAllInFlightRequests() {
+            if (!isAlive(self)) {
+                log.error('[clearAllInFlightRequests]', 'ProofsCounter is not alive', { keyset: self.keyset })
+                return
+            }
+            const count = self.inFlightRequests.size
+            if (count > 0) {
+                self.inFlightRequests.clear()
+                log.info('[clearAllInFlightRequests]', `Cleared ${count} in-flight request(s)`)
+            }
+        },
+
+        // === Melt counter tracking ===
+        addMeltCounterValue(transactionId: number): number {
+            const key = transactionId.toString()
+            if (self.meltCounterValues.has(key)) {
+                log.warn('[addMeltCounterValue]', 'Melt already tracked', { transactionId })
+                return self.meltCounterValues.get(key)!.counterAtMelt
+            }
+
+            self.meltCounterValues.set(key, {
+                transactionId,
+                counterAtMelt: self.counter,
+                createdAt: new Date(),
+            })
+
+            log.trace('[addMeltCounterValue]', {
+                transactionId,
+                counterAtMelt: self.counter,
+            })
+
+            return self.counter
+        },
+
+        removeMeltCounterValue(transactionId: number) {
+            if (!isAlive(self)) {
+                log.error('[removeMeltCounterValue]', 'ProofsCounter is not alive', { keyset: self.keyset })
+                return
+            }
+
+            const key = transactionId.toString()
+            if (self.meltCounterValues.has(key)) {
+                self.meltCounterValues.delete(key)
+                log.trace('[removeMeltCounterValue]', { transactionId })
+            }
+        },
+
+        clearAllMeltCounterValues() {
+            if (!isAlive(self)) {
+                log.error('[clearAllMeltCounterValues]', 'ProofsCounter is not alive', { keyset: self.keyset })
+                return
+            }
+
+            const count = self.meltCounterValues.size
+            if (count > 0) {
+                self.meltCounterValues.clear()
+                log.info('[clearAllMeltCounterValues]', `Cleared ${count} melt tracking entries`)
+            }
+        },
+
+        // === Counter mutations (unchanged) ===
+        increaseProofsCounter(numberOfProofs: number) {
+            self.counter += numberOfProofs
+            log.info('[increaseProofsCounter]', 'Increased proofsCounter', {
+                numberOfProofs,
+                counter: self.counter,
+            })
+        },
+
+        decreaseProofsCounter(numberOfProofs: number) {
+            self.counter = Math.max(0, self.counter - numberOfProofs)
+            log.trace('[decreaseProofsCounter]', 'Decreased proofsCounter', {
+                numberOfProofs,
+                counter: self.counter,
+            })
+        },
+    }))
+    .views(self => ({
+        // === In-flight requests ===
+        inFlightRequestExists(transactionId: number): boolean {
+            return self.inFlightRequests.has(transactionId.toString())
+        },
+        getInFlightRequest(transactionId: number): InFlightRequest | undefined {
+            return self.inFlightRequests.get(transactionId.toString())
+        },
+        get inFlightRequestCount(): number {
+            return self.inFlightRequests.size
+        },
+        get allInFlightRequests(): Instance<typeof InFlightRequestModel>[] {
+            return Array.from(self.inFlightRequests.values())
+        },
+
+        // === Melt counter values ===
+        meltCounterValueExists(transactionId: number): boolean {
+            return self.meltCounterValues.has(transactionId.toString())
+        },
+        getMeltCounterValue(transactionId: number): Instance<typeof MeltCounterValueModel> | undefined {
+            return self.meltCounterValues.get(transactionId.toString())
+        },
+        get meltCounterValueCount(): number {
+            return self.meltCounterValues.size
+        },
+        get allMeltCounterValues(): Instance<typeof MeltCounterValueModel>[] {
+            return Array.from(self.meltCounterValues.values())
+        },
+    }))
 
 export type MintProofsCounter = Instance<typeof MintProofsCounterModel>
+
+
 
 /**
  * This represents a Cashu mint
@@ -421,17 +571,17 @@ export const MintModel = types
         removeAllInFlightRequests() {
             log.trace('[removeAllInFlightRequests] Removing all inFlight requests', {mintUrl: self.mintUrl})
             for(const counter of self.proofsCounters) {
-                counter.inFlightRequests.length = 0
+                counter.clearAllInFlightRequests() 
             }            
         },
     }))
     .views(self => ({
         findInFlightRequestByTId: (transactionId: number) => {            
-            const inFlightCounters = self.proofsCounters.filter(c => c.inFlightRequests && c.inFlightRequests.length > 0)                    
+            const inFlightCounters = self.proofsCounters.filter(c => c.inFlightRequests && c.inFlightRequests.size > 0)                    
             let inFlightRequest: InFlightRequest | undefined = undefined
 
             for (const counter of inFlightCounters) {
-                const request = counter.inFlightRequests.find(r => r.transactionId === transactionId)
+                const request = counter.getInFlightRequest(transactionId)
                 if(request) {
                     inFlightRequest = request
                     break
@@ -440,12 +590,12 @@ export const MintModel = types
 
             return inFlightRequest
         },
-        get proofsCountersWithInFlightRequests(): MintProofsCounter[] {            
-            const counters = self.proofsCounters.filter(c => c.inFlightRequests && c.inFlightRequests.length > 0)                       
-            return counters || [] as MintProofsCounter[]
+        get proofsCountersWithInFlightRequests() {            
+            const counters = self.proofsCounters.filter(c => c.inFlightRequests && c.inFlightRequests.size > 0)                       
+            return counters || []
         },
-        get allInFlightRequests(): InFlightRequest[] {            
-            const requests = self.proofsCounters
+        get allInFlightRequests() {            
+            const requests = self.proofsCounters // Get all counters as an array
                 .flatMap((counter) => counter.inFlightRequests) // Combine all `inFlightRequests` arrays  
                 
             return requests

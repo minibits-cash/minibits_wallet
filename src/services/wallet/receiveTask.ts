@@ -412,7 +412,7 @@ export const receiveByCashuPaymentRequestTask = async function (
   const paymentRequestId = paymentRequestPayload.id
 
   // Let's find transaction with related payment request
-  const transaction = transactionsStore.findBy({paymentId: paymentRequestId}) as Transaction | undefined
+  const transaction = transactionsStore.findLastBy({paymentId: paymentRequestId}) as Transaction | undefined
 
   try {        
         if (!mintToReceive || !unit || !Array.isArray(proofsToReceive) || proofsToReceive.length === 0) {

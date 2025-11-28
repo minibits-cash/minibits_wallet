@@ -1054,7 +1054,7 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
     const errors: string[] = []
   
     for (const counter of countersWithInFlight) {
-      for (const inFlight of [...counter.inFlightRequests]) { // clone to allow safe removal
+      for (const inFlight of counter.allInFlightRequests) { // clone to allow safe removal
         const tx = transactionsStore.findById(inFlight.transactionId)
         if (!tx) {
           counter.removeInFlightRequest(inFlight.transactionId)
@@ -1498,7 +1498,7 @@ const handlePendingTopupTask = async (
         unit,
         amount,
         paymentHash,
-        error: { name: e.name, message: e.message },
+        error: WalletUtils.formatError(e),
         message: `Topup failed: ${e.message}`,
       }
     }
@@ -1606,7 +1606,10 @@ const recoverMintQuote = async (
    * Manually recover change from a paid melt quote (lightning out)
    */
   const recoverMeltQuoteChange = async (
-    params: { mintUrl: string; meltQuote: string }
+    params: { 
+      mintUrl: string
+      meltQuote: string 
+  }
   ): Promise<{ recoveredAmount: number }> => {
     const { mintUrl, meltQuote } = params
     const mint = mintsStore.findByUrl(mintUrl)
@@ -1637,37 +1640,33 @@ const recoverMintQuote = async (
           throw new AppError(Err.VALIDATION_ERROR, `No change available for melt quote ${meltQuote}`)
         }
   
-        let tx = transactionsStore.findBy({ quote: meltQuote })
+        let tx = transactionsStore.findLastBy({ quote: meltQuote })
   
         if (!tx) {
-          // Create recovery tx if not exists
-          tx = await transactionsStore.addTransaction({
-            type: TransactionType.RECEIVE,
-            amount,
-            fee: 0,
-            unit,
-            data: JSON.stringify([{ status: TransactionStatus.DRAFT, createdAt: new Date() }]),
-            memo: 'Recovered melt change',
-            mint: mintUrl,
-            status: TransactionStatus.DRAFT,
-            quote: meltQuote,
-          })
+          throw new AppError(Err.VALIDATION_ERROR, 'Original melt transaction not found', { meltQuote })
         }
   
         let txData: TransactionData = tx.data ? JSON.parse(tx.data) : []
   
         try {
-          // Recover blind signatures
-          const change = await walletStore.recoverMeltQuoteChange(mintUrl, response)
+          // Recover blind signatures requires original counter value to produce valid proofs
+          const change = await walletStore.recoverMeltQuoteChange(mintUrl, response, tx.id)
+
+          // Make sure we do not recover already received change
+          const newChange = change.filter(proof => !proofsStore.alreadyExists(proof))
+
+          if (newChange.length === 0) {
+            throw new AppError(Err.MINT_ERROR, `No new ecash proofs to recover from melt quote, ${change.length} proofs already in wallet.`)
+          }
   
-          // Force zero-value swap to validate + unblind them
+          // Force zero-value swap to validate and receive change proofs
           const { returnedProofs } = await walletStore.send(
             mintUrl,
             0,
             unit,
-            change as Proof[],
+            newChange as Proof[],
             tx.id,
-            { increaseCounterBy: change.length } // ?
+            { increaseCounterBy: newChange.length } // ?
           )
   
           if (!returnedProofs || returnedProofs.length === 0) {

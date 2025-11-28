@@ -61,6 +61,7 @@ import { REVERT_TASK } from '../services/wallet/revertTask'
 import FastImage from 'react-native-fast-image'
 import { MintHeader } from './Mints/MintHeader'
 import { TransferOption } from './TransferScreen'
+import { WalletUtils } from '../services/wallet/utils'
 
 type ProofsByStatus = {
   isSpent: Proof[]
@@ -1405,6 +1406,17 @@ const TopupInfoBlock = function (props: {
               return false            
           }
 
+          if(mint && WalletUtils.shouldHealOutputsError(result.error)) {
+            const walletInstance = await walletStore.getWallet(
+              mint.mintUrl as string, 
+              transaction.unit, 
+              {withSeed: true}
+            )
+            const mintInstance = mintsStore.findByUrl(mint.mintUrl as string)
+            const counter = mintInstance!.getProofsCounterByKeysetId!(walletInstance.keysetId)
+            counter!.increaseProofsCounter(10)
+          }
+
           if (result.error) {
               setResultModalInfo({
                   status: result.transaction?.status as TransactionStatus,
@@ -1440,18 +1452,6 @@ const TopupInfoBlock = function (props: {
       }
 
       setIsLoading(true)
-
-      if(resultModalInfo && (resultModalInfo.message.toLowerCase().includes('outputs have already been signed before') || 
-        resultModalInfo.message.toLowerCase().includes('duplicate key value violates unique constraint'))) {
-        const walletInstance = await walletStore.getWallet(
-          mint.mintUrl as string, 
-          transaction.unit, 
-          {withSeed: true}
-        )
-        const mintInstance = mintsStore.findByUrl(mint.mintUrl as string)
-        const counter = mintInstance!.getProofsCounterByKeysetId!(walletInstance.keysetId)
-        counter!.increaseProofsCounter(10)
-      }
 
       setIsPendingTopupTaskSentToQueue(true)
       WalletTask.handlePendingQueue()

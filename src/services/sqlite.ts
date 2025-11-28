@@ -601,41 +601,83 @@ const getTransactionById = function (id: number) {
 }
 
 
-const getTransactionBy = function (criteria: { paymentId?: string; quote?: string; paymentRequest?: string }) {
+const getLastTransactionBy = function (
+  criteria: { paymentId?: string; quote?: string; paymentRequest?: string }
+): Transaction {
   try {
-    // Input validation: ensure exactly one search criterion is provided
-    const providedCriteria = [criteria.paymentId != null, criteria.quote != null, criteria.paymentRequest != null].filter(Boolean).length
-    if (providedCriteria !== 1) {
-      throw new AppError(Err.DATABASE_ERROR, 'Exactly one search criterion must be provided to getTransactionBy', 'Invalid criteria object')
+    // === 1. Validate exactly one search criterion ===
+    const provided = Object.values(criteria).filter(v => v != null)
+    if (provided.length !== 1) {
+      throw new AppError(
+        Err.DATABASE_ERROR,
+        'Exactly one of paymentId, quote, or paymentRequest must be provided',
+        'Invalid criteria'
+      )
     }
 
-    // Dynamic query building based on the provided criterion
+    // === 2. Build query with ORDER BY createdAt DESC + LIMIT 1 ===
     let query: string
     let params: string[]
 
     if (criteria.paymentId != null) {
-      query = `SELECT * FROM transactions WHERE paymentId = ?`
+      query = `
+        SELECT * FROM transactions 
+        WHERE paymentId = ? 
+        ORDER BY createdAt DESC 
+        LIMIT 1
+      `
       params = [criteria.paymentId]
     } else if (criteria.quote != null) {
-      query = `SELECT * FROM transactions WHERE quote = ?`
+      query = `
+        SELECT * FROM transactions 
+        WHERE quote = ? 
+        ORDER BY createdAt DESC 
+        LIMIT 1
+      `
       params = [criteria.quote]
+    } else if (criteria.paymentRequest != null
+
+    ) {
+      query = `
+        SELECT * FROM transactions 
+        WHERE paymentRequest = ? 
+        ORDER BY createdAt DESC 
+        LIMIT 1
+      `
+      params = [criteria.paymentRequest]
     } else {
-      query = `SELECT * FROM transactions WHERE paymentRequest = ?`
-      params = [criteria.paymentRequest!]
+      // This should never happen due to validation above
+      throw new AppError(Err.DATABASE_ERROR, 'No valid criterion provided')
     }
 
+    // === 3. Execute ===
     const db = getInstance()
-    const {rows} = db.execute(query, params)
+    const result = db.execute(query, params) // assuming this returns { rows: Row[] }
 
-    log.trace(rows)
-
-    if(!rows || rows.length === 0) {    
-      throw new AppError(Err.DATABASE_ERROR, 'No matching transaction')
+    if (!result.rows || result.rows.length === 0) {
+      throw new AppError(Err.NOTFOUND_ERROR, `No transaction found for given criteria`)
     }
 
-    return normalizeTransactionRecord(rows?.item(0))
+    const row = result.rows.item(0) // now guaranteed to be the LATEST one
+
+    log.trace('[getLastTransactionBy]', {
+      criteria,
+      foundTransactionId: row.id,
+      createdAt: row.createdAt,
+    })
+
+    return normalizeTransactionRecord(row)
   } catch (e: any) {
-    throw new AppError(Err.DATABASE_ERROR, 'Transaction getTransactionBy error', e.message)
+    if (e instanceof AppError) {
+      throw e // rethrow known app errors
+    }
+
+    log.error('[getLastTransactionBy] Database error', e)
+    throw new AppError(
+      Err.DATABASE_ERROR,
+      'Failed to fetch transaction',
+      e.message || String(e)
+    )
   }
 }
 
@@ -1025,7 +1067,7 @@ export const Database = {
   cleanAll,
   getTransactionsCount,
   getTransactionById,
-  getTransactionBy,
+  getLastTransactionBy,
   getRecentTransactionsByUnitAsync,
   getTransactionsAsync,
   getPendingTopups,

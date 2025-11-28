@@ -248,7 +248,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen(_: 
         }
 
         const result = await WalletTask.recoverMeltQuoteChange({
-          mintUrl: mintBalanceToRecoverFrom.mintUrl,
+          mintUrl: mintBalanceToRecoverFrom.mintUrl,         
           meltQuote
         })
 

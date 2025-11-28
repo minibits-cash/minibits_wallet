@@ -482,11 +482,11 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         let transactionsStore = self.getTransactionsStore()
 
         if(nwcRequest.params.payment_hash) {
-            transaction = transactionsStore.findBy({paymentId: nwcRequest.params.payment_hash})
+            transaction = transactionsStore.findLastBy({paymentId: nwcRequest.params.payment_hash})
         }
 
         if(nwcRequest.params.invoice) {
-            transaction = transactionsStore.findBy({paymentRequest: nwcRequest.params.invoice})
+            transaction = transactionsStore.findLastBy({paymentRequest: nwcRequest.params.invoice})
         }
 
         if(!transaction) {

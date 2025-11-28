@@ -826,8 +826,8 @@ export const WalletStoreModel = types
               currentCounter.increaseProofsCounter(options.increaseCounterBy)
             }
 
-            // store local counter value before increasing it preemptively
-            const counterValueForMelt = currentCounter.counter
+            // store local counter value to be able to recover the change if needed
+            const counterValueForMelt = currentCounter.addMeltCounterValue(transactionId)
 
             // Preemptively increase local counter in case we miss response with change from mint
             currentCounter.increaseProofsCounter(proofsToMeltFrom.length) // ?
@@ -919,8 +919,9 @@ export const WalletStoreModel = types
           }
         }),
         recoverMeltQuoteChange: flow(function* recoverMeltQuoteChange(
-          mintUrl: string,    
-          meltQuote: MeltQuoteResponse,          
+          mintUrl: string,   
+          meltQuote: MeltQuoteResponse,
+          txId: number       
         ) {
           try {
             const mintInstance = self.getMintModelInstance(mintUrl)
@@ -938,12 +939,17 @@ export const WalletStoreModel = types
             )
 
             const currentCounter = mintInstance.getProofsCounterByKeysetId!(cashuWallet.keysetId)
+            const counterValueForMelt = currentCounter.getMeltCounterValue(txId)?.counterAtMelt
+
+            if(counterValueForMelt === undefined) {
+              throw new AppError(Err.VALIDATION_ERROR, 'No melt counter value stored for provided transaction id', {mintUrl, txId})
+            }
 
             const {change}: MeltProofsResponse = yield cashuWallet.recoverMeltQuoteChange(      
               meltQuote,
               {                    
                 keysetId: cashuWallet.keysetId,                    
-                counter: currentCounter.counter                       
+                counter: counterValueForMelt                    
               }
             )
         
