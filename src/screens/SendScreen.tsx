@@ -457,17 +457,17 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
     const handleSendTaskResult = useCallback(
         async (result: TransactionTaskResult) => {
-            log.trace('[SendScreen] handleSendTaskResult triggered', result);
+            log.trace('[SendScreen] handleSendTaskResult triggered', result)
 
-            setIsLoading(false);
+            setIsLoading(false)
 
-            const { transaction, error, encodedTokenToSend } = result;
+            const { transaction, error, encodedTokenToSend } = result
 
             // Update transaction state
             if (transaction) {
-            setTransactionStatus(transaction.status);
-            setTransaction(transaction);
-            setTransactionId(transaction.id);
+            setTransactionStatus(transaction.status)
+            setTransaction(transaction)
+            setTransactionId(transaction.id)
 
             // Link transaction to Cashu payment request + contacts (only for Cashu PR flow)
             if (
@@ -475,17 +475,17 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 decodedCashuPaymentRequest?.id &&
                 encodedCashuPaymentRequest
             ) {
-                await transaction.update({
-                paymentId: decodedCashuPaymentRequest.id,
-                paymentRequest: encodedCashuPaymentRequest,
-                profile: contactToSendFrom ? JSON.stringify(contactToSendFrom) : undefined,
-                sentTo: contactToSendTo
-                    ? contactToSendTo.nip05 || contactToSendTo.name || null
-                    : null,
-                sentFrom: contactToSendFrom
-                    ? contactToSendFrom.nip05 || contactToSendFrom.name || null
-                    : null,
-                });
+                transaction.update({
+                    paymentId: decodedCashuPaymentRequest.id,
+                    paymentRequest: encodedCashuPaymentRequest,
+                    profile: contactToSendFrom ? JSON.stringify(contactToSendFrom) : undefined,
+                    sentTo: contactToSendTo
+                        ? contactToSendTo.nip05 || contactToSendTo.name || null
+                        : null,
+                    sentFrom: contactToSendFrom
+                        ? contactToSendFrom.nip05 || contactToSendFrom.name || null
+                        : null,
+                })
             }
             }
 
@@ -501,8 +501,8 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     status: (transaction?.status || TransactionStatus.ERROR) as TransactionStatus,
                     title: error?.params?.message ? error.message : 'Send failed',
                     message,
-                });
-                setIsResultModalVisible(true);
+                })
+                setIsResultModalVisible(true)
                 return;
             }
 
@@ -510,48 +510,36 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             setIsMintSelectorVisible(false);
 
             if (paymentOption === SendOption.SEND_TOKEN) {
-                toggleNostrDMModal();
+                toggleNostrDMModal()
             }
 
             if (paymentOption === SendOption.PAY_CASHU_PAYMENT_REQUEST) {
                 if (relaysToShareTo.length > 0) {
-                    toggleNostrDMModal();
+                    toggleNostrDMModal()
                 } else if (postEndpointUrl) {
-                    togglePostModal();
+                    togglePostModal()
                 }
             }
         },
         [
-            paymentOption,
-            decodedCashuPaymentRequest?.id,
+            isSendTaskSentToQueue,
             encodedCashuPaymentRequest,
-            contactToSendFrom,
-            contactToSendTo,
-            relaysToShareTo.length,
-            postEndpointUrl,
-            setIsLoading,
-            setTransaction,
-            setTransactionStatus,
-            setTransactionId,
-            setEncodedTokenToSend,
-            setIsMintSelectorVisible,
-            setResultModalInfo,
-            setIsResultModalVisible,
+            decodedCashuPaymentRequest
         ],
-    );
+    )
 
     const sendTaskListenerRef = useRef<((r: TransactionTaskResult) => void) | null>(null);
 
     useEffect(() => {
         if (!isSendTaskSentToQueue) {
             if (sendTaskListenerRef.current) {
-            EventEmitter.off(`ev_${SEND_TASK}_result`, sendTaskListenerRef.current);
-            sendTaskListenerRef.current = null;
+                EventEmitter.off(`ev_${SEND_TASK}_result`, sendTaskListenerRef.current)
+                sendTaskListenerRef.current = null
             }
-            return;
+            return
         }
 
-        const eventName = `ev_${SEND_TASK}_result`;
+        const eventName = `ev_${SEND_TASK}_result`
 
         // Remove any previous
         if (sendTaskListenerRef.current) {
@@ -559,21 +547,21 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         }
 
         const oneTimeHandler = (result: TransactionTaskResult) => {
-            EventEmitter.off(eventName, oneTimeHandler);
-            sendTaskListenerRef.current = null;
-            handleSendTaskResult(result);
-        };
+            EventEmitter.off(eventName, oneTimeHandler)
+            sendTaskListenerRef.current = null
+            handleSendTaskResult(result)
+        }
 
-        sendTaskListenerRef.current = oneTimeHandler;
-        EventEmitter.on(eventName, oneTimeHandler);
+        sendTaskListenerRef.current = oneTimeHandler
+        EventEmitter.on(eventName, oneTimeHandler)
 
         return () => {
             if (sendTaskListenerRef.current) {
-            EventEmitter.off(eventName, sendTaskListenerRef.current);
-            sendTaskListenerRef.current = null;
+                EventEmitter.off(eventName, sendTaskListenerRef.current);
+                sendTaskListenerRef.current = null
             }
-        };
-    }, [isSendTaskSentToQueue, handleSendTaskResult]);
+        }
+    }, [handleSendTaskResult])
 
     // ====================== 2. Sync State Result Listener ======================
 
@@ -626,13 +614,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         },
         [
             transactionId,
-            amountToSend,
-            unitRef.current,
-            setIsNostrDMModalVisible,
-            setIsProofSelectorModalVisible,
-            setResultModalInfo,
-            setTransactionStatus,
-            setIsResultModalVisible,
+            amountToSend,            
         ],
     );
 
@@ -668,7 +650,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             syncStateListenerRef.current = null;
             }
         };
-    }, [transactionId, handleSyncStateResult]);
+    }, [handleSyncStateResult])
        
     const toggleNostrDMModal = () => setIsNostrDMModalVisible(previousState => !previousState)
     const toggleProofSelectorModal = () => setIsProofSelectorModalVisible(previousState => !previousState)

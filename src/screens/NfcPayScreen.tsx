@@ -200,12 +200,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         },
         [
             decodedCashuPaymentRequest?.id,
-            encodedCashuPaymentRequest,
-            setTransaction,
-            setTransactionStatus,
-            setTransactionId,
-            setEncodedTokenToSend,
-            setResultModalInfo      
+            encodedCashuPaymentRequest, 
         ]
     )
 
@@ -298,10 +293,6 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     [
         transactionId,
         amountToPay,
-        unitRef.current, // if unitRef is stable (it usually is via useRef)
-        setResultModalInfo,
-        setTransactionStatus,
-        setIsResultModalVisible,
     ],
     );
 
@@ -347,7 +338,6 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             }
         }
     }, [
-        transactionId,
         handleSyncStateResult, // ← stable thanks to useCallback
     ])
 
@@ -415,13 +405,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
         toggleResultModal()
         },
-        [
-            setIsLoading,
-            setTransaction,
-            setTransactionStatus,
-            setResultModalInfo,    
-            translate,
-        ],
+        [isTransferTaskSentToQueue],
     )
 
     // One-time listener with auto-cleanup
@@ -461,7 +445,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                 transferTaskListenerRef.current = null
             }
         }
-    }, [isTransferTaskSentToQueue, handleTransferTaskResult])
+    }, [handleTransferTaskResult])
 
 
     const startNfcSession = async () => {

@@ -358,8 +358,8 @@ const createMeltQuote = useCallback(async () => {
     setAmountToTransfer(displayAmount)
 
     // Check total required balance (amount + fee reserve)
-    const totalRequired = quote.amount + quote.fee_reserve;
-    const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(totalRequired, unitRef.current);
+    const totalRequired = quote.amount + quote.fee_reserve
+    const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(totalRequired, unitRef.current)
 
     if (availableBalances.length === 0) {
       setInfo(
@@ -394,12 +394,10 @@ const createMeltQuote = useCallback(async () => {
   mintBalanceToTransferFrom?.mintUrl,
   encodedInvoice,
   meltQuote, // to avoid refetching same quote
-  unitRef.current,
-  translate,
-  handleError,
+  unitRef.current,  
 ])
 
-// Trigger quote creation when mint changes (or invoice changes, if you want)
+// Trigger quote creation when mint changes
 useEffect(() => {
   createMeltQuote()
 }, [createMeltQuote])
@@ -515,7 +513,7 @@ const handleTransferTaskResult = useCallback(
     setFinalFee,
     setResultModalInfo,    
     translate,
-    // Note: contactsStore and walletProfileStore are assumed stable/singletons
+  
   ],
 )
 
@@ -545,7 +543,7 @@ useEffect(() => {
 
     // Forward to stable handler
     handleTransferTaskResult(result)
-  };
+  }
 
   transferTaskListenerRef.current = oneTimeHandler
   EventEmitter.on(eventName, oneTimeHandler)
@@ -555,8 +553,8 @@ useEffect(() => {
       EventEmitter.off(eventName, transferTaskListenerRef.current)
       transferTaskListenerRef.current = null
     }
-  };
-}, [isTransferTaskSentToQueue, handleTransferTaskResult])
+  }
+}, [isTransferTaskSentToQueue])
 
 
 const gotoContacts = function () {

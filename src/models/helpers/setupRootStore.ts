@@ -17,13 +17,9 @@ import {
 import * as Sentry from '@sentry/react-native'
 import type { RootStore } from '../RootStore'
 import { MMKVStorage } from '../../services'
-import {Database} from '../../services'
 import { log } from  '../../services/logService'
 import { rootStoreModelVersion } from '../RootStore'
 import AppError, { Err } from '../../utils/AppError'
-import { LogLevel } from '../../services/log/logTypes'
-import { CurrencyCode } from '../../services/wallet/currency'
-import { ThemeCode } from '../../theme'
 
 
 /**
@@ -42,8 +38,6 @@ export async function setupRootStore(rootStore: RootStore) {
     // let latestSnapshot: any
 
     try {
-        log.trace('[setupRootStore]', `start`)   
-
         // load the last known state from storage
         const start = performance.now()
         restoredState = MMKVStorage.load(ROOT_STORAGE_KEY) || {}        
@@ -51,7 +45,7 @@ export async function setupRootStore(rootStore: RootStore) {
         const dataSize = Buffer.byteLength(JSON.stringify(restoredState), 'utf8')        
         
         // log.trace({restoredState})
-        log.trace('[setupRootStore]', `Loading ${dataSize.toLocaleString()} bytes of state from MMKV took ${(mmkvLoaded - start).toLocaleString()} ms.`)        
+        log.trace(`Loading ${dataSize.toLocaleString()} bytes of state from MMKV took ${(mmkvLoaded - start).toLocaleString()} ms.`, {caller: 'setupRootStore'})        
         
         // temp dirty migration of proofStore from array to map
         if(restoredState?.proofsStore?.proofs && Array.isArray(restoredState.proofsStore.proofs)) {           
@@ -61,7 +55,7 @@ export async function setupRootStore(rootStore: RootStore) {
         applySnapshot(rootStore, restoredState)        
         
         const stateHydrated = performance.now()
-        log.trace(`[setupRootStore] Hydrating rooStoreModel took ${stateHydrated - mmkvLoaded} ms.`)
+        log.trace(`Hydrating rooStoreModel took ${stateHydrated - mmkvLoaded} ms.`, {caller: 'setupRootStore'})
         
         const {proofsStore, walletProfileStore, authStore, userSettingsStore, transactionsStore} = rootStore
 
@@ -80,10 +74,12 @@ export async function setupRootStore(rootStore: RootStore) {
         await transactionsStore.loadRecentFromDatabase()
         
         const proofsLoaded = performance.now()
-        log.trace(`[setupRootStore] Loading proofs and transactions from DB and hydrating took ${proofsLoaded - stateHydrated} ms.`)
+        log.trace(`Loading proofs and transactions from DB and hydrating took ${proofsLoaded - stateHydrated} ms.`, {
+            caller: 'setupRootStore'
+        })
         
     } catch (e: any) {        
-        log.error('[setupRootStore]', Err.STORAGE_ERROR, {message: e.message, params: e.params})
+        log.error(Err.STORAGE_ERROR, {message: e.message, params: e.params, caller: 'setupRootStore'})
     }
 
     // stop tracking state changes if we've already setup
@@ -97,7 +93,7 @@ export async function setupRootStore(rootStore: RootStore) {
 
     // run migrations if needed, needs to be after onSnapshot to be persisted
     try {    
-        log.info('[setupRootStore]', `RootStore loaded from MMKV, version is: ${rootStore.version}`)      
+        log.info(`RootStore loaded from MMKV, version is: ${rootStore.version}`, {caller: 'setupRootStore'})      
 
         if(rootStore.version < rootStoreModelVersion) {
             await _runMigrations(rootStore)
@@ -134,7 +130,7 @@ async function _runMigrations(rootStore: RootStore) {
             transactionsStore.addRecentByUnit()
 
             rootStore.setVersion(rootStoreModelVersion)
-            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`)
+            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`, {caller: '_runMigrations'} )
         }
     } catch (e: any) {
         throw new AppError(
