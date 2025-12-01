@@ -294,156 +294,269 @@ useFocusEffect(
     }, [route.params?.paymentOption]),
 )
 
+const handleError = function(e: AppError): void {
+    setIsLoading(false)
+    setError(e)
+}
 
-useEffect(() => {
-    const createMeltQuote = async function () {
-        try {
-            log.trace('[createMeltQuote]', {mintBalanceToTransferFrom})  
-            if (!mintBalanceToTransferFrom || !encodedInvoice) {
-                log.trace(
-                  '[createMeltQuote]',
-                  'Not yet ready to request melt quote or melt quote already exists... exiting',
-                  {mintBalanceToTransferFrom,                  
-                  encodedInvoice}
-                )  
-                return
-            }           
-            
-            setIsLoading(true)
-            const quote = await walletStore.createLightningMeltQuote(
-                mintBalanceToTransferFrom.mintUrl,
-                unitRef.current,
-                encodedInvoice,
-            )
-            
-            setIsLoading(false)
-            setMeltQuote(quote)
-            setAmountToTransfer(`${numbro(quote.amount / getCurrency(unitRef.current).precision)
-              .format({
-                thousandSeparated: true, 
-                mantissa: getCurrency(unitRef.current).mantissa
-              })}`
-            )
-    
-            const totalAmount = quote.amount + quote.fee_reserve
-    
-            let availableBalances = proofsStore.getMintBalancesWithEnoughBalance(totalAmount, unitRef.current)
-    
-            if (availableBalances.length === 0) {
-                setInfo(translate("transferScreen_insufficientFunds", {
-                  currency: getCurrency(unitRef.current).code,
-                  amount: amountToTransfer
-                }))
-                setIsNotEnoughFunds(true)
-                return
-            }
-            
-            setAvailableMintBalances(availableBalances)
-            
-        } catch (e: any) { 
-            handleError(e)
-        }
+
+// Ref to track if a quote request is in progress
+const quoteRequestRef = useRef<AbortController | null>(null);
+
+// Stable function to create melt quote
+const createMeltQuote = useCallback(async () => {
+  // Cancel any previous in-flight request
+  if (quoteRequestRef.current) {
+    quoteRequestRef.current.abort()
+  }
+
+  const controller = new AbortController()
+  quoteRequestRef.current = controller
+
+  try {
+    log.trace('[TransferScreen] createMeltQuote triggered', {
+      mintBalanceToTransferFrom,
+      encodedInvoice,
+      hasExistingQuote: !!meltQuote,
+    })
+
+    // Guard: required data not ready yet
+    if (!mintBalanceToTransferFrom?.mintUrl || !encodedInvoice) {
+      log.trace('[createMeltQuote] Missing required data, skipping quote request')
+      return
     }
 
-    createMeltQuote()
+    // Optional: prevent double quote if we already have one for the same invoice + mint
+    if (meltQuote && meltQuote.quote) {
+      log.trace('[createMeltQuote] Melt quote already exists, skipping')
+      return
+    }
 
-}, [mintBalanceToTransferFrom])
+    setIsLoading(true)
+    setIsNotEnoughFunds(false)
+    setInfo('')
 
+    const quote = await walletStore.createLightningMeltQuote(
+      mintBalanceToTransferFrom.mintUrl,
+      unitRef.current,
+      encodedInvoice,      
+    )
 
+    // Ignore result if request was aborted (e.g. user switched mint)
+    if (controller.signal.aborted) {
+      log.trace('[createMeltQuote] Request was aborted, ignoring stale result');
+      return;
+    }
+
+    setMeltQuote(quote);
+
+    // Format amount for display
+    const displayAmount = numbro(quote.amount / getCurrency(unitRef.current).precision).format({
+      thousandSeparated: true,
+      mantissa: getCurrency(unitRef.current).mantissa,
+    });
+    setAmountToTransfer(displayAmount)
+
+    // Check total required balance (amount + fee reserve)
+    const totalRequired = quote.amount + quote.fee_reserve;
+    const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(totalRequired, unitRef.current);
+
+    if (availableBalances.length === 0) {
+      setInfo(
+        translate('transferScreen_insufficientFunds', {
+          currency: getCurrency(unitRef.current).code,
+          amount: totalRequired,
+        })
+      );
+      setIsNotEnoughFunds(true);
+    } else {
+      setAvailableMintBalances(availableBalances);
+      setIsNotEnoughFunds(false);
+    }
+  } catch (e: any) {
+    // Ignore abort errors
+    if (e.name === 'AbortError') {
+      log.trace('[createMeltQuote] Aborted');
+      return
+    }
+
+    log.error('[createMeltQuote] Failed to create melt quote', e)
+    handleError(e)
+    
+  } finally {
+    // Only reset loading if this was the active request
+    if (quoteRequestRef.current === controller) {
+      setIsLoading(false)
+      quoteRequestRef.current = null
+    }
+  }
+}, [
+  mintBalanceToTransferFrom?.mintUrl,
+  encodedInvoice,
+  meltQuote, // to avoid refetching same quote
+  unitRef.current,
+  translate,
+  handleError,
+])
+
+// Trigger quote creation when mint changes (or invoice changes, if you want)
 useEffect(() => {
-    const handleTransferTaskResult = async (result: TransactionTaskResult) => {
-        log.trace('handleTransferTaskResult event handler triggered', {isInvoiceDonation})
+  createMeltQuote()
+}, [createMeltQuote])
 
-        /* if(result.meltQuote && meltQuote && result.meltQuote.quote !== meltQuote.quote) {
-          log.error('[handleTransferTaskResult] Event belongs to a different meltquote, skipping...')
-          return
-        } */
-        
-        setIsLoading(false)
-        const {transaction, message, error, finalFee} = result        
+// Cleanup on unmount
+useEffect(() => {
+  return () => {
+    if (quoteRequestRef.current) {
+      quoteRequestRef.current.abort()
+      quoteRequestRef.current = null
+    }
+  };
+}, [])
 
-        // handle errors before transaction is created
-        if (!transaction && error) {    
-            setTransactionStatus(TransactionStatus.ERROR)
-            setResultModalInfo({
-                status: TransactionStatus.ERROR,                    
-                message: error.message,
-            })
-    
-            setIsLoading(false)
-            toggleResultModal()
-            return
-        }
-        
-        const { status } = transaction as Transaction
-        setTransactionStatus(status)
-        setTransaction(transaction)
-    
-        if(transaction && lnurlPayParams && lnurlPayParams.address) {
 
-            const profile = contactsStore.findByLud16(lnurlPayParams.address)
-            
-            if (profile) {
-              transaction.update({
-                sentTo: profile.nip05 || profile.name,
-                profile: JSON.stringify(profile)
-              })
-            } else {
-              transaction.update({
-                sentTo: lnurlPayParams.address
-              })
-            }
-        }
-    
-        if (error) { // This handles timed out pending payments
-            if(status === TransactionStatus.PENDING) {
-                setResultModalInfo({
-                    status,                    
-                    message,
-                })
-            } else {
-                setResultModalInfo({
-                    status,
-                    title: error.params?.message ? error.message : translate('payCommon_failed'),
-                    message: error.params?.message || error.message,
-                })
-            }        
-    
+// ====================== TransferScreen – Lightning Payment Result Handler ======================
+
+const handleTransferTaskResult = useCallback(
+  async (result: TransactionTaskResult) => {
+    log.trace('[TransferScreen] handleTransferTaskResult triggered', {
+      result,
+      isInvoiceDonation,
+      donationForName,
+    })
+
+    setIsLoading(false)
+
+    const { transaction, error, message, finalFee } = result
+
+    // ——— Early error: no transaction object yet ———
+    if (!transaction && error) {
+      setTransactionStatus(TransactionStatus.ERROR)
+
+      setResultModalInfo({
+        status: TransactionStatus.ERROR,
+        title: translate('payCommon_failed'),
+        message: error.message || 'Lightning payment failed',
+      });
+
+      toggleResultModal()
+      return
+    }
+
+    // ——— Transaction exists ———
+    if (transaction) {
+      const { status } = transaction
+      setTransactionStatus(status)
+      setTransaction(transaction)
+
+      // ——— Link transaction to LNURL / contact profile ———
+      if (lnurlPayParams?.address) {
+        const profile = contactsStore.findByLud16(lnurlPayParams.address)
+
+        if (profile) {
+          transaction.update({
+            sentTo: profile.nip05 || profile.name || lnurlPayParams.address,
+            profile: JSON.stringify(profile),
+          })
         } else {
-            if(isInvoiceDonation && donationForName) {
-                         
-              await walletProfileStore.updateName(donationForName)                
-
-              setResultModalInfo({
-                status,
-                message: translate('transferScreen_donationSuccessMessage', {donationForName}),
-              })
-
-            } else {
-              setResultModalInfo({
-                status,
-                message,
-              })
-            }
+          transaction.update({
+            sentTo: lnurlPayParams.address,
+          })
         }
-    
-        if (finalFee) {
-            setFinalFee(finalFee)
+      }
+
+      // ——— Final fee reporting ———
+      if (finalFee != null) {
+        setFinalFee(finalFee)
+      }
+
+      // ——— Success / Pending / Error message logic ———
+      if (error) {
+        if (status === TransactionStatus.PENDING) {
+          setResultModalInfo({
+            status,
+            message,
+          })
+        } else {
+          setResultModalInfo({
+            status,
+            title: error.params?.message ? error.message : translate('payCommon_failed'),
+            message: error.params?.message || error.message || 'Payment failed',
+          })
         }
-        
-        toggleResultModal()
+      } else {
+        // Success path
+        if (isInvoiceDonation && donationForName) {
+          // Update profile donation counter
+          await walletProfileStore.updateName(donationForName);
+
+          setResultModalInfo({
+            status,
+            message: translate('transferScreen_donationSuccessMessage', { donationForName }),
+          })
+        } else {
+          setResultModalInfo({
+            status,
+            message,
+          })
+        }
+      }
     }
 
-    // Subscribe to the task result event
-    if(isTransferTaskSentToQueue) {
-      EventEmitter.on(`ev_${TRANSFER_TASK}_result`, handleTransferTaskResult)        
-    }    
+    toggleResultModal()
+  },
+  [
+    isInvoiceDonation,
+    donationForName,
+    lnurlPayParams?.address,
+    setIsLoading,
+    setTransaction,
+    setTransactionStatus,
+    setFinalFee,
+    setResultModalInfo,    
+    translate,
+    // Note: contactsStore and walletProfileStore are assumed stable/singletons
+  ],
+)
 
-    // Unsubscribe from the task result event on component unmount
-    return () => {
-        EventEmitter.off(`ev_${TRANSFER_TASK}_result`, handleTransferTaskResult)        
+// One-time listener with auto-cleanup
+const transferTaskListenerRef = useRef<((r: TransactionTaskResult) => void) | null>(null)
+
+useEffect(() => {
+  if (!isTransferTaskSentToQueue) {
+    if (transferTaskListenerRef.current) {
+      EventEmitter.off(`ev_${TRANSFER_TASK}_result`, transferTaskListenerRef.current)
+      transferTaskListenerRef.current = null
     }
-}, [isTransferTaskSentToQueue])
+    return
+  }
+
+  const eventName = `ev_${TRANSFER_TASK}_result`
+
+  // Remove any stale listener
+  if (transferTaskListenerRef.current) {
+    EventEmitter.off(eventName, transferTaskListenerRef.current)
+  }
+
+  const oneTimeHandler = (result: TransactionTaskResult) => {
+    // Detach immediately — this event fires once per payment
+    EventEmitter.off(eventName, oneTimeHandler)
+    transferTaskListenerRef.current = null
+
+    // Forward to stable handler
+    handleTransferTaskResult(result)
+  };
+
+  transferTaskListenerRef.current = oneTimeHandler
+  EventEmitter.on(eventName, oneTimeHandler)
+
+  return () => {
+    if (transferTaskListenerRef.current) {
+      EventEmitter.off(eventName, transferTaskListenerRef.current)
+      transferTaskListenerRef.current = null
+    }
+  };
+}, [isTransferTaskSentToQueue, handleTransferTaskResult])
 
 
 const gotoContacts = function () {
@@ -700,12 +813,6 @@ const retryAfterSpentCleaned = async function () {
   } finally {
     toggleResultModal() //close
   }
-}
-
-
-const handleError = function(e: AppError): void {
-    setIsLoading(false)
-    setError(e)
 }
 
 const headerBg = useThemeColor('header')

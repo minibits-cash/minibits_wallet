@@ -83,8 +83,8 @@ const getConnectionRelays = function () {
 
 export const LISTEN_FOR_NWC_EVENTS = 'listenForNwcEvents'
 
-const MIN_LIGHTNING_FEE = 2 // sats
-const LIGHTNING_FEE_PERCENT = 1
+export const MIN_LIGHTNING_FEE = 2 // sats
+export const LIGHTNING_FEE_PERCENT = 1
 const MAX_MULTI_PAY_INVOICES = 5
 
 const getSupportedMethods = function () {

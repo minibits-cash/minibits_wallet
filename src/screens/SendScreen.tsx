@@ -453,131 +453,222 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     }, [isInternetReachable])
 
 
-    useEffect(() => {
-        const handleSendTaskResult = async (result: TransactionTaskResult) => {
-            log.trace('handleSendTaskResult event handler triggered')
-            
-            setIsLoading(false)
+    // ====================== 1. Send Task Result Listener ======================
 
-            const {transaction} = result
+    const handleSendTaskResult = useCallback(
+        async (result: TransactionTaskResult) => {
+            log.trace('[SendScreen] handleSendTaskResult triggered', result);
 
-            setTransactionStatus(transaction?.status)
-            setTransaction(transaction)
-            setTransactionId(transaction?.id)
-    
-            if (result.encodedTokenToSend) {
-                setEncodedTokenToSend(result.encodedTokenToSend)
+            setIsLoading(false);
+
+            const { transaction, error, encodedTokenToSend } = result;
+
+            // Update transaction state
+            if (transaction) {
+            setTransactionStatus(transaction.status);
+            setTransaction(transaction);
+            setTransactionId(transaction.id);
+
+            // Link transaction to Cashu payment request + contacts (only for Cashu PR flow)
+            if (
+                paymentOption === SendOption.PAY_CASHU_PAYMENT_REQUEST &&
+                decodedCashuPaymentRequest?.id &&
+                encodedCashuPaymentRequest
+            ) {
+                await transaction.update({
+                paymentId: decodedCashuPaymentRequest.id,
+                paymentRequest: encodedCashuPaymentRequest,
+                profile: contactToSendFrom ? JSON.stringify(contactToSendFrom) : undefined,
+                sentTo: contactToSendTo
+                    ? contactToSendTo.nip05 || contactToSendTo.name || null
+                    : null,
+                sentFrom: contactToSendFrom
+                    ? contactToSendFrom.nip05 || contactToSendFrom.name || null
+                    : null,
+                });
+            }
             }
 
-            if(paymentOption === SendOption.PAY_CASHU_PAYMENT_REQUEST) {  
-                if(decodedCashuPaymentRequest && decodedCashuPaymentRequest.id && transaction) {
-
-                    transaction.update({
-                        paymentId: decodedCashuPaymentRequest.id,
-                        paymentRequest: encodedCashuPaymentRequest,
-                        profile: JSON.stringify(contactToSendFrom),
-                        sentTo: contactToSendTo ? contactToSendTo.nip05 || contactToSendTo.name : null,        // payee
-                        sentFrom: contactToSendFrom ? contactToSendFrom.nip05 || contactToSendFrom.name : null  // payer
-                    })
-                }
+            // Save token if present (e.g. for manual copy/share)
+            if (encodedTokenToSend) {
+                setEncodedTokenToSend(encodedTokenToSend);
             }
 
-            if (result.error) {
+            // ——— Error Handling ———
+            if (error || !transaction) {
+                const message = error?.params?.message || error?.message || 'Unknown error';
                 setResultModalInfo({
-                    status: result.transaction?.status as TransactionStatus,
-                    title: result.error.params?.message ? result.error.message : 'Send failed',
-                    message: result.error.params?.message || result.error.message,
-                })
-                setIsResultModalVisible(true)
-                return
+                    status: (transaction?.status || TransactionStatus.ERROR) as TransactionStatus,
+                    title: error?.params?.message ? error.message : 'Send failed',
+                    message,
+                });
+                setIsResultModalVisible(true);
+                return;
             }
-    
-            setIsMintSelectorVisible(false)   
-    
+
+            // ——— Success Path ———
+            setIsMintSelectorVisible(false);
+
             if (paymentOption === SendOption.SEND_TOKEN) {
-                toggleNostrDMModal()
+                toggleNostrDMModal();
             }
-            
+
             if (paymentOption === SendOption.PAY_CASHU_PAYMENT_REQUEST) {
                 if (relaysToShareTo.length > 0) {
-                    toggleNostrDMModal()
+                    toggleNostrDMModal();
                 } else if (postEndpointUrl) {
-                    togglePostModal()
+                    togglePostModal();
                 }
             }
-        }
+        },
+        [
+            paymentOption,
+            decodedCashuPaymentRequest?.id,
+            encodedCashuPaymentRequest,
+            contactToSendFrom,
+            contactToSendTo,
+            relaysToShareTo.length,
+            postEndpointUrl,
+            setIsLoading,
+            setTransaction,
+            setTransactionStatus,
+            setTransactionId,
+            setEncodedTokenToSend,
+            setIsMintSelectorVisible,
+            setResultModalInfo,
+            setIsResultModalVisible,
+        ],
+    );
 
-        // Subscribe to the 'sendCompleted' event
-        if(isSendTaskSentToQueue) {
-            EventEmitter.on(`ev_${SEND_TASK}_result`, handleSendTaskResult)
-        }        
-
-        // Unsubscribe from the 'sendCompleted' event on component unmount
-        return () => {
-            EventEmitter.off(`ev_${SEND_TASK}_result`, handleSendTaskResult)
-        }
-    }, [isSendTaskSentToQueue])
-
+    const sendTaskListenerRef = useRef<((r: TransactionTaskResult) => void) | null>(null);
 
     useEffect(() => {
-        const handleSendCompleted = async (result: SyncStateTaskResult) => {
-            log.trace('handleSendCompleted event handler triggered')
+        if (!isSendTaskSentToQueue) {
+            if (sendTaskListenerRef.current) {
+            EventEmitter.off(`ev_${SEND_TASK}_result`, sendTaskListenerRef.current);
+            sendTaskListenerRef.current = null;
+            }
+            return;
+        }
 
-            if (!transactionId) return
-            // Filter and handle event related only to this transactionId
-            if (result.completedTransactionIds && result.completedTransactionIds.includes(transactionId)) {
-                log.trace(
-                    'Sent ecash has been claimed by the receiver for tx',
-                    transactionId,
-                )
+        const eventName = `ev_${SEND_TASK}_result`;
 
-                const amountSentInt = round(toNumber(amountToSend) * getCurrency(unitRef.current).precision, 0)                
+        // Remove any previous
+        if (sendTaskListenerRef.current) {
+            EventEmitter.off(eventName, sendTaskListenerRef.current);
+        }
 
-                setIsNostrDMModalVisible(false)
-                setIsProofSelectorModalVisible(false)
+        const oneTimeHandler = (result: TransactionTaskResult) => {
+            EventEmitter.off(eventName, oneTimeHandler);
+            sendTaskListenerRef.current = null;
+            handleSendTaskResult(result);
+        };
+
+        sendTaskListenerRef.current = oneTimeHandler;
+        EventEmitter.on(eventName, oneTimeHandler);
+
+        return () => {
+            if (sendTaskListenerRef.current) {
+            EventEmitter.off(eventName, sendTaskListenerRef.current);
+            sendTaskListenerRef.current = null;
+            }
+        };
+    }, [isSendTaskSentToQueue, handleSendTaskResult]);
+
+    // ====================== 2. Sync State Result Listener ======================
+
+    const handleSyncStateResult = useCallback(
+        async (result: SyncStateTaskResult) => {
+            log.trace('[SendScreen] handleSyncStateResult triggered', { result, transactionId });
+
+            if (!transactionId) return;
+
+            const { completedTransactionIds, errorTransactionIds, transactionStateUpdates } = result;
+
+            if (completedTransactionIds?.includes(transactionId)) {
+                log.trace('[SendScreen] Ecash claimed successfully', { transactionId });
+
+                const amountSentInt = Math.round(
+                    toNumber(amountToSend || '0') * getCurrency(unitRef.current).precision
+                );
+                const currency = getCurrency(unitRef.current);
+
+                setIsNostrDMModalVisible(false);
+                setIsProofSelectorModalVisible(false);
+
                 setResultModalInfo({
                     status: TransactionStatus.COMPLETED,
-                    title:  '🚀 That was fast!',                   
-                    message: `${formatCurrency(amountSentInt, getCurrency(unitRef.current).code)} ${getCurrency(unitRef.current).code} were received by the payee.`,
-                })                
-                setTransactionStatus(TransactionStatus.COMPLETED)
-                setIsResultModalVisible(true)
+                    title: '🚀 That was fast!',
+                    message: `${formatCurrency(amountSentInt, currency.code)} ${currency.code} were received by the payee.`,
+                });
+                setTransactionStatus(TransactionStatus.COMPLETED);
+                setIsResultModalVisible(true);
+                return;
             }
 
-            // sync check might end with error in case tx proofs spentAmount !== tx amount
-            if (result.errorTransactionIds && 
-                result.errorTransactionIds.includes(transactionId)) {
+            if (errorTransactionIds?.includes(transactionId)) {
+                log.trace('[SendScreen] Sync error detected', { transactionId });
 
-                log.trace(
-                    'Error when completing the send tx',
-                    {transactionId},
-                )
+                const update = transactionStateUpdates?.find(u => u.tId === transactionId);
+                const message = update?.message || 'Transaction failed to complete on the mint.';
 
-                const statusUpdate = result.transactionStateUpdates.find(update => update.tId === transactionId)                
-                const message = statusUpdate?.message || 'Error when completing the transaction.'
+                setIsNostrDMModalVisible(false);
+                setIsProofSelectorModalVisible(false);
 
-                setIsNostrDMModalVisible(false)
-                setIsProofSelectorModalVisible(false)
                 setResultModalInfo({
                     status: TransactionStatus.ERROR,
-                    title:  'Send failed',                   
+                    title: 'Send failed',
                     message,
-                })                
-                setTransactionStatus(TransactionStatus.ERROR)
-                setIsResultModalVisible(true)
-            }            
+                });
+                setTransactionStatus(TransactionStatus.ERROR);
+                setIsResultModalVisible(true);
+            }
+        },
+        [
+            transactionId,
+            amountToSend,
+            unitRef.current,
+            setIsNostrDMModalVisible,
+            setIsProofSelectorModalVisible,
+            setResultModalInfo,
+            setTransactionStatus,
+            setIsResultModalVisible,
+        ],
+    );
+
+    const syncStateListenerRef = useRef<((r: SyncStateTaskResult) => void) | null>(null);
+
+    useEffect(() => {
+        if (!transactionId) {
+            if (syncStateListenerRef.current) {
+                EventEmitter.off(`ev_${SYNC_STATE_WITH_MINT_TASK}_result`, syncStateListenerRef.current);
+                syncStateListenerRef.current = null;
+            }
+            return;
         }
 
-        // Subscribe to the '_syncStateWithMintTask' event
-        if(transactionId) {
-            EventEmitter.on(`ev_${SYNC_STATE_WITH_MINT_TASK}_result`, handleSendCompleted)
+        const eventName = `ev_${SYNC_STATE_WITH_MINT_TASK}_result`;
+
+        if (syncStateListenerRef.current) {
+            EventEmitter.off(eventName, syncStateListenerRef.current);
         }
 
-        // Unsubscribe from the '_syncStateWithMintTask' event on component unmount
+        const oneTimeHandler = (result: SyncStateTaskResult) => {
+            EventEmitter.off(eventName, oneTimeHandler);
+            syncStateListenerRef.current = null;
+            handleSyncStateResult(result);
+        };
+
+        syncStateListenerRef.current = oneTimeHandler;
+        EventEmitter.on(eventName, oneTimeHandler);
+
         return () => {
-            EventEmitter.off(`ev_${SYNC_STATE_WITH_MINT_TASK}_result`, handleSendCompleted)
-        }
-    }, [transactionId])
+            if (syncStateListenerRef.current) {
+            EventEmitter.off(eventName, syncStateListenerRef.current);
+            syncStateListenerRef.current = null;
+            }
+        };
+    }, [transactionId, handleSyncStateResult]);
        
     const toggleNostrDMModal = () => setIsNostrDMModalVisible(previousState => !previousState)
     const toggleProofSelectorModal = () => setIsProofSelectorModalVisible(previousState => !previousState)
