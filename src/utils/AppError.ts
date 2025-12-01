@@ -20,7 +20,8 @@ export enum Err {
   SERVER_ERROR = 'SERVER_ERROR',
   LOCKED_ERROR = 'LOCKED_ERROR',
   SCAN_ERROR = 'SCAN_ERROR',
-  AUTH_ERROR = "AUTH_ERROR"
+  AUTH_ERROR = "AUTH_ERROR",
+  NFC_ERROR = "NFC_ERROR",
 }
 
 export interface IAppError {

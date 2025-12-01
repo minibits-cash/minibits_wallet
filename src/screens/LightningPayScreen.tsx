@@ -165,7 +165,7 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
     const scanIcon = useThemeColor('text')    
     const inputBg = useThemeColor('background')
     const inputText = useThemeColor('text')
-    const contactIcon = useThemeColor('headerTitle')
+    const contactIcon = useThemeColor('textDim')
     const headerBg = useThemeColor('header')
     const headerTitle = useThemeColor('headerTitle')    
 
