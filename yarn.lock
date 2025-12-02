@@ -13528,10 +13528,9 @@ __metadata:
     react-native-keychain: ^10.0.0
     react-native-localize: ^3.6.0
     react-native-logs: ^5.5.0
-    react-native-mmkv: ^4.0.1
+    react-native-mmkv: ^3.3.3
     react-native-modal: ^14.0.0-rc.1
     react-native-nfc-manager: ^3.17.2
-    react-native-nitro-modules: ^0.31.10
     react-native-pager-view: ^7.0.1
     react-native-qrcode-svg: ^6.3.20
     react-native-quick-crypto: ^0.7.17
@@ -15490,14 +15489,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-native-mmkv@npm:^4.0.1":
-  version: 4.0.1
-  resolution: "react-native-mmkv@npm:4.0.1"
+"react-native-mmkv@npm:^3.3.3":
+  version: 3.3.3
+  resolution: "react-native-mmkv@npm:3.3.3"
   peerDependencies:
     react: "*"
     react-native: "*"
-    react-native-nitro-modules: "*"
-  checksum: ad663c90d72ee3aaaeeeec731de8d28a8d707f614b73c4eac90e103e12afeb0b2f181527db2117200527a84b1854437ca8d100466df53243e01c9b0546616f5f
+  checksum: 2f4f6ba36f2c00a1374cd3c0303207e7c0a0b7b2504c4f1986a423a3d8295eb817299fc1ca11e37c425df60648c5a0d02be882f1890924167724775433dd2598
   languageName: node
   linkType: hard
 
@@ -15522,16 +15520,6 @@ __metadata:
     "@expo/config-plugins":
       optional: true
   checksum: 7435840e0ddd190b442dbe4972e318da2423c953648f917ba515d99a92aba27a477d738fb0f75db89bc64fc52201b9e6880d74e5c7f800d75195c77f4c20cde3
-  languageName: node
-  linkType: hard
-
-"react-native-nitro-modules@npm:^0.31.10":
-  version: 0.31.10
-  resolution: "react-native-nitro-modules@npm:0.31.10"
-  peerDependencies:
-    react: "*"
-    react-native: "*"
-  checksum: 1c8d2f12ff29b6733c784c5fd0dedcbec4ceec9f82eb49f49e7734f31b9367346938010dcacf69bf695a352e36fec5aa23fd57b8091f6acd78c3d9a61e14ea7f
   languageName: node
   linkType: hard
 
