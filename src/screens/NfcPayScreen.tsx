@@ -256,7 +256,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
         // ——— SUCCESS: Receiver claimed the ecash ———
         if (completedTransactionIds?.includes(transactionId)) {
-            log.trace('[NfcScreen] Ecash claimed successfully', { transactionId });
+            log.debug('[NfcScreen] Ecash claimed successfully by the payee.', { transactionId });
 
             const amountSentInt = Math.round(
                 (toNumber(amountToPay || '0') * getCurrency(unitRef.current).precision)
@@ -346,7 +346,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
     const handleTransferTaskResult = useCallback(
         async (result: TransactionTaskResult) => {
-        log.trace('[NfcScreen] handleTransferTaskResult triggered', result)
+        log.trace('[NfcScreen] handleTransferTaskResult triggered', {result})
 
         setIsLoading(false)
 
@@ -460,6 +460,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                 if (isProcessing) return
                 setIsProcessing(true)
                 setNfcInfo('Reading payment request...')
+                log.debug('NFC tag discovered, reading...', { tag })
 
                 try {
                     const ndefMessage = tag.ndefMessage?.[0]
@@ -480,7 +481,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                         payload = new TextDecoder().decode(ndefMessage.payload)
                     }
 
-                    log.trace('NFC tag read', { payload })
+                    log.debug('NFC tag read', { payload })
                     setReadNfcData(payload)
                     await handlePaymentRequest(payload)
 

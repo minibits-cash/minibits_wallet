@@ -132,8 +132,10 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
 
                     if (updateInfo.shouldForceUpdate) {
                         // apply emergency update immediately
-                        await HotUpdater.updateBundle(updateInfo.id, updateInfo.fileUrl)
-                        HotUpdater.reload()
+                        const isDownloaded = await updateInfo.updateBundle()
+                        if(isDownloaded) {
+                            await HotUpdater.reload()
+                        }
                     }
                 }
                 
@@ -818,6 +820,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                 tx="walletScreen_payWithLightning"
                 subTx="walletScreen_payWithLightningDesc"
                 onPress={() => gotoLightningPay()}
+                bottomSeparator={true}
             />
             <ListItem   
                 leftIcon='faNfcSymbol'             

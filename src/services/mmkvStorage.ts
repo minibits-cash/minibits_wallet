@@ -1,4 +1,4 @@
-import {createMMKV, type MMKV} from 'react-native-mmkv'
+import {MMKV} from 'react-native-mmkv'
 import {log} from './logService'
 import AppError, {Err} from '../utils/AppError'
 
@@ -8,7 +8,7 @@ let _storage: MMKV | undefined
 const getInstance = function () {
     if (!_storage) {
 
-      _storage = createMMKV({
+      _storage = new MMKV({
           id: STORAGE_KEY,
       })
 
@@ -135,7 +135,7 @@ const save = function (key: string, value: any): boolean {
 const remove = function (key: string): void {
   try {
     const storage = getInstance()
-    storage.remove(key)
+    storage.delete(key)
   } catch (e: any) {
     throw new AppError(Err.DATABASE_ERROR, e.message)
   }

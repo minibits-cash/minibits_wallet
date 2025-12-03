@@ -19,7 +19,7 @@ import AppError, { Err } from "../utils/AppError"
 
 const { userSettingsStore } = rootStoreInstance
 
-if (__DEV__) { //TODO turn off!!!
+if (!__DEV__) {
     Sentry.init({
         dsn: SENTRY_DSN,
         environment: APP_ENV,
@@ -185,7 +185,7 @@ const log = logger.createLogger({
         warn: 3,
         error: 4,
     },
-    transport: customSentryTransport,
+    transport: __DEV__ ? consoleTransport : customSentryTransport,
     transportOptions: {
         SENTRY: Sentry,
     } as TransportOptions,

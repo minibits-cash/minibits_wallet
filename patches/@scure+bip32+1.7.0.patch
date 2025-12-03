@@ -1,26 +1,26 @@
 diff --git a/node_modules/@scure/bip32/index.ts b/node_modules/@scure/bip32/index.ts
-index 0c9c91c..14c9ae2 100644
+index 65e4bb2..7b7d7f7 100644
 --- a/node_modules/@scure/bip32/index.ts
 +++ b/node_modules/@scure/bip32/index.ts
-@@ -25,6 +25,7 @@ import { bytesToHex, concatBytes, createView, hexToBytes, utf8ToBytes } from '@n
- import { secp256k1 as secp } from '@noble/curves/secp256k1';
- import { mod } from '@noble/curves/abstract/modular';
+@@ -30,6 +30,7 @@ import {
+   utf8ToBytes,
+ } from '@noble/hashes/utils';
  import { createBase58check } from '@scure/base';
-+import QuickCrypto from 'react-native-quick-crypto';
++import QuickCrypto from 'react-native-quick-crypto'
  
  const Point = secp.ProjectivePoint;
  const base58check = createBase58check(sha256);
-@@ -114,7 +115,8 @@ export class HDKey {
+@@ -119,7 +120,8 @@ export class HDKey {
            seed.length
        );
      }
 -    const I = hmac(sha512, MASTER_SECRET, seed);
-+    // const I = hmac(sha512, MASTER_SECRET, seed);
++    //const I = hmac(sha512, MASTER_SECRET, seed);
 +    const I = new Uint8Array(QuickCrypto.createHmac('sha512', MASTER_SECRET).update(seed).digest());
      return new HDKey({
        versions,
        chainCode: I.slice(32),
-@@ -237,7 +239,8 @@ export class HDKey {
+@@ -242,7 +244,8 @@ export class HDKey {
        // Normal child: serP(point(kpar)) || ser32(index)
        data = concatBytes(this.pubKey, data);
      }
@@ -31,7 +31,7 @@ index 0c9c91c..14c9ae2 100644
      const chainCode = I.slice(32);
      if (!secp.utils.isValidPrivateKey(childTweak)) {
 diff --git a/node_modules/@scure/bip32/package.json b/node_modules/@scure/bip32/package.json
-index e866fba..6389575 100644
+index c40252d..7695067 100644
 --- a/node_modules/@scure/bip32/package.json
 +++ b/node_modules/@scure/bip32/package.json
 @@ -6,15 +6,8 @@
@@ -41,7 +41,7 @@ index e866fba..6389575 100644
 -  "main": "./lib/index.js",
 -  "module": "./lib/esm/index.js",
 +  "main": "./index.ts",
-   "types": "./lib/index.d.ts",  
+   "types": "./lib/index.d.ts",
 -  "exports": {
 -    ".": {
 -      "import": "./lib/esm/index.js",
@@ -49,5 +49,5 @@ index e866fba..6389575 100644
 -    }
 -  },
    "dependencies": {
-     "@noble/curves": "~1.8.1",
-     "@noble/hashes": "~1.7.1",
+     "@noble/curves": "~1.9.0",
+     "@noble/hashes": "~1.8.0",
