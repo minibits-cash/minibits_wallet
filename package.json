@@ -42,7 +42,7 @@
     "@react-navigation/stack": "^7.4.9",
     "@scure/bip32": "1.6.2",
     "@scure/bip39": "1.6.0",
-    "@sentry/react-native": "^6.22.0",
+    "@sentry/react-native": "^7.7.0",
     "date-fns": "^4.1.0",
     "i18n-js": "^4.5.1",
     "js-lnurl": "^0.6.0",
