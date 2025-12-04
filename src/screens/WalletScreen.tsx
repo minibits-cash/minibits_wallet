@@ -739,7 +739,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                                 height={spacing.large} 
                                 xml={ScanIcon}
                                 fill={mainButtonIcon}
-                                style={{marginLeft: -spacing.tiny}}
+                                //style={{marginLeft: -spacing.tiny}}
                             />
                         )}
                         onPress={gotoScan}
