@@ -1,5 +1,5 @@
-
-import {log} from '../services/logService'
+// AppError.ts
+import { log } from '../services/logService'
 
 export enum Err {
   CONNECTION_ERROR = 'CONNECTION_ERROR',
@@ -20,39 +20,48 @@ export enum Err {
   SERVER_ERROR = 'SERVER_ERROR',
   LOCKED_ERROR = 'LOCKED_ERROR',
   SCAN_ERROR = 'SCAN_ERROR',
-  AUTH_ERROR = "AUTH_ERROR"
+  AUTH_ERROR = 'AUTH_ERROR',
+  NFC_ERROR = 'NFC_ERROR',
 }
 
-export interface IAppError {
-  code?: string
-  name: Err
-  message: string
-  params?: any
-}
+export class AppError extends Error {
+  public readonly code: Err
+  public readonly params?: Record<string, any>
+  public readonly caller?: string
 
-class AppError extends Error {
-  public code?: number
-  public name: Err
-  public message: string
-  public params?: { caller?: string, message?: string, [key: string]: any }
+  constructor(
+    name: Err = Err.UNKNOWN_ERROR,
+    message: string = 'An unknown error occurred',
+    params?: Record<string, any>,
+  ) {
+    // This is the actual error message shown in Sentry
+    super(message)
 
-  constructor(name: Err = Err.UNKNOWN_ERROR, message: string, params?: any) {
-    super(name)
-    this.code = params && params.code ? params.code : undefined
-    this.name = name
-    this.message = message
-    this.params = params
+    this.name = name 
+    this.code = params?.code       
+    this.params = params          // Structured data (sent to Sentry)
+    this.caller = params?.caller  // Optional: who threw it
 
-    let callerFunctionName = 'unknown'
+    // Ensure proper prototype chain (important for instanceof)
+    Object.setPrototypeOf(this, AppError.prototype)
 
-    if (params && params.caller) {
-        callerFunctionName = params.caller
+    // Preserve correct stack trace (V8 only — safe no-op elsewhere)
+    if (typeof Error.captureStackTrace === 'function') {
+      Error.captureStackTrace(this, this.constructor)
     }
 
-    log.error(`[${callerFunctionName}]`, name, message, JSON.stringify(params))
-
-    Object.setPrototypeOf(this, new.target.prototype)
+    // === SAFE LOGGING: Only log if logger is on and avoid recursion ===
+    if (log && typeof log.error === 'function') {
+      try {
+        let msg = this.caller ? `[${this.caller}] ${this.message}` : this.message
+        log.error(`${msg}`, { ...params, name })
+      } catch (e) {
+        // Never let logging crash the app
+        console.error('Failed to log AppError:', e)
+      }
+    }
   }
 }
+
 
 export default AppError

@@ -370,7 +370,7 @@ const getExchangeRate = async function (currency: CurrencyCode) {
 
 
 const fetchApi = async (url: string, options: MinibitsRequestOptions, timeout = 15000) => { //ms
-    log.info('[fetchApi] start', url)
+    log.info('Start', {url, caller: 'fetchApi'})
     
     const controller = new AbortController()
     const body = options.body ? JSON.stringify(options.body) : undefined

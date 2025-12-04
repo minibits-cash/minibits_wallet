@@ -48,7 +48,7 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
         prevScreen
     } = route.params
 
-    const { progress, isBundleUpdated } = useHotUpdaterStore()
+    const { progress } = useHotUpdaterStore()
 
     useHeader({
         leftIcon: 'faArrowLeft',
@@ -102,8 +102,12 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
                 throw new AppError(Err.NETWORK_ERROR, translate('updateScreen_couldNotRetrieveUpdate'))
             }
 
-            await HotUpdater.updateBundle(updateInfo.id, updateInfo.fileUrl)
-            HotUpdater.reload()
+            const isDownloaded = await updateInfo.updateBundle()
+            if(isDownloaded) {
+                await HotUpdater.reload()
+            } else {
+                throw new AppError(Err.NETWORK_ERROR, 'Could not download update bundle')
+            }
 
         } catch(e: any) {
             handleError(e)

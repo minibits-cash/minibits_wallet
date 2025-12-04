@@ -18,6 +18,7 @@ export * from './TopupScreen'
 export * from './LightningPayScreen'
 export * from './TokenReceiveScreen'
 export * from './CashuPaymentRequestScreen'
+export * from './NfcPayScreen'
 
 // ContactsNavigator
 export * from './ContactsScreen'

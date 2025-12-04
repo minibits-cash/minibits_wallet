@@ -1,11 +1,4 @@
 import React, { useState } from 'react'
-import * as Sentry from '@sentry/react-native'
-import {
-    APP_ENV,
-    SENTRY_DSN,
-    JS_BUNDLE_VERSION,    
-    ANDROID_VERSION_NAME,    
-} from '@env'
 import FlashMessage from "react-native-flash-message"
 import {  
   SafeAreaProvider,
@@ -27,28 +20,12 @@ import { spacing, typography } from './theme'
 import { displayName } from '../app.json'
 import { Text } from './components/Text'
 import useIsInternetReachable from './utils/useIsInternetReachable'
+import * as Sentry from '@sentry/react-native'
+import { ANDROID_VERSION_NAME, APP_ENV, JS_BUNDLE_VERSION, SENTRY_DSN } from '@env'
 
 /* Set default size ratio for styling */
 setSizeMattersBaseWidth(375)
 setSizeMattersBaseHeight(812)
-
-if (!__DEV__) {
-    Sentry.init({
-        dsn: SENTRY_DSN,
-        environment: APP_ENV,
-        release: Platform.OS === 'android' ? `minibits_wallet_android@${JS_BUNDLE_VERSION}` : `minibits_wallet_ios@${JS_BUNDLE_VERSION}`,
-        dist: ANDROID_VERSION_NAME,
-        beforeSend: function (event, hint) {
-            const exception = hint.originalException
-            if (exception instanceof AppError && exception.name) {
-                event.fingerprint = [exception.name.toString()]
-            }
-            return event
-        },
-        enableTracing: false
-    })
-}
-
 
 function App() {
     

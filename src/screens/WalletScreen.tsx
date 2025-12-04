@@ -132,8 +132,10 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
 
                     if (updateInfo.shouldForceUpdate) {
                         // apply emergency update immediately
-                        await HotUpdater.updateBundle(updateInfo.id, updateInfo.fileUrl)
-                        HotUpdater.reload()
+                        const isDownloaded = await updateInfo.updateBundle()
+                        if(isDownloaded) {
+                            await HotUpdater.reload()
+                        }
                     }
                 }
                 
@@ -445,6 +447,15 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     }
 
 
+    const gotoNfcPay = function () {
+        setIsSendModalVisible(false)
+        // @ts-ignore
+        navigation.navigate('NfcPay', {                                        
+            unit: currentUnit
+        })       
+    }
+
+
     const gotoLightningPay = function (mintUrl?: string) {
         log.trace({mintUrl})
         if(mintUrl) {
@@ -496,7 +507,8 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                         <View style={[
                             $headerContainer, {
                                 backgroundColor: headerBg, 
-                                paddingTop: spacing.small,
+                                //paddingTop: spacing.tiny,
+                                //borderWidth: 1
                             }
                         ]}>
                             <UnitBalanceBlock                            
@@ -569,7 +581,11 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
 
     const renderTabBar = (props: any) => {
         return(
-            <View style={{backgroundColor: headerBg, marginTop: -spacing.small}}>
+            <View style={{
+                backgroundColor: headerBg, 
+                marginTop: -spacing.small, 
+                //borderWidth: 1,
+            }}>
                 <View style={{width: routes.length * tabWidth, alignSelf: 'center', backgroundColor: headerBg}}>
                     <TabBar                        
                         {...props}                 
@@ -578,7 +594,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                             <CurrencySign
                                 mintUnit={route.key as MintUnit}
                                 textStyle={{color: 'white'}}
-                                containerStyle={{padding: spacing.medium, width: tabWidth}}
+                                containerStyle={{padding: spacing.small, width: tabWidth}}
                             />
                         )}                       
                         indicatorStyle={{backgroundColor: getActiveTabColor(props.navigationState)}}                    
@@ -804,6 +820,13 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                 tx="walletScreen_payWithLightning"
                 subTx="walletScreen_payWithLightningDesc"
                 onPress={() => gotoLightningPay()}
+                bottomSeparator={true}
+            />
+            <ListItem   
+                leftIcon='faNfcSymbol'             
+                text="Pay with NFC"
+                subText="Tap to pay using NFC-enabled wallets or POS"
+                onPress={() => gotoNfcPay()}
             />
             </>      
           }
@@ -864,7 +887,7 @@ const UnitBalanceBlock = observer(function (props: {
                 mintUnit={unitBalance.unit}
                 symbolStyle={{display: 'none'}}
                 amountStyle={[$unitBalance, {color: balanceColor}]}
-                containerStyle={{marginTop: spacing.medium}}
+                containerStyle={{marginTop: spacing.small}}
             />
             <View style={{height: verticalScale(40)}}>            
             {walletStore.exchangeRate 
@@ -1092,7 +1115,7 @@ const $screen: ViewStyle = {
 const $headerContainer: TextStyle = {
     alignItems: 'center',
     // padding: spacing.tiny,  
-    height: spacing.screenHeight * 0.27,
+    height: spacing.screenHeight * 0.25,
 }
 
 const $tabContainer: TextStyle = {

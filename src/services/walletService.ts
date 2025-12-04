@@ -799,11 +799,9 @@ const syncStateWithMintTask = async function (
       // 1. Proofs now SPENT at mint → transaction succeeded
       // ─────────────────────────────────────────────────────────────
       if (secrets.spent.size > 0) {
-        const spentProofs = proofsToSync.filter(p => secrets.spent.has(p.secret))        
-
-        proofsStore.moveToSpent(spentProofs) // sets isSpent = true, isPending = false + clean if they were in pendingByMintSecrets
-    
+        const spentProofs = proofsToSync.filter(p => secrets.spent.has(p.secret))
         const spentByTx = groupByTId(spentProofs)
+        proofsStore.moveToSpent(spentProofs) // sets isSpent = true, isPending = false + clean if they were in pendingByMintSecrets
   
         for (const [tId, { amount: spentAmount }] of spentByTx) {
           const tx = transactionsStore.findById(tId)

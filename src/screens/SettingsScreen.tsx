@@ -69,17 +69,20 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                 if (!updateInfo) {
                     return
                 }
-
+                
                 if(!__DEV__) {
-                    setIsUpdateAvailable(true)
-                    setUpdateDescription(updateInfo.message || '')
-                    
-                    if (updateInfo.shouldForceUpdate) {
-                        // apply emergency update immediately
-                        await HotUpdater.updateBundle(updateInfo.id, updateInfo.fileUrl)
-                        HotUpdater.reload()
+                  setIsUpdateAvailable(true)
+                  setUpdateDescription(updateInfo.message || '')
+                  
+                  if (updateInfo.shouldForceUpdate) {
+                    // apply emergency update immediately
+                    const isDownloaded = await updateInfo.updateBundle()
+                    if(isDownloaded) {
+                        await HotUpdater.reload()
                     }
+                  }
                 }
+                
                 
             } catch (e: any) {
                 log.error(e)
