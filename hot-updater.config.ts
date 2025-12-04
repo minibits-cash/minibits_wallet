@@ -1,9 +1,11 @@
 import { bare } from "@hot-updater/bare";
 import { withSentry } from "@hot-updater/sentry-plugin";
 import { firebaseDatabase, firebaseStorage } from "@hot-updater/firebase";
-import "dotenv/config";
 import * as admin from "firebase-admin";
+import { config } from "dotenv";
 import { defineConfig } from "hot-updater";
+
+config({ path: ".env" });
 
 // https://firebase.google.com/docs/admin/setup?hl=en#initialize_the_sdk_in_non-google_environments
 // Check your .env file and add the credentials
@@ -31,5 +33,5 @@ export default defineConfig({
     projectId: process.env.HOT_UPDATER_FIREBASE_PROJECT_ID!,
     credential,
   }),
-  updateStrategy: "appVersion",
+  updateStrategy: "appVersion", // or "fingerprint"
 });

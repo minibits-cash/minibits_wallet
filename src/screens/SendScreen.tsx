@@ -621,6 +621,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     const syncStateListenerRef = useRef<((r: SyncStateTaskResult) => void) | null>(null);
 
     useEffect(() => {
+        // Clean up early if no transactionId
         if (!transactionId) {
             if (syncStateListenerRef.current) {
                 EventEmitter.off(`ev_${SYNC_STATE_WITH_MINT_TASK}_result`, syncStateListenerRef.current);
@@ -628,29 +629,47 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             }
             return;
         }
-
+    
         const eventName = `ev_${SYNC_STATE_WITH_MINT_TASK}_result`;
-
+    
+        // Remove any previous listener (in case deps changed)
         if (syncStateListenerRef.current) {
             EventEmitter.off(eventName, syncStateListenerRef.current);
         }
-
-        const oneTimeHandler = (result: SyncStateTaskResult) => {
-            EventEmitter.off(eventName, oneTimeHandler);
-            syncStateListenerRef.current = null;
+    
+        const handler = (result: SyncStateTaskResult) => {
             handleSyncStateResult(result);
+    
+            // "keep listening" for poller if our transaction is still pending
+            const shouldStaySubscribed = (() => {
+                const {transactionStateUpdates} = result
+
+                if(transactionStateUpdates.length === 0) {
+                    return true
+                } else {
+                    return false
+                }
+            })();
+    
+            // Only unsubscribe if the condition is NOT met
+            if (!shouldStaySubscribed) {
+                EventEmitter.off(eventName, handler);
+                syncStateListenerRef.current = null;
+            }
+            // If shouldStaySubscribed === true → we keep the handler attached
         };
-
-        syncStateListenerRef.current = oneTimeHandler;
-        EventEmitter.on(eventName, oneTimeHandler);
-
+    
+        syncStateListenerRef.current = handler;
+        EventEmitter.on(eventName, handler);
+    
+        // Cleanup on unmount or when transactionId/handleSyncStateResult changes
         return () => {
             if (syncStateListenerRef.current) {
-            EventEmitter.off(eventName, syncStateListenerRef.current);
-            syncStateListenerRef.current = null;
+                EventEmitter.off(eventName, syncStateListenerRef.current);
+                syncStateListenerRef.current = null;
             }
         };
-    }, [handleSyncStateResult])
+    }, [transactionId, handleSyncStateResult]);
        
     const toggleNostrDMModal = () => setIsNostrDMModalVisible(previousState => !previousState)
     const toggleProofSelectorModal = () => setIsProofSelectorModalVisible(previousState => !previousState)
