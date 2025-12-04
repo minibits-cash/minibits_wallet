@@ -136,7 +136,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
     const handleSendTaskResult = useCallback(
         async (result: TransactionTaskResult) => {
-        log.trace('[NfcScreen] handleSendTaskResult triggered', { result })
+        log.debug('[NfcScreen] handleSendTaskResult triggered', { result })
 
         try {
             const { transaction, error, encodedTokenToSend } = result
@@ -317,18 +317,30 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             EventEmitter.off(eventName, syncStateListenerRef.current)
         }
 
-        // One-time wrapper — auto-removes itself after first fire
-        const oneTimeHandler = (result: SyncStateTaskResult) => {
-            // Immediately detach to prevent double execution
-            EventEmitter.off(eventName, oneTimeHandler)
-            syncStateListenerRef.current = null
+        const handler = (result: SyncStateTaskResult) => {
+            handleSyncStateResult(result);
+    
+            // "keep listening" for poller if our transaction is still pending
+            const shouldStaySubscribed = (() => {
+                const {transactionStateUpdates} = result
 
-            // Forward to stable callback
-            handleSyncStateResult(result)
+                if(transactionStateUpdates.length === 0) {
+                    return true
+                } else {
+                    return false
+                }
+            })();
+    
+            // Only unsubscribe if the condition is NOT met
+            if (!shouldStaySubscribed) {
+                EventEmitter.off(eventName, handler);
+                syncStateListenerRef.current = null;
+            }
+            // If shouldStaySubscribed === true → we keep the handler attached
         };
 
-        syncStateListenerRef.current = oneTimeHandler
-        EventEmitter.on(eventName, oneTimeHandler)
+        syncStateListenerRef.current = handler
+        EventEmitter.on(eventName, handler)
 
         // Cleanup on unmount or when transactionId changes/becomes null
         return () => {
