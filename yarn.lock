@@ -5444,7 +5444,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@scure/bip32@npm:^1.5.0":
+"@scure/bip32@npm:1.6.2, @scure/bip32@npm:^1.5.0":
   version: 1.6.2
   resolution: "@scure/bip32@npm:1.6.2"
   dependencies:
@@ -13414,6 +13414,7 @@ __metadata:
     "@react-navigation/native": ^7.1.18
     "@react-navigation/native-stack": ^7.3.27
     "@react-navigation/stack": ^7.4.9
+    "@scure/bip32": 1.6.2
     "@scure/bip39": 1.6.0
     "@sentry/cli": ^2.56.0
     "@sentry/react-native": ^6.22.0
