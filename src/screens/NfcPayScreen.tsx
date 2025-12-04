@@ -358,7 +358,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
     const handleTransferTaskResult = useCallback(
         async (result: TransactionTaskResult) => {
-        log.trace('[NfcScreen] handleTransferTaskResult triggered', {result})
+        log.debug('[NfcScreen] handleTransferTaskResult triggered', {result})
 
         setIsLoading(false)
 
@@ -472,7 +472,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                 if (isProcessing) return
                 setIsProcessing(true)
                 setNfcInfo('Reading payment request...')
-                log.debug('NFC tag discovered, reading...', { tag })
+                log.info('NFC tag discovered, reading...', { tag })
 
                 try {
                     const ndefMessage = tag.ndefMessage?.[0]
@@ -515,6 +515,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     const handlePaymentRequest = async (data: string) => {
         try {
             Alert.alert(data)
+            log.info('[handlePaymentRequest] received data via NFC', { data })
 
             const result = IncomingParser.findAndExtract(data)
             if (!result) {
