@@ -13610,7 +13610,7 @@ __metadata:
     react-native-logs: ^5.5.0
     react-native-mmkv: ^3.3.3
     react-native-modal: ^14.0.0-rc.1
-    react-native-nfc-manager: ^3.17.2
+    react-native-nfc-manager: "revtel/react-native-nfc-manager#v4.0.0-beta.7"
     react-native-pager-view: ^6.9.1
     react-native-qrcode-svg: ^6.3.15
     react-native-quick-crypto: ^0.7.17
@@ -15570,15 +15570,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-native-nfc-manager@npm:^3.17.2":
-  version: 3.17.2
-  resolution: "react-native-nfc-manager@npm:3.17.2"
+"react-native-nfc-manager@revtel/react-native-nfc-manager#v4.0.0-beta.7":
+  version: 4.0.0-beta.7
+  resolution: "react-native-nfc-manager@https://github.com/revtel/react-native-nfc-manager.git#commit=6ccd234a15cf44a25221642bd05f24b389495ddb"
   peerDependencies:
     "@expo/config-plugins": "*"
   peerDependenciesMeta:
     "@expo/config-plugins":
       optional: true
-  checksum: 7435840e0ddd190b442dbe4972e318da2423c953648f917ba515d99a92aba27a477d738fb0f75db89bc64fc52201b9e6880d74e5c7f800d75195c77f4c20cde3
+  checksum: efd9e1eeee2b75a83d366687a9acf58b4f0a4f4a32b563783cacf1b9308bdccb81afdb065d7df469e5308e3163d5f6b5e2561ea5c8ea5e9abc1ded623b19d697
   languageName: node
   linkType: hard
 

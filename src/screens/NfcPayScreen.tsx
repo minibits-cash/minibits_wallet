@@ -4,8 +4,7 @@ import {
     View,
     TextStyle,
     Alert,
-    Platform,
-    DeviceEventEmitter,
+    ColorValue,
 } from 'react-native'
 import { PaymentRequest as CashuPaymentRequest, MeltQuoteResponse, PaymentRequestTransport, PaymentRequestTransportType, decodePaymentRequest, getDecodedToken } from '@cashu/cashu-ts'
 import NfcManager, { NfcTech, Ndef, NfcEvents } from 'react-native-nfc-manager'
@@ -40,6 +39,70 @@ import { CashuUtils } from '../services/cashu/cashuUtils'
 import { LIGHTNING_FEE_PERCENT, MIN_LIGHTNING_FEE } from '../models/NwcStore'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import { TRANSFER_TASK } from '../services/wallet/transferTask'
+import Animated, {
+    useSharedValue,
+    withRepeat,
+    withTiming,
+    useAnimatedStyle,
+    Easing,
+  } from 'react-native-reanimated';
+//import Animated from 'react-native-reanimated'
+
+const ContactlessIcon = (color: ColorValue | string) => `<?xml version="1.0" encoding="utf-8"?>
+<svg  viewBox="-5 0 35 35" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path 
+    d="M16.3 19.5002C17.4 17.2002 18 14.7002 18 12.0002C18 9.30024 17.4 6.70024 16.3 4.50024M12.7 17.8003C13.5 16.0003 14 14.0003 14 12.0003C14 10.0003 13.5 7.90034 12.7 6.10034M9.1001 16.1001C9.7001 14.8001 10.0001 13.4001 10.0001 12.0001C10.0001 10.6001 9.7001 9.10015 9.1001 7.90015M5.5 14.3003C5.8 13.6003 6 12.8003 6 12.0003C6 11.2003 5.8 10.3003 5.5 9.60034" 
+    stroke="${String(color)}" 
+    stroke-width="2" 
+    stroke-linecap="round" 
+    stroke-linejoin="round"/>
+</svg>`
+
+
+interface PulsingContactlessIconProps {
+  isNfcEnabled: boolean;
+}
+
+export const PulsingContactlessIcon: React.FC<PulsingContactlessIconProps> = ({
+  isNfcEnabled,
+}) => {
+  const scale = useSharedValue(1);
+
+  // Start/stop pulse based on isNfcEnabled
+  useEffect(() => {
+    if (isNfcEnabled) {
+      scale.value = withRepeat(
+        withTiming(1.22, {
+          duration: 1200,
+          easing: Easing.out(Easing.quad),
+        }),
+        -1, // infinite
+        true // reverse (so it goes 1 → 1.22 → 1 → 1.22...)
+      );
+    } else {
+      scale.value = withTiming(1, { duration: 300 });
+    }
+  }, [isNfcEnabled, scale]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const color = isNfcEnabled
+    ? colors.palette.success200
+    : colors.palette.neutral400
+
+  return (
+    <Animated.View style={[animatedStyle, { alignSelf: 'center' }]}>
+      <SvgXml
+        xml={ContactlessIcon(color)}
+        width={150}
+        height={150}
+        style={{ marginVertical: 24 }} // or your spacing.large
+      />
+    </Animated.View>
+  );
+};
 
 type Props = StaticScreenProps<{
     unit: MintUnit
@@ -51,7 +114,6 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     const unitRef = useRef<MintUnit>('sat')
     const isInternetReachable = useIsInternetReachable()
 
-    const [paymentOption, setPaymentOption] = useState<SendOption | TransferOption>(TransferOption.PASTE_OR_SCAN_INVOICE)
     const [encodedTokenToSend, setEncodedTokenToSend] = useState<string | undefined>()
     const [amountToPay, setAmountToPay] = useState<string | undefined>()
     const [encodedCashuPaymentRequest, setEncodedCashuPaymentRequest] = useState<string | undefined>()
@@ -89,6 +151,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             try {
                 const supported = await NfcManager.isSupported()
                 setIsNfcSupported(supported)
+
                 if (!supported) {
                     setNfcInfo('NFC is not supported on this device')
                     return
@@ -102,6 +165,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                     return
                 }
 
+                setNfcInfo('Tap your device to the NFC reader to pay')
                 setIsNfcEnabled(true)
 
                 // Start listening for tags immediately
@@ -462,6 +526,8 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
     const startNfcSession = async () => {
         try {
+            log.debug('Starting NFC session for payment request reading...', {caller: 'startNfcSession'})
+
             await NfcManager.requestTechnology(NfcTech.Ndef, {
                 alertMessage: 'Hold phone near the device...',
                 //invalidateAfterFirstRead: false,
@@ -503,10 +569,9 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                     setIsProcessing(false)
                 }
             })
-        } catch (ex: any) {
-            if (ex.message !== 'cancelled') {
-                setInfo('Tap terminal to pay')
-            }
+        } catch (e: any) {
+            log.error(Err.NFC_ERROR, e.message)
+            handleError(e)
         }
     }
 
@@ -771,27 +836,18 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         <Screen preset="fixed" contentContainerStyle={$screen}>
             <MintHeader mint={mint} unit={unitRef.current} />
             <View style={[$headerContainer, { backgroundColor: headerBg }]}>
-                <Icon
+                {/*<Icon
                     icon='faNfcSymbol'
                     size={verticalScale(35)}
                     color={headerTitle}
-                />
+                />*/}
             </View>
 
             <View style={$contentContainer}>
                 <Card
                     ContentComponent={
                         <>
-                            <Icon
-                                icon='faWifi'
-                                size={verticalScale(80)}
-                                color={isNfcEnabled ? colors.palette.success200 : colors.palette.neutral400}
-                                containerStyle={{
-                                    alignSelf: 'center',
-                                    marginVertical: spacing.large,
-                                    transform: [{ rotate: '-90deg' }]
-                                }}
-                            />
+                            <PulsingContactlessIcon isNfcEnabled={isNfcEnabled} />
                             <Text
                                 text={
                                     nfcInfo ? nfcInfo : ''
@@ -801,7 +857,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                                     marginBottom: spacing.medium,
                                     //fontFamily: typography.code,
                                     color: isNfcEnabled ? colors.palette.success200 : colors.palette.neutral500,
-                                    fontSize: 18
+                                    fontSize: 18,
                                 }}
                             />
                         </>

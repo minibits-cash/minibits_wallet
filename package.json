@@ -1,6 +1,6 @@
 {
   "name": "minibits_wallet",
-  "version": "0.3.4-beta.1",
+  "version": "0.3.4-beta.3",
   "private": true,
   "scripts": {
     "android:clean": "cd android && ./gradlew clean",
@@ -69,7 +69,7 @@
     "react-native-logs": "^5.5.0",
     "react-native-mmkv": "^3.3.3",
     "react-native-modal": "^14.0.0-rc.1",
-    "react-native-nfc-manager": "^3.17.2",
+    "react-native-nfc-manager": "revtel/react-native-nfc-manager#v4.0.0-beta.7",
     "react-native-pager-view": "^6.9.1",
     "react-native-qrcode-svg": "^6.3.15",
     "react-native-quick-crypto": "^0.7.17",

@@ -23,4 +23,5 @@ export * from "./GbpIcon"
 export * from "./MintIcon"
 export * from "./HeaderBg"
 export * from "./NwcIcon"
+export * from "./ContactlessIcon"
 
