@@ -417,7 +417,7 @@ const fetchApi = async (url: string, options: MinibitsRequestOptions, timeout = 
 }
 
 // legacy headers
-const getHeaders = () => {   
+/*const getHeaders = () => {   
     return {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -425,7 +425,7 @@ const getHeaders = () => {
         'Authorization': `Bearer ${MINIBITS_SERVER_API_KEY}`,
         'User-Agent': `Minibits/${JS_BUNDLE_VERSION}`
     }
-}
+}*/
 
 const getPublicHeaders = () => {   
     return {

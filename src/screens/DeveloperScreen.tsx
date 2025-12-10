@@ -34,6 +34,7 @@ import RNExitApp from 'react-native-exit-app'
 import { TransactionStatus } from '../models/Transaction'
 import { maxTransactionsInHistory } from '../models/TransactionsStore'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+// refresh // refresh
 
 type Props = StaticScreenProps<undefined>
 
@@ -295,6 +296,7 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
                   tx="developerScreen_info"
                   subText={`Environment: ${APP_ENV}
 JS Bundle version: ${JS_BUNDLE_VERSION}
+${Platform.OS === 'android' ? 'Android version code:' + ANDROID_VERSION_CODE : ''}
 Commit: ${COMMIT}
 DB version: ${dbVersion}
 State size: ${walletStateSize.toLocaleString()} bytes

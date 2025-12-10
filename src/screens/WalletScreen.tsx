@@ -825,7 +825,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             <ListItem   
                 leftIcon='faNfcSymbol'             
                 text="Pay with NFC"
-                subText="Tap to pay using NFC-enabled wallets or POS"
+                subText="Tap NFC-enabled wallet or POS to pay"
                 onPress={() => gotoNfcPay()}
             />
             </>      

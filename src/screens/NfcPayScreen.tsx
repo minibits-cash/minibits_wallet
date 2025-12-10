@@ -5,9 +5,10 @@ import {
     TextStyle,
     Alert,
     ColorValue,
+    Platform,
 } from 'react-native'
 import { PaymentRequest as CashuPaymentRequest, MeltQuoteResponse, PaymentRequestTransport, PaymentRequestTransportType, decodePaymentRequest, getDecodedToken } from '@cashu/cashu-ts'
-import NfcManager, { NfcTech, Ndef, NfcEvents } from 'react-native-nfc-manager'
+import NfcManager, { NfcTech, Ndef, NfcEvents, TagEvent } from 'react-native-nfc-manager'
 import { colors, spacing, typography, useThemeColor } from '../theme'
 import EventEmitter from '../utils/eventEmitter'
 import { log } from '../services/logService'
@@ -182,6 +183,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         return () => {
             NfcManager.cancelTechnologyRequest().catch(() => {})
             NfcManager.setEventListener(NfcEvents.DiscoverTag, null)
+            NfcManager.setEventListener(NfcEvents.SessionClosed, null)
         }
     }, [])
 
@@ -524,17 +526,97 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     }, [handleTransferTaskResult])
 
 
+
+    const readNdefOnce = function () {
+        const cleanUp = () => {
+          NfcManager.setEventListener(NfcEvents.DiscoverTag, null);
+          NfcManager.setEventListener(NfcEvents.SessionClosed, null);
+        };
+    
+        return new Promise<TagEvent | null>((resolve) => {
+          let tagFound: TagEvent | null = null;
+    
+          NfcManager.setEventListener(NfcEvents.DiscoverTag, (tag: TagEvent) => {
+            tagFound = tag;
+            resolve(tagFound);
+
+            NfcManager.unregisterTagEvent().catch(() => 0);
+          });
+    
+          NfcManager.setEventListener(NfcEvents.SessionClosed, (e: any) => {
+            if (e) {
+              log.error(Err.NFC_ERROR, 'NFC Session closed with error', e.message);
+            }
+    
+            cleanUp()
+
+            if (!tagFound) {
+              resolve(null)
+            }
+          });
+    
+          NfcManager.registerTagEvent();
+        });
+      }
+
+
+      const readTag = async function() {
+        try {
+          await NfcManager.requestTechnology([NfcTech.Ndef]);
+    
+          const tag = await NfcManager.getTag();
+          return tag
+
+        } catch (e: any) {
+          // for tag reading, we don't actually need to show any error
+          log.error(Err.NFC_ERROR, 'Failed to read NFC tag', e.message);
+        } finally {
+          NfcManager.cancelTechnologyRequest();
+        }
+      }
+
+
     const startNfcSession = async () => {
         try {
             log.debug('Starting NFC session for payment request reading...', {caller: 'startNfcSession'})
 
-            await NfcManager.requestTechnology(NfcTech.Ndef, {
+            const tag = await readNdefOnce()
+            // const tag = await readTag()
+
+            if (!tag) {
+                return
+            }
+
+            log.warn('Tag found', {tag});
+
+            /*await NfcManager.requestTechnology(NfcTech.Ndef, {
                 alertMessage: 'Hold phone near the device...',
-                //invalidateAfterFirstRead: false,
+                invalidateAfterFirstRead: false,
             })
 
+            const tag = await NfcManager.getTag();
+            log.warn('Tag found', {tag});
+
+            if(!tag || !tag.ndefMessage || tag.ndefMessage.length === 0) {
+                setInfo('No NDEF message found on the NFC tag')
+                return
+            }
+
+            const bytes = new Uint8Array(
+                tag.ndefMessage[0].payload
+            );
+
+            let payload: string
+
+            const decoded = Ndef.text.decodePayload(bytes);
+
+            log.warn('NFC tag decoded', { decoded })*/
+
+
+            // setNfcInfo('Reading payment request...')
+
             // Listen for tag discovery
-            NfcManager.setEventListener(NfcEvents.DiscoverTag, async (tag: any) => {
+            /*NfcManager.setEventListener(NfcEvents.DiscoverTag, async (tag: any) => {
                 if (isProcessing) return
                 setIsProcessing(true)
                 setNfcInfo('Reading payment request...')
@@ -568,10 +650,12 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                 } finally {
                     setIsProcessing(false)
                 }
-            })
+            })*/
         } catch (e: any) {
             log.error(Err.NFC_ERROR, e.message)
             handleError(e)
+        } finally { 
+            NfcManager.cancelTechnologyRequest().catch(() => {})
         }
     }
 
@@ -974,7 +1058,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     )
 })
 
-// Styles remain unchanged
+
 const $screen: ViewStyle = { flex: 1 }
 const $contentContainer: ViewStyle = { flex: 1, marginTop: -spacing.extraLarge * 2, padding: spacing.extraSmall }
 const $headerContainer: TextStyle = { alignItems: 'center', paddingBottom: spacing.medium, height: spacing.screenHeight * 0.15 }
