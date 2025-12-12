@@ -21,7 +21,7 @@
     "machine-translate": "npx @inlang/cli machine translate --project minibits.inlang"
   },
   "dependencies": {
-    "@cashu/cashu-ts": "minibits-cash/cashu-ts#c85d4638c007ac8126bc83a7287a6d848fcc8153",
+    "@cashu/cashu-ts": "minibits-cash/cashu-ts#e97b1a4ee9a7ddbb1468302c6996a9d6d3efcb6f",
     "@fortawesome/fontawesome-svg-core": "^7.1.0",
     "@fortawesome/free-brands-svg-icons": "^7.1.0",
     "@fortawesome/free-regular-svg-icons": "^7.1.0",

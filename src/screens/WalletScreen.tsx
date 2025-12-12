@@ -76,7 +76,8 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     } = useStores()        
     
     const appState = useRef(AppState.currentState)
-    const lastMintCheckRef = useRef(0)
+    const lastMintCheckRef = useRef<number>(0)
+    const lastBackgroundTimestampRef = useRef<number>(0)
     const isInternetReachable = useIsInternetReachable()
     const groupedMints: MintsByUnit[] = mintsStore.groupedByUnit
 
@@ -312,22 +313,46 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     }, [isInternetReachable, userSettingsStore.exchangeCurrency])
     
     
-    useFocusEffect(performChecks)
+    useFocusEffect(() => {
+        log.trace('[useFocusEffect] WalletScreen')
+        performChecks()
+    })
+
+    
 
     useEffect(() => {
-        const handleAppStateChange = (nextAppState: AppStateStatus) => {
+        /* const handleAppStateChange = (nextAppState: AppStateStatus) => {
+
             if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+                log.trace('[handleAppStateChange] WalletScreen active again')
                 performChecks()
                 NostrClient.reconnectToRelays().catch(e => false)
             }
             appState.current = nextAppState
-        };
+        }*/
 
-        const subscription = AppState.addEventListener('change', handleAppStateChange)
+        const subscription = AppState.addEventListener('change', (nextState) => {
+            if (nextState === 'background') {
+                lastBackgroundTimestampRef.current = Date.now()
+                return
+            }
 
-        return () => {
-            subscription.remove() // Ensure cleanup to avoid multiple listeners
-        }
+            if (nextState === 'active') {
+                const timeInBackground = Date.now() - lastBackgroundTimestampRef.current
+                if (timeInBackground < 1000) {  // (usually <1s for NFC)
+                    log.trace('[handleAppStateChange] Ignored too short background event (could be NFC tap)', { timeInBackground })
+                    return  // Ignore – this was an NFC flicker
+                }
+
+                // Real foreground – run your normal logic (e.g., unlock check, etc.)
+                log.trace('[handleAppStateChange] WalletScreen active again')
+                performChecks()
+                NostrClient.reconnectToRelays().catch(e => false)
+            }
+        })
+    
+        return () => subscription.remove()
+
     }, [performChecks])
 
   

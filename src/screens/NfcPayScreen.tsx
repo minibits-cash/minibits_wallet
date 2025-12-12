@@ -47,6 +47,7 @@ import Animated, {
     useAnimatedStyle,
     Easing,
   } from 'react-native-reanimated';
+import { NfcService } from '../services/nfcService'
 //import Animated from 'react-native-reanimated'
 
 const ContactlessIcon = (color: ColorValue | string) => `<?xml version="1.0" encoding="utf-8"?>
@@ -113,6 +114,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     const navigation = useNavigation<any>()
     const { mintsStore, walletStore, proofsStore } = useStores()
     const unitRef = useRef<MintUnit>('sat')
+
     const isInternetReachable = useIsInternetReachable()
 
     const [encodedTokenToSend, setEncodedTokenToSend] = useState<string | undefined>()
@@ -132,8 +134,6 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus, title?: string, message: string} | undefined>()    
     const [isLoading, setIsLoading] = useState(false)
 
-    const [isSendTaskSentToQueue, setIsSendTaskSentToQueue] = useState(false)
-    const [isTransferTaskSentToQueue, setIsTransferTaskSentToQueue] = useState(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)
     // NFC state
     const [isNfcEnabled, setIsNfcEnabled] = useState(false)
@@ -150,17 +150,15 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     useEffect(() => {
         const initNfc = async () => {
             try {
-                const supported = await NfcManager.isSupported()
+                const supported = await NfcService.init() // runs NfcManager.start()
                 setIsNfcSupported(supported)
 
                 if (!supported) {
                     setNfcInfo('NFC is not supported on this device')
                     return
                 }
-
-                await NfcManager.start()
-
-                const enabled = await NfcManager.isEnabled()
+                
+                const enabled = await NfcService.isEnabled()
                 if (!enabled) {
                     setNfcInfo('Please enable NFC in your device settings')
                     return
@@ -198,123 +196,10 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     }, [navigation, isNfcEnabled, isProcessing])
 
 
-    const sendTaskListenerRef = useRef<((result: TransactionTaskResult) => void) | null>(null);
-
-    const handleSendTaskResult = useCallback(
-        async (result: TransactionTaskResult) => {
-        log.debug('[NfcScreen] handleSendTaskResult triggered', { result })
-
-        try {
-            const { transaction, error, encodedTokenToSend } = result
-
-            // Always update core transaction state
-            if (transaction) {
-                setTransactionStatus(transaction.status)
-                setTransaction(transaction)
-                setTransactionId(transaction.id)
-
-                // Optional: link back to original payment request
-                if (decodedCashuPaymentRequest?.id || encodedCashuPaymentRequest) {
-                    transaction.update({
-                        paymentId: decodedCashuPaymentRequest?.id,
-                        paymentRequest: encodedCashuPaymentRequest,
-                    });
-                }
-            }
-
-            // ———————— Error Cases ————————
-            if (error || !transaction) {
-                const message = error?.params?.message || error?.message || 'Unknown error'
-                const title = error ? 'Payment failed' : 'Internal error'
-
-                setResultModalInfo({
-                    status: (transaction?.status || TransactionStatus.ERROR) as TransactionStatus,
-                    title,
-                    message,
-                });
-                toggleResultModal()
-                return
-            }
-
-            // ———————— Missing Token ————————
-            if (!encodedTokenToSend) {
-                setResultModalInfo({
-                    status: TransactionStatus.ERROR,
-                    title: 'Internal error',
-                    message: 'Failed to generate ecash token',
-                });
-                toggleResultModal()
-                return
-            }
-
-            // ———————— Success Path ————————
-            setEncodedTokenToSend(encodedTokenToSend)
-            // Send over NFC to payee's POS or wallet
-            await writeTokenToNfcTag(encodedTokenToSend)
-
-        } catch (err: any) {
-            log.error('Unexpected error in handleSendTaskResult', err)
-
-            setResultModalInfo({
-                status: TransactionStatus.ERROR,
-                title: 'Unexpected error',
-                message: err.message || 'Something went wrong',
-            })
-
-            toggleResultModal()
-        }
-        },
-        [
-            decodedCashuPaymentRequest?.id,
-            encodedCashuPaymentRequest, 
-        ]
-    )
-
-
-    useEffect(() => {
-        if (!isSendTaskSentToQueue) {
-            // optional: make sure no stray listener exists
-            if (sendTaskListenerRef.current) {
-                EventEmitter.off(`ev_${SEND_TASK}_result`, sendTaskListenerRef.current)
-                sendTaskListenerRef.current = null
-            }
-            return
-        }
-
-        const eventName = `ev_${SEND_TASK}_result`
-
-        // Remove previous (defensive)
-        if (sendTaskListenerRef.current) {
-            EventEmitter.off(eventName, sendTaskListenerRef.current)
-        }
-
-        const oneTimeHandler = (result: TransactionTaskResult) => {
-            // Immediately detach so it can never fire twice
-            EventEmitter.off(eventName, oneTimeHandler)
-            sendTaskListenerRef.current = null
-
-            // Forward to the stable callback
-            handleSendTaskResult(result)
-        }
-
-        sendTaskListenerRef.current = oneTimeHandler
-        EventEmitter.on(eventName, oneTimeHandler)
-
-        return () => {
-            if (sendTaskListenerRef.current) {
-                EventEmitter.off(eventName, sendTaskListenerRef.current)
-                sendTaskListenerRef.current = null
-            }
-        }
-    }, [isSendTaskSentToQueue, handleSendTaskResult])
-
-    
-
 
     // Stable handler — only recreated when dependencies actually change
-    const handleSyncStateResult = useCallback(
-    async (result: SyncStateTaskResult) => {
-        log.trace('[NfcScreen] handleSyncStateResult triggered', { result, transactionId });
+    const handleSyncStateResult = useCallback(async (result: SyncStateTaskResult) => {
+        log.trace('[NfcScreen.handleSyncStateResult] handleSyncStateResult triggered', { result, transactionId });
 
         if (!transactionId) return;
 
@@ -322,7 +207,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
         // ——— SUCCESS: Receiver claimed the ecash ———
         if (completedTransactionIds?.includes(transactionId)) {
-            log.debug('[NfcScreen] Ecash claimed successfully by the payee.', { transactionId });
+            log.debug('[NfcScreen.handleSyncStateResult] Ecash claimed successfully by the payee.', { transactionId });
 
             const amountSentInt = Math.round(
                 (toNumber(amountToPay || '0') * getCurrency(unitRef.current).precision)
@@ -337,6 +222,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             });
             setTransactionStatus(TransactionStatus.COMPLETED);
             setIsResultModalVisible(true);
+            setNfcInfo('Payment completed successfully!');
             return;
         }
 
@@ -345,7 +231,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             log.trace('[NfcScreen] Sync error for transaction', { transactionId });
 
             const update = transactionStateUpdates?.find(u => u.tId === transactionId);
-            const message = update?.message || 'Transaction failed to complete on the mint.'
+            const message = update?.message || 'Transaction failed to complete on the mint side.'
 
             setResultModalInfo({
                 status: TransactionStatus.ERROR,
@@ -422,262 +308,72 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
     // ====================== Lightning Payment (Transfer Task) Result Handler ======================
 
-    const handleTransferTaskResult = useCallback(
-        async (result: TransactionTaskResult) => {
-        log.debug('[NfcScreen] handleTransferTaskResult triggered', {result})
-
-        setIsLoading(false)
-
-        const { transaction, error, message, finalFee } = result
-
-        // ——— Early error before transaction exists ———
-        if (!transaction && error) {
-            setTransactionStatus(TransactionStatus.ERROR)
-
-            setResultModalInfo({
-                status: TransactionStatus.ERROR,
-                title: translate('payCommon_failed'),
-                message: error.message || 'Lightning payment failed',
-            })
-
-            toggleResultModal()
-            return;
-        }
-
-        // ——— Transaction exists ———
-        if (transaction) {
-            const { status } = transaction;
-            setTransactionStatus(status);
-            setTransaction(transaction);
-
-            if (error) {
-                // Pending but timed out / failed
-                if (status === TransactionStatus.PENDING) {
-                    setResultModalInfo({
-                        status,
-                        message,
-                    })
-                } else {
-                    setResultModalInfo({
-                        status,
-                        title: error.params?.message ? error.message : translate('payCommon_failed'),
-                        message: error.params?.message || error.message || 'Lightning payment failed',
-                    })
-                }
-            } else {
-            // Success or settled pending
-            setResultModalInfo({
-                status,
-                message: message || 'Lightning payment successful!',
-                title: status === TransactionStatus.COMPLETED ? 'Payment sent!' : undefined,
-            });
-            }
-        } else {
-            // Fallback (shouldn't happen)
-            setResultModalInfo({
-                status: TransactionStatus.ERROR,
-                title: 'Unknown error',
-                message: 'No transaction data received',
-            })
-        }
-
-        toggleResultModal()
-        },
-        [isTransferTaskSentToQueue],
-    )
-
-    // One-time listener with auto-cleanup
-    const transferTaskListenerRef = useRef<((r: TransactionTaskResult) => void) | null>(null);
-
-    useEffect(() => {
-        if (!isTransferTaskSentToQueue) {
-            if (transferTaskListenerRef.current) {
-                EventEmitter.off(`ev_${TRANSFER_TASK}_result`, transferTaskListenerRef.current)
-                transferTaskListenerRef.current = null
-            }
-            return
-        }
-
-        const eventName = `ev_${TRANSFER_TASK}_result`
-
-        // Remove any previous listener (defensive)
-        if (transferTaskListenerRef.current) {
-            EventEmitter.off(eventName, transferTaskListenerRef.current)
-        }
-
-        const oneTimeHandler = (result: TransactionTaskResult) => {
-            // Immediately detach — this event should fire only once per payment
-            EventEmitter.off(eventName, oneTimeHandler)
-            transferTaskListenerRef.current = null
-
-            handleTransferTaskResult(result)
-        }
-
-        transferTaskListenerRef.current = oneTimeHandler
-        EventEmitter.on(eventName, oneTimeHandler)
-
-        // Cleanup on unmount or when task flag resets
-        return () => {
-            if (transferTaskListenerRef.current) {
-                EventEmitter.off(eventName, transferTaskListenerRef.current)
-                transferTaskListenerRef.current = null
-            }
-        }
-    }, [handleTransferTaskResult])
-
-
-
-    const readNdefOnce = function () {
-        const cleanUp = () => {
-          NfcManager.setEventListener(NfcEvents.DiscoverTag, null);
-          NfcManager.setEventListener(NfcEvents.SessionClosed, null);
-        };
-    
-        return new Promise<TagEvent | null>((resolve) => {
-          let tagFound: TagEvent | null = null;
-    
-          NfcManager.setEventListener(NfcEvents.DiscoverTag, (tag: TagEvent) => {
-            tagFound = tag;
-            resolve(tagFound);
-
-            NfcManager.unregisterTagEvent().catch(() => 0);
-          });
-    
-          NfcManager.setEventListener(NfcEvents.SessionClosed, (e: any) => {
-            if (e) {
-              log.error(Err.NFC_ERROR, 'NFC Session closed with error', e.message);
-            }
-    
-            cleanUp()
-
-            if (!tagFound) {
-              resolve(null)
-            }
-          });
-    
-          NfcManager.registerTagEvent();
-        });
-      }
-
-
-      const readTag = async function() {
-        try {
-          await NfcManager.requestTechnology([NfcTech.Ndef]);
-    
-          const tag = await NfcManager.getTag();
-          return tag
-
-        } catch (e: any) {
-          // for tag reading, we don't actually need to show any error
-          log.error(Err.NFC_ERROR, 'Failed to read NFC tag', e.message);
-        } finally {
-          NfcManager.cancelTechnologyRequest();
-        }
-      }
-
-
     const startNfcSession = async () => {
+        let decoded: string | undefined = undefined;
         try {
-            log.debug('Starting NFC session for payment request reading...', {caller: 'startNfcSession'})
+            log.debug('[startNfcSession] Starting NFC session for payment request reading...')
 
-            const tag = await readNdefOnce()
-            // const tag = await readTag()
+            const tag = await NfcService.readNdefTag()
 
             if (!tag) {
                 return
             }
 
-            log.warn('Tag found', {tag});
+            //log.info('NFC Tag found', {tag});
+            const bytes = new Uint8Array(tag.ndefMessage[0]?.payload ?? [])
+            decoded = Ndef.text.decodePayload(bytes)
 
-            /*await NfcManager.requestTechnology(NfcTech.Ndef, {
-                alertMessage: 'Hold phone near the device...',
-                invalidateAfterFirstRead: false,
-            })
+            if(!decoded || decoded.length < 140) {
+                const msg = 'This NFC tag can not be processed, missing or truncated NDEF message.'
+                
+                setResultModalInfo({
+                        status: TransactionStatus.ERROR,
+                        message: msg,
+                })
 
-            const tag = await NfcManager.getTag();
-            log.warn('Tag found', {tag});
+                toggleResultModal()
 
-            if(!tag || !tag.ndefMessage || tag.ndefMessage.length === 0) {
-                setInfo('No NDEF message found on the NFC tag')
+                log.error(Err.NFC_ERROR, msg, { tag })
                 return
             }
 
-            const bytes = new Uint8Array(
-                tag.ndefMessage[0].payload
-            );
+            setNfcInfo('Processing payment request...')            
 
-            let payload: string
+            log.info('NFC tag decoded', { decoded })
 
-            const decoded = Ndef.text.decodePayload(bytes);
+            setReadNfcData(decoded)
+            await handlePaymentRequest(decoded)
 
-            log.warn('NFC tag decoded', { decoded })*/
-
-
-            // setNfcInfo('Reading payment request...')
-
-            // Listen for tag discovery
-            /*NfcManager.setEventListener(NfcEvents.DiscoverTag, async (tag: any) => {
-                if (isProcessing) return
-                setIsProcessing(true)
-                setNfcInfo('Reading payment request...')
-                log.info('NFC tag discovered, reading...', { tag })
-
-                try {
-                    const ndefMessage = tag.ndefMessage?.[0]
-                    if (!ndefMessage) {
-                        throw new AppError(Err.VALIDATION_ERROR, 'No NDEF message found')
-                    }
-
-                    let payload: string
-
-                    // Handle both Text and URI records
-                    if (ndefMessage.type === Ndef.RTD_TEXT) {
-                        const decoded = Ndef.text.decodePayload(ndefMessage.payload)
-                        payload = decoded
-                    } else if (ndefMessage.type === Ndef.RTD_URI) {
-                        const decoded = Ndef.uri.decodePayload(ndefMessage.payload)
-                        payload = decoded
-                    } else {
-                        payload = new TextDecoder().decode(ndefMessage.payload)
-                    }
-
-                    log.debug('NFC tag read', { payload })
-                    setReadNfcData(payload)
-                    await handlePaymentRequest(payload)
-
-                } catch (e: any) {
-                    handleError(e)
-                } finally {
-                    setIsProcessing(false)
-                }
-            })*/
         } catch (e: any) {
-            log.error(Err.NFC_ERROR, e.message)
+            log.error('[NfcPayScreen] handlePaymentRequest failed', {
+                error: e?.message ?? String(e),
+                stack: e?.stack,
+                decoded: decoded?.slice?.(0,200)
+             })
             handleError(e)
         } finally { 
-            NfcManager.cancelTechnologyRequest().catch(() => {})
+            
         }
     }
 
 
     // handlePaymentRequest.ts (main entry)
     const handlePaymentRequest = async (data: string) => {
-        try {
-            Alert.alert(data)
-            log.info('[handlePaymentRequest] received data via NFC', { data })
+        
+        // Alert.alert(data)
+        log.info('[handlePaymentRequest] received data via NFC', { data })
 
-            const result = IncomingParser.findAndExtract(data)
-            if (!result) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Unsupported or invalid payment request')
-            }
+        const result = IncomingParser.findAndExtract(data)
 
-            if (result.type === IncomingDataType.CASHU_PAYMENT_REQUEST) {
-                await handleCashuPaymentRequest(result.encoded)
-            } else if (result.type === IncomingDataType.INVOICE) {
-                await handleLightningInvoice(result.encoded)
-            }
-        } catch (e: any) {
-            handleError(e)
+        log.info('[handlePaymentRequest] parsed result', { result })
+        if (!result || !result.encoded) {
+            throw new AppError(Err.VALIDATION_ERROR, 'Unsupported or invalid payment request')
+        }
+
+        if (result.type === IncomingDataType.CASHU_PAYMENT_REQUEST) {
+            await handleCashuPaymentRequest(result.encoded)
+        } else if (result.type === IncomingDataType.INVOICE) {
+            await handleLightningInvoice(result.encoded)
         }
     }
 
@@ -718,9 +414,8 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
         setMintBalanceToSendFrom(selectedBalance)
         setAmountToPay(formatDisplayAmount(requiredAmount, unit))
-        setIsSendTaskSentToQueue(true);
-
-        WalletTask.sendQueue(
+        
+        const result = await WalletTask.sendQueueAwaitable(
             selectedBalance,
             requiredAmount,
             unit,
@@ -729,27 +424,105 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             undefined, // p2pk not supported in current Cashu PR spec
             undefined
         )
+
+        await handleSendTaskResult(result)
+
     }
+
+
+    const handleSendTaskResult = async function (result: TransactionTaskResult) {
+        log.debug('[NfcScreen] handleSendTaskResult start', {transactionStatus: result.transaction?.status})
+
+        try {
+            const { transaction, error, encodedTokenToSend } = result
+
+            // Always update core transaction state
+            if (transaction) {
+                setTransactionStatus(transaction.status)
+                setTransaction(transaction)
+                setTransactionId(transaction.id)
+
+                // Optional: link back to original payment request
+                if (decodedCashuPaymentRequest?.id || encodedCashuPaymentRequest) {
+                    transaction.update({
+                        paymentId: decodedCashuPaymentRequest?.id,
+                        paymentRequest: encodedCashuPaymentRequest,
+                    });
+                }
+            }
+
+            // ———————— Error Cases ————————
+            if (error || !transaction) {
+                const message = error?.params?.message || error?.message || 'Unknown error'
+                const title = error ? 'Payment failed' : 'Internal error'
+
+                setResultModalInfo({
+                    status: (transaction?.status || TransactionStatus.ERROR) as TransactionStatus,
+                    title,
+                    message,
+                });
+                toggleResultModal()
+                setNfcInfo('Payment failed')
+                return
+            }
+
+            // ———————— Missing Token ————————
+            if (!encodedTokenToSend) {
+                setResultModalInfo({
+                    status: TransactionStatus.ERROR,
+                    title: 'Internal error',
+                    message: 'Failed to generate ecash token',
+                });
+                toggleResultModal()
+                setNfcInfo('Payment failed')
+                return
+            }
+
+            // ———————— Success Path ————————
+            setEncodedTokenToSend(encodedTokenToSend)
+            // Send over NFC to payee's POS or wallet
+
+            setNfcInfo('Prepared ecash token to be sent via NFC.')
+
+            log.trace('[NfcScreen] handleSendTaskResult: Starting NFC write of an ecash token.')
+            await NfcService.writeNdefMessage(encodedTokenToSend)
+
+            log.trace('[NfcScreen] handleSendTaskResult: Write completed.')
+            setNfcInfo('Ecash token sent successfully.')
+
+        } catch (err: any) {
+            log.error('Error in handleSendTaskResult', {error: err, caller: 'NfcScreen.handleSendTaskResult'})
+
+            setResultModalInfo({
+                status: TransactionStatus.ERROR,
+                title: 'Unexpected error',
+                message: err.message || 'Something went wrong',
+            })
+
+            toggleResultModal()
+        }
+    }
+        
 
 
     const handleLightningInvoice = async (encodedInvoice: string) => {
         if (!isInternetReachable) {
-            setInfo(translate('commonOfflinePretty'));
+            setInfo(translate('commonOfflinePretty'))
             return
         }
-
+    
         const decoded = LightningUtils.decodeInvoice(encodedInvoice)
         const { amount: invoiceAmount, description, expiry, timestamp } = LightningUtils.getInvoiceData(decoded)
-
+    
         if (!invoiceAmount || invoiceAmount <= 0) {
             throw new AppError(Err.VALIDATION_ERROR, 'Lightning invoice has no amount')
         }
-
+    
         const expiresAt = addSeconds(new Date((timestamp as number) * 1000), expiry as number)
         const feeReserve = Math.max(MIN_LIGHTNING_FEE, Math.round(invoiceAmount * LIGHTNING_FEE_PERCENT / 100))
-        const totalRequired = invoiceAmount + feeReserve;       
+        const totalRequired = invoiceAmount + feeReserve
         const balances = proofsStore.getMintBalancesWithEnoughBalance(totalRequired, unitRef.current)
-
+    
         if (balances.length === 0) {
             setInfo(
                 translate('transferScreen_insufficientFunds', {
@@ -759,16 +532,17 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             )
             return
         }
-
+    
         const selectedBalance = balances[0]
         setMintBalanceToSendFrom(selectedBalance)
-
+    
+        setInfo('Creating Lightning payment quote...')
         const quote = await walletStore.createLightningMeltQuote(
             selectedBalance.mintUrl,
             unitRef.current,
             encodedInvoice
         )
-
+    
         // Update UI
         setEncodedInvoice(encodedInvoice)
         setInvoice(decoded)
@@ -776,19 +550,78 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         setMeltQuote(quote)
         setAmountToPay(formatDisplayAmount(quote.amount, unitRef.current))
         if (description) setMemo(description)
-        setIsTransferTaskSentToQueue(true)
+    
+        try {
+            setInfo('Paying Lightning invoice...')
+            setIsLoading(true)
+    
+            const result = await WalletTask.transferQueueAwaitable(
+                selectedBalance,
+                quote.amount,
+                unitRef.current,
+                quote,
+                description ?? '',
+                expiresAt,
+                encodedInvoice
+            )
 
-        WalletTask.transferQueue(
-            selectedBalance,
-            quote.amount,
-            unitRef.current,
-            quote,
-            description ?? '',
-            expiresAt,
-            encodedInvoice,
-            undefined,
-            undefined
-        )
+            const { transaction, message, finalFee } = result
+    
+            if (!transaction && error) {
+                setTransactionStatus(TransactionStatus.ERROR)
+
+                setResultModalInfo({
+                    status: TransactionStatus.ERROR,
+                    title: translate('payCommon_failed'),
+                    message: error.message || 'Lightning payment failed',
+                })
+
+                toggleResultModal()
+                return;
+            }
+
+            // ——— Transaction exists ———
+            if (transaction) {
+                const { status } = transaction;
+                setTransactionStatus(status);
+                setTransaction(transaction);
+
+                if (error) {
+                    // Pending but timed out / failed
+                    if (status === TransactionStatus.PENDING) {
+                        setResultModalInfo({
+                            status,
+                            message,
+                        })
+                    } else {
+                        setResultModalInfo({
+                            status,
+                            title: error.params?.message ? error.message : translate('payCommon_failed'),
+                            message: error.params?.message || error.message || 'Lightning payment failed',
+                        })
+                    }
+                } else {
+                // Success or settled pending
+                setResultModalInfo({
+                    status,
+                    message: message || 'Lightning payment successful!',
+                    title: status === TransactionStatus.COMPLETED ? 'Payment sent!' : undefined,
+                });
+                }
+            } else {
+                // Fallback (shouldn't happen)
+                setResultModalInfo({
+                    status: TransactionStatus.ERROR,
+                    title: 'Unknown error',
+                    message: 'No transaction data received',
+                })
+            }
+
+            toggleResultModal()
+        } finally {
+            setIsLoading(false)
+            setInfo('')
+        }
     }
 
 
@@ -859,21 +692,6 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         })
     }
 
-    const writeTokenToNfcTag = async (token: string) => {
-        try {
-            // Re-request tech to write back
-            await NfcManager.requestTechnology(NfcTech.Ndef)
-
-            const textRecord = Ndef.textRecord('en', token)
-            const bytes = Ndef.encodeMessage([textRecord])
-
-            await NfcManager.ndefHandler.writeNdefMessage(bytes)            
-        } catch (e: any) {
-            throw new AppError(Err.NFC_ERROR, 'Failed to send token', e.message)
-        } finally {
-            NfcManager.cancelTechnologyRequest().catch(() => {})
-        }
-    }
 
     const handleError = (e: AppError) => {
         setError(e)
@@ -902,7 +720,6 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         setInfo('')
         setError(undefined)
         setIsLoading(false)
-        setIsTransferTaskSentToQueue(false)
         setIsResultModalVisible(false)
         setResultModalInfo(undefined)
     }
@@ -969,7 +786,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                 </View>
             </View>
 
-            {info && !isProcessing && <InfoModal message={info} />}
+            {info && <InfoModal message={info} />}
             {error && <ErrorModal error={error} />}
             <BottomModal
                 isVisible={isResultModalVisible}

@@ -110,7 +110,7 @@ const findAndExtract = function (
     const maybeCashuPaymentRequest = CashuUtils.findEncodedCashuPaymentRequest(incomingData)
 
     if(maybeCashuPaymentRequest) {
-        log.trace('Got maybeCashuPaymentRequest', maybeCashuPaymentRequest, 'findAndExtract')
+        log.trace('Got maybeCashuPaymentRequest', {maybeCashuPaymentRequest, caller: 'findAndExtract'})
 
         const encoded = CashuUtils.extractEncodedCashuPaymentRequest(maybeCashuPaymentRequest) // throws
 
@@ -123,7 +123,7 @@ const findAndExtract = function (
     const maybeCashuPaymentRequestPayload = CashuUtils.findEncodedCashuPaymentRequestPayload(incomingData)
 
     if(maybeCashuPaymentRequestPayload) {
-        log.trace('Got maybeCashuPaymentRequestPayload', maybeCashuPaymentRequestPayload, 'findAndExtract')
+        log.trace('Got maybeCashuPaymentRequestPayload', {maybeCashuPaymentRequestPayload, caller: 'findAndExtract'})
 
         const encoded = incomingData // to be aligned with other cases we pass encoded (stringified) JSON payload
 

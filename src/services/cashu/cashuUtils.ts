@@ -100,7 +100,6 @@ const extractEncodedCashuToken = function (maybeToken: string): string {
 
 
 const extractEncodedCashuPaymentRequest = function (maybeRequest: string): string {
-
   log.trace('[extractEncodedCashuPaymentRequest] Extract payment request from', {maybeRequest})
   
   let encodedRequest: string | undefined = undefined

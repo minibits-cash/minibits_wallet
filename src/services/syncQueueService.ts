@@ -22,31 +22,47 @@ const getSyncQueue = function () {
     return _queue as TaskQueue
 }
 
-const addTask = function (taskId: TaskId, task: Promise<any> | any) {
+const addTask = function <T>(
+    taskId: TaskId, 
+    task: Promise<T> | (() => Promise<T>) | any
+): Promise<T> {
     const queue = getSyncQueue()
 
     log.info(`Adding new task ${taskId} to the queue`)
 
-    queue
-    .addTask(
+    const promise = queue.addTask(
         task,
-        taskId, _handleTaskStatusChange)
-    .then((result: WalletTaskResult | TransactionTaskResult) => _handleTaskResult(taskId, result))
-    
+        taskId, 
+        _handleTaskStatusChange
+    ) as Promise<T>
+
+    // Side effect: handle result when it resolves (fire-and-forget)
+    promise.then((result: any) => {
+        _handleTaskResult(taskId, result as WalletTaskResult | TransactionTaskResult)
+    }).catch(() => {})  // Optional: ignore errors here if handled elsewhere
+
+    return promise
 }
 
-
-const addPrioritizedTask = function (taskId: TaskId, task: Promise<any> | any) {
+const addPrioritizedTask = function <T>(
+    taskId: TaskId, 
+    task: Promise<T> | (() => Promise<T>) | any
+): Promise<T> {
     const queue = getSyncQueue()
 
     log.info(`Adding new high priority task ${taskId} to the queue`)
 
-    queue
-    .addPrioritizedTask(
+    const promise = queue.addPrioritizedTask(
         task,
-        taskId, _handleTaskStatusChange)
-    .then((result: WalletTaskResult | TransactionTaskResult) => _handleTaskResult(taskId, result))
-    
+        taskId, 
+        _handleTaskStatusChange
+    ) as Promise<T>
+
+    promise.then((result: any) => {
+        _handleTaskResult(taskId, result as WalletTaskResult | TransactionTaskResult)
+    }).catch(() => {})
+
+    return promise
 }
 
 // retrieve result of wallet transaction by listening to ev_taskFuncion event
