@@ -269,53 +269,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
       }, [route.params?.paymentOption]),
     )
 
-    useEffect(() => {
-      const handleTopupTaskResult = async (result: TransactionTaskResult) => {
-        log.trace('handleTopupTaskResult event handler triggered')
 
-        setIsLoading(false)
-
-        const {status, id} = result.transaction as Transaction
-        setTransactionStatus(status)
-        setTransactionId(id)
-
-        if (result.encodedInvoice) {
-          setInvoiceToPay(result.encodedInvoice)
-        }
-
-        if (result.error) {
-          setResultModalInfo({
-            status: result.transaction?.status as TransactionStatus,
-            title: result.error.params?.message
-              ? result.error.message
-              : translate("topup_failed"),
-            message: result.error.params?.message || result.error.message,
-          })
-          setIsResultModalVisible(true)
-          return
-        }
-
-        if (paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) {
-          toggleNostrDMModal()
-        }
-
-        if (paymentOption === ReceiveOption.LNURL_WITHDRAW) {
-          toggleWithdrawModal()
-        }
-
-        setIsMintSelectorVisible(false)
-      }
-
-      // Subscribe to the 'sendCompleted' event
-      if(isTopupTaskSentToQueue) {
-        EventEmitter.on(`ev_${TOPUP_TASK}_result`, handleTopupTaskResult)
-      }
-
-      // Unsubscribe from the 'sendCompleted' event on component unmount
-      return () => {
-        EventEmitter.off(`ev_${TOPUP_TASK}_result`, handleTopupTaskResult)
-      }
-    }, [isTopupTaskSentToQueue])
 
     useEffect(() => {
       const handlePendingTopupTaskResult = (result: TransactionTaskResult) => {
@@ -476,13 +430,52 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
         0,
       )
 
-      WalletTask.topupQueue(
+      const result = await WalletTask.topupQueueAwaitable(
         mintBalanceToTopup as MintBalance,
         amountToTopupInt,
         unitRef.current,
         memo,
         contactToSendTo,
       )
+
+      await handleTopupTaskResult(result)
+    }
+
+
+    const handleTopupTaskResult = async (result: TransactionTaskResult) => {
+      log.trace('handleTopupTaskResult start')
+
+      setIsLoading(false)
+
+      const {status, id} = result.transaction as Transaction
+      setTransactionStatus(status)
+      setTransactionId(id)
+
+      if (result.encodedInvoice) {
+        setInvoiceToPay(result.encodedInvoice)
+      }
+
+      if (result.error) {
+        setResultModalInfo({
+          status: result.transaction?.status as TransactionStatus,
+          title: result.error.params?.message
+            ? result.error.message
+            : translate("topup_failed"),
+          message: result.error.params?.message || result.error.message,
+        })
+        setIsResultModalVisible(true)
+        return
+      }
+
+      if (paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) {
+        toggleNostrDMModal()
+      }
+
+      if (paymentOption === ReceiveOption.LNURL_WITHDRAW) {
+        toggleWithdrawModal()
+      }
+
+      setIsMintSelectorVisible(false)
     }
 
     const onMintBalanceCancel = async function () {

@@ -114,48 +114,6 @@ useEffect(() => {
 
 
 useEffect(() => {
-  const handlePayReqTaskResult = async (result: TransactionTaskResult) => {
-    log.trace('handlePayReqTaskResult event handler triggered')
-
-    setIsLoading(false)
-    setIsMintSelectorVisible(false)
-
-    const {status, id} = result.transaction as Transaction
-    setTransactionStatus(status) // Should be PENDING
-    setTransactionId(id)
-
-    if (result.encodedCashuPaymentRequest) {
-      setEncodedPaymentRequest(result.encodedCashuPaymentRequest)
-    }
-
-    if (result.error) {
-      setResultModalInfo({
-        status: result.transaction?.status as TransactionStatus,
-        title: result.error.params?.message
-          ? result.error.message
-          : 'Error',
-        message: result.error.params?.message || result.error.message,
-      })
-      setIsResultModalVisible(true)
-      return
-    }
-
-    
-  }
-
-  // Subscribe to the payment request creation event
-  if( isCashuPaymentRequestTaskSentToQueue) {
-    EventEmitter.on(`ev_${CASHU_PAYMENT_REQUEST_TASK}_result`, handlePayReqTaskResult)
-  }
-
-  // Unsubscribe on component unmount
-  return () => {
-    EventEmitter.off(`ev_${CASHU_PAYMENT_REQUEST_TASK}_result`, handlePayReqTaskResult)
-  }
-}, [isCashuPaymentRequestTaskSentToQueue])
-
-
-useEffect(() => {
   const handleReceivedPayReqPayloadTaskResult = (result: TransactionTaskResult) => {
     log.trace('[handleReceivedPayReqPayloadTaskResult] event handler triggered', {transactionId, result})
 
@@ -290,12 +248,14 @@ const onMintBalanceConfirm = async () => {
       0,
     )
 
-    WalletTask.cashuPaymentRequestQueue(
+    const result = await WalletTask.cashuPaymentRequestQueueAwaitable(
       mintBalanceToReceiveTo,
       amountInt,
       unitRef.current,
       memo,      
     )
+
+    await handlePayReqTaskResult(result)
     
   } catch (e: any) {
     setError(e)
@@ -303,6 +263,34 @@ const onMintBalanceConfirm = async () => {
     setIsLoading(false)
     setIsMintSelectorVisible(false)
   }
+}
+
+
+const handlePayReqTaskResult = async (result: TransactionTaskResult) => {
+  log.trace('handlePayReqTaskResult event handler triggered')
+
+  setIsLoading(false)
+  setIsMintSelectorVisible(false)
+
+  const {status, id} = result.transaction as Transaction
+  setTransactionStatus(status) // Should be PENDING
+  setTransactionId(id)
+
+  if (result.encodedCashuPaymentRequest) {
+    setEncodedPaymentRequest(result.encodedCashuPaymentRequest)
+  }
+
+  if (result.error) {
+    setResultModalInfo({
+      status: result.transaction?.status as TransactionStatus,
+      title: result.error.params?.message
+        ? result.error.message
+        : 'Error',
+      message: result.error.params?.message || result.error.message,
+    })
+    setIsResultModalVisible(true)
+    return
+  } 
 }
 
 const resetState = () => {

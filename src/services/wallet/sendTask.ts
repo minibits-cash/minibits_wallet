@@ -149,7 +149,7 @@ export const sendTask = async function (
                         log.trace(`Websocket: proof state updated: ${proofState.state}`)
                         
                         if (proofState.state == CheckStateEnum.SPENT) {
-                            WalletTask.syncStateWithMintQueue({proofsToSync, mintUrl, isPending: true})
+                            await WalletTask.syncStateWithMintQueueAwaitable({proofsToSync, mintUrl, isPending: true})
                             unsub()
                         }
                     },
@@ -165,7 +165,7 @@ export const sendTask = async function (
 
                 poller(
                     `syncStateWithMintPoller-${mintUrl}`,
-                    WalletTask.syncStateWithMintQueue,
+                    WalletTask.syncStateWithMintQueueAwaitable,
                     {
                         interval: 10 * 1000,
                         maxPolls: 3,

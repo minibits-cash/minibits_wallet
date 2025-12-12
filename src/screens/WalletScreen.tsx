@@ -278,7 +278,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     }
     
     
-    const performChecks = useCallback(() => {
+    const performChecks = useCallback(async () => {
 
         if (!isInternetReachable) {
             return
@@ -291,8 +291,9 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             lastMintCheckRef.current = nowInSec
 
             WalletTask.handleInFlightQueue()
-            WalletTask.syncStateWithAllMintsQueue({isPending: true})
             WalletTask.handlePendingQueue()
+            await WalletTask.syncStateWithAllMintsQueueAwaitable({isPending: true})
+            
             // Avoid rate and claim calls enroll or refresh token race
             WalletTask.handleClaimQueue().then(() => {
                 if(userSettingsStore.exchangeCurrency) {

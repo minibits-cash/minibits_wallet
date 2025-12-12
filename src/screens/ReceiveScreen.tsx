@@ -98,56 +98,6 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
 
 
     useEffect(() => {
-        const handleReceiveTaskResult = async (result: TransactionTaskResult) => {
-            log.trace('handleReceiveTaskResult event handler triggered')
-            
-            setIsLoading(false)
-
-            const {error, message, transaction, receivedAmount, mintUrl} = result
-            const {status} = transaction as Transaction
-
-            setTransactionStatus(status)
-            setTransaction(transaction)
-    
-            if (error) {
-                setResultModalInfo({
-                  status,
-                  title: error.params?.message ? error.message : translate("transactionCommon_receiveFailed"),
-                  message: error.params?.message || error.message,
-                })
-            } else {
-                setResultModalInfo({
-                  status,
-                  message,
-                })
-            }
-    
-            if (receivedAmount && receivedAmount > 0) {
-                // accumulate received amount in case of multiple receives in batch
-                setTotalReceived(prev => prev + receivedAmount)
-
-                const currency = getCurrency(unit)
-                setReceivedAmount(`${numbro(totalReceived / currency.precision).format({thousandSeparated: true, mantissa: currency.mantissa})}`)                
-            }    
-            
-            setIsResultModalVisible(true)            
-        }
-
-        
-        if(isReceiveTaskSentToQueue) {
-          EventEmitter.on(`ev_${RECEIVE_TASK}_result`, handleReceiveTaskResult)
-          EventEmitter.on(`ev_${RECEIVE_OFFLINE_PREPARE_TASK}_result`, handleReceiveTaskResult)
-        }        
-
-        // Unsubscribe from the 'sendCompleted' event on component unmount
-        return () => {
-          EventEmitter.off(`ev_${RECEIVE_TASK}_result`, handleReceiveTaskResult)
-          EventEmitter.off(`ev_${RECEIVE_OFFLINE_PREPARE_TASK}_result`, handleReceiveTaskResult)
-        }
-    }, [isReceiveTaskSentToQueue])
-
-
-    useEffect(() => {
       const updateReceivedAmount = async () => {
           log.trace('[updateTotalReceived] start')
 
@@ -228,12 +178,49 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
         const amountToReceiveInt = round(toNumber(amountToReceive) * getCurrency(unit).precision, 0)
         const proofsCount = token!.proofs.length
 
-        WalletTask.receiveQueue(
+        const result = await WalletTask.receiveQueueAwaitable(
           token as Token,
           amountToReceiveInt,
           memo,
           encodedToken as string,
         )
+
+        await handleReceiveTaskResult(result)
+    }
+
+    const handleReceiveTaskResult = async (result: TransactionTaskResult) => {
+      log.trace('handleReceiveTaskResult start')
+      
+      setIsLoading(false)
+
+      const {error, message, transaction, receivedAmount, mintUrl} = result
+      const {status} = transaction as Transaction
+
+      setTransactionStatus(status)
+      setTransaction(transaction)
+
+      if (error) {
+          setResultModalInfo({
+            status,
+            title: error.params?.message ? error.message : translate("transactionCommon_receiveFailed"),
+            message: error.params?.message || error.message,
+          })
+      } else {
+          setResultModalInfo({
+            status,
+            message,
+          })
+      }
+
+      if (receivedAmount && receivedAmount > 0) {
+          // accumulate received amount in case of multiple receives in batch
+          setTotalReceived(prev => prev + receivedAmount)
+
+          const currency = getCurrency(unit)
+          setReceivedAmount(`${numbro(totalReceived / currency.precision).format({thousandSeparated: true, mantissa: currency.mantissa})}`)                
+      }    
+      
+      setIsResultModalVisible(true)            
     }
 
 
@@ -270,12 +257,14 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
 
         const amountToReceiveInt = round(toNumber(amountToReceive) * getCurrency(unit).precision, 0)
         
-        WalletTask.receiveOfflinePrepareQueue(
+        const result = await WalletTask.receiveOfflinePrepareQueueAwaitable(
             token as Token,
             amountToReceiveInt,
             memo,
             encodedToken as string,
         )
+
+        await handleReceiveTaskResult(result)
     }
 
 

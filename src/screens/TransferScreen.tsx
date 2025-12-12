@@ -413,150 +413,6 @@ useEffect(() => {
 }, [])
 
 
-// ====================== TransferScreen – Lightning Payment Result Handler ======================
-
-const handleTransferTaskResult = useCallback(
-  async (result: TransactionTaskResult) => {
-    log.trace('[TransferScreen] handleTransferTaskResult triggered', {
-      result,
-      isInvoiceDonation,
-      donationForName,
-    })
-
-    setIsLoading(false)
-
-    const { transaction, error, message, finalFee } = result
-
-    // ——— Early error: no transaction object yet ———
-    if (!transaction && error) {
-      setTransactionStatus(TransactionStatus.ERROR)
-
-      setResultModalInfo({
-        status: TransactionStatus.ERROR,
-        title: translate('payCommon_failed'),
-        message: error.message || 'Lightning payment failed',
-      });
-
-      toggleResultModal()
-      return
-    }
-
-    // ——— Transaction exists ———
-    if (transaction) {
-      const { status } = transaction
-      setTransactionStatus(status)
-      setTransaction(transaction)
-
-      // ——— Link transaction to LNURL / contact profile ———
-      if (lnurlPayParams?.address) {
-        const profile = contactsStore.findByLud16(lnurlPayParams.address)
-
-        if (profile) {
-          transaction.update({
-            sentTo: profile.nip05 || profile.name || lnurlPayParams.address,
-            profile: JSON.stringify(profile),
-          })
-        } else {
-          transaction.update({
-            sentTo: lnurlPayParams.address,
-          })
-        }
-      }
-
-      // ——— Final fee reporting ———
-      if (finalFee != null) {
-        setFinalFee(finalFee)
-      }
-
-      // ——— Success / Pending / Error message logic ———
-      if (error) {
-        if (status === TransactionStatus.PENDING) {
-          setResultModalInfo({
-            status,
-            message,
-          })
-        } else {
-          setResultModalInfo({
-            status,
-            title: error.params?.message ? error.message : translate('payCommon_failed'),
-            message: error.params?.message || error.message || 'Payment failed',
-          })
-        }
-      } else {
-        // Success path
-        if (isInvoiceDonation && donationForName) {
-          // Update profile donation counter
-          await walletProfileStore.updateName(donationForName);
-
-          setResultModalInfo({
-            status,
-            message: translate('transferScreen_donationSuccessMessage', { donationForName }),
-          })
-        } else {
-          setResultModalInfo({
-            status,
-            message,
-          })
-        }
-      }
-    }
-
-    toggleResultModal()
-  },
-  [
-    isInvoiceDonation,
-    donationForName,
-    lnurlPayParams?.address,
-    setIsLoading,
-    setTransaction,
-    setTransactionStatus,
-    setFinalFee,
-    setResultModalInfo,    
-    translate,
-  
-  ],
-)
-
-// One-time listener with auto-cleanup
-const transferTaskListenerRef = useRef<((r: TransactionTaskResult) => void) | null>(null)
-
-useEffect(() => {
-  if (!isTransferTaskSentToQueue) {
-    if (transferTaskListenerRef.current) {
-      EventEmitter.off(`ev_${TRANSFER_TASK}_result`, transferTaskListenerRef.current)
-      transferTaskListenerRef.current = null
-    }
-    return
-  }
-
-  const eventName = `ev_${TRANSFER_TASK}_result`
-
-  // Remove any stale listener
-  if (transferTaskListenerRef.current) {
-    EventEmitter.off(eventName, transferTaskListenerRef.current)
-  }
-
-  const oneTimeHandler = (result: TransactionTaskResult) => {
-    // Detach immediately — this event fires once per payment
-    EventEmitter.off(eventName, oneTimeHandler)
-    transferTaskListenerRef.current = null
-
-    // Forward to stable handler
-    handleTransferTaskResult(result)
-  }
-
-  transferTaskListenerRef.current = oneTimeHandler
-  EventEmitter.on(eventName, oneTimeHandler)
-
-  return () => {
-    if (transferTaskListenerRef.current) {
-      EventEmitter.off(eventName, transferTaskListenerRef.current)
-      transferTaskListenerRef.current = null
-    }
-  }
-}, [isTransferTaskSentToQueue])
-
-
 const gotoContacts = function () {
   resetState()
   navigation.dispatch(                
@@ -765,7 +621,7 @@ const transfer = async function () {
 
     const amountToTransferInt = round(toNumber(amountToTransfer) * getCurrency(unitRef.current).precision, 0)
 
-    WalletTask.transferQueue(
+    const result = await WalletTask.transferQueueAwaitable(
         mintBalanceToTransferFrom,
         amountToTransferInt,
         unitRef.current,
@@ -776,10 +632,103 @@ const transfer = async function () {
         undefined,
         draftTransactionIdRef.current || undefined
     )
+
+    await handleTransferTaskResult(result)
+
   } catch (e: any) {
     handleError(e)
   }
 }
+
+
+const handleTransferTaskResult = async (result: TransactionTaskResult) => {
+    log.trace('[TransferScreen] handleTransferTaskResult triggered', {
+      isInvoiceDonation,
+      donationForName,
+    })
+
+    setIsLoading(false)
+
+    const { transaction, error, message, finalFee } = result
+
+    // ——— Early error: no transaction object yet ———
+    if (!transaction && error) {
+      setTransactionStatus(TransactionStatus.ERROR)
+
+      setResultModalInfo({
+        status: TransactionStatus.ERROR,
+        title: translate('payCommon_failed'),
+        message: error.message || 'Lightning payment failed',
+      });
+
+      toggleResultModal()
+      return
+    }
+
+    // ——— Transaction exists ———
+    if (transaction) {
+      const { status } = transaction
+      setTransactionStatus(status)
+      setTransaction(transaction)
+
+      // ——— Link transaction to LNURL / contact profile ———
+      if (lnurlPayParams?.address) {
+        const profile = contactsStore.findByLud16(lnurlPayParams.address)
+
+        if (profile) {
+          transaction.update({
+            sentTo: profile.nip05 || profile.name || lnurlPayParams.address,
+            profile: JSON.stringify(profile),
+          })
+        } else {
+          transaction.update({
+            sentTo: lnurlPayParams.address,
+          })
+        }
+      }
+
+      // ——— Final fee reporting ———
+      if (finalFee != null) {
+        setFinalFee(finalFee)
+      }
+
+      // ——— Success / Pending / Error message logic ———
+      if (error) {
+        if (status === TransactionStatus.PENDING) {
+          setResultModalInfo({
+            status,
+            message,
+          })
+        } else {
+          setResultModalInfo({
+            status,
+            title: error.params?.message ? error.message : translate('payCommon_failed'),
+            message: error.params?.message || error.message || 'Payment failed',
+          })
+        }
+      } else {
+        // Success path
+        if (isInvoiceDonation && donationForName) {
+          // Update profile donation counter
+          await walletProfileStore.updateName(donationForName);
+
+          setResultModalInfo({
+            status,
+            message: translate('transferScreen_donationSuccessMessage', { donationForName }),
+          })
+        } else {
+          setResultModalInfo({
+            status,
+            message,
+          })
+        }
+      }
+    }
+
+    toggleResultModal()
+}
+
+
 
 const increaseProofsCounterAndRetry = async function () {
   try {

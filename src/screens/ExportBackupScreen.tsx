@@ -139,9 +139,9 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
     await notifee.openNotificationSettings()        
   }
   
-  const toggleResultModal = () => {
+  const toggleResultModal = async () => {
       setIsResultModalVisible(previousState => !previousState)
-      WalletTask.syncStateWithAllMintsQueue({isPending: true})
+      await WalletTask.syncStateWithAllMintsQueueAwaitable({isPending: true})
   }     
   
   const toggleNotificationModal = () =>

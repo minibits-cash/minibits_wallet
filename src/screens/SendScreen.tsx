@@ -453,116 +453,6 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     }, [isInternetReachable])
 
 
-    // ====================== 1. Send Task Result Listener ======================
-
-    const handleSendTaskResult = useCallback(
-        async (result: TransactionTaskResult) => {
-            log.trace('[SendScreen] handleSendTaskResult triggered', result)
-
-            setIsLoading(false)
-
-            const { transaction, error, encodedTokenToSend } = result
-
-            // Update transaction state
-            if (transaction) {
-            setTransactionStatus(transaction.status)
-            setTransaction(transaction)
-            setTransactionId(transaction.id)
-
-            // Link transaction to Cashu payment request + contacts (only for Cashu PR flow)
-            if (
-                paymentOption === SendOption.PAY_CASHU_PAYMENT_REQUEST &&
-                decodedCashuPaymentRequest?.id &&
-                encodedCashuPaymentRequest
-            ) {
-                transaction.update({
-                    paymentId: decodedCashuPaymentRequest.id,
-                    paymentRequest: encodedCashuPaymentRequest,
-                    profile: contactToSendFrom ? JSON.stringify(contactToSendFrom) : undefined,
-                    sentTo: contactToSendTo
-                        ? contactToSendTo.nip05 || contactToSendTo.name || null
-                        : null,
-                    sentFrom: contactToSendFrom
-                        ? contactToSendFrom.nip05 || contactToSendFrom.name || null
-                        : null,
-                })
-            }
-            }
-
-            // Save token if present (e.g. for manual copy/share)
-            if (encodedTokenToSend) {
-                setEncodedTokenToSend(encodedTokenToSend);
-            }
-
-            // ——— Error Handling ———
-            if (error || !transaction) {
-                const message = error?.params?.message || error?.message || 'Unknown error';
-                setResultModalInfo({
-                    status: (transaction?.status || TransactionStatus.ERROR) as TransactionStatus,
-                    title: error?.params?.message ? error.message : 'Send failed',
-                    message,
-                })
-                setIsResultModalVisible(true)
-                return;
-            }
-
-            // ——— Success Path ———
-            setIsMintSelectorVisible(false);
-
-            if (paymentOption === SendOption.SEND_TOKEN) {
-                toggleNostrDMModal()
-            }
-
-            if (paymentOption === SendOption.PAY_CASHU_PAYMENT_REQUEST) {
-                if (relaysToShareTo.length > 0) {
-                    toggleNostrDMModal()
-                } else if (postEndpointUrl) {
-                    togglePostModal()
-                }
-            }
-        },
-        [
-            isSendTaskSentToQueue,
-            encodedCashuPaymentRequest,
-            decodedCashuPaymentRequest
-        ],
-    )
-
-    const sendTaskListenerRef = useRef<((r: TransactionTaskResult) => void) | null>(null);
-
-    useEffect(() => {
-        if (!isSendTaskSentToQueue) {
-            if (sendTaskListenerRef.current) {
-                EventEmitter.off(`ev_${SEND_TASK}_result`, sendTaskListenerRef.current)
-                sendTaskListenerRef.current = null
-            }
-            return
-        }
-
-        const eventName = `ev_${SEND_TASK}_result`
-
-        // Remove any previous
-        if (sendTaskListenerRef.current) {
-            EventEmitter.off(eventName, sendTaskListenerRef.current);
-        }
-
-        const oneTimeHandler = (result: TransactionTaskResult) => {
-            EventEmitter.off(eventName, oneTimeHandler)
-            sendTaskListenerRef.current = null
-            handleSendTaskResult(result)
-        }
-
-        sendTaskListenerRef.current = oneTimeHandler
-        EventEmitter.on(eventName, oneTimeHandler)
-
-        return () => {
-            if (sendTaskListenerRef.current) {
-                EventEmitter.off(eventName, sendTaskListenerRef.current);
-                sendTaskListenerRef.current = null
-            }
-        }
-    }, [handleSendTaskResult])
-
     // ====================== 2. Sync State Result Listener ======================
 
     const handleSyncStateResult = useCallback(
@@ -873,7 +763,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
         setIsSendTaskSentToQueue(true)
 
-        WalletTask.sendQueue(
+        const result = await WalletTask.sendQueueAwaitable(
             mintBalanceToSendFrom as MintBalance,
             amountToSendInt,
             unitRef.current,
@@ -882,10 +772,76 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             p2pk,
             draftTransactionIdRef.current || undefined
         )
+
+        await handleSendTaskResult(result)
     }
 
 
- 
+    const handleSendTaskResult = async (result: TransactionTaskResult) => {
+            log.trace('[SendScreen] handleSendTaskResult start')
+
+            setIsLoading(false)
+
+            const { transaction, error, encodedTokenToSend } = result
+
+            // Update transaction state
+            if (transaction) {
+            setTransactionStatus(transaction.status)
+            setTransaction(transaction)
+            setTransactionId(transaction.id)
+
+            // Link transaction to Cashu payment request + contacts (only for Cashu PR flow)
+            if (
+                paymentOption === SendOption.PAY_CASHU_PAYMENT_REQUEST &&
+                decodedCashuPaymentRequest?.id &&
+                encodedCashuPaymentRequest
+            ) {
+                transaction.update({
+                    paymentId: decodedCashuPaymentRequest.id,
+                    paymentRequest: encodedCashuPaymentRequest,
+                    profile: contactToSendFrom ? JSON.stringify(contactToSendFrom) : undefined,
+                    sentTo: contactToSendTo
+                        ? contactToSendTo.nip05 || contactToSendTo.name || null
+                        : null,
+                    sentFrom: contactToSendFrom
+                        ? contactToSendFrom.nip05 || contactToSendFrom.name || null
+                        : null,
+                })
+            }
+            }
+
+            // Save token if present (e.g. for manual copy/share)
+            if (encodedTokenToSend) {
+                setEncodedTokenToSend(encodedTokenToSend);
+            }
+
+            // ——— Error Handling ———
+            if (error || !transaction) {
+                const message = error?.params?.message || error?.message || 'Unknown error';
+                setResultModalInfo({
+                    status: (transaction?.status || TransactionStatus.ERROR) as TransactionStatus,
+                    title: error?.params?.message ? error.message : 'Send failed',
+                    message,
+                })
+                setIsResultModalVisible(true)
+                return;
+            }
+
+            // ——— Success Path ———
+            setIsMintSelectorVisible(false);
+
+            if (paymentOption === SendOption.SEND_TOKEN) {
+                toggleNostrDMModal()
+            }
+
+            if (paymentOption === SendOption.PAY_CASHU_PAYMENT_REQUEST) {
+                if (relaysToShareTo.length > 0) {
+                    toggleNostrDMModal()
+                } else if (postEndpointUrl) {
+                    togglePostModal()
+                }
+            }
+        }
 
 
     const increaseProofsCounterAndRetry = async function () {

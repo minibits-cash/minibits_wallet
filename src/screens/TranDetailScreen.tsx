@@ -330,7 +330,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                   transaction={transaction}
                   isDataParsable={isDataParsable}
                   mint={mint}
-                  colorScheme={colorScheme}
+                  colorScheme={colorScheme as 'dark' | 'light'}
                   navigation={navigation}
                 />
               )}
@@ -339,7 +339,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                   transaction={transaction}
                   isDataParsable={isDataParsable}
                   mint={mint}
-                  colorScheme={colorScheme}
+                  colorScheme={colorScheme as 'dark' | 'light'}
                   navigation={navigation}
                 />
               )}
@@ -348,7 +348,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                   transaction={transaction}
                   isDataParsable={isDataParsable}                  
                   mint={mint}
-                  colorScheme={colorScheme}
+                  colorScheme={colorScheme as 'dark' | 'light'}
                 />
               )}
               {transaction.type === TransactionType.TOPUP && (
@@ -356,7 +356,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                   transaction={transaction}
                   isDataParsable={isDataParsable}
                   mint={mint}
-                  colorScheme={colorScheme}
+                  colorScheme={colorScheme as 'dark' | 'light'}
                   navigation={navigation}
                 />
               )}
@@ -365,7 +365,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                   transaction={transaction}
                   isDataParsable={isDataParsable}
                   mint={mint}
-                  colorScheme={colorScheme}
+                  colorScheme={colorScheme as 'dark' | 'light'}
                 />
               )}
               {isDataParsable && (
@@ -510,7 +510,6 @@ const ReceiveInfoBlock = function (props: {
     const [profilePicture, setProfilePicture] = useState<string | undefined>()
     const [isRetriable, setIsRetriable] = useState(false)
     const [isCounterIncreaseNeeded, setIsCounterIncreaseNeeded] = useState(false)
-    const [isReceiveTaskSentToQueue, setIsReceiveTaskSentToQueue] = useState<boolean>(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
     const [resultModalInfo, setResultModalInfo] = useState<
       {status: TransactionStatus; message: string} | undefined
@@ -624,53 +623,6 @@ const ReceiveInfoBlock = function (props: {
     }, [])
 
 
-    useEffect(() => {
-        const handleReceiveTaskResult = async (result: TransactionTaskResult) => {
-            log.trace('[handleReceiveTaskResult] event handler triggered')
-            
-            setIsLoading(false)
-
-            if (result.error) {
-                setResultModalInfo({
-                    status: result.transaction?.status as TransactionStatus,
-                    message: result.error.params?.message || result.error.message,
-                })
-            } else {
-
-                const transactionDataUpdate = {
-                    status: TransactionStatus.EXPIRED,                    
-                    message: translate("tranDetailScreen_successRetrieveEcashAfterRetry"),
-                    createdAt: new Date(),
-                }
-        
-                await transactionsStore.updateStatuses(
-                    [transaction.id as number],
-                    TransactionStatus.EXPIRED,
-                    JSON.stringify(transactionDataUpdate),
-                )
-
-                const modalInfo = {
-                    status: result.transaction?.status as TransactionStatus,
-                    message: result.message,
-                }               
-
-                setResultModalInfo(modalInfo)
-            }
-            
-        }
-
-        // Subscribe to the 'receiveTask' event
-        if(isReceiveTaskSentToQueue === true) {
-          EventEmitter.on(`ev_${RECEIVE_TASK}_result`, handleReceiveTaskResult)
-        }        
-
-        // Unsubscribe from the 'receiveTask' event on component unmount
-        return () => {
-          EventEmitter.off(`ev_${RECEIVE_TASK}_result`, handleReceiveTaskResult)
-        }
-    }, [isReceiveTaskSentToQueue])
-
-
     const toggleResultModal = () =>
     setIsResultModalVisible(previousState => !previousState)
 
@@ -703,14 +655,15 @@ const ReceiveInfoBlock = function (props: {
             if(isCounterIncreaseNeeded) {              
               increaseProofsCounter(tokenToRetry)
             }
-            
-            setIsReceiveTaskSentToQueue(true)
-            WalletTask.receiveQueue(
+
+            const result = await WalletTask.receiveQueueAwaitable(
                 tokenToRetry,
                 amountToReceive,
                 memo,
                 transaction.inputToken
             ) 
+
+            await handleReceiveTaskResult(result)
 
         } catch (e: any) {
             setResultModalInfo({
@@ -722,6 +675,40 @@ const ReceiveInfoBlock = function (props: {
             toggleResultModal()
         }
     }
+
+    const handleReceiveTaskResult = async (result: TransactionTaskResult) => {
+      log.trace('[handleReceiveTaskResult] start')
+      
+      setIsLoading(false)
+
+      if (result.error) {
+          setResultModalInfo({
+              status: result.transaction?.status as TransactionStatus,
+              message: result.error.params?.message || result.error.message,
+          })
+      } else {
+
+          const transactionDataUpdate = {
+              status: TransactionStatus.EXPIRED,                    
+              message: translate("tranDetailScreen_successRetrieveEcashAfterRetry"),
+              createdAt: new Date(),
+          }
+  
+          await transactionsStore.updateStatuses(
+              [transaction.id as number],
+              TransactionStatus.EXPIRED,
+              JSON.stringify(transactionDataUpdate),
+          )
+
+          const modalInfo = {
+              status: result.transaction?.status as TransactionStatus,
+              message: result.message,
+          }               
+
+          setResultModalInfo(modalInfo)
+      }
+      
+  }
 
     const onGoBack = () => {
         navigation.goBack()
@@ -935,54 +922,42 @@ const ReceiveOfflineInfoBlock = function (props: {
     
     const isInternetReachable = useIsInternetReachable()
 
-    const [isReceiveOfflineCompleteTaskSentToQueue, setIsReceiveOfflineCompleteTaskSentToQueue] = useState<boolean>(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
     const [resultModalInfo, setResultModalInfo] = useState<
       {status: TransactionStatus; message: string} | undefined
     >()
     const [isLoading, setIsLoading] = useState(false)
 
-    useEffect(() => {
-        const handleReceiveOfflineCompleteTaskResult = async (result: TransactionTaskResult) => {
-            log.trace('handleReceiveOfflineCompleteTaskResult event handler triggered')
-            
-            setIsLoading(false)
-
-            if (result.error) {
-                setResultModalInfo({
-                    status: result.transaction?.status as TransactionStatus,
-                    message: result.error.message,
-                })
-            } else {
-                setResultModalInfo({
-                    status: result.transaction?.status as TransactionStatus,
-                    message: result.message,
-                })
-            }
-            setIsLoading(false)
-            toggleResultModal() 
-        }
-
-        // Subscribe to the 'sendCompleted' event
-        if(isReceiveOfflineCompleteTaskSentToQueue) {
-          EventEmitter.on(`ev_${RECEIVE_OFFLINE_COMPLETE_TASK}_result`, handleReceiveOfflineCompleteTaskResult)
-        }        
-
-        // Unsubscribe from the 'sendCompleted' event on component unmount
-        return () => {
-            EventEmitter.off(`ev_${RECEIVE_OFFLINE_COMPLETE_TASK}_result`, handleReceiveOfflineCompleteTaskResult)
-        }
-    }, [isReceiveOfflineCompleteTaskSentToQueue])
 
     // MVP implementaition
     const toggleResultModal = () =>
     setIsResultModalVisible(previousState => !previousState)
 
     const receiveOfflineComplete = async function () {
-        setIsLoading(true)
-        setIsReceiveOfflineCompleteTaskSentToQueue(true)   
-        WalletTask.receiveOfflineCompleteQueue(transaction.id!)             
+        setIsLoading(true)   
+        const result = await WalletTask.receiveOfflineCompleteQueueAwaitable(transaction.id!) 
+        await handleReceiveOfflineCompleteTaskResult(result)            
     }
+
+    const handleReceiveOfflineCompleteTaskResult = async (result: TransactionTaskResult) => {
+      log.trace('handleReceiveOfflineCompleteTaskResult start')
+      
+      setIsLoading(false)
+
+      if (result.error) {
+          setResultModalInfo({
+              status: result.transaction?.status as TransactionStatus,
+              message: result.error.message,
+          })
+      } else {
+          setResultModalInfo({
+              status: result.transaction?.status as TransactionStatus,
+              message: result.message,
+          })
+      }
+      setIsLoading(false)
+      toggleResultModal() 
+  }
 
     const onGoBack = () => {
         navigation.goBack()
@@ -1150,45 +1125,10 @@ const SendInfoBlock = function (props: {
     const {proofsStore} = useStores()
 
     const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
-    const [isRevertTaskSentToQueue, setIsRevertTaskSentToQueue] = useState<boolean>(false)
     const [resultModalInfo, setResultModalInfo] = useState<
       {status: TransactionStatus; message: string} | undefined
     >()
     const [isLoading, setIsLoading] = useState(false)  
-    
-    
-    useEffect(() => {
-      const handleRevertTaskResult = async (result: TransactionTaskResult) => {
-          log.trace('handleRevertTaskResult event handler triggered')
-          
-          setIsLoading(false)
-
-          if (result.error) {
-              setResultModalInfo({
-                  status: result.transaction?.status as TransactionStatus,
-                  message: result.error.message,
-              })
-          } else {
-              setResultModalInfo({
-                  status: result.transaction?.status as TransactionStatus,
-                  message: result.message,
-              })
-          }
-          setIsLoading(false)
-          toggleResultModal() 
-      }
-
-      // Subscribe to the 'sendCompleted' event
-      if(isRevertTaskSentToQueue) {
-        EventEmitter.on(`ev_${REVERT_TASK}_result`, handleRevertTaskResult)
-      }        
-
-      // Unsubscribe from the 'sendCompleted' event on component unmount
-      return () => {
-        EventEmitter.off(`ev_${REVERT_TASK}_result`, handleRevertTaskResult)
-      }
-  }, [isRevertTaskSentToQueue])
-  
     
     const toggleResultModal = () =>
       setIsResultModalVisible(previousState => !previousState)    
@@ -1220,15 +1160,35 @@ const SendInfoBlock = function (props: {
           })         
         }
 
-        WalletTask.revertQueue(transaction)
+        const result = await WalletTask.revertQueueAwaitable(transaction)
+        await handleRevertTaskResult(result)
         setIsLoading(true)
-        setIsRevertTaskSentToQueue(true)
 
       } catch (e: any) {
         setResultModalInfo({status: TransactionStatus.ERROR, message: e.message})
         toggleResultModal()
       }
     }
+
+    const handleRevertTaskResult = async (result: TransactionTaskResult) => {
+      log.trace('[handleRevertTaskResult] start')
+      
+      setIsLoading(false)
+
+      if (result.error) {
+          setResultModalInfo({
+              status: result.transaction?.status as TransactionStatus,
+              message: result.error.message,
+          })
+      } else {
+          setResultModalInfo({
+              status: result.transaction?.status as TransactionStatus,
+              message: result.message,
+          })
+      }
+      setIsLoading(false)
+      toggleResultModal() 
+  }
     
     return (
         <>

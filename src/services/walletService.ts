@@ -51,6 +51,7 @@ export const DEFAULT_DENOMINATION_TARGET = 2
 
 export const MAX_SWAP_INPUT_SIZE = 100
 export const MAX_SYNC_INPUT_SIZE = 200 // 1000 hard mint limit
+export const TASK_QUEUE_TIMEOUT = 30 * 1000
 
 export const TEST_TASK = 'testTask'
 export const SWAP_ALL_TASK = 'swapAllTask'
@@ -63,23 +64,11 @@ export const HANDLE_INFLIGHT_BY_MINT_TASK = 'handleInFlightByMintTask'
 export const HANDLE_RECEIVED_EVENT_TASK = 'handleReceivedEventTask'
 
 type WalletTaskService = {
-    syncStateWithAllMintsQueue: (
-        options: {
-            isPending: boolean
-        }
-    ) => Promise<void>
     syncStateWithAllMintsQueueAwaitable: (
       options: {
           isPending: boolean
       }
   ) => Promise<SyncStateTaskResult>
-    syncStateWithMintQueue: (
-        options: {
-            proofsToSync: Proof[],
-            mintUrl: string, 
-            isPending: boolean
-        }
-    ) => Promise<void>
     syncStateWithMintQueueAwaitable: (
       options: {
           proofsToSync: Proof[],
@@ -101,17 +90,6 @@ type WalletTaskService = {
         requestEvent: NostrEvent
     })   => Promise<void>
     receiveEventsFromRelaysQueue: () => Promise<void>
-    transferQueue: (
-        mintBalanceToTransferFrom: MintBalance,
-        amountToTransfer: number,
-        unit: MintUnit,
-        meltQuote: MeltQuoteResponse,                
-        memo: string,
-        invoiceExpiry: Date,
-        encodedInvoice: string,
-        nwcEvent?: NostrEvent,
-        draftTransactionId?: number
-    ) => Promise<void>
     transferQueueAwaitable: (
       mintBalanceToTransferFrom: MintBalance,
       amountToTransfer: number,
@@ -123,45 +101,21 @@ type WalletTaskService = {
       nwcEvent?: NostrEvent,
       draftTransactionId?: number
   ) => Promise<TransactionTaskResult>
-    receiveQueue: (
-        token: Token,
-        amountToReceive: number,
-        memo: string,
-        encodedToken: string,
-    ) => Promise<void>
     receiveQueueAwaitable: (
       token: Token,
       amountToReceive: number,
       memo: string,
       encodedToken: string,
   ) => Promise<TransactionTaskResult>
-    receiveOfflinePrepareQueue: (
-        token: Token,
-        amountToReceive: number,
-        memo: string,
-        encodedToken: string,
-    ) => Promise<void>
     receiveOfflinePrepareQueueAwaitable: (
       token: Token,
       amountToReceive: number,
       memo: string,
       encodedToken: string,
   ) => Promise<TransactionTaskResult>
-    receiveOfflineCompleteQueue: (        
-        transactionId: number
-    ) => Promise<void>
     receiveOfflineCompleteQueueAwaitable: (        
       transactionId: number
   ) => Promise<TransactionTaskResult>
-    sendQueue: (
-        mintBalanceToSendFrom: MintBalance,
-        amountToSend: number,
-        unit: MintUnit,
-        memo: string,
-        selectedProofs: Proof[],
-        p2pk?: { pubkey: string; locktime?: number; refundKeys?: Array<string> },
-        draftTransactionId?: number
-    ) => Promise<void>
     sendQueueAwaitable: (
       mintBalanceToSendFrom: MintBalance,
       amountToSend: number,
@@ -172,14 +126,6 @@ type WalletTaskService = {
       draftTransactionId?: number
   ) => Promise<TransactionTaskResult>
     swapAllQueue: () => Promise<void>
-    topupQueue: (
-        mintBalanceToTopup: MintBalance,
-        amountToTopup: number,
-        unit: MintUnit,
-        memo: string,
-        contactToSendTo?: Contact,
-        nwcEvent?: NostrEvent
-    ) => Promise<void>
     topupQueueAwaitable: (
       mintBalanceToTopup: MintBalance,
       amountToTopup: number,
@@ -188,21 +134,12 @@ type WalletTaskService = {
       contactToSendTo?: Contact,
       nwcEvent?: NostrEvent
   ) => Promise<TransactionTaskResult>
-    cashuPaymentRequestQueue: (
-        mintBalanceToReceiveTo: MintBalance,
-        amountToRequest: number,
-        unit: MintUnit,
-        memo: string,
-    ) => Promise<void>
     cashuPaymentRequestQueueAwaitable: (
       mintBalanceToReceiveTo: MintBalance,
       amountToRequest: number,
       unit: MintUnit,
       memo: string,
   ) => Promise<TransactionTaskResult>
-    revertQueue: (
-        transaction: Transaction
-    ) => Promise<void>
     revertQueueAwaitable: (
       transaction: Transaction
   ) => Promise<TransactionTaskResult>
@@ -267,36 +204,6 @@ const {
     walletStore,
     nwcStore,
 } = rootStoreInstance
-
-
-const transferQueue = async function (
-    mintBalanceToTransferFrom: MintBalance,
-    amountToTransfer: number,
-    unit: MintUnit,
-    meltQuote: MeltQuoteResponse,
-    memo: string,
-    invoiceExpiry: Date,    
-    encodedInvoice: string,
-    nwcEvent?: NostrEvent,
-    draftTransactionId?: number
-): Promise<void> {
-    const now = new Date().getTime()
-    SyncQueue.addPrioritizedTask(
-        `transferTask-${now}`,
-        async () => await transferTask(
-            mintBalanceToTransferFrom,
-            amountToTransfer,
-            unit,
-            meltQuote,            
-            memo,
-            invoiceExpiry,
-            encodedInvoice,
-            nwcEvent,
-            draftTransactionId
-        )
-    )
-    return
-}
 
 
 const transferQueueAwaitable = function (
@@ -372,47 +279,10 @@ const transferQueueAwaitable = function (
               EventEmitter.off(eventName, handler)
               rejectOnce(new AppError(Err.TIMEOUT_ERROR, 'transferQueue timed out'))
           }
-      }, 15000)
+      }, TASK_QUEUE_TIMEOUT)
   })
 }
 
-
-const receiveQueue = async function (
-    token: Token,
-    amountToReceive: number,
-    memo: string,
-    encodedToken: string,
-): Promise<void> {
-    const now = new Date().getTime()
-    const proofsCount = token.proofs.length
-
-    if(proofsCount > MAX_SWAP_INPUT_SIZE) {
-
-        SyncQueue.addPrioritizedTask(
-            `receiveBatchTask-${now}`,           
-            async () => await receiveBatchTask(
-                token,
-                amountToReceive,
-                memo,
-                encodedToken,
-            )
-        )
-
-    } else {
-
-        SyncQueue.addPrioritizedTask(
-            `receiveTask-${now}`,           
-            async () => await receiveTask(
-                token,
-                amountToReceive,
-                memo,
-                encodedToken,
-            )
-        )
-    }
-
-    return
-}
 
 
 const receiveQueueAwaitable = function (
@@ -483,7 +353,7 @@ const receiveQueueAwaitable = function (
               EventEmitter.off(eventName, handler)
               rejectOnce(new AppError(Err.TIMEOUT_ERROR, 'receiveQueue timed out'))
           }
-      }, 15000)
+      }, TASK_QUEUE_TIMEOUT)
   })
 }
 
@@ -556,28 +426,6 @@ const receiveBatchTask = async function  (
         receivedProofsCount
     }
 }
-    
-
-
-
-const receiveOfflinePrepareQueue = async function (
-    token: Token,
-    amountToReceive: number,    
-    memo: string,
-    encodedToken: string,
-): Promise<void> {
-    const now = new Date().getTime()
-    SyncQueue.addTask(
-        `receiveOfflinePrepareTask-${now}`, 
-        async () => await receiveOfflinePrepareTask(
-            token,
-            amountToReceive,            
-            memo,
-            encodedToken,
-        )
-    )
-    return
-}
 
 
 const receiveOfflinePrepareQueueAwaitable = function (
@@ -643,22 +491,8 @@ const receiveOfflinePrepareQueueAwaitable = function (
               EventEmitter.off(eventName, handler)
               rejectOnce(new AppError(Err.TIMEOUT_ERROR, 'Offline receive prepare timed out'))
           }
-      }, 20000)
+      }, TASK_QUEUE_TIMEOUT)
   })
-}
-
-
-const receiveOfflineCompleteQueue = async function (
-    transactionId: number
-): Promise<void> {
-    const now = new Date().getTime()
-    SyncQueue.addTask(
-        `receiveOfflineCompleteTask-${now}`,             
-        async () => await receiveOfflineCompleteTask(
-            transactionId            
-        )
-    )
-    return
 }
 
 
@@ -716,35 +550,10 @@ const receiveOfflineCompleteQueueAwaitable = function (
               EventEmitter.off(eventName, handler)
               rejectOnce(new AppError(Err.TIMEOUT_ERROR, 'Offline receive complete timed out'))
           }
-      }, 20000)
+      }, TASK_QUEUE_TIMEOUT)
   })
 }
 
-
-const sendQueue = async function (
-    mintBalanceToSendFrom: MintBalance,
-    amountToSend: number,
-    unit: MintUnit,
-    memo: string,
-    selectedProofs: Proof[],
-    p2pk?: { pubkey: string; locktime?: number; refundKeys?: Array<string> },
-    draftTransactionId?: number
-): Promise<void> {
-    const now = new Date().getTime()
-    SyncQueue.addPrioritizedTask(
-        `sendTask-${now}`,            
-        async () => await sendTask(
-            mintBalanceToSendFrom,
-            amountToSend,
-            unit,
-            memo,
-            selectedProofs,
-            p2pk,
-            draftTransactionId  
-        )
-    )
-    return
-}
 
 
 const sendQueueAwaitable = function (
@@ -817,7 +626,7 @@ const sendQueueAwaitable = function (
         EventEmitter.off(eventName, handler)
         rejectOnce(new AppError(Err.TIMEOUT_ERROR, 'sendQueue timed out'))
       }
-    }, 10000)
+    }, TASK_QUEUE_TIMEOUT)
   })
 }
 
@@ -947,32 +756,6 @@ const swapAllTask = async function (): Promise<WalletTaskResult> {
     }
 }
 
-    
-
-
-const topupQueue = async function (
-    mintBalanceToTopup: MintBalance,
-    amountToTopup: number,
-    unit: MintUnit,
-    memo: string,
-    contactToSendTo?: Contact,
-    nwcEvent?: NostrEvent
-): Promise<void> {
-    const now = new Date().getTime()
-    SyncQueue.addPrioritizedTask(
-        `topupTask-${now}`,            
-        async () => await topupTask(
-            mintBalanceToTopup,
-            amountToTopup,
-            unit,
-            memo,
-            contactToSendTo,
-            nwcEvent
-        )
-    )
-    return
-}
-
 
 const topupQueueAwaitable = function (
   mintBalanceToTopup: MintBalance,
@@ -1036,28 +819,8 @@ const topupQueueAwaitable = function (
               EventEmitter.off(eventName, handler)
               rejectOnce(new AppError(Err.TIMEOUT_ERROR, 'Topup task timed out'))
           }
-      }, 15000)
+      }, TASK_QUEUE_TIMEOUT)
   })
-}
-
-
-const cashuPaymentRequestQueue = async function (
-    mintBalanceToReceiveTo: MintBalance,
-    amountToRequest: number,
-    unit: MintUnit,
-    memo: string,
-): Promise<void> {
-    const now = new Date().getTime()
-    SyncQueue.addPrioritizedTask(
-        `cashuPaymentRequestTask-${now}`,            
-        async () => await cashuPaymentRequestTask(
-            mintBalanceToReceiveTo,
-            amountToRequest,
-            unit,
-            memo,
-        )
-    )
-    return
 }
 
 
@@ -1119,21 +882,8 @@ const cashuPaymentRequestQueueAwaitable = function (
               EventEmitter.off(eventName, handler)
               rejectOnce(new AppError(Err.TIMEOUT_ERROR, 'Cashu payment request timed out'))
           }
-      }, 10000)
+      }, TASK_QUEUE_TIMEOUT)
   })
-}
-
-
-
-const revertQueue = async function (
-    transaction: Transaction
-): Promise<void> {
-    const now = new Date().getTime()
-    SyncQueue.addPrioritizedTask(
-        `revertTask-${now}`,            
-        async () => await revertTask(transaction)
-    )
-    return
 }
 
 
@@ -1187,21 +937,8 @@ const revertQueueAwaitable = function (
               EventEmitter.off(eventName, handler)
               rejectOnce(new AppError(Err.TIMEOUT_ERROR, 'Revert task timed out'))
           }
-      }, 15000)
+      }, TASK_QUEUE_TIMEOUT)
   })
-}
-
-
-
-const syncStateWithAllMintsQueue = async function (options: {
-    isPending: boolean
-}): Promise<void> {
-    const { isPending } = options
-    const now = new Date().getTime()
-    return SyncQueue.addPrioritizedTask(
-        `syncSpendableStateTask-${now}`,            
-        async () => await syncStateWithAllMintsTask({ isPending })
-    )    
 }
 
 
@@ -1357,24 +1094,6 @@ const syncStateWithAllMintsTask = async function (options: {
 /*
  * Pass syncStateWithMintTask function into synchronous queue for safe processing without race conditions on proof counters. * 
  */
-const syncStateWithMintQueue = async function (    
-    options: {
-        proofsToSync: Proof[],
-        mintUrl: string,
-        isPending: boolean
-    }  
-): Promise<void> {
-    const {mintUrl, isPending, proofsToSync} = options
-    log.trace('[syncStateWithMintQueue] start', {mintUrl, isPending, proofsToSyncCount: proofsToSync.length})
-    const now = new Date().getTime()
-
-    return SyncQueue.addTask(
-        `syncStateWithMintTask-${now}`,            
-        async () => await syncStateWithMintTask({proofsToSync, mintUrl, isPending})
-    )    
-}
-
-
 const syncStateWithMintQueueAwaitable = function (
   options: {
       proofsToSync: Proof[]
@@ -3227,9 +2946,7 @@ const testQueue = async () => {
 
 
 export const WalletTask: WalletTaskService = {    
-    syncStateWithAllMintsQueue,
     syncStateWithAllMintsQueueAwaitable,
-    syncStateWithMintQueue,
     syncStateWithMintQueueAwaitable,
     syncStateWithMintTask,
     handleInFlightQueue,    
@@ -3237,22 +2954,14 @@ export const WalletTask: WalletTaskService = {
     handleClaimQueue,
     handleNwcRequestQueue,
     receiveEventsFromRelaysQueue,
-    receiveQueue,
     receiveQueueAwaitable,       
-    receiveOfflinePrepareQueue,
     receiveOfflinePrepareQueueAwaitable,
-    receiveOfflineCompleteQueue,
     receiveOfflineCompleteQueueAwaitable, 
-    sendQueue,
     sendQueueAwaitable,
-    swapAllQueue,
-    transferQueue,    
+    swapAllQueue,   
     transferQueueAwaitable,      
-    topupQueue,
     topupQueueAwaitable,
-    cashuPaymentRequestQueue,
     cashuPaymentRequestQueueAwaitable,
-    revertQueue,
     revertQueueAwaitable,
     testQueue,
     recoverMintQuote,
