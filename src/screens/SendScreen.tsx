@@ -98,6 +98,8 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
     const unitRef = useRef<MintUnit>('sat')
     const draftTransactionIdRef = useRef<number>(null)
+    const isOnlineRef = useRef<boolean>(false)
+
     
     const [paymentOption, setPaymentOption] = useState<SendOption>(SendOption.SHOW_TOKEN)
     const [encodedTokenToSend, setEncodedTokenToSend] = useState<string | undefined>()
@@ -121,7 +123,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     const [isLoading, setIsLoading] = useState(false)
 
     const [isMintSelectorVisible, setIsMintSelectorVisible] = useState(false)
-    const [isOfflineSend, setIsOfflineSend] = useState(false)
+    const [isOnline, setIsOnline] = useState(false)
     const [isCashuPrWithAmount, setIsCashuPrWithAmount] = useState(false)
     const [isCashuPrWithDesc, setIsCashuPrWithDesc] = useState(false)   
     const [isNostrDMModalVisible, setIsNostrDMModalVisible] = useState(false)
@@ -432,32 +434,32 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     }, [route.params?.scannedPubkey])
     
 
-    
     useEffect(() => {
-        log.trace('Offline send effect', { isInternetReachable })
-    
-        if (isInternetReachable === true) {
-            // We are definitively online → force online mode
-            log.trace('[Online send] Switching to online mode')
-            setIsOfflineSend(false)
-            setAvailableMintBalances([]) // or whatever your online default is
-            setInfo('') // clear any offline-specific messages
-        } else if (isInternetReachable === false) {
-            // We are definitively offline → enable offline send
-            log.trace('[Offline send] Enabling offline mode')
-    
-            const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(1, unitRef.current)
-    
-            if (availableBalances.length === 0) {
-                setInfo('Not enough funds to send')
-                return // keep isOfflineSend false or as-is
+        if (isInternetReachable !== null) {
+            // Update ref immediately (for use in handlers/async)
+            isOnlineRef.current = isInternetReachable
+        
+            // Only update state if it's a real change → triggers re-render
+            if (isInternetReachable !== isOnline) {
+                log.trace('[isOnline] status change', {isInternetReachable})
+                setIsOnline(isInternetReachable)
+
+                if(isInternetReachable) {
+                    setAvailableMintBalances([]) // or whatever your online default is
+                    setInfo('') // clear any offline-specific messages
+                } else {
+                    const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(1, unitRef.current)
+            
+                    if (availableBalances.length === 0) {
+                        setInfo('Not enough funds to send')
+                        return // keep isOfflineSend false or as-is
+                    }
+                    setAvailableMintBalances(availableBalances)
+                }
             }
-    
-            setIsOfflineSend(true)
-            setAvailableMintBalances(availableBalances)
         }
-        // If isInternetReachable is null (still checking), do nothing
     }, [isInternetReachable])
+
 
 
     // ====================== 2. Sync State Result Listener ======================
@@ -711,13 +713,13 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         const { amount: amountToSendInt } = validateAndProcessAmount(amountToSend, unitRef.current)
         const exactMatchProofs: Proof[] = []
 
-        if(isOfflineSend) {
+        if(!isOnlineRef.current) {
             const availableProofs = proofsStore.getByMint(mintBalanceToSendFrom.mintUrl, { isPending: false, unit: unitRef.current });
             const autoSelectedProofs = CashuUtils.getProofsToSend(amountToSendInt, availableProofs)
             const autoSelectedAmount = CashuUtils.getProofsAmount(autoSelectedProofs)
             const isExactMatch = autoSelectedAmount === amountToSendInt
 
-            log.trace("[onMintBalanceConfirm]", {isOfflineSend, amountToSendInt, autoSelectedAmount, isExactMatch})
+            log.trace("[onMintBalanceConfirm]", {isOnline: isOnlineRef.current, amountToSendInt, autoSelectedAmount, isExactMatch})
 
             // setSelectedProofs(autoSelectedProofs) // 
 
@@ -1253,9 +1255,9 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     selectedMintBalance={mintBalanceToSendFrom as MintBalance}
                     unit={unitRef.current}
                     title={translate("sendScreen_sendFromMintBalanceSel")}
-                    confirmTitle={isOfflineSend 
-                      ? translate("sendScreen_sendOfflineBtn") 
-                      : translate("sendScreen_createTokenBtn")
+                    confirmTitle={isOnline 
+                      ? translate("sendScreen_createTokenBtn")
+                      : translate("sendScreen_sendOfflineBtn") 
                     }                    
                     secondaryConfirmTitle='Lock'                    
                     onMintBalanceSelect={onMintBalanceSelect}

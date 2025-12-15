@@ -48,17 +48,17 @@ function App() {
 
   // === Only safe, always-run startup logic inside useInitialRootStore ===
   const { rehydrated } = useInitialRootStore(() => {
-    log.trace('[useInitialRootStore]', 'Root store rehydrated')
+    log.trace('[App]', 'Root store rehydrated')
 
     // User authentication (biometrics / PIN)
     if (userSettingsStore.isAuthOn) {
       KeyChain.getOrCreateAuthToken(userSettingsStore.isAuthOn)
         .then((authToken) => {
           setIsUserAuthenticated(true)
-          log.trace('[useInitialRootStore]', { authToken })
+          log.trace('[App]', { authToken })
         })
         .catch((e: any) => {
-          log.warn('[useInitialRootStore]', 'Authentication failed', { message: e.message })
+          log.warn('[App]', 'User authentication failed', { message: e.message })
 
           if (e && typeof e === 'object') {
             const errString = JSON.stringify(e)
@@ -91,36 +91,44 @@ function App() {
       isDeviceAuthenticated || 
       !rehydrated
     ) {
+      log.trace('[App] Not yet ready for device auth check')
       return
     }
 
-    if (isInternetReachable === true && authStore.isRefreshTokenExpired) {
-      log.trace('[App] Network confirmed online → attempting device re-enrollment')
+    if (isInternetReachable === true) {
 
-      ;(async () => {
-        try {
-          const walletKeys: WalletKeys = await walletStore.getCachedWalletKeys()
-          const deviceId = walletProfileStore.device
+      if(authStore.isRefreshTokenExpired) {
+        log.trace('[App] Network is online and refresh token expired → attempting device re-enrollment')
 
-          await authStore.clearTokens()
-          await authStore.enrollDevice(walletKeys.NOSTR, deviceId)
-
-          log.trace('[App] Device re-enrollment successful')
-        } catch (e: any) {
-          if (e.name !== Err.NOTFOUND_ERROR) {
-            log.error('[App] Device re-enrollment failed', { message: e.message })
-          } else {
-            // Expected on fresh install
-            userSettingsStore.setIsOnboarded(false)
+        ;(async () => {
+          try {
+            const walletKeys: WalletKeys = await walletStore.getCachedWalletKeys()
+            const deviceId = walletProfileStore.device
+  
+            await authStore.clearTokens()
+            await authStore.enrollDevice(walletKeys.NOSTR, deviceId)
+  
+            log.trace('[App] Device re-enrollment successful')
+          } catch (e: any) {
+            if (e.name !== Err.NOTFOUND_ERROR) {
+              log.error('[App] Device re-enrollment failed', { message: e.message })
+            } else {
+              // Expected on fresh install
+              userSettingsStore.setIsOnboarded(false)
+            }
+          } finally {
+            // Always unblock the app
+            setIsDeviceAuthenticated(true)
           }
-        } finally {
-          // Always unblock the app
-          setIsDeviceAuthenticated(true)
-        }
-      })()
+        })()
+      } else {
+        log.trace('[App] Network is online and refresh token valid → device authenticated')
+        setIsDeviceAuthenticated(true)
+      }
+      
     } else {
       // Confirmed offline → skip re-enrollment, proceed safely
-      log.trace('[App] Network confirmed offline → skipping re-enrollment')
+      log.trace('[App] Network confirmed offline → skipping refresh token check, device authenticated')
       setIsDeviceAuthenticated(true)
     }
   }, [

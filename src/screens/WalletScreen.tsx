@@ -78,7 +78,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     const appState = useRef(AppState.currentState)
     const lastMintCheckRef = useRef<number>(0)
     const lastBackgroundTimestampRef = useRef<number>(0)
-    const isOnline = useRef<boolean>(true)
+    const isOnlineRef = useRef<boolean>(false)
     const isInternetReachable = useIsInternetReachable()
     const groupedMints: MintsByUnit[] = mintsStore.groupedByUnit
 
@@ -107,10 +107,19 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     const [updateDescription, setUpdateDescription] = useState<string>('')
     const [updateSize, setUpdateSize] = useState<string>('')
     const [isNativeUpdateAvailable, setIsNativeUpdateAvailable] = useState<boolean>(false)
-
+    const [isOnline, setIsOnline] = useState(false)
+    
     useEffect(() => {
-        log.trace('on change', {isInternetReachable})
-        isOnline.current = isInternetReachable
+      if (isInternetReachable !== null) {
+        // Update ref immediately (for use in handlers/async)
+        isOnlineRef.current = isInternetReachable
+    
+        // Only update state if it's a real change → triggers re-render
+        if (isInternetReachable !== isOnline) {
+          log.trace('[Online] status change', {isInternetReachable})
+          setIsOnline(isInternetReachable)
+        }
+      }
     }, [isInternetReachable])
 
     // On app start
@@ -153,7 +162,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         } 
         
         setTimeout(() => {
-            if(!isOnline.current) {
+            if(!isOnlineRef.current) {
                 return
             }
             checkForUpdate()
@@ -176,7 +185,10 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                 nwcStore.resetDailyLimits()
             }
             
-            if(!isOnline.current) { return }
+            if(!isOnlineRef.current) { 
+                log.trace('[isOnline] Offline → skipping getInitialData')
+                return 
+            }
             
             if(groupedMints.length === 0) {
                 await addMint()
@@ -201,14 +213,14 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
 
         const handleReceivedEventTaskResult  = async (result: WalletTaskResult) => {
             log.trace('[handleReceivedEventTaskResult]')
-            if(result.error && isOnline.current) {
+            if(result.error && isOnlineRef.current) {
                 handleError(result.error)
             }        
         }
 
         const handleClaimTaskResult  = async (result: WalletTaskResult) => {
             log.trace('[handleClaimTaskResult]')
-            if(result.error && isOnline.current) {
+            if(result.error && isOnlineRef.current) {
                 handleError(result.error)
             }
         }
@@ -286,8 +298,9 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     
     const performChecks = useCallback(async () => {
 
-        if (!isOnline.current) {
-            return
+        if(!isOnlineRef.current) { 
+            log.trace('[isOnline] Offline → skipping performChecks')
+            return 
         }
 
         const nowInSec = getUnixTime(new Date());
@@ -306,7 +319,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                     walletStore.refreshExchangeRate(userSettingsStore.exchangeCurrency!) 
                 }
             }).catch(e => {
-                if(isOnline.current) handleError(e)
+                if(isOnlineRef.current) handleError(e)
             })
             
             // TODO rethink
@@ -319,7 +332,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         }
      
 
-    }, [isOnline.current, userSettingsStore.exchangeCurrency])
+    }, [isOnlineRef.current, userSettingsStore.exchangeCurrency])
     
     
     useFocusEffect(() => {
@@ -641,7 +654,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
 
 
     const HeaderTitle = function (props: any) {
-        if (!isOnline.current) {
+        if (!isOnline) {
             return (
                 <Text
                     tx="commonOffline"
